@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
+import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import AppShell from './components/layout/AppShell.jsx';
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -141,7 +142,7 @@ export default function App() {
 
   const navigateTo = (path) => {
     window.history.pushState({}, '', path);
-    setCurrentPath(path);
+    setCurrentPath(path.split('?')[0]);
   };
 
   const handleRefresh = async () => {
@@ -163,17 +164,18 @@ export default function App() {
   const isLoginRoute = currentPath === '/login';
 
   // PS-3 Vault route:
-  // - DEV mode:
-  //   - /vault?preview=true: Mở Vault UI kèm thanh kịch bản kiểm thử (DEV toolbar)
-  //   - /vault: Mở Vault UI sạch (clean view, không hiển thị DEV toolbar)
-  // - Production mode: Không cho phép preview; không mở bypass auth khi chưa có session thật.
   const isVaultRoute = currentPath === '/vault' || currentPath === '/vaults';
 
-  if (isDev && isVaultRoute) {
+  // PS-4 DMS route:
+  const isDmsRoute = currentPath === '/dms';
+
+  if (isDev && (isVaultRoute || isDmsRoute)) {
+    const activeTab = isDmsRoute ? 'dms' : 'vault';
+
     return (
       <div className="lv-app-root">
         <AppShell
-          currentTab="vault"
+          currentTab={activeTab}
           lang={lang}
           onToggleLang={setLang}
           onLogout={() => navigateTo('/login')}
@@ -182,15 +184,26 @@ export default function App() {
           onNavigateTab={(tab) => {
             if (tab === 'vault') {
               navigateTo(hasPreviewParam ? '/vault?preview=true' : '/vault');
+            } else if (tab === 'dms') {
+              navigateTo(hasPreviewParam ? '/dms?preview=true' : '/dms');
             }
           }}
         >
-          <VaultOverviewPage
-            lang={lang}
-            showDevToolbar={hasPreviewParam}
-            onNavigateToLogin={() => navigateTo('/login')}
-            onRefreshTrigger={refreshTrigger}
-          />
+          {isDmsRoute ? (
+            <DMSOverviewPage
+              lang={lang}
+              showDevToolbar={hasPreviewParam}
+              onNavigateToLogin={() => navigateTo('/login')}
+              onRefreshTrigger={refreshTrigger}
+            />
+          ) : (
+            <VaultOverviewPage
+              lang={lang}
+              showDevToolbar={hasPreviewParam}
+              onNavigateToLogin={() => navigateTo('/login')}
+              onRefreshTrigger={refreshTrigger}
+            />
+          )}
         </AppShell>
       </div>
     );

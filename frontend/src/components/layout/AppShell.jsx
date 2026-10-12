@@ -23,7 +23,7 @@ const NAVIGATION_REGISTRY = [
     jiraTicket: 'PS-4',
     labelVi: 'Giám sát hoạt động (DMS)',
     labelEn: "Dead Man's Switch (DMS)",
-    status: 'PLANNED',
+    status: 'ACTIVE',
   },
   {
     id: 'assets',
