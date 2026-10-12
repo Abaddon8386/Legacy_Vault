@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
+import LoginPage from './pages/auth/LoginPage.jsx';
 
-function NotFoundFallback({ currentPath, onNavigateToRegister }) {
-  const isLogin = currentPath === '/login';
-
+function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
     <main
       style={{
@@ -46,7 +45,7 @@ function NotFoundFallback({ currentPath, onNavigateToRegister }) {
           }}
           aria-hidden="true"
         >
-          {isLogin ? '✦' : '404'}
+          404
         </div>
 
         <h1
@@ -58,7 +57,7 @@ function NotFoundFallback({ currentPath, onNavigateToRegister }) {
             fontWeight: 600,
           }}
         >
-          {isLogin ? 'Trang chưa khả dụng' : 'Không tìm thấy trang'}
+          Không tìm thấy trang
         </h1>
 
         <p
@@ -69,33 +68,54 @@ function NotFoundFallback({ currentPath, onNavigateToRegister }) {
             margin: '0 0 28px',
           }}
         >
-          {isLogin
-            ? 'Cổng đăng nhập hiện chưa mở. Vui lòng bắt đầu tại trang Đăng ký tài khoản.'
-            : 'Đường dẫn bạn yêu cầu không tồn tại hoặc chưa được kích hoạt trong hệ thống.'}
+          Đường dẫn bạn yêu cầu không tồn tại hoặc chưa được kích hoạt trong hệ thống.
         </p>
 
-        <button
-          type="button"
-          onClick={onNavigateToRegister}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            backgroundColor: '#c5a059',
-            color: '#ffffff',
-            fontWeight: 600,
-            fontSize: '14px',
-            padding: '12px 26px',
-            borderRadius: '10px',
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s ease',
-          }}
-        >
-          <span>Về trang Đăng ký</span>
-          <span aria-hidden="true">→</span>
-        </button>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onNavigateToRegister}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#c5a059',
+              color: '#ffffff',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span>Về trang Đăng ký</span>
+            <span aria-hidden="true">→</span>
+          </button>
+          <button
+            type="button"
+            onClick={onNavigateToLogin}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#f1ede4',
+              color: '#164639',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: '1px solid #ded9ce',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span>Đến trang Đăng nhập</span>
+          </button>
+        </div>
       </div>
     </main>
   );
@@ -119,17 +139,20 @@ export default function App() {
     setCurrentPath(path);
   };
 
-  // Các route hợp lệ cho PS-1: /register và / (mặc định mở Register)
+  // Các route hợp lệ cho PS-1 & PS-2
   const isRegisterRoute = currentPath === '/register' || currentPath === '/';
+  const isLoginRoute = currentPath === '/login';
 
   return (
     <div className="lv-app-root">
       {isRegisterRoute ? (
-        <RegisterPageHenedo />
+        <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
+      ) : isLoginRoute ? (
+        <LoginPage onNavigateToRegister={() => navigateTo('/register')} />
       ) : (
         <NotFoundFallback
-          currentPath={currentPath}
           onNavigateToRegister={() => navigateTo('/register')}
+          onNavigateToLogin={() => navigateTo('/login')}
         />
       )}
     </div>
