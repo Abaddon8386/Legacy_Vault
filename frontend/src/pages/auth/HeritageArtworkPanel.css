@@ -1,0 +1,24 @@
+/* ==========================================================================
+   HeritageArtworkPanel Stylesheet — LegacyVault (Unified Seamless Artwork)
+   ONE continuous background composition — No cards, no gutters, no borders
+   ========================================================================== */
+
+.heritage-artwork-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  background-color: var(--lv-forest-deep, #082613);
+  overflow: hidden;
+}
+
+.unified-artwork-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+}

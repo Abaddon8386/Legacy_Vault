@@ -1,0 +1,898 @@
+﻿/* ==========================================================================
+   RegisterPageHenedo Stylesheet — LegacyVault
+   Art Direction: Editorial Luxury + Private Sanctuary (Henedo Inspired)
+   Palette: Warm Cream (#F7F5F0), Noble Forest (#143d32), Sand Gold (#C5A059)
+   Motion: Distinct living water wave swells + 800ms staggered page entrance
+   ========================================================================== */
+
+.henedo-page {
+  display: grid;
+  grid-template-columns: 44% 56%;
+  min-height: 100svh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #f7f5f0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  font-family: var(--lv-font-sans);
+}
+
+/* ==========================================================================
+   PAGE ENTRANCE ANIMATION (800ms, Stagger 110ms, runs once on mount)
+   ========================================================================== */
+@keyframes henedoEntranceFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.henedo-entrance-1 {
+  animation: henedoEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 0ms backwards;
+}
+
+.henedo-entrance-2 {
+  animation: henedoEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 110ms backwards;
+}
+
+.henedo-entrance-3 {
+  animation: henedoEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 220ms backwards;
+}
+
+.henedo-entrance-4 {
+  animation: henedoEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 330ms backwards;
+}
+
+.henedo-entrance-5 {
+  animation: henedoEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 440ms backwards;
+}
+
+/* ==========================================================================
+   LEFT REGION: Editorial Sanctuary Story
+   ========================================================================== */
+.henedo-editorial-region {
+  background: linear-gradient(160deg, #164639 0%, #10382d 50%, #0c2b22 100%);
+  color: #f7f6e9;
+  padding: clamp(36px, 4vw, 56px) clamp(28px, 4vw, 52px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid rgba(197, 160, 89, 0.22);
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.editorial-content-wrapper {
+  max-width: 480px;
+  width: 100%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-between;
+}
+
+/* Brand Lockup */
+.henedo-brand-header {
+  margin-bottom: 24px;
+}
+
+.henedo-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.henedo-brand-crest {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1.5px solid #c5a059;
+  background: rgba(197, 160, 89, 0.12);
+  display: grid;
+  place-items: center;
+  color: #c5a059;
+  box-shadow: 0 0 12px rgba(197, 160, 89, 0.15);
+  flex-shrink: 0;
+}
+
+.henedo-brand-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.henedo-brand-name {
+  font-family: var(--lv-font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: #ffffff;
+  line-height: 1.15;
+}
+
+.henedo-brand-tag {
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #d8c292;
+  margin-top: 1px;
+}
+
+/* Editorial Story Content */
+.editorial-story-body {
+  margin: 16px 0;
+}
+
+.henedo-eyebrow-pill {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #d8c292;
+  background: rgba(197, 160, 89, 0.14);
+  border: 1px solid rgba(197, 160, 89, 0.3);
+  padding: 4px 12px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  margin-bottom: 16px;
+}
+
+.editorial-heading {
+  font-family: var(--lv-font-serif);
+  font-size: clamp(28px, 2.8vw, 40px);
+  font-weight: 400;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  white-space: pre-line;
+  margin-bottom: 14px;
+}
+
+.editorial-description {
+  color: #c8d8ce;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+/* Calm Artwork SVG Box with Living Wave Swells */
+.henedo-calm-artwork {
+  width: 100%;
+  height: 140px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(197, 160, 89, 0.3);
+  background: rgba(10, 36, 28, 0.55);
+  margin-bottom: 24px;
+  position: relative;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.calm-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ==========================================================================
+   NOTICEABLE LIVING WATER WAVE SWELLS (Cycle 7.5s - 9s)
+   Distinct harmonic amplitude (25-38px shift, 6-12px rise) visible within 3s
+   ========================================================================== */
+@keyframes henedoWaveGroupBack {
+  0% {
+    transform: translate(0px, 0px) scale(1, 1);
+  }
+  35% {
+    transform: translate(-22px, -6px) scale(1.02, 1.03);
+  }
+  70% {
+    transform: translate(-38px, 4px) scale(0.99, 0.98);
+  }
+  100% {
+    transform: translate(-18px, -8px) scale(1.01, 1.02);
+  }
+}
+
+@keyframes henedoWaveGroupFront {
+  0% {
+    transform: translate(-30px, 0px) scale(1, 1);
+  }
+  40% {
+    transform: translate(-8px, 7px) scale(1.02, 0.97);
+  }
+  75% {
+    transform: translate(14px, -5px) scale(0.98, 1.03);
+  }
+  100% {
+    transform: translate(-10px, 4px) scale(1.01, 0.99);
+  }
+}
+
+@keyframes henedoGoldShimmerMain {
+  0% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 1px rgba(217, 185, 120, 0.2));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(235, 205, 140, 0.7));
+  }
+  100% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 2px rgba(217, 185, 120, 0.3));
+  }
+}
+
+@keyframes henedoGoldShimmerSub {
+  0% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
+
+.calm-svg .hn-wave-group-back {
+  animation: henedoWaveGroupBack 9s ease-in-out infinite alternate;
+  transform-origin: 45% 85%;
+  will-change: transform;
+}
+
+.calm-svg .hn-wave-group-front {
+  animation: henedoWaveGroupFront 7.5s ease-in-out infinite alternate;
+  transform-origin: 50% 90%;
+  will-change: transform;
+}
+
+.calm-svg .hn-gold-main {
+  animation: henedoGoldShimmerMain 5s ease-in-out infinite alternate;
+  will-change: opacity, filter;
+}
+
+.calm-svg .hn-gold-sub {
+  animation: henedoGoldShimmerSub 6s ease-in-out infinite alternate;
+  will-change: opacity;
+}
+
+/* Calm Pillars */
+.henedo-pillars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.henedo-pillar-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #d1ded6;
+}
+
+.pillar-leaf-bullet {
+  color: #c5a059;
+  font-size: 9px;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.editorial-footer {
+  font-size: 11.5px;
+  color: rgba(200, 215, 205, 0.6);
+  border-top: 1px solid rgba(197, 160, 89, 0.15);
+  padding-top: 16px;
+  margin-top: 24px;
+}
+
+/* ==========================================================================
+   RIGHT REGION: Pure Warm-Ivory Form Area
+   ========================================================================== */
+.henedo-form-region {
+  background-color: #ffffff;
+  padding: clamp(36px, 4vw, 56px) clamp(28px, 4vw, 64px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+  box-sizing: border-box;
+  color: #20211f;
+}
+
+.henedo-form-container {
+  max-width: 470px;
+  width: 100%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Topbar */
+.henedo-form-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.henedo-form-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #c5a059;
+}
+
+.henedo-lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #f7f5f0;
+  border: 1px solid #e8e4dc;
+  border-radius: var(--lv-radius-pill, 9999px);
+  padding: 3px;
+  gap: 2px;
+}
+
+.hn-lang-btn {
+  background: transparent;
+  border: none;
+  border-radius: var(--lv-radius-pill, 9999px);
+  color: #747871;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  line-height: 1;
+}
+
+.hn-lang-btn:hover {
+  color: #20211f;
+}
+
+.hn-lang-btn.active {
+  background: #ffffff;
+  color: #164639;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Title & Sub */
+.henedo-form-title {
+  font-family: var(--lv-font-serif);
+  font-size: clamp(26px, 2.5vw, 33px);
+  font-weight: 500;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  color: #1f2421;
+  margin-bottom: 6px;
+}
+
+.henedo-form-sub {
+  color: #6b726b;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin-bottom: 24px;
+}
+
+/* Form Fields */
+.henedo-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.henedo-field-group {
+  margin-bottom: 13px;
+}
+
+.henedo-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.henedo-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2b302c;
+  margin-bottom: 5px;
+}
+
+.hn-req {
+  color: #c5a059;
+  margin-left: 2px;
+}
+
+.hn-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #8c918b;
+}
+
+.henedo-input {
+  width: 100%;
+  background: #fdfdfd;
+  border: 1px solid #ded9ce;
+  border-radius: 10px;
+  color: #1f2421;
+  font-size: 13.5px;
+  padding: 10px 13px;
+  min-height: 42px;
+  box-sizing: border-box;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.henedo-input::placeholder {
+  color: #a4a8a2;
+}
+
+.henedo-input:hover {
+  border-color: #baa375;
+}
+
+.henedo-input:focus {
+  outline: none;
+  border-color: #c5a059;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2);
+}
+
+.henedo-input.has-error {
+  border-color: #c25149;
+  background-color: #fff9f8;
+}
+
+.henedo-input.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(194, 81, 73, 0.18);
+}
+
+.henedo-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.henedo-eye-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #8c918b;
+  padding: 5px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.henedo-eye-btn:hover {
+  color: #c5a059;
+  transform: scale(1.08);
+}
+
+.henedo-eye-btn:active {
+  transform: scale(0.95);
+}
+
+@keyframes henedo-error-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.henedo-error-msg {
+  display: block;
+  font-size: 11px;
+  color: #c25149;
+  margin-top: 4px;
+  line-height: 1.35;
+  animation: henedo-error-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Terms Checkbox */
+.henedo-checkbox-wrap {
+  margin: 10px 0 18px;
+}
+
+.henedo-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #6b726b;
+  line-height: 1.45;
+  user-select: none;
+}
+
+.henedo-checkbox-native {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.henedo-checkbox-custom {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  border: 1.5px solid #ded9ce;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  color: transparent;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.henedo-checkbox-native:focus-visible + .henedo-checkbox-custom {
+  outline: 2px solid #c5a059;
+  outline-offset: 2px;
+}
+
+.henedo-checkbox-native:checked + .henedo-checkbox-custom {
+  background: #c5a059;
+  border-color: #c5a059;
+  color: #ffffff;
+}
+
+.hn-text-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: #164639;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  display: inline;
+  transition: color 0.2s ease;
+}
+
+.hn-text-link:hover {
+  color: #c5a059;
+}
+
+.hn-text-link:focus-visible {
+  outline: 2px solid #c5a059;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.hn-terms-err {
+  margin-left: 25px;
+}
+
+/* Primary Sand Gold CTA */
+.henedo-cta-btn {
+  width: 100%;
+  padding: 13px 20px;
+  background: #c5a059;
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.22);
+  transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow;
+}
+
+.henedo-cta-btn:hover:not(:disabled) {
+  background: #b58f47;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(197, 160, 89, 0.35);
+}
+
+.henedo-cta-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: 0 2px 8px rgba(197, 160, 89, 0.2);
+}
+
+.henedo-cta-btn:focus-visible {
+  outline: 2px solid #c5a059;
+  outline-offset: 2px;
+}
+
+.henedo-cta-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.hn-arrow {
+  display: inline-block;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.henedo-cta-btn:hover:not(:disabled) .hn-arrow {
+  transform: translateX(3.5px);
+}
+
+/* Status Notifications */
+.henedo-status-box {
+  margin-top: 16px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.henedo-status-box.pending {
+  background: #f7f9fc;
+  border: 1px solid #d4e0ee;
+  color: #2b5788;
+}
+
+.henedo-status-box.success {
+  background: #f4fbf7;
+  border: 1px solid #c9ecdb;
+  color: #1d724f;
+}
+
+.henedo-status-box.failure {
+  background: #fff8f7;
+  border: 1px solid #f9d3cf;
+  color: #b5382f;
+}
+
+.henedo-status-icon {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Footer Links & Signin Prompt */
+.henedo-form-footer {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.henedo-signin-prompt {
+  font-size: 12.5px;
+  color: #6b726b;
+  text-align: center;
+}
+
+.henedo-signin-prompt a {
+  color: #164639;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.henedo-signin-prompt a:hover {
+  color: #c5a059;
+}
+
+/* Informational Policy Modal Dialog */
+.henedo-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 43, 34, 0.52);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+  animation: henedoModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes henedoModalFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.henedo-modal-dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 34px 28px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 16px 40px rgba(12, 43, 34, 0.2);
+  border: 1px solid #eae5dc;
+  text-align: center;
+  animation: henedoModalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes henedoModalSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.henedo-modal-crest {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(197, 160, 89, 0.12);
+  color: #c5a059;
+  font-size: 20px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+}
+
+.henedo-modal-title {
+  font-family: var(--lv-font-serif);
+  font-size: 20px;
+  color: #164639;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.henedo-modal-body {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #555b54;
+  margin-bottom: 24px;
+}
+
+.henedo-modal-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 28px;
+  background: #c5a059;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13.5px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.henedo-modal-close-btn:hover {
+  background: #b58f47;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN FOR HENEDO PAGE
+   ========================================================================== */
+@media (max-width: 1023px) {
+  .henedo-page {
+    grid-template-columns: 1fr;
+  }
+
+  .henedo-editorial-region {
+    border-right: none;
+    border-bottom: 1px solid rgba(197, 160, 89, 0.2);
+    padding: 32px 24px 28px;
+  }
+
+  .editorial-heading {
+    font-size: 26px;
+  }
+
+  .henedo-calm-artwork {
+    height: 120px;
+    margin-bottom: 18px;
+  }
+
+  .henedo-form-region {
+    padding: 32px 20px 48px;
+  }
+}
+
+@media (max-width: 767px) {
+  .henedo-page {
+    grid-template-columns: 1fr;
+  }
+
+  .henedo-editorial-region {
+    padding: 24px 18px 20px;
+    border-right: none;
+    border-bottom: 1px solid rgba(197, 160, 89, 0.2);
+  }
+
+  .editorial-story-body {
+    margin: 10px 0;
+  }
+
+  .editorial-heading {
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+
+  .editorial-description {
+    display: none;
+  }
+
+  .henedo-calm-artwork {
+    height: 100px;
+    margin-bottom: 14px;
+  }
+
+  .henedo-pillars {
+    display: none;
+  }
+
+  .editorial-footer {
+    display: none;
+  }
+
+  .henedo-form-region {
+    padding: 24px 16px 36px;
+  }
+
+  .henedo-field-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY: PREFERS-REDUCED-MOTION
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .calm-svg .hn-wave-group-back,
+  .calm-svg .hn-wave-group-front,
+  .calm-svg .hn-gold-main,
+  .calm-svg .hn-gold-sub {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .henedo-entrance-1,
+  .henedo-entrance-2,
+  .henedo-entrance-3,
+  .henedo-entrance-4,
+  .henedo-entrance-5 {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .henedo-modal-backdrop,
+  .henedo-modal-dialog {
+    animation: none !important;
+  }
+}
