@@ -1,0 +1,1068 @@
+openapi: 3.0.3
+info:
+  title: LegacyVault API
+  version: 0.1.0-draft
+  description: |
+    Contract Sprint 1 (PS-9 → PS-23). Quyết định đã chốt ngày 2026-10-11 (xem open-decisions.md), chờ FE/BE review.
+    `x-status: designed` = đã chốt contract, chưa triển khai. `x-status: implemented` = đã có code Backend trong workspace.
+    Mọi lỗi dùng cùng hình dạng `ApiError` (kể cả 401/403). FE phân loại lỗi bằng `code`, không bằng `message`.
+    Ví dụ dùng dữ liệu giả; không chứa token hay mật khẩu thật.
+servers:
+  - url: http://localhost:8080
+    description: Backend local
+  - url: http://localhost:5173
+    description: Qua Vite proxy (khuyến nghị khi dev)
+tags:
+  - name: System
+  - name: Auth
+  - name: Vaults
+  - name: Assets
+  - name: Wills
+  - name: Trustees
+  - name: Beneficiaries
+  - name: DMS
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/system/ping:
+    get:
+      tags: [System]
+      summary: Smoke test ứng dụng (PS-74)
+      x-status: implemented
+      security: []
+      responses:
+        '200':
+          description: Ứng dụng đang chạy
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PingResponse' }
+              example: { status: UP, service: legacyvault-backend, time: '2026-10-08T10:00:00Z' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+
+  /api/v1/system/db-check:
+    get:
+      tags: [System]
+      summary: Kiểm tra kết nối SQL Server bằng truy vấn chỉ đọc (chỉ profile dev)
+      description: Profile khác `dev` -> 404. Chỉ trả UP/DOWN, không bao giờ trả lỗi SQL.
+      x-status: implemented
+      security: []
+      responses:
+        '200':
+          description: Kết quả kiểm tra
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DbCheckResponse' }
+              example: { database: UP }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký tài khoản (PS-9, ST-01)
+      x-status: designed
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            example: { fullName: Nguyen Van A, email: user@example.com, password: ExamplePass123, phone: '0900000000' }
+      responses:
+        '201':
+          description: Tạo thành công
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: EMAIL_ALREADY_EXISTS
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example:
+                timestamp: '2026-10-08T10:00:00Z'
+                status: 409
+                code: EMAIL_ALREADY_EXISTS
+                messageKey: error.auth.emailExists
+                message: Email này đã được đăng ký.
+                path: /api/v1/auth/register
+                traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10
+                errors: []
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập, nhận JWT (PS-10, ST-01)
+      x-status: designed
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            example: { email: user@example.com, password: ExamplePass123 }
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+              example:
+                accessToken: <jwt>
+                tokenType: Bearer
+                expiresInSeconds: 3600
+                user: { id: 3f2b8c1e-0a4d-4c8e-9b1a-6a1d2f3e4b5c, fullName: Nguyen Van A, email: user@example.com, roles: [VAULT_OWNER] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/InvalidCredentials' }
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Thông tin người đăng nhập (đề xuất D-API-23)
+      x-status: designed
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/vaults:
+    post:
+      tags: [Vaults]
+      summary: Tạo Vault (PS-12, ST-02)
+      description: Chủ sở hữu lấy từ Security Context. Mọi trường `ownerId`/`status` trong body bị bỏ qua.
+      x-status: designed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateVaultRequest' }
+            example: { name: Kho di sản gia đình, description: Tài sản số của gia đình }
+      responses:
+        '201':
+          description: Đã tạo (status ACTIVE)
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VaultResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Vaults]
+      summary: Liệt kê Vault của tôi (đề xuất D-API-23)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VaultPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/vaults/{vaultId}:
+    get:
+      tags: [Vaults]
+      summary: Xem Vault (PS-14) — chỉ chủ sở hữu
+      description: Không tồn tại hoặc của người khác -> 404 (D-API-07).
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VaultResponse' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/configuration-check:
+    get:
+      tags: [Beneficiaries]
+      summary: Kiểm tra điều kiện cấu hình, cần ≥ 1 Beneficiary (PS-21, D-API-25)
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfigurationCheck' }
+              example:
+                vaultId: 9c1f0b6e-5a3c-4a8e-8d2f-1b7c6e5d4a39
+                ready: false
+                beneficiaryCount: 0
+                issues:
+                  - { code: BENEFICIARY_REQUIRED, messageKey: config.beneficiaryRequired, message: Cần ít nhất một người thụ hưởng. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/assets:
+    post:
+      tags: [Assets]
+      summary: Tạo Asset (PS-15, ST-02)
+      description: '`payload` chỉ ghi, mã hóa phía server, không bao giờ có trong response.'
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAssetRequest' }
+            example: { name: Mật khẩu email dự phòng, assetType: CREDENTIAL, description: Email phụ, payload: '<bí mật>' }
+      responses:
+        '201':
+          description: Đã tạo
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Assets]
+      summary: Liệt kê Asset của Vault (PS-15)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Chỉ metadata
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/assets/{assetId}:
+    get:
+      tags: [Assets]
+      summary: Xem Asset (PS-16)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/AssetId'
+      responses:
+        '200':
+          description: OK (không có payload)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Assets]
+      summary: Cập nhật một phần Asset (PS-16, D-API-24)
+      description: Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAssetRequest' }
+            example: { description: Cập nhật ghi chú }
+      responses:
+        '200':
+          description: Đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/vaults/{vaultId}/wills:
+    post:
+      tags: [Wills]
+      summary: Upload bản số hóa di chúc (PS-17, ST-03)
+      description: |
+        Trạng thái chỉ `UPLOADED`; không bao giờ `LEGAL_APPROVED`. SHA-256 chỉ phát hiện thay đổi,
+        không chứng minh giá trị pháp lý. Loại file: PDF/JPEG/PNG, ≤ 10 MB, cấu hình được (D-API-14).
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                note: { type: string, maxLength: 500 }
+      responses:
+        '201':
+          description: Đã tải lên (version 1)
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+    get:
+      tags: [Wills]
+      summary: Liệt kê hồ sơ di chúc số hóa (PS-17)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/wills/{willId}:
+    get:
+      tags: [Wills]
+      summary: Xem metadata di chúc số hóa (không trả nội dung file)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/WillId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/wills/{willId}/versions:
+    post:
+      tags: [Wills]
+      summary: Tải phiên bản mới, giữ phiên bản cũ (PS-18)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/WillId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Đã thêm phiên bản
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+    get:
+      tags: [Wills]
+      summary: Danh sách phiên bản kèm SHA-256 (PS-18)
+      x-status: designed
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/WillId'
+      responses:
+        '200':
+          description: Mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WillVersion' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/trustees:
+    post:
+      tags: [Trustees]
+      summary: Chỉ định Trustee, tùy chọn (PS-19, ST-04)
+      description: Không cần tài khoản; không cấp quyền mở khóa/giải mã/nhận thay (D-TRUSTEE-001).
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTrusteeRequest' }
+            example: { vaultId: 9c1f0b6e-5a3c-4a8e-8d2f-1b7c6e5d4a39, fullName: Tran Thi B, phone: '0900000001', relationship: Anh trai }
+      responses:
+        '201':
+          description: Đã chỉ định
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrusteeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Trustees]
+      summary: Trustee hiện hành của Vault
+      x-status: implemented
+      parameters:
+        - name: vaultId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: '`content` rỗng nếu Vault chưa có Trustee'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrusteePage' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/trustees/{trusteeId}:
+    put:
+      tags: [Trustees]
+      summary: Cập nhật thông tin Trustee
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/TrusteeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTrusteeRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrusteeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/trustees/{trusteeId}/revoke:
+    post:
+      tags: [Trustees]
+      summary: Thu hồi chỉ định, giữ lịch sử
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/TrusteeId'
+      responses:
+        '200':
+          description: status = REVOKED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrusteeResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/vaults/{vaultId}/beneficiaries:
+    post:
+      tags: [Beneficiaries]
+      summary: Thêm Beneficiary, không cần tài khoản (PS-20, ST-05)
+      description: Không tự tạo tài khoản; không có trường phần chia (do văn bản căn cứ được Legal duyệt quyết định).
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryRequest' }
+            example: { fullName: Nguyen Van C, relationship: Con trai, dateOfBirth: '1995-05-20', phone: '0900000002', email: child@example.com }
+      responses:
+        '201':
+          description: Đã thêm
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Beneficiaries]
+      summary: Liệt kê Beneficiary của Vault
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
+    put:
+      tags: [Beneficiaries]
+      summary: Cập nhật Beneficiary
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/BeneficiaryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/vaults/{vaultId}/dms:
+    put:
+      tags: [DMS]
+      summary: Bật/cấu hình chu kỳ DMS (PS-22, ST-06)
+      description: Chặn bằng 422 BENEFICIARY_REQUIRED khi Vault chưa có Beneficiary. DMS không mở khóa/giải mã.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfigureDmsRequest' }
+            example: { checkIntervalDays: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmsResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/BusinessRuleViolation' }
+    get:
+      tags: [DMS]
+      summary: Xem cấu hình DMS
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmsResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/vaults/{vaultId}/dms/check-in:
+    post:
+      tags: [DMS]
+      summary: Owner check-in, cập nhật next_check_at (PS-22)
+      description: Chỉ hợp lệ khi DMS ở MONITORING (D-API-27). Không mở khóa, không giải mã.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmsResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    VaultId:
+      name: vaultId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AssetId:
+      name: assetId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WillId:
+      name: willId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TrusteeId:
+      name: trusteeId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BeneficiaryId:
+      name: beneficiaryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      description: Từ 0 (D-API-06)
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      description: Mặc định 20, tối đa 100 (D-API-06)
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    ValidationError:
+      description: VALIDATION_FAILED, có `errors[]` theo trường
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          example:
+            timestamp: '2026-10-08T10:00:00Z'
+            status: 400
+            code: VALIDATION_FAILED
+            messageKey: error.validation.failed
+            message: Dữ liệu không hợp lệ.
+            path: /api/v1/auth/register
+            traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10
+            errors:
+              - { field: email, code: EMAIL, messageKey: validation.Email, message: Email không đúng định dạng. }
+    MalformedRequest:
+      description: MALFORMED_REQUEST (JSON hỏng, thiếu tham số, sai kiểu như UUID)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthenticated:
+      description: UNAUTHENTICATED — chưa đăng nhập hoặc token không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          example:
+            timestamp: '2026-10-08T10:00:00Z'
+            status: 401
+            code: UNAUTHENTICATED
+            messageKey: error.auth.unauthenticated
+            message: Bạn cần đăng nhập để thực hiện thao tác này.
+            path: /api/v1/vaults
+            traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10
+            errors: []
+    InvalidCredentials:
+      description: INVALID_CREDENTIALS — sai email/mật khẩu hoặc tài khoản đã xóa (không phân biệt)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: ACCESS_DENIED — đã đăng nhập nhưng thiếu role
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          example:
+            timestamp: '2026-10-08T10:00:00Z'
+            status: 403
+            code: ACCESS_DENIED
+            messageKey: error.auth.accessDenied
+            message: Bạn không có quyền thực hiện thao tác này.
+            path: /api/v1/vaults
+            traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10
+            errors: []
+    NotFound:
+      description: RESOURCE_NOT_FOUND — không tồn tại hoặc không thuộc quyền người gọi (D-API-07)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    MethodNotAllowed:
+      description: METHOD_NOT_ALLOWED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Xung đột trạng thái/dữ liệu (ví dụ VAULT_NOT_EDITABLE, TRUSTEE_ALREADY_EXISTS, DMS_NOT_MONITORING)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    BusinessRuleViolation:
+      description: Vi phạm quy tắc nghiệp vụ (ví dụ BENEFICIARY_REQUIRED) — D-API-19
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    PayloadTooLarge:
+      description: PAYLOAD_TOO_LARGE
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    UnsupportedMediaType:
+      description: UNSUPPORTED_MEDIA_TYPE
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+  schemas:
+    ApiError:
+      type: object
+      required: [timestamp, status, code, messageKey, message, path, traceId, errors]
+      properties:
+        timestamp: { type: string, format: date-time }
+        status: { type: integer }
+        code:
+          type: string
+          description: Mã ổn định để FE phân loại. Xem error-contract.md
+          enum:
+            - VALIDATION_FAILED
+            - MALFORMED_REQUEST
+            - UNAUTHENTICATED
+            - INVALID_CREDENTIALS
+            - ACCESS_DENIED
+            - RESOURCE_NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - EMAIL_ALREADY_EXISTS
+            - PAYLOAD_TOO_LARGE
+            - UNSUPPORTED_MEDIA_TYPE
+            - INTERNAL_ERROR
+            - BENEFICIARY_REQUIRED
+            - VAULT_ALREADY_EXISTS
+            - TRUSTEE_ALREADY_EXISTS
+            - VAULT_NOT_EDITABLE
+            - DMS_NOT_MONITORING
+        messageKey: { type: string }
+        message:
+          type: string
+          description: Đã dịch theo Accept-Language; chỉ để hiển thị, KHÔNG dùng để phân loại lỗi
+        path: { type: string }
+        traceId: { type: string }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
+    FieldError:
+      type: object
+      required: [field, code, messageKey, message]
+      properties:
+        field: { type: string }
+        code: { type: string, example: NOT_BLANK }
+        messageKey: { type: string, example: validation.NotBlank }
+        message: { type: string }
+
+    PingResponse:
+      type: object
+      required: [status, service, time]
+      properties:
+        status: { type: string, example: UP }
+        service: { type: string, example: legacyvault-backend }
+        time: { type: string, format: date-time }
+    DbCheckResponse:
+      type: object
+      required: [database]
+      properties:
+        database: { type: string, enum: [UP, DOWN] }
+
+    RegisterRequest:
+      type: object
+      required: [fullName, email, password]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+        phone: { type: string, pattern: '^\+?[0-9]{8,15}$' }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password, writeOnly: true }
+    UserResponse:
+      type: object
+      required: [id, fullName, email, roles]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        roles:
+          type: array
+          items: { type: string, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, ADMIN, BENEFICIARY] }
+        status: { type: string, example: ACTIVE }
+        createdAt: { type: string, format: date-time }
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresInSeconds, user]
+      properties:
+        accessToken: { type: string, description: JWT }
+        tokenType: { type: string, example: Bearer }
+        expiresInSeconds: { type: integer }
+        user: { $ref: '#/components/schemas/UserResponse' }
+
+    CreateVaultRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        description: { type: string, maxLength: 1000 }
+    VaultResponse:
+      type: object
+      required: [id, name, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        status: { type: string, example: ACTIVE }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    VaultPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/VaultResponse' }
+
+    CreateAssetRequest:
+      type: object
+      required: [name, assetType, payload]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        assetType: { type: string, enum: [TEXT, CREDENTIAL] , description: 'FILE để sau (D-API-13)' }
+        description: { type: string, maxLength: 1000 }
+        payload: { type: string, writeOnly: true, description: Nội dung bí mật; mã hóa phía server; không bao giờ trả lại }
+    UpdateAssetRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        description: { type: string, maxLength: 1000 }
+        payload: { type: string, writeOnly: true }
+    AssetResponse:
+      type: object
+      required: [id, vaultId, name, assetType, hasPayload, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        name: { type: string }
+        assetType: { type: string, enum: [TEXT, CREDENTIAL, FILE] }
+        description: { type: string, nullable: true }
+        hasPayload: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AssetPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/AssetResponse' }
+
+    WillVersion:
+      type: object
+      required: [version, fileName, contentType, sizeBytes, sha256, uploadedAt]
+      properties:
+        version: { type: integer, minimum: 1 }
+        fileName: { type: string }
+        contentType: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Phát hiện thay đổi, không chứng minh giá trị pháp lý' }
+        uploadedAt: { type: string, format: date-time }
+    WillResponse:
+      type: object
+      required: [id, vaultId, status, currentVersion, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        status: { type: string, enum: [UPLOADED], description: Không bao giờ LEGAL_APPROVED ở API này }
+        currentVersion: { $ref: '#/components/schemas/WillVersion' }
+        createdAt: { type: string, format: date-time }
+    WillPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/WillResponse' }
+
+    CreateTrusteeRequest:
+      type: object
+      required: [vaultId, fullName]
+      description: Cần ít nhất một trong `phone`/`email`. Không có `userId`.
+      properties:
+        vaultId: { type: string, format: uuid }
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        phone: { type: string }
+        email: { type: string, format: email }
+        relationship: { type: string, maxLength: 100 }
+        note: { type: string, maxLength: 500 }
+    UpdateTrusteeRequest:
+      type: object
+      required: [fullName]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        phone: { type: string }
+        email: { type: string, format: email }
+        relationship: { type: string, maxLength: 100 }
+        note: { type: string, maxLength: 500 }
+    TrusteeResponse:
+      type: object
+      required: [id, vaultId, fullName, status]
+      properties:
+        id: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        fullName: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        relationship: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        status: { type: string, enum: [APPOINTED, REVOKED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TrusteePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/TrusteeResponse' }
+
+    BeneficiaryRequest:
+      type: object
+      required: [fullName]
+      description: Không có `userId` và không có trường phần chia.
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        relationship: { type: string, maxLength: 100 }
+        dateOfBirth: { type: string, format: date }
+        phone: { type: string }
+        email: { type: string, format: email }
+        identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    BeneficiaryResponse:
+      type: object
+      required: [id, vaultId, fullName, hasAccount, hasIdentityNumber, status]
+      properties:
+        id: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        fullName: { type: string }
+        relationship: { type: string, nullable: true }
+        dateOfBirth: { type: string, format: date, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        hasIdentityNumber: { type: boolean }
+        hasAccount: { type: boolean, description: Luôn false ở Sprint 1 }
+        status: { type: string, enum: [DESIGNATED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BeneficiaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/BeneficiaryResponse' }
+    ConfigurationCheck:
+      type: object
+      required: [vaultId, ready, beneficiaryCount, issues]
+      properties:
+        vaultId: { type: string, format: uuid }
+        ready: { type: boolean }
+        beneficiaryCount: { type: integer, minimum: 0 }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [code, messageKey, message]
+            properties:
+              code: { type: string, example: BENEFICIARY_REQUIRED }
+              messageKey: { type: string }
+              message: { type: string }
+
+    ConfigureDmsRequest:
+      type: object
+      required: [checkIntervalDays]
+      properties:
+        checkIntervalDays:
+          type: integer
+          minimum: 1
+          description: Khoảng cho phép do cấu hình (D-API-15); ST-06 nêu ví dụ 30, 90
+    DmsResponse:
+      type: object
+      required: [vaultId, status, checkIntervalDays, nextCheckAt]
+      properties:
+        vaultId: { type: string, format: uuid }
+        status: { type: string, enum: [MONITORING, TRIGGERED, GRACE_PERIOD_EXCEEDED] }
+        checkIntervalDays: { type: integer }
+        lastCheckInAt: { type: string, format: date-time, nullable: true }
+        nextCheckAt: { type: string, format: date-time }
+        triggeredAt: { type: string, format: date-time, nullable: true }
+        graceDeadline: { type: string, format: date-time, nullable: true }
+
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
