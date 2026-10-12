@@ -1,6 +1,6 @@
-﻿import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { validateLogin } from '../../utils/loginValidation.js';
-import { authenticateUser, PREVIEW_SCENARIOS, getAuthMessage } from '../../utils/loginService.js';
+import { authenticateUser, getAuthMessage } from '../../utils/loginService.js';
 import './LoginPage.css';
 
 const i18nContent = {
@@ -29,9 +29,6 @@ const i18nContent = {
     submittingButton: 'Đang đăng nhập…',
     signupPrompt: 'Chưa có tài khoản?',
     signupAction: 'Khởi tạo tài khoản cá nhân',
-    scenarioLabel: 'Kịch bản kiểm thử phản hồi (Mô phỏng DEV):',
-    scenarioNotice:
-      'Chế độ kiểm thử giao diện mô phỏng các trạng thái phản hồi HTTP tiêu chuẩn để đánh giá trải nghiệm người dùng.',
   },
   en: {
     brandName: 'LegacyVault',
@@ -58,9 +55,6 @@ const i18nContent = {
     submittingButton: 'Signing in…',
     signupPrompt: "Don't have an account?",
     signupAction: 'Create personal account',
-    scenarioLabel: 'Response Simulation Scenario (DEV Test):',
-    scenarioNotice:
-      'Interface test mode simulating standard HTTP response states for evaluating user experience.',
   },
 };
 
@@ -69,7 +63,7 @@ const initialForm = {
   password: '',
 };
 
-export default function LoginPage({ onNavigateToRegister, isDevPreview: propIsDevPreview }) {
+export default function LoginPage({ onNavigateToRegister }) {
   const [lang, setLang] = useState('vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
@@ -77,29 +71,6 @@ export default function LoginPage({ onNavigateToRegister, isDevPreview: propIsDe
   const [status, setStatus] = useState('idle'); // idle | submitting | success | failure
   const [statusMessage, setStatusMessage] = useState('');
   const [lastStatusCode, setLastStatusCode] = useState(null);
-  const [selectedScenario, setSelectedScenario] = useState('unauthorized');
-
-  const [urlPreview, setUrlPreview] = useState(() => {
-    if (!import.meta.env.DEV) return false;
-    if (typeof window === 'undefined') return false;
-    const search = window.location.search;
-    return new URLSearchParams(search).get('preview') === 'true';
-  });
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const checkPreview = () => {
-      const search = window.location.search;
-      setUrlPreview(new URLSearchParams(search).get('preview') === 'true');
-    };
-    window.addEventListener('popstate', checkPreview);
-    return () => window.removeEventListener('popstate', checkPreview);
-  }, []);
-
-  const isDevPreview = Boolean(
-    import.meta.env.DEV && (typeof propIsDevPreview === 'boolean' ? propIsDevPreview : urlPreview)
-  );
-
   const t = i18nContent[lang];
 
   const handleLanguageChange = (newLang) => {
@@ -153,8 +124,8 @@ export default function LoginPage({ onNavigateToRegister, isDevPreview: propIsDe
 
     try {
       const response = await authenticateUser(values, {
-        scenario: isDevPreview ? selectedScenario : undefined,
-        isDevPreview,
+
+        isDevPreview: false,
         lang,
       });
 
@@ -435,29 +406,6 @@ export default function LoginPage({ onNavigateToRegister, isDevPreview: propIsDe
               </div>
               <div className="hn-login-status-text">{statusMessage}</div>
             </div>
-          )}
-
-          {/* Development Testing Simulator Controls — Chỉ hiển thị khi có ?preview=true trong DEV */}
-          {isDevPreview && (
-            <section className="hn-dev-scenario-panel" aria-label="Bộ điều khiển kịch bản thử nghiệm DEV">
-              <label htmlFor="hn-scenario-select" className="hn-scenario-label">
-                <span className="hn-scenario-icon" aria-hidden="true">⚙</span>
-                <span>{t.scenarioLabel}</span>
-              </label>
-              <select
-                id="hn-scenario-select"
-                className="hn-scenario-select"
-                value={selectedScenario}
-                onChange={(e) => setSelectedScenario(e.target.value)}
-              >
-                {PREVIEW_SCENARIOS.map((sc) => (
-                  <option key={sc.id} value={sc.id}>
-                    {lang === 'vi' ? sc.labelVi : sc.labelEn}
-                  </option>
-                ))}
-              </select>
-              <p className="hn-scenario-note">{t.scenarioNotice}</p>
-            </section>
           )}
 
           {/* Footer Info & Sign-up Link (Customer-facing, no RBAC note) */}
