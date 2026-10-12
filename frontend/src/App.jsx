@@ -1,122 +1,137 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 
-function App() {
-  const [count, setCount] = useState(0)
+function NotFoundFallback({ currentPath, onNavigateToRegister }) {
+  const isLogin = currentPath === '/login';
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <main
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100svh',
+        backgroundColor: '#f7f5f0',
+        padding: '24px',
+        textAlign: 'center',
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        color: '#1f2421',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '480px',
+          width: '100%',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '44px 32px',
+          boxShadow: '0 4px 20px rgba(22, 70, 57, 0.05)',
+          border: '1px solid #eae5dc',
+        }}
+      >
+        <div
+          style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(197, 160, 89, 0.12)',
+            color: '#c5a059',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+            fontSize: '22px',
+            fontWeight: 700,
+          }}
+          aria-hidden="true"
+        >
+          {isLogin ? '✦' : '404'}
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+
+        <h1
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '24px',
+            color: '#164639',
+            margin: '0 0 12px',
+            fontWeight: 600,
+          }}
+        >
+          {isLogin ? 'Trang chưa khả dụng' : 'Không tìm thấy trang'}
+        </h1>
+
+        <p
+          style={{
+            fontSize: '14.5px',
+            color: '#6b726b',
+            lineHeight: 1.6,
+            margin: '0 0 28px',
+          }}
+        >
+          {isLogin
+            ? 'Cổng đăng nhập hiện chưa mở. Vui lòng bắt đầu tại trang Đăng ký tài khoản.'
+            : 'Đường dẫn bạn yêu cầu không tồn tại hoặc chưa được kích hoạt trong hệ thống.'}
+        </p>
+
         <button
           type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={onNavigateToRegister}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            backgroundColor: '#c5a059',
+            color: '#ffffff',
+            fontWeight: 600,
+            fontSize: '14px',
+            padding: '12px 26px',
+            borderRadius: '10px',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s ease',
+          }}
         >
-          Count is {count}
+          <span>Về trang Đăng ký</span>
+          <span aria-hidden="true">→</span>
         </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      </div>
+    </main>
+  );
 }
 
-export default App
+export default function App() {
+  const [currentPath, setCurrentPath] = useState(() => {
+    return typeof window !== 'undefined' ? window.location.pathname : '/register';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
+
+  // Các route hợp lệ cho PS-1: /register và / (mặc định mở Register)
+  const isRegisterRoute = currentPath === '/register' || currentPath === '/';
+
+  return (
+    <div className="lv-app-root">
+      {isRegisterRoute ? (
+        <RegisterPageHenedo />
+      ) : (
+        <NotFoundFallback
+          currentPath={currentPath}
+          onNavigateToRegister={() => navigateTo('/register')}
+        />
+      )}
+    </div>
+  );
+}
