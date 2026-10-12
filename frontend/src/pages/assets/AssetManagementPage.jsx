@@ -16,6 +16,8 @@ import { Modal } from '../../components/common/Modal'
 import { AssetListTable } from '../../components/assets/AssetListTable'
 import { AssetFormModal } from '../../components/assets/AssetFormModal'
 import { AssetSummaryCards } from '../../components/assets/AssetSummaryCards'
+import { AssetDetailModal } from '../../components/assets/AssetDetailModal'
+import { AssetEditModal } from '../../components/assets/AssetEditModal'
 import './AssetManagementPage.css'
 
 const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed'
@@ -47,6 +49,12 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
+
+  // View & Edit modal states (PS-6)
+  const [selectedDetailAsset, setSelectedDetailAsset] = useState(null)
+  const [selectedEditAsset, setSelectedEditAsset] = useState(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [editErrorKey, setEditErrorKey] = useState(null)
 
   // Legal Notice collapsible behavior
   const [isLegalDismissed, setIsLegalDismissed] = useState(() => {
@@ -124,6 +132,49 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
     } finally {
       submittingRef.current = false
       if (aliveRef.current) setIsSubmitting(false)
+    }
+  }
+
+  async function handleViewAsset(asset) {
+    setSelectedDetailAsset(asset)
+    try {
+      const fresh = await assetService.getAssetById(vaultId, asset.id, {
+        lang: requestContext.current?.lang || lang,
+        accessToken,
+      })
+      if (aliveRef.current) setSelectedDetailAsset(fresh)
+    } catch {
+      // Keep existing list asset data if detail fetch fails
+    }
+  }
+
+  function handleEditAsset(asset) {
+    setSelectedEditAsset(asset)
+    setEditErrorKey(null)
+  }
+
+  async function handleUpdateAsset(assetId, patchData) {
+    if (isUpdating) return
+    setIsUpdating(true)
+    setEditErrorKey(null)
+    try {
+      const updated = await assetService.updateAsset(vaultId, assetId, patchData, {
+        lang: requestContext.current?.lang || lang,
+        accessToken,
+      })
+      if (!aliveRef.current) return
+      setAssets(prev =>
+        prev.map(item => (item.id === assetId ? { ...item, ...updated } : item))
+      )
+      setSelectedEditAsset(null)
+      showToast('editSuccess')
+    } catch (error) {
+      if (aliveRef.current) {
+        setEditErrorKey(error.code || 'editError')
+        showToast(error.code || 'editError', 'error')
+      }
+    } finally {
+      if (aliveRef.current) setIsUpdating(false)
     }
   }
 
@@ -305,7 +356,9 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
         )}
         <AssetListTable assets={filteredAssets} t={t} lang={lang}
           query={query} totalElements={totalElements}
-          onQueryChange={next => { setIsLoading(true); setQuery(next) }} />
+          onQueryChange={next => { setIsLoading(true); setQuery(next) }}
+          onViewAsset={handleViewAsset}
+          onEditAsset={handleEditAsset} />
         </>
       )}
 
@@ -347,6 +400,33 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
         t={t}
         isSubmitting={isSubmitting}
       />}
+
+      {/* Detail Modal (PS-6) */}
+      {selectedDetailAsset && (
+        <AssetDetailModal
+          isOpen={true}
+          onClose={() => setSelectedDetailAsset(null)}
+          asset={selectedDetailAsset}
+          t={t}
+          lang={lang}
+        />
+      )}
+
+      {/* Edit Modal (PS-6) */}
+      {selectedEditAsset && (
+        <AssetEditModal
+          isOpen={true}
+          onClose={() => {
+            setSelectedEditAsset(null)
+            setEditErrorKey(null)
+          }}
+          asset={selectedEditAsset}
+          onSubmit={handleUpdateAsset}
+          t={t}
+          isSubmitting={isUpdating}
+          errorKey={editErrorKey}
+        />
+      )}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import {
   FileText,
   KeyRound,
@@ -9,16 +10,40 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  MoreVertical,
+  Eye,
+  Pencil,
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import './AssetListTable.css'
 
 /**
- * AssetListTable — PS-5: List assets only (Contract Aligned).
+ * AssetListTable — PS-5/PS-6: List assets + View/Edit Actions (Contract Aligned).
  * Displays contract metadata: name, assetType (TEXT | CREDENTIAL), hasPayload, createdAt.
- * Supports sorting and pagination.
+ * Supports sorting, pagination, view detail, and edit actions.
  */
-export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, onQueryChange }) {
+export function AssetListTable({
+  assets,
+  t,
+  lang = 'vi',
+  query,
+  totalElements,
+  onQueryChange,
+  onViewAsset,
+  onEditAsset,
+}) {
+  const [openMenuId, setOpenMenuId] = useState(null)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
   const [sortField, sortOrder] = query.sort.split(',')
   const currentPage = query.page + 1
   const pageSize = query.size
@@ -107,6 +132,12 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
                   {renderSortIcon('createdAt')}
                 </div>
               </th>
+
+              <th scope="col" className="lv-th-center" style={{ width: 60 }}>
+                <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}>
+                  {t.assets.colActions || 'Thao tác'}
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -114,7 +145,11 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
               const typeMeta = getTypeMeta(asset.assetType)
 
               return (
-                <tr key={asset.id} className="lv-table-row lv-table-row--fixed">
+                <tr
+                  key={asset.id}
+                  className="lv-table-row lv-table-row--fixed"
+                  onClick={() => onViewAsset?.(asset)}
+                >
                   <td className="lv-td-asset-name">
                     <span className="lv-asset-primary-title" title={asset.name}>
                       {asset.name}
@@ -158,6 +193,48 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
                       {formatDate(asset.createdAt)}
                     </span>
                   </td>
+
+                  <td className="lv-td-action" onClick={(e) => e.stopPropagation()}>
+                    <div className="lv-action-dropdown-wrap" ref={openMenuId === asset.id ? menuRef : null}>
+                      <button
+                        type="button"
+                        className={`lv-action-more-btn ${openMenuId === asset.id ? 'lv-action-more-btn--active' : ''}`}
+                        onClick={() => setOpenMenuId(openMenuId === asset.id ? null : asset.id)}
+                        aria-label={t.assets.colActions || 'Thao tác'}
+                        aria-expanded={openMenuId === asset.id}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {openMenuId === asset.id && (
+                        <div className="lv-action-menu" role="menu">
+                          <button
+                            type="button"
+                            className="lv-action-menu-item"
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              onViewAsset?.(asset)
+                            }}
+                            role="menuitem"
+                          >
+                            <Eye size={14} />
+                            <span>{t.assets.actions?.view || t.assets.detailModal?.title || 'Xem chi tiết'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="lv-action-menu-item"
+                            onClick={() => {
+                              setOpenMenuId(null)
+                              onEditAsset?.(asset)
+                            }}
+                            role="menuitem"
+                          >
+                            <Pencil size={14} />
+                            <span>{t.assets.actions?.edit || t.assets.editModal?.title || 'Chỉnh sửa'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               )
             })}
@@ -171,7 +248,11 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
           const typeMeta = getTypeMeta(asset.assetType)
 
           return (
-            <div key={asset.id} className="lv-mobile-card">
+            <div
+              key={asset.id}
+              className="lv-mobile-card"
+              onClick={() => onViewAsset?.(asset)}
+            >
               <div className="lv-mobile-card__header">
                 <div className="lv-mobile-card__title-group">
                   <span className={`lv-category-badge ${typeMeta.badgeClass}`}>
@@ -182,6 +263,18 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
                     {asset.name}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="lv-action-more-btn"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEditAsset?.(asset)
+                  }}
+                  title={t.assets.actions?.edit || 'Chỉnh sửa'}
+                  aria-label={t.assets.actions?.edit || 'Chỉnh sửa'}
+                >
+                  <Pencil size={15} />
+                </button>
               </div>
 
               {asset.description && (
