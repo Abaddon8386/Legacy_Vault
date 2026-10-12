@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: legacyvault-backend
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
