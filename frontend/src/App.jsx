@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
+import LoginPage from './pages/auth/LoginPage.jsx';
+import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
+import AppShell from './components/layout/AppShell.jsx';
 
-function NotFoundFallback({ currentPath, onNavigateToRegister }) {
-  const isLogin = currentPath === '/login';
-
+function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
     <main
       style={{
@@ -46,7 +47,7 @@ function NotFoundFallback({ currentPath, onNavigateToRegister }) {
           }}
           aria-hidden="true"
         >
-          {isLogin ? '✦' : '404'}
+          404
         </div>
 
         <h1
@@ -58,7 +59,7 @@ function NotFoundFallback({ currentPath, onNavigateToRegister }) {
             fontWeight: 600,
           }}
         >
-          {isLogin ? 'Trang chưa khả dụng' : 'Không tìm thấy trang'}
+          Không tìm thấy trang
         </h1>
 
         <p
@@ -69,33 +70,54 @@ function NotFoundFallback({ currentPath, onNavigateToRegister }) {
             margin: '0 0 28px',
           }}
         >
-          {isLogin
-            ? 'Cổng đăng nhập hiện chưa mở. Vui lòng bắt đầu tại trang Đăng ký tài khoản.'
-            : 'Đường dẫn bạn yêu cầu không tồn tại hoặc chưa được kích hoạt trong hệ thống.'}
+          Đường dẫn bạn yêu cầu không tồn tại hoặc chưa được kích hoạt trong hệ thống.
         </p>
 
-        <button
-          type="button"
-          onClick={onNavigateToRegister}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            backgroundColor: '#c5a059',
-            color: '#ffffff',
-            fontWeight: 600,
-            fontSize: '14px',
-            padding: '12px 26px',
-            borderRadius: '10px',
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s ease',
-          }}
-        >
-          <span>Về trang Đăng ký</span>
-          <span aria-hidden="true">→</span>
-        </button>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onNavigateToRegister}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#c5a059',
+              color: '#ffffff',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span>Về trang Đăng ký</span>
+            <span aria-hidden="true">→</span>
+          </button>
+          <button
+            type="button"
+            onClick={onNavigateToLogin}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#f1ede4',
+              color: '#164639',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: '1px solid #ded9ce',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span>Đến trang Đăng nhập</span>
+          </button>
+        </div>
       </div>
     </main>
   );
@@ -105,6 +127,9 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => {
     return typeof window !== 'undefined' ? window.location.pathname : '/register';
   });
+  const [lang, setLang] = useState('vi');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -119,17 +144,68 @@ export default function App() {
     setCurrentPath(path);
   };
 
-  // Các route hợp lệ cho PS-1: /register và / (mặc định mở Register)
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshTrigger((prev) => prev + 1);
+    await new Promise((r) => setTimeout(r, 600));
+    setIsRefreshing(false);
+  };
+
+  // Environment gating
+  const isDev = Boolean(import.meta.env.DEV);
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const hasPreviewParam = searchParams?.get('preview') === 'true';
+
+  // PS-1 routes: /register và / (mặc định mở Register)
   const isRegisterRoute = currentPath === '/register' || currentPath === '/';
+
+  // PS-2 route: /login
+  const isLoginRoute = currentPath === '/login';
+
+  // PS-3 Vault route:
+  // - DEV mode:
+  //   - /vault?preview=true: Mở Vault UI kèm thanh kịch bản kiểm thử (DEV toolbar)
+  //   - /vault: Mở Vault UI sạch (clean view, không hiển thị DEV toolbar)
+  // - Production mode: Không cho phép preview; không mở bypass auth khi chưa có session thật.
+  const isVaultRoute = currentPath === '/vault' || currentPath === '/vaults';
+
+  if (isDev && isVaultRoute) {
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          currentTab="vault"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={() => navigateTo('/login')}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onNavigateTab={(tab) => {
+            if (tab === 'vault') {
+              navigateTo(hasPreviewParam ? '/vault?preview=true' : '/vault');
+            }
+          }}
+        >
+          <VaultOverviewPage
+            lang={lang}
+            showDevToolbar={hasPreviewParam}
+            onNavigateToLogin={() => navigateTo('/login')}
+            onRefreshTrigger={refreshTrigger}
+          />
+        </AppShell>
+      </div>
+    );
+  }
 
   return (
     <div className="lv-app-root">
       {isRegisterRoute ? (
-        <RegisterPageHenedo />
+        <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
+      ) : isLoginRoute ? (
+        <LoginPage onNavigateToRegister={() => navigateTo('/register')} />
       ) : (
         <NotFoundFallback
-          currentPath={currentPath}
           onNavigateToRegister={() => navigateTo('/register')}
+          onNavigateToLogin={() => navigateTo('/login')}
         />
       )}
     </div>
