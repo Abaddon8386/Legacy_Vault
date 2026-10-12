@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
+import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
+import AppShell from './components/layout/AppShell.jsx';
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
@@ -125,6 +127,9 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => {
     return typeof window !== 'undefined' ? window.location.pathname : '/register';
   });
+  const [lang, setLang] = useState('vi');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -139,9 +144,57 @@ export default function App() {
     setCurrentPath(path);
   };
 
-  // Các route hợp lệ cho PS-1 & PS-2
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshTrigger((prev) => prev + 1);
+    await new Promise((r) => setTimeout(r, 600));
+    setIsRefreshing(false);
+  };
+
+  // Environment gating
+  const isDev = Boolean(import.meta.env.DEV);
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const hasPreviewParam = searchParams?.get('preview') === 'true';
+
+  // PS-1 routes: /register và / (mặc định mở Register)
   const isRegisterRoute = currentPath === '/register' || currentPath === '/';
+
+  // PS-2 route: /login
   const isLoginRoute = currentPath === '/login';
+
+  // PS-3 Vault route:
+  // - DEV mode:
+  //   - /vault?preview=true: Mở Vault UI kèm thanh kịch bản kiểm thử (DEV toolbar)
+  //   - /vault: Mở Vault UI sạch (clean view, không hiển thị DEV toolbar)
+  // - Production mode: Không cho phép preview; không mở bypass auth khi chưa có session thật.
+  const isVaultRoute = currentPath === '/vault' || currentPath === '/vaults';
+
+  if (isDev && isVaultRoute) {
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          currentTab="vault"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={() => navigateTo('/login')}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onNavigateTab={(tab) => {
+            if (tab === 'vault') {
+              navigateTo(hasPreviewParam ? '/vault?preview=true' : '/vault');
+            }
+          }}
+        >
+          <VaultOverviewPage
+            lang={lang}
+            showDevToolbar={hasPreviewParam}
+            onNavigateToLogin={() => navigateTo('/login')}
+            onRefreshTrigger={refreshTrigger}
+          />
+        </AppShell>
+      </div>
+    );
+  }
 
   return (
     <div className="lv-app-root">
