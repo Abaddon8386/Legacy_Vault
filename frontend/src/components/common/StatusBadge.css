@@ -1,0 +1,68 @@
+/* StatusBadge Stylesheet — Henedo Design System */
+.lv-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  animation: lv-badge-pop var(--lv-motion-duration-standard, 220ms) var(--lv-motion-ease-smooth) forwards;
+  transition: background-color var(--lv-transition-fast),
+              color var(--lv-transition-fast),
+              border-color var(--lv-transition-fast);
+}
+
+.lv-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform var(--lv-transition-fast);
+}
+
+/* Tone: Active (Forest / Emerald Green) */
+.lv-status-badge.lv-tone-active {
+  background: var(--lv-status-active-bg, #f4fbf7);
+  color: var(--lv-status-active-text, #1d724f);
+  border: 1px solid var(--lv-status-active-border, #c9ecdb);
+}
+.lv-status-badge.lv-tone-active .lv-status-dot {
+  background: #1d724f;
+  box-shadow: 0 0 0 2px rgba(29, 114, 79, 0.2);
+  animation: lv-status-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Tone: Await (Warm Amber) */
+.lv-status-badge.lv-tone-await {
+  background: var(--lv-status-await-bg, #fff8eb);
+  color: var(--lv-status-await-text, #b46b18);
+  border: 1px solid var(--lv-status-await-border, #f9e2b8);
+}
+.lv-status-badge.lv-tone-await .lv-status-dot {
+  background: #b46b18;
+  box-shadow: 0 0 0 2px rgba(180, 107, 24, 0.2);
+}
+
+/* Tone: Info (Muted Cyan / Celadon) */
+.lv-status-badge.lv-tone-info {
+  background: var(--lv-status-info-bg, #eef6f6);
+  color: var(--lv-status-info-text, #1b6264);
+  border: 1px solid var(--lv-status-info-border, #cbe3e4);
+}
+.lv-status-badge.lv-tone-info .lv-status-dot {
+  background: #1b6264;
+  box-shadow: 0 0 0 2px rgba(27, 98, 100, 0.2);
+}
+
+/* Tone: Neutral / Archived (Slate Gray) */
+.lv-status-badge.lv-tone-neutral {
+  background: var(--lv-bg-muted, #efece6);
+  color: var(--lv-text-muted, #6b726b);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+.lv-status-badge.lv-tone-neutral .lv-status-dot {
+  background: #8c918b;
+}

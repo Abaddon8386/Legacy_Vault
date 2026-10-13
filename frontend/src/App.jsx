@@ -1,122 +1,226 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
+import LoginPage from './pages/auth/LoginPage.jsx';
+import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
+import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
+import AppShell from './components/layout/AppShell.jsx';
 
-function App() {
-  const [count, setCount] = useState(0)
-
+function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <main
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100svh',
+        backgroundColor: '#f7f5f0',
+        padding: '24px',
+        textAlign: 'center',
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        color: '#1f2421',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '480px',
+          width: '100%',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '44px 32px',
+          boxShadow: '0 4px 20px rgba(22, 70, 57, 0.05)',
+          border: '1px solid #eae5dc',
+        }}
+      >
+        <div
+          style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(197, 160, 89, 0.12)',
+            color: '#c5a059',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+            fontSize: '22px',
+            fontWeight: 700,
+          }}
+          aria-hidden="true"
         >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          404
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <h1
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '24px',
+            color: '#164639',
+            margin: '0 0 12px',
+            fontWeight: 600,
+          }}
+        >
+          Không tìm thấy trang
+        </h1>
+
+        <p
+          style={{
+            fontSize: '14.5px',
+            color: '#6b726b',
+            lineHeight: 1.6,
+            margin: '0 0 28px',
+          }}
+        >
+          Đường dẫn bạn yêu cầu không tồn tại hoặc chưa được kích hoạt trong hệ thống.
+        </p>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onNavigateToRegister}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#c5a059',
+              color: '#ffffff',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span>Về trang Đăng ký</span>
+            <span aria-hidden="true">→</span>
+          </button>
+          <button
+            type="button"
+            onClick={onNavigateToLogin}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              backgroundColor: '#f1ede4',
+              color: '#164639',
+              fontWeight: 600,
+              fontSize: '14px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: '1px solid #ded9ce',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
+          >
+            <span>Đến trang Đăng nhập</span>
+          </button>
+        </div>
+      </div>
+    </main>
+  );
 }
 
-export default App
+export default function App() {
+  const [currentPath, setCurrentPath] = useState(() => {
+    return typeof window !== 'undefined' ? window.location.pathname : '/register';
+  });
+  const [lang, setLang] = useState('vi');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path.split('?')[0]);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshTrigger((prev) => prev + 1);
+    await new Promise((r) => setTimeout(r, 600));
+    setIsRefreshing(false);
+  };
+
+  // Environment gating
+  const isDev = Boolean(import.meta.env.DEV);
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const hasPreviewParam = searchParams?.get('preview') === 'true';
+
+  // PS-1 routes: /register và / (mặc định mở Register)
+  const isRegisterRoute = currentPath === '/register' || currentPath === '/';
+
+  // PS-2 route: /login
+  const isLoginRoute = currentPath === '/login';
+
+  // PS-3 Vault route:
+  const isVaultRoute = currentPath === '/vault' || currentPath === '/vaults';
+
+  // PS-4 DMS route:
+  const isDmsRoute = currentPath === '/dms';
+
+  if (isDev && (isVaultRoute || isDmsRoute)) {
+    const activeTab = isDmsRoute ? 'dms' : 'vault';
+
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          currentTab={activeTab}
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={() => navigateTo('/login')}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onNavigateTab={(tab) => {
+            if (tab === 'vault') {
+              navigateTo(hasPreviewParam ? '/vault?preview=true' : '/vault');
+            } else if (tab === 'dms') {
+              navigateTo(hasPreviewParam ? '/dms?preview=true' : '/dms');
+            }
+          }}
+        >
+          {isDmsRoute ? (
+            <DMSOverviewPage
+              lang={lang}
+              showDevToolbar={hasPreviewParam}
+              onNavigateToLogin={() => navigateTo('/login')}
+              onRefreshTrigger={refreshTrigger}
+            />
+          ) : (
+            <VaultOverviewPage
+              lang={lang}
+              showDevToolbar={hasPreviewParam}
+              onNavigateToLogin={() => navigateTo('/login')}
+              onRefreshTrigger={refreshTrigger}
+            />
+          )}
+        </AppShell>
+      </div>
+    );
+  }
+
+  return (
+    <div className="lv-app-root">
+      {isRegisterRoute ? (
+        <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
+      ) : isLoginRoute ? (
+        <LoginPage onNavigateToRegister={() => navigateTo('/register')} />
+      ) : (
+        <NotFoundFallback
+          onNavigateToRegister={() => navigateTo('/register')}
+          onNavigateToLogin={() => navigateTo('/login')}
+        />
+      )}
+    </div>
+  );
+}
