@@ -7,6 +7,7 @@ import { request, ApiError } from './api/http.js';
 import { readUser } from './api/contracts.js';
 import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
+import WillsRoute from './pages/wills/WillsRoute.jsx';
 import AppShell from './components/layout/AppShell.jsx';
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -170,7 +171,8 @@ export default function App() {
   const isVaultRoute = path === '/vault' || path === '/vaults';
   const isDmsRoute = path === '/dms';
   const isAssetsRoute = path === '/assets';
-  if (isVaultRoute || isDmsRoute || isAssetsRoute) {
+  const isWillsRoute = path === '/wills';
+  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
@@ -180,10 +182,11 @@ export default function App() {
     }
     const context = { accessToken: session?.accessToken, ownerId: session?.user.id,
       onUnauthorized: logout, lang, onNavigateToLogin: logout, onRefreshTrigger: refreshTrigger };
-    return <div className="lv-app-root"><AppShell currentTab={isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
+    return <div className="lv-app-root"><AppShell currentTab={isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
-      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets') navigateTo(`/${tab}${preview ? '?preview=true' : ''}`); }}>
-      {isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
+      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills') navigateTo(`/${tab}${preview ? '?preview=true' : ''}`); }}>
+      {isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
+        : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
         : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
         : <VaultOverviewPage key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;

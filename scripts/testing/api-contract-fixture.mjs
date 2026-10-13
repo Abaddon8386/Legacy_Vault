@@ -1,6 +1,7 @@
 // FE verification only. Not a backend implementation or evidence of DB integration.
 // Bind loopback only; synthetic user/token; never persist or log request bodies.
 import http from 'node:http';
+import { createHash, randomUUID } from 'node:crypto';
 
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const user = { id, fullName: 'Contract Demo', email: 'demo@example.test', roles: ['VAULT_OWNER'] };
@@ -19,9 +20,11 @@ const server = http.createServer(async (req, res) => {
   const error = (status, code) => send(status, { status, code, messageKey: `fixture.${code}`,
     message: 'Synthetic contract error', traceId: 'synthetic-fixture-trace', errors: [] });
   try {
-    let text = '';
-    for await (const chunk of req) { text += chunk; if (text.length > 20000) return error(413, 'PAYLOAD_TOO_LARGE'); }
-    const body = text ? JSON.parse(text) : {};
+    const chunks=[]; let byteLength=0;
+    for await (const chunk of req) { byteLength+=chunk.length; if (byteLength>11*1024*1024) return error(413,'PAYLOAD_TOO_LARGE'); chunks.push(chunk); }
+    const bytes=Buffer.concat(chunks);
+    const multipart=(req.headers['content-type'] || '').startsWith('multipart/form-data');
+    const body=!multipart && bytes.length ? JSON.parse(bytes.toString('utf8')) : {};
     const path = new URL(req.url, 'http://127.0.0.1').pathname;
     if (path === '/__fixture' && req.method === 'POST') {
       scenario = body.scenario || 'normal'; expiresInSeconds = body.expiresInSeconds || 3600;
@@ -76,6 +79,21 @@ const server = http.createServer(async (req, res) => {
         item.updatedAt=now(); return send(200,item);
       }
     }
+    if (path === '/api/v1/vaults/'+id+'/wills' && req.method === 'POST') {
+      if (!vault) return error(404,'RESOURCE_NOT_FOUND');
+      if (scenario==='will_forbidden') return error(403,'ACCESS_DENIED');
+      if (scenario==='will_missing') return error(404,'RESOURCE_NOT_FOUND');
+      if (scenario==='will_large') return error(413,'PAYLOAD_TOO_LARGE');
+      if (!multipart) return error(415,'UNSUPPORTED_MEDIA_TYPE');
+      const form=await new Request('http://127.0.0.1',{method:'POST',headers:{'content-type':req.headers['content-type']},body:bytes,duplex:'half'}).formData();
+      const file=form.get('file');
+      if (!file || typeof file.arrayBuffer!=='function' || !file.size || (form.get('note') || '').length>500) return error(400,'VALIDATION_FAILED');
+      if (file.size>10*1024*1024) return error(413,'PAYLOAD_TOO_LARGE');
+      const data=Buffer.from(await file.arrayBuffer());
+      const type=data.subarray(0,5).toString()==='%PDF-'?'application/pdf':data[0]===0xff && data[1]===0xd8?'image/jpeg':data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?'image/png':null;
+      if (!type) return error(415,'UNSUPPORTED_MEDIA_TYPE');
+      return send(201,{id:randomUUID(),vaultId:id,status:scenario==='will_legal'?'LEGAL_APPROVED':'UPLOADED',createdAt:now(),currentVersion:{version:1,fileName:file.name.split(/[\\/]/).pop(),contentType:type,sizeBytes:file.size,sha256:createHash('sha256').update(data).digest('hex'),uploadedAt:now()}});
+    }
     if (path === '/api/v1/dms') {
       if (req.method === 'GET') return dms ? send(200, dms) : error(404, 'RESOURCE_NOT_FOUND');
       if (req.method === 'PUT') {
@@ -96,4 +114,4 @@ const server = http.createServer(async (req, res) => {
     return error(404, 'RESOURCE_NOT_FOUND');
   } catch { return error(400, 'MALFORMED_REQUEST'); }
 });
-server.listen(18176, '127.0.0.1', () => console.log('Synthetic FE contract fixture: http://127.0.0.1:18176 — no BE/DB integration'));
+server.listen(18177, '127.0.0.1', () => console.log('Synthetic FE contract fixture: http://127.0.0.1:18177 — no BE/DB integration'));
