@@ -1,0 +1,184 @@
+/* EmptyState Stylesheet — Henedo Editorial Sanctuary */
+.lv-empty-state {
+  width: 100%;
+  max-width: 860px;
+  margin: 20px auto 40px;
+}
+
+.lv-empty-card {
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-2xl, 24px);
+  padding: 56px 40px 48px;
+  text-align: center;
+  box-shadow: var(--lv-shadow-card, 0 4px 20px rgba(22, 70, 57, 0.05));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  animation: lv-fade-slide-up var(--lv-motion-duration-entrance, 450ms) var(--lv-motion-ease-smooth) forwards;
+  transition: box-shadow var(--lv-transition-card), border-color var(--lv-transition-card);
+}
+
+.lv-empty-card:hover {
+  box-shadow: 0 8px 30px rgba(22, 70, 57, 0.07);
+  border-color: rgba(197, 160, 89, 0.32);
+}
+
+/* Subtle top warm highlight line */
+.lv-empty-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #c5a059, transparent);
+  opacity: 0.6;
+}
+
+.lv-empty-emblem {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(197, 160, 89, 0.1);
+  color: var(--lv-accent-gold, #c5a059);
+  display: grid;
+  place-items: center;
+  margin-bottom: 24px;
+  border: 1px solid rgba(197, 160, 89, 0.28);
+  transition: transform var(--lv-transition-fast), border-color var(--lv-transition-fast);
+}
+
+.lv-empty-card:hover .lv-empty-emblem {
+  transform: scale(1.04);
+  border-color: rgba(197, 160, 89, 0.45);
+}
+
+.lv-empty-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lv-accent-gold, #c5a059);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.lv-empty-heading {
+  font-family: var(--lv-font-serif);
+  font-size: clamp(24px, 3.5vw, 32px);
+  color: var(--lv-text-heading, #164639);
+  line-height: 1.25;
+  margin-bottom: 14px;
+  max-width: 620px;
+}
+
+.lv-empty-desc {
+  font-size: 15px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.6;
+  max-width: 580px;
+  margin-bottom: 32px;
+}
+
+.lv-empty-cta {
+  background: var(--lv-accent-gold, #c5a059);
+  color: #ffffff;
+  padding: 14px 32px;
+  min-height: 48px;
+  border-radius: var(--lv-radius-lg, 12px);
+  font-size: 15px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--lv-shadow-cta, 0 4px 14px rgba(197, 160, 89, 0.25));
+  transition: background-color var(--lv-transition-fast),
+              box-shadow var(--lv-transition-fast),
+              transform var(--lv-transition-fast);
+  cursor: pointer;
+}
+
+.lv-empty-cta:hover {
+  background: var(--lv-accent-gold-hover, #b58f47);
+  box-shadow: var(--lv-shadow-cta-hover, 0 6px 18px rgba(197, 160, 89, 0.35));
+}
+
+.lv-empty-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.lv-empty-cta:focus-visible {
+  outline: 2px solid var(--lv-accent-gold);
+  outline-offset: 2px;
+}
+
+.lv-empty-arrow {
+  transition: transform var(--lv-transition-fast);
+}
+
+.lv-empty-cta:hover .lv-empty-arrow {
+  transform: translateX(4px);
+}
+
+/* Informative Value Pillars Grid */
+.lv-empty-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 760px;
+  margin-top: 48px;
+  padding-top: 36px;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  text-align: left;
+}
+
+.lv-empty-pillar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.lv-pillar-icon {
+  font-size: 16px;
+  color: var(--lv-accent-gold, #c5a059);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-pillar-content strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-heading, #164639);
+  margin-bottom: 4px;
+}
+
+.lv-pillar-content p {
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.45;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lv-empty-card {
+    padding: 40px 24px 36px;
+    border-radius: var(--lv-radius-xl, 16px);
+  }
+
+  .lv-empty-pillars {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 36px;
+    padding-top: 28px;
+  }
+
+  .lv-empty-cta {
+    width: 100%;
+    justify-content: center;
+  }
+}

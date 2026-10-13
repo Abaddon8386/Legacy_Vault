@@ -12,7 +12,7 @@
  * - Does not read or extract plaintext content.
  */
 
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // Provisional FE policy from PS-74 proposal; BE remains the security authority.
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // PS-74 D-API-14 agreed limit; BE validates actual file content and size.
 export const MAX_NOTE_LENGTH = 500;
 
 export const ACCEPTED_MIME_TYPES = [

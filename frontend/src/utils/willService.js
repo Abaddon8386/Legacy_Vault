@@ -1,3 +1,5 @@
+import { API_BASE, ApiError } from '../api/http.js';
+import { isUtcDate } from '../api/contracts.js';
 import { getWillUploadErrors, getWillContentType } from './willValidation.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -92,7 +94,7 @@ export function formatDateTime(value, lang = 'vi') {
   return date.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN');
 }
 const cleanName = value => typeof value === 'string' ? value.split(/[\\/]/).pop().split('').filter(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127).join('').trim() : '';
-const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+const validDate = isUtcDate;
 
 // Never turn an unrelated receipt, legal state, or malformed response into upload success.
 export function readWillReceipt(data, vaultId, file, clientSha256) {
@@ -101,9 +103,9 @@ export function readWillReceipt(data, vaultId, file, clientSha256) {
       !validDate(data?.createdAt) || !v || v.version !== 1 || !cleanName(v.fileName) ||
       v.fileName !== cleanName(v.fileName) || v.fileName !== cleanName(file.name) ||
       v.contentType !== getWillContentType(file) || v.sizeBytes !== file.size || !validDate(v.uploadedAt) ||
-      (v.sha256 != null && !/^[0-9a-f]{64}$/.test(v.sha256))) throw fail('BACKEND_NOT_READY');
+      !(/^[0-9a-f]{64}$/.test(v.sha256 || ''))) throw fail('BACKEND_NOT_READY');
   if (v.sha256 && clientSha256 && v.sha256.toLowerCase() !== clientSha256.toLowerCase()) throw fail('BACKEND_NOT_READY');
-  const resolvedSha256 = v.sha256 || clientSha256;
+  const resolvedSha256 = v.sha256;
   // Whitelist metadata. Raw payloads, tokens and arbitrary backend fields never reach the view.
   return { id: data.id, vaultId: data.vaultId, status: 'UPLOADED', createdAt: data.createdAt,
     currentVersion: { version: v.version, fileName: v.fileName, contentType: v.contentType,
@@ -135,7 +137,8 @@ export const willService = {
       const cleanup = () => { options.signal?.removeEventListener('abort', abort); xhr.onload = xhr.onerror = xhr.onabort = xhr.ontimeout = null; xhr.upload.onprogress = null; };
       const finish = (error, result) => { if (settled) return; settled = true; cleanup(); if (error) reject(error); else resolve(result); };
       const abort = () => { xhr.abort(); finish(fail('ABORTED')); };
-      xhr.open('POST', `/api/v1/vaults/${vaultId}/wills`);
+      xhr.open('POST', `${API_BASE}/vaults/${vaultId}/wills`);
+      xhr.withCredentials = false;
       xhr.timeout = 120000;
       xhr.setRequestHeader('Accept', 'application/json');
       xhr.setRequestHeader('Accept-Language', options.lang === 'en' ? 'en' : 'vi');
@@ -144,7 +147,11 @@ export const willService = {
         if (!settled && !options.signal?.aborted) options.onProgress?.(event.lengthComputable && event.total > 0 ? Math.min(99, Math.floor(event.loaded / event.total * 100)) : null);
       };
       xhr.onload = () => {
-        if (xhr.status !== 201) return finish(fail(HTTP_ERRORS[xhr.status] || (xhr.status >= 500 ? 'UPLOAD_FAILED' : 'BACKEND_NOT_READY'), xhr.status));
+        if (xhr.status !== 201) {
+          let data = null;
+          try { if (/application\/(?:[a-z0-9.+-]*\+)?json/i.test(xhr.getResponseHeader('Content-Type') || '')) data=JSON.parse(xhr.responseText); } catch { /* Safe status fallback. */ }
+          return finish(new ApiError(typeof data?.code === 'string' ? data.code : (HTTP_ERRORS[xhr.status] || (xhr.status>=500 ? 'UPLOAD_FAILED' : 'BACKEND_NOT_READY')),xhr.status,{traceId:data?.traceId,messageKey:data?.messageKey}));
+        }
         try {
           if (!/application\/(?:[a-z0-9.+-]*\+)?json/i.test(xhr.getResponseHeader('Content-Type') || '')) throw fail('BACKEND_NOT_READY');
           const receipt = readWillReceipt(JSON.parse(xhr.responseText), vaultId, file, clientSha256);
