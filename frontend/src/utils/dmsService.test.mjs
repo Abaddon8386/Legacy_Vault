@@ -136,7 +136,7 @@ test('DMS Production Guard - fetchDmsConfig in production calls live adapter', a
       ok: true,
       status: 200,
       headers: { get: () => 'application/json' },
-      json: async () => ({ vaultId: 'vlt-real', status: 'MONITORING', checkIntervalDays: 30 }),
+      json: async () => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', gracePeriodDays: 1, nextCheckAt: '2026-11-11T07:00:00Z', status: 'MONITORING', checkIntervalDays: 30 }),
     };
   };
 
@@ -149,7 +149,7 @@ test('DMS Production Guard - fetchDmsConfig in production calls live adapter', a
 
   assert.equal(liveCalled, true);
   assert.equal(result.isSimulation, false);
-  assert.equal(result.vaultId, 'vlt-real');
+  assert.equal(result.ownerId, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 });
 
 test('DMS Production Guard - saveDmsConfig in production calls live adapter', async () => {
@@ -160,7 +160,7 @@ test('DMS Production Guard - saveDmsConfig in production calls live adapter', as
       ok: true,
       status: 200,
       headers: { get: () => 'application/json' },
-      json: async () => ({ vaultId: 'vlt-real', status: 'MONITORING', checkIntervalDays: 60 }),
+      json: async () => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', gracePeriodDays: 1, nextCheckAt: '2026-11-11T07:00:00Z', status: 'MONITORING', checkIntervalDays: 60 }),
     };
   };
 
@@ -187,7 +187,7 @@ test('DMS Production Guard - checkInDms in production calls live adapter', async
       ok: true,
       status: 200,
       headers: { get: () => 'application/json' },
-      json: async () => ({ vaultId: 'vlt-real', status: 'MONITORING' }),
+      json: async () => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', gracePeriodDays: 1, nextCheckAt: '2026-11-11T07:00:00Z', status: 'MONITORING', checkIntervalDays: 30 }),
     };
   };
 
@@ -355,7 +355,7 @@ test('DMS Live Adapter - checkIn: Success updates DMS state', async () => {
     status: 200,
     headers: { get: () => 'application/json' },
     json: async () => ({
-      vaultId: 'vlt-1',
+      ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', gracePeriodDays: 1,
       status: 'MONITORING',
       checkIntervalDays: 30,
       lastCheckInAt: '2026-10-12T07:00:00Z',

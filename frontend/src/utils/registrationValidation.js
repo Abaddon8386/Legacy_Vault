@@ -4,7 +4,7 @@
  */
 
 export const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
-export const PHONE_REGEX = /^(?:0|\+84)(?:3|5|7|8|9)[0-9]{8}$/;
+export const PHONE_REGEX = /^\+?[0-9]{8,15}$/;
 
 export const validationMessages = {
   vi: {
@@ -12,7 +12,7 @@ export const validationMessages = {
     fullNameShort: 'Họ và tên cần ít nhất 2 ký tự.',
     emailRequired: 'Vui lòng nhập địa chỉ email.',
     emailInvalid: 'Địa chỉ email chưa đúng định dạng.',
-    phoneInvalid: 'Số điện thoại không hợp lệ (10 chữ số, ví dụ: 0901234567).',
+    phoneInvalid: 'Số điện thoại cần 8–15 chữ số, có thể bắt đầu bằng +.',
     passwordRequired: 'Vui lòng nhập mật khẩu.',
     passwordShort: 'Mật khẩu phải có ít nhất 8 ký tự.',
     confirmRequired: 'Vui lòng nhập lại mật khẩu.',
@@ -24,7 +24,7 @@ export const validationMessages = {
     fullNameShort: 'Full name must be at least 2 characters.',
     emailRequired: 'Please enter your email address.',
     emailInvalid: 'Please enter a valid email address.',
-    phoneInvalid: 'Invalid phone number (10 digits, e.g. 0901234567).',
+    phoneInvalid: 'Phone number must contain 8–15 digits and may start with +.',
     passwordRequired: 'Please enter your password.',
     passwordShort: 'Password must be at least 8 characters.',
     confirmRequired: 'Please confirm your password.',
@@ -47,21 +47,21 @@ export function validateRegistration(values, lang = 'vi') {
   const trimmedName = (values.fullName || '').trim();
   if (!trimmedName) {
     errors.fullName = msgs.fullNameRequired;
-  } else if (trimmedName.length < 2) {
-    errors.fullName = msgs.fullNameShort;
+  } else if (trimmedName.length > 150) {
+    errors.fullName = lang === 'en' ? 'Full name must not exceed 150 characters.' : 'Họ và tên không được vượt quá 150 ký tự.';
   }
 
   // Email
   const trimmedEmail = (values.email || '').trim();
   if (!trimmedEmail) {
     errors.email = msgs.emailRequired;
-  } else if (!EMAIL_REGEX.test(trimmedEmail)) {
+  } else if (trimmedEmail.length > 254 || !EMAIL_REGEX.test(trimmedEmail)) {
     errors.email = msgs.emailInvalid;
   }
 
   // Phone (Optional, but if entered must match format)
   const trimmedPhone = (values.phone || '').trim();
-  if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
+  if (trimmedPhone && (trimmedPhone.length > 15 || !PHONE_REGEX.test(trimmedPhone))) {
     errors.phone = msgs.phoneInvalid;
   }
 
@@ -72,6 +72,8 @@ export function validateRegistration(values, lang = 'vi') {
   } else if (pwd.length < 8) {
     errors.password = msgs.passwordShort;
   }
+
+  if (pwd.length > 72) errors.password = lang === 'en' ? 'Password must not exceed 72 characters.' : 'Mật khẩu không được vượt quá 72 ký tự.';
 
   // Confirm Password
   const confirmPwd = values.confirmPassword || '';

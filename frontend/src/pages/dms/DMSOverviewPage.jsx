@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   fetchDmsConfig,
   saveDmsConfig,
@@ -7,6 +7,7 @@ import {
   DEFAULT_INTERVAL_DAYS,
   formatDmsDate,
   validateDmsInterval,
+  getDmsMessage,
 } from '../../utils/dmsService.js';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
@@ -16,6 +17,9 @@ import './DMSOverviewPage.css';
 
 export default function DMSOverviewPage({
   lang = 'vi',
+  accessToken,
+  ownerId,
+  onUnauthorized,
   isDevPreview = false,
   showDevToolbar = false, // Kept for prop compatibility, but no toolbar is ever rendered
   onNavigateToLogin,
@@ -40,20 +44,27 @@ export default function DMSOverviewPage({
   const [checkInError, setCheckInError] = useState('');
 
   // Info popover state
+  const pendingSave = useRef(false);
+  const pendingCheckIn = useRef(false);
+  const active = useRef(true);
+  const mutationController = useRef(null);
+  useEffect(() => { active.current = true; return () => { active.current = false; mutationController.current?.abort(); }; }, []);
+
   const [showInfoPopover, setShowInfoPopover] = useState(false);
 
   // Data fetching
   useEffect(() => {
     let ignore = false;
+    const controller = new AbortController();
 
     // Check if DEV Preview is active via URL params or prop
     // Strictly gated: scenario only takes effect when import.meta.env.DEV is true AND preview=true is present
     const searchParams = new URLSearchParams(window.location.search);
     const hasPreview = searchParams.get('preview') === 'true';
-    const isDevPreviewActive = Boolean(import.meta.env.DEV && (isDevPreview || showDevToolbar || hasPreview));
+    const isDevPreviewActive = Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
     const scenario = isDevPreviewActive ? (searchParams.get('scenario') || 'monitoring') : undefined;
 
-    fetchDmsConfig({ scenario, isDevPreview: isDevPreviewActive, lang })
+    fetchDmsConfig({ scenario, isDevPreview: isDevPreviewActive, lang, accessToken, ownerId, signal: controller.signal })
       .then((data) => {
         if (!ignore) {
           setDmsData(data ? { ...data, snapshotTimestamp: Date.now() } : null);
@@ -65,7 +76,8 @@ export default function DMSOverviewPage({
         }
       })
       .catch((err) => {
-        if (!ignore) {
+        if (!ignore && err.name !== 'AbortError') {
+          if (err.status === 401) { onUnauthorized?.(); return; }
           setError(err);
           setDmsData(null);
           setLoading(false);
@@ -73,9 +85,9 @@ export default function DMSOverviewPage({
       });
 
     return () => {
-      ignore = true;
+      ignore = true; controller.abort();
     };
-  }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey]);
+  }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, onUnauthorized]);
 
   const handleManualRetry = useCallback(() => {
     setLoading(true);
@@ -100,12 +112,15 @@ export default function DMSOverviewPage({
 
   const handleSaveInterval = async (e) => {
     e.preventDefault();
+    if (pendingSave.current || pendingCheckIn.current) return;
     const errors = validateDmsInterval(intervalInput, lang);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
     }
 
+    pendingSave.current = true;
+    const controller = new AbortController(); mutationController.current = controller;
     setFieldErrors({});
     setIsSaving(true);
     setSaveError('');
@@ -113,7 +128,7 @@ export default function DMSOverviewPage({
 
     const searchParams = new URLSearchParams(window.location.search);
     const hasPreview = searchParams.get('preview') === 'true';
-    const isDevPreviewActive = Boolean(import.meta.env.DEV && (isDevPreview || showDevToolbar || hasPreview));
+    const isDevPreviewActive = Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
     const scenario = isDevPreviewActive ? (searchParams.get('scenario') || 'monitoring') : undefined;
 
     try {
@@ -122,55 +137,54 @@ export default function DMSOverviewPage({
         {
           isDevPreview: isDevPreviewActive,
           scenario,
-          lang,
+          lang, accessToken, ownerId, signal: controller.signal,
         }
       );
+      if (!active.current || controller.signal.aborted) return;
       setDmsData(updated ? { ...updated, snapshotTimestamp: Date.now() } : null);
       setIsConfiguringNew(false);
-      setSaveSuccess(
-        updated.message ||
-          (lang === 'en'
-            ? 'Check-in interval saved successfully. Next deadline updated.'
-            : 'Cấu hình chu kỳ kiểm tra đã được lưu thành công. Thời hạn tiếp theo đã được thiết lập.')
-      );
-      setTimeout(() => setSaveSuccess(''), 4500);
+      setSaveSuccess('SAVED');
     } catch (err) {
-      setSaveError(err.message);
+      if (active.current && !controller.signal.aborted) {
+        if (err.status === 401) { onUnauthorized?.(); return; }
+        setSaveError(err.code || 'INTERNAL_ERROR');
+      }
     } finally {
-      setIsSaving(false);
+      pendingSave.current = false;
+      if (active.current) setIsSaving(false);
     }
   };
 
   const handleCheckIn = async () => {
-    if (isCheckingIn) return;
+    if (pendingCheckIn.current || pendingSave.current) return;
+    pendingCheckIn.current = true;
+    const controller = new AbortController(); mutationController.current = controller;
     setIsCheckingIn(true);
     setCheckInNotice('');
     setCheckInError('');
 
     const searchParams = new URLSearchParams(window.location.search);
     const hasPreview = searchParams.get('preview') === 'true';
-    const isDevPreviewActive = Boolean(import.meta.env.DEV && (isDevPreview || showDevToolbar || hasPreview));
+    const isDevPreviewActive = Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
     const scenario = isDevPreviewActive ? (searchParams.get('scenario') || 'monitoring') : undefined;
 
     try {
       const result = await checkInDms({
         isDevPreview: isDevPreviewActive,
         scenario,
-        lang,
+        lang, accessToken, ownerId, signal: controller.signal,
       });
+      if (!active.current || controller.signal.aborted) return;
       setDmsData(result ? { ...result, snapshotTimestamp: Date.now() } : null);
-      setCheckInNotice(
-        result.message ||
-          (lang === 'en'
-            ? 'Vitality confirmed successfully. Next countdown refreshed.'
-            : 'Xác nhận hoạt động thành công. Bộ đếm chu kỳ tiếp theo đã được làm mới.')
-      );
-      setTimeout(() => setCheckInNotice(''), 5000);
+      setCheckInNotice('CHECKED_IN');
     } catch (err) {
-      setCheckInError(err.message);
-      setTimeout(() => setCheckInError(''), 6000);
+      if (active.current && !controller.signal.aborted) {
+        if (err.status === 401) { onUnauthorized?.(); return; }
+        setCheckInError(err.code || 'INTERNAL_ERROR');
+      }
     } finally {
-      setIsCheckingIn(false);
+      pendingCheckIn.current = false;
+      if (active.current) setIsCheckingIn(false);
     }
   };
 
@@ -347,14 +361,14 @@ export default function DMSOverviewPage({
       {checkInNotice && (
         <div className="lv-dms-toast-notice lv-dms-stagger" style={{ '--stagger': 0 }} role="status" aria-live="polite">
           <span className="lv-dms-toast-icon" aria-hidden="true">✓</span>
-          <span>{checkInNotice}</span>
+          <span>{getDmsMessage(checkInNotice, lang)}</span>
         </div>
       )}
 
       {checkInError && (
         <div className="lv-dms-toast-error lv-dms-stagger" style={{ '--stagger': 0 }} role="alert" aria-live="polite">
           <span className="lv-dms-toast-icon" aria-hidden="true">!</span>
-          <span>{checkInError}</span>
+          <span>{getDmsMessage(checkInError, lang)}</span>
         </div>
       )}
 
@@ -635,7 +649,7 @@ export default function DMSOverviewPage({
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span>{saveSuccess}</span>
+                <span>{getDmsMessage(saveSuccess, lang)}</span>
               </div>
             )}
 
@@ -646,7 +660,7 @@ export default function DMSOverviewPage({
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span>{saveError}</span>
+                <span>{getDmsMessage(saveError, lang)}</span>
               </div>
             )}
 

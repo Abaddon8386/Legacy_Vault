@@ -65,7 +65,7 @@ export default function ErrorState({
   const cfg = errorConfigs[status] || errorConfigs.default;
   const badge = lang === 'en' ? cfg.badgeEn : cfg.badgeVi;
   const title = lang === 'en' ? cfg.titleEn : cfg.titleVi;
-  const desc = error?.message || (lang === 'en' ? cfg.descEn : cfg.descVi);
+  const desc = lang === 'en' ? cfg.descEn : cfg.descVi;
   const actionLabel = lang === 'en' ? cfg.actionLabelEn : cfg.actionLabelVi;
 
   const handleAction = () => {

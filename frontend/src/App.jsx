@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
+import { request, ApiError } from './api/http.js';
+import { readUser } from './api/contracts.js';
+import { createSession, isSessionActive } from './utils/session.js';
 import AppShell from './components/layout/AppShell.jsx';
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -125,102 +128,65 @@ function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
 }
 
 export default function App() {
-  const [currentPath, setCurrentPath] = useState(() => {
-    return typeof window !== 'undefined' ? window.location.pathname : '/register';
-  });
+  const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState('vi');
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [session, setSession] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const navigateTo = useCallback(path => {
+    window.history.pushState({}, '', path); setLocation(path);
   }, []);
-
-  const navigateTo = (path) => {
-    window.history.pushState({}, '', path);
-    setCurrentPath(path.split('?')[0]);
+  const logout = useCallback(() => { setSession(null); navigateTo('/login'); }, [navigateTo]);
+  useEffect(() => {
+    const sync = () => setLocation(window.location.pathname + window.location.search);
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+  useEffect(() => {
+    if (!session) return;
+    let timer;
+    const schedule = () => {
+      const remaining = session.expiresAt - Date.now();
+      if (remaining <= 0) { logout(); return; }
+      timer = setTimeout(schedule, Math.min(remaining, 2147483647));
+    };
+    schedule();
+    return () => clearTimeout(timer);
+  }, [session, logout]);
+  const establishSession = async (result, options) => {
+    const candidate = createSession(result);
+    const user = readUser(await request('/auth/me', { ...options, accessToken: candidate.accessToken }));
+    if (options.signal?.aborted) return;
+    if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
+    setSession({ ...candidate, user }); setLang(options.lang || 'vi'); navigateTo('/vault');
   };
-
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setRefreshTrigger((prev) => prev + 1);
-    await new Promise((r) => setTimeout(r, 600));
+    setIsRefreshing(true); setRefreshTrigger(value => value + 1);
     setIsRefreshing(false);
   };
-
-  // Environment gating
-  const isDev = Boolean(import.meta.env.DEV);
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const hasPreviewParam = searchParams?.get('preview') === 'true';
-
-  // PS-1 routes: /register và / (mặc định mở Register)
-  const isRegisterRoute = currentPath === '/register' || currentPath === '/';
-
-  // PS-2 route: /login
-  const isLoginRoute = currentPath === '/login';
-
-  // PS-3 Vault route:
-  const isVaultRoute = currentPath === '/vault' || currentPath === '/vaults';
-
-  // PS-4 DMS route:
-  const isDmsRoute = currentPath === '/dms';
-
-  if (isDev && (isVaultRoute || isDmsRoute)) {
-    const activeTab = isDmsRoute ? 'dms' : 'vault';
-
-    return (
-      <div className="lv-app-root">
-        <AppShell
-          currentTab={activeTab}
-          lang={lang}
-          onToggleLang={setLang}
-          onLogout={() => navigateTo('/login')}
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
-          onNavigateTab={(tab) => {
-            if (tab === 'vault') {
-              navigateTo(hasPreviewParam ? '/vault?preview=true' : '/vault');
-            } else if (tab === 'dms') {
-              navigateTo(hasPreviewParam ? '/dms?preview=true' : '/dms');
-            }
-          }}
-        >
-          {isDmsRoute ? (
-            <DMSOverviewPage
-              lang={lang}
-              showDevToolbar={hasPreviewParam}
-              onNavigateToLogin={() => navigateTo('/login')}
-              onRefreshTrigger={refreshTrigger}
-            />
-          ) : (
-            <VaultOverviewPage
-              lang={lang}
-              showDevToolbar={hasPreviewParam}
-              onNavigateToLogin={() => navigateTo('/login')}
-              onRefreshTrigger={refreshTrigger}
-            />
-          )}
-        </AppShell>
-      </div>
-    );
+  const path = location.split('?')[0];
+  const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const isVaultRoute = path === '/vault' || path === '/vaults';
+  const isDmsRoute = path === '/dms';
+  if (isVaultRoute || isDmsRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !session.user.roles.includes('VAULT_OWNER')) {
+      return <main role="alert"><p>{lang === 'en' ? 'This page requires a Vault Owner account.' : 'Trang này dành cho tài khoản chủ sở hữu kho.'}</p>
+        <button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    }
+    const context = { accessToken: session?.accessToken, ownerId: session?.user.id,
+      onUnauthorized: logout, lang, onNavigateToLogin: logout, onRefreshTrigger: refreshTrigger };
+    return <div className="lv-app-root"><AppShell currentTab={isDmsRoute ? 'dms' : 'vault'} lang={lang}
+      onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
+      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms') navigateTo(`/${tab}${preview ? '?preview=true' : ''}`); }}>
+      {isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
+        : <VaultOverviewPage key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
+    </AppShell></div>;
   }
-
-  return (
-    <div className="lv-app-root">
-      {isRegisterRoute ? (
-        <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
-      ) : isLoginRoute ? (
-        <LoginPage onNavigateToRegister={() => navigateTo('/register')} />
-      ) : (
-        <NotFoundFallback
-          onNavigateToRegister={() => navigateTo('/register')}
-          onNavigateToLogin={() => navigateTo('/login')}
-        />
-      )}
-    </div>
-  );
+  return <div className="lv-app-root">{path === '/' || path === '/register'
+    ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
+    : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+    : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;
 }

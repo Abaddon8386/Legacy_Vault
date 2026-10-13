@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { validateRegistration } from '../../utils/registrationValidation.js';
 import './RegisterPageHenedo.css';
+import { registerUser, getRegistrationMessage } from '../../utils/registrationService.js';
 
 const i18nContent = {
   vi: {
@@ -110,13 +111,17 @@ const initialForm = {
   agreeTerms: false,
 };
 
-export default function RegisterPageHenedo({ onRegister, onNavigateToLogin }) {
+export default function RegisterPageHenedo({ onNavigateToLogin }) {
   const [lang, setLang] = useState('vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState('idle');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusCode, setStatusCode] = useState('');
+  const statusMessage = getRegistrationMessage(statusCode, lang);
+  const pendingRef = useRef(false);
+  const controllerRef = useRef(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
   const [policyModal, setPolicyModal] = useState(null);
 
   const t = i18nContent[lang];
@@ -165,88 +170,23 @@ export default function RegisterPageHenedo({ onRegister, onNavigateToLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (pendingRef.current) return;
     const validationErrors = validateRegistration(values, lang);
     setErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
-      setStatus('idle');
-      return;
-    }
-
-    setStatus('submitting');
+    if (Object.keys(validationErrors).length) { setStatus('idle'); return; }
+    pendingRef.current = true;
+    const controller = new AbortController(); controllerRef.current = controller;
+    setStatus('submitting'); setStatusCode('');
     try {
-      if (typeof onRegister === 'function') {
-        const res = await onRegister(values);
-        setStatus('success');
-        setStatusMessage(res?.message || t.successNotice);
-        return;
-      }
-
-      // Check if developer explicitly enabled preview simulation in DEV:
-      const isPreview = Boolean(
-        import.meta.env.DEV &&
-        typeof window !== 'undefined' &&
-        new URLSearchParams(window.location.search).get('preview') === 'true'
-      );
-
-      if (isPreview) {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        setStatus('success');
-        setStatusMessage(
-          lang === 'vi'
-            ? 'Chế độ xem trước (Preview): Dữ liệu form hợp lệ. Sẵn sàng tích hợp API.'
-            : 'Preview Mode: Form inputs valid. Ready for API integration.'
-        );
-        return;
-      }
-
-      // Normal production route: Attempt actual API call to backend (PS-74 contract: POST /api/v1/auth/register)
-      const response = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'Accept-Language': lang,
-        },
-        body: JSON.stringify({
-          fullName: values.fullName.trim(),
-          email: values.email.trim(),
-          password: values.password,
-          phone: values.phone?.trim() || undefined,
-        }),
-      });
-
-      if (response.status === 201) {
-        setStatus('success');
-        setStatusMessage(t.successNotice);
-      } else if (response.status === 409) {
-        setStatus('failure');
-        setStatusMessage(
-          lang === 'vi'
-            ? 'Địa chỉ email này đã được sử dụng. Vui lòng đăng nhập hoặc sử dụng email khác.'
-            : 'This email is already registered. Please sign in or use another email.'
-        );
-      } else if (response.status === 400) {
-        const errData = await response.json().catch(() => null);
-        setStatus('failure');
-        setStatusMessage(
-          errData?.message ||
-            (lang === 'vi'
-              ? 'Dữ liệu đăng ký không hợp lệ theo yêu cầu của máy chủ.'
-              : 'Registration data rejected by server validation.')
-        );
-      } else {
-        // Endpoint not implemented yet (404) or server unavailable
-        setStatus('failure');
-        setStatusMessage(
-          lang === 'vi'
-            ? 'Dịch vụ đăng ký trực tuyến hiện chưa khả dụng trên máy chủ. Vui lòng thử lại sau.'
-            : 'Online registration service is currently unavailable on the server. Please try again later.'
-        );
-      }
-    } catch (err) {
-      setStatus('failure');
-      setStatusMessage(err?.message || t.failureNotice);
+      await registerUser(values, { lang, signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setValues(initialForm); setStatus('success'); setStatusCode('SUCCESS');
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setStatus('failure'); setStatusCode(error.code || 'INTERNAL_ERROR');
+    } finally {
+      pendingRef.current = false;
+      if (controllerRef.current === controller) controllerRef.current = null;
     }
   };
 
