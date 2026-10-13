@@ -5,6 +5,7 @@ import http from 'node:http';
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const user = { id, fullName: 'Contract Demo', email: 'demo@example.test', roles: ['VAULT_OWNER'] };
 const token = 'SYNTHETIC-FE-CONTRACT-TOKEN';
+let assets = [];
 let vault = null;
 let dms = null;
 let scenario = 'normal';
@@ -24,7 +25,7 @@ const server = http.createServer(async (req, res) => {
     const path = new URL(req.url, 'http://127.0.0.1').pathname;
     if (path === '/__fixture' && req.method === 'POST') {
       scenario = body.scenario || 'normal'; expiresInSeconds = body.expiresInSeconds || 3600;
-      if (body.reset) { vault = null; dms = null; }
+      if (body.reset) { vault = null; dms = null; assets = []; }
       return send(200, { fixtureOnly: true });
     }
     if (path === '/api/v1/auth/register' && req.method === 'POST') {
@@ -47,6 +48,20 @@ const server = http.createServer(async (req, res) => {
         return send(201, vault);
       }
     }
+    if (path === `/api/v1/vaults/${id}/assets`) {
+      if (!vault) return error(404, 'RESOURCE_NOT_FOUND');
+      if (req.method === 'GET') {
+        const query = new URL(req.url, 'http://127.0.0.1').searchParams;
+        const page = Number(query.get('page') || 0), size = Number(query.get('size') || 20);
+        const sorted = [...assets].sort((a,b) => (query.get('sort') || '').startsWith('name') ? a.name.localeCompare(b.name) : b.createdAt.localeCompare(a.createdAt));
+        return send(200, {content:sorted.slice(page*size,(page+1)*size),page,size,totalElements:assets.length,totalPages:Math.ceil(assets.length/size)});
+      }
+      if (req.method === 'POST') {
+        if (!body.name?.trim() || !['TEXT','CREDENTIAL'].includes(body.assetType) || !body.payload?.trim()) return error(400,'VALIDATION_FAILED');
+        const item = {id:crypto.randomUUID(),vaultId:id,name:body.name,assetType:body.assetType,description:body.description ?? null,hasPayload:true,createdAt:now(),updatedAt:now()};
+        assets.unshift(item); return send(201,item);
+      }
+    }
     if (path === '/api/v1/dms') {
       if (req.method === 'GET') return dms ? send(200, dms) : error(404, 'RESOURCE_NOT_FOUND');
       if (req.method === 'PUT') {
@@ -67,4 +82,4 @@ const server = http.createServer(async (req, res) => {
     return error(404, 'RESOURCE_NOT_FOUND');
   } catch { return error(400, 'MALFORMED_REQUEST'); }
 });
-server.listen(18174, '127.0.0.1', () => console.log('Synthetic FE contract fixture: http://127.0.0.1:18174 — no BE/DB integration'));
+server.listen(18175, '127.0.0.1', () => console.log('Synthetic FE contract fixture: http://127.0.0.1:18175 — no BE/DB integration'));

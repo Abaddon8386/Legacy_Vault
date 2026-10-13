@@ -17,22 +17,29 @@ import { AssetListTable } from '../../components/assets/AssetListTable'
 import { AssetFormModal } from '../../components/assets/AssetFormModal'
 import { AssetSummaryCards } from '../../components/assets/AssetSummaryCards'
 import './AssetManagementPage.css'
-
-const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed'
+import { getAssetTranslations, LEGAL_DISMISSED_KEY } from './assetI18n.js'
 
 /**
  * AssetManagementPage — PS-5: Add asset + view asset list (Contract Aligned).
  * Loads assets on mount, shows loading/error/empty states.
  * Allows adding a new asset via a validated form modal with write-only payload.
  */
-export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
-  onNavigateToLogin, onRefreshTrigger = 0 }) {
+export function AssetManagementPage({
+  t: externalT,
+  lang = 'vi',
+  vaultId,
+  accessToken,
+  onNavigateToLogin,
+  onRefreshTrigger = 0,
+}) {
+  const t = getAssetTranslations(externalT, lang)
   const [query, setQuery] = useState({ page: 0, size: 10, sort: 'createdAt,desc' })
   const [totalElements, setTotalElements] = useState(0)
   const [retry, setRetry] = useState(0)
   const submittingRef = useRef(false)
+  const mutationRef = useRef(null)
   const aliveRef = useRef(true)
-  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; mutationRef.current?.abort() } }, [])
   const toastTimer = useRef(null)
   const requestContext = useRef(null)
   useEffect(() => { requestContext.current = { lang } }, [lang])
@@ -87,14 +94,17 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
         setAssets(data.content)
         setTotalElements(data.totalElements)
       } catch (error) {
-        if (active && error.name !== 'AbortError') setError(error.code || 'loadError')
+        if (active && error.name !== 'AbortError') {
+          if (error.status === 401) { onNavigateToLogin?.(); return }
+          setError(error.code || 'loadError')
+        }
       } finally {
         if (active) setIsLoading(false)
       }
     }
     load()
     return () => { active = false; controller.abort() }
-  }, [vaultId, accessToken, query, retry, onRefreshTrigger])
+  }, [vaultId, accessToken, query, retry, onRefreshTrigger, onNavigateToLogin])
 
   const loadAssets = () => setRetry(value => value + 1)
 
@@ -110,9 +120,10 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
   async function handleAddAsset(formData) {
     if (submittingRef.current) return
     submittingRef.current = true
+    const controller = new AbortController(); mutationRef.current = controller
     setIsSubmitting(true)
     try {
-      await assetService.createAsset(vaultId, formData, { lang, accessToken })
+      await assetService.createAsset(vaultId, formData, { lang, accessToken, signal: controller.signal })
       if (!aliveRef.current) return
       setIsAddModalOpen(false)
       setSearchQuery('')
@@ -120,7 +131,11 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
       setQuery(prev => ({ ...prev, page: 0, sort: 'createdAt,desc' }))
       showToast('addSuccess')
     } catch (error) {
-      if (aliveRef.current) showToast(error.code || 'saveError', 'error')
+      if (aliveRef.current && error.name !== 'AbortError') {
+        if (error.status === 401) { setIsAddModalOpen(false); onNavigateToLogin?.(); return }
+        if ([403,404].includes(error.status)) setIsAddModalOpen(false)
+        showToast(error.code || 'saveError', 'error')
+      }
     } finally {
       submittingRef.current = false
       if (aliveRef.current) setIsSubmitting(false)
@@ -214,7 +229,7 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
 
       {/* Summary Cards — reflect filtered data */}
       {!isLoading && !error && hasAnyAssets && (
-        <AssetSummaryCards assets={filteredAssets} t={t} />
+        <AssetSummaryCards assets={filteredAssets} t={t} lang={lang} />
       )}
 
       {/* Filters apply to the current server page; no global search contract exists. */}
@@ -340,11 +355,12 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
       </Modal>
 
       {/* Add Asset Modal */}
-      {isAddModalOpen && <AssetFormModal
+      {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
         isOpen={true}
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleAddAsset}
         t={t}
+        lang={lang}
         isSubmitting={isSubmitting}
       />}
     </div>

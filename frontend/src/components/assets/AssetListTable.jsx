@@ -12,13 +12,15 @@ import {
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import './AssetListTable.css'
+import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
 /**
  * AssetListTable — PS-5: List assets only (Contract Aligned).
  * Displays contract metadata: name, assetType (TEXT | CREDENTIAL), hasPayload, createdAt.
  * Supports sorting and pagination.
  */
-export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, onQueryChange }) {
+export function AssetListTable({ assets, t: externalT, lang = 'vi', query, totalElements, onQueryChange }) {
+  const t = getAssetTranslations(externalT, lang)
   const [sortField, sortOrder] = query.sort.split(',')
   const currentPage = query.page + 1
   const pageSize = query.size

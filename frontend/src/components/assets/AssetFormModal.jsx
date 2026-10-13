@@ -3,6 +3,7 @@ import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
 import { AlertCircle, Lock } from 'lucide-react'
 import './AssetFormModal.css'
+import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
 /**
  * AssetFormModal — PS-5: Add asset only (Contract Aligned).
@@ -13,9 +14,11 @@ export function AssetFormModal({
   isOpen,
   onClose,
   onSubmit,
-  t,
+  t: externalT,
+  lang = 'vi',
   isSubmitting = false,
 }) {
+  const t = getAssetTranslations(externalT, lang)
   const emptyForm = {
     name: '',
     assetType: '',

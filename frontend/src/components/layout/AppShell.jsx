@@ -27,10 +27,10 @@ const NAVIGATION_REGISTRY = [
   },
   {
     id: 'assets',
-    jiraTicket: 'PS-FUTURE',
+    jiraTicket: 'PS-5',
     labelVi: 'Danh mục tài sản di sản',
     labelEn: 'Heritage Assets',
-    status: 'PLANNED',
+    status: 'ACTIVE',
   },
   {
     id: 'wills',
@@ -249,7 +249,7 @@ export default function AppShell({
               <span className="lv-crumb-dim">{t.breadcrumbHome}</span>
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
-                {currentTab === 'dms'
+                {currentTab === 'assets' ? (lang === 'en' ? 'Heritage Assets' : 'Danh mục tài sản') : currentTab === 'dms'
                   ? (lang === 'en' ? "Dead Man's Switch" : 'Giám sát hoạt động')
                   : t.breadcrumbCurrent}
               </span>
