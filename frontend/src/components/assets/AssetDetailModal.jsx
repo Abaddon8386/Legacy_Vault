@@ -127,7 +127,7 @@ export function AssetDetailModal({ isOpen, onClose, asset, t, lang = 'vi' }) {
         {/* Actions */}
         <div className="lv-modal-actions-right">
           <Button variant="primary" onClick={onClose}>
-            {t.assets.detailModal.closeBtn}
+            {t.assets.closeBtn}
           </Button>
         </div>
       </div>

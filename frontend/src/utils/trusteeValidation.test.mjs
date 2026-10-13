@@ -40,7 +40,7 @@ test('validateTrustee - rejects invalid email', () => {
   assert.ok(errors.email);
 });
 
-test('validateTrustee - checks relationship and note lengths', () => {
+test('validateTrustee - checks relationship length and ignores removed note field', () => {
   const errors = validateTrustee({
     fullName: 'Nguyễn Văn A',
     phone: '0901234567',
@@ -48,5 +48,5 @@ test('validateTrustee - checks relationship and note lengths', () => {
     note: 'y'.repeat(501),
   });
   assert.ok(errors.relationship);
-  assert.ok(errors.note);
+  assert.equal(errors.note, undefined);
 });

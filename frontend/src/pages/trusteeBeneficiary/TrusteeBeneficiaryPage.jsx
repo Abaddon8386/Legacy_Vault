@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  DEFAULT_VAULT_ID,
   getTrustees,
   createTrustee,
   getBeneficiaries,
@@ -23,19 +22,19 @@ const i18n = {
     navToRegister: 'Đăng ký',
 
     // Readiness Banner
-    readinessTitle: 'Mức độ sẵn sàng cấu hình kho (Readiness)',
+    readinessTitle: 'Điều kiện cấu hình kho',
     statusReady: 'Đã sẵn sàng cấu hình',
     statusPending: 'Chưa đủ điều kiện',
     readyMsg: 'Đã đủ điều kiện: Có ít nhất 1 Người thụ hưởng trong hệ thống.',
     pendingMsg: 'Cần có ít nhất 1 Người thụ hưởng để hoàn tất cấu hình kho.',
     beneficiaryCountLabel: 'Người thụ hưởng:',
     trusteeStatusLabel: 'Người giám hộ:',
-    trusteeConfigured: 'Đã chỉ định (APPOINTED)',
+    trusteeConfigured: 'Đã chỉ định',
     trusteeSkipped: 'Đã bỏ qua (Tùy chọn)',
     trusteeUnconfigured: 'Chưa thiết lập (Tùy chọn)',
 
     // Section A: Trustee
-    trusteeTag: 'BƯỚC TÙY CHỌN · ST-04',
+    trusteeTag: 'TÙY CHỌN',
     trusteeTitle: '1. Người giám hộ (Trustee)',
     trusteeSubtitle:
       'Người hỗ trợ kích hoạt quy trình chuyển giao di sản số khi xảy ra biến cố.',
@@ -54,7 +53,7 @@ const i18n = {
       'Két đang ở trạng thái không thể chỉnh sửa.',
 
     // Section B: Beneficiary
-    beneficiaryTag: 'BẮT BUỘC TỐI THIỂU 1 · ST-05',
+    beneficiaryTag: 'CẦN ÍT NHẤT MỘT NGƯỜI',
     beneficiaryTitle: '2. Người thụ hưởng (Beneficiary)',
     beneficiarySubtitle:
       'Người được chỉ định nhận thông tin và di sản sau khi quy trình chuyển giao được kích hoạt hợp lệ.',
@@ -105,12 +104,12 @@ const i18n = {
     pendingMsg: 'At least 1 Beneficiary is required to complete vault configuration.',
     beneficiaryCountLabel: 'Beneficiaries:',
     trusteeStatusLabel: 'Trustee:',
-    trusteeConfigured: 'Appointed (APPOINTED)',
+    trusteeConfigured: 'Appointed',
     trusteeSkipped: 'Skipped (Optional)',
     trusteeUnconfigured: 'Not Configured (Optional)',
 
     // Section A: Trustee
-    trusteeTag: 'OPTIONAL STEP · ST-04',
+    trusteeTag: 'OPTIONAL',
     trusteeTitle: '1. Trustee',
     trusteeSubtitle:
       'The designated person who assists in initiating the heritage handover upon designated events.',
@@ -129,7 +128,7 @@ const i18n = {
       'The vault is in a state that cannot be edited.',
 
     // Section B: Beneficiary
-    beneficiaryTag: 'AT LEAST 1 REQUIRED · ST-05',
+    beneficiaryTag: 'AT LEAST ONE REQUIRED',
     beneficiaryTitle: '2. Beneficiaries',
     beneficiarySubtitle:
       'Individuals designated to receive legacy records once the handover process is duly executed.',
@@ -164,187 +163,66 @@ const i18n = {
   },
 };
 
-export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateToRegister }) {
-  const [lang, setLang] = useState('vi');
-  const t = i18n[lang] || i18n.vi;
-
-  const [vaultId] = useState(DEFAULT_VAULT_ID);
-  const [trustees, setTrustees] = useState([]);
-  const [beneficiaries, setBeneficiaries] = useState([]);
-  const [isSkipped, setIsSkipped] = useState(false);
-  const [readiness, setReadiness] = useState({ isReady: false, beneficiaryCount: 0, hasTrustee: false });
-
-  // Alerts
-  const [alert, setAlert] = useState(null); // { type: 'success'|'error', message }
-
-  // Trustee Form
-  const [trusteeForm, setTrusteeForm] = useState({
-    fullName: '',
-    phone: '',
-    email: '',
-    relationship: '',
-    note: '',
-  });
-  const [trusteeErrors, setTrusteeErrors] = useState({});
-  const [isSubmittingTrustee, setIsSubmittingTrustee] = useState(false);
-
-  // Beneficiary Form
-  const [beneficiaryForm, setBeneficiaryForm] = useState({
-    fullName: '',
-    relationship: '',
-    dateOfBirth: '',
-    phone: '',
-    email: '',
-  });
-  const [beneficiaryErrors, setBeneficiaryErrors] = useState({});
-  const [isSubmittingBeneficiary, setIsSubmittingBeneficiary] = useState(false);
-
-  const refreshData = useCallback(async () => {
-    try {
-      const [tList, bList, rStatus] = await Promise.all([
-        getTrustees(vaultId),
-        getBeneficiaries(vaultId),
-        checkConfigurationReadiness(vaultId),
-      ]);
-      setTrustees(tList);
-      setBeneficiaries(bList);
-      setReadiness(rStatus);
-    } catch {
-      // Keep state intact
-    }
-  }, [vaultId]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    Promise.all([
-      getTrustees(vaultId),
-      getBeneficiaries(vaultId),
-      checkConfigurationReadiness(vaultId),
-    ])
-      .then(([tList, bList, rStatus]) => {
-        if (!ignore) {
-          setTrustees(tList);
-          setBeneficiaries(bList);
-          setReadiness(rStatus);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      ignore = true;
-    };
-  }, [vaultId]);
-
-  // Handle Skip Trustee (Pure local UI state)
-  const handleSkipTrustee = () => {
-    setIsSkipped(true);
-    setAlert({ type: 'success', message: t.skippedSuccessTrustee });
-  };
-
-  // Handle Unskip Trustee (show form again)
-  const handleUnskipTrustee = () => {
-    setIsSkipped(false);
-  };
-
-  // Handle Submit Trustee
-  const handleTrusteeSubmit = async (e) => {
-    e.preventDefault();
-    const errors = validateTrustee(trusteeForm, lang);
-    setTrusteeErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    setIsSubmittingTrustee(true);
-    try {
-      await createTrustee(vaultId, trusteeForm);
-      setAlert({ type: 'success', message: t.addedSuccessTrustee });
-      setTrusteeForm({ fullName: '', phone: '', email: '', relationship: '', note: '' });
-      setTrusteeErrors({});
-      setIsSkipped(false);
-      await refreshData();
-    } catch (err) {
-      let message = err.message || (lang === 'vi' ? 'Có lỗi xảy ra khi thêm Người giám hộ.' : 'Failed to add Trustee.');
-      if (err.code === 'TRUSTEE_ALREADY_EXISTS') {
-        message = t.duplicateTrusteeError;
-      } else if (err.code === 'VAULT_NOT_EDITABLE') {
-        message = t.vaultNotEditableError;
-      }
-      setAlert({
-        type: 'error',
-        message,
-      });
-    } finally {
-      setIsSubmittingTrustee(false);
-    }
-  };
-
-  // Handle Submit Beneficiary
-  const handleBeneficiarySubmit = async (e) => {
-    e.preventDefault();
-    const errors = validateBeneficiary(beneficiaryForm, lang);
-    setBeneficiaryErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
-
-    setIsSubmittingBeneficiary(true);
-    try {
-      await createBeneficiary(vaultId, beneficiaryForm);
-      setAlert({ type: 'success', message: t.addedSuccessBeneficiary });
-      setBeneficiaryForm({ fullName: '', relationship: '', dateOfBirth: '', phone: '', email: '' });
-      setBeneficiaryErrors({});
-      await refreshData();
-    } catch (err) {
-      setAlert({
-        type: 'error',
-        message: err.message || (lang === 'vi' ? 'Có lỗi xảy ra khi thêm Người thụ hưởng.' : 'Failed to add Beneficiary.'),
-      });
-    } finally {
-      setIsSubmittingBeneficiary(false);
-    }
-  };
-
+Object.assign(i18n.vi,{pageDesc:'Khai báo người giám hộ tùy chọn và người thụ hưởng cho kho di sản.',trusteeSubtitle:'Người liên hệ hỗ trợ gia đình theo quy trình được xác minh.',trusteeNotice:'Bạn có thể bỏ qua hoặc chỉ định một người giám hộ. Người này không cần tài khoản và không được mở khóa hay xem nội dung bí mật. Chỉ định người giám hộ không tự thêm họ vào danh sách người thụ hưởng.',beneficiarySubtitle:'Người được ghi nhận trong kế hoạch di sản; việc bàn giao theo quy trình được duyệt.',beneficiaryNotice:'Cần ít nhất một người thụ hưởng để hoàn tất cấu hình kho. Bạn có thể khai báo mà không cần tạo tài khoản cho họ. Phần chia tài sản được xác định theo căn cứ pháp lý được duyệt.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Bạn đã chọn bỏ qua người giám hộ.'});
+Object.assign(i18n.en,{pageDesc:'Record optional trustees and beneficiaries for your heritage vault.',trusteeSubtitle:'A contact who can help your family through a verified process.',trusteeNotice:'You may skip this step or appoint one trustee. They do not need an account and cannot unlock or view secret content. Appointing a trustee does not add them as a beneficiary.',beneficiarySubtitle:'A person recorded in your heritage plan; transfer follows the approved process.',beneficiaryNotice:'At least one beneficiary is needed to complete vault configuration. You can record them without creating an account. Asset shares follow approved legal documents.',appointedStatus:'Appointed',skippedSuccessTrustee:'You chose to skip the trustee.'});
+const emptyTrustee={fullName:'',phone:'',email:'',relationship:''};
+const emptyBeneficiary={fullName:'',relationship:'',dateOfBirth:'',phone:'',email:''};
+const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người giám hộ.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
+export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',onUnauthorized,onRefreshTrigger=0}) {
+ const t=i18n[lang]||i18n.vi;
+ const [trustees,setTrustees]=useState([]),[beneficiaries,setBeneficiaries]=useState([]);
+ const [isSkipped,setIsSkipped]=useState(false),[readiness,setReadiness]=useState(null);
+ const [alert,setAlert]=useState(null),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(null);
+ const [retry,setRetry]=useState(0),[pageIndex,setPageIndex]=useState(0),[pages,setPages]=useState(0);
+ const [trusteeForm,setTrusteeForm]=useState(emptyTrustee),[beneficiaryForm,setBeneficiaryForm]=useState(emptyBeneficiary);
+ const [trusteeErrors,setTrusteeErrors]=useState({}),[beneficiaryErrors,setBeneficiaryErrors]=useState({});
+ const [isSubmittingTrustee,setIsSubmittingTrustee]=useState(false),[isSubmittingBeneficiary,setIsSubmittingBeneficiary]=useState(false);
+ const pending=useRef(false),alive=useRef(true),mutation=useRef(null),loadRequest=useRef(null);
+ const locale=useRef(lang);useEffect(()=>{locale.current=lang},[lang]);
+ useEffect(()=>{alive.current=true;return()=>{alive.current=false;mutation.current?.abort()}},[]);
+ useEffect(()=>{
+  const controller=new AbortController();loadRequest.current=controller;
+  Promise.resolve().then(async()=>{
+   if(controller.signal.aborted)return;setLoading(true);setLoadError(null);setTrustees([]);setBeneficiaries([]);setReadiness(null);
+   try {
+    const options={accessToken,lang:locale.current,signal:controller.signal};
+    const [trustees,list,ready]=await Promise.all([getTrustees(vaultId,options),getBeneficiaries(vaultId,{...options,page:pageIndex}),checkConfigurationReadiness(vaultId,options)]);
+    if(controller.signal.aborted)return;setTrustees(trustees);setBeneficiaries(list.content);setReadiness(ready);setPages(list.totalPages);
+   }catch(error){if(controller.signal.aborted)return;controller.abort();if(error.status===401){setLoadError('UNAUTHENTICATED');onUnauthorized?.();}else setLoadError(error.code||'LOAD_ERROR');}
+   finally {if(alive.current && loadRequest.current===controller)setLoading(false);}
+  });return()=>controller.abort();
+ },[vaultId,accessToken,pageIndex,retry,onRefreshTrigger,onUnauthorized]);
+ const handleSkipTrustee=()=>{if(pending.current)return;setIsSkipped(true);setTrusteeForm(emptyTrustee);setTrusteeErrors({});setAlert({type:'success',key:'skippedSuccessTrustee'})};
+ const handleUnskipTrustee=()=>setIsSkipped(false);
+ async function save(event,kind){
+  event.preventDefault();if(pending.current)return;
+  const isTrustee=kind==='trustee',data=isTrustee?trusteeForm:beneficiaryForm;
+  const errors=isTrustee?validateTrustee(data,lang):validateBeneficiary(data,lang);
+  (isTrustee?setTrusteeErrors:setBeneficiaryErrors)(errors);if(Object.keys(errors).length)return;
+  pending.current=true;const controller=new AbortController();mutation.current=controller;
+  (isTrustee?setIsSubmittingTrustee:setIsSubmittingBeneficiary)(true);
+  try{
+   await (isTrustee?createTrustee:createBeneficiary)(vaultId,data,{accessToken,lang,signal:controller.signal});
+   if(!alive.current||controller.signal.aborted)return;
+   (isTrustee?setTrusteeForm:setBeneficiaryForm)(isTrustee?emptyTrustee:emptyBeneficiary);
+   (isTrustee?setTrusteeErrors:setBeneficiaryErrors)({});setAlert({type:'success',key:isTrustee?'addedSuccessTrustee':'addedSuccessBeneficiary'});if(isTrustee)setIsSkipped(false);setPageIndex(0);setRetry(value=>value+1);
+  }catch(error){
+   if(!alive.current||controller.signal.aborted)return;
+   if(error.status===401){onUnauthorized?.();return;}
+   if([403,404].includes(error.status)){loadRequest.current?.abort();setTrustees([]);setBeneficiaries([]);setReadiness(null);setTrusteeForm(emptyTrustee);setBeneficiaryForm(emptyBeneficiary);setLoadError(error.code);}
+   setAlert({type:'error',code:error.code||'SAVE_ERROR'});
+  }finally{pending.current=false;if(alive.current)(isTrustee?setIsSubmittingTrustee:setIsSubmittingBeneficiary)(false);}
+ }
+ const handleTrusteeSubmit=event=>save(event,'trustee'),handleBeneficiarySubmit=event=>save(event,'beneficiary');
+ const localizedTrusteeErrors=validateTrustee(trusteeForm,lang),localizedBeneficiaryErrors=validateBeneficiary(beneficiaryForm,lang);
+ if(loading || (!loadError && !readiness))return <p role="status">{lang==='en'?'Loading records…':'Đang tải thông tin…'}</p>;
+ if(loadError)return <section role="alert"><p>{safeError(loadError,lang)}</p><button onClick={()=>setRetry(value=>value+1)}>{lang==='en'?'Retry':'Thử lại'}</button></section>;
   const appointedTrustee = trustees[0];
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="lv-tb-page">
       <div className="lv-tb-container">
-        {/* Top Header */}
-        <header className="lv-tb-header">
-          <div className="lv-tb-brand">
-            <div className="lv-tb-brand-badge" aria-hidden="true">
-              LV
-            </div>
-            <span className="lv-tb-brand-name">{t.brandName}</span>
-          </div>
-
-          <div className="lv-tb-top-actions">
-            {onNavigateToLogin && (
-              <button type="button" className="lv-tb-nav-link" onClick={onNavigateToLogin}>
-                {t.navToLogin}
-              </button>
-            )}
-            {onNavigateToRegister && (
-              <button type="button" className="lv-tb-nav-link" onClick={onNavigateToRegister}>
-                {t.navToRegister}
-              </button>
-            )}
-            <button
-              type="button"
-              className="lv-tb-lang-toggle"
-              onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
-              aria-label="Toggle language"
-            >
-              {lang === 'vi' ? 'EN' : 'VI'}
-            </button>
-          </div>
-        </header>
-
         {/* Hero Title */}
         <div className="lv-tb-title-block">
           <span className="lv-tb-eyebrow">{t.eyebrow}</span>
@@ -355,7 +233,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
         {/* Global Alert Notification */}
         {alert && (
           <div className={`lv-tb-alert ${alert.type}`} role="alert">
-            <span>{alert.message}</span>
+            <span>{alert.key ? t[alert.key] : safeError(alert.code,lang)}</span>
             <button
               type="button"
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
@@ -381,10 +259,10 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
           <div className="lv-tb-readiness-grid">
             <div className="lv-tb-readiness-item">
               <span className="lv-tb-readiness-label">{t.beneficiaryCountLabel}</span>
-              <span className={`lv-tb-readiness-val ${beneficiaries.length >= 1 ? 'done' : 'warn'}`}>
+              <span className={`lv-tb-readiness-val ${readiness.beneficiaryCount >= 1 ? 'done' : 'warn'}`}>
                 {beneficiaries.length >= 1
-                  ? `${beneficiaries.length} người (✓)`
-                  : '0 người (Cần tối thiểu 1)'}
+                  ? `${readiness.beneficiaryCount} ${lang==='en'?(readiness.beneficiaryCount===1?'person':'people'):'người'}`
+                  : (lang==='en'?'0 people (at least 1 required)':'0 người (Cần tối thiểu 1)')}
               </span>
             </div>
             <div className="lv-tb-readiness-item">
@@ -425,7 +303,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
             </div>
 
             <div className="lv-tb-notice-box">
-              <strong>{lang === 'vi' ? 'Quy tắc nghiệp vụ: ' : 'Business rules: '}</strong>
+              <strong>{lang === 'vi' ? 'Lưu ý: ' : 'Please note: '}</strong>
               {t.trusteeNotice}
             </div>
 
@@ -450,12 +328,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                       <span className="lv-tb-prop-label">{t.relationshipLabel}</span>
                       <span className="lv-tb-prop-value">{appointedTrustee.relationship || '—'}</span>
                     </div>
-                    {appointedTrustee.note && (
-                      <div className="lv-tb-entity-prop" style={{ gridColumn: '1 / -1' }}>
-                        <span className="lv-tb-prop-label">{t.noteLabel}</span>
-                        <span className="lv-tb-prop-value">{appointedTrustee.note}</span>
-                      </div>
-                    )}
+
                   </div>
                 </div>
                 <p className="lv-tb-hint">{t.maxTrusteeReachedNotice}</p>
@@ -485,7 +358,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     </label>
                     <input
                       id="trustee-fullname"
-                      type="text"
+                      type="text" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                       maxLength={150}
                       className={`lv-tb-input ${trusteeErrors.fullName ? 'has-error' : ''}`}
                       placeholder={t.fullNamePlaceholder}
@@ -495,7 +368,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                       }
                     />
                     {trusteeErrors.fullName && (
-                      <span className="lv-tb-error-text">{trusteeErrors.fullName}</span>
+                      <span className="lv-tb-error-text">{localizedTrusteeErrors.fullName}</span>
                     )}
                   </div>
 
@@ -506,7 +379,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     </label>
                     <input
                       id="trustee-phone"
-                      type="tel"
+                      type="tel" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                       className={`lv-tb-input ${trusteeErrors.phone ? 'has-error' : ''}`}
                       placeholder={t.phonePlaceholder}
                       value={trusteeForm.phone}
@@ -515,7 +388,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                       }
                     />
                     {trusteeErrors.phone && (
-                      <span className="lv-tb-error-text">{trusteeErrors.phone}</span>
+                      <span className="lv-tb-error-text">{localizedTrusteeErrors.phone}</span>
                     )}
                   </div>
 
@@ -526,7 +399,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     </label>
                     <input
                       id="trustee-email"
-                      type="email"
+                      type="email" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                       className={`lv-tb-input ${trusteeErrors.email ? 'has-error' : ''}`}
                       placeholder={t.emailPlaceholder}
                       value={trusteeForm.email}
@@ -535,7 +408,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                       }
                     />
                     {trusteeErrors.email && (
-                      <span className="lv-tb-error-text">{trusteeErrors.email}</span>
+                      <span className="lv-tb-error-text">{localizedTrusteeErrors.email}</span>
                     )}
                   </div>
 
@@ -551,7 +424,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     </label>
                     <input
                       id="trustee-relationship"
-                      type="text"
+                      type="text" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                       maxLength={100}
                       className={`lv-tb-input ${trusteeErrors.relationship ? 'has-error' : ''}`}
                       placeholder={t.relationshipPlaceholder}
@@ -561,37 +434,17 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                       }
                     />
                     {trusteeErrors.relationship && (
-                      <span className="lv-tb-error-text">{trusteeErrors.relationship}</span>
+                      <span className="lv-tb-error-text">{localizedTrusteeErrors.relationship}</span>
                     )}
                   </div>
 
-                  {/* Note */}
-                  <div className="lv-tb-field-group full-width">
-                    <label className="lv-tb-label" htmlFor="trustee-note">
-                      {t.noteLabel}
-                    </label>
-                    <textarea
-                      id="trustee-note"
-                      rows={2}
-                      maxLength={500}
-                      className={`lv-tb-textarea ${trusteeErrors.note ? 'has-error' : ''}`}
-                      placeholder={t.notePlaceholder}
-                      value={trusteeForm.note}
-                      onChange={(e) =>
-                        setTrusteeForm({ ...trusteeForm, note: e.target.value })
-                      }
-                    />
-                    {trusteeErrors.note && (
-                      <span className="lv-tb-error-text">{trusteeErrors.note}</span>
-                    )}
-                  </div>
                 </div>
 
                 <div className="lv-tb-actions-row">
                   <button
                     type="submit"
                     className="lv-tb-btn-primary"
-                    disabled={isSubmittingTrustee}
+                    disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                   >
                     {isSubmittingTrustee ? t.submitting : t.saveTrusteeBtn}
                   </button>
@@ -613,7 +466,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
             </div>
 
             <div className="lv-tb-notice-box">
-              <strong>{lang === 'vi' ? 'Quy tắc nghiệp vụ: ' : 'Business rules: '}</strong>
+              <strong>{lang === 'vi' ? 'Lưu ý: ' : 'Please note: '}</strong>
               {t.beneficiaryNotice}
             </div>
 
@@ -659,6 +512,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
               </div>
             )}
 
+            {pages>1 && <nav aria-label={lang==='en'?'Beneficiary pages':'Trang người thụ hưởng'}><button disabled={pageIndex===0 || isSubmittingTrustee || isSubmittingBeneficiary} onClick={()=>setPageIndex(value=>value-1)}>{lang==='en'?'Previous':'Trước'}</button><span>{pageIndex+1}/{pages}</span><button disabled={pageIndex+1>=pages || isSubmittingTrustee || isSubmittingBeneficiary} onClick={()=>setPageIndex(value=>value+1)}>{lang==='en'?'Next':'Sau'}</button></nav>}
             {/* Add Beneficiary Form */}
             <form className="lv-tb-form" onSubmit={handleBeneficiarySubmit} noValidate>
               <h3
@@ -679,7 +533,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                   </label>
                   <input
                     id="ben-fullname"
-                    type="text"
+                    type="text" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     maxLength={150}
                     className={`lv-tb-input ${beneficiaryErrors.fullName ? 'has-error' : ''}`}
                     placeholder={t.fullNamePlaceholder}
@@ -689,7 +543,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     }
                   />
                   {beneficiaryErrors.fullName && (
-                    <span className="lv-tb-error-text">{beneficiaryErrors.fullName}</span>
+                    <span className="lv-tb-error-text">{localizedBeneficiaryErrors.fullName}</span>
                   )}
                 </div>
 
@@ -700,7 +554,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                   </label>
                   <input
                     id="ben-relationship"
-                    type="text"
+                    type="text" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     maxLength={100}
                     className={`lv-tb-input ${beneficiaryErrors.relationship ? 'has-error' : ''}`}
                     placeholder={t.relationshipPlaceholder}
@@ -710,7 +564,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     }
                   />
                   {beneficiaryErrors.relationship && (
-                    <span className="lv-tb-error-text">{beneficiaryErrors.relationship}</span>
+                    <span className="lv-tb-error-text">{localizedBeneficiaryErrors.relationship}</span>
                   )}
                 </div>
 
@@ -721,7 +575,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                   </label>
                   <input
                     id="ben-dob"
-                    type="date"
+                    type="date" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     max={todayStr}
                     className={`lv-tb-input ${beneficiaryErrors.dateOfBirth ? 'has-error' : ''}`}
                     value={beneficiaryForm.dateOfBirth}
@@ -730,7 +584,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     }
                   />
                   {beneficiaryErrors.dateOfBirth && (
-                    <span className="lv-tb-error-text">{beneficiaryErrors.dateOfBirth}</span>
+                    <span className="lv-tb-error-text">{localizedBeneficiaryErrors.dateOfBirth}</span>
                   )}
                 </div>
 
@@ -741,7 +595,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                   </label>
                   <input
                     id="ben-phone"
-                    type="tel"
+                    type="tel" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     className={`lv-tb-input ${beneficiaryErrors.phone ? 'has-error' : ''}`}
                     placeholder={t.phonePlaceholder}
                     value={beneficiaryForm.phone}
@@ -750,7 +604,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     }
                   />
                   {beneficiaryErrors.phone && (
-                    <span className="lv-tb-error-text">{beneficiaryErrors.phone}</span>
+                    <span className="lv-tb-error-text">{localizedBeneficiaryErrors.phone}</span>
                   )}
                 </div>
 
@@ -761,7 +615,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                   </label>
                   <input
                     id="ben-email"
-                    type="email"
+                    type="email" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     className={`lv-tb-input ${beneficiaryErrors.email ? 'has-error' : ''}`}
                     placeholder={t.emailPlaceholder}
                     value={beneficiaryForm.email}
@@ -770,7 +624,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                     }
                   />
                   {beneficiaryErrors.email && (
-                    <span className="lv-tb-error-text">{beneficiaryErrors.email}</span>
+                    <span className="lv-tb-error-text">{localizedBeneficiaryErrors.email}</span>
                   )}
                 </div>
               </div>
@@ -779,7 +633,7 @@ export default function TrusteeBeneficiaryPage({ onNavigateToLogin, onNavigateTo
                 <button
                   type="submit"
                   className="lv-tb-btn-primary"
-                  disabled={isSubmittingBeneficiary}
+                  disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                 >
                   {isSubmittingBeneficiary ? t.submitting : t.addBeneficiaryBtn}
                 </button>

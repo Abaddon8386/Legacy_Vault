@@ -84,11 +84,5 @@ export function validateTrustee(values = {}, lang = 'vi') {
     errors.relationship = msgs.relationshipTooLong;
   }
 
-  // 4. Note (optional, max 500)
-  const trimmedNote = (values.note || '').trim();
-  if (trimmedNote.length > 500) {
-    errors.note = msgs.noteTooLong;
-  }
-
   return errors;
 }

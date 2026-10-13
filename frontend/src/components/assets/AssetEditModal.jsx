@@ -54,7 +54,7 @@ export function AssetEditModal({
     const patchData = {}
     if (name.trim() !== asset.name) patchData.name = name.trim()
     if (description.trim() !== (asset.description || '')) patchData.description = description.trim()
-    if (payload.trim()) patchData.payload = payload
+    if (payload.length) patchData.payload = payload
     if (!Object.keys(patchData).length) {
       setErrors({ noChanges: true })
       return

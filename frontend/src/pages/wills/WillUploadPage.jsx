@@ -10,9 +10,12 @@ const copy = {
     chooseHint: 'Chọn bản chụp hoặc bản quét rõ nét, đầy đủ các trang.', remove: 'Bỏ chọn tệp',
     progress: 'Tiến trình tải lên', preparing: 'Đang chuẩn bị tài liệu…', sending: 'Đang gửi tài liệu…',
     confirming: 'Đang xác nhận kết quả…', cancel: 'Hủy thao tác', another: 'Tải lên tài liệu khác',
-    saved: 'Tài liệu đã được ghi nhận', details: 'Thông tin kỹ thuật',
+    saved: 'Tài liệu đã được ghi nhận',
     errors: {
       BACKEND_NOT_READY: 'Chưa thể kết nối hồ sơ di chúc. Vui lòng thử lại sau.',
+      UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      ACCESS_DENIED: 'Bạn không có quyền tải tài liệu vào kho này.',
+      RESOURCE_NOT_FOUND: 'Không tìm thấy kho thuộc quyền truy cập của bạn.',
       UNAUTHORIZED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
       FORBIDDEN: 'Bạn không có quyền tải tài liệu vào kho này.', NOT_FOUND: 'Không tìm thấy kho di sản.',
       VAULT_NOT_EDITABLE: 'Kho hiện không cho phép bổ sung tài liệu.',
@@ -29,9 +32,12 @@ const copy = {
     chooseHint: 'Choose a clear, complete photograph or scan.', remove: 'Remove file',
     progress: 'Upload progress', preparing: 'Preparing document…', sending: 'Sending document…',
     confirming: 'Confirming upload…', cancel: 'Cancel upload', another: 'Upload another document',
-    saved: 'Document recorded', details: 'Technical information',
+    saved: 'Document recorded',
     errors: {
       BACKEND_NOT_READY: 'Will records cannot be reached yet. Please try again later.',
+      UNAUTHENTICATED: 'Your session has expired. Please sign in again.',
+      ACCESS_DENIED: 'You do not have permission to upload to this vault.',
+      RESOURCE_NOT_FOUND: 'No accessible vault was found.',
       UNAUTHORIZED: 'Your session has expired. Please sign in again.',
       FORBIDDEN: 'You do not have permission to upload to this vault.', NOT_FOUND: 'Heritage vault not found.',
       VAULT_NOT_EDITABLE: 'This vault currently does not accept new documents.',
@@ -46,10 +52,10 @@ const copy = {
 const formatNames = { 'application/pdf': 'PDF', 'image/jpeg': 'JPEG', 'image/png': 'PNG' };
 
 export default function WillUploadPage(props) {
-  return <UploadForm key={JSON.stringify([props.vaultId, props.accessToken])} {...props} />;
+  return <UploadForm key={JSON.stringify([props.vaultId])} {...props} />;
 }
 
-function UploadForm({ lang = 'vi', vaultId, accessToken }) {
+function UploadForm({ lang = 'vi', vaultId, accessToken, onUnauthorized }) {
   const language = lang === 'en' ? 'en' : 'vi';
   const t = copy[language]; const messages = willStatusMessages[language];
   const [file, setFile] = useState(null);
@@ -97,6 +103,8 @@ function UploadForm({ lang = 'vi', vaultId, accessToken }) {
       if (inputRef.current) inputRef.current.value = '';
     } catch (error) {
       if (contextRef.current !== context || requestRef.current !== controller) return;
+      if (error.status === 401) { setFile(null); setNote(''); setResult(null); if (inputRef.current) inputRef.current.value=''; onUnauthorized?.(); return; }
+      if ([403,404].includes(error.status)) { setFile(null); setNote(''); setResult(null); if (inputRef.current) inputRef.current.value=''; }
       setErrorCode(error?.code || 'UPLOAD_FAILED');
       if (error?.fieldErrors) setErrors(error.fieldErrors);
     } finally {
@@ -125,7 +133,6 @@ function UploadForm({ lang = 'vi', vaultId, accessToken }) {
             <div><dt>{messages.FILE_SIZE_LABEL}</dt><dd>{formatFileSize(v.sizeBytes)}</dd></div>
             <div><dt>{messages.UPLOADED_AT_LABEL}</dt><dd>{formatDateTime(v.uploadedAt, language)}</dd></div>
           </dl>
-          {v.sha256 && <details className="hn-will-hash"><summary>{t.details}</summary><p>{messages.SHA256_LABEL}</p><code>{v.sha256}</code><p>{messages.SHA256_HINT}</p></details>}
           <button type="button" className="hn-will-secondary" onClick={() => { setResult(null); setErrors({}); setErrorCode(null); }}>{t.another}</button>
         </section>
       ) : (

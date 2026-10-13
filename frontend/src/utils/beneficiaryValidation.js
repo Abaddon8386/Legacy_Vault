@@ -71,7 +71,7 @@ export function validateBeneficiary(values = {}, lang = 'vi') {
     const dobString = String(values.dateOfBirth).trim();
     if (dobString) {
       const dob = new Date(dobString);
-      if (Number.isNaN(dob.getTime())) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dobString) || Number.isNaN(dob.getTime()) || dob.toISOString().slice(0,10)!==dobString) {
         errors.dateOfBirth = msgs.dateOfBirthInvalid;
       } else {
         const today = new Date();

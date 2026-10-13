@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from 'react'
 import {
   FileText,
   KeyRound,
@@ -10,40 +9,18 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  MoreVertical,
-  Eye,
-  Pencil,
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import './AssetListTable.css'
+import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
 /**
- * AssetListTable — PS-5/PS-6: List assets + View/Edit Actions (Contract Aligned).
+ * AssetListTable — PS-5: List assets only (Contract Aligned).
  * Displays contract metadata: name, assetType (TEXT | CREDENTIAL), hasPayload, createdAt.
- * Supports sorting, pagination, view detail, and edit actions.
+ * Supports sorting and pagination.
  */
-export function AssetListTable({
-  assets,
-  t,
-  lang = 'vi',
-  query,
-  totalElements,
-  onQueryChange,
-  onViewAsset,
-  onEditAsset,
-}) {
-  const [openMenuId, setOpenMenuId] = useState(null)
-  const menuRef = useRef(null)
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpenMenuId(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+export function AssetListTable({ assets, t: externalT, lang = 'vi', query, totalElements, onQueryChange, onViewAsset, onEditAsset }) {
+  const t = getAssetTranslations(externalT, lang)
   const [sortField, sortOrder] = query.sort.split(',')
   const currentPage = query.page + 1
   const pageSize = query.size
@@ -132,12 +109,7 @@ export function AssetListTable({
                   {renderSortIcon('createdAt')}
                 </div>
               </th>
-
-              <th scope="col" className="lv-th-center" style={{ width: 60 }}>
-                <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}>
-                  {t.assets.colActions || 'Thao tác'}
-                </span>
-              </th>
+              <th scope="col">{t.assets.colActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -145,11 +117,7 @@ export function AssetListTable({
               const typeMeta = getTypeMeta(asset.assetType)
 
               return (
-                <tr
-                  key={asset.id}
-                  className="lv-table-row lv-table-row--fixed"
-                  onClick={() => onViewAsset?.(asset)}
-                >
+                <tr key={asset.id} className="lv-table-row lv-table-row--fixed">
                   <td className="lv-td-asset-name">
                     <span className="lv-asset-primary-title" title={asset.name}>
                       {asset.name}
@@ -193,48 +161,7 @@ export function AssetListTable({
                       {formatDate(asset.createdAt)}
                     </span>
                   </td>
-
-                  <td className="lv-td-action" onClick={(e) => e.stopPropagation()}>
-                    <div className="lv-action-dropdown-wrap" ref={openMenuId === asset.id ? menuRef : null}>
-                      <button
-                        type="button"
-                        className={`lv-action-more-btn ${openMenuId === asset.id ? 'lv-action-more-btn--active' : ''}`}
-                        onClick={() => setOpenMenuId(openMenuId === asset.id ? null : asset.id)}
-                        aria-label={t.assets.colActions || 'Thao tác'}
-                        aria-expanded={openMenuId === asset.id}
-                      >
-                        <MoreVertical size={16} />
-                      </button>
-                      {openMenuId === asset.id && (
-                        <div className="lv-action-menu" role="menu">
-                          <button
-                            type="button"
-                            className="lv-action-menu-item"
-                            onClick={() => {
-                              setOpenMenuId(null)
-                              onViewAsset?.(asset)
-                            }}
-                            role="menuitem"
-                          >
-                            <Eye size={14} />
-                            <span>{t.assets.actions?.view || t.assets.detailModal?.title || 'Xem chi tiết'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="lv-action-menu-item"
-                            onClick={() => {
-                              setOpenMenuId(null)
-                              onEditAsset?.(asset)
-                            }}
-                            role="menuitem"
-                          >
-                            <Pencil size={14} />
-                            <span>{t.assets.actions?.edit || t.assets.editModal?.title || 'Chỉnh sửa'}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                  <td><Button variant="secondary" onClick={() => onViewAsset(asset)}>{t.assets.actions.view}</Button><Button variant="secondary" onClick={() => onEditAsset(asset)}>{t.assets.actions.edit}</Button></td>
                 </tr>
               )
             })}
@@ -248,11 +175,7 @@ export function AssetListTable({
           const typeMeta = getTypeMeta(asset.assetType)
 
           return (
-            <div
-              key={asset.id}
-              className="lv-mobile-card"
-              onClick={() => onViewAsset?.(asset)}
-            >
+            <div key={asset.id} className="lv-mobile-card">
               <div className="lv-mobile-card__header">
                 <div className="lv-mobile-card__title-group">
                   <span className={`lv-category-badge ${typeMeta.badgeClass}`}>
@@ -263,20 +186,9 @@ export function AssetListTable({
                     {asset.name}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="lv-action-more-btn"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onEditAsset?.(asset)
-                  }}
-                  title={t.assets.actions?.edit || 'Chỉnh sửa'}
-                  aria-label={t.assets.actions?.edit || 'Chỉnh sửa'}
-                >
-                  <Pencil size={15} />
-                </button>
               </div>
 
+              <div><Button variant="secondary" onClick={() => onViewAsset(asset)}>{t.assets.actions.view}</Button><Button variant="secondary" onClick={() => onEditAsset(asset)}>{t.assets.actions.edit}</Button></div>
               {asset.description && (
                 <p className="lv-mobile-card__desc" title={asset.description}>
                   {asset.description}

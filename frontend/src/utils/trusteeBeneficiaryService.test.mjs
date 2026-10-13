@@ -1,171 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  DEFAULT_VAULT_ID,
-  getTrustees,
-  createTrustee,
-  getBeneficiaries,
-  createBeneficiary,
-  checkConfigurationReadiness,
-} from './trusteeBeneficiaryService.js';
-
-test('getTrustees - filters status strictly by APPOINTED and ignores ACTIVE or REVOKED', async () => {
-  const mockFetcher = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => [
-      { id: '1', fullName: 'Trustee 1', status: 'APPOINTED' },
-      { id: '2', fullName: 'Trustee 2', status: 'ACTIVE' }, // DB status, must NOT be returned
-      { id: '3', fullName: 'Trustee 3', status: 'REVOKED' },
-    ],
-  });
-
-  const list = await getTrustees(DEFAULT_VAULT_ID, { fetchFn: mockFetcher });
-  assert.equal(list.length, 1);
-  assert.equal(list[0].id, '1');
-  assert.equal(list[0].status, 'APPOINTED');
+import {getTrustees,createTrustee,getBeneficiaries,createBeneficiary,checkConfigurationReadiness,readBeneficiary,readTrustee} from './trusteeBeneficiaryService.js';
+import {validateBeneficiary} from './beneficiaryValidation.js';
+const vault='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const trustee={id,vaultId:vault,fullName:'A',phone:null,email:'a@example.test',relationship:null,status:'APPOINTED',appointedAt:'2026-10-13T00:00:00Z',revokedAt:null};
+const beneficiary={id,vaultId:vault,fullName:'B',phone:null,email:null,relationship:null,dateOfBirth:null,status:'DESIGNATED',hasAccount:false,hasIdentityNumber:false,createdAt:'2026-10-13T00:00:00Z'};
+const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+const page=content=>({content,page:0,size:20,totalElements:content.length,totalPages:content.length?1:0});
+test('PS-8 reads strict page/Vault metadata with Bearer/locale/abort, never assumes default Vault',async()=>{
+ const controller=new AbortController();const options={accessToken:'synthetic',lang:'en',signal:controller.signal,fetchFn:async(url,init)=>{assert.equal(init.headers.Authorization,'Bearer synthetic');assert.equal(init.headers['Accept-Language'],'en');assert.equal(init.signal,controller.signal);assert.ok(url.includes('/trustees?vaultId='+vault));return json(page([trustee]));}};
+ assert.equal((await getTrustees(vault,options))[0].id,id);
+ await assert.rejects(getTrustees(undefined),{code:'VAULT_REQUIRED'});
+ await assert.rejects(getBeneficiaries(vault,{fetchFn:async()=>json([])}),{code:'INVALID_RESPONSE'});
+ await assert.rejects(getTrustees(vault,{fetchFn:async()=>json(page([{...trustee,vaultId:id}]))}),{code:'INVALID_RESPONSE'});
 });
-
-test('createTrustee - handles 409 conflict and throws TRUSTEE_ALREADY_EXISTS', async () => {
-  const mockFetcher = async () => ({
-    ok: false,
-    status: 409,
-    json: async () => ({
-      code: 'TRUSTEE_ALREADY_EXISTS',
-      message: 'Mỗi két chỉ có tối đa 1 Người giám hộ hiện tại.',
-    }),
-  });
-
-  await assert.rejects(
-    async () => {
-      await createTrustee(DEFAULT_VAULT_ID, { fullName: 'Nguyễn Văn A', phone: '0901234567' }, { fetchFn: mockFetcher });
-    },
-    (err) => {
-      assert.equal(err.status, 409);
-      assert.equal(err.code, 'TRUSTEE_ALREADY_EXISTS');
-      assert.notEqual(err.code, 'TRUSTEE_LIMIT_EXCEEDED');
-      return true;
-    }
-  );
+test('PS-8 creates contact-only Trustee, whitelists body and requires exact 201/appointed receipt',async()=>{
+ await createTrustee(vault,{fullName:' A ',email:'A@EXAMPLE.TEST',note:'removed',userId:id,unlock:true},{fetchFn:async(url,init)=>{assert.equal(url,'/api/v1/trustees');assert.deepEqual(JSON.parse(init.body),{vaultId:vault,fullName:'A',phone:null,email:'a@example.test',relationship:null});return json(trustee,201);}});
+ await assert.rejects(createTrustee(vault,{fullName:'A',email:'a@example.test'},{fetchFn:async()=>json(trustee,200)}),{code:'INVALID_RESPONSE'});
+ await assert.rejects(createTrustee(vault,{fullName:'A'}),{code:'VALIDATION_FAILED'});
+ assert.equal(readTrustee({...trustee,note:'removed',userId:id},vault).note,undefined);
 });
-
-test('createTrustee - preserves 409 VAULT_NOT_EDITABLE and does not map to duplicate trustee', async () => {
-  const mockFetcher = async () => ({
-    ok: false,
-    status: 409,
-    json: async () => ({
-      code: 'VAULT_NOT_EDITABLE',
-      message: 'Két đang ở trạng thái khóa không thể chỉnh sửa.',
-    }),
-  });
-
-  await assert.rejects(
-    async () => {
-      await createTrustee(DEFAULT_VAULT_ID, { fullName: 'Nguyễn Văn A', phone: '0901234567' }, { fetchFn: mockFetcher });
-    },
-    (err) => {
-      assert.equal(err.status, 409);
-      assert.equal(err.code, 'VAULT_NOT_EDITABLE');
-      assert.notEqual(err.code, 'TRUSTEE_ALREADY_EXISTS');
-      assert.equal(err.message, 'Két đang ở trạng thái khóa không thể chỉnh sửa.');
-      return true;
-    }
-  );
+test('PS-8 beneficiary does not require account/contact or allocate shares, hides identity and checks pagination',async()=>{
+ await createBeneficiary(vault,{fullName:'B',userId:id,share:100},{fetchFn:async(url,init)=>{assert.deepEqual(JSON.parse(init.body),{fullName:'B',phone:null,email:null,relationship:null,dateOfBirth:null});return json({...beneficiary,identityNumber:'NEVER-RETURN'},201);}});
+ const got=await getBeneficiaries(vault,{page:2,fetchFn:async(url)=>{assert.ok(url.endsWith('?page=2&size=20'));return json({...page([beneficiary]),page:2,totalPages:3});}});assert.equal(got.content[0].hasAccount,false);
+ assert.equal(readBeneficiary({...beneficiary,identityNumber:'secret',token:'secret'},vault).identityNumber,undefined);
+ assert.throws(()=>readBeneficiary({...beneficiary,hasAccount:true},vault),{code:'INVALID_RESPONSE'});
+ assert.ok(validateBeneficiary({fullName:'B',dateOfBirth:'2026-02-30'}).dateOfBirth);
 });
-
-test('createTrustee - creates trustee successfully returning APPOINTED', async () => {
-  const mockFetcher = async (url, opts) => {
-    assert.equal(opts.method, 'POST');
-    const body = JSON.parse(opts.body);
-    assert.equal(body.fullName, 'Nguyễn Văn A');
-    assert.equal(body.phone, '0901234567');
-    return {
-      ok: true,
-      status: 201,
-      json: async () => ({
-        id: 't-123',
-        vaultId: DEFAULT_VAULT_ID,
-        fullName: body.fullName,
-        phone: body.phone,
-        status: 'APPOINTED',
-      }),
-    };
-  };
-
-  const res = await createTrustee(DEFAULT_VAULT_ID, { fullName: 'Nguyễn Văn A', phone: '0901234567' }, { fetchFn: mockFetcher });
-  assert.equal(res.status, 'APPOINTED');
-  assert.equal(res.fullName, 'Nguyễn Văn A');
+test('PS-8 readiness comes only from backend; failed check/list never fabricate ready or empty state',async()=>{
+ for(const status of [401,403,404,503]) await assert.rejects(checkConfigurationReadiness(vault,{fetchFn:async()=>json({code:'DENIED',message:'SQL SECRET'},status)}),error=>error.status===status&&!error.message.includes('SQL SECRET'));
+ for(const data of [{vaultId:vault,ready:true,beneficiaryCount:0,issues:[]},{vaultId:id,ready:true,beneficiaryCount:1,issues:[]}]) await assert.rejects(checkConfigurationReadiness(vault,{fetchFn:async()=>json(data)}),{code:'INVALID_RESPONSE'});
+ assert.equal((await checkConfigurationReadiness(vault,{fetchFn:async()=>json({vaultId:vault,ready:false,beneficiaryCount:0,issues:[{code:'BENEFICIARY_REQUIRED',message:'raw'}]})})).isReady,false);
+ await assert.rejects(getBeneficiaries(vault,{fetchFn:async()=>json({code:'RESOURCE_NOT_FOUND'},404)}),{status:404});
 });
-
-test('createBeneficiary - creates beneficiary without userId or share percentage', async () => {
-  const mockFetcher = async (url, opts) => {
-    assert.equal(opts.method, 'POST');
-    const body = JSON.parse(opts.body);
-    assert.equal(body.fullName, 'Trần Thị B');
-    assert.equal(body.userId, undefined);
-    assert.equal(body.sharePercentage, undefined);
-    return {
-      ok: true,
-      status: 201,
-      json: async () => ({
-        id: 'b-456',
-        vaultId: DEFAULT_VAULT_ID,
-        fullName: body.fullName,
-      }),
-    };
-  };
-
-  const res = await createBeneficiary(DEFAULT_VAULT_ID, { fullName: 'Trần Thị B' }, { fetchFn: mockFetcher });
-  assert.equal(res.id, 'b-456');
-  assert.equal(res.fullName, 'Trần Thị B');
-});
-
-test('checkConfigurationReadiness - requires at least 1 beneficiary, trustee is optional', async () => {
-  // Scenario 1: 0 beneficiaries -> not ready
-  const mockFetcherNoBen = async (url) => {
-    if (url.includes('beneficiaries')) {
-      return { ok: true, status: 200, json: async () => [] };
-    }
-    if (url.includes('trustees')) {
-      return { ok: true, status: 200, json: async () => [] };
-    }
-    return { ok: false, status: 404 };
-  };
-
-  const status1 = await checkConfigurationReadiness(DEFAULT_VAULT_ID, { fetchFn: mockFetcherNoBen });
-  assert.equal(status1.isReady, false);
-  assert.equal(status1.beneficiaryCount, 0);
-  assert.equal(status1.hasTrustee, false);
-
-  // Scenario 2: 1 beneficiary, 0 trustees -> READY (trustee is optional)
-  const mockFetcher1Ben = async (url) => {
-    if (url.includes('beneficiaries')) {
-      return { ok: true, status: 200, json: async () => [{ id: 'b-1', fullName: 'Beneficiary 1' }] };
-    }
-    if (url.includes('trustees')) {
-      return { ok: true, status: 200, json: async () => [] };
-    }
-    return { ok: false, status: 404 };
-  };
-
-  const status2 = await checkConfigurationReadiness(DEFAULT_VAULT_ID, { fetchFn: mockFetcher1Ben });
-  assert.equal(status2.isReady, true);
-  assert.equal(status2.beneficiaryCount, 1);
-  assert.equal(status2.hasTrustee, false);
-
-  // Scenario 3: 1 beneficiary, 1 trustee (APPOINTED) -> READY
-  const mockFetcherBoth = async (url) => {
-    if (url.includes('beneficiaries')) {
-      return { ok: true, status: 200, json: async () => [{ id: 'b-1', fullName: 'Beneficiary 1' }] };
-    }
-    if (url.includes('trustees')) {
-      return { ok: true, status: 200, json: async () => [{ id: 't-1', fullName: 'Trustee 1', status: 'APPOINTED' }] };
-    }
-    return { ok: false, status: 404 };
-  };
-
-  const status3 = await checkConfigurationReadiness(DEFAULT_VAULT_ID, { fetchFn: mockFetcherBoth });
-  assert.equal(status3.isReady, true);
-  assert.equal(status3.beneficiaryCount, 1);
-  assert.equal(status3.hasTrustee, true);
+test('PS-8 abort/conflict preserved and malformed records rejected',async()=>{
+ await assert.rejects(getTrustees(vault,{fetchFn:async()=>{throw new DOMException('cancel','AbortError')}}),{name:'AbortError'});
+ await assert.rejects(createTrustee(vault,{fullName:'A',email:'a@example.test'},{fetchFn:async()=>json({code:'TRUSTEE_ALREADY_EXISTS'},409)}),{status:409,code:'TRUSTEE_ALREADY_EXISTS'});
+ assert.throws(()=>readTrustee({...trustee,status:'ACTIVE'},vault),{code:'INVALID_RESPONSE'});
+ assert.throws(()=>readBeneficiary({...beneficiary,hasIdentityNumber:'yes'},vault),{code:'INVALID_RESPONSE'});
 });
