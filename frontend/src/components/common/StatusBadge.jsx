@@ -2,6 +2,8 @@ import './StatusBadge.css';
 
 const STATUS_LABELS = {
   ACTIVE: { vi: 'Đang hoạt động', en: 'Active', tone: 'active' },
+  MONITORING: { vi: 'Đang theo dõi', en: 'Monitoring', tone: 'active' },
+  GRACE_PERIOD_EXCEEDED: { vi: 'Hết hạn ân hạn', en: 'Grace Exceeded', tone: 'await' },
   TRIGGERED: { vi: 'Kích hoạt chờ phản hồi', en: 'Triggered (Grace)', tone: 'await' },
   GRACE_PERIOD: { vi: 'Thời gian ân hạn', en: 'Grace Period', tone: 'await' },
   DISABLED: { vi: 'Chưa kích hoạt', en: 'Not Configured', tone: 'neutral' },
