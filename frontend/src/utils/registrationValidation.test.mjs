@@ -37,7 +37,7 @@ test('Registration Validation - Empty fields trigger required errors (vi)', () =
   assert.equal(errors.agreeTerms, validationMessages.vi.termsRequired);
 });
 
-test('Registration Validation - Short name and invalid email format', () => {
+test('Registration Validation - One-character name is valid; malformed email/phone/password are rejected', () => {
   const invalid = {
     fullName: 'N',
     email: 'not-an-email',
@@ -48,7 +48,7 @@ test('Registration Validation - Short name and invalid email format', () => {
   };
 
   const errors = validateRegistration(invalid, 'vi');
-  assert.equal(errors.fullName, validationMessages.vi.fullNameShort);
+  assert.equal(errors.fullName, undefined);
   assert.equal(errors.email, validationMessages.vi.emailInvalid);
   assert.equal(errors.phone, validationMessages.vi.phoneInvalid);
   assert.equal(errors.password, validationMessages.vi.passwordShort);

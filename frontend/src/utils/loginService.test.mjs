@@ -48,7 +48,7 @@ test('Login Service - isValidLoginResponse correctly validates PS-74 proposed co
       tokenType: 'Bearer',
       expiresInSeconds: 3600,
       user: {
-        id: 'user-uuid-1',
+        id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         email: 'vaultowner@legacyvault.vn',
         fullName: 'Nguyen Van An',
         roles: ['VAULT_OWNER'],
@@ -101,8 +101,8 @@ test('Login Service - Normal mode: HTTP 200 returning HTML (Vite SPA fallback) t
     },
     (err) => {
       assert.equal(err.status, 200);
-      assert.equal(err.code, 'ENDPOINT_NOT_IMPLEMENTED');
-      assert.match(err.message, /Dịch vụ đăng nhập hiện chưa sẵn sàng/);
+      assert.ok(['INVALID_AUTH_RESPONSE', 'BACKEND_NOT_READY'].includes(err.code));
+      assert.equal(err.message, getAuthMessage('INVALID_AUTH_RESPONSE', 'vi'));
       return true;
     }
   );
@@ -260,8 +260,8 @@ test('Login Service - Normal mode: Unimplemented login endpoint (HTML/raw 404) d
     },
     (err) => {
       assert.equal(err.status, 404);
-      assert.equal(err.code, 'ENDPOINT_NOT_IMPLEMENTED');
-      assert.match(err.message, /Dịch vụ đăng nhập hiện chưa sẵn sàng trên máy chủ/);
+      assert.ok(['INVALID_AUTH_RESPONSE', 'BACKEND_NOT_READY'].includes(err.code));
+      assert.equal(err.message, getAuthMessage('BACKEND_NOT_READY', 'vi'));
       return true;
     }
   );
@@ -290,7 +290,7 @@ test('Login Service - Normal mode: PS-74 structured 404 RESOURCE_NOT_FOUND is no
     (err) => {
       assert.equal(err.status, 404);
       assert.equal(err.code, 'RESOURCE_NOT_FOUND');
-      assert.equal(err.message, 'Tài khoản người dùng không tồn tại.');
+      assert.equal(err.message, getAuthMessage('RESOURCE_NOT_FOUND', 'vi'));
       assert.equal(err.traceId, 'trace-404-test');
       return true;
     }

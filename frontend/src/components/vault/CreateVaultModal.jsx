@@ -19,6 +19,7 @@ function CreateVaultModalDialog({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const pendingRef = useRef(false);
   const firstInputRef = useRef(null);
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
@@ -129,12 +130,13 @@ function CreateVaultModalDialog({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (pendingRef.current) return;
 
     const validationErrors = validateVaultInput(form, lang);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
+    pendingRef.current = true;
     setIsSubmitting(true);
     setSubmitError('');
 
@@ -143,15 +145,14 @@ function CreateVaultModalDialog({
         await onSubmitVault(form);
       }
       onClose();
-    } catch (err) {
+    } catch {
       setIsSubmitting(false);
       setSubmitError(
-        err?.message ||
-          (lang === 'vi'
+        (lang === 'vi'
             ? 'Không thể khởi tạo kho di sản. Vui lòng thử lại.'
             : 'Failed to create heritage vault. Please try again.')
       );
-    }
+    } finally { pendingRef.current = false; }
   };
 
   return (

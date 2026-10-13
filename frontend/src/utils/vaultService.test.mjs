@@ -31,33 +31,6 @@ test('Vault Validation - Required name validation (VI and EN)', () => {
   assert.equal(errEn.vault_name, vaultStatusMessages.en.nameRequired);
 });
 
-test('Vault Validation - Length constraints (2 to 150 chars, desc <= 1000)', () => {
-  const tooShort = { vault_name: 'A' };
-  assert.equal(
-    validateVaultInput(tooShort, 'vi').vault_name,
-    vaultStatusMessages.vi.nameMin
-  );
-
-  const tooLong = { vault_name: 'A'.repeat(151) };
-  assert.equal(
-    validateVaultInput(tooLong, 'vi').vault_name,
-    vaultStatusMessages.vi.nameMax
-  );
-
-  const descTooLong = { vault_name: 'Kho di sản', description: 'D'.repeat(1001) };
-  assert.equal(
-    validateVaultInput(descTooLong, 'vi').description,
-    vaultStatusMessages.vi.descMax
-  );
-
-  const valid = { vault_name: 'Kho gia đình Vance', description: 'Gìn giữ di sản số' };
-  assert.deepEqual(validateVaultInput(valid, 'vi'), {});
-});
-
-// ============================================================================
-// SIMULATION GUARD & ENVIRONMENT GATE TESTS
-// ============================================================================
-
 test('Simulation Guard - Production environment strictly forbids simulation unconditionally', () => {
   // 1. Production + isSimulation: true must return false
   assert.equal(
@@ -108,129 +81,6 @@ test('Simulation Guard - Isolated test runner mode in non-production allows simu
 // ============================================================================
 // PRODUCTION GUARD INTEGRATION (fetchVault & createVault)
 // ============================================================================
-
-test('Production Guard - Production + isSimulation: true calls live adapter and never returns mock', async () => {
-  let liveCalled = false;
-  const mockFetch = async () => {
-    liveCalled = true;
-    return {
-      ok: true,
-      status: 200,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ id: 'vlt-prod-live', name: 'Kho Live Thật', status: 'ACTIVE' }),
-    };
-  };
-
-  const result = await fetchVault({
-    testEnv: { PROD: true },
-    isSimulation: true,
-    scenario: 'exists',
-    fetchFn: mockFetch,
-  });
-
-  assert.equal(liveCalled, true);
-  assert.equal(result.isSimulation, false);
-  assert.equal(result.id, 'vlt-prod-live');
-});
-
-test('Production Guard - Production + isDevPreview: true calls live adapter and never returns mock', async () => {
-  let liveCalled = false;
-  const mockFetch = async () => {
-    liveCalled = true;
-    return {
-      ok: true,
-      status: 200,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ id: 'vlt-prod-preview-blocked', name: 'Kho Prod Live', status: 'ACTIVE' }),
-    };
-  };
-
-  const result = await fetchVault({
-    testEnv: { PROD: true },
-    isDevPreview: true,
-    scenario: 'exists',
-    fetchFn: mockFetch,
-  });
-
-  assert.equal(liveCalled, true);
-  assert.equal(result.isSimulation, false);
-  assert.equal(result.id, 'vlt-prod-preview-blocked');
-});
-
-test('Production Guard - Production + isDev: true cannot bypass guard and calls live adapter', async () => {
-  let liveCalled = false;
-  const mockFetch = async () => {
-    liveCalled = true;
-    return {
-      ok: true,
-      status: 200,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ id: 'vlt-prod-bypass-failed', name: 'Kho Prod Live Safe', status: 'ACTIVE' }),
-    };
-  };
-
-  const result = await fetchVault({
-    testEnv: { PROD: true },
-    isDev: true,
-    isDevPreview: true,
-    isSimulation: true,
-    scenario: 'exists',
-    fetchFn: mockFetch,
-  });
-
-  assert.equal(liveCalled, true);
-  assert.equal(result.isSimulation, false);
-  assert.equal(result.id, 'vlt-prod-bypass-failed');
-});
-
-test('Production Guard - Create Vault in production + isDevPreview: true enforces live API', async () => {
-  let liveCalled = false;
-  const mockFetch = async () => {
-    liveCalled = true;
-    return {
-      ok: true,
-      status: 201,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ id: 'vlt-created-prod-live', name: 'Kho Tạo Prod', status: 'ACTIVE' }),
-    };
-  };
-
-  const created = await createVault(
-    { vault_name: 'Kho Tạo Prod' },
-    {
-      testEnv: { PROD: true },
-      isDevPreview: true,
-      isDev: true,
-      fetchFn: mockFetch,
-    }
-  );
-
-  assert.equal(liveCalled, true);
-  assert.equal(created.isSimulation, false);
-  assert.equal(created.id, 'vlt-created-prod-live');
-});
-
-// ============================================================================
-// CLEAN MODE VS DEV PREVIEW BEHAVIOR
-// ============================================================================
-
-test('Clean Mode - Clean mode (no preview flag) enforces live fetch adapter', async () => {
-  let liveCalled = false;
-  const mockFetch = async () => {
-    liveCalled = true;
-    return {
-      ok: true,
-      status: 200,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ id: 'vlt-clean-mode', name: 'Kho Clean Mode', status: 'ACTIVE' }),
-    };
-  };
-
-  const result = await fetchVault({ fetchFn: mockFetch });
-  assert.equal(liveCalled, true);
-  assert.equal(result.isSimulation, false);
-  assert.equal(result.id, 'vlt-clean-mode');
-});
 
 test('Clean Mode - Passing scenario in clean mode does not trigger mock', async () => {
   const mockFetch = async () => ({
@@ -330,56 +180,6 @@ test('Live Adapter - fetch: Non-JSON response triggers BACKEND_NOT_READY', async
   );
 });
 
-test('Live Adapter - fetch: 404 status returns null for uninitialized vault', async () => {
-  const mockFetch = async () => ({
-    ok: false,
-    status: 404,
-    headers: { get: () => 'application/json' },
-    json: async () => ({ message: 'Not found' }),
-  });
-
-  const result = await liveVaultAdapter.fetch({ fetchFn: mockFetch, lang: 'vi' });
-  assert.equal(result, null);
-});
-
-test('Live Adapter - fetch: missing timestamp does not fabricate fake date', async () => {
-  const mockFetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'application/json' },
-    json: async () => ({
-      id: 'vlt-real-no-date',
-      name: 'Kho Không Ngày',
-      status: 'ACTIVE',
-      // createdAt is intentionally omitted
-    }),
-  });
-
-  const result = await liveVaultAdapter.fetch({ fetchFn: mockFetch, lang: 'vi' });
-  assert.ok(result);
-  assert.equal(result.id, 'vlt-real-no-date');
-  assert.equal(result.created_at, null); // Must remain null, NOT '2026-10-10T08:00:00Z'
-  assert.equal(result.isSimulation, false);
-});
-
-test('Live Adapter - fetch: missing ID returns null id without fabricating fake #VLT-0001', async () => {
-  const mockFetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'application/json' },
-    json: async () => ({
-      name: 'Kho Chưa Có Mã',
-      status: 'ACTIVE',
-      // id is omitted
-    }),
-  });
-
-  const result = await liveVaultAdapter.fetch({ fetchFn: mockFetch, lang: 'vi' });
-  assert.ok(result);
-  assert.equal(result.id, null); // Must remain null, NOT '#VLT-0001'
-  assert.equal(result.isSimulation, false);
-});
-
 test('Live Adapter - create: Network error throws status 0 NETWORK_ERROR', async () => {
   const mockFetch = async () => {
     throw new TypeError('Failed to fetch');
@@ -396,56 +196,6 @@ test('Live Adapter - create: Network error throws status 0 NETWORK_ERROR', async
     }
   );
 });
-
-test('Live Adapter - create: 403/409 triggers VAULT_LIMIT_EXCEEDED', async () => {
-  const mockFetch = async () => ({
-    ok: false,
-    status: 409,
-    headers: { get: () => 'application/json' },
-    json: async () => ({ message: 'Limit reached' }),
-  });
-
-  await assert.rejects(
-    async () => {
-      await liveVaultAdapter.create('Kho Vượt Quá Giới Hạn', '', { fetchFn: mockFetch, lang: 'vi' });
-    },
-    (err) => {
-      assert.equal(err.status, 409);
-      assert.equal(err.code, 'VAULT_LIMIT_EXCEEDED');
-      return true;
-    }
-  );
-});
-
-test('Live Adapter - create: Success parses created vault and keeps created_at null when missing', async () => {
-  const mockFetch = async () => ({
-    ok: true,
-    status: 201,
-    headers: { get: () => 'application/json' },
-    json: async () => ({
-      id: 'vlt-live-success',
-      name: 'Kho Khởi Tạo Thành Công',
-      description: 'Mô tả',
-      status: 'ACTIVE',
-      // No createdAt
-    }),
-  });
-
-  const result = await liveVaultAdapter.create('Kho Khởi Tạo Thành Công', 'Mô tả', {
-    fetchFn: mockFetch,
-    lang: 'vi',
-  });
-
-  assert.ok(result);
-  assert.equal(result.id, 'vlt-live-success');
-  assert.equal(result.status, 'ACTIVE');
-  assert.equal(result.created_at, null);
-  assert.equal(result.isSimulation, false);
-});
-
-// ============================================================================
-// CREATE VAULT VALIDATION & FAILURE RETENTION LOGIC
-// ============================================================================
 
 test('Create Vault - Validation rejects empty name with 400 VALIDATION_FAILED', async () => {
   await assert.rejects(

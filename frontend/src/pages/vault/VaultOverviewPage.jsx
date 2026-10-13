@@ -20,6 +20,8 @@ const formatVaultId = (rawId, lang = 'vi') => {
 
 export default function VaultOverviewPage({
   lang = 'vi',
+  accessToken,
+  onUnauthorized,
   showDevToolbar = false,
   onNavigateToLogin,
   onRefreshTrigger,
@@ -33,6 +35,8 @@ export default function VaultOverviewPage({
   const [refreshKey, setRefreshKey] = useState(0);
   const [copiedId, setCopiedId] = useState(false);
   const heroCardRef = useRef(null);
+  const createControllerRef = useRef(null);
+  useEffect(() => () => createControllerRef.current?.abort(), []);
 
   const handleCopyId = useCallback(async (idToCopy) => {
     if (!idToCopy) return;
@@ -116,10 +120,11 @@ export default function VaultOverviewPage({
 
   useEffect(() => {
     let ignore = false;
+    const controller = new AbortController();
     const isDevPreviewActive = Boolean(import.meta.env.DEV && showDevToolbar);
     const scenario = isDevPreviewActive ? selectedScenario : undefined;
 
-    fetchVault({ scenario, isDevPreview: isDevPreviewActive, lang })
+    fetchVault({ scenario, isDevPreview: isDevPreviewActive, lang, accessToken, signal: controller.signal })
       .then((data) => {
         if (!ignore) {
           setVault(data);
@@ -128,7 +133,8 @@ export default function VaultOverviewPage({
         }
       })
       .catch((err) => {
-        if (!ignore) {
+        if (!ignore && err.name !== 'AbortError') {
+          if (err.status === 401) { onUnauthorized?.(); return; }
           setError(err);
           setVault(null);
           setLoading(false);
@@ -136,9 +142,9 @@ export default function VaultOverviewPage({
       });
 
     return () => {
-      ignore = true;
+      ignore = true; controller.abort();
     };
-  }, [showDevToolbar, selectedScenario, lang, onRefreshTrigger, refreshKey]);
+  }, [showDevToolbar, selectedScenario, lang, onRefreshTrigger, refreshKey, accessToken, onUnauthorized]);
 
   const handleManualRetry = useCallback(() => {
     setLoading(true);
@@ -150,11 +156,17 @@ export default function VaultOverviewPage({
     const scenario = isDevPreviewActive
       ? (selectedScenario === 'network_error' || selectedScenario === 'forbidden' ? selectedScenario : 'success')
       : undefined;
-    const created = await createVault(formData, {
+    const controller = new AbortController(); createControllerRef.current = controller;
+    let created;
+    try { created = await createVault(formData, {
       isDevPreview: isDevPreviewActive,
       scenario,
-      lang,
-    });
+      lang, accessToken, signal: controller.signal,
+    }); } catch (error) {
+      if (error.status === 401) onUnauthorized?.();
+      throw error;
+    }
+    if (controller.signal.aborted) return;
     setVault(created);
     if (isDevPreviewActive) {
       setSelectedScenario('exists');

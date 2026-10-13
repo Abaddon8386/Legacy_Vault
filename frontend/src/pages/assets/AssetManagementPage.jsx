@@ -16,25 +16,36 @@ import { Modal } from '../../components/common/Modal'
 import { AssetListTable } from '../../components/assets/AssetListTable'
 import { AssetFormModal } from '../../components/assets/AssetFormModal'
 import { AssetSummaryCards } from '../../components/assets/AssetSummaryCards'
+import './AssetManagementPage.css'
 import { AssetDetailModal } from '../../components/assets/AssetDetailModal'
 import { AssetEditModal } from '../../components/assets/AssetEditModal'
-import './AssetManagementPage.css'
-
-const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed'
+import { getAssetTranslations, LEGAL_DISMISSED_KEY } from './assetI18n.js'
 
 /**
  * AssetManagementPage — PS-5: Add asset + view asset list (Contract Aligned).
  * Loads assets on mount, shows loading/error/empty states.
  * Allows adding a new asset via a validated form modal with write-only payload.
  */
-export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
-  onNavigateToLogin, onRefreshTrigger = 0 }) {
+export function AssetManagementPage({
+  t: externalT,
+  lang = 'vi',
+  vaultId,
+  accessToken,
+  onNavigateToLogin,
+  onRefreshTrigger = 0,
+}) {
+  const t = getAssetTranslations(externalT, lang)
   const [query, setQuery] = useState({ page: 0, size: 10, sort: 'createdAt,desc' })
   const [totalElements, setTotalElements] = useState(0)
   const [retry, setRetry] = useState(0)
   const submittingRef = useRef(false)
+  const mutationRef = useRef(null)
+  const selectionRef = useRef(null)
+  const [selection, setSelection] = useState(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [editErrorKey, setEditErrorKey] = useState(null)
   const aliveRef = useRef(true)
-  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; mutationRef.current?.abort(); selectionRef.current?.abort() } }, [])
   const toastTimer = useRef(null)
   const requestContext = useRef(null)
   useEffect(() => { requestContext.current = { lang } }, [lang])
@@ -49,12 +60,6 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
-
-  // View & Edit modal states (PS-6)
-  const [selectedDetailAsset, setSelectedDetailAsset] = useState(null)
-  const [selectedEditAsset, setSelectedEditAsset] = useState(null)
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [editErrorKey, setEditErrorKey] = useState(null)
 
   // Legal Notice collapsible behavior
   const [isLegalDismissed, setIsLegalDismissed] = useState(() => {
@@ -95,14 +100,18 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
         setAssets(data.content)
         setTotalElements(data.totalElements)
       } catch (error) {
-        if (active && error.name !== 'AbortError') setError(error.code || 'loadError')
+        if (active && error.name !== 'AbortError') {
+          if (error.status === 401) { onNavigateToLogin?.(); return }
+          selectionRef.current?.abort(); setSelection(null); setIsAddModalOpen(false)
+          setError(error.code || 'loadError')
+        }
       } finally {
         if (active) setIsLoading(false)
       }
     }
     load()
     return () => { active = false; controller.abort() }
-  }, [vaultId, accessToken, query, retry, onRefreshTrigger])
+  }, [vaultId, accessToken, query, retry, onRefreshTrigger, onNavigateToLogin])
 
   const loadAssets = () => setRetry(value => value + 1)
 
@@ -118,9 +127,10 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
   async function handleAddAsset(formData) {
     if (submittingRef.current) return
     submittingRef.current = true
+    const controller = new AbortController(); mutationRef.current = controller
     setIsSubmitting(true)
     try {
-      await assetService.createAsset(vaultId, formData, { lang, accessToken })
+      await assetService.createAsset(vaultId, formData, { lang, accessToken, signal: controller.signal })
       if (!aliveRef.current) return
       setIsAddModalOpen(false)
       setSearchQuery('')
@@ -128,56 +138,53 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
       setQuery(prev => ({ ...prev, page: 0, sort: 'createdAt,desc' }))
       showToast('addSuccess')
     } catch (error) {
-      if (aliveRef.current) showToast(error.code || 'saveError', 'error')
+      if (aliveRef.current && error.name !== 'AbortError') {
+        if (error.status === 401) { setIsAddModalOpen(false); onNavigateToLogin?.(); return }
+        if ([403,404].includes(error.status)) setIsAddModalOpen(false)
+        showToast(error.code || 'saveError', 'error')
+      }
     } finally {
       submittingRef.current = false
       if (aliveRef.current) setIsSubmitting(false)
     }
   }
 
-  async function handleViewAsset(asset) {
-    setSelectedDetailAsset(asset)
-    try {
-      const fresh = await assetService.getAssetById(vaultId, asset.id, {
-        lang: requestContext.current?.lang || lang,
-        accessToken,
-      })
-      if (aliveRef.current) setSelectedDetailAsset(fresh)
-    } catch {
-      // Keep existing list asset data if detail fetch fails
-    }
+  function closeSelection() {
+    selectionRef.current?.abort(); setSelection(null); setEditErrorKey(null)
   }
-
-  function handleEditAsset(asset) {
-    setSelectedEditAsset(asset)
-    setEditErrorKey(null)
-  }
-
-  async function handleUpdateAsset(assetId, patchData) {
-    if (isUpdating) return
-    setIsUpdating(true)
-    setEditErrorKey(null)
+  async function openAsset(asset, mode) {
+    if (submittingRef.current) return
+    selectionRef.current?.abort()
+    const controller = new AbortController(); selectionRef.current = controller
+    setSelection({ mode, loading: true }); setEditErrorKey(null)
     try {
-      const updated = await assetService.updateAsset(vaultId, assetId, patchData, {
-        lang: requestContext.current?.lang || lang,
-        accessToken,
-      })
-      if (!aliveRef.current) return
-      setAssets(prev =>
-        prev.map(item => (item.id === assetId ? { ...item, ...updated } : item))
-      )
-      setSelectedEditAsset(null)
-      showToast('editSuccess')
+      const fresh = await assetService.getAssetById(vaultId, asset.id, {lang, accessToken, signal:controller.signal})
+      if (!controller.signal.aborted && aliveRef.current) setSelection({mode, asset:fresh})
     } catch (error) {
-      if (aliveRef.current) {
-        setEditErrorKey(error.code || 'editError')
-        showToast(error.code || 'editError', 'error')
-      }
-    } finally {
-      if (aliveRef.current) setIsUpdating(false)
+      if (controller.signal.aborted || !aliveRef.current) return
+      setSelection(null)
+      if (error.status === 401) { onNavigateToLogin?.(); return }
+      if ([403,404].includes(error.status)) { setAssets([]); setTotalElements(0); setError(error.code) }
+      showToast(error.code || 'loadError','error')
     }
   }
-
+  async function handleUpdateAsset(assetId, patch) {
+    if (submittingRef.current) return
+    submittingRef.current = true
+    const controller = new AbortController(); mutationRef.current = controller
+    setIsUpdating(true); setEditErrorKey(null)
+    try {
+      await assetService.updateAsset(vaultId,assetId,patch,{lang,accessToken,signal:controller.signal})
+      if (controller.signal.aborted || !aliveRef.current) return
+      closeSelection(); loadAssets(); showToast('editSuccess')
+    } catch (error) {
+      if (controller.signal.aborted || !aliveRef.current) return
+      if (error.status === 401) { closeSelection(); onNavigateToLogin?.(); return }
+      if ([403,404].includes(error.status)) { closeSelection(); setAssets([]); setTotalElements(0); setError(error.code) }
+      else setEditErrorKey(error.code || 'editError')
+      showToast(error.code || 'editError','error')
+    } finally { submittingRef.current=false; if (aliveRef.current) setIsUpdating(false) }
+  }
   // Client-side filtering by assetType and searching by name/description
   const filteredAssets = useMemo(() => {
     return assets.filter((asset) => {
@@ -265,7 +272,7 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
 
       {/* Summary Cards — reflect filtered data */}
       {!isLoading && !error && hasAnyAssets && (
-        <AssetSummaryCards assets={filteredAssets} t={t} />
+        <AssetSummaryCards assets={filteredAssets} t={t} lang={lang} />
       )}
 
       {/* Filters apply to the current server page; no global search contract exists. */}
@@ -356,9 +363,8 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
         )}
         <AssetListTable assets={filteredAssets} t={t} lang={lang}
           query={query} totalElements={totalElements}
-          onQueryChange={next => { setIsLoading(true); setQuery(next) }}
-          onViewAsset={handleViewAsset}
-          onEditAsset={handleEditAsset} />
+          onQueryChange={next => { closeSelection(); setIsLoading(true); setQuery(next) }}
+          onViewAsset={asset => openAsset(asset,"detail")} onEditAsset={asset => openAsset(asset,"edit")} />
         </>
       )}
 
@@ -392,41 +398,18 @@ export function AssetManagementPage({ t, lang = 'vi', vaultId, accessToken,
         </div>
       </Modal>
 
+      {selection?.loading && <Modal isOpen onClose={closeSelection} title={t.assets.loadingText} closeLabel={t.assets.closeBtn}><p role="status">{t.assets.loadingText}</p></Modal>}
+      {selection?.asset && selection.mode === 'detail' && <AssetDetailModal isOpen asset={selection.asset} t={t} lang={lang} onClose={closeSelection} />}
+      {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
       {/* Add Asset Modal */}
-      {isAddModalOpen && <AssetFormModal
+      {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
         isOpen={true}
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleAddAsset}
         t={t}
+        lang={lang}
         isSubmitting={isSubmitting}
       />}
-
-      {/* Detail Modal (PS-6) */}
-      {selectedDetailAsset && (
-        <AssetDetailModal
-          isOpen={true}
-          onClose={() => setSelectedDetailAsset(null)}
-          asset={selectedDetailAsset}
-          t={t}
-          lang={lang}
-        />
-      )}
-
-      {/* Edit Modal (PS-6) */}
-      {selectedEditAsset && (
-        <AssetEditModal
-          isOpen={true}
-          onClose={() => {
-            setSelectedEditAsset(null)
-            setEditErrorKey(null)
-          }}
-          asset={selectedEditAsset}
-          onSubmit={handleUpdateAsset}
-          t={t}
-          isSubmitting={isUpdating}
-          errorKey={editErrorKey}
-        />
-      )}
     </div>
   )
 }

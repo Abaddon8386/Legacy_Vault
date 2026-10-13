@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { validateLogin } from '../../utils/loginValidation.js';
 import { authenticateUser, getAuthMessage } from '../../utils/loginService.js';
 import './LoginPage.css';
@@ -63,7 +63,7 @@ const initialForm = {
   password: '',
 };
 
-export default function LoginPage({ onNavigateToRegister }) {
+export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
   const [lang, setLang] = useState('vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
@@ -72,6 +72,9 @@ export default function LoginPage({ onNavigateToRegister }) {
   const [statusMessage, setStatusMessage] = useState('');
   const [lastStatusCode, setLastStatusCode] = useState(null);
   const t = i18nContent[lang];
+  const pendingRef = useRef(false);
+  const controllerRef = useRef(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
 
   const handleLanguageChange = (newLang) => {
     if (newLang === lang) return;
@@ -108,7 +111,7 @@ export default function LoginPage({ onNavigateToRegister }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (status === 'submitting') return;
+    if (pendingRef.current) return;
 
     const validationErrors = validateLogin(values, lang);
     setErrors(validationErrors);
@@ -118,6 +121,8 @@ export default function LoginPage({ onNavigateToRegister }) {
       return;
     }
 
+    pendingRef.current = true;
+    const controller = new AbortController(); controllerRef.current = controller;
     setStatus('submitting');
     setStatusMessage('');
     setLastStatusCode(null);
@@ -125,20 +130,29 @@ export default function LoginPage({ onNavigateToRegister }) {
     try {
       const response = await authenticateUser(values, {
 
+        signal: controller.signal,
         isDevPreview: false,
         lang,
       });
 
+      if (controller.signal.aborted) return;
+      await onAuthenticated?.(response, { signal: controller.signal, lang });
+      if (controller.signal.aborted) return;
+      setValues(initialForm);
       setStatus('success');
       setLastStatusCode(response.code || 'SUCCESS');
       setStatusMessage(response.message);
     } catch (err) {
+      if (controller.signal.aborted) return;
       setStatus('failure');
       const errCode = err?.code || 'NETWORK_ERROR';
       setLastStatusCode(errCode);
       setStatusMessage(
-        err?.message || getAuthMessage(errCode, lang)
+        getAuthMessage(errCode, lang)
       );
+    } finally {
+      pendingRef.current = false;
+      if (controllerRef.current === controller) controllerRef.current = null;
     }
   };
 

@@ -5,8 +5,10 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import './AssetSummaryCards.css'
+import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
-export function AssetSummaryCards({ assets, t }) {
+export function AssetSummaryCards({ assets, t: externalT, lang = 'vi' }) {
+  const t = getAssetTranslations(externalT, lang)
   const totalAssets = assets.length
 
   const textCount = assets.filter((a) => a.assetType === 'TEXT').length
