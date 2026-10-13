@@ -45,11 +45,11 @@
 /* Variants */
 .lv-btn--primary {
   background-color: var(--lv-brand-forest);
-  color: var(--lv-text-on-dark);
+  color: var(--lv-text-inverse, #ffffff);
 }
 
 .lv-btn--primary:hover:not(:disabled) {
-  background-color: var(--lv-brand-forest-hover);
+  background-color: var(--lv-brand-forest-dark, #0c2b22);
 }
 
 .lv-btn--secondary {
