@@ -1,0 +1,88 @@
+.lv-asset-page .lv-asset-modal {
+  max-width: 580px;
+}
+
+.lv-asset-page .lv-form-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lv-asset-page .lv-form-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-ink);
+  margin-bottom: 6px;
+}
+
+.lv-asset-page .lv-required {
+  color: var(--lv-danger);
+}
+
+.lv-asset-page .lv-form-input,
+.lv-asset-page .lv-form-select,
+.lv-asset-page .lv-form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: var(--lv-radius-control);
+  border: 1px solid var(--lv-border-subtle);
+  background-color: #faf9f6;
+  color: var(--lv-text-ink);
+  transition: all var(--lv-transition-fast);
+  outline: none;
+}
+
+.lv-asset-page .lv-form-input:focus,
+.lv-asset-page .lv-form-select:focus,
+.lv-asset-page .lv-form-textarea:focus {
+  border-color: var(--lv-accent-gold);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2);
+}
+
+.lv-asset-page .lv-form-input--error {
+  border-color: var(--lv-danger) !important;
+  background-color: var(--lv-danger-bg) !important;
+}
+
+.lv-asset-page .lv-form-input--error:focus {
+  box-shadow: 0 0 0 3px rgba(168, 67, 61, 0.2) !important;
+}
+
+.lv-asset-page .lv-form-error {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--lv-danger);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lv-asset-page .lv-form-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--lv-text-muted);
+}
+
+.lv-asset-page .lv-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.lv-asset-page .lv-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--lv-border-subtle);
+}
+
+@media (max-width: 640px) {
+  .lv-asset-page .lv-form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
