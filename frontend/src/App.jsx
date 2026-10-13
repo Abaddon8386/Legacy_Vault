@@ -8,6 +8,7 @@ import { readUser } from './api/contracts.js';
 import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
+import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import AppShell from './components/layout/AppShell.jsx';
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -172,7 +173,8 @@ export default function App() {
   const isDmsRoute = path === '/dms';
   const isAssetsRoute = path === '/assets';
   const isWillsRoute = path === '/wills';
-  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute) {
+  const isBeneficiariesRoute=path==='/beneficiaries';
+  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
@@ -182,10 +184,11 @@ export default function App() {
     }
     const context = { accessToken: session?.accessToken, ownerId: session?.user.id,
       onUnauthorized: logout, lang, onNavigateToLogin: logout, onRefreshTrigger: refreshTrigger };
-    return <div className="lv-app-root"><AppShell currentTab={isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
+    return <div className="lv-app-root"><AppShell currentTab={isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
-      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills') navigateTo(`/${tab}${preview ? '?preview=true' : ''}`); }}>
-      {isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
+      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') navigateTo(`/${tab}${preview ? '?preview=true' : ''}`); }}>
+      {isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
+        : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
         : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo('/vault')} />
         : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
         : <VaultOverviewPage key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}

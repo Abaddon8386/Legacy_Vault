@@ -7,6 +7,7 @@ const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const user = { id, fullName: 'Contract Demo', email: 'demo@example.test', roles: ['VAULT_OWNER'] };
 const token = 'SYNTHETIC-FE-CONTRACT-TOKEN';
 let assets = [];
+let trustees=[]; let beneficiaries=[];
 let vault = null;
 let dms = null;
 let scenario = 'normal';
@@ -28,7 +29,7 @@ const server = http.createServer(async (req, res) => {
     const path = new URL(req.url, 'http://127.0.0.1').pathname;
     if (path === '/__fixture' && req.method === 'POST') {
       scenario = body.scenario || 'normal'; expiresInSeconds = body.expiresInSeconds || 3600;
-      if (body.reset) { vault = null; dms = null; assets = []; }
+      if (body.reset) { vault = null; dms = null; assets = []; trustees=[]; beneficiaries=[]; }
       return send(200, { fixtureOnly: true });
     }
     if (path === '/api/v1/auth/register' && req.method === 'POST') {
@@ -94,10 +95,39 @@ const server = http.createServer(async (req, res) => {
       if (!type) return error(415,'UNSUPPORTED_MEDIA_TYPE');
       return send(201,{id:randomUUID(),vaultId:id,status:scenario==='will_legal'?'LEGAL_APPROVED':'UPLOADED',createdAt:now(),currentVersion:{version:1,fileName:file.name.split(/[\\/]/).pop(),contentType:type,sizeBytes:file.size,sha256:createHash('sha256').update(data).digest('hex'),uploadedAt:now()}});
     }
+    if (path === '/api/v1/trustees') {
+      const vaultId=new URL(req.url,'http://127.0.0.1').searchParams.get('vaultId') || body.vaultId;
+      if (!vault || vaultId!==id) return error(404,'RESOURCE_NOT_FOUND');
+      if(scenario==='ps8_forbidden')return error(403,'ACCESS_DENIED');
+      if(scenario==='ps8_missing')return error(404,'RESOURCE_NOT_FOUND');
+      if(req.method==='GET')return send(200,{content:trustees,page:0,size:20,totalElements:trustees.length,totalPages:trustees.length?1:0});
+      if(req.method==='POST'){
+        if(trustees.length)return error(409,'TRUSTEE_ALREADY_EXISTS');
+        if(!body.fullName?.trim() || (!body.email && !body.phone))return error(400,'VALIDATION_FAILED');
+        const item={id:randomUUID(),vaultId:id,fullName:body.fullName,phone:body.phone,email:body.email,relationship:body.relationship,status:'APPOINTED',appointedAt:now(),revokedAt:null};trustees.push(item);return send(201,item);
+      }
+    }
+    if (path === '/api/v1/vaults/'+id+'/beneficiaries') {
+      if(!vault || scenario==='ps8_missing')return error(404,'RESOURCE_NOT_FOUND');
+      if(scenario==='ps8_forbidden')return error(403,'ACCESS_DENIED');
+      if(req.method==='GET'){
+        const page=Number(new URL(req.url,'http://127.0.0.1').searchParams.get('page')||0);return send(200,{content:beneficiaries.slice(page*20,(page+1)*20),page,size:20,totalElements:beneficiaries.length,totalPages:Math.ceil(beneficiaries.length/20)});
+      }
+      if(req.method==='POST'){
+        if(!body.fullName?.trim())return error(400,'VALIDATION_FAILED');
+        const item={id:randomUUID(),vaultId:id,fullName:body.fullName,relationship:body.relationship,dateOfBirth:body.dateOfBirth,phone:body.phone,email:body.email,hasAccount:false,hasIdentityNumber:false,status:'DESIGNATED',createdAt:now()};beneficiaries.push(item);return send(201,item);
+      }
+    }
+    if(path==='/api/v1/vaults/'+id+'/configuration-check') {
+      if(!vault || scenario==='ps8_missing')return error(404,'RESOURCE_NOT_FOUND');
+      if(scenario==='ps8_forbidden')return error(403,'ACCESS_DENIED');
+      if(scenario==='ps8_unready')return error(503,'BACKEND_NOT_READY');
+      return send(200,{vaultId:id,ready:beneficiaries.length>0,beneficiaryCount:beneficiaries.length,issues:beneficiaries.length?[]:[{code:'BENEFICIARY_REQUIRED',messageKey:'config.beneficiaryRequired'}]});
+    }
     if (path === '/api/v1/dms') {
       if (req.method === 'GET') return dms ? send(200, dms) : error(404, 'RESOURCE_NOT_FOUND');
       if (req.method === 'PUT') {
-        if (scenario === 'beneficiary_required') return error(422, 'BENEFICIARY_REQUIRED');
+        if (scenario === 'beneficiary_required' || beneficiaries.length===0) return error(422, 'BENEFICIARY_REQUIRED');
         if (!Number.isSafeInteger(body.checkIntervalDays) || body.checkIntervalDays <= 0) return error(400, 'VALIDATION_FAILED');
         dms = { ownerId: id, status: 'MONITORING', checkIntervalDays: body.checkIntervalDays, gracePeriodDays: 1,
           lastCheckInAt: null, nextCheckAt: new Date(Date.now() + body.checkIntervalDays * 86400000).toISOString(),
@@ -114,4 +144,4 @@ const server = http.createServer(async (req, res) => {
     return error(404, 'RESOURCE_NOT_FOUND');
   } catch { return error(400, 'MALFORMED_REQUEST'); }
 });
-server.listen(18177, '127.0.0.1', () => console.log('Synthetic FE contract fixture: http://127.0.0.1:18177 — no BE/DB integration'));
+server.listen(18178, '127.0.0.1', () => console.log('Synthetic FE contract fixture: http://127.0.0.1:18178 — no BE/DB integration'));
