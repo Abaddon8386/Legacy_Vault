@@ -1,4 +1,6 @@
-﻿/**
+import { request, ApiError } from '../api/http.js';
+import { createSession } from './session.js';
+/**
  * LegacyVault — Authentication & Login Service Interface (PS-2)
  *
  * ARCHITECTURAL BOUNDARY & SAFETY COMPLIANCE:
@@ -6,7 +8,7 @@
  * - In accordance with PS-2 safety requirements:
  *     1. Never treat HTTP 200 as successful if response is HTML (Vite SPA fallback),
  *        empty JSON, or missing required authentication fields.
- *     2. Validate proposed PS-74 Login Response schema (accessToken, tokenType, expiresInSeconds, user).
+ *     2. Validate PS-74 Login Response schema (accessToken, tokenType, expiresInSeconds, user).
  *     3. No plain-text passwords or secret keys are logged or persisted.
  *     4. No artificial/fabricated JWT tokens or sessions are stored in storage.
  *     5. DEV Preview simulation works strictly separately under ?preview=true in DEV mode.
@@ -68,7 +70,7 @@ export function getAuthMessage(code, lang = 'vi') {
 }
 
 /**
- * Validate that response matches the proposed PS-74 Login Response schema:
+ * Validate that response matches the PS-74 Login Response schema:
  * {
  *   accessToken: string,
  *   tokenType: string,
@@ -79,15 +81,7 @@ export function getAuthMessage(code, lang = 'vi') {
  * @returns {boolean}
  */
 export function isValidLoginResponse(data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return false;
-  }
-  const hasToken = typeof data.accessToken === 'string' && data.accessToken.trim().length > 0;
-  const hasTokenType = typeof data.tokenType === 'string' && data.tokenType.trim().length > 0;
-  const hasExpires = typeof data.expiresInSeconds === 'number' && !Number.isNaN(data.expiresInSeconds);
-  const hasUser = Boolean(data.user && typeof data.user === 'object' && !Array.isArray(data.user));
-
-  return Boolean(hasToken && hasTokenType && hasExpires && hasUser);
+  try { createSession(data); return true; } catch { return false; }
 }
 
 /**
@@ -161,141 +155,17 @@ export async function authenticateUser({ email, password: _password }, options =
     }
   }
 
-  // Chế độ bình thường: Gọi trực tiếp Backend API
-  const activeFetch = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
-  if (!activeFetch) {
-    const err = new Error(getAuthMessage('NETWORK_ERROR', lang));
-    err.status = 0;
-    err.code = 'NETWORK_ERROR';
-    throw err;
-  }
-
   try {
-    const response = await activeFetch('/api/v1/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: (email || '').trim(),
-        password: _password,
-      }),
-    });
-
-    const contentType = response.headers?.get?.('content-type') || '';
-    const isJson = contentType.includes('application/json');
-
-    // 1. Nếu phản hồi là HTML (Vite SPA fallback hoặc route Backend chưa tồn tại),
-    // kể cả khi HTTP status là 200 hay 404
-    if (!isJson) {
-      const err = new Error(getAuthMessage('ENDPOINT_NOT_IMPLEMENTED', lang));
-      err.status = response.status;
-      err.code = 'ENDPOINT_NOT_IMPLEMENTED';
-      throw err;
-    }
-
-    let errorData = null;
-    try {
-      errorData = await response.json();
-    } catch {
-      // JSON hỏng / không parse được
-      const err = new Error(getAuthMessage('INVALID_AUTH_RESPONSE', lang));
-      err.status = response.status;
-      err.code = 'INVALID_AUTH_RESPONSE';
-      throw err;
-    }
-
-    if (!response.ok) {
-      // 1. Phân biệt HTTP 404: Endpoint chưa triển khai vs Tài nguyên không tìm thấy
-      if (response.status === 404) {
-        if (errorData?.code === 'RESOURCE_NOT_FOUND') {
-          const err = new Error(
-            errorData.message || getAuthMessage('RESOURCE_NOT_FOUND', lang)
-          );
-          err.status = 404;
-          err.code = 'RESOURCE_NOT_FOUND';
-          err.traceId = errorData.traceId;
-          throw err;
-        }
-
-        const err = new Error(getAuthMessage('ENDPOINT_NOT_IMPLEMENTED', lang));
-        err.status = 404;
-        err.code = 'ENDPOINT_NOT_IMPLEMENTED';
-        throw err;
-      }
-
-      // 2. HTTP 401: Sai credentials hoặc phiên hết hạn (PS-74)
-      if (response.status === 401) {
-        const code = errorData?.code === 'UNAUTHENTICATED' ? 'UNAUTHENTICATED' : 'INVALID_CREDENTIALS';
-        const err = new Error(getAuthMessage(code, lang));
-        err.status = 401;
-        err.code = code;
-        err.traceId = errorData?.traceId;
-        throw err;
-      }
-
-      // 3. HTTP 403: Thiếu quyền truy cập / Tài khoản bị khóa (PS-74)
-      if (response.status === 403) {
-        const err = new Error(getAuthMessage('ACCESS_DENIED', lang));
-        err.status = 403;
-        err.code = errorData?.code || 'ACCESS_DENIED';
-        err.traceId = errorData?.traceId;
-        throw err;
-      }
-
-      // 4. HTTP 400: Dữ liệu không hợp lệ (VALIDATION_FAILED)
-      if (response.status === 400) {
-        const msg = errorData?.message || getAuthMessage('VALIDATION_FAILED', lang);
-        const err = new Error(msg);
-        err.status = 400;
-        err.code = errorData?.code || 'VALIDATION_FAILED';
-        err.traceId = errorData?.traceId;
-        err.errors = errorData?.errors;
-        throw err;
-      }
-
-      // 5. HTTP 500: Lỗi nội bộ máy chủ (INTERNAL_ERROR - không lộ thông tin nhạy cảm)
-      if (response.status === 500) {
-        const err = new Error(getAuthMessage('INTERNAL_ERROR', lang));
-        err.status = 500;
-        err.code = 'INTERNAL_ERROR';
-        err.traceId = errorData?.traceId;
-        throw err;
-      }
-
-      // 6. Các mã lỗi HTTP khác
-      const err = new Error(getAuthMessage('SERVICE_UNAVAILABLE', lang));
-      err.status = response.status;
-      err.code = errorData?.code || 'SERVICE_UNAVAILABLE';
-      err.traceId = errorData?.traceId;
-      throw err;
-    }
-
-    // Response là HTTP 200 OK: Bắt buộc kiểm tra cấu trúc Login Response theo PS-74
-    if (!isValidLoginResponse(errorData)) {
-      const err = new Error(getAuthMessage('INVALID_AUTH_RESPONSE', lang));
-      err.status = 200;
-      err.code = 'INVALID_AUTH_RESPONSE';
-      throw err;
-    }
-
-    return {
-      status: 200,
-      user: errorData.user,
-      tokenType: errorData.tokenType,
-      expiresInSeconds: errorData.expiresInSeconds,
-      code: 'SUCCESS',
-      message: getAuthMessage('SUCCESS', lang),
-      isSimulation: false,
-    };
+    const data = await request('/auth/login', { ...options, method: 'POST', expectedStatus: 200,
+      body: { email: (email || '').trim().toLowerCase(), password: _password } });
+    const session = createSession(data);
+    return { accessToken: session.accessToken, tokenType: data.tokenType, expiresInSeconds: data.expiresInSeconds, user: session.user, status: 200, code: 'SUCCESS',
+      message: getAuthMessage('SUCCESS', lang), isSimulation: false };
   } catch (error) {
-    if (error.status !== undefined) {
-      throw error;
-    }
-    // Lỗi mạng hoặc server không phản hồi
-    const err = new Error(getAuthMessage('NETWORK_ERROR', lang));
-    err.status = 0;
-    err.code = 'NETWORK_ERROR';
-    throw err;
+    if (error.name === 'AbortError') throw error;
+    const safeError = ['INVALID_RESPONSE', 'INVALID_AUTH_RESPONSE'].includes(error.code)
+      ? new ApiError('INVALID_AUTH_RESPONSE', error.status || 200) : error;
+    safeError.message = getAuthMessage(safeError.code, lang);
+    throw safeError;
   }
 }

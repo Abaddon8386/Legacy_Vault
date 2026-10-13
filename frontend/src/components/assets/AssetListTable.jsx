@@ -12,13 +12,15 @@ import {
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import './AssetListTable.css'
+import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
 /**
  * AssetListTable — PS-5: List assets only (Contract Aligned).
  * Displays contract metadata: name, assetType (TEXT | CREDENTIAL), hasPayload, createdAt.
  * Supports sorting and pagination.
  */
-export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, onQueryChange }) {
+export function AssetListTable({ assets, t: externalT, lang = 'vi', query, totalElements, onQueryChange, onViewAsset, onEditAsset }) {
+  const t = getAssetTranslations(externalT, lang)
   const [sortField, sortOrder] = query.sort.split(',')
   const currentPage = query.page + 1
   const pageSize = query.size
@@ -107,6 +109,7 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
                   {renderSortIcon('createdAt')}
                 </div>
               </th>
+              <th scope="col">{t.assets.colActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -158,6 +161,7 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
                       {formatDate(asset.createdAt)}
                     </span>
                   </td>
+                  <td><Button variant="secondary" onClick={() => onViewAsset(asset)}>{t.assets.actions.view}</Button><Button variant="secondary" onClick={() => onEditAsset(asset)}>{t.assets.actions.edit}</Button></td>
                 </tr>
               )
             })}
@@ -184,6 +188,7 @@ export function AssetListTable({ assets, t, lang = 'vi', query, totalElements, o
                 </div>
               </div>
 
+              <div><Button variant="secondary" onClick={() => onViewAsset(asset)}>{t.assets.actions.view}</Button><Button variant="secondary" onClick={() => onEditAsset(asset)}>{t.assets.actions.edit}</Button></div>
               {asset.description && (
                 <p className="lv-mobile-card__desc" title={asset.description}>
                   {asset.description}

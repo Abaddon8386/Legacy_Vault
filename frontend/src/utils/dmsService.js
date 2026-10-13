@@ -1,3 +1,5 @@
+import { request, ApiError } from '../api/http.js';
+import { isUuid, isUtcDate } from '../api/contracts.js';
 /**
  * LegacyVault — Dead Man's Switch (DMS) Service & Validation Adapter (PS-4)
  * Standardized for Jira PS-4: [FE][ST-06–07] Cấu hình và theo dõi DMS
@@ -6,10 +8,10 @@
  * - LV-DEATH-001: Missed check-in only indicates a missed vitality check-in signal.
  *   It does NOT prove death, does NOT unlock vault, does NOT decrypt assets,
  *   and does NOT grant beneficiary/trustee access.
- * - Proposed PS-74 endpoints:
- *   - GET  /api/v1/vaults/{vaultId}/dms
- *   - PUT  /api/v1/vaults/{vaultId}/dms
- *   - POST /api/v1/vaults/{vaultId}/dms/check-in
+ * - PS-74 endpoints:
+ *   - GET  /api/v1/dms
+ *   - PUT  /api/v1/dms
+ *   - POST /api/v1/dms/check-in
  * - Supported DMS statuses: 'MONITORING' (or 'ACTIVE'), 'TRIGGERED', 'GRACE_PERIOD_EXCEEDED', 'DISABLED' / null (unconfigured).
  * - D-API-15: Technical validation requires positive integer (> 0). Official min/max business policy limits are pending formal Backend/BA approval. Default UI preset: 30 days.
  * - D-API-27: Check-in when TRIGGERED is disallowed (rejected with 409 DMS_NOT_MONITORING).
@@ -78,7 +80,7 @@ export const dmsStatusMessages = {
 /**
  * Technical validation for DMS interval input.
  * Client validation enforces whole positive integer (> 0).
- * Final business constraints (min/max days) are pending backend decision (D-API-15).
+ * Business min/max days are validated by backend configuration (PS-74 D-API-15).
  * @param {number|string} intervalInput
  * @param {'vi'|'en'} lang
  * @returns {Object} validation errors keyed by field
@@ -94,7 +96,7 @@ export function validateDmsInterval(intervalInput, lang = 'vi') {
   }
 
   const num = Number(raw);
-  if (!Number.isInteger(num) || isNaN(num)) {
+  if (!Number.isSafeInteger(num) || isNaN(num)) {
     errors.check_interval_days = msgs.intervalInteger;
     return errors;
   }
@@ -162,6 +164,7 @@ export function formatDmsDate(isoString, lang = 'vi') {
  * @returns {boolean}
  */
 export function isSimulationPermitted(options = {}) {
+  if (options.accessToken) return false;
   const isViteProd =
     typeof import.meta !== 'undefined' &&
     Boolean(import.meta.env?.PROD);
@@ -326,283 +329,53 @@ export const mockDmsAdapter = {
 // ============================================================================
 // LIVE ADAPTER (Connects to Spring Boot Backend API)
 // ============================================================================
+export function readDms(raw, options = {}) {
+  if (!isUuid(raw?.ownerId) || (options.ownerId && raw.ownerId !== options.ownerId) ||
+      !['MONITORING', 'TRIGGERED', 'GRACE_PERIOD_EXCEEDED'].includes(raw.status) ||
+      !Number.isSafeInteger(raw.checkIntervalDays) || raw.checkIntervalDays <= 0 ||
+      !Number.isSafeInteger(raw.gracePeriodDays) || raw.gracePeriodDays <= 0 || !isUtcDate(raw.nextCheckAt) ||
+      ['lastCheckInAt', 'triggeredAt', 'graceDeadline', 'updatedAt'].some(key => raw[key] != null && !isUtcDate(raw[key]))) {
+    throw new ApiError('INVALID_RESPONSE');
+  }
+  return { ownerId: raw.ownerId, status: raw.status, checkIntervalDays: raw.checkIntervalDays,
+    gracePeriodDays: raw.gracePeriodDays, nextCheckAt: raw.nextCheckAt,
+    lastCheckInAt: raw.lastCheckInAt ?? null, triggeredAt: raw.triggeredAt ?? null,
+    graceDeadline: raw.graceDeadline ?? null, updatedAt: raw.updatedAt ?? null, isSimulation: false };
+}
 export const liveDmsAdapter = {
   async fetch(options = {}) {
-    const lang = options.lang || 'vi';
-    const msgs = dmsStatusMessages[lang] || dmsStatusMessages.vi;
-    const activeFetch = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
-    const vaultId = options.vaultId;
-
-    if (!activeFetch) {
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
-
-    // In live mode without a valid vaultId, we cannot call backend
-    if (!vaultId) {
-      return null;
-    }
-
-    try {
-      const response = await activeFetch(`/api/v1/vaults/${encodeURIComponent(vaultId)}/dms`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-
-      const contentType = response.headers?.get?.('content-type') || '';
-      const isJson = contentType.includes('application/json');
-
-      if (!isJson) {
-        const err = new Error(msgs.backendNotReady);
-        err.status = response.status;
-        err.code = 'BACKEND_NOT_READY';
-        throw err;
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          const err = new Error(msgs.unauthorized);
-          err.status = 401;
-          err.code = 'UNAUTHORIZED';
-          throw err;
-        }
-        if (response.status === 403) {
-          const err = new Error(msgs.forbidden);
-          err.status = 403;
-          err.code = 'FORBIDDEN';
-          throw err;
-        }
-        if (response.status === 404) {
-          // DMS not configured yet -> returns null (Empty State)
-          return null;
-        }
-        const err = new Error(msgs.serverError);
-        err.status = response.status;
-        err.code = 'SERVER_ERROR';
-        throw err;
-      }
-
-      const data = await response.json();
-      return {
-        vaultId: data.vaultId || vaultId,
-        status: data.status || 'MONITORING',
-        checkIntervalDays: data.checkIntervalDays || data.check_interval_days || DEFAULT_INTERVAL_DAYS,
-        lastCheckInAt: data.lastCheckInAt || data.last_check_in_at || null,
-        nextCheckAt: data.nextCheckAt || data.next_check_at || null,
-        triggeredAt: data.triggeredAt || data.triggered_at || null,
-        graceDeadline: data.graceDeadline || data.grace_deadline || null,
-        gracePeriodDays: data.gracePeriodDays || data.grace_period_days || DEFAULT_GRACE_PERIOD_DAYS,
-        isSimulation: false,
-      };
-    } catch (error) {
-      if (error.status !== undefined) throw error;
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
+    try { return readDms(await request('/dms', { ...options, expectedStatus: 200 }), options); }
+    catch (error) { if (error.status === 404 && error.code === 'RESOURCE_NOT_FOUND') return null; throw error; }
   },
-
   async save(days, options = {}) {
-    const lang = options.lang || 'vi';
-    const msgs = dmsStatusMessages[lang] || dmsStatusMessages.vi;
-    const activeFetch = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
-    const vaultId = options.vaultId;
-
-    if (!activeFetch) {
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
-
-    if (!vaultId) {
-      const err = new Error(msgs.backendNotReady);
-      err.status = 400;
-      err.code = 'VAULT_ID_REQUIRED';
-      throw err;
-    }
-
-    try {
-      const response = await activeFetch(`/api/v1/vaults/${encodeURIComponent(vaultId)}/dms`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          checkIntervalDays: days,
-        }),
-      });
-
-      const contentType = response.headers?.get?.('content-type') || '';
-      const isJson = contentType.includes('application/json');
-
-      if (!isJson) {
-        const err = new Error(msgs.backendNotReady);
-        err.status = response.status;
-        err.code = 'BACKEND_NOT_READY';
-        throw err;
-      }
-
-      if (!response.ok) {
-        if (response.status === 400) {
-          const err = new Error(msgs.intervalPositive);
-          err.status = 400;
-          err.code = 'VALIDATION_FAILED';
-          throw err;
-        }
-        if (response.status === 401) {
-          const err = new Error(msgs.unauthorized);
-          err.status = 401;
-          err.code = 'UNAUTHORIZED';
-          throw err;
-        }
-        if (response.status === 403) {
-          const err = new Error(msgs.forbidden);
-          err.status = 403;
-          err.code = 'FORBIDDEN';
-          throw err;
-        }
-        if (response.status === 404) {
-          const err = new Error(msgs.notFound);
-          err.status = 404;
-          err.code = 'RESOURCE_NOT_FOUND';
-          throw err;
-        }
-        if (response.status === 409) {
-          const err = new Error(msgs.vaultNotEditable);
-          err.status = 409;
-          err.code = 'VAULT_NOT_EDITABLE';
-          throw err;
-        }
-        if (response.status === 422) {
-          const err = new Error(msgs.beneficiaryRequired);
-          err.status = 422;
-          err.code = 'BENEFICIARY_REQUIRED';
-          throw err;
-        }
-        const data = await response.json().catch(() => ({}));
-        const err = new Error(data.message || msgs.serverError);
-        err.status = response.status;
-        err.code = data.code || 'SERVER_ERROR';
-        throw err;
-      }
-
-      const created = await response.json();
-      return {
-        vaultId: created.vaultId || vaultId,
-        status: created.status || 'MONITORING',
-        checkIntervalDays: created.checkIntervalDays || days,
-        lastCheckInAt: created.lastCheckInAt || null,
-        nextCheckAt: created.nextCheckAt || null,
-        triggeredAt: created.triggeredAt || null,
-        graceDeadline: created.graceDeadline || null,
-        gracePeriodDays: created.gracePeriodDays || DEFAULT_GRACE_PERIOD_DAYS,
-        isSimulation: false,
-        message: msgs.saveSuccess,
-      };
-    } catch (error) {
-      if (error.status !== undefined) throw error;
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
+    const result = readDms(await request('/dms', { ...options, method: 'PUT', expectedStatus: 200,
+      body: { checkIntervalDays: days } }), options);
+    if (result.status !== 'MONITORING') throw new ApiError('INVALID_RESPONSE');
+    return result;
   },
-
   async checkIn(options = {}) {
-    const lang = options.lang || 'vi';
-    const msgs = dmsStatusMessages[lang] || dmsStatusMessages.vi;
-    const activeFetch = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
-    const vaultId = options.vaultId;
-
-    if (!activeFetch) {
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
-
-    if (!vaultId) {
-      const err = new Error(msgs.backendNotReady);
-      err.status = 400;
-      err.code = 'VAULT_ID_REQUIRED';
-      throw err;
-    }
-
-    try {
-      const response = await activeFetch(`/api/v1/vaults/${encodeURIComponent(vaultId)}/dms/check-in`, {
-        method: 'POST',
-        headers: { Accept: 'application/json' },
-      });
-
-      const contentType = response.headers?.get?.('content-type') || '';
-      const isJson = contentType.includes('application/json');
-
-      if (!isJson) {
-        const err = new Error(msgs.backendNotReady);
-        err.status = response.status;
-        err.code = 'BACKEND_NOT_READY';
-        throw err;
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          const err = new Error(msgs.unauthorized);
-          err.status = 401;
-          err.code = 'UNAUTHORIZED';
-          throw err;
-        }
-        if (response.status === 403) {
-          const err = new Error(msgs.forbidden);
-          err.status = 403;
-          err.code = 'FORBIDDEN';
-          throw err;
-        }
-        if (response.status === 404) {
-          const err = new Error(msgs.notFound);
-          err.status = 404;
-          err.code = 'RESOURCE_NOT_FOUND';
-          throw err;
-        }
-        if (response.status === 409) {
-          const err = new Error(msgs.notMonitoring);
-          err.status = 409;
-          err.code = 'DMS_NOT_MONITORING';
-          throw err;
-        }
-        const data = await response.json().catch(() => ({}));
-        const err = new Error(data.message || msgs.serverError);
-        err.status = response.status;
-        err.code = data.code || 'SERVER_ERROR';
-        throw err;
-      }
-
-      const result = await response.json();
-      return {
-        vaultId: result.vaultId || vaultId,
-        status: result.status || 'MONITORING',
-        checkIntervalDays: result.checkIntervalDays || DEFAULT_INTERVAL_DAYS,
-        lastCheckInAt: result.lastCheckInAt || null,
-        nextCheckAt: result.nextCheckAt || null,
-        triggeredAt: result.triggeredAt || null,
-        graceDeadline: result.graceDeadline || null,
-        gracePeriodDays: result.gracePeriodDays || DEFAULT_GRACE_PERIOD_DAYS,
-        isSimulation: false,
-        message: msgs.checkInSuccess,
-      };
-    } catch (error) {
-      if (error.status !== undefined) throw error;
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
+    const result = readDms(await request('/dms/check-in', { ...options, method: 'POST', expectedStatus: 200 }), options);
+    if (result.status !== 'MONITORING') throw new ApiError('INVALID_RESPONSE');
+    return result;
   },
 };
+export function getDmsMessage(code, lang = 'vi') {
+  const vi = { SAVED: 'Đã lưu chu kỳ kiểm tra.', CHECKED_IN: 'Đã xác nhận hoạt động và cập nhật lịch kiểm tra.',
+    BENEFICIARY_REQUIRED: 'Hãy khai báo ít nhất một người thụ hưởng trước khi bật giám sát.',
+    DMS_NOT_MONITORING: 'Chỉ có thể check-in khi đang theo dõi hoạt động.',
+    VAULT_NOT_EDITABLE: 'Kho di sản hiện không cho phép thay đổi.',
+    UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
+    VALIDATION_FAILED: 'Chu kỳ kiểm tra không được máy chủ chấp nhận.' };
+  const en = { SAVED: 'Check-in interval saved.', CHECKED_IN: 'Activity confirmed and next check updated.',
+    BENEFICIARY_REQUIRED: 'Add at least one beneficiary before enabling monitoring.',
+    DMS_NOT_MONITORING: 'Check-in is only available while monitoring.',
+    VAULT_NOT_EDITABLE: 'This vault currently cannot be changed.',
+    UNAUTHENTICATED: 'Your session has expired. Please sign in again.',
+    ACCESS_DENIED: 'You do not have permission to perform this action.',
+    VALIDATION_FAILED: 'The check-in interval was rejected by the server.' };
+  return (lang === 'en' ? en : vi)[code] || (lang === 'en' ? 'Unable to complete the request. Please try again.' : 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.');
+}
 
 /**
  * Fetch DMS configuration and monitor status for authenticated owner

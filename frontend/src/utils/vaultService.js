@@ -1,14 +1,16 @@
+import { request, ApiError } from '../api/http.js';
+import { isUuid, isUtcDate } from '../api/contracts.js';
 /**
  * LegacyVault — Vault Management Service & Validation Adapter (PS-3)
  *
  * ARCHITECTURAL BOUNDARY & SAFETY COMPLIANCE:
- * - Aligned with Jira PS-3 and proposed PS-74 Contract (docs/api-contracts/vaults.md).
- * - NOTE: GET /api/v1/vaults reflects proposed D-API-23 in PS-74 (subject to final alignment).
+ * - Aligned with Jira PS-3 and PS-74 Contract (docs/api-contracts/vaults.md).
+ * - NOTE: GET /api/v1/vaults reflects D-API-23 in PS-74 (confirmed contract).
  * - Business Rules:
  *   1. Newly created vaults always have status = 'ACTIVE' (PS-12 / D-API-12).
  *   2. Vault Owners only have access to their own vault (1:1 relationship).
  *   3. Ownership validation is enforced by Backend security context.
- *   4. Client validation: Name is required, 2–150 chars. Description is optional, <= 1000 chars.
+ *   4. Client validation: Name is required, 1–150 chars. Description is optional, <= 1000 chars.
  *   5. In live mode, communicates with /api/v1/vaults via liveVaultAdapter.
  *   6. In DEV mode with ?preview=true, provides simulation scenarios via mockVaultAdapter.
  *   7. Production builds (import.meta.env.PROD === true) strictly lock out all simulation adapters.
@@ -72,8 +74,7 @@ export function validateVaultInput(input = {}, lang = 'vi') {
 
   if (!name) {
     errors.vault_name = msgs.nameRequired;
-  } else if (name.length < 2) {
-    errors.vault_name = msgs.nameMin;
+
   } else if (name.length > 150) {
     errors.vault_name = msgs.nameMax;
   }
@@ -103,6 +104,7 @@ export function validateVaultInput(input = {}, lang = 'vi') {
  * @returns {boolean} true if simulation is permitted
  */
 export function isSimulationPermitted(options = {}) {
+  if (options.accessToken) return false;
   // A. Check for Production environment
   // In Vite production bundle, import.meta.env.PROD is statically compiled to true.
   const isViteProd =
@@ -231,155 +233,28 @@ export const mockVaultAdapter = {
 // ============================================================================
 // LIVE ADAPTER (Connects to Spring Boot Backend API)
 // ============================================================================
+export function readVault(raw, { created = false } = {}) {
+  if (!isUuid(raw?.id) || typeof raw.name !== 'string' || !raw.name.trim() || raw.name.length > 150 ||
+      typeof raw.status !== 'string' || !raw.status || (created && raw.status !== 'ACTIVE') ||
+      !isUtcDate(raw.createdAt) || !isUtcDate(raw.updatedAt)) throw new ApiError('INVALID_RESPONSE');
+  return { id: raw.id, name: raw.name, vault_name: raw.name, description: raw.description || '',
+    status: raw.status, created_at: raw.createdAt, updated_at: raw.updatedAt, isSimulation: false };
+}
 export const liveVaultAdapter = {
   async fetch(options = {}) {
-    const lang = options.lang || 'vi';
-    const msgs = vaultStatusMessages[lang] || vaultStatusMessages.vi;
-    const activeFetch = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
-
-    if (!activeFetch) {
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
+    const data = await request('/vaults?page=0&size=20&sort=createdAt,desc', { ...options, expectedStatus: 200 });
+    if (!Array.isArray(data?.content) || !Number.isSafeInteger(data.page) || data.page < 0 ||
+        !Number.isSafeInteger(data.size) || data.size <= 0 || !Number.isSafeInteger(data.totalElements) ||
+        data.totalElements < data.content.length || !Number.isSafeInteger(data.totalPages) || data.totalPages < 0) {
+      throw new ApiError('INVALID_RESPONSE');
     }
-
-    try {
-      const response = await activeFetch('/api/v1/vaults', {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-      });
-
-      const contentType = response.headers?.get?.('content-type') || '';
-      const isJson = contentType.includes('application/json');
-
-      if (!isJson) {
-        const err = new Error(msgs.backendNotReady);
-        err.status = response.status;
-        err.code = 'BACKEND_NOT_READY';
-        throw err;
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          const err = new Error(msgs.unauthorized);
-          err.status = 401;
-          err.code = 'UNAUTHORIZED';
-          throw err;
-        }
-        if (response.status === 403) {
-          const err = new Error(msgs.forbidden);
-          err.status = 403;
-          err.code = 'FORBIDDEN';
-          throw err;
-        }
-        if (response.status === 404) {
-          // Vault not created yet for this owner -> returns null (Empty State)
-          return null;
-        }
-        const err = new Error(msgs.serverError);
-        err.status = response.status;
-        err.code = 'SERVER_ERROR';
-        throw err;
-      }
-
-      const data = await response.json();
-      const vaultItem = Array.isArray(data?.content) ? data.content[0] : (Array.isArray(data) ? data[0] : data);
-      if (!vaultItem) return null;
-
-      return {
-        id: vaultItem.id || null,
-        vault_name: vaultItem.name || vaultItem.vault_name,
-        name: vaultItem.name || vaultItem.vault_name,
-        description: vaultItem.description || '',
-        status: vaultItem.status || 'ACTIVE',
-        created_at: vaultItem.createdAt || vaultItem.created_at || null,
-        updated_at: vaultItem.updatedAt || vaultItem.updated_at || null,
-        isSimulation: false,
-      };
-    } catch (error) {
-      if (error.status !== undefined) throw error;
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
+    if (!data.content.length) return null;
+    return readVault(data.content[0]);
   },
-
   async create(rawName, rawDesc, options = {}) {
-    const lang = options.lang || 'vi';
-    const msgs = vaultStatusMessages[lang] || vaultStatusMessages.vi;
-    const activeFetch = options.fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
-
-    if (!activeFetch) {
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
-
-    try {
-      const response = await activeFetch('/api/v1/vaults', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          name: rawName,
-          description: rawDesc,
-        }),
-      });
-
-      const contentType = response.headers?.get?.('content-type') || '';
-      const isJson = contentType.includes('application/json');
-
-      if (!isJson) {
-        const err = new Error(msgs.backendNotReady);
-        err.status = response.status;
-        err.code = 'BACKEND_NOT_READY';
-        throw err;
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          const err = new Error(msgs.unauthorized);
-          err.status = 401;
-          err.code = 'UNAUTHORIZED';
-          throw err;
-        }
-        if (response.status === 403 || response.status === 409) {
-          const err = new Error(msgs.limitExceeded);
-          err.status = response.status;
-          err.code = 'VAULT_LIMIT_EXCEEDED';
-          throw err;
-        }
-        const data = await response.json().catch(() => ({}));
-        const err = new Error(data.message || msgs.serverError);
-        err.status = response.status;
-        err.code = data.code || 'SERVER_ERROR';
-        throw err;
-      }
-
-      const created = await response.json();
-      return {
-        id: created.id || null,
-        vault_name: created.name || created.vault_name || rawName,
-        name: created.name || created.vault_name || rawName,
-        description: created.description || rawDesc,
-        status: created.status || 'ACTIVE',
-        created_at: created.createdAt || created.created_at || null,
-        updated_at: created.updatedAt || created.updated_at || null,
-        isSimulation: false,
-        message: msgs.createdSuccess,
-      };
-    } catch (error) {
-      if (error.status !== undefined) throw error;
-      const err = new Error(msgs.networkError);
-      err.status = 0;
-      err.code = 'NETWORK_ERROR';
-      throw err;
-    }
+    const data = await request('/vaults', { ...options, method: 'POST', expectedStatus: 201,
+      body: { name: rawName.trim(), description: rawDesc.trim() } });
+    return readVault(data, { created: true });
   },
 };
 
