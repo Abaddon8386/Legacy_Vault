@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.legacyvault.common.audit.AuditService;
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
@@ -56,7 +57,7 @@ class TrusteeContactServiceTest {
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		AuditService audit = mock(AuditService.class);
 		TrusteeContactService service = new TrusteeContactService(trustees, records,
-				new StaffContextService(users), audit);
+				new StaffContextService(new OwnerContextService(users)), audit);
 
 		service.record(trusteePublicId, new TrusteeContactDtos.RecordRequest(TrusteeContactDtos.Channel.PHONE,
 				TrusteeContactDtos.Outcome.NO_RESPONSE, TrusteeContactDtos.FallbackStatus.REQUIRED,
