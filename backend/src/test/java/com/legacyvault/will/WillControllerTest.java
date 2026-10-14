@@ -24,12 +24,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -44,6 +46,7 @@ import com.legacyvault.user.repository.UserRoleRepository;
 import com.legacyvault.will.controller.WillController;
 import com.legacyvault.will.dto.WillResponse;
 import com.legacyvault.will.dto.WillVersionResponse;
+import com.legacyvault.will.service.WillFileDownload;
 import com.legacyvault.will.service.WillService;
 
 /** PS-17/PS-18: hợp đồng HTTP của /vaults/{vaultId}/wills (multipart, mã lỗi, không trả nội dung file). */
@@ -235,5 +238,67 @@ class WillControllerTest {
 		mockMvc.perform(get("/api/v1/vaults/{vaultId}/wills/{willId}/versions", VAULT_ID, "x").with(owner()))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+	}
+
+	// ---------- D-API-33: POST .../versions/{version}/download ----------
+
+	private static String pw(String value) {
+		return "{\"password\":\"" + value + "\"}";
+	}
+
+	private ResultActions download(int version, String body, RequestPostProcessor who) throws Exception {
+		return mockMvc.perform(post("/api/v1/vaults/{vaultId}/wills/{willId}/versions/{version}/download", VAULT_ID,
+				WILL_ID, version).with(who).contentType(MediaType.APPLICATION_JSON).content(body));
+	}
+
+	@Test
+	void download_returnsBytesAsAttachment_noStore_nosniff() throws Exception {
+		when(willService.openVersion(VAULT_ID, WILL_ID, 1, OWNER.userId(), "MatKhau@123"))
+				.thenReturn(new WillFileDownload(PDF, "application/pdf", "di chúc.pdf", SHA));
+
+		MvcResult result = download(1, pw("MatKhau@123"), owner())
+				.andExpect(status().isOk())
+				.andExpect(header().string("Content-Type", "application/pdf"))
+				.andExpect(header().string("X-Content-Type-Options", "nosniff"))
+				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+				.andExpect(header().string("Content-Length", String.valueOf(PDF.length)))
+				.andReturn();
+
+		assertThat(result.getResponse().getContentAsByteArray()).isEqualTo(PDF);
+		assertThat(result.getResponse().getHeader("Content-Disposition")).startsWith("attachment")
+				.contains("filename*=UTF-8");
+	}
+
+	@Test
+	void download_badBody_orBadVersion_returns400_withoutCallingService() throws Exception {
+		download(1, "{}", owner()).andExpect(status().isBadRequest());
+		download(1, pw("a".repeat(73)), owner()).andExpect(status().isBadRequest());
+		download(0, pw("x"), owner()).andExpect(status().isBadRequest());
+		verifyNoInteractions(willService);
+	}
+
+	@Test
+	void download_mapsWrongPassword403_lockout429_frozen409_otherUsers404_wrongRole403_noLogin401() throws Exception {
+		when(willService.openVersion(eq(VAULT_ID), eq(WILL_ID), eq(1), eq(OWNER.userId()), eq("sai")))
+				.thenThrow(new BusinessException(ErrorCode.REAUTH_FAILED));
+		when(willService.openVersion(eq(VAULT_ID), eq(WILL_ID), eq(1), eq(OWNER.userId()), eq("khoa")))
+				.thenThrow(new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS));
+		when(willService.openVersion(eq(VAULT_ID), eq(WILL_ID), eq(1), eq(OWNER.userId()), eq("dong-bang")))
+				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
+		when(willService.openVersion(eq(VAULT_ID), eq(WILL_ID), eq(1), eq(2L), any()))
+				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		download(1, pw("sai"), owner()).andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("REAUTH_FAILED"));
+		download(1, pw("khoa"), owner()).andExpect(status().isTooManyRequests())
+				.andExpect(jsonPath("$.code").value("TOO_MANY_ATTEMPTS"));
+		download(1, pw("dong-bang"), owner()).andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("VAULT_NOT_EDITABLE"));
+		download(1, pw("x"), as(new CustomUserPrincipal(2L, UUID.randomUUID(), "user@example.com"), "VAULT_OWNER"))
+				.andExpect(status().isNotFound());
+		download(1, pw("x"), as(OWNER, "BENEFICIARY")).andExpect(status().isForbidden());
+		mockMvc.perform(post("/api/v1/vaults/{vaultId}/wills/{willId}/versions/{version}/download", VAULT_ID, WILL_ID, 1)
+				.contentType(MediaType.APPLICATION_JSON).content(pw("x")))
+				.andExpect(status().isUnauthorized());
 	}
 }

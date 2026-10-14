@@ -25,6 +25,7 @@ import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.crypto.EncryptionService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
+import com.legacyvault.common.security.PasswordReauthService;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.service.VaultService;
@@ -62,11 +63,12 @@ public class WillService {
 	private final VaultService vaultService;
 	private final EncryptionService encryptionService;
 	private final AuditService auditService;
+	private final PasswordReauthService reauthService;
 	private final long maxFileBytes;
 
 	public WillService(WillAssetRepository willAssetRepository, AssetVersionRepository versionRepository,
 			LegalDocumentRepository legalDocumentRepository, VaultService vaultService,
-			EncryptionService encryptionService, AuditService auditService,
+			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService,
 			@Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes) {
 		this.willAssetRepository = willAssetRepository;
 		this.versionRepository = versionRepository;
@@ -74,6 +76,7 @@ public class WillService {
 		this.vaultService = vaultService;
 		this.encryptionService = encryptionService;
 		this.auditService = auditService;
+		this.reauthService = reauthService;
 		this.maxFileBytes = maxFileBytes;
 	}
 
@@ -135,6 +138,34 @@ public class WillService {
 		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
 		Asset will = requireWill(willId, vault);
 		return versionRepository.findVersions(will.getAssetId()).stream().map(WillVersionResponse::from).toList();
+	}
+
+	/**
+	 * Mở/tải nội dung một phiên bản file di chúc (D-API-33): Owner của kho, kho còn {@code ACTIVE}, nhập đúng mật khẩu
+	 * hiện tại. Thứ tự: ownership (404) -> trạng thái kho (409) -> phiên bản (404) -> mật khẩu/giới hạn (403/429).
+	 *
+	 * <p>Sau khi giải mã, SHA-256 của nội dung được so với hash đã lưu lúc tải lên; lệch (dữ liệu bị sửa trong DB) thì
+	 * từ chối, không trả file. Audit chỉ ghi phiên bản/hash/kích thước, không ghi tên file hay nội dung.
+	 */
+	@Transactional
+	public WillFileDownload openVersion(UUID vaultId, UUID willId, int versionNo, Long ownerUserId, String password) {
+		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		Asset will = requireWill(willId, vault);
+		AssetVersion version = versionRepository.findByAssetIdAndVersionNo(will.getAssetId(), versionNo)
+				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+		reauthService.requirePassword(ownerUserId, vault.getVaultId(), password);
+
+		byte[] content = encryptionService.decryptBytes(version.encryptedContent(),
+				version.getPublicId().toString().getBytes(StandardCharsets.UTF_8));
+		if (!version.getSha256Hash().equals(WillFile.sha256Hex(content))) {
+			throw new IllegalStateException("Stored will content does not match its recorded SHA-256");
+		}
+
+		auditService.record(new AuditEvent(AuditAction.WILL_FILE_OPENED, AuditActorType.USER, ownerUserId,
+				vault.getVaultId(), ENTITY_WILL, will.getAssetId(), null, null, null, integrityDetails(version),
+				STEP_WILL_UPLOAD, RULE_WILL));
+		return new WillFileDownload(content, version.getContentType(), version.getOriginalFileName(),
+				version.getSha256Hash());
 	}
 
 	private Asset requireWill(UUID willId, Vault vault) {
