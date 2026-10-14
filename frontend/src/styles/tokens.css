@@ -1,0 +1,285 @@
+/* ==========================================================================
+   LegacyVault Design System â€” Standard Design Tokens (Henedo-Inspired)
+   Primary Art Direction: Editorial Luxury + Private Sanctuary (Warm Minimalism)
+   Canonical Palette: Noble Forest Green, Sand Gold Accent, Warm Cream Canvas, Crisp White Surface
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     1. BRAND CORE IDENTITIES (Canonical Henedo Style)
+     ------------------------------------------------------------------------ */
+  --lv-brand-forest: #164639;         /* Noble Forest Green - TÄ©nh láº·ng, báº£o máº­t, di sáº£n */
+  --lv-brand-forest-dark: #0c2b22;    /* Dark Forest Base - ÄĂ¡y gradient vĂ¹ng editorial */
+  --lv-brand-forest-deep: #10382d;    /* Mid Forest Green - Trung Ä‘iá»ƒm gradient */
+  --lv-brand-forest-tint: #245d4d;    /* Muted Celadon Forest */
+
+  /* Gold & Warm Metallic Accents */
+  --lv-accent-gold: #c5a059;          /* Sand Gold - NĂºt CTA chĂ­nh, Ä‘iá»ƒm nháº¥n danh dá»± */
+  --lv-accent-gold-hover: #b58f47;    /* Sand Gold Hover */
+  --lv-accent-gold-active: #a67f3a;   /* Sand Gold Active */
+  --lv-accent-gold-light: #d8c292;    /* Sand Gold Light - Chá»¯ nháº¥n, viá»n má»ng */
+  --lv-accent-gold-soft: rgba(197, 160, 89, 0.12); /* Gold Cream Tint */
+  --lv-accent-gold-border: rgba(197, 160, 89, 0.28);
+  --lv-accent-gold-gradient: linear-gradient(135deg, #d8c292 0%, #c5a059 100%);
+
+  /* Backward Compatibility Aliases */
+  --lv-brand-primary: var(--lv-brand-forest);
+  --lv-brand-secondary: #1b4d46;
+  --lv-brand-dark: var(--lv-brand-forest-dark);
+  --lv-gold-accent: var(--lv-accent-gold);
+  --lv-gold-light: var(--lv-accent-gold-light);
+  --lv-gold-soft: var(--lv-accent-gold-soft);
+  --lv-gold-gradient: var(--lv-accent-gold-gradient);
+
+  /* ------------------------------------------------------------------------
+     2. CANVAS, SURFACES & BACKGROUNDS (Warm Minimalism)
+     ------------------------------------------------------------------------ */
+  --lv-bg-canvas: #f7f5f0;            /* Warm Cream / Soft Ivory - Canvas dá»‹u máº¯t, chá»‘ng chĂ³i */
+  --lv-bg-surface: #ffffff;           /* Bá» máº·t tháº» tráº¯ng ngá»c thuáº§n khiáº¿t */
+  --lv-bg-surface-elevated: #ffffff;
+  --lv-bg-surface-subtle: #fcfbf8;    /* Bá» máº·t phá»¥ áº¥m nháº¹ */
+  --lv-bg-muted: #efece6;             /* Ná»n control phá»¥ (Pill, toggle inactive) */
+  --lv-bg-glass: rgba(255, 255, 255, 0.94);
+
+  /* ------------------------------------------------------------------------
+     3. TEXT & TYPOGRAPHIC INKS
+     ------------------------------------------------------------------------ */
+  --lv-text-ink: #1f2421;             /* MĂ u chá»¯ ná»™i dung chĂ­nh */
+  --lv-text-heading: #164639;         /* MĂ u tiĂªu Ä‘á» trang nhĂ£ */
+  --lv-text-body: #2b302c;            /* NhĂ£n input, vÄƒn báº£n Ä‘á»c */
+  --lv-text-muted: #6b726b;           /* Phá»¥ Ä‘á», hÆ°á»›ng dáº«n phá»¥ */
+  --lv-text-light: #8c918b;           /* Placeholder, hint */
+  --lv-text-inverse: #ffffff;         /* Chá»¯ sĂ¡ng trĂªn ná»n rá»«ng sĂ¢u */
+  --lv-text-inverse-muted: #c8d8ce;   /* Chá»¯ phá»¥ trĂªn ná»n rá»«ng sĂ¢u */
+  --lv-text-inverse-gold: #d8c292;    /* Chá»¯ vĂ ng nháº¥n trĂªn ná»n rá»«ng sĂ¢u */
+
+  /* ------------------------------------------------------------------------
+     4. BORDERS & DIVIDERS
+     ------------------------------------------------------------------------ */
+  --lv-border-subtle: #eae5dc;        /* Viá»n tháº» máº£nh 1px */
+  --lv-border-medium: #ded9ce;        /* Viá»n trÆ°á»ng nháº­p liá»‡u */
+  --lv-border-hover: #baa375;         /* Viá»n khi hover */
+  --lv-border-focus: #c5a059;         /* Viá»n khi focus (Gold Focus Ring) */
+  --lv-border-inverse: rgba(197, 160, 89, 0.22); /* Viá»n trĂªn ná»n tá»‘i */
+
+  /* ------------------------------------------------------------------------
+     5. SEMANTIC STATUS FEEDBACK
+     ------------------------------------------------------------------------ */
+  --lv-status-pending-bg: #f7f9fc;
+  --lv-status-pending-text: #2b5788;
+  --lv-status-pending-border: #d4e0ee;
+
+  --lv-status-success-bg: #f4fbf7;
+  --lv-status-success-text: #1d724f;
+  --lv-status-success-border: #c9ecdb;
+
+  --lv-status-error-bg: #fff8f7;
+  --lv-status-error-text: #c25149;
+  --lv-status-error-border: #f9d3cf;
+
+  --lv-status-info-bg: #eef6f6;
+  --lv-status-info-text: #1b6264;
+  --lv-status-info-border: #cbe3e4;
+
+  /* Aliases */
+  --lv-status-active-bg: var(--lv-status-success-bg);
+  --lv-status-active-text: var(--lv-status-success-text);
+  --lv-status-active-border: var(--lv-status-success-border);
+  --lv-status-await-bg: #fff8eb;
+  --lv-status-await-text: #b46b18;
+  --lv-status-await-border: #f9e2b8;
+  --lv-status-danger-bg: var(--lv-status-error-bg);
+  --lv-status-danger-text: var(--lv-status-error-text);
+  --lv-status-danger-border: var(--lv-status-error-border);
+
+  /* ------------------------------------------------------------------------
+     6. RADII & GEOMETRY
+     ------------------------------------------------------------------------ */
+  --lv-radius-sm: 6px;
+  --lv-radius-md: 10px;               /* Bo gĂ³c trÆ°á»ng nháº­p liá»‡u */
+  --lv-radius-lg: 12px;               /* Bo gĂ³c nĂºt CTA */
+  --lv-radius-xl: 16px;               /* Bo gĂ³c tháº» card & artwork */
+  --lv-radius-2xl: 24px;
+  --lv-radius-pill: 9999px;
+
+  /* ------------------------------------------------------------------------
+     7. SHADOWS & ELEVATION
+     ------------------------------------------------------------------------ */
+  --lv-shadow-sm: 0 1px 3px rgba(22, 70, 57, 0.04);
+  --lv-shadow-card: 0 4px 20px rgba(22, 70, 57, 0.05);
+  --lv-shadow-cta: 0 4px 14px rgba(197, 160, 89, 0.25);
+  --lv-shadow-cta-hover: 0 6px 18px rgba(197, 160, 89, 0.35);
+  --lv-shadow-elevated: 0 12px 36px rgba(22, 70, 57, 0.08);
+
+  /* ------------------------------------------------------------------------
+     8. TYPOGRAPHY FAMILIES
+     ------------------------------------------------------------------------ */
+  --lv-font-serif: 'Playfair Display', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --lv-font-sans: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --lv-font-mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+
+  /* ------------------------------------------------------------------------
+     9. MOTION DESIGN TOKENS (Henedo Editorial Motion System)
+     ------------------------------------------------------------------------ */
+  /* Timing Durations */
+  --lv-motion-duration-fast: 160ms;        /* Fast interactions: hover, active press (120â€“180ms) */
+  --lv-motion-duration-standard: 220ms;    /* Standard transitions: colors, subtle lifts (180â€“260ms) */
+  --lv-motion-duration-modal: 280ms;       /* Modal backdrops and dialog windows (220â€“320ms) */
+  --lv-motion-duration-entrance: 450ms;    /* Page & section entrance reveals (350â€“550ms) */
+  --lv-motion-stagger-step: 75ms;          /* Stagger offset between consecutive items (60â€“90ms) */
+
+  /* Easing Curves */
+  --lv-motion-ease-smooth: cubic-bezier(0.22, 1, 0.36, 1); /* Refined deceleration curve for editorial poise */
+  --lv-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);   /* Fast responsive interactive curve */
+  --lv-motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);   /* Gentle natural settle without harsh bounce */
+
+  /* Composite Transitions */
+  --lv-transition-fast: var(--lv-motion-duration-fast) var(--lv-motion-ease-standard);
+  --lv-transition-normal: var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth);
+  --lv-transition-interactive: var(--lv-motion-duration-fast) var(--lv-motion-ease-standard);
+  --lv-transition-card: var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth);
+  --lv-transition-modal: var(--lv-motion-duration-modal) var(--lv-motion-ease-smooth);
+  --lv-transition-entrance: var(--lv-motion-duration-entrance) var(--lv-motion-ease-smooth);
+
+  /* ------------------------------------------------------------------------
+     10. LEGACY BOLD FOREST REFERENCE TOKENS (Maintained for /register-bold)
+     ------------------------------------------------------------------------ */
+  --lv-forest-deep: #082613;
+  --lv-forest-dark: #0b3218;
+  --lv-forest-panel: #0d381b;
+  --lv-forest-surface: #124021;
+  --lv-forest-surface-hover: #164a27;
+  --lv-forest-input-bg: rgba(255, 255, 255, 0.08);
+  --lv-forest-input-hover: rgba(255, 255, 255, 0.12);
+  --lv-forest-input-border: rgba(255, 255, 255, 0.14);
+  --lv-forest-input-border-focus: #ddf623;
+  --lv-forest-input-focus-ring: rgba(221, 246, 35, 0.2);
+
+  --lv-accent-lime: #ddf623;
+  --lv-accent-lime-hover: #ebff3c;
+  --lv-accent-lime-active: #cbe31c;
+  --lv-accent-lime-ink: #072310;
+  --lv-accent-lime-soft: rgba(221, 246, 35, 0.14);
+
+  --lv-shell-canvas: #e9ece6;
+  --lv-shell-frame: #d9dfd7;
+  --lv-shell-border: #cbd3c9;
+  --lv-shell-radius: 28px;
+  --lv-panel-radius: 22px;
+  --lv-control-radius: 12px;
+
+  --lv-forest-text-primary: #ffffff;
+  --lv-forest-text-muted: rgba(255, 255, 255, 0.72);
+  --lv-forest-text-subtle: rgba(255, 255, 255, 0.46);
+  --lv-forest-text-error: #ff9d94;
+}
+
+/* ==========================================================================
+   11. SHARED MOTION KEYFRAMES (Henedo Editorial Motion)
+   ========================================================================== */
+@keyframes lv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lv-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lv-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lv-modal-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes lv-badge-pop {
+  from {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes lv-status-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 114, 79, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(29, 114, 79, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 114, 79, 0);
+  }
+}
+
+@keyframes lv-gold-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes lv-error-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   12. ACCESSIBILITY: REDUCED MOTION PREFERENCE
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .lv-vault-hero-card::before {
+    animation: none !important;
+  }
+}

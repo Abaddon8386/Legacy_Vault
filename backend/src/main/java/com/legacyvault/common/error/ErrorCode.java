@@ -8,7 +8,6 @@ package com.legacyvault.common.error;
  * docs/api-contracts/error-contract.md trong cùng PR.
  */
 public enum ErrorCode {
-
 	VALIDATION_FAILED(400, "error.validation.failed"),
 	MALFORMED_REQUEST(400, "error.request.malformed"),
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),
@@ -17,10 +16,7 @@ public enum ErrorCode {
 	RESOURCE_NOT_FOUND(404, "error.resource.notFound"),
 	METHOD_NOT_ALLOWED(405, "error.request.methodNotAllowed"),
 	EMAIL_ALREADY_EXISTS(409, "error.auth.emailExists"),
-	TRUSTEE_ALREADY_EXISTS(409, "error.trustee.alreadyExists"),
-	VAULT_NOT_EDITABLE(409, "error.vault.notEditable"),
-	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
-	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
+	VAULT_ALREADY_EXISTS(409, "error.vault.alreadyExists"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),
 	INTERNAL_ERROR(500, "error.internal");
@@ -36,7 +32,6 @@ public enum ErrorCode {
 	public int status() {
 		return status;
 	}
-
 	public String messageKey() {
 		return messageKey;
 	}

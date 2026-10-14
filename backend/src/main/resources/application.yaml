@@ -19,7 +19,14 @@ spring:
     basename: messages
     encoding: UTF-8
     fallback-to-system-locale: false
+logging:
+  level:
+    org.flywaydb: DEBUG
+    org.springframework.security: TRACE
+  pattern:
+    level: "%5p [%X{traceId:-}]"
 
+# Không để Spring tự đưa stack trace / message / chi tiết binding vào response lỗi.
 server:
   error:
     include-message: never
@@ -27,17 +34,11 @@ server:
     include-binding-errors: never
     include-exception: false
 
-logging:
-  pattern:
-    level: "%5p [%X{traceId:-}]"
-
 legacyvault:
   cors:
+    # Danh sách origin được phép, phân cách bằng dấu phẩy. Mặc định rỗng (dev dùng Vite proxy nên không cần).
+    # Ví dụ khi muốn gọi thẳng không qua proxy: CORS_ALLOWED_ORIGINS=http://localhost:5173
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
-  beneficiary:
-    identity-encryption-key: ${BENEFICIARY_ENCRYPTION_KEY:}
-  dms:
-    check-interval-min-days: ${LEGACYVAULT_DMS_MIN_INTERVAL_DAYS:1}
-    check-interval-max-days: ${LEGACYVAULT_DMS_MAX_INTERVAL_DAYS:32767}
-    scheduler:
-      fixed-delay-ms: ${LEGACYVAULT_DMS_SCAN_DELAY_MS:60000}
+  jwt:
+    secret: ${JWT_SECRET_BASE64}
+    expiration-seconds: 3600

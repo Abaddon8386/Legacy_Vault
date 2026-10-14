@@ -7,7 +7,6 @@ package com.legacyvault.common.error;
  * <p>Không đưa dữ liệu nhạy cảm (mật khẩu, token, nội dung tài sản) vào args.
  */
 public class BusinessException extends RuntimeException {
-
 	private final ErrorCode errorCode;
 	private final transient Object[] args;
 
@@ -20,7 +19,6 @@ public class BusinessException extends RuntimeException {
 	public ErrorCode getErrorCode() {
 		return errorCode;
 	}
-
 	public Object[] getArgs() {
 		return args;
 	}

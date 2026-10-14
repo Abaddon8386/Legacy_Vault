@@ -1,0 +1,149 @@
+.lv-summary-cards-grid {
+  display: grid;
+  grid-template-columns: 280px 220px 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.lv-stat-card {
+  background-color: var(--lv-bg-surface);
+  border: 1px solid var(--lv-border-subtle);
+  border-radius: var(--lv-radius-card);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--lv-shadow-card);
+  transition: transform var(--lv-transition-fast), box-shadow var(--lv-transition-fast);
+}
+
+.lv-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(32, 33, 31, 0.06);
+}
+
+.lv-stat-card--distribution {
+  align-items: flex-start;
+}
+
+.lv-stat-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--lv-radius-control);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lv-stat-card__icon--gold {
+  background-color: var(--lv-accent-gold-subtle);
+  color: #8c6820;
+}
+
+.lv-stat-card__icon--forest {
+  background-color: var(--lv-brand-forest-subtle);
+  color: var(--lv-brand-forest);
+}
+
+.lv-stat-card__content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lv-stat-card__label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--lv-text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.lv-stat-card__value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--lv-brand-forest);
+  line-height: 1.2;
+}
+
+.lv-stat-card__count-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lv-stat-card__unit {
+  font-size: 13px;
+  color: var(--lv-text-muted);
+}
+
+/* Tabular numbers for clean digit alignment */
+.lv-tabular-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Distribution pills */
+.lv-distribution-content {
+  width: 100%;
+}
+
+.lv-dist-empty {
+  color: var(--lv-text-light);
+  font-size: 14px;
+}
+
+.lv-dist-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.lv-dist-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: #faf8f5;
+  border: 1px solid var(--lv-border-subtle);
+  border-radius: var(--lv-radius-pill);
+  font-size: 12px;
+  color: var(--lv-text-ink);
+}
+
+.lv-dist-pill__icon {
+  color: var(--lv-brand-forest);
+  display: flex;
+  align-items: center;
+}
+
+.lv-dist-pill__name {
+  color: var(--lv-text-muted);
+}
+
+.lv-dist-pill__count {
+  font-weight: 700;
+  color: var(--lv-brand-forest);
+  padding-left: 2px;
+}
+
+@media (max-width: 1100px) {
+  .lv-summary-cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lv-stat-card--distribution {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .lv-summary-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .lv-stat-card--distribution {
+    grid-column: span 1;
+  }
+}

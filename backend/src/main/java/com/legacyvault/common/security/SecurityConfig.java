@@ -2,6 +2,7 @@ package com.legacyvault.common.security;
 
 import java.util.List;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -23,6 +26,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+	}
 
 	/** Đường dẫn công khai (không cần đăng nhập). Thêm đường dẫn mới = cập nhật docs/api-contracts. */
 	private static final String[] PUBLIC_PATHS = {
@@ -44,10 +53,18 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 						.requestMatchers(PUBLIC_PATHS).permitAll()
+						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+						.requestMatchers("/api/v1/vaults/**").hasRole("VAULT_OWNER")
+						.requestMatchers("/api/v1/trustees/**").hasRole("VAULT_OWNER")
+						.requestMatchers("/api/v1/dms/**").hasRole("VAULT_OWNER")
 						.anyRequest().authenticated())
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(entryPoint)
-						.accessDeniedHandler(accessDeniedHandler));
+						.accessDeniedHandler(accessDeniedHandler))
+				.addFilterBefore(
+						jwtAuthenticationFilter,
+						org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
+				);
 		return http.build();
 	}
 
@@ -78,5 +95,10 @@ public class SecurityConfig {
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/api/**", config);
 		return source;
+	}
+
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
 	}
 }
