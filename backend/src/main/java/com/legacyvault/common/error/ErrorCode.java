@@ -20,6 +20,8 @@ public enum ErrorCode {
 	VAULT_ALREADY_EXISTS(409, "error.vault.alreadyExists"),
 	TRUSTEE_ALREADY_EXISTS(409, "error.trustee.alreadyExists"),
 	VAULT_NOT_EDITABLE(409, "error.vault.notEditable"),
+	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
+	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),
 	TOO_MANY_ATTEMPTS(429, "error.auth.tooManyAttempts"),
