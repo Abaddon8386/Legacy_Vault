@@ -122,3 +122,31 @@ test('Vault validates name 1–150 and description up to 1000 without adding a m
   assert.ok(validateVaultInput({ name: 'x'.repeat(151) }).vault_name);
   assert.ok(validateVaultInput({ name: 'A', description: 'x'.repeat(1001) }).description);
 });
+
+// Regression: PS-9/PS-10 return Spring Security authority names.
+test('Register accepts the real BE ROLE_VAULT_OWNER receipt', async () => {
+  const result = await registerUser({ fullName: 'Demo', email: user.email, password: 'synthetic' }, {
+    fetchFn: async () => json({ ...user, roles: ['ROLE_VAULT_OWNER'], status: 'ACTIVE', createdAt: date }, 201),
+  });
+  assert.deepEqual(result.roles, ['VAULT_OWNER']);
+});
+
+test('Login normalizes known authorities for existing FE guards and preserves response data', async () => {
+  const roles = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
+  const response = { ...login, user: { ...user, roles: roles.map(role => `ROLE_${role}`) } };
+  const result = await authenticateUser({}, { fetchFn: async () => json(response) });
+  assert.deepEqual(result.user.roles, roles);
+  assert.deepEqual(createSession(result).user.roles, roles);
+  assert.deepEqual(response.user.roles, roles.map(role => `ROLE_${role}`));
+  const mixed = createSession({ ...login, user: { ...user, roles: ['VAULT_OWNER', 'ROLE_VAULT_OWNER'] } });
+  assert.deepEqual(mixed.user.roles, ['VAULT_OWNER']);
+});
+
+test('Authority compatibility still rejects unknown, malformed and empty roles', async () => {
+  for (const roles of [['ROLE_INVENTED'], ['ROLE_ROLE_ADMIN'], ['role_ADMIN'], [null], [], ['ROLE_VAULT_OWNER', 'UNKNOWN']]) {
+    await assert.rejects(registerUser({ fullName: 'Demo', email: user.email, password: 'synthetic' }, {
+      fetchFn: async () => json({ ...user, roles, status: 'ACTIVE', createdAt: date }, 201),
+    }), error => error.code === 'INVALID_AUTH_RESPONSE');
+    assert.equal(isValidLoginResponse({ ...login, user: { ...user, roles } }), false);
+  }
+});
