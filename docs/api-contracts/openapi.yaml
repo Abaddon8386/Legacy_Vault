@@ -532,16 +532,59 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
     get:
       tags: [Beneficiaries]
-      summary: Liệt kê Beneficiary của Vault
+      summary: Liệt kê Beneficiary của Vault cho Owner
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BeneficiaryPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
+    post:
+      tags: [Staff]
+      summary: Ghi nhận xác minh danh tính trực tiếp (PS-45, ST-14)
+      description: Chỉ đối chiếu CCCD/passport bản cứng và khuôn mặt trực tiếp. Không gọi VNeID, camera hay eKYC. Chỉ lưu metadata; số giấy tờ tối đa là 4 ký tự cuối.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/BeneficiaryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdentityVerificationRequest' }
+      responses:
+        '201':
+          description: Đã lưu kết quả xác minh và cập nhật trạng thái Beneficiary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityVerificationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [Staff]
+      summary: Lịch sử xác minh danh tính trực tiếp (PS-45)
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/BeneficiaryId'
+      responses:
+        '200':
+          description: Lịch sử mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/IdentityVerificationResponse' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -997,6 +1040,31 @@ components:
         phone: { type: string }
         email: { type: string, format: email }
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    IdentityVerificationRequest:
+      type: object
+      required: [documentType, result]
+      properties:
+        documentType: { type: string, enum: [CCCD, PASSPORT] }
+        issuingAuthority: { type: string, maxLength: 150, nullable: true }
+        documentSuffix: { type: string, pattern: '^[0-9A-Za-z]{4}$', nullable: true, description: Tối đa 4 ký tự cuối; không gửi số định danh đầy đủ }
+        result: { type: string, enum: [MATCH, NOT_MATCH] }
+    IdentityVerificationResponse:
+      type: object
+      required: [id, beneficiaryId, documentType, result, verifiedBy, verifiedAt]
+      properties:
+        id: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        documentType: { type: string, enum: [CCCD, PASSPORT] }
+        issuingAuthority: { type: string, nullable: true }
+        documentSuffix: { type: string, nullable: true }
+        result: { type: string, enum: [MATCH, NOT_MATCH] }
+        verifiedBy:
+          type: object
+          required: [id, fullName]
+          properties:
+            id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
+            fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
+        verifiedAt: { type: string, format: date-time }
     BeneficiaryResponse:
       type: object
       required: [id, vaultId, fullName, hasAccount, hasIdentityNumber, status]

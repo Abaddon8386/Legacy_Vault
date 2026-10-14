@@ -19,6 +19,9 @@ public class UserAccount {
 	@Column(name = "public_id", nullable = false)
 	private UUID publicId;
 
+	@Column(name = "full_name", nullable = false, length = 150)
+	private String fullName;
+
 	@Column(name = "deleted_at")
 	private LocalDateTime deletedAt;
 
@@ -31,5 +34,9 @@ public class UserAccount {
 
 	public UUID getPublicId() {
 		return publicId;
+	}
+
+	public String getFullName() {
+		return fullName;
 	}
 }

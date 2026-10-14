@@ -8,6 +8,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import com.legacyvault.user.UserAccount;
+
 public final class IdentityVerificationDtos {
 
 	private IdentityVerificationDtos() { }
@@ -20,12 +22,15 @@ public final class IdentityVerificationDtos {
 			@Pattern(regexp = "^[0-9A-Za-z]{4}$", message = "validation.Pattern") String documentSuffix,
 			@NotNull(message = "validation.NotNull") Result result) { }
 
+	public record Verifier(UUID id, String fullName) { }
+
 	public record Response(UUID id, UUID beneficiaryId, DocumentType documentType, String issuingAuthority,
-			String documentSuffix, Result result, String verifiedAt) {
-		static Response from(IdentityVerificationRecord record) {
+			String documentSuffix, Result result, Verifier verifiedBy, String verifiedAt) {
+		static Response from(IdentityVerificationRecord record, UserAccount actor) {
 			return new Response(record.getPublicId(), record.getBeneficiary().getPublicId(),
 					DocumentType.valueOf(record.getDocumentType()), record.getIssuingAuthority(), record.getDocumentSuffix(),
-					Result.valueOf(record.getResult()), utc(record.getVerifiedAt()));
+					Result.valueOf(record.getResult()), new Verifier(actor.getPublicId(), actor.getFullName()),
+					utc(record.getVerifiedAt()));
 		}
 		private static String utc(LocalDateTime value) {
 			return value == null ? null : value.toInstant(ZoneOffset.UTC).toString();
