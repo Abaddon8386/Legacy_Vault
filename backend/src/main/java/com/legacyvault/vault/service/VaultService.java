@@ -7,15 +7,19 @@ import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.vault.dto.CreateVaultRequest;
 import com.legacyvault.vault.dto.VaultResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class VaultService {
@@ -72,6 +76,30 @@ public class VaultService {
         return toResponse(savedVault);
     }
 
+    /** PS-14: xem Vault của chính mình. Không tồn tại hay của người khác đều 404 (D-API-07). */
+    @Transactional(readOnly = true)
+    public VaultResponse getVault(UUID vaultId, CustomUserPrincipal principal) {
+        return toResponse(requireOwnedVault(vaultId, CustomUserPrincipal.requireUserId(principal)));
+    }
+
+    /** D-API-23: các Vault của người đăng nhập, mới nhất trước. */
+    @Transactional(readOnly = true)
+    public PageResponse<VaultResponse> listVaults(CustomUserPrincipal principal, int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return PageResponse.from(
+                vaultRepository.findByOwnerUserId(CustomUserPrincipal.requireUserId(principal), pageable),
+                this::toResponse);
+    }
+
+    /**
+     * Điểm kiểm tra ownership dùng chung cho mọi tài nguyên dưới {@code /vaults/{vaultId}/**} (asset, will...).
+     * Không tồn tại hay thuộc người khác đều cùng 404 để không lộ sự tồn tại (D-API-07).
+     */
+    @Transactional(readOnly = true)
+    public Vault requireOwnedVault(UUID vaultId, Long ownerUserId) {
+        return vaultRepository.findByPublicIdAndOwnerUserId(vaultId, ownerUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
 
     private VaultResponse toResponse(Vault vault) {
         return new VaultResponse(
