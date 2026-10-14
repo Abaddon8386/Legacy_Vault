@@ -17,6 +17,7 @@ public enum ErrorCode {
 	METHOD_NOT_ALLOWED(405, "error.request.methodNotAllowed"),
 	EMAIL_ALREADY_EXISTS(409, "error.auth.emailExists"),
 	VAULT_ALREADY_EXISTS(409, "error.vault.alreadyExists"),
+	TRUSTEE_ALREADY_EXISTS(409, "error.trustee.alreadyExists"),
 	VAULT_NOT_EDITABLE(409, "error.vault.notEditable"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),
