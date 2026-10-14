@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.legacyvault.auth.JwtService;
+import com.legacyvault.user.repository.UserRepository;
+import com.legacyvault.user.repository.UserRoleRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -31,6 +33,12 @@ class ErrorContractTest {
 
 	@MockitoBean
 	private JwtService jwtService;
+
+	@MockitoBean
+	private UserRepository userRepository;
+
+	@MockitoBean
+	private UserRoleRepository userRoleRepository;
 
 	private static final String VALID_BODY = """
 			{"name":"Nguyen Van A","email":"user@example.com","password":"ExamplePass123"}""";
