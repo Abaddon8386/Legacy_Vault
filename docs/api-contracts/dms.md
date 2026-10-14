@@ -31,7 +31,8 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **t
 - Bật hoặc đổi chu kỳ. **Request:** `{ "checkIntervalDays": 30 }` (ví dụ nêu trong ST-06: 30, 90).
 - **Response 200:** `DmsResponse` (`status: MONITORING`, `nextCheckAt` đã tính).
 - **Lỗi:** `400 VALIDATION_FAILED` (thiếu/ngoài khoảng cho phép) · `401` · `403` ·
-  `422 BENEFICIARY_REQUIRED` (Owner chưa có Beneficiary hoặc chưa có Vault — PS-21) · `409 VAULT_NOT_EDITABLE`.
+  `404 RESOURCE_NOT_FOUND` (Owner chưa có Vault) ·
+  `422 BENEFICIARY_REQUIRED` (Vault đã tồn tại nhưng chưa có Beneficiary — PS-21) · `409 VAULT_NOT_EDITABLE`.
 - **Audit:** `DMS_CONFIGURED`.
 
 ## GET /api/v1/dms

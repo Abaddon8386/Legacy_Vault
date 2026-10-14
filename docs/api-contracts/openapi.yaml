@@ -660,7 +660,8 @@ paths:
       summary: Bật/cấu hình chu kỳ DMS của Owner đang đăng nhập (PS-22, ST-06)
       description: |
         DMS thuộc tài khoản Owner (mỗi Owner một DMS), lấy từ người đăng nhập, không có tham số Owner/Vault.
-        Chặn bằng 422 BENEFICIARY_REQUIRED khi Owner chưa có Beneficiary. DMS không mở khóa/giải mã.
+        Trả 404 RESOURCE_NOT_FOUND khi Owner chưa có Vault.
+        Trả 422 BENEFICIARY_REQUIRED khi Vault đã tồn tại nhưng chưa có Beneficiary. DMS không mở khóa/giải mã.
       x-status: designed
       requestBody:
         required: true
@@ -677,6 +678,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/BusinessRuleViolation' }
     get:
