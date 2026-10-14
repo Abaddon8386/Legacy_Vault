@@ -10,7 +10,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
+    show-sql: false
     database-platform: org.hibernate.dialect.SQLServerDialect
     properties:
       hibernate:
