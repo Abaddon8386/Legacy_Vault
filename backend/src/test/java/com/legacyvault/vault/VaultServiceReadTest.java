@@ -123,4 +123,33 @@ class VaultServiceReadTest {
 		assertThat(page.content()).extracting(VaultResponse::id).containsExactly(VAULT_ID);
 		assertThat(page.totalElements()).isEqualTo(1);
 	}
+
+	@Test
+	void editableVault_isReturnedOnlyWhenActive() {
+		when(vaultRepository.findByPublicIdAndOwnerUserId(VAULT_ID, OWNER_ID))
+				.thenReturn(Optional.of(storedVault("ACTIVE")));
+
+		assertThat(vaultService.requireEditableVault(VAULT_ID, OWNER_ID).getPublicId()).isEqualTo(VAULT_ID);
+	}
+
+	@Test
+	void vaultAfterGracePeriod_isNotEditable() {
+		for (String status : List.of("AWAITING_VERIFICATION", "DOCUMENT_VERIFICATION", "UNLOCKED", "ARCHIVED")) {
+			when(vaultRepository.findByPublicIdAndOwnerUserId(VAULT_ID, OWNER_ID))
+					.thenReturn(Optional.of(storedVault(status)));
+
+			assertThatThrownBy(() -> vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+					.extracting(ex -> ((BusinessException) ex).getErrorCode())
+					.isEqualTo(ErrorCode.VAULT_NOT_EDITABLE);
+		}
+	}
+
+	@Test
+	void editableCheck_onOtherUsersVault_isNotFoundBeforeStatusCheck() {
+		when(vaultRepository.findByPublicIdAndOwnerUserId(VAULT_ID, STRANGER_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> vaultService.requireEditableVault(VAULT_ID, STRANGER_ID))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+	}
 }

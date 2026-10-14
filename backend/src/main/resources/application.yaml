@@ -42,3 +42,12 @@ legacyvault:
   jwt:
     secret: ${JWT_SECRET_BASE64}
     expiration-seconds: 3600
+  encryption:
+    # Khóa AES-256 mã hóa payload tài sản và file di chúc (PS-15, PS-17): base64 của đúng 32 byte.
+    # Không có giá trị mặc định, không commit khóa thật; thiếu khóa thì ứng dụng không khởi động (giống JWT_SECRET_BASE64).
+    key: ${LEGACYVAULT_ENCRYPTION_KEY}
+    # Ghi vào cột encryption_key_version để giải mã đúng khóa khi xoay khóa.
+    key-version: ${LEGACYVAULT_ENCRYPTION_KEY_VERSION:v1}
+  asset:
+    # Giới hạn payload Asset tính theo byte UTF-8 (D-API-29, mặc định 64 KB).
+    max-payload-bytes: 65536

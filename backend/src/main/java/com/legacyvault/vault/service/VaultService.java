@@ -24,6 +24,9 @@ import java.util.UUID;
 @Service
 public class VaultService {
 
+    /** Trạng thái duy nhất Owner còn được sửa kho (Asset, Will, Trustee, Beneficiary...) — LV-OWN-001. */
+    private static final String EDITABLE_STATUS = "ACTIVE";
+
     private final VaultRepository vaultRepository;
     private final AuditService auditService;
 
@@ -99,6 +102,23 @@ public class VaultService {
     public Vault requireOwnedVault(UUID vaultId, Long ownerUserId) {
         return vaultRepository.findByPublicIdAndOwnerUserId(vaultId, ownerUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    /**
+     * Như {@link #requireOwnedVault} nhưng Owner còn phải có quyền sửa kho: chỉ khi Vault {@code ACTIVE}.
+     * Mọi trạng thái từ {@code AWAITING_VERIFICATION} trở đi -> 409 VAULT_NOT_EDITABLE. Ownership kiểm trước,
+     * nên người lạ luôn nhận 404 chứ không phải 409.
+     *
+     * <p>TODO(PS-22/PS-23): khi có DMS, chặn thêm lúc {@code dms.status = 'GRACE_PERIOD_EXCEEDED'} (ST-08 đóng băng
+     * quyền sửa trước khi ST-09 đổi trạng thái Vault).
+     */
+    @Transactional(readOnly = true)
+    public Vault requireEditableVault(UUID vaultId, Long ownerUserId) {
+        Vault vault = requireOwnedVault(vaultId, ownerUserId);
+        if (!EDITABLE_STATUS.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
+        }
+        return vault;
     }
 
     private VaultResponse toResponse(Vault vault) {
