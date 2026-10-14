@@ -52,6 +52,7 @@ Lỗi validation:
 | `UNAUTHENTICATED` | 401 | Chưa đăng nhập, token thiếu/sai/hết hạn |
 | `INVALID_CREDENTIALS` | 401 | Sai email/mật khẩu, hoặc tài khoản đã xóa (`deleted_at != null`) — **không phân biệt** |
 | `ACCESS_DENIED` | 403 | Đã đăng nhập nhưng thiếu role |
+| `REAUTH_FAILED` | 403 | Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật (D-API-32). Không dùng 401 để FE không coi là hết phiên |
 | `RESOURCE_NOT_FOUND` | 404 | Không có tài nguyên, **hoặc** không thuộc quyền người gọi (D-API-07) |
 | `METHOD_NOT_ALLOWED` | 405 | Sai phương thức HTTP |
 | `EMAIL_ALREADY_EXISTS` | 409 | Đăng ký trùng email |
@@ -60,6 +61,7 @@ Lỗi validation:
 | `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
+| `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
 

@@ -3,6 +3,7 @@ package com.legacyvault.asset.controller;
 import java.net.URI;
 import java.util.UUID;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,7 +17,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.legacyvault.asset.dto.AssetResponse;
+import com.legacyvault.asset.dto.AssetSecretResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
+import com.legacyvault.asset.dto.RevealAssetRequest;
 import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.service.AssetService;
 import com.legacyvault.common.security.CustomUserPrincipal;
@@ -58,6 +61,18 @@ public class AssetController {
 	public AssetResponse getAsset(@PathVariable UUID vaultId, @PathVariable UUID assetId,
 			@AuthenticationPrincipal CustomUserPrincipal principal) {
 		return assetService.getAsset(vaultId, assetId, CustomUserPrincipal.requireUserId(principal));
+	}
+
+	/**
+	 * Xem nội dung bảo mật sau khi nhập lại mật khẩu (D-API-32). Dùng POST vì mật khẩu nằm trong body, và response
+	 * không được lưu cache.
+	 */
+	@PostMapping("/{assetId}/reveal")
+	public ResponseEntity<AssetSecretResponse> revealAsset(@PathVariable UUID vaultId, @PathVariable UUID assetId,
+			@Valid @RequestBody RevealAssetRequest request, @AuthenticationPrincipal CustomUserPrincipal principal) {
+		AssetSecretResponse secret = assetService.revealAsset(vaultId, assetId,
+				CustomUserPrincipal.requireUserId(principal), request.password());
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(secret);
 	}
 
 	@PatchMapping("/{assetId}")

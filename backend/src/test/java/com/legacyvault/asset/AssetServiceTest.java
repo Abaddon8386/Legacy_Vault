@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -25,6 +26,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.legacyvault.asset.dto.AssetResponse;
+import com.legacyvault.asset.dto.AssetSecretResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
 import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.entity.Asset;
@@ -39,6 +41,7 @@ import com.legacyvault.common.crypto.EncryptedData;
 import com.legacyvault.common.crypto.EncryptionService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
+import com.legacyvault.common.security.PasswordReauthService;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.service.VaultService;
@@ -56,8 +59,9 @@ class AssetServiceTest {
 	private final EncryptionService encryptionService = new EncryptionService(
 			Base64.getEncoder().encodeToString(new byte[32]), "v1");
 	private final AuditService auditService = mock(AuditService.class);
+	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final AssetService assetService = new AssetService(assetRepository, vaultService, encryptionService,
-			auditService);
+			auditService, reauthService);
 
 	private static Vault vault() {
 		Vault vault = new Vault();
@@ -283,5 +287,83 @@ class AssetServiceTest {
 				.extracting(ex -> ((BusinessException) ex).getErrorCode())
 				.isEqualTo(ErrorCode.VAULT_NOT_EDITABLE);
 		verifyNoInteractions(assetRepository, auditService);
+	}
+
+	// ---------- PS-16: xem nội dung bảo mật sau khi nhập lại mật khẩu (D-API-32) ----------
+
+	/** Asset đã có payload mã hóa đúng như createAsset tạo ra. */
+	private Asset storedAssetWithPayload(String payload) {
+		Asset asset = storedAsset();
+		asset.setEncryptedPayload(encryptionService.encrypt(payload, asset.getPublicId().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		return asset;
+	}
+
+	@Test
+	void reveal_returnsDecryptedPayload_afterPasswordCheck_andAuditsWithoutContent() {
+		Asset asset = storedAssetWithPayload(SECRET);
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+
+		AssetSecretResponse response = assetService.revealAsset(VAULT_ID, asset.getPublicId(), OWNER_ID, "MatKhau@123");
+
+		assertThat(response.id()).isEqualTo(asset.getPublicId());
+		assertThat(response.payload()).isEqualTo(SECRET);
+		verify(reauthService).requirePassword(OWNER_ID, VAULT_DB_ID, "MatKhau@123");
+
+		ArgumentCaptor<AuditEvent> audit = ArgumentCaptor.forClass(AuditEvent.class);
+		verify(auditService).record(audit.capture());
+		assertThat(audit.getValue().action()).isEqualTo(AuditAction.ASSET_REVEALED);
+		assertThat(audit.getValue().stepId()).isEqualTo("ST-02");
+		assertThat(audit.getValue().actorUserId()).isEqualTo(OWNER_ID);
+		assertThat(audit.getValue().context().toString()).doesNotContain(SECRET).doesNotContain("MatKhau@123");
+		assertThat(response.toString()).doesNotContain(SECRET);
+	}
+
+	@Test
+	void reveal_withWrongPassword_neverDecryptsOrAudits() {
+		Asset asset = storedAssetWithPayload(SECRET);
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+		doThrow(new BusinessException(ErrorCode.REAUTH_FAILED)).when(reauthService)
+				.requirePassword(OWNER_ID, VAULT_DB_ID, "sai");
+
+		assertThatThrownBy(() -> assetService.revealAsset(VAULT_ID, asset.getPublicId(), OWNER_ID, "sai"))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.REAUTH_FAILED);
+		verifyNoInteractions(auditService);
+	}
+
+	@Test
+	void reveal_onOtherUsersVault_isNotFound_andPasswordIsNeverChecked() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		assertThatThrownBy(() -> assetService.revealAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID, "x"))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+		verifyNoInteractions(reauthService, assetRepository, auditService);
+	}
+
+	@Test
+	void reveal_onFrozenVault_isRejectedBeforePasswordCheck() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
+
+		assertThatThrownBy(() -> assetService.revealAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID, "x"))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.VAULT_NOT_EDITABLE);
+		verifyNoInteractions(reauthService, assetRepository, auditService);
+	}
+
+	@Test
+	void reveal_assetWithoutPayload_isNotFound() {
+		Asset asset = storedAsset();
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+
+		assertThatThrownBy(() -> assetService.revealAsset(VAULT_ID, asset.getPublicId(), OWNER_ID, "MatKhau@123"))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+		verifyNoInteractions(auditService);
 	}
 }

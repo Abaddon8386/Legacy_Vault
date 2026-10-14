@@ -303,6 +303,35 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/vaults/{vaultId}/assets/{assetId}/reveal:
+    post:
+      tags: [Assets]
+      summary: Xem nội dung bảo mật của Asset sau khi nhập lại mật khẩu (PS-16, D-API-32)
+      description: |
+        Owner nhập lại mật khẩu đăng nhập hiện tại. Chỉ khi Vault `ACTIVE`. Response không được cache.
+        Sai mật khẩu 403 `REAUTH_FAILED` (không phải 401). Quá giới hạn thử 429 `TOO_MANY_ATTEMPTS`.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/AssetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevealAssetRequest' }
+      responses:
+        '200':
+          description: "OK (header Cache-Control: no-store)"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssetSecretResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /api/v1/vaults/{vaultId}/wills:
     post:
       tags: [Wills]
@@ -833,6 +862,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
+    TooManyRequests:
+      description: TOO_MANY_ATTEMPTS — nhập sai mật khẩu xác nhận quá số lần cho phép (D-API-32)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
     UnsupportedMediaType:
       description: UNSUPPORTED_MEDIA_TYPE
       content:
@@ -984,6 +1018,17 @@ components:
         hasPayload: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    RevealAssetRequest:
+      type: object
+      required: [password]
+      properties:
+        password: { type: string, maxLength: 72, writeOnly: true, description: Mật khẩu đăng nhập hiện tại của Owner; không bao giờ được log }
+    AssetSecretResponse:
+      type: object
+      required: [id, payload]
+      properties:
+        id: { type: string, format: uuid }
+        payload: { type: string, description: Nội dung bảo mật đã giải mã; chỉ trả ở endpoint reveal }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
