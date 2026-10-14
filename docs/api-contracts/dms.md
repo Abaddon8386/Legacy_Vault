@@ -48,6 +48,11 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **t
   báo động trong lúc `TRIGGERED`/Grace (LV-OWN-001) là việc riêng ở sprint sau.
 - **Audit:** `DMS_CHECKED_IN`.
 
+Check-in và cập nhật cấu hình đọc DMS bằng `PESSIMISTIC_WRITE` trong cùng transaction với
+ghi dữ liệu và audit. Nếu Owner giữ khóa trước, scheduler chờ commit rồi kiểm tra lại điều kiện
+quá hạn trên dữ liệu mới. Nếu scheduler chuyển `TRIGGERED` trước, Owner đọc trạng thái đó sau
+commit và nhận `409 DMS_NOT_MONITORING`; không ghi đè trạng thái hoặc tạo audit check-in/cấu hình.
+
 ## PS-23 — Scheduler `TRIGGERED` + Grace (không có HTTP endpoint)
 
 | Mục | Đặc tả |
@@ -63,3 +68,20 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **t
 
 Test: scheduler chọn đúng DMS quá hạn (và bỏ qua chưa quá hạn / không `MONITORING`) · lưu `graceDeadline` · chạy lại không đổi ·
 audit được ghi · khẳng định không có thay đổi trạng thái mở khóa.
+
+### Kiểm thử cạnh tranh trên SQL Server
+
+`DmsSqlServerConcurrencyTest` dùng service/repository/audit thật và hai transaction trên hai thread.
+Test dừng Owner ngay sau khi đọc DMS, trước khi ghi, để kiểm tra scheduler phải chờ khóa; đồng thời
+kiểm tra scheduler commit trước check-in và trước cập nhật cấu hình. Cả trạng thái cuối và số audit
+được kiểm tra. Test không dùng H2 hoặc Mockito.
+
+Chỉ chạy trên database SQL Server dùng một lần, có tên bắt đầu bằng `LegacyVault_DmsConcurrency_`.
+Đặt `DMS_SQLSERVER_TEST_URL` bằng JDBC URL của database đó và chạy:
+
+```text
+mvn -f backend/pom.xml -Dtest=DmsSqlServerConcurrencyTest test
+```
+
+Flyway khởi tạo schema. Audit append-only được giữ nguyên; xóa database thử nghiệm sau khi kết thúc.
+Nếu không đặt biến môi trường trên, test được bỏ qua.
