@@ -1103,3 +1103,11 @@
     justify-content: center;
   }
 }
+
+/* Header and content animations establish separate stacking contexts. */
+.lv-dms-header { position: relative; z-index: 2; }
+.lv-dms-info-popover { max-width: min(410px, calc(100vw - 48px)); }
+@media (max-width: 600px) {
+  .lv-dms-title-row { flex-wrap: wrap; }
+  .lv-dms-info-popover { left: 0; right: auto; }
+}

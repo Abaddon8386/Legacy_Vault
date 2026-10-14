@@ -1,3 +1,4 @@
+import { normalizePreviewScenario, readPreviewSchedule, writePreviewSchedule } from './previewState.js';
 import { request, ApiError } from '../api/http.js';
 import { isUuid, isUtcDate } from '../api/contracts.js';
 /**
@@ -387,7 +388,8 @@ export async function fetchDmsConfig(options = {}) {
 
   if (isSimulationPermitted(options)) {
     await new Promise((resolve) => setTimeout(resolve, 350));
-    return mockDmsAdapter.fetch(options.scenario, lang);
+    const scenario = normalizePreviewScenario(options.scenario);
+    return options.isTest ? mockDmsAdapter.fetch(scenario, lang) : readPreviewSchedule(scenario, key => mockDmsAdapter.fetch(key, lang));
   }
 
   return liveDmsAdapter.fetch(options);
@@ -420,7 +422,9 @@ export async function saveDmsConfig(input = {}, options = {}) {
 
   if (isSimulationPermitted(options)) {
     await new Promise((resolve) => setTimeout(resolve, 450));
-    return mockDmsAdapter.save(days, options.scenario || 'monitoring', lang);
+    const scenario = normalizePreviewScenario(options.scenario);
+    const updated = mockDmsAdapter.save(days, scenario, lang);
+    return options.isTest ? updated : writePreviewSchedule(scenario, updated);
   }
 
   return liveDmsAdapter.save(days, options);
@@ -436,7 +440,14 @@ export async function checkInDms(options = {}) {
 
   if (isSimulationPermitted(options)) {
     await new Promise((resolve) => setTimeout(resolve, 400));
-    return mockDmsAdapter.checkIn(options.scenario || 'monitoring', lang);
+    const scenario = normalizePreviewScenario(options.scenario);
+    const current = options.isTest ? null : readPreviewSchedule(scenario, key => mockDmsAdapter.fetch(key, lang));
+    const updated = mockDmsAdapter.checkIn(scenario, lang);
+    if (current?.checkIntervalDays) {
+      updated.checkIntervalDays = current.checkIntervalDays;
+      updated.nextCheckAt = new Date(Date.parse(updated.lastCheckInAt) + current.checkIntervalDays * 86400000).toISOString();
+    }
+    return options.isTest ? updated : writePreviewSchedule(scenario, updated);
   }
 
   return liveDmsAdapter.checkIn(options);

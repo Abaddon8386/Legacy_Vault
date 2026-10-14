@@ -225,7 +225,7 @@ export default function DMSOverviewPage({
   const content = {
     vi: {
       eyebrow: 'GIÁM SÁT HOẠT ĐỘNG ĐỊNH KỲ',
-      pageTitle: "Giám sát hoạt động (Dead Man's Switch)",
+      pageTitle: "Giám sát hoạt động",
       pageSubtitle:
         'Thiết lập chu kỳ kiểm tra định kỳ để hệ thống theo dõi tín hiệu hiện diện và chủ động bảo vệ kho di sản của bạn.',
       infoBtnLabel: 'Thông tin bảo vệ di sản',
@@ -407,7 +407,7 @@ export default function DMSOverviewPage({
                         type="button"
                         className="lv-dms-info-popover-close"
                         onClick={() => setShowInfoPopover(false)}
-                        aria-label="Đóng"
+                        aria-label={lang === 'en' ? 'Close' : 'Đóng'}
                       >
                         ✕
                       </button>
