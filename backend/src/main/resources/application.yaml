@@ -15,6 +15,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  # Upload di chúc số hóa (PS-17): giới hạn tầng servlet phải >= legacyvault.will.max-file-bytes;
+  # vượt giới hạn trả 413 PAYLOAD_TOO_LARGE.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
   messages:
     basename: messages
     encoding: UTF-8
@@ -51,3 +57,6 @@ legacyvault:
   asset:
     # Giới hạn payload Asset tính theo byte UTF-8 (D-API-29, mặc định 64 KB).
     max-payload-bytes: 65536
+  will:
+    # File di chúc số hóa tối đa (byte), mặc định 10 MB (D-API-14). Loại cho phép: PDF/JPEG/PNG theo nội dung file.
+    max-file-bytes: 10485760
