@@ -16,18 +16,18 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.user.entity.User;
-import com.legacyvault.vault.OwnerVaultService;
 import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.vault.service.VaultService;
 
 @Service
 public class TrusteeService {
 
 	private final TrusteeRepository trustees;
-	private final OwnerVaultService ownerVaults;
+	private final VaultService ownerVaults;
 	private final OwnerContextService owners;
 	private final AuditService audit;
 
-	public TrusteeService(TrusteeRepository trustees, OwnerVaultService ownerVaults,
+	public TrusteeService(TrusteeRepository trustees, VaultService ownerVaults,
 			OwnerContextService owners, AuditService audit) {
 		this.trustees = trustees;
 		this.ownerVaults = ownerVaults;
@@ -38,8 +38,7 @@ public class TrusteeService {
 	@Transactional
 	public TrusteeDtos.Response create(TrusteeDtos.CreateRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireOwnedVault(request.vaultId(), owner);
-		ownerVaults.requireEditable(vault);
+		Vault vault = ownerVaults.requireEditableVault(request.vaultId(), owner.getUserId());
 		if (trustees.existsByVault_VaultIdAndStatus(vault.getVaultId(), "APPOINTED")) {
 			throw new BusinessException(ErrorCode.TRUSTEE_ALREADY_EXISTS);
 		}
@@ -58,7 +57,7 @@ public class TrusteeService {
 	@Transactional(readOnly = true)
 	public PageEnvelope<TrusteeDtos.Response> current(UUID vaultId) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner);
+		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner.getUserId());
 		List<TrusteeDtos.Response> content = trustees.findFirstByVault_VaultIdAndStatus(vault.getVaultId(), "APPOINTED")
 				.map(trustee -> List.of(TrusteeDtos.Response.from(trustee))).orElseGet(List::of);
 		return new PageEnvelope<>(content, 0, 1, content.size(), content.isEmpty() ? 0 : 1);
@@ -72,7 +71,7 @@ public class TrusteeService {
 		if (!"APPOINTED".equals(trustee.getStatus())) {
 			throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
 		}
-		ownerVaults.requireEditable(trustee.getVault());
+		ownerVaults.requireEditableVault(trustee.getVault().getPublicId(), owner.getUserId());
 		trustee.update(clean(request.fullName()), clean(request.phone()), cleanEmail(request.email()),
 				clean(request.relationship()), clean(request.note()));
 		trustee = trustees.saveAndFlush(trustee);
@@ -87,7 +86,7 @@ public class TrusteeService {
 		Trustee trustee = trustees.findByPublicIdAndVault_OwnerUserId(trusteeId, owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		if ("APPOINTED".equals(trustee.getStatus())) {
-			ownerVaults.requireEditable(trustee.getVault());
+			ownerVaults.requireEditableVault(trustee.getVault().getPublicId(), owner.getUserId());
 			trustee.revoke(LocalDateTime.now(ZoneOffset.UTC));
 			trustees.saveAndFlush(trustee);
 			audit.record(owner.getUserId(), trustee.getVault().getVaultId(), "TRUSTEE_REVOKED", "TRUSTEE", trustee.getId(), "USER",
