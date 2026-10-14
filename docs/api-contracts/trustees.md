@@ -24,7 +24,9 @@ Trạng thái: **contract đã chốt; PS-19 đã có triển khai Backend trong
 | `relationship` | string ≤ 100 | tùy chọn (quan hệ với Owner) |
 | `note` | string ≤ 500 | tùy chọn |
 | `status` | enum `APPOINTED` \| `REVOKED` | `APPOINTED` ánh xạ trạng thái `ACTIVE` ở DB (D-TRUSTEE-001) |
-| `createdAt`, `updatedAt` | datetime | |
+| `appointedAt` | datetime UTC | bắt buộc; thời điểm bổ nhiệm, không đổi khi cập nhật thông tin |
+| `revokedAt` | datetime UTC hoặc null | `null` khi `APPOINTED`; thời điểm thu hồi khi `REVOKED` |
+| `updatedAt` | datetime UTC | thời điểm cập nhật gần nhất |
 
 Ràng buộc: cần **ít nhất một** trong `phone`/`email` để Staff liên hệ được.
 

@@ -39,11 +39,11 @@ public final class TrusteeDtos {
 	}
 
 	public record Response(UUID id, UUID vaultId, String fullName, String phone, String email,
-			String relationship, String note, String status, String createdAt, String updatedAt) {
+			String relationship, String note, String status, String appointedAt, String revokedAt, String updatedAt) {
 		public static Response from(Trustee trustee) {
 			return new Response(trustee.getPublicId(), trustee.getVault().getPublicId(), trustee.getFullName(),
 					trustee.getPhone(), trustee.getEmail(), trustee.getRelationship(), trustee.getNote(), trustee.getStatus(),
-					utc(trustee.getAppointedAt()), utc(trustee.getUpdatedAt()));
+					utc(trustee.getAppointedAt()), utc(trustee.getRevokedAt()), utc(trustee.getUpdatedAt()));
 		}
 	}
 

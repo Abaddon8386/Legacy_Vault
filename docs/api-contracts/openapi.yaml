@@ -1043,7 +1043,7 @@ components:
         note: { type: string, maxLength: 500 }
     TrusteeResponse:
       type: object
-      required: [id, vaultId, fullName, status]
+      required: [id, vaultId, fullName, status, appointedAt, revokedAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         vaultId: { type: string, format: uuid }
@@ -1053,7 +1053,8 @@ components:
         relationship: { type: string, nullable: true }
         note: { type: string, nullable: true }
         status: { type: string, enum: [APPOINTED, REVOKED] }
-        createdAt: { type: string, format: date-time }
+        appointedAt: { type: string, format: date-time, description: 'UTC appointment time; unchanged by edits' }
+        revokedAt: { type: string, format: date-time, nullable: true, description: 'Null while APPOINTED; UTC revocation time when REVOKED' }
         updatedAt: { type: string, format: date-time }
     TrusteePage:
       allOf:

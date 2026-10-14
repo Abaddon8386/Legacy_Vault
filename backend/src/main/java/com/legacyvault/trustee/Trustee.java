@@ -110,5 +110,6 @@ public class Trustee {
 	public String getNote() { return note; }
 	public String getStatus() { return status; }
 	public LocalDateTime getAppointedAt() { return appointedAt; }
+	public LocalDateTime getRevokedAt() { return revokedAt; }
 	public LocalDateTime getUpdatedAt() { return updatedAt; }
 }
