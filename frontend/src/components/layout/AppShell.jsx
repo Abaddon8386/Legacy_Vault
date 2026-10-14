@@ -14,14 +14,14 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'vault',
     jiraTicket: 'PS-3',
-    labelVi: 'Kho di sản số (Vault)',
+    labelVi: 'Kho di sản số',
     labelEn: 'Heritage Vault',
     status: 'ACTIVE',
   },
   {
     id: 'dms',
     jiraTicket: 'PS-4',
-    labelVi: 'Giám sát hoạt động (DMS)',
+    labelVi: 'Giám sát hoạt động',
     labelEn: "Dead Man's Switch (DMS)",
     status: 'ACTIVE',
   },
@@ -98,7 +98,7 @@ export default function AppShell({
       refreshTitle: 'Làm mới dữ liệu',
       roleBadge: 'Chủ sở hữu kho',
       logout: 'Đăng xuất',
-      userDisplay: 'Vault Owner',
+      userDisplay: 'Chủ sở hữu kho',
     },
     en: {
       brandTag: 'Digital Heritage Sanctuary',
