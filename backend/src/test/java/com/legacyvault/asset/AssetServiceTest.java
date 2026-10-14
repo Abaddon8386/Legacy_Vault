@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.legacyvault.asset.dto.AssetResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
+import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.entity.Asset;
 import com.legacyvault.asset.entity.AssetType;
 import com.legacyvault.asset.repository.AssetRepository;
@@ -169,5 +172,116 @@ class AssetServiceTest {
 				.extracting(ex -> ((BusinessException) ex).getErrorCode())
 				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
 		verifyNoInteractions(assetRepository);
+	}
+
+	// ---------- PS-16: xem chi tiết / cập nhật ----------
+
+	private static Asset storedAsset() {
+		Asset asset = new Asset(VAULT_DB_ID, AssetType.CREDENTIAL, "Email", "Ghi chú cũ");
+		ReflectionTestUtils.setField(asset, "assetId", 100L);
+		ReflectionTestUtils.setField(asset, "createdAt", LocalDateTime.of(2026, 10, 8, 10, 0));
+		ReflectionTestUtils.setField(asset, "updatedAt", LocalDateTime.of(2026, 10, 8, 10, 0));
+		return asset;
+	}
+
+	private void ownerFinds(Asset asset) {
+		when(assetRepository.findByPublicIdAndVaultIdAndAssetTypeNot(asset.getPublicId(), VAULT_DB_ID,
+				AssetType.DOCUMENT)).thenReturn(Optional.of(asset));
+	}
+
+	@Test
+	void get_findsAssetOnlyInsideOwnedVault_excludingWills() {
+		Asset asset = storedAsset();
+		when(vaultService.requireOwnedVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+
+		AssetResponse response = assetService.getAsset(VAULT_ID, asset.getPublicId(), OWNER_ID);
+
+		assertThat(response.id()).isEqualTo(asset.getPublicId());
+		assertThat(response.name()).isEqualTo("Email");
+	}
+
+	@Test
+	void get_assetOfAnotherVaultOrMissing_isNotFound() {
+		UUID other = UUID.randomUUID();
+		when(vaultService.requireOwnedVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(assetRepository.findByPublicIdAndVaultIdAndAssetTypeNot(other, VAULT_DB_ID, AssetType.DOCUMENT))
+				.thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> assetService.getAsset(VAULT_ID, other, OWNER_ID))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+	}
+
+	@Test
+	void update_changesOnlyGivenFields_reencryptsPayload_andAuditsFieldNamesOnly() {
+		Asset asset = storedAsset();
+		byte[] oldIv = new byte[12];
+		asset.setEncryptedPayload(new EncryptedData(new byte[] { 1 }, oldIv, "v1"));
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+		when(assetRepository.saveAndFlush(asset)).thenReturn(asset);
+
+		assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID, new UpdateAssetRequest(null, null, SECRET));
+
+		assertThat(asset.getName()).isEqualTo("Email");
+		assertThat(asset.getDescription()).isEqualTo("Ghi chú cũ");
+		assertThat(asset.getAssetType()).isEqualTo(AssetType.CREDENTIAL);
+		byte[] ciphertext = (byte[]) ReflectionTestUtils.getField(asset, "encryptedPayload");
+		byte[] iv = (byte[]) ReflectionTestUtils.getField(asset, "encryptionIv");
+		assertThat(iv).isNotEqualTo(oldIv);
+		assertThat(encryptionService.decrypt(new EncryptedData(ciphertext, iv, "v1"),
+				asset.getPublicId().toString().getBytes(StandardCharsets.UTF_8))).isEqualTo(SECRET);
+
+		ArgumentCaptor<AuditEvent> audit = ArgumentCaptor.forClass(AuditEvent.class);
+		verify(auditService).record(audit.capture());
+		assertThat(audit.getValue().action()).isEqualTo(AuditAction.ASSET_UPDATED);
+		assertThat(audit.getValue().stepId()).isEqualTo("ST-02");
+		assertThat(audit.getValue().context()).containsEntry("changedFields", List.of("payload"));
+		assertThat(audit.getValue().context().toString()).doesNotContain(SECRET);
+	}
+
+	@Test
+	void update_nameAndClearDescription() {
+		Asset asset = storedAsset();
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+		when(assetRepository.saveAndFlush(asset)).thenReturn(asset);
+
+		assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
+				new UpdateAssetRequest("  Email mới ", "", null));
+
+		assertThat(asset.getName()).isEqualTo("Email mới");
+		assertThat(asset.getDescription()).isNull();
+		assertThat(asset.hasPayload()).isFalse();
+		ArgumentCaptor<AuditEvent> audit = ArgumentCaptor.forClass(AuditEvent.class);
+		verify(auditService).record(audit.capture());
+		assertThat(audit.getValue().context()).containsEntry("changedFields", List.of("name", "description"));
+	}
+
+	@Test
+	void update_withSameValues_writesNothingAndDoesNotAudit() {
+		Asset asset = storedAsset();
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+
+		AssetResponse response = assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
+				new UpdateAssetRequest("Email", "Ghi chú cũ", null));
+
+		assertThat(response.name()).isEqualTo("Email");
+		verify(assetRepository, never()).saveAndFlush(any());
+		verifyNoInteractions(auditService);
+	}
+
+	@Test
+	void update_onFrozenVault_isRejectedBeforeTouchingAsset() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
+
+		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID,
+				new UpdateAssetRequest("x", null, null)))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.VAULT_NOT_EDITABLE);
+		verifyNoInteractions(assetRepository, auditService);
 	}
 }

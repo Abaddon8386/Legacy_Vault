@@ -93,6 +93,14 @@ public class Asset {
 		updatedAt = LocalDateTime.now(ZoneOffset.UTC);
 	}
 
+	public void rename(String name) {
+		this.name = name;
+	}
+
+	public void changeDescription(String description) {
+		this.description = description;
+	}
+
 	public void setEncryptedPayload(EncryptedData data) {
 		this.encryptedPayload = data.ciphertext();
 		this.encryptionIv = data.iv();
