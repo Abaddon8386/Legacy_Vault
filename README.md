@@ -68,7 +68,7 @@ Mở URL do Vite in ra (thường http://localhost:5173). Kiểm tra bằng `npm
 
 Cấu hình BE tại develop `af55c46` yêu cầu `DB_URL` và `JWT_SECRET_BASE64` ngoài Git; Flyway đã bật, Hibernate dùng `ddl-auto: none`. Xác minh cấu hình thực tế và bí mật được cung cấp trước khi chạy. Không commit mật khẩu, token hoặc file `.env` thật. Backend có Maven Wrapper; chạy và kiểm thử theo tài liệu PS-73 trên DB thử nghiệm phù hợp.
 
-Backend cũng bắt buộc có `LEGACYVAULT_ENCRYPTION_KEY` (PS-15, PS-17): khóa AES-256 mã hóa payload tài sản và file di chúc, là base64 của đúng 32 byte. Thiếu khóa thì backend không khởi động. Mỗi máy dev sinh **một lần** và lưu vào biến môi trường của user, không commit, không gửi qua chat:
+Backend cũng bắt buộc có `LEGACYVAULT_ENCRYPTION_KEY` (PS-15, PS-17, PS-20): khóa AES-256 mã hóa payload tài sản, file di chúc và số định danh Beneficiary, là base64 của đúng 32 byte. Thiếu khóa thì backend không khởi động. `LEGACYVAULT_ENCRYPTION_KEY_VERSION` mặc định `v1` và được lưu cùng ciphertext để hỗ trợ xoay khóa về sau. Mỗi máy dev sinh **một lần** và lưu vào biến môi trường của user, không commit, không gửi qua chat:
 
 ```powershell
 $bytes = New-Object byte[] 32

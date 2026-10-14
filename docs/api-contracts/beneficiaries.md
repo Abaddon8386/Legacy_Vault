@@ -17,7 +17,7 @@ xác minh mới nhất trước. Cả hai endpoint chỉ dành cho `ROLE_STAFF_E
 - Beneficiary **độc lập với tài khoản `User`**: không cần tài khoản khi khai báo; request/response không có `userId`.
 - **Không tự tạo tài khoản.** Tài khoản được tạo/liên kết sau, tại quầy, do Staff hướng dẫn (ST-24) — ngoài Sprint 1.
 - **Không** có Claim Link, OTP email, Guest Portal.
-- Nếu gửi `identityNumber`, Backend mã hóa AES-GCM trước khi lưu. Cấu hình khóa base64 qua biến môi trường `BENEFICIARY_ENCRYPTION_KEY`; không ghi giá trị khóa vào repo/log.
+- Nếu gửi `identityNumber`, Backend mã hóa AES-256-GCM bằng khóa chung `LEGACYVAULT_ENCRYPTION_KEY` (base64, 32 byte). Cột mã hóa lưu cả IV và `LEGACYVAULT_ENCRYPTION_KEY_VERSION`; không ghi khóa hoặc số định danh vào repo/log.
 - Bảng `asset_allocations` trong DB là **kế hoạch phân bổ chờ Legal duyệt** (LV-BASIS-001), không phải quyết định của Owner; Sprint 1 không có API cho bảng này.
 - Danh sách này chỉ **chỉ định ai là người thụ hưởng**. Owner **không** quyết định phần chia: phần chia do văn bản căn cứ được
   Legal duyệt (LV-BASIS-001), nên không có trường tỷ lệ/phần chia.
