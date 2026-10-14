@@ -58,7 +58,7 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở hữu Vau
 
 ## GET /api/v1/vaults/{vaultId}/wills — GET /api/v1/vaults/{vaultId}/wills/{willId}
 
-- Trả metadata (`WillResponse`), không trả nội dung file. **Lỗi:** `401` · `403` · `404`.
+- Trả metadata (`WillResponse`), không trả nội dung file (muốn mở file: `.../download` bên dưới). **Lỗi:** `401` · `403` · `404`.
 
 ## GET /api/v1/vaults/{vaultId}/wills/{willId}/versions — PS-18
 
@@ -77,12 +77,30 @@ Giao diện API là "di chúc" (`/wills`), nhưng DB lưu bằng ba bảng. Serv
 - Bản số hóa được tạo không đồng nghĩa Legal đã duyệt: API này không bao giờ ghi `LEGAL_APPROVED` vào `legal_documents`.
 - Cột `legal_documents.document_type` (loại tài liệu: `WILL`...) là khái niệm **khác** với `legal_basis_type` của D-LEGAL-002 (`NOTARIAL_PARTITION`, `COURT_*`); D-LEGAL-002 đã được đổi tên trường để không trùng (2026-10-12).
 
-## Chưa có trong Sprint 1
+## POST /api/v1/vaults/{vaultId}/wills/{willId}/versions/{version}/download — PS-17/PS-18 **[D-API-33]**
 
-API tải/xem nội dung file di chúc — chưa có ticket; **không tự thêm** (D-API-14).
+Owner mở/tải nội dung một phiên bản file di chúc sau khi **nhập lại mật khẩu đăng nhập hiện tại**. Dùng `POST` vì mật
+khẩu nằm trong body (không đưa vào URL/log); không thay đổi dữ liệu. Thay quy tắc "chưa có API tải xuống" của D-API-14.
+
+- **Request:** `{ "password": "<mật khẩu đăng nhập hiện tại>" }` — bắt buộc, không rỗng, tối đa 72 ký tự. `version` ≥ 1.
+- **Response 200:** nội dung gốc của file (`application/pdf`, `image/jpeg`, `image/png` theo `contentType` đã lưu), kèm:
+  `Content-Disposition: attachment; filename*=UTF-8''<tên đã làm sạch>`, `X-Content-Type-Options: nosniff`,
+  `Cache-Control: no-store`, `Content-Length`. Luôn là `attachment` để trình duyệt không tự render; FE muốn xem trước thì
+  tạo blob URL từ response.
+- **Toàn vẹn:** sau khi giải mã, BE tính lại SHA-256 và so với `sha256` đã lưu lúc tải lên; lệch thì **không** trả file
+  (500 `INTERNAL_ERROR`, ghi log lỗi không có nội dung).
+- **Điều kiện:** Owner của Vault, Vault `ACTIVE`, đúng `willId` và `version`.
+- **Thứ tự kiểm tra:** role (403) → ownership (404) → trạng thái Vault (409) → di chúc/phiên bản (404) → giới hạn/mật khẩu
+  (429/403).
+- **Lỗi:** `400` · `401` · `403 ACCESS_DENIED` · `403 REAUTH_FAILED` · `404` · `409 VAULT_NOT_EDITABLE` · `429 TOO_MANY_ATTEMPTS`.
+  Giới hạn thử và ý nghĩa mã lỗi giống [assets.md](assets.md) (D-API-32); bộ đếm dùng chung với `reveal` của Asset.
+- **Audit:** `WILL_FILE_OPENED` (ST-03, LV-WILL-001: `version`, `sha256`, `sizeBytes`, `contentType`; **không** ghi tên file,
+  nội dung hay mật khẩu); mỗi lần sai ghi `REAUTH_FAILED`.
+- **Không** thay đổi trạng thái: mở file không phải Legal duyệt, không tạo quyền cho ai khác (LV-DEATH-001, LV-BASIS-001).
 
 ## Test bám contract
 
 Chấp nhận PDF/JPEG/PNG hợp lệ · từ chối loại khác (415) và quá lớn (413) · file thuộc đúng Vault (người khác → 404) ·
 `status = UPLOADED` và **không** bao giờ `LEGAL_APPROVED` · SHA-256 đúng với nội dung · file khác → hash khác ·
-version tăng, phiên bản cũ còn · audit có ghi · không log nội dung file.
+version tăng, phiên bản cũ còn · audit có ghi · không log nội dung file · `download`: đúng mật khẩu trả đúng byte gốc,
+sai → 403, vượt giới hạn → 429, kho đóng băng → 409, hash lệch → không trả file, người khác → 404.

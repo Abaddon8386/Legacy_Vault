@@ -32,7 +32,7 @@ Trạng thái: **đặc tả nội bộ**; **không có endpoint công khai** tr
 | Vault | `VAULT_CREATED` | PS-12 |
 | Asset | `ASSET_CREATED`, `ASSET_UPDATED`, `ASSET_REVEALED` | PS-15, PS-16 |
 | Xác nhận lại mật khẩu | `REAUTH_FAILED` (mỗi lần sai; là bộ đếm cho giới hạn thử, D-API-32) | PS-16 |
-| Will | `WILL_UPLOADED`, `WILL_VERSION_ADDED` | PS-17, PS-18 |
+| Will | `WILL_UPLOADED`, `WILL_VERSION_ADDED`, `WILL_FILE_OPENED` | PS-17, PS-18 |
 | Trustee | `TRUSTEE_APPOINTED`, `TRUSTEE_UPDATED`, `TRUSTEE_REVOKED`, `TRUSTEE_CONTACT_RECORDED` | PS-19, PS-44 |
 | Beneficiary | `BENEFICIARY_ADDED`, `BENEFICIARY_UPDATED` | PS-20 |
 | Identity verification | `BENEFICIARY_IDENTITY_VERIFIED` | PS-45 |

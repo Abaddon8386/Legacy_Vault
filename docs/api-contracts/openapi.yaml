@@ -450,6 +450,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/vaults/{vaultId}/wills/{willId}/versions/{version}/download:
+    post:
+      tags: [Wills]
+      summary: Mở/tải nội dung một phiên bản file di chúc sau khi nhập lại mật khẩu (PS-17/18, D-API-33)
+      description: |
+        Owner nhập lại mật khẩu đăng nhập hiện tại. Chỉ khi Vault `ACTIVE`. Response luôn là `attachment`, `nosniff`,
+        `no-store`. BE so lại SHA-256 trước khi trả; lệch thì không trả file. Sai mật khẩu 403 `REAUTH_FAILED`.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+        - $ref: '#/components/parameters/WillId'
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevealAssetRequest' }
+      responses:
+        '200':
+          description: "Nội dung file gốc (header Content-Disposition: attachment, Cache-Control: no-store)"
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /api/v1/trustees:
     post:
       tags: [Trustees]
