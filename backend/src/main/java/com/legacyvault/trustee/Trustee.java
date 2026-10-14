@@ -71,7 +71,7 @@ public class Trustee {
 		this.email = email;
 		this.relationship = relationship;
 		this.note = note;
-		this.status = "APPOINTED";
+		this.status = "ACTIVE";
 	}
 
 	@PrePersist

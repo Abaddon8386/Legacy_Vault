@@ -42,7 +42,8 @@ public final class TrusteeDtos {
 			String relationship, String note, String status, String createdAt, String updatedAt) {
 		public static Response from(Trustee trustee) {
 			return new Response(trustee.getPublicId(), trustee.getVault().getPublicId(), trustee.getFullName(),
-					trustee.getPhone(), trustee.getEmail(), trustee.getRelationship(), trustee.getNote(), trustee.getStatus(),
+					trustee.getPhone(), trustee.getEmail(), trustee.getRelationship(), trustee.getNote(),
+					"ACTIVE".equals(trustee.getStatus()) ? "APPOINTED" : trustee.getStatus(),
 					utc(trustee.getAppointedAt()), utc(trustee.getUpdatedAt()));
 		}
 	}

@@ -40,7 +40,7 @@ public class TrusteeService {
 		UserAccount owner = owners.requireOwner();
 		Vault vault = ownerVaults.requireOwnedVault(request.vaultId(), owner);
 		ownerVaults.requireEditable(vault);
-		if (trustees.existsByVault_IdAndStatus(vault.getId(), "APPOINTED")) {
+		if (trustees.existsByVault_IdAndStatus(vault.getId(), "ACTIVE")) {
 			throw new BusinessException(ErrorCode.TRUSTEE_ALREADY_EXISTS);
 		}
 		Trustee trustee = new Trustee(vault, clean(request.fullName()), clean(request.phone()),
@@ -59,7 +59,7 @@ public class TrusteeService {
 	public PageEnvelope<TrusteeDtos.Response> current(UUID vaultId) {
 		UserAccount owner = owners.requireOwner();
 		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner);
-		List<TrusteeDtos.Response> content = trustees.findFirstByVault_IdAndStatus(vault.getId(), "APPOINTED")
+		List<TrusteeDtos.Response> content = trustees.findFirstByVault_IdAndStatus(vault.getId(), "ACTIVE")
 				.map(trustee -> List.of(TrusteeDtos.Response.from(trustee))).orElseGet(List::of);
 		return new PageEnvelope<>(content, 0, 1, content.size(), content.isEmpty() ? 0 : 1);
 	}
@@ -69,7 +69,7 @@ public class TrusteeService {
 		UserAccount owner = owners.requireOwner();
 		Trustee trustee = trustees.findByPublicIdAndVault_OwnerUserId(trusteeId, owner.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		if (!"APPOINTED".equals(trustee.getStatus())) {
+		if (!"ACTIVE".equals(trustee.getStatus())) {
 			throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
 		}
 		ownerVaults.requireEditable(trustee.getVault());
@@ -86,7 +86,7 @@ public class TrusteeService {
 		UserAccount owner = owners.requireOwner();
 		Trustee trustee = trustees.findByPublicIdAndVault_OwnerUserId(trusteeId, owner.getId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		if ("APPOINTED".equals(trustee.getStatus())) {
+		if ("ACTIVE".equals(trustee.getStatus())) {
 			ownerVaults.requireEditable(trustee.getVault());
 			trustee.revoke(LocalDateTime.now(ZoneOffset.UTC));
 			trustees.saveAndFlush(trustee);

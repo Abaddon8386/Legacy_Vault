@@ -29,7 +29,7 @@ class TrusteeServiceTest {
 		java.util.UUID vaultId = java.util.UUID.randomUUID();
 		when(ownerVaults.requireOwnedVault(vaultId, owner)).thenReturn(vault);
 		when(vault.getId()).thenReturn(42L);
-		when(trusteeRepository.findFirstByVault_IdAndStatus(42L, "APPOINTED")).thenReturn(Optional.empty());
+		when(trusteeRepository.findFirstByVault_IdAndStatus(42L, "ACTIVE")).thenReturn(Optional.empty());
 
 		TrusteeService service = new TrusteeService(trusteeRepository, ownerVaults, owners, mock(AuditService.class));
 
