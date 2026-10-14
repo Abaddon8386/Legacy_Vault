@@ -4,10 +4,16 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở hữu Vau
 
 ## Xác minh danh tính trực tiếp — PS-45 (ST-14, LV-ID-001)
 
+Luồng Staff nhận `beneficiaryId` từ danh sách trong Vault đang mở vẫn chờ xác định API nguồn cho
+`vaultId` và danh sách Beneficiary. FE không dùng ô nhập UUID thủ công làm luồng chính.
+
 Staff Executor đối chiếu bản cứng CCCD/passport với khuôn mặt trực tiếp qua
 `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`. Kết quả `MATCH` hoặc `NOT_MATCH`,
 loại giấy tờ, cơ quan cấp (nếu có), tối đa bốn ký tự cuối và thời điểm UTC được lưu trong lịch sử append-only;
 trạng thái hiện tại của Beneficiary được cập nhật theo kết quả. Actor được ghi trong record và audit log.
+Response của POST và GET lịch sử trả `verifiedBy: { id, fullName }` cùng `verifiedAt` UTC để FE hiển thị
+người kiểm tra và thời gian theo PS-27. `id` là public UUID của tài khoản Staff; `fullName` là tên hiện tại
+của tài khoản, không phải bản chụp tên tại thời điểm xác minh.
 
 Không tải ảnh/scan, không lưu số định danh đầy đủ, và không gọi VNeID, camera hay eKYC. `GET` cùng path trả lịch sử
 xác minh mới nhất trước. Cả hai endpoint chỉ dành cho `ROLE_STAFF_EXECUTOR`.

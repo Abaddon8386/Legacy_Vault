@@ -56,6 +56,9 @@ public class Beneficiary {
 	@Column(name = "designation_status", nullable = false, length = 20)
 	private String status;
 
+	@Column(name = "id_verification_status", nullable = false, length = 30)
+	private String identityVerificationStatus = "NOT_VERIFIED";
+
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
 
@@ -121,6 +124,8 @@ public class Beneficiary {
 	public String getEmail() { return email; }
 	public boolean hasIdentityNumber() { return identityNumberEncrypted != null && identityNumberEncrypted.length > 0; }
 	public boolean hasAccount() { return linkedUserId != null; }
+	public String getIdentityVerificationStatus() { return identityVerificationStatus; }
+	public void recordIdentityVerification(String result) { this.identityVerificationStatus = result; }
 	public String getStatus() { return status; }
 	public LocalDateTime getCreatedAt() { return createdAt; }
 	public LocalDateTime getUpdatedAt() { return updatedAt; }

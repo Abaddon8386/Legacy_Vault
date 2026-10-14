@@ -1108,7 +1108,7 @@ components:
         result: { type: string, enum: [MATCH, NOT_MATCH] }
     IdentityVerificationResponse:
       type: object
-      required: [id, beneficiaryId, documentType, result, verifiedAt]
+      required: [id, beneficiaryId, documentType, result, verifiedBy, verifiedAt]
       properties:
         id: { type: string, format: uuid }
         beneficiaryId: { type: string, format: uuid }
@@ -1116,6 +1116,12 @@ components:
         issuingAuthority: { type: string, nullable: true }
         documentSuffix: { type: string, nullable: true }
         result: { type: string, enum: [MATCH, NOT_MATCH] }
+        verifiedBy:
+          type: object
+          required: [id, fullName]
+          properties:
+            id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
+            fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
         verifiedAt: { type: string, format: date-time }
     BeneficiaryResponse:
       type: object
