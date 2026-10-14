@@ -8,7 +8,7 @@ import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 
 /** Compatibility entry point; persistence stays in the PS-13 audit service. */
-@Service
+@Service("workflowAuditService")
 public class AuditService {
     private final com.legacyvault.audit.AuditService delegate;
 
