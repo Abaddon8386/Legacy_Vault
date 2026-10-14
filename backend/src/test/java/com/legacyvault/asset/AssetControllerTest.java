@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -30,11 +31,13 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.legacyvault.asset.controller.AssetController;
 import com.legacyvault.asset.dto.AssetResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
+import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.entity.AssetType;
 import com.legacyvault.asset.service.AssetService;
 import com.legacyvault.auth.JwtService;
@@ -269,5 +272,108 @@ class AssetControllerTest {
 		mockMvc.perform(get("/api/v1/vaults/{vaultId}/assets", VAULT_ID))
 				.andExpect(status().isUnauthorized());
 		verifyNoInteractions(assetService);
+	}
+
+	// ---------- PS-16: GET chi tiết ----------
+
+	@Test
+	void get_returnsAssetWithoutPayload() throws Exception {
+		when(assetService.getAsset(VAULT_ID, ASSET_ID, OWNER.userId())).thenReturn(ASSET);
+
+		mockMvc.perform(get("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID).with(owner()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ASSET_ID.toString()))
+				.andExpect(jsonPath("$.hasPayload").value(true))
+				.andExpect(jsonPath("$.payload").doesNotExist());
+	}
+
+	@Test
+	void get_otherUsers404_wrongRole403_noLogin401_badId400() throws Exception {
+		when(assetService.getAsset(VAULT_ID, ASSET_ID, 2L))
+				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		mockMvc.perform(get("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID)
+				.with(as(new CustomUserPrincipal(2L, UUID.randomUUID(), "user@example.com"), "VAULT_OWNER")))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+		mockMvc.perform(get("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID)
+				.with(as(OWNER, "ADMIN")))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, "not-a-uuid").with(owner()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+	}
+
+	// ---------- PS-16: PATCH ----------
+
+	private ResultActions patchAsset(String json, RequestPostProcessor who) throws Exception {
+		return mockMvc.perform(patch("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID).with(who)
+				.contentType(MediaType.APPLICATION_JSON).content(json));
+	}
+
+	@Test
+	void patch_updatesAndIgnoresImmutableFields(CapturedOutput output) throws Exception {
+		when(assetService.updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), any())).thenReturn(ASSET);
+
+		patchAsset("""
+				{"description":"Mô tả mới","payload":"%s","assetType":"TEXT","vaultId":"%s","id":"%s"}"""
+				.formatted(SECRET, UUID.randomUUID(), UUID.randomUUID()), owner())
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assetType").value("CREDENTIAL"))
+				.andExpect(jsonPath("$.payload").doesNotExist());
+
+		ArgumentCaptor<UpdateAssetRequest> request = ArgumentCaptor.forClass(UpdateAssetRequest.class);
+		verify(assetService).updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), request.capture());
+		assertThat(request.getValue().name()).isNull();
+		assertThat(request.getValue().description()).isEqualTo("Mô tả mới");
+		assertThat(request.getValue().toString()).doesNotContain(SECRET);
+		assertThat(output.getAll()).doesNotContain(SECRET);
+	}
+
+	@Test
+	void patch_emptyBodyOrOnlyIgnoredFields_returns400() throws Exception {
+		for (String json : List.of("{}", "{\"assetType\":\"TEXT\"}", "{\"name\":null}")) {
+			patchAsset(json, owner())
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+					.andExpect(jsonPath("$.errors[0].messageKey").value("validation.atLeastOneField"));
+		}
+		verifyNoInteractions(assetService);
+	}
+
+	@Test
+	void patch_blankNameOrPayload_orTooLong_returns400() throws Exception {
+		patchAsset("{\"name\":\"   \",\"payload\":\"\"}", owner())
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[?(@.field=='name')].code").value("NULL_OR_NOT_BLANK"))
+				.andExpect(jsonPath("$.errors[?(@.field=='payload')].code").value("NULL_OR_NOT_BLANK"));
+		patchAsset("{\"description\":\"%s\"}".formatted("a".repeat(1001)), owner())
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[?(@.field=='description')].code").value("SIZE"));
+		patchAsset("{\"payload\":\"%s\"}".formatted("a".repeat(65_537)), owner())
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[?(@.field=='payload')].code").value("PAYLOAD_SIZE"));
+		verifyNoInteractions(assetService);
+	}
+
+	@Test
+	void patch_frozenVault409_otherUsers404_wrongRole403_noLogin401() throws Exception {
+		when(assetService.updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), any()))
+				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
+		when(assetService.updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(2L), any()))
+				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		patchAsset("{\"name\":\"x\"}", owner())
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("VAULT_NOT_EDITABLE"));
+		patchAsset("{\"name\":\"x\"}", as(new CustomUserPrincipal(2L, UUID.randomUUID(), "user@example.com"), "VAULT_OWNER"))
+				.andExpect(status().isNotFound());
+		patchAsset("{\"name\":\"x\"}", as(OWNER, "BENEFICIARY"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(patch("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID)
+				.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"x\"}"))
+				.andExpect(status().isUnauthorized());
 	}
 }

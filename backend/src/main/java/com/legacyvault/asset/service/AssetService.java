@@ -1,7 +1,10 @@
 package com.legacyvault.asset.service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -11,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.legacyvault.asset.dto.AssetResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
+import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.entity.Asset;
 import com.legacyvault.asset.entity.AssetType;
 import com.legacyvault.asset.repository.AssetRepository;
@@ -19,13 +23,15 @@ import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.crypto.EncryptionService;
+import com.legacyvault.common.error.BusinessException;
+import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.service.VaultService;
 
 /**
- * Tạo và liệt kê Asset của Vault (PS-15, ST-02). Ownership qua {@link VaultService}; payload mã hóa trước
- * khi lưu và không bao giờ được trả ra hay ghi log. Tạo Asset không phải bàn giao.
+ * Tạo, liệt kê, xem và cập nhật Asset của Vault (PS-15, PS-16, ST-02). Ownership qua {@link VaultService};
+ * payload mã hóa trước khi lưu và không bao giờ được trả ra hay ghi log. Tạo Asset không phải bàn giao.
  */
 @Service
 public class AssetService {
@@ -67,6 +73,55 @@ public class AssetService {
 		return PageResponse.from(
 				assetRepository.findByVaultIdAndAssetTypeNot(vault.getVaultId(), AssetType.DOCUMENT, pageable),
 				asset -> AssetResponse.from(asset, vault.getPublicId()));
+	}
+
+	@Transactional(readOnly = true)
+	public AssetResponse getAsset(UUID vaultId, UUID assetId, Long ownerUserId) {
+		Vault vault = vaultService.requireOwnedVault(vaultId, ownerUserId);
+		return AssetResponse.from(requireAsset(vault, assetId), vault.getPublicId());
+	}
+
+	/**
+	 * Cập nhật một phần (PS-16): chỉ {@code name}, {@code description}, {@code payload}. Không có thay đổi thực sự thì
+	 * không ghi DB, không audit. Audit chỉ ghi tên trường đã đổi, không ghi giá trị.
+	 */
+	@Transactional
+	public AssetResponse updateAsset(UUID vaultId, UUID assetId, Long ownerUserId, UpdateAssetRequest request) {
+		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		Asset asset = requireAsset(vault, assetId);
+
+		List<String> changedFields = new ArrayList<>();
+		if (request.name() != null && !request.name().trim().equals(asset.getName())) {
+			asset.rename(request.name().trim());
+			changedFields.add("name");
+		}
+		if (request.description() != null) {
+			String description = normalize(request.description());
+			if (!Objects.equals(description, asset.getDescription())) {
+				asset.changeDescription(description);
+				changedFields.add("description");
+			}
+		}
+		if (request.payload() != null) {
+			// Không so với payload cũ (phải giải mã): gửi payload là ghi lại với IV mới.
+			asset.setEncryptedPayload(encryptionService.encrypt(request.payload(), associatedData(asset)));
+			changedFields.add("payload");
+		}
+		if (changedFields.isEmpty()) {
+			return AssetResponse.from(asset, vault.getPublicId());
+		}
+
+		// Flush ngay để @PreUpdate cập nhật updatedAt trước khi dựng response.
+		Asset saved = assetRepository.saveAndFlush(asset);
+		auditService.record(new AuditEvent(AuditAction.ASSET_UPDATED, AuditActorType.USER, ownerUserId, vault.getVaultId(),
+				ENTITY_ASSET, saved.getAssetId(), null, null, null, Map.of("changedFields", changedFields), "ST-02", null));
+		return AssetResponse.from(saved, vault.getPublicId());
+	}
+
+	/** Asset không tồn tại, thuộc Vault khác, hoặc là di chúc -> cùng 404 (D-API-07). */
+	private Asset requireAsset(Vault vault, UUID assetId) {
+		return assetRepository.findByPublicIdAndVaultIdAndAssetTypeNot(assetId, vault.getVaultId(), AssetType.DOCUMENT)
+				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 	}
 
 	/** Gắn ciphertext với đúng Asset (UUID công khai): chép sang bản ghi khác thì giải mã thất bại. */
