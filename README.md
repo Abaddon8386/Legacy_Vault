@@ -68,6 +68,16 @@ Mở URL do Vite in ra (thường http://localhost:5173). Kiểm tra bằng `npm
 
 Cấu hình BE tại develop `af55c46` yêu cầu `DB_URL` và `JWT_SECRET_BASE64` ngoài Git; Flyway đã bật, Hibernate dùng `ddl-auto: none`. Xác minh cấu hình thực tế và bí mật được cung cấp trước khi chạy. Không commit mật khẩu, token hoặc file `.env` thật. Backend có Maven Wrapper; chạy và kiểm thử theo tài liệu PS-73 trên DB thử nghiệm phù hợp.
 
+Backend cũng bắt buộc có `LEGACYVAULT_ENCRYPTION_KEY` (PS-15, PS-17): khóa AES-256 mã hóa payload tài sản và file di chúc, là base64 của đúng 32 byte. Thiếu khóa thì backend không khởi động. Mỗi máy dev sinh **một lần** và lưu vào biến môi trường của user, không commit, không gửi qua chat:
+
+```powershell
+$bytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+[Environment]::SetEnvironmentVariable('LEGACYVAULT_ENCRYPTION_KEY', [Convert]::ToBase64String($bytes), 'User')
+```
+
+Mở terminal mới để biến có hiệu lực. Đổi khóa thì dữ liệu đã mã hóa bằng khóa cũ không giải mã được nữa, nên giữ nguyên khóa suốt thời gian dùng một database; môi trường dùng chung cần một khóa cố định quản lý ngoài repo.
+
 FE dùng API client và Vite proxy `/api` tới `http://localhost:8080`, đổi đích bằng `API_PROXY_TARGET`. Code xác thực đã xuất hiện trong PR #21; cần kiểm thử API thực tế và luồng FE → BE → SQL Server để xác nhận tích hợp. Bộ ảnh dưới đây chỉ sử dụng API mô phỏng.
 
 ## Xem FE với API mô phỏng
