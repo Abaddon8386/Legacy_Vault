@@ -1171,7 +1171,7 @@ components:
         ownerId: { type: string, format: uuid, description: 'public_id của tài khoản Owner; DMS thuộc Owner, mỗi Owner một DMS' }
         status: { type: string, enum: [MONITORING, TRIGGERED, GRACE_PERIOD_EXCEEDED] }
         checkIntervalDays: { type: integer }
-        gracePeriodDays: { type: integer, description: 'Chỉ đọc; mặc định 1 (A5)' }
+        gracePeriodDays: { type: integer, description: 'Chỉ đọc; server cấu hình qua DMS_GRACE_PERIOD_DAYS, mặc định 1 (A5)' }
         lastCheckInAt: { type: string, format: date-time, nullable: true }
         nextCheckAt: { type: string, format: date-time }
         triggeredAt: { type: string, format: date-time, nullable: true }

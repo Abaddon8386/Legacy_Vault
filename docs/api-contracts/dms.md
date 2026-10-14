@@ -8,7 +8,7 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **t
   không giải mã, không gửi tài sản cho bất kỳ ai (LV-DEATH-001).
 - Owner cấu hình chu kỳ; check-in đặt lại `nextCheckAt`.
 - Khoảng giá trị cho phép của `checkIntervalDays` do cấu hình qua property, không hardcode (D-API-15).
-- **Grace Period mặc định 1 ngày** (nhóm chốt 2026-10-12; DB `DEFAULT 1`). Sprint 1 chưa có trường/endpoint để Owner đổi giá trị này (ticket PS-22 chỉ cấu hình chu kỳ).
+- **Grace Period mặc định 1 ngày**, cấu hình phía server bằng `DMS_GRACE_PERIOD_DAYS` (0–32767 ngày; DB `SMALLINT`). Sprint 1 chưa có trường/endpoint để Owner đổi giá trị này (ticket PS-22 chỉ cấu hình chu kỳ).
 
 ## Mô hình `DmsResponse`
 

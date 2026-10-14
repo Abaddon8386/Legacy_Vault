@@ -17,6 +17,7 @@ import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
+import com.legacyvault.vault.service.VaultService;
 
 @Service
 public class DmsService {
@@ -24,15 +25,18 @@ public class DmsService {
 	private final DmsConfigRepository configs;
 	private final BeneficiaryRepository beneficiaries;
 	private final VaultRepository vaults;
+	private final VaultService vaultService;
 	private final OwnerContextService owners;
 	private final DmsPolicy policy;
 	private final AuditService audit;
 
 	public DmsService(DmsConfigRepository configs, BeneficiaryRepository beneficiaries,
-			VaultRepository vaults, OwnerContextService owners, DmsPolicy policy, AuditService audit) {
+			VaultRepository vaults, VaultService vaultService, OwnerContextService owners,
+			DmsPolicy policy, AuditService audit) {
 		this.configs = configs;
 		this.beneficiaries = beneficiaries;
 		this.vaults = vaults;
+		this.vaultService = vaultService;
 		this.owners = owners;
 		this.policy = policy;
 		this.audit = audit;
@@ -42,9 +46,7 @@ public class DmsService {
 	public DmsDtos.Response configure(DmsDtos.ConfigureRequest request) {
 		User owner = owners.requireOwner();
 		Vault vault = ownerVault(owner.getUserId());
-		if (!"ACTIVE".equals(vault.getStatus())) {
-			throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
-		}
+		vaultService.requireEditableVault(vault.getPublicId(), owner.getUserId());
 		if (beneficiaries.countByVault_VaultId(vault.getVaultId()) < 1) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_REQUIRED);
 		}

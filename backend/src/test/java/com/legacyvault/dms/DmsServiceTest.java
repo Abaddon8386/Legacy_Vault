@@ -24,6 +24,7 @@ import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
+import com.legacyvault.vault.service.VaultService;
 
 class DmsServiceTest {
 
@@ -77,10 +78,11 @@ class DmsServiceTest {
 		final DmsConfigRepository configs = mock(DmsConfigRepository.class);
 		final BeneficiaryRepository beneficiaries = mock(BeneficiaryRepository.class);
 		final VaultRepository vaults = mock(VaultRepository.class);
+		final VaultService vaultService = mock(VaultService.class);
 		final OwnerContextService owners = mock(OwnerContextService.class);
 		final AuditService audit = mock(AuditService.class);
-		final DmsService service = new DmsService(configs, beneficiaries, vaults, owners,
-				new DmsPolicy(1, 32767), audit);
+		final DmsService service = new DmsService(configs, beneficiaries, vaults, vaultService, owners,
+				new DmsPolicy(1, 32767, 1), audit);
 
 		Fixture() {
 			when(owner.getUserId()).thenReturn(5L);

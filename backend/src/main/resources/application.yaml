@@ -60,3 +60,5 @@ legacyvault:
   will:
     # File di chúc số hóa tối đa (byte), mặc định 10 MB (D-API-14). Loại cho phép: PDF/JPEG/PNG theo nội dung file.
     max-file-bytes: 10485760
+  dms:
+    grace-period-days: ${DMS_GRACE_PERIOD_DAYS:1}
