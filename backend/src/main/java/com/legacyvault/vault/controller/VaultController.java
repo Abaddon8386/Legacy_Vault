@@ -1,6 +1,7 @@
-package com.legacyvault.vault;
+package com.legacyvault.vault.controller;
 
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.vault.service.VaultService;
 import com.legacyvault.vault.dto.CreateVaultRequest;
 import com.legacyvault.vault.dto.VaultResponse;
 import jakarta.validation.Valid;

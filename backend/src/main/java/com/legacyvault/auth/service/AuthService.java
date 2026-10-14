@@ -1,5 +1,11 @@
-package com.legacyvault.auth;
+package com.legacyvault.auth.service;
 
+import com.legacyvault.audit.AuditAction;
+import com.legacyvault.audit.AuditActorType;
+import com.legacyvault.audit.AuditEvent;
+import com.legacyvault.audit.AuditService;
+import com.legacyvault.auth.EmailNormalizer;
+import com.legacyvault.auth.JwtService;
 import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
@@ -18,28 +24,32 @@ import org.springframework.transaction.annotation.Transactional;
 import com.legacyvault.user.repository.UserRoleRepository;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AuthService {
-    private static final String DEFAULT_ROLE = "ROLE_VAULT_OWNER";
+    private static final String DEFAULT_ROLE = "VAULT_OWNER";
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuditService auditService;
 
     public AuthService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             UserRoleRepository userRoleRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            AuditService auditService
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -63,6 +73,21 @@ public class AuthService {
         UserRole userRole = new UserRole(savedUser, ownerRole);
         userRoleRepository.save(userRole);
 
+        auditService.record(new AuditEvent(
+                AuditAction.AUTH_REGISTERED,
+                AuditActorType.USER,
+                savedUser.getUserId(),
+                null,
+                "USER",
+                savedUser.getUserId(),
+                null,
+                "{\"status\":\"ACTIVE\"}",
+                null,
+                Map.of("result", "SUCCESS"),
+                "AUTH_REGISTER",
+                null
+        ));
+
         return new RegisterResponse(
                 savedUser.getPublicId(),
                 savedUser.getFullName(),
@@ -74,16 +99,19 @@ public class AuthService {
     }
 
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
 
-        User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
 
-        if (!"ACTIVE".equals(user.getStatus())
+        if (user == null
+                || !"ACTIVE".equals(user.getStatus())
                 || user.getDeletedAt() != null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+
+            auditService.recordLoginFailure(user != null ? user.getUserId() : null);
+
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
@@ -97,8 +125,32 @@ public class AuthService {
 
         String accessToken = jwtService.generateAccessToken(user.getPublicId(), user.getEmail(), roles);
 
-        return new LoginResponse(accessToken, "Bearer", jwtService.getExpirationSeconds(),
-                new LoginResponse.AuthUserResponse(user.getPublicId(), user.getFullName(), user.getEmail(), roles));
+        auditService.record(new AuditEvent(
+                AuditAction.AUTH_LOGIN_SUCCEEDED,
+                AuditActorType.USER,
+                user.getUserId(),
+                null,
+                "USER",
+                user.getUserId(),
+                null,
+                null,
+                null,
+                Map.of("result", "SUCCESS"),
+                "AUTH_LOGIN",
+                null
+        ));
+
+        return new LoginResponse(
+                accessToken,
+                "Bearer",
+                jwtService.getExpirationSeconds(),
+                new LoginResponse.AuthUserResponse(
+                        user.getPublicId(),
+                        user.getFullName(),
+                        user.getEmail(),
+                        roles
+                )
+        );
     }
 
     @Transactional(readOnly = true)

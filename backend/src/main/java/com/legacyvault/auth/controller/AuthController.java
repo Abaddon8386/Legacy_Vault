@@ -1,6 +1,7 @@
 
-package com.legacyvault.auth;
+package com.legacyvault.auth.controller;
 
+import com.legacyvault.auth.service.AuthService;
 import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
