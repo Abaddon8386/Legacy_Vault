@@ -23,6 +23,8 @@ import org.hibernate.event.spi.PostLoadEventListener;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.scheduling.config.TaskManagementConfigUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -48,11 +50,16 @@ class DmsSqlServerConcurrencyTest {
     @BeforeAll
     static void start() {
         String key = Base64.getEncoder().encodeToString(new byte[32]);
-        context = new SpringApplicationBuilder(LegacyvaultBackendApplication.class).run(
+        context = new SpringApplicationBuilder(LegacyvaultBackendApplication.class)
+                .initializers(application -> application.addBeanFactoryPostProcessor(beanFactory -> {
+                    // Invoke scheduler transactions explicitly; prevent an automatic initial scan racing with fixtures.
+                    var registry = (BeanDefinitionRegistry) beanFactory;
+                    String name = TaskManagementConfigUtils.SCHEDULED_ANNOTATION_PROCESSOR_BEAN_NAME;
+                    if (registry.containsBeanDefinition(name)) registry.removeBeanDefinition(name);
+                })).run(
                 "--spring.datasource.url=" + System.getenv("DMS_SQLSERVER_TEST_URL"),
                 "--server.port=0", "--legacyvault.jwt.secret=" + key,
                 "--legacyvault.encryption.key=" + key,
-                "--legacyvault.dms.scheduler.fixed-delay-ms=3600000",
                 "--logging.level.root=ERROR", "--logging.level.org.springframework.security=ERROR",
                 "--logging.level.org.flywaydb=INFO");
         jdbc = context.getBean(JdbcTemplate.class);
@@ -189,4 +196,3 @@ class DmsSqlServerConcurrencyTest {
         }
     }
 }
-
