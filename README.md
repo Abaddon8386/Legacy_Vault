@@ -8,13 +8,13 @@ React/Vite, Java 25, Spring Boot 4.1.1, Spring Data JPA, Spring Security và Mic
 
 ```text
 frontend/   React/Vite, màn hình FE PS-1–8, API client, kiểm thử
-backend/    Spring Boot starter, Maven Wrapper, context test
-database/   Chỗ dành cho schema/migration/seed khi đưa lại ticket DB
+backend/    Spring Boot, nền bảo mật và controller xác thực
+database/   Migration và seed SQL Server PS-73
 docs/       Đối chiếu bản nền và bằng chứng kiểm tra
 scripts/    Script hỗ trợ và API fixture kiểm thử FE
 ```
 
-Tại mốc `ad9eea5` ngày 14/10/2026, FE PS-1–8 đã được tích hợp vào develop. Backend vẫn là bộ khung, chưa có API nghiệp vụ hay schema/migration/seed DB trên mốc này. Lịch sử khởi tạo được ghi tại [đối chiếu bản nền](docs/BASELINE.md).
+FE PS-1–8 đã tích hợp vào develop. Ngày 14/10/2026, develop tiếp tục nhận PR #21 (PS-9), gồm nền DB PS-73 và code xác thực. Ảnh bên dưới giữ mốc FE `ad9eea5`; việc có code BE/DB chưa chứng minh kết nối thực tế đã chạy. Lịch sử khởi tạo được ghi tại [đối chiếu bản nền](docs/BASELINE.md).
 
 ## Ảnh giao diện FE PS-1–8
 
@@ -62,36 +62,13 @@ npm.cmd run dev
 
 Mở URL do Vite in ra (thường http://localhost:5173). Kiểm tra bằng `npm.cmd run lint` và `npm.cmd run build`. Dừng bằng Ctrl+C.
 
-## Chuẩn bị database
+## Database và backend
 
-`database/` chưa có schema nghiệp vụ. Nếu cần chạy context trên DB thử nghiệm riêng, tạo DB trống bằng SSMS sau khi xác minh đúng instance:
+Đọc [hướng dẫn thiết lập PS-73](docs/database/PS73_Database_Setup_Guide_v5.md) và [hướng dẫn xác minh/seed](docs/database/Database_Verification_and_Seed_Guide.md) trước khi chạy backend. Chọn đúng SQL Server/database của môi trường nhóm; không lấy cấu hình máy cá nhân làm mặc định chung.
 
-```sql
-IF DB_ID(N'LegacyVault') IS NULL
-    EXEC(N'CREATE DATABASE [LegacyVault]');
-GO
-```
+Cấu hình BE tại develop `af55c46` yêu cầu `DB_URL` và `JWT_SECRET_BASE64` ngoài Git; Flyway đã bật, Hibernate dùng `ddl-auto: none`. Xác minh cấu hình thực tế và bí mật được cung cấp trước khi chạy. Không commit mật khẩu, token hoặc file `.env` thật. Backend có Maven Wrapper; chạy và kiểm thử theo tài liệu PS-73 trên DB thử nghiệm phù hợp.
 
-Không chạy trên DB production. `ddl-auto: none` nên backend không tự tạo hoặc sửa bảng. Schema, migration, seed và lựa chọn môi trường DB được đưa lại theo ticket riêng.
-
-## Chạy backend
-
-Trong terminal khác tại repo, đặt URL phù hợp với SQL Server của mình. Ví dụ Windows Authentication cho môi trường local đã cấu hình TCP 1433:
-
-```powershell
-cd backend
-$env:SPRING_DATASOURCE_URL = 'jdbc:sqlserver://localhost:1433;databaseName=LegacyVault;encrypt=true;trustServerCertificate=true;integratedSecurity=true'
-.\mvnw.cmd -version
-.\mvnw.cmd spring-boot:run
-```
-
-Ví dụ localhost/1433 không xác nhận instance trên máy đã chạy. Windows Authentication cần DLL JDBC đúng phiên bản/kiến trúc trong PATH của terminal Java. Không đưa DLL hay thông tin đăng nhập vào Git. Nếu môi trường dùng SQL Authentication, đặt thêm `SPRING_DATASOURCE_USERNAME` và `SPRING_DATASOURCE_PASSWORD` ngoài repo theo cấu hình đã được nhóm duyệt.
-
-Backend bắt buộc nhận `SPRING_DATASOURCE_URL`, không có địa chỉ máy cá nhân mặc định. Spring Boot không tự đọc `.env`. `trustServerCertificate=true` trong ví dụ chỉ dành cho local; môi trường triển khai cần chứng chỉ TLS phù hợp.
-
-Khi DB đã truy cập được, chạy `.\mvnw.cmd verify`. Context test có sẵn cần cấu hình và kết nối SQL Server thật. Lệnh `mvn.cmd -DskipTests package` chỉ kiểm tra đóng gói, không chứng minh context hay DB hoạt động.
-
-Backend mặc định cổng 8080, có Spring Security mặc định và chưa có API nghiệp vụ. HTTP 401 hoặc trang đăng nhập không chứng minh tích hợp hoàn chỉnh. FE đã có API client và Vite proxy `/api` tới `http://localhost:8080`; có thể đổi đích bằng `API_PROXY_TARGET`. Chạy hai server không đồng nghĩa FE → BE → SQL Server đã hoạt động; cần kiểm thử với API thật sau khi BE tích hợp.
+FE dùng API client và Vite proxy `/api` tới `http://localhost:8080`, đổi đích bằng `API_PROXY_TARGET`. Code xác thực đã xuất hiện trong PR #21; cần kiểm thử API thực tế và luồng FE → BE → SQL Server để xác nhận tích hợp. Bộ ảnh dưới đây chỉ sử dụng API mô phỏng.
 
 ## Xem FE với API mô phỏng
 
