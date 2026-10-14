@@ -1,6 +1,6 @@
 # Beneficiary — PS-20, PS-21 (ST-05)
 
-Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở hữu Vault.
+Trạng thái PS-20/21: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở hữu Vault.
 
 ## Xác minh danh tính trực tiếp — PS-45 (ST-14, LV-ID-001)
 
@@ -11,6 +11,10 @@ Luồng Staff nhận `beneficiaryId` từ danh sách trong Vault đang mở vẫ
 Schema và luồng kích hoạt vụ việc thuộc PS-41/42 chưa có trong stack này, nên API PS-45 hiện **chưa
 chặn được** yêu cầu theo điều kiện đó. Giữ PR ở trạng thái draft và không tích hợp luồng xác minh
 cho đến khi có nguồn trạng thái vụ việc; không suy diễn từ `vaults.status` hay DMS `TRIGGERED`.
+
+**Điều kiện đưa PS-45 vào `develop`:** trưởng nhóm chốt mô hình case/dossier và luồng kích hoạt
+của PS-41/42, thống nhất nguồn trạng thái với PS-45, rồi Backend triển khai và kiểm thử guard
+theo quyết định đó. Trước khi các điều kiện này hoàn tất, PS-45 phải giữ draft.
 
 Staff Executor đối chiếu bản cứng CCCD/passport với khuôn mặt trực tiếp qua
 `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`. Kết quả `MATCH` hoặc `NOT_MATCH`,
