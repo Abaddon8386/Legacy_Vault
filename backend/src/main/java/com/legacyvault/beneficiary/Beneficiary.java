@@ -71,8 +71,9 @@ public class Beneficiary {
 	protected Beneficiary() {
 	}
 
-	public Beneficiary(Vault vault, String fullName, String relationship, LocalDate dateOfBirth,
+	public Beneficiary(UUID publicId, Vault vault, String fullName, String relationship, LocalDate dateOfBirth,
 			String phone, String email, byte[] identityNumberEncrypted) {
+		this.publicId = publicId;
 		this.vault = vault;
 		this.fullName = fullName;
 		this.relationship = relationship;

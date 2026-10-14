@@ -45,8 +45,9 @@ public class BeneficiaryService {
 	public BeneficiaryDtos.Response create(UUID vaultId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
 		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
-		byte[] encryptedId = encryptIfPresent(request.identityNumber());
-		Beneficiary beneficiary = new Beneficiary(vault, clean(request.fullName()), clean(request.relationship()),
+		UUID beneficiaryId = UUID.randomUUID();
+		byte[] encryptedId = encryptIfPresent(request.identityNumber(), beneficiaryId);
+		Beneficiary beneficiary = new Beneficiary(beneficiaryId, vault, clean(request.fullName()), clean(request.relationship()),
 				request.dateOfBirth(), clean(request.phone()), cleanEmail(request.email()), encryptedId);
 		beneficiary = beneficiaries.saveAndFlush(beneficiary);
 		audit.record(owner.getUserId(), vault.getVaultId(), "BENEFICIARY_ADDED", "BENEFICIARY", beneficiary.getId(), "USER",
@@ -70,7 +71,7 @@ public class BeneficiaryService {
 		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
 		Beneficiary beneficiary = beneficiaries.findByPublicIdAndVault_VaultId(beneficiaryId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		byte[] encryptedId = encryptIfPresent(request.identityNumber());
+		byte[] encryptedId = encryptIfPresent(request.identityNumber(), beneficiary.getPublicId());
 		beneficiary.update(clean(request.fullName()), clean(request.relationship()), request.dateOfBirth(),
 				clean(request.phone()), cleanEmail(request.email()), encryptedId);
 		beneficiary = beneficiaries.saveAndFlush(beneficiary);
@@ -90,9 +91,9 @@ public class BeneficiaryService {
 				: List.of();
 		return new BeneficiaryDtos.ConfigurationCheck(vault.getPublicId(), count > 0, count, issues);
 	}
-	private byte[] encryptIfPresent(String identityNumber) {
+	private byte[] encryptIfPresent(String identityNumber, UUID beneficiaryId) {
 		String value = clean(identityNumber);
-		return value == null ? null : identityCipher.encrypt(value);
+		return value == null ? null : identityCipher.encrypt(value, beneficiaryId);
 	}
 
 	private List<String> fields(boolean identityNumberProvided) {
