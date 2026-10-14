@@ -67,6 +67,7 @@ Sprint 1. Khi code chạm tới, dùng tham số cấu hình và `TODO(open-ques
 | 2026-10-12 | Dương (theo quyết định của nhóm) | B4: đổi tên trường trong D-LEGAL-002 thành `legal_basis_type`; A4: xác nhận một Vault/Owner; A5: Grace mặc định 1 ngày; N3: giữ V2; N4 và C1–C4: tạm bỏ qua |
 | 2026-10-12 | Dương | Contract khớp DB: `TrusteeResponse` bỏ `note`, `createdAt`, `updatedAt` (thêm `appointedAt`, `revokedAt`); `DmsResponse` thuộc tính đầu là `ownerId` (thêm `gracePeriodDays`, `updatedAt`); `BeneficiaryResponse` bỏ `updatedAt`; DMS đổi đường dẫn từ `/vaults/{vaultId}/dms` sang `/api/v1/dms` (DMS thuộc Owner) |
 | 2026-10-14 | Dương (điều phối PS-74) | **Chốt lại D-API-30:** DMS thuộc tài khoản Owner, đường dẫn `/api/v1/dms`. Hủy thay đổi sang `/api/v1/vaults/{vaultId}/dms` có trong nhánh foundation/PS-22/PS-23 (thay đổi đó không được ghi vào nhật ký này). Khôi phục `dms.md`, `DmsResponse` (`ownerId`, `gracePeriodDays`, `updatedAt`), dòng `/dms/**` trong auth.md. Code PS-22/PS-23 cần sửa theo contract này |
+| 2026-10-14 | Dương (điều phối PS-74) | Giữ quy ước `roles` trong response **không** tiền tố `ROLE_` (conventions.md §6). `auth-role-compatibility.md` đổi thành ghi chú độ lệch: BE trên develop đang trả `ROLE_*` ở register/login/me và phải sửa (chủ PS-9/PS-10); FE chấp nhận cả hai dạng chỉ là lớp tương thích tạm thời |
 | _điền sau_ | Dương, Long, Ân, Thái, Huy | Biên bản buổi review contract FE/BE |
 
 ## E. Đã thống nhất với PS-73 (database) — 2026-10-11

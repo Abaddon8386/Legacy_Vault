@@ -17,6 +17,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [dev-integration.md](dev-integration.md) | URL/port local, Vite proxy/CORS, chạy FE↔BE↔SQL Server, evidence | PS-74 |
 | [system.md](system.md) | `ping`, `db-check` (smoke test) | PS-74 |
 | [auth.md](auth.md) | Đăng ký, đăng nhập, RBAC | PS-9, PS-10, PS-11 |
+| [auth-role-compatibility.md](auth-role-compatibility.md) | Độ lệch tạm thời: BE trả `roles` có tiền tố `ROLE_`, FE chấp nhận cả hai dạng | PS-1, PS-9, PS-10 |
 | [vaults.md](vaults.md) | Tạo/xem Vault, ownership | PS-12, PS-14 |
 | [assets.md](assets.md) | Tạo/liệt kê/xem/cập nhật tài sản | PS-15, PS-16 |
 | [wills.md](wills.md) | Upload bản số hóa di chúc, SHA-256, version | PS-17, PS-18 |

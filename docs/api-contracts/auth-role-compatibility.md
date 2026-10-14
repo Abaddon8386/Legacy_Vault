@@ -1,15 +1,40 @@
-# Auth roles — FE compatibility (PS-1 / PS-9)
+# Role trong response Auth — độ lệch tạm thời giữa BE và contract (PS-1 / PS-9 / PS-10)
 
-BE at develop `1a4e52e` returns `ROLE_VAULT_OWNER` in the registration response. FE accepts the following explicit response role aliases at the shared `readUser` boundary:
+## Contract (không đổi)
 
-| API role | FE internal role |
+Theo [conventions.md §6](conventions.md) và [auth.md](auth.md):
+
+- Authority **nội bộ** (Spring Security, bảng `roles.role_code`, claim trong JWT) có tiền tố `ROLE_`: `ROLE_VAULT_OWNER`...
+- Trường `roles` trong **JSON response** của API **không** có tiền tố: `["VAULT_OWNER"]`.
+
+| Authority nội bộ | Giá trị trong JSON `roles` |
 | --- | --- |
-| ROLE_VAULT_OWNER | VAULT_OWNER |
-| ROLE_STAFF_EXECUTOR | STAFF_EXECUTOR |
-| ROLE_LEGAL_VERIFIER | LEGAL_VERIFIER |
-| ROLE_ADMIN | ADMIN |
-| ROLE_BENEFICIARY | BENEFICIARY |
+| `ROLE_VAULT_OWNER` | `VAULT_OWNER` |
+| `ROLE_STAFF_EXECUTOR` | `STAFF_EXECUTOR` |
+| `ROLE_LEGAL_VERIFIER` | `LEGAL_VERIFIER` |
+| `ROLE_ADMIN` | `ADMIN` |
+| `ROLE_BENEFICIARY` | `BENEFICIARY` |
 
-Existing unprefixed FE/fixture values remain supported. Unknown roles and empty role arrays are rejected; aliases are deduplicated. Registration, login and session creation use the same normalization. Roles are not submitted by the registration form, and FE guards do not replace BE authorization. This change does not alter BE roles, JWT contents or database values.
+Áp dụng cho `RegisterResponse.roles` (`POST /auth/register`), `LoginResponse.user.roles` (`POST /auth/login`) và
+`GET /auth/me`.
 
-Source: BE AuthService and FE contracts.js on the group repository. Regression tests verify registration HTTP 201, login/session normalization and rejection of invalid authorities. Real SQL Server integration still requires running BE and checking the saved account; these response tests do not demonstrate a DB connection.
+## Hiện trạng trên develop (`65799be`) — lệch contract
+
+BE trả nguyên `role_code` có tiền tố (`["ROLE_VAULT_OWNER"]`) ở cả ba endpoint trên: `AuthService` dùng hằng
+`ROLE_VAULT_OWNER` khi đăng ký và trả thẳng `role_code` từ DB khi đăng nhập/`/auth/me`.
+
+**Việc cần làm ở BE (chủ PS-9/PS-10):** bỏ tiền tố `ROLE_` khi dựng `roles` cho response, giữ nguyên authority nội bộ,
+giá trị trong DB và claim JWT. Test response phải kiểm `roles == ["VAULT_OWNER"]`.
+
+## Biện pháp tạm thời ở FE (PS-1, PR #28)
+
+Trong lúc BE chưa sửa, `readUser` ở `frontend/src/api/contracts.js` chấp nhận **cả hai** dạng (`VAULT_OWNER` và
+`ROLE_VAULT_OWNER`) rồi chuẩn hóa về dạng không tiền tố như bảng trên. Role lạ hoặc mảng rỗng bị từ chối; giá trị trùng
+được loại bỏ. Đăng ký, đăng nhập và tạo phiên dùng cùng một cách chuẩn hóa. Form đăng ký không gửi role, và guard ở FE
+không thay thế phân quyền của BE.
+
+Đây là **lớp tương thích tạm thời**, không phải contract: FE/BE mới **không** được dựa vào việc API trả `ROLE_*`. Sau khi
+BE trả đúng contract, FE có thể bỏ nhánh chấp nhận `ROLE_*` (giữ hay bỏ do FE quyết định; giữ lại không gây sai).
+
+Kiểm chứng hiện có: test hồi quy ở FE cho đăng ký HTTP 201, chuẩn hóa role khi đăng nhập/tạo phiên và từ chối authority
+không hợp lệ. Các test này chỉ kiểm response, không chứng minh kết nối SQL Server.
