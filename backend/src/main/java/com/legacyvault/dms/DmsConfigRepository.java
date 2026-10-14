@@ -6,12 +6,19 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 public interface DmsConfigRepository extends JpaRepository<DmsConfig, Long> {
 	Optional<DmsConfig> findByOwnerUserId(Long ownerUserId);
+
+	/** Holds the row lock until the Owner operation and its audit commit together. */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select d from DmsConfig d where d.ownerUserId = :ownerUserId")
+	Optional<DmsConfig> findByOwnerUserIdForUpdate(@Param("ownerUserId") Long ownerUserId);
 
 	@Query("select d.id from DmsConfig d where d.status = 'MONITORING' and d.nextCheckAt <= :now order by d.nextCheckAt")
 	List<Long> findExpiredIds(@Param("now") LocalDateTime now, Pageable pageable);

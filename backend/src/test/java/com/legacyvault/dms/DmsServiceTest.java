@@ -45,7 +45,7 @@ class DmsServiceTest {
 	void configuresMonitoringAndRecordsAuditWhenBeneficiaryExists() {
 		Fixture fixture = new Fixture();
 		when(fixture.beneficiaries.countByVault_VaultId(15L)).thenReturn(1L);
-		when(fixture.configs.findByOwnerUserId(5L)).thenReturn(Optional.empty());
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.empty());
 		when(fixture.configs.saveAndFlush(any(DmsConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		DmsDtos.Response response = fixture.service.configure(new DmsDtos.ConfigureRequest(30));
@@ -63,7 +63,7 @@ class DmsServiceTest {
 		Fixture fixture = new Fixture();
 		DmsConfig triggered = mock(DmsConfig.class);
 		when(triggered.getStatus()).thenReturn("TRIGGERED");
-		when(fixture.configs.findByOwnerUserId(5L)).thenReturn(Optional.of(triggered));
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(triggered));
 
 		BusinessException error = assertThrows(BusinessException.class, () -> fixture.service.checkIn());
 

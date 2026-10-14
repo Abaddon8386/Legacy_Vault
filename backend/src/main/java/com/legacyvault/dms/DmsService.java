@@ -55,7 +55,7 @@ public class DmsService {
 			throw new BusinessException(ErrorCode.VALIDATION_FAILED);
 		}
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-		DmsConfig config = configs.findByOwnerUserId(owner.getUserId()).orElse(null);
+		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId()).orElse(null);
 		String stateBefore = config == null ? null : config.getStatus();
 		if (config == null) {
 			config = new DmsConfig(owner.getUserId(), interval, policy.gracePeriodDays(), now.plusDays(interval));
@@ -88,7 +88,7 @@ public class DmsService {
 	@Transactional
 	public DmsDtos.Response checkIn() {
 		User owner = owners.requireOwner();
-		DmsConfig config = configs.findByOwnerUserId(owner.getUserId())
+		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		if (!"MONITORING".equals(config.getStatus())) {
 			throw new BusinessException(ErrorCode.DMS_NOT_MONITORING);
