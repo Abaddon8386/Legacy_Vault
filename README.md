@@ -7,14 +7,30 @@ Repo nhóm: https://github.com/Abaddon8386/Legacy_Vault. Nhánh tích hợp: `de
 React/Vite, Java 25, Spring Boot 4.1.1, Spring Data JPA, Spring Security và Microsoft SQL Server (JDBC 13.6.0.jre11). Phiên bản được giữ theo bản nền repo cũ; không nâng dependency trong lần khởi tạo này.
 
 ```text
-frontend/   React/Vite starter, lockfile, ESLint
-backend/    Spring Boot starter, Maven Wrapper, context test
-database/   Chỗ dành cho schema/migration/seed khi đưa lại ticket DB
+frontend/   React/Vite, màn hình FE PS-1–8, API client, kiểm thử
+backend/    Spring Boot, nền bảo mật và controller xác thực
+database/   Migration và seed SQL Server PS-73
 docs/       Đối chiếu bản nền và bằng chứng kiểm tra
-scripts/    Chỗ dành cho script hỗ trợ
+scripts/    Script hỗ trợ và API fixture kiểm thử FE
 ```
 
-Chưa có màn hình hay API nghiệp vụ, migration hoặc seed. Frontend hiện là trang starter React/Vite. Không dùng bản develop cuối repo cũ làm bộ khung. Xem [đối chiếu bản nền](docs/BASELINE.md).
+FE PS-1–8 đã tích hợp vào develop. Ngày 14/10/2026, develop tiếp tục nhận PR #21 (PS-9), gồm nền DB PS-73 và code xác thực. Ảnh bên dưới giữ mốc FE `ad9eea5`; việc có code BE/DB chưa chứng minh kết nối thực tế đã chạy. Lịch sử khởi tạo được ghi tại [đối chiếu bản nền](docs/BASELINE.md).
+
+## Ảnh giao diện FE PS-1–8
+
+[Xem thư viện ảnh và đối chiếu ticket → PR](docs/screenshots/README.md).
+
+Ảnh chụp ngày **14/10/2026**, từ develop tại `ad9eea5`, dùng **API mô phỏng và dữ liệu tổng hợp**. Đây là ảnh giao diện, chưa chứng minh tích hợp BE/SQL Server thật.
+
+| PS-1 — Đăng ký | PS-2 — Đăng nhập |
+| --- | --- |
+| [![PS-1](docs/screenshots/ps-1-register.jpg)](docs/screenshots/ps-1-register.jpg) | [![PS-2](docs/screenshots/ps-2-login.jpg)](docs/screenshots/ps-2-login.jpg) |
+| PS-3 — Kho di sản | PS-4 — Giám sát hoạt động |
+| [![PS-3](docs/screenshots/ps-3-vault.jpg)](docs/screenshots/ps-3-vault.jpg) | [![PS-4](docs/screenshots/ps-4-dms.jpg)](docs/screenshots/ps-4-dms.jpg) |
+| PS-5 — Danh mục tài sản | PS-6 — Xem tài sản |
+| [![PS-5](docs/screenshots/ps-5-assets.jpg)](docs/screenshots/ps-5-assets.jpg) | [![PS-6](docs/screenshots/ps-6-detail.jpg)](docs/screenshots/ps-6-detail.jpg) |
+| PS-7 — Tải bản di chúc | PS-8 — Người giám hộ và thụ hưởng |
+| [![PS-7](docs/screenshots/ps-7-will-upload.jpg)](docs/screenshots/ps-7-will-upload.jpg) | [![PS-8](docs/screenshots/ps-8-beneficiaries.jpg)](docs/screenshots/ps-8-beneficiaries.jpg) |
 
 ## Chuẩn bị
 
@@ -26,7 +42,7 @@ Chưa có màn hình hay API nghiệp vụ, migration hoặc seed. Frontend hi�
 ```powershell
 git clone --branch develop https://github.com/Abaddon8386/Legacy_Vault.git
 cd Legacy_Vault
-git switch -c codex/PS-<so>-<mo-ta>
+git switch -c feature/PS-<so>-<mo-ta>
 java -version
 node --version
 npm.cmd --version
@@ -46,36 +62,34 @@ npm.cmd run dev
 
 Mở URL do Vite in ra (thường http://localhost:5173). Kiểm tra bằng `npm.cmd run lint` và `npm.cmd run build`. Dừng bằng Ctrl+C.
 
-## Chuẩn bị database
+## Database và backend
 
-`database/` chưa có schema nghiệp vụ. Nếu cần chạy context trên DB thử nghiệm riêng, tạo DB trống bằng SSMS sau khi xác minh đúng instance:
+Đọc [hướng dẫn thiết lập PS-73](docs/database/PS73_Database_Setup_Guide_v5.md) và [hướng dẫn xác minh/seed](docs/database/Database_Verification_and_Seed_Guide.md) trước khi chạy backend. Chọn đúng SQL Server/database của môi trường nhóm; không lấy cấu hình máy cá nhân làm mặc định chung.
 
-```sql
-IF DB_ID(N'LegacyVault') IS NULL
-    EXEC(N'CREATE DATABASE [LegacyVault]');
-GO
-```
+Cấu hình BE tại develop `af55c46` yêu cầu `DB_URL` và `JWT_SECRET_BASE64` ngoài Git; Flyway đã bật, Hibernate dùng `ddl-auto: none`. Xác minh cấu hình thực tế và bí mật được cung cấp trước khi chạy. Không commit mật khẩu, token hoặc file `.env` thật. Backend có Maven Wrapper; chạy và kiểm thử theo tài liệu PS-73 trên DB thử nghiệm phù hợp.
 
-Không chạy trên DB production. `ddl-auto: none` nên backend không tự tạo hoặc sửa bảng. Schema, migration, seed và lựa chọn môi trường DB được đưa lại theo ticket riêng.
+FE dùng API client và Vite proxy `/api` tới `http://localhost:8080`, đổi đích bằng `API_PROXY_TARGET`. Code xác thực đã xuất hiện trong PR #21; cần kiểm thử API thực tế và luồng FE → BE → SQL Server để xác nhận tích hợp. Bộ ảnh dưới đây chỉ sử dụng API mô phỏng.
 
-## Chạy backend
+## Xem FE với API mô phỏng
 
-Trong terminal khác tại repo, đặt URL phù hợp với SQL Server của mình. Ví dụ Windows Authentication cho môi trường local đã cấu hình TCP 1433:
+Dùng khi API thật chưa sẵn sàng. Tại thư mục gốc repo, chạy terminal thứ nhất:
 
 ```powershell
-cd backend
-$env:SPRING_DATASOURCE_URL = 'jdbc:sqlserver://localhost:1433;databaseName=LegacyVault;encrypt=true;trustServerCertificate=true;integratedSecurity=true'
-.\mvnw.cmd -version
-.\mvnw.cmd spring-boot:run
+node scripts/testing/api-contract-fixture.mjs
 ```
 
-Ví dụ localhost/1433 không xác nhận instance trên máy đã chạy. Windows Authentication cần DLL JDBC đúng phiên bản/kiến trúc trong PATH của terminal Java. Không đưa DLL hay thông tin đăng nhập vào Git. Nếu môi trường dùng SQL Authentication, đặt thêm `SPRING_DATASOURCE_USERNAME` và `SPRING_DATASOURCE_PASSWORD` ngoài repo theo cấu hình đã được nhóm duyệt.
+Trong terminal thứ hai:
 
-Backend bắt buộc nhận `SPRING_DATASOURCE_URL`, không có địa chỉ máy cá nhân mặc định. Spring Boot không tự đọc `.env`. `trustServerCertificate=true` trong ví dụ chỉ dành cho local; môi trường triển khai cần chứng chỉ TLS phù hợp.
+```powershell
+cd frontend
+npm.cmd ci
+$env:API_PROXY_TARGET = 'http://127.0.0.1:18178'
+npm.cmd run dev
+```
 
-Khi DB đã truy cập được, chạy `.\mvnw.cmd verify`. Context test có sẵn cần cấu hình và kết nối SQL Server thật. Lệnh `mvn.cmd -DskipTests package` chỉ kiểm tra đóng gói, không chứng minh context hay DB hoạt động.
+Mở URL Vite, đăng nhập bằng tài khoản **chỉ dành cho fixture**: `demo@example.test` / `SyntheticPass123`. Khởi tạo kho, rồi thêm dữ liệu minh họa qua các màn hình. Fixture lưu trong bộ nhớ; khởi động lại sẽ mất dữ liệu. Tải lại trang cần đăng nhập lại vì phiên FE giữ trong bộ nhớ. Bộ dữ liệu ảnh được chuẩn bị riêng nên fixture mới khởi động chưa có sẵn các bản ghi trong ảnh. Dừng cả hai terminal bằng Ctrl+C.
 
-Backend mặc định cổng 8080, có Spring Security mặc định và chưa có API nghiệp vụ. HTTP 401 hoặc trang đăng nhập không chứng minh tích hợp hoàn chỉnh. FE chưa có proxy/CORS/API contract; chạy hai server không đồng nghĩa FE → BE → SQL Server đã hoạt động.
+Fixture chỉ phục vụ kiểm thử FE, không phải backend nghiệp vụ và không kết nối SQL Server.
 
 ## Bằng chứng
 

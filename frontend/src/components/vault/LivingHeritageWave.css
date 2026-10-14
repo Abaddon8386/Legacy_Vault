@@ -1,0 +1,259 @@
+/* LivingHeritageWave Stylesheet — Henedo Living Interface Artwork */
+
+.lv-living-wave-container {
+  --repel-gold-x: 0px;
+  --repel-gold-y: 0px;
+  --repel-mid-x: 0px;
+  --repel-mid-y: 0px;
+  --repel-deep-x: 0px;
+  --repel-deep-y: 0px;
+  --repel-light-x: 0px;
+  --repel-light-y: 0px;
+
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  position: relative;
+  border-radius: var(--lv-radius-xl, 16px);
+  overflow: hidden;
+  background: linear-gradient(155deg, #09231b 0%, #10382d 50%, #0c2b22 100%);
+  border: 1px solid rgba(197, 160, 89, 0.28);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35),
+              0 6px 20px rgba(12, 43, 34, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+/* Outer subtle border highlight */
+.lv-living-wave-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.45) 0%, rgba(22, 70, 57, 0.2) 60%, rgba(197, 160, 89, 0.35) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Ambient Pulse Aura in the center — Background depth */
+.lv-wave-ambient-glow {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(197, 160, 89, 0.16) 0%, rgba(29, 114, 79, 0.10) 50%, transparent 70%);
+  filter: blur(28px);
+  pointer-events: none;
+  animation: lv-ambient-breathe 7s ease-in-out infinite alternate;
+}
+
+/* SVG Canvas holding the wave paths */
+.lv-living-wave-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   PHYSICAL SPRING REPULSION ENVELOPES (Dynamic 60fps RAF displacement)
+   ========================================================================== */
+.lv-wave-repel-deep {
+  transform: translate3d(var(--repel-deep-x, 0px), var(--repel-deep-y, 0px), 0);
+  will-change: transform;
+}
+
+.lv-wave-repel-mid {
+  transform: translate3d(var(--repel-mid-x, 0px), var(--repel-mid-y, 0px), 0);
+  will-change: transform;
+}
+
+.lv-wave-repel-gold {
+  transform: translate3d(var(--repel-gold-x, 0px), var(--repel-gold-y, 0px), 0);
+  will-change: transform;
+}
+
+.lv-wave-repel-light {
+  transform: translate3d(var(--repel-light-x, 0px), var(--repel-light-y, 0px), 0);
+  will-change: transform;
+}
+
+/* ==========================================================================
+   INNER WAVE PATHS (Autonomous Continuous Organic Flow)
+   ========================================================================== */
+/* Wave Path Layer 1 — Deep Bedrock Jade (Trượt chậm chu kỳ 11 giây) */
+.lv-wave-path-deep {
+  animation: lv-wave-drift-deep 11s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Wave Path Layer 2 — Vibrant Malachite Flow (Trượt ngang chiều ngược chu kỳ 8 giây) */
+.lv-wave-path-mid {
+  animation: lv-wave-drift-mid 8s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Wave Path Layer 3 — Sand Gold Filament Wave (Uốn lượn bồng bềnh chu kỳ 6.5 giây) */
+.lv-wave-path-gold {
+  animation: lv-wave-drift-gold 6.5s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Wave Path Layer 4 — Ethereal Pale Seafoam Ribbon (Lụa ngọc trôi lượn chu kỳ 9.5 giây) */
+.lv-wave-path-light {
+  animation: lv-wave-drift-light 9.5s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Central Emblem Sanctuary Mark */
+.lv-wave-emblem-wrap {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  background: rgba(8, 38, 29, 0.65);
+  border: 1px solid rgba(197, 160, 89, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.lv-wave-emblem-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--lv-accent-gold, #c5a059);
+}
+
+.lv-wave-emblem-text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lv-accent-gold-light, #d8c292);
+}
+
+/* ==========================================================================
+   ANIMATIONS & KEYFRAMES (6–11 seconds Smooth Loops)
+   ========================================================================== */
+
+/* Lớp 1: Sóng sâu trượt ngang -24px đến +24px và trôi nhẹ trục Y */
+@keyframes lv-wave-drift-deep {
+  0% {
+    transform: translate3d(-24px, 4px, 0) scale(1.02);
+  }
+  50% {
+    transform: translate3d(0px, -6px, 0) scale(1.0);
+  }
+  100% {
+    transform: translate3d(24px, 6px, 0) scale(1.02);
+  }
+}
+
+/* Lớp 2: Sóng ngọc lục bảo trượt ngang ngược hướng +28px đến -28px */
+@keyframes lv-wave-drift-mid {
+  0% {
+    transform: translate3d(28px, -5px, 0) scale(1.03);
+  }
+  50% {
+    transform: translate3d(-10px, 6px, 0) scale(1.0);
+  }
+  100% {
+    transform: translate3d(-28px, -4px, 0) scale(1.03);
+  }
+}
+
+/* Lớp 3: Sợi sóng vàng Sand Gold uốn lượn có biên độ rõ rệt */
+@keyframes lv-wave-drift-gold {
+  0% {
+    transform: translate3d(-32px, 8px, 0) scale(1.01);
+  }
+  50% {
+    transform: translate3d(14px, -8px, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(32px, 6px, 0) scale(1.01);
+  }
+}
+
+/* Lớp 4: Lụa ngọc trôi lượn chéo góc */
+@keyframes lv-wave-drift-light {
+  0% {
+    transform: translate3d(20px, -7px, 0) scale(1.0);
+  }
+  50% {
+    transform: translate3d(-18px, 5px, 0) scale(1.03);
+  }
+  100% {
+    transform: translate3d(-24px, -6px, 0) scale(1.0);
+  }
+}
+
+/* Vùng ánh sáng trung tâm thở nhẹ */
+@keyframes lv-ambient-breathe {
+  0% {
+    transform: scale(0.9) translate3d(-10px, -10px, 0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.25) translate3d(15px, 10px, 0);
+    opacity: 0.95;
+  }
+}
+
+/* Chấm living pulse */
+@keyframes lv-gold-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(197, 160, 89, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(197, 160, 89, 0.95);
+    transform: scale(1.18);
+  }
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .lv-wave-path-deep,
+  .lv-wave-path-mid,
+  .lv-wave-path-gold,
+  .lv-wave-path-light,
+  .lv-wave-ambient-glow,
+  .lv-wave-living-dot {
+    animation: none !important;
+  }
+
+  .lv-wave-repel-deep,
+  .lv-wave-repel-mid,
+  .lv-wave-repel-gold,
+  .lv-wave-repel-light {
+    transform: none !important;
+  }
+}
+
+/* Touch device override — Disable cursor repulsion */
+@media (hover: none) {
+  .lv-wave-repel-deep,
+  .lv-wave-repel-mid,
+  .lv-wave-repel-gold,
+  .lv-wave-repel-light {
+    transform: none !important;
+  }
+}
