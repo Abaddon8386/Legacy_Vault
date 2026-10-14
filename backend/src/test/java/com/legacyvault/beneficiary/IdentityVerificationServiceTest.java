@@ -18,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.legacyvault.common.audit.AuditService;
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
@@ -56,7 +57,7 @@ class IdentityVerificationServiceTest {
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		AuditService audit = mock(AuditService.class);
 		IdentityVerificationService service = new IdentityVerificationService(beneficiaries, records,
-				new StaffContextService(users), users, audit);
+				new StaffContextService(new OwnerContextService(users)), users, audit);
 
 		var response = service.verify(beneficiaryId, new IdentityVerificationDtos.Request(IdentityVerificationDtos.DocumentType.CCCD,
 				"Cong an", "1234", IdentityVerificationDtos.Result.NOT_MATCH));
