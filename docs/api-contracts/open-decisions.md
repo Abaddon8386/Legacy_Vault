@@ -45,6 +45,7 @@
 | D-API-28 | PS-23 | Nhiều instance cùng quét | Cập nhật có điều kiện `WHERE status = 'MONITORING'` để idempotent; chưa thêm thư viện lock |
 | D-API-29 | PS-15 | Giới hạn `payload` Asset | Mặc định 64 KB, cấu hình qua property; vượt → `400 VALIDATION_FAILED` |
 | D-API-30 | PS-22 / PS-23 | Phạm vi và đường dẫn DMS | DMS thuộc **tài khoản Owner** (mỗi Owner một DMS, `dms_configs.owner_user_id UNIQUE`), đường dẫn `/api/v1/dms`, `/api/v1/dms/check-in`; không có tham số `vaultId`/`ownerId`, Owner lấy từ người đăng nhập. Chốt 2026-10-14 (Dương) |
+| D-API-31 | PS-20 | `BeneficiaryResponse.updatedAt` | **Giữ** `updatedAt` (Beneficiary sửa được qua `PUT`). Điều kiện: migration `V4__beneficiary_updated_at.sql` (thêm `beneficiaries.updated_at NOT NULL DEFAULT SYSUTCDATETIME()`) merge **cùng PR** với code PS-20; thứ tự Flyway V3 (Trustee) trước V4 phải được giữ. Thay mục "BeneficiaryResponse bỏ `updatedAt`" ngày 2026-10-12 (khi đó DB chưa có cột). Chốt 2026-10-14 (Dương) |
 
 ## C. Câu hỏi mở kế thừa từ tài liệu nghiệp vụ — **TẠM HOÃN** (2026-10-12)
 
@@ -68,6 +69,7 @@ Sprint 1. Khi code chạm tới, dùng tham số cấu hình và `TODO(open-ques
 | 2026-10-12 | Dương | Contract khớp DB: `TrusteeResponse` bỏ `note`, `createdAt`, `updatedAt` (thêm `appointedAt`, `revokedAt`); `DmsResponse` thuộc tính đầu là `ownerId` (thêm `gracePeriodDays`, `updatedAt`); `BeneficiaryResponse` bỏ `updatedAt`; DMS đổi đường dẫn từ `/vaults/{vaultId}/dms` sang `/api/v1/dms` (DMS thuộc Owner) |
 | 2026-10-14 | Dương (điều phối PS-74) | **Chốt lại D-API-30:** DMS thuộc tài khoản Owner, đường dẫn `/api/v1/dms`. Hủy thay đổi sang `/api/v1/vaults/{vaultId}/dms` có trong nhánh foundation/PS-22/PS-23 (thay đổi đó không được ghi vào nhật ký này). Khôi phục `dms.md`, `DmsResponse` (`ownerId`, `gracePeriodDays`, `updatedAt`), dòng `/dms/**` trong auth.md. Code PS-22/PS-23 cần sửa theo contract này |
 | 2026-10-14 | Dương (điều phối PS-74) | Giữ quy ước `roles` trong response **không** tiền tố `ROLE_` (conventions.md §6). `auth-role-compatibility.md` đổi thành ghi chú độ lệch: BE trên develop đang trả `ROLE_*` ở register/login/me và phải sửa (chủ PS-9/PS-10); FE chấp nhận cả hai dạng chỉ là lớp tương thích tạm thời |
+| 2026-10-14 | Dương (điều phối PS-74) | D-API-31: giữ `updatedAt` trong `BeneficiaryResponse` (đã có trong beneficiaries.md và openapi.yaml); thay cho việc bỏ trường này ngày 2026-10-12, vì PS-20 đã có migration V4 thêm cột `updated_at` |
 | _điền sau_ | Dương, Long, Ân, Thái, Huy | Biên bản buổi review contract FE/BE |
 
 ## E. Đã thống nhất với PS-73 (database) — 2026-10-11

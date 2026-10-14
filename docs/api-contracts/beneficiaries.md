@@ -36,7 +36,7 @@ xác minh mới nhất trước. Cả hai endpoint chỉ dành cho `ROLE_STAFF_E
 | `hasIdentityNumber` | boolean | cho biết đã có số định danh; số gốc là **write-only** (`identityNumber`) và **không bao giờ** trả ra (D-API-26) |
 | `hasAccount` | boolean | chỉ đọc; luôn `false` ở Sprint 1 |
 | `status` | enum `DESIGNATED` | |
-| `createdAt`, `updatedAt` | datetime | |
+| `createdAt`, `updatedAt` | datetime | cột `created_at`, `updated_at` (`updated_at` thêm bởi migration V4 — D-API-31) |
 
 ## Endpoint — PS-20
 
