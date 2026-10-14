@@ -571,6 +571,21 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [Beneficiaries]
+      summary: Liệt kê Beneficiary của Vault
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/VaultId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
@@ -613,21 +628,6 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
-    get:
-      tags: [Beneficiaries]
-      summary: Liệt kê Beneficiary của Vault
-      x-status: implemented
-      parameters:
-        - $ref: '#/components/parameters/VaultId'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BeneficiaryPage' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
