@@ -11,4 +11,6 @@ public interface BeneficiaryRepository extends JpaRepository<Beneficiary, Long> 
 	Page<Beneficiary> findAllByVault_Id(Long vaultId, Pageable pageable);
 	long countByVault_Id(Long vaultId);
 	Optional<Beneficiary> findByPublicIdAndVault_Id(UUID publicId, Long vaultId);
+	Optional<Beneficiary> findByPublicId(UUID publicId);
+	boolean existsByPublicId(UUID publicId);
 }
