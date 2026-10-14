@@ -7,6 +7,11 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở hữu Vau
 Luồng Staff nhận `beneficiaryId` từ danh sách trong Vault đang mở vẫn chờ xác định API nguồn cho
 `vaultId` và danh sách Beneficiary. FE không dùng ô nhập UUID thủ công làm luồng chính.
 
+Điều kiện nghiệp vụ đã xác nhận: Staff chỉ xác minh sau khi **vụ việc của Vault đã kích hoạt**.
+Schema và luồng kích hoạt vụ việc thuộc PS-41/42 chưa có trong stack này, nên API PS-45 hiện **chưa
+chặn được** yêu cầu theo điều kiện đó. Giữ PR ở trạng thái draft và không tích hợp luồng xác minh
+cho đến khi có nguồn trạng thái vụ việc; không suy diễn từ `vaults.status` hay DMS `TRIGGERED`.
+
 Staff Executor đối chiếu bản cứng CCCD/passport với khuôn mặt trực tiếp qua
 `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`. Kết quả `MATCH` hoặc `NOT_MATCH`,
 loại giấy tờ, cơ quan cấp (nếu có), tối đa bốn ký tự cuối và thời điểm UTC được lưu trong lịch sử append-only;
