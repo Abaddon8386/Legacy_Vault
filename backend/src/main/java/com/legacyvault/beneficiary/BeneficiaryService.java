@@ -17,20 +17,20 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.i18n.MessageService;
 import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.user.entity.User;
-import com.legacyvault.vault.OwnerVaultService;
 import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.vault.service.VaultService;
 
 @Service
 public class BeneficiaryService {
 
 	private final BeneficiaryRepository beneficiaries;
-	private final OwnerVaultService ownerVaults;
+	private final VaultService ownerVaults;
 	private final OwnerContextService owners;
 	private final IdentityNumberCipher identityCipher;
 	private final AuditService audit;
 	private final MessageService messages;
 
-	public BeneficiaryService(BeneficiaryRepository beneficiaries, OwnerVaultService ownerVaults,
+	public BeneficiaryService(BeneficiaryRepository beneficiaries, VaultService ownerVaults,
 			OwnerContextService owners, IdentityNumberCipher identityCipher, AuditService audit,
 			MessageService messages) {
 		this.beneficiaries = beneficiaries;
@@ -44,8 +44,7 @@ public class BeneficiaryService {
 	@Transactional
 	public BeneficiaryDtos.Response create(UUID vaultId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner);
-		ownerVaults.requireEditable(vault);
+		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
 		byte[] encryptedId = encryptIfPresent(request.identityNumber());
 		Beneficiary beneficiary = new Beneficiary(vault, clean(request.fullName()), clean(request.relationship()),
 				request.dateOfBirth(), clean(request.phone()), cleanEmail(request.email()), encryptedId);
@@ -58,7 +57,7 @@ public class BeneficiaryService {
 	@Transactional(readOnly = true)
 	public PageEnvelope<BeneficiaryDtos.Response> list(UUID vaultId, int page, int size) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner);
+		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner.getUserId());
 		Page<Beneficiary> result = beneficiaries.findAllByVault_VaultId(vault.getVaultId(),
 				PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 		return new PageEnvelope<>(result.map(BeneficiaryDtos.Response::from).getContent(), result.getNumber(),
@@ -68,8 +67,7 @@ public class BeneficiaryService {
 	@Transactional
 	public BeneficiaryDtos.Response update(UUID vaultId, UUID beneficiaryId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner);
-		ownerVaults.requireEditable(vault);
+		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
 		Beneficiary beneficiary = beneficiaries.findByPublicIdAndVault_VaultId(beneficiaryId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		byte[] encryptedId = encryptIfPresent(request.identityNumber());
@@ -84,7 +82,7 @@ public class BeneficiaryService {
 	@Transactional(readOnly = true)
 	public BeneficiaryDtos.ConfigurationCheck configurationCheck(UUID vaultId) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner);
+		Vault vault = ownerVaults.requireOwnedVault(vaultId, owner.getUserId());
 		long count = beneficiaries.countByVault_VaultId(vault.getVaultId());
 		List<BeneficiaryDtos.ConfigurationIssue> issues = count == 0
 				? List.of(new BeneficiaryDtos.ConfigurationIssue("BENEFICIARY_REQUIRED", "config.beneficiaryRequired",
