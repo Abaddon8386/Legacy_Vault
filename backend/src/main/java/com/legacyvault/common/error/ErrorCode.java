@@ -13,6 +13,7 @@ public enum ErrorCode {
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),
 	INVALID_CREDENTIALS(401, "error.auth.invalidCredentials"),
 	ACCESS_DENIED(403, "error.auth.accessDenied"),
+	REAUTH_FAILED(403, "error.auth.reauthFailed"),
 	RESOURCE_NOT_FOUND(404, "error.resource.notFound"),
 	METHOD_NOT_ALLOWED(405, "error.request.methodNotAllowed"),
 	EMAIL_ALREADY_EXISTS(409, "error.auth.emailExists"),
@@ -20,6 +21,7 @@ public enum ErrorCode {
 	VAULT_NOT_EDITABLE(409, "error.vault.notEditable"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),
+	TOO_MANY_ATTEMPTS(429, "error.auth.tooManyAttempts"),
 	INTERNAL_ERROR(500, "error.internal");
 
 	private final int status;

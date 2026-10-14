@@ -41,7 +41,8 @@ Mỗi endpoint ghi: **quyền** (ai gọi được) · **ownership** (dữ liệ
 - DB là SQL Server nhưng contract **không phụ thuộc** chi tiết SQL (tên bảng/cột, kiểu dữ liệu riêng của DB).
 - Không có endpoint cho chức năng đã bãi bỏ: Guest Portal (`/api/v1/guest/*`), Claim Link, OTP email, eKYC online,
   `SCOPE_RETRIEVAL` (xem `.claude/rules/obsolete-scope.md`).
-- Sprint 1 **không** có API mở khóa/giải mã/bàn giao: DMS hết hạn **không** đồng nghĩa tử vong (LV-DEATH-001).
+- Sprint 1 **không** có API mở khóa/bàn giao, và không có giải mã cho ai khác ngoài **chính Owner** xem lại dữ liệu của mình
+  sau khi nhập lại mật khẩu khi kho còn `ACTIVE` (D-API-32/33). DMS hết hạn **không** đồng nghĩa tử vong (LV-DEATH-001).
 
 ## Quy trình thay đổi contract
 
