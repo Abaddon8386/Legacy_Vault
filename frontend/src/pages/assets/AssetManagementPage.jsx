@@ -399,7 +399,18 @@ export function AssetManagementPage({
       </Modal>
 
       {selection?.loading && <Modal isOpen onClose={closeSelection} title={t.assets.loadingText} closeLabel={t.assets.closeBtn}><p role="status">{t.assets.loadingText}</p></Modal>}
-      {selection?.asset && selection.mode === 'detail' && <AssetDetailModal isOpen asset={selection.asset} t={t} lang={lang} onClose={closeSelection} />}
+      {selection?.asset && selection.mode === 'detail' && (
+        <AssetDetailModal
+          isOpen
+          asset={selection.asset}
+          t={t}
+          lang={lang}
+          onClose={closeSelection}
+          vaultId={vaultId}
+          accessToken={accessToken}
+          onNavigateToLogin={onNavigateToLogin}
+        />
+      )}
       {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
       {/* Add Asset Modal */}
       {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
