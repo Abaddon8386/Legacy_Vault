@@ -95,6 +95,24 @@ public class DmsConfig {
 		this.updatedAt = now;
 	}
 
+	public static final String STATUS_MONITORING = "MONITORING";
+	public static final String STATUS_TRIGGERED = "TRIGGERED";
+	public static final String STATUS_GRACE_PERIOD_EXCEEDED = "GRACE_PERIOD_EXCEEDED";
+
+	public boolean isGracePeriodExpired(LocalDateTime now) {
+		return STATUS_TRIGGERED.equals(status)
+				&& graceDeadline != null
+				&& !graceDeadline.isAfter(now);
+	}
+
+	public void markGracePeriodExceeded(LocalDateTime now) {
+		if (!isGracePeriodExpired(now)) {
+			throw new IllegalStateException("Grace Period has not expired");
+		}
+
+		this.status = STATUS_GRACE_PERIOD_EXCEEDED;
+		this.updatedAt = now;
+	}
 
 	public Long getId() { return id; }
 	public Long getOwnerUserId() { return ownerUserId; }

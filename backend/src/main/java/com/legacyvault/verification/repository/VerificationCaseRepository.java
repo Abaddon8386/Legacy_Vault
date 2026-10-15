@@ -18,4 +18,6 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
         order by c.openedAt desc
         """)
     List<VerificationCase> findByVaultIdForUpdate(@Param("vaultId") Long vaultId);
+
+    boolean existsByVaultIdAndStatus(Long vaultId, String status);
 }
