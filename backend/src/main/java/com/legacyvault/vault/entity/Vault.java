@@ -95,4 +95,11 @@ public class Vault {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public void restoreActive() {
+        this.status = "ACTIVE";
+        this.updatedAt = java.time.Instant.now();
+    }
+
+
 }

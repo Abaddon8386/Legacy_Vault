@@ -6,6 +6,7 @@ public enum AuditAction {
     AUTH_LOGIN_FAILED,
 
     VAULT_CREATED,
+    VAULT_ALERT_CANCELLED,
 
     ASSET_CREATED,
     ASSET_UPDATED,
@@ -27,4 +28,5 @@ public enum AuditAction {
     DMS_CONFIGURED,
     DMS_CHECKED_IN,
     DMS_TRIGGERED
+
 }
