@@ -70,8 +70,8 @@ export function AssetDetailModal({
   const handleRevealSubmit = async (e) => {
     e?.preventDefault()
     if (pendingRef.current || isRevealing) return
-    const trimmed = password.trim()
-    if (!trimmed) {
+    const submittedPassword = password
+    if (!submittedPassword) {
       setRevealErrorKey('passwordRequired')
       return
     }
@@ -83,7 +83,7 @@ export function AssetDetailModal({
     const requestContext = { assetId: asset?.id, vaultId, accessToken }
 
     try {
-      const res = await assetService.revealAsset(vaultId, asset.id, trimmed, {
+      const res = await assetService.revealAsset(vaultId, asset.id, submittedPassword, {
         lang,
         accessToken,
         signal: controller.signal,
@@ -341,7 +341,7 @@ export function AssetDetailModal({
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={isRevealing || !password.trim()}
+                    disabled={isRevealing || !password}
                     style={{ padding: '9px 16px', fontSize: '13px' }}
                   >
                     {isRevealing ? t.assets.detailModal.revealingBtn : t.assets.detailModal.confirmBtn}

@@ -168,6 +168,8 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
   const [wills, setWills] = useState([]);
   const [selectedWillId, setSelectedWillId] = useState(null);
   const [versions, setVersions] = useState([]);
+  const [versionsError, setVersionsError] = useState(null);
+  const [versionsReload, setVersionsReload] = useState(0);
   const [isLoadingWills, setIsLoadingWills] = useState(true);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [listError, setListError] = useState(null);
@@ -179,14 +181,15 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
 
   // Fetch Wills List
   const loadWills = useCallback(async () => {
+    setVersions([]);
+    setVersionsError(null);
+    setVersionsReload(value => value + 1);
     setIsLoadingWills(true);
     setListError(null);
     try {
       const data = await willService.getWills(vaultId, { lang: language, accessToken });
       setWills(data.content || []);
-      if (data.content?.length > 0 && !selectedWillId) {
-        setSelectedWillId(data.content[0].id);
-      }
+      setSelectedWillId(current => data.content?.some(will => will.id === current) ? current : (data.content?.[0]?.id ?? null));
     } catch (err) {
       if (err.status === 401) {
         onUnauthorized?.();
@@ -196,7 +199,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
     } finally {
       setIsLoadingWills(false);
     }
-  }, [vaultId, language, accessToken, onUnauthorized, selectedWillId]);
+  }, [vaultId, language, accessToken, onUnauthorized]);
 
   useEffect(() => {
     let active = true;
@@ -211,35 +214,33 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
     };
   }, [loadWills, onRefreshTrigger]);
 
-  // Fetch Versions when selectedWillId changes
+  // Reload history after uploads, local refresh and external refresh.
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
     async function fetchVersions() {
       await Promise.resolve();
       if (!active) return;
-      if (!selectedWillId) {
-        setVersions([]);
-        return;
-      }
-      setIsLoadingVersions(true);
+      setVersions([]);
+      setVersionsError(null);
+      setIsLoadingVersions(Boolean(selectedWillId));
+      if (!selectedWillId) return;
       try {
         const data = await willService.listWillVersions(vaultId, selectedWillId, {
-          lang: language,
-          accessToken,
+          lang: language, accessToken, signal: controller.signal,
         });
         if (active) setVersions(data || []);
       } catch (err) {
-        if (!active) return;
-        if (err.status === 401) onUnauthorized?.();
+        if (!active || controller.signal.aborted) return;
+        if (err.status === 401) { onUnauthorized?.(); return; }
+        setVersionsError(err.code || 'BACKEND_NOT_READY');
       } finally {
         if (active) setIsLoadingVersions(false);
       }
     }
     fetchVersions();
-    return () => {
-      active = false;
-    };
-  }, [vaultId, selectedWillId, language, accessToken, onUnauthorized]);
+    return () => { active = false; controller.abort(); };
+  }, [vaultId, selectedWillId, language, accessToken, onUnauthorized, versionsReload, onRefreshTrigger]);
 
   const selectedWill = wills.find((w) => w.id === selectedWillId);
 
@@ -341,7 +342,12 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                 {t.versionsHistoryTitle}
               </h3>
               {isLoadingVersions ? (
-                <p style={{ fontSize: '13px', color: '#68736b' }}>Đang tải lịch sử phiên bản…</p>
+                <p role="status" style={{ fontSize: '13px', color: '#68736b' }}>{language === 'en' ? 'Loading version history…' : 'Đang tải lịch sử phiên bản…'}</p>
+              ) : versionsError ? (
+                <div role="alert">
+                  <p className="hn-will-error">{t.errors[versionsError] || t.errors.BACKEND_NOT_READY}</p>
+                  <Button variant="secondary" onClick={loadWills}>{t.refreshBtn}</Button>
+                </div>
               ) : (
                 <div className="hn-will-table-wrap">
                   <table className="hn-will-table" aria-label={t.versionsHistoryTitle}>
@@ -823,8 +829,8 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
   async function handleConfirm(e) {
     e.preventDefault();
     if (pendingRef.current || isSubmitting) return;
-    const trimmed = password.trim();
-    if (!trimmed) {
+    const submittedPassword = password;
+    if (!submittedPassword) {
       setErrorKey('VALIDATION_FAILED');
       return;
     }
@@ -837,7 +843,7 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
     const requestContext = { willId, version, vaultId, accessToken };
 
     try {
-      const result = await willService.downloadWillVersion(vaultId, willId, version, trimmed, {
+      const result = await willService.downloadWillVersion(vaultId, willId, version, submittedPassword, {
         lang,
         accessToken,
         signal: controller.signal,
@@ -968,7 +974,7 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
           )}
 
           <div className="hn-will-actions">
-            <Button variant="primary" type="submit" disabled={isSubmitting || !password.trim()}>
+            <Button variant="primary" type="submit" disabled={isSubmitting || !password}>
               {isSubmitting ? t.downloadingBtn : (isView ? t.confirmViewBtn : t.confirmDownloadBtn)}
             </Button>
             <Button variant="secondary" type="button" disabled={isSubmitting} onClick={handleClose}>
