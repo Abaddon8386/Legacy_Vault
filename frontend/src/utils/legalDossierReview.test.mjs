@@ -9,6 +9,8 @@ import {
   validateLegalDossierReviewForm,
   checkDossierReviewStatus,
   isDossierReviewStale,
+  isValidDossierVersion,
+  formatDossierVersion,
   LEGAL_DOSSIER_REVIEW_ERROR_KEYS,
   getLegalDossierReviewErrorMessage,
   formatLegalDossierReviewErrors,
@@ -319,5 +321,197 @@ describe('PS-32 Legal CSS Scoping Verification - No Leakage into Other Views', (
       0,
       `Found unscoped CSS selectors: ${JSON.stringify(unscopedSelectors, null, 2)}`
     );
+  });
+});
+
+describe('PS-32 Regression Tests - Strict Version Validation & Coercion Resistance', () => {
+  it('validates legitimate positive safe integer versions only', () => {
+    assert.equal(isValidDossierVersion(1), true);
+    assert.equal(isValidDossierVersion(2), true);
+    assert.equal(isValidDossierVersion('1'), true);
+    assert.equal(isValidDossierVersion('  10  '), true);
+
+    // Invalid numbers and coercible non-numbers
+    assert.equal(isValidDossierVersion(''), false);
+    assert.equal(isValidDossierVersion('   '), false);
+    assert.equal(isValidDossierVersion(false), false);
+    assert.equal(isValidDossierVersion(true), false);
+    assert.equal(isValidDossierVersion(Infinity), false);
+    assert.equal(isValidDossierVersion(-Infinity), false);
+    assert.equal(isValidDossierVersion(NaN), false);
+    assert.equal(isValidDossierVersion(0), false);
+    assert.equal(isValidDossierVersion(-1), false);
+    assert.equal(isValidDossierVersion(1.5), false);
+    assert.equal(isValidDossierVersion('1.5'), false);
+    assert.equal(isValidDossierVersion('0'), false);
+    assert.equal(isValidDossierVersion(null), false);
+    assert.equal(isValidDossierVersion(undefined), false);
+    assert.equal(isValidDossierVersion({}), false);
+    assert.equal(isValidDossierVersion([]), false);
+  });
+
+  it('evaluates to INDETERMINATE (never FRESH) when both sides receive identical coercible falsy/infinite values ("", " ", false, Infinity)', () => {
+    const invalidValues = ['', '   ', false, Infinity, -Infinity, NaN, 0, -1, null, undefined];
+
+    for (const badVal of invalidValues) {
+      const currentDossier = {
+        id: 'dossier-rec-1',
+        version: badVal,
+        sha256: 'f568a834b9d0b63b2a2b3780360a08e1d6d6e2468352e804f378a57467615951',
+      };
+      const lastReviewedRecord = {
+        dossierId: 'dossier-rec-1',
+        version: badVal,
+        sha256: 'f568a834b9d0b63b2a2b3780360a08e1d6d6e2468352e804f378a57467615951',
+      };
+
+      const result = checkDossierReviewStatus(currentDossier, lastReviewedRecord);
+      assert.equal(
+        result,
+        'INDETERMINATE',
+        `Expected INDETERMINATE for invalid version ${JSON.stringify(badVal)}, but got ${result}`
+      );
+      assert.notEqual(
+        result,
+        'FRESH',
+        `Coercion vulnerability: version ${JSON.stringify(badVal)} must never evaluate to FRESH`
+      );
+      assert.equal(isDossierReviewStale(currentDossier, lastReviewedRecord), false);
+    }
+  });
+
+  it('evaluates to INDETERMINATE when one side has an invalid version and the other side is valid', () => {
+    const validDossier = {
+      id: 'dossier-rec-2',
+      version: 1,
+      sha256: 'f568a834b9d0b63b2a2b3780360a08e1d6d6e2468352e804f378a57467615951',
+    };
+
+    const invalidVariants = ['', '   ', false, Infinity, NaN, 0, null, undefined, 'abc'];
+
+    for (const invalidVer of invalidVariants) {
+      // 1. Current valid, record invalid
+      const recordInvalid = {
+        dossierId: 'dossier-rec-2',
+        version: invalidVer,
+        sha256: 'f568a834b9d0b63b2a2b3780360a08e1d6d6e2468352e804f378a57467615951',
+      };
+      const result1 = checkDossierReviewStatus(validDossier, recordInvalid);
+      assert.equal(result1, 'INDETERMINATE');
+      assert.notEqual(result1, 'FRESH');
+
+      // 2. Current invalid, record valid
+      const currentInvalid = {
+        id: 'dossier-rec-2',
+        version: invalidVer,
+        sha256: 'f568a834b9d0b63b2a2b3780360a08e1d6d6e2468352e804f378a57467615951',
+      };
+      const recordValid = {
+        dossierId: 'dossier-rec-2',
+        version: 1,
+        sha256: 'f568a834b9d0b63b2a2b3780360a08e1d6d6e2468352e804f378a57467615951',
+      };
+      const result2 = checkDossierReviewStatus(currentInvalid, recordValid);
+      assert.equal(result2, 'INDETERMINATE');
+      assert.notEqual(result2, 'FRESH');
+    }
+  });
+
+  it('evaluates to FRESH when both sides have complete, valid, and strictly matching information', () => {
+    const currentDossier = {
+      id: 'dossier-rec-3',
+      version: 2,
+      sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    };
+    const lastReviewedRecord = {
+      dossierId: 'dossier-rec-3',
+      version: 2,
+      sha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    };
+
+    assert.equal(checkDossierReviewStatus(currentDossier, lastReviewedRecord), 'FRESH');
+    assert.equal(isDossierReviewStale(currentDossier, lastReviewedRecord), false);
+  });
+});
+
+describe('PS-32 Regression Tests - Review History Version Formatting & Absence of Fake v1', () => {
+  it('correctly formats valid versions as v{version}', () => {
+    assert.equal(formatDossierVersion(1, 'vi'), 'v1');
+    assert.equal(formatDossierVersion(2, 'vi'), 'v2');
+    assert.equal(formatDossierVersion('3', 'vi'), 'v3');
+    assert.equal(formatDossierVersion(1, 'en'), 'v1');
+    assert.equal(formatDossierVersion(2, 'en'), 'v2');
+    assert.equal(formatDossierVersion('10', 'en'), 'v10');
+  });
+
+  it('displays "Chưa có thông tin" (vi) or "Not available" (en) for missing/invalid versions without assuming v1', () => {
+    const invalidVersions = [
+      null,
+      undefined,
+      '',
+      '   ',
+      false,
+      true,
+      Infinity,
+      -Infinity,
+      NaN,
+      0,
+      -1,
+      'abc',
+      {},
+      [],
+    ];
+
+    for (const badVer of invalidVersions) {
+      const viDisplay = formatDossierVersion(badVer, 'vi');
+      const enDisplay = formatDossierVersion(badVer, 'en');
+
+      assert.equal(
+        viDisplay,
+        'Chưa có thông tin',
+        `Expected "Chưa có thông tin" for ${JSON.stringify(badVer)}, got "${viDisplay}"`
+      );
+      assert.equal(
+        enDisplay,
+        'Not available',
+        `Expected "Not available" for ${JSON.stringify(badVer)}, got "${enDisplay}"`
+      );
+
+      // Crucial assertion: never emit synthetic v1
+      assert.equal(
+        viDisplay.includes('v1'),
+        false,
+        `Must not synthesize "v1" for missing/invalid version: ${JSON.stringify(badVer)}`
+      );
+      assert.equal(
+        enDisplay.includes('v1'),
+        false,
+        `Must not synthesize "v1" for missing/invalid version: ${JSON.stringify(badVer)}`
+      );
+    }
+  });
+
+  it('renders history items with formatDossierVersion preserving raw item intact', () => {
+    const mockHistoryItemMissingVer = {
+      id: 'h1',
+      version: null,
+      decision: 'APPROVE',
+      createdAt: '2026-10-16 10:00:00',
+    };
+
+    const renderedVi = formatDossierVersion(mockHistoryItemMissingVer.version, 'vi');
+    assert.equal(renderedVi, 'Chưa có thông tin');
+    // Ensure raw item is not mutated
+    assert.equal(mockHistoryItemMissingVer.version, null);
+
+    const mockHistoryItemEmptyVer = {
+      id: 'h2',
+      version: '',
+      decision: 'HOLD',
+      createdAt: '2026-10-16 11:00:00',
+    };
+    const renderedEn = formatDossierVersion(mockHistoryItemEmptyVer.version, 'en');
+    assert.equal(renderedEn, 'Not available');
+    assert.equal(mockHistoryItemEmptyVer.version, '');
   });
 });

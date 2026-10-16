@@ -74,12 +74,55 @@ export function validateLegalDossierReviewForm(formValues = {}) {
 }
 
 /**
+ * Validates whether a value is a legitimate dossier version.
+ * Legitimate versions must be positive safe integers (>= 1).
+ * Strings representing positive integers (e.g. "1", "2") are acceptable.
+ * Empty strings, whitespace, booleans (false/true), Infinity, negative numbers,
+ * non-integers, null, and undefined are strictly invalid.
+ *
+ * @param {*} value
+ * @returns {boolean}
+ */
+export function isValidDossierVersion(value) {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value >= 1;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!/^[1-9]\d*$/.test(trimmed)) {
+      return false;
+    }
+    const num = Number(trimmed);
+    return Number.isSafeInteger(num) && num >= 1;
+  }
+  return false;
+}
+
+/**
+ * Formats a dossier version for display in UI or review history:
+ * - If valid, returns `v${version}` (e.g. `v1`, `v2`).
+ * - If missing or invalid, returns "Chưa có thông tin" (vi) or "Not available" (en).
+ * Never infers or defaults missing versions to 'v1'.
+ *
+ * @param {*} rawVersion
+ * @param {string} [lang='vi']
+ * @returns {string}
+ */
+export function formatDossierVersion(rawVersion, lang = 'vi') {
+  if (isValidDossierVersion(rawVersion)) {
+    const v = typeof rawVersion === 'number' ? rawVersion : Number(String(rawVersion).trim());
+    return `v${v}`;
+  }
+  return lang === 'en' ? 'Not available' : 'Chưa có thông tin';
+}
+
+/**
  * Rigorously evaluates the freshness and applicability of a previous review record:
  * - 'MISMATCH': Record belongs to a different dossier; cannot be used for current dossier.
- * - 'INDETERMINATE': Missing required information (identifier, version, or hash on either side);
+ * - 'INDETERMINATE': Missing required information or invalid version/hash on either side;
  *   cannot be assumed fresh or valid.
  * - 'STALE': Same dossier verified, but version or content hash differs (including when current version is lower).
- * - 'FRESH': Same dossier, both version and hash are present on both sides and strictly match.
+ * - 'FRESH': Same dossier, both version and hash are present, strictly valid, and match on both sides.
  *
  * @param {Object|null|undefined} currentDossier
  * @param {Object|null|undefined} lastReviewedRecord
@@ -103,28 +146,27 @@ export function checkDossierReviewStatus(currentDossier, lastReviewedRecord) {
     return 'MISMATCH';
   }
 
-  // 3. Required metrics: both version and sha256 must be present on both sides
-  const hasCurVer =
-    currentDossier.version !== undefined &&
-    currentDossier.version !== null &&
-    !isNaN(Number(currentDossier.version));
-  const hasRevVer =
-    lastReviewedRecord.version !== undefined &&
-    lastReviewedRecord.version !== null &&
-    !isNaN(Number(lastReviewedRecord.version));
+  // 3. Required metrics: both version and sha256 must be present and strictly valid on both sides.
+  // Number(...) coercion is forbidden because "", " ", false, Infinity must NOT evaluate as valid.
+  const hasCurVer = isValidDossierVersion(currentDossier.version);
+  const hasRevVer = isValidDossierVersion(lastReviewedRecord.version);
 
   const hasCurHash =
     typeof currentDossier.sha256 === 'string' && currentDossier.sha256.trim() !== '';
   const hasRevHash =
     typeof lastReviewedRecord.sha256 === 'string' && lastReviewedRecord.sha256.trim() !== '';
 
-  // Missing any required information (version or sha256 on either side) => INDETERMINATE
+  // Missing or invalid required metrics on either side => INDETERMINATE (never FRESH)
   if (!hasCurVer || !hasRevVer || !hasCurHash || !hasRevHash) {
     return 'INDETERMINATE';
   }
 
-  const curVer = Number(currentDossier.version);
-  const revVer = Number(lastReviewedRecord.version);
+  const curVer = typeof currentDossier.version === 'number'
+    ? currentDossier.version
+    : Number(String(currentDossier.version).trim());
+  const revVer = typeof lastReviewedRecord.version === 'number'
+    ? lastReviewedRecord.version
+    : Number(String(lastReviewedRecord.version).trim());
   const curHash = currentDossier.sha256.trim();
   const revHash = lastReviewedRecord.sha256.trim();
 

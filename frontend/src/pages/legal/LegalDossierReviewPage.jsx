@@ -13,6 +13,8 @@ import {
 import {
   validateLegalDossierReviewForm,
   checkDossierReviewStatus,
+  isValidDossierVersion,
+  formatDossierVersion,
 } from '../../utils/legalDossierReviewValidation.js';
 import { legalDossierReviewI18n } from './legalDossierReviewI18n.js';
 import './LegalDossierReviewPage.css';
@@ -146,7 +148,7 @@ export default function LegalDossierReviewPage({
           <h2 id="dossier-heading">{t.dossierSectionTitle}</h2>
         </div>
 
-        {!initialDossier?.version && (
+        {!isValidDossierVersion(initialDossier?.version) && (
           <div className="lv-dossier-unconnected-box">
             <FileText size={28} className="lv-dossier-unconnected-icon" aria-hidden="true" />
             <h3>{t.dossierUnloaded}</h3>
@@ -157,7 +159,7 @@ export default function LegalDossierReviewPage({
         <div className="lv-dossier-specs-grid">
           <div className="lv-dossier-row">
             <span className="lv-dossier-label">{t.versionLabel}:</span>
-            {initialDossier?.version ? (
+            {isValidDossierVersion(initialDossier?.version) ? (
               <span className="lv-dossier-value-badge">
                 {lang === 'en' ? `Version ${initialDossier.version}` : `Phiên bản ${initialDossier.version}`}
               </span>
@@ -316,7 +318,7 @@ export default function LegalDossierReviewPage({
                   <tr key={item.id || index}>
                     <td>
                       <span className="lv-history-ver-badge">
-                        v{item.version || '1'}
+                        {formatDossierVersion(item.version, lang)}
                       </span>
                     </td>
                     <td>
