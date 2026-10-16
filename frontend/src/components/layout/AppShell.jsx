@@ -55,6 +55,13 @@ const LEGAL_NAVIGATION_REGISTRY = [
     labelEn: 'Death Verification',
     status: 'ACTIVE',
   },
+  {
+    id: 'will-document-verification',
+    jiraTicket: 'PS-29',
+    labelVi: 'Đối chiếu di chúc',
+    labelEn: 'Will Verification',
+    status: 'ACTIVE',
+  },
 ];
 
 export default function AppShell({
@@ -203,6 +210,12 @@ export default function AppShell({
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                         <path d="M9 12l2 2 4-4" />
                       </svg>
+                    ) : item.id === 'will-document-verification' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M9 15l2 2 4-4" />
+                      </svg>
                     ) : item.id === 'dms' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
@@ -283,7 +296,11 @@ export default function AppShell({
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
                 {isLegal
-                  ? t.breadcrumbCurrent
+                  ? currentTab === 'will-document-verification'
+                    ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
+                    : currentTab === 'death-verification'
+                      ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
+                      : t.breadcrumbCurrent
                   : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'

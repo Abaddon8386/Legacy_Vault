@@ -11,6 +11,8 @@ import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import AppShell from './components/layout/AppShell.jsx';
+import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
+import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
 
@@ -304,6 +306,7 @@ export default function App() {
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
+  const isLegalWillRoute = path === '/legal/will-document-verification';
 
   if (isLegalDeathRoute) {
     if (!isSessionActive(session) && !preview) {
@@ -337,10 +340,58 @@ export default function App() {
           onNavigateTab={(tab) => {
             if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+            } else if (tab === 'will-document-verification') {
+              navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             }
           }}
         >
           <LegalDeathVerificationPage
+            session={session}
+            lang={lang}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isLegalWillRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return (
+        <div className="lv-app-root">
+          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+        </div>
+      );
+    }
+    if (!preview && !canAccessLegalWillVerification(session)) {
+      return (
+        <div className="lv-app-root">
+          <LegalAccessDeniedFallback
+            lang={lang}
+            onLogout={logout}
+            onNavigateToVault={() => navigateTo('/vault')}
+            canReturnToVault={Boolean(session?.user?.roles?.includes('VAULT_OWNER'))}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="LEGAL"
+          currentTab="will-document-verification"
+          user={session?.user || null}
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onNavigateTab={(tab) => {
+            if (tab === 'will-document-verification') {
+              navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+            } else if (tab === 'death-verification') {
+              navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+            }
+          }}
+        >
+          <LegalWillDocumentVerificationPage
             session={session}
             lang={lang}
           />
