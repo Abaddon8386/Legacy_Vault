@@ -215,8 +215,8 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  }
  const handleTrusteeSubmit=event=>save(event,'trustee'),handleBeneficiarySubmit=event=>save(event,'beneficiary');
  const localizedTrusteeErrors=validateTrustee(trusteeForm,lang),localizedBeneficiaryErrors=validateBeneficiary(beneficiaryForm,lang);
- if(loading || (!loadError && !readiness))return <p role="status">{lang==='en'?'Loading records…':'Đang tải thông tin…'}</p>;
- if(loadError)return <section role="alert"><p>{safeError(loadError,lang)}</p><button onClick={()=>setRetry(value=>value+1)}>{lang==='en'?'Retry':'Thử lại'}</button></section>;
+ if(loading || (!loadError && !readiness))return <div className="lv-tb-page"><div className="lv-tb-skeleton" role="status" aria-live="polite" aria-busy="true"><span>{lang==='en'?'Loading records…':'Đang tải thông tin…'}</span><div aria-hidden="true"/><div aria-hidden="true"/></div></div>;
+ if(loadError)return <section className="lv-tb-load-error" role="alert"><p>{safeError(loadError,lang)}</p><button onClick={()=>setRetry(value=>value+1)}>{lang==='en'?'Retry':'Thử lại'}</button></section>;
   const appointedTrustee = trustees[0];
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -225,8 +225,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
       <div className="lv-tb-container">
         {/* Hero Title */}
         <div className="lv-tb-title-block">
-          <span className="lv-tb-eyebrow">{t.eyebrow}</span>
-          <h1 className="lv-tb-title">{t.pageTitle}</h1>
+          <h1 className="lv-tb-title">{lang === 'en' ? 'Beneficiaries & trustees' : 'Người thụ hưởng & Người giám hộ'}</h1>
           <p className="lv-tb-desc">{t.pageDesc}</p>
         </div>
 
