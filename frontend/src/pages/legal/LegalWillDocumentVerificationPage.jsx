@@ -78,8 +78,8 @@ export default function LegalWillDocumentVerificationPage({
       {/* Page Title Area */}
       <div className="lv-legal-title-area">
         <div>
-          <h1 className="lv-legal-title">{t.pageTitle}</h1>
-          <p className="lv-legal-subtitle">{t.formSubtitle}</p>
+          <h1 className="lv-legal-title">{t.willPageTitle || t.pageTitle}</h1>
+          <p className="lv-legal-subtitle">{t.willFormSubtitle || t.formSubtitle}</p>
         </div>
       </div>
 
@@ -101,14 +101,14 @@ export default function LegalWillDocumentVerificationPage({
       {/* Digitized Record Metadata Section */}
       <section className="lv-metadata-card" aria-labelledby="metadata-heading">
         <div className="lv-metadata-card__header">
-          <h2 id="metadata-heading">{t.queueSectionTitle}</h2>
+          <h2 id="metadata-heading">{t.willQueueSectionTitle || t.queueSectionTitle}</h2>
         </div>
 
         {!initialDoc?.sha256 && (
           <div className="lv-metadata-unconnected-box">
             <FileText size={28} className="lv-metadata-unconnected-icon" aria-hidden="true" />
-            <h3>{t.queueUnconnectedTitle}</h3>
-            <p>{t.queueUnconnectedDesc}</p>
+            <h3>{t.willQueueUnconnectedTitle || t.queueUnconnectedTitle}</h3>
+            <p>{t.willQueueUnconnectedDesc || t.queueUnconnectedDesc}</p>
           </div>
         )}
 
@@ -138,8 +138,8 @@ export default function LegalWillDocumentVerificationPage({
       {/* Comparison Docket Form */}
       <section className="lv-form-card" aria-labelledby="form-heading">
         <div className="lv-form-card__header">
-          <h2 id="form-heading">{t.formTitle}</h2>
-          <p>{t.formDesc}</p>
+          <h2 id="form-heading">{t.willFormTitle || t.formTitle}</h2>
+          <p>{t.willFormDesc || t.formDesc}</p>
         </div>
 
         <form onSubmit={(e) => e.preventDefault()} noValidate>
@@ -148,12 +148,12 @@ export default function LegalWillDocumentVerificationPage({
             <label htmlFor={docketRefId} className="lv-form-label">
               {t.docketRefLabel}
             </label>
-            <span className="lv-form-hint">{t.docketRefHint}</span>
+            <span className="lv-form-hint">{t.willDocketRefHint || t.docketRefHint}</span>
             <input
               id={docketRefId}
               type="text"
               className="lv-form-input"
-              placeholder={t.docketRefPlaceholder}
+              placeholder={t.willDocketRefPlaceholder || t.docketRefPlaceholder}
               value={docketReference}
               onChange={(e) => setDocketReference(e.target.value)}
             />
@@ -223,13 +223,13 @@ export default function LegalWillDocumentVerificationPage({
           {/* Optional Comparison Notes */}
           <div className="lv-form-group">
             <label htmlFor={notesId} className="lv-form-label">
-              {t.notesLabel}
+              {t.willNotesLabel || t.notesLabel}
             </label>
             <textarea
               id={notesId}
               className="lv-form-textarea"
               rows={3}
-              placeholder={t.notesPlaceholder}
+              placeholder={t.willNotesPlaceholder || t.notesPlaceholder}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -239,22 +239,22 @@ export default function LegalWillDocumentVerificationPage({
           <div className="lv-audit-card" aria-labelledby="audit-card-heading">
             <div className="lv-audit-card__title" id="audit-card-heading">
               <UserCheck size={16} aria-hidden="true" />
-              <span>{t.reviewHistoryTitle}</span>
+              <span>{t.willReviewHistoryTitle || t.reviewHistoryTitle}</span>
             </div>
 
             <div className="lv-audit-no-data-box">
               <Info size={16} aria-hidden="true" />
               <div>
-                <strong>{t.reviewHistoryNoData}</strong>
-                <p>{t.reviewHistoryDesc}</p>
+                <strong>{t.willReviewHistoryNoData || t.reviewHistoryNoData}</strong>
+                <p>{t.willReviewHistoryDesc || t.reviewHistoryDesc}</p>
               </div>
             </div>
 
             {session?.user && (
               <div className="lv-current-user-info">
-                <span className="lv-current-user-label">{t.currentUserLabel}</span>{' '}
+                <span className="lv-current-user-label">{t.willCurrentUserLabel || t.currentUserLabel}</span>{' '}
                 <span className="lv-current-user-value">{currentUserDisplay}</span>{' '}
-                <span className="lv-current-user-note">{t.currentUserNote}</span>
+                <span className="lv-current-user-note">{t.willCurrentUserNote || t.currentUserNote}</span>
               </div>
             )}
           </div>
@@ -270,7 +270,7 @@ export default function LegalWillDocumentVerificationPage({
                 aria-disabled="true"
               >
                 <ShieldAlert size={16} aria-hidden="true" />
-                <span>{t.btnSubmit}</span>
+                <span>{t.willBtnSubmit || t.btnSubmit}</span>
               </button>
 
               <button
@@ -300,13 +300,13 @@ export default function LegalWillDocumentVerificationPage({
             {validationStatus === 'success' && (
               <div className="lv-validation-feedback lv-validation-feedback--success" role="status">
                 <CheckCircle2 size={16} aria-hidden="true" />
-                <span>{t.validationSuccess}</span>
+                <span>{t.willValidationSuccess || t.validationSuccess}</span>
               </div>
             )}
             {validationStatus === 'error' && (
               <div className="lv-validation-feedback lv-validation-feedback--error" role="alert">
                 <AlertTriangle size={16} aria-hidden="true" />
-                <span>{t.validationFailure}</span>
+                <span>{t.willValidationFailure || t.validationFailure}</span>
               </div>
             )}
           </div>
