@@ -1,0 +1,641 @@
+/**
+ * LegacyVault — Song ngữ cho Staff Case Dashboard (PS-25)
+ * Hỗ trợ giao diện tiếng Việt (mặc định) và tiếng Anh.
+ */
+export const STAFF_CASE_I18N = {
+  vi: {
+    portalTitle: 'Cổng Xác Minh Hồ Sơ',
+    roleBadge: 'Nhân viên xử lý (STAFF_EXECUTOR)',
+    eyebrow: 'QUẢN LÝ XÁC MINH DI SẢN',
+    title: 'Hồ sơ cần xác minh',
+    subtitle: 'Danh sách các trường hợp hết thời gian ân hạn cần kiểm tra thông tin theo quy trình nghiệp vụ.',
+    refreshBtn: 'Làm mới',
+    refreshingBtn: 'Đang tải…',
+    previewBanner: 'Chế độ xem trước giao diện với dữ liệu tổng hợp (DEV Preview). Các trường dữ liệu và trạng thái quy trình chỉ mang tính chất minh họa trình bày, chưa phải hợp đồng API chính thức (PS-35).',
+    
+    filters: {
+      all: 'Tất cả trạng thái',
+      awaiting: 'Chờ xác minh (Minh họa)',
+      inProgress: 'Đang xử lý (Minh họa)',
+      verified: 'Đã xác minh (Minh họa)',
+      scopeNote: 'Lưu ý: Bộ lọc áp dụng cho toàn bộ danh sách trước khi phân trang. Trạng thái hiển thị là view model minh họa, chờ hợp đồng API PS-35.',
+      clearBtn: 'Xóa bộ lọc',
+    },
+
+    table: {
+      colCaseRef: 'Mã hồ sơ',
+      colVaultOwner: 'Kho di sản & Chủ sở hữu',
+      colGraceEnd: 'Hết hạn ân hạn',
+      colStatus: 'Trạng thái quy trình',
+      colActions: 'Thao tác',
+      viewAction: 'Xem hồ sơ',
+      intakeAction: 'Tiếp nhận hồ sơ',
+      verifyAction: 'Xác minh trực tiếp',
+    },
+
+    intake: {
+      eyebrow: 'XỬ LÝ HỒ SƠ VẬT LÝ (PS-26)',
+      pageTitle: 'Tiếp nhận hồ sơ tử vong bản cứng',
+      pageSubtitle: 'Ghi nhận thông tin người nộp và giấy tờ bản cứng do người thi hành/thân nhân mang đến văn phòng.',
+      backToListBtn: 'Quay về danh sách',
+      legalNoticeTitle: 'Ranh giới tiếp nhận hồ sơ',
+      legalNotice: 'Tiếp nhận hồ sơ chưa phải xác nhận tử vong hoặc phê duyệt pháp lý. Thao tác này chỉ ghi nhận thông tin người nộp và giấy tờ bản cứng phục vụ thẩm định hồ sơ.',
+      devPreviewBanner: 'Chế độ xem trước giao diện tiếp nhận (DEV Preview). Dữ liệu chỉ ghi tạm trong bộ nhớ phiên làm việc, chưa kết nối API Backend chính thức (PS-38).',
+      
+      noCaseTitle: 'Thiếu thông tin ngữ cảnh hồ sơ',
+      noCaseDesc: 'Không tìm thấy thông tin hồ sơ cần tiếp nhận. Vui lòng quay lại danh sách hồ sơ xác minh để chọn hồ sơ cần xử lý.',
+      
+      sections: {
+        caseRef: 'A. Thông tin hồ sơ đang tiếp nhận',
+        submitter: 'B. Thông tin người nộp hồ sơ',
+        document: 'C. Thông tin giấy tờ bản cứng',
+        review: 'D. Xem lại & Xác nhận tiếp nhận',
+      },
+
+      fields: {
+        caseNumber: 'Mã hồ sơ',
+        vaultName: 'Kho di sản',
+        ownerName: 'Chủ sở hữu kho',
+        gracePeriodEnded: 'Thời điểm hết hạn ân hạn',
+        
+        submitterName: 'Họ và tên người nộp',
+        submitterNamePlaceholder: 'Nhập họ và tên người mang hồ sơ đến',
+        submitterNotice: 'Người nộp (Trustee / Người thi hành / Thân nhân) có thể ở ngoài hệ thống, không yêu cầu có tài khoản.',
+        submitterPhone: 'Số điện thoại liên hệ (Đề xuất)',
+        submitterPhonePlaceholder: 'Ví dụ: 0912345678',
+        submitterEmail: 'Email liên hệ (Đề xuất)',
+        submitterEmailPlaceholder: 'Ví dụ: nguoinop@example.com',
+        relationship: 'Mối quan hệ với chủ sở hữu (Đề xuất)',
+        relationshipOptions: {
+          select: '-- Chọn mối quan hệ --',
+          TRUSTEE: 'Người giám hộ / Trustee chỉ định',
+          FAMILY_MEMBER: 'Thân nhân / Thành viên gia đình',
+          LEGAL_REPRESENTATIVE: 'Đại diện theo pháp luật',
+          OTHER: 'Mối quan hệ khác',
+        },
+
+        documentType: 'Loại giấy tờ bản cứng',
+        documentTypeOptions: {
+          select: '-- Chọn loại giấy tờ --',
+          DEATH_EXTRACT: 'Trích lục khai tử (Bản chính/sao trích lục)',
+          DEATH_CERTIFICATE: 'Giấy chứng tử (Bản gốc/chứng thực)',
+          COURT_DECLARATION: 'Quyết định của Tòa án tuyên bố một người là đã chết',
+        },
+        documentTypeNote: 'Lưu ý: Danh mục giấy tờ mang tính chất minh họa trình bày, chờ thống nhất contract BE (PS-38).',
+        issuingAuthority: 'Cơ quan cấp giấy tờ (Tùy chọn, đề xuất)',
+        issuingAuthorityPlaceholder: 'Ví dụ: UBND Phường Bến Nghé, Quận 1, TP.HCM',
+        documentNumber: 'Số hiệu / Số vào sổ giấy tờ (Tùy chọn, đề xuất)',
+        documentNumberPlaceholder: 'Ví dụ: 45/2026/TLKT-BS',
+        issuingDate: 'Ngày cấp giấy tờ (Tùy chọn, đề xuất)',
+        issuingDateNote: 'Tùy chọn, chờ thống nhất hợp đồng API PS-38. Ngày ghi trên bản cứng.',
+        intakeDateTime: 'Thời điểm Staff tiếp nhận hồ sơ',
+        intakeDateTimeNote: 'Nhập giờ địa phương lúc nhận bản cứng; không tự lấy thời gian gửi biểu mẫu.',
+        receiverStaff: 'Nhân viên tiếp nhận',
+        receiverStaffNote: 'Xác định tự động từ phiên làm việc của Staff hiện tại, không gửi actor ID tùy ý.',
+        physicalNotes: 'Ghi chú hiện trạng bản cứng (Tùy chọn)',
+        physicalNotesPlaceholder: 'Ghi chú về tình trạng tài liệu vật lý (bản chính, dấu đỏ, tình trạng nguyên vẹn,...)',
+      },
+
+      review: {
+        summaryTitle: 'Tóm tắt thông tin tiếp nhận',
+        submitterLabel: 'Người nộp:',
+        documentLabel: 'Giấy tờ:',
+        issuedByLabel: 'Cấp bởi:',
+        issuedDateLabel: 'Ngày cấp:',
+        intakeTimeLabel: 'Thời điểm tiếp nhận:',
+        receiverLabel: 'Nhân viên:',
+        notProvided: 'Không cung cấp',
+      },
+
+      buttons: {
+        submit: 'Xác nhận tiếp nhận hồ sơ',
+        submitting: 'Đang ghi nhận tiếp nhận…',
+        cancel: 'Hủy bỏ',
+        back: 'Quay về danh sách hồ sơ',
+        continueIntake: 'Tiếp nhận hồ sơ khác',
+      },
+
+      validation: {
+        submitterNameRequired: 'Vui lòng nhập họ và tên người nộp hồ sơ.',
+        submitterNameLength: 'Họ và tên người nộp phải từ 2 đến 150 ký tự.',
+        documentTypeRequired: 'Vui lòng chọn loại giấy tờ bản cứng.',
+        issuingAuthorityRequired: 'Vui lòng nhập cơ quan cấp giấy tờ.',
+        issuingAuthorityLength: 'Tên cơ quan cấp phải từ 2 đến 255 ký tự.',
+        documentNumberRequired: 'Vui lòng nhập số hiệu giấy tờ bản cứng.',
+        documentNumberLength: 'Số hiệu giấy tờ phải từ 2 đến 100 ký tự.',
+        issuingDateRequired: 'Vui lòng chọn ngày cấp giấy tờ.',
+        issuingDateInvalid: 'Ngày cấp giấy tờ không hợp lệ.',
+        issuingDateFuture: 'Ngày cấp giấy tờ không được lớn hơn ngày hiện tại.',
+        intakeDateTimeInvalid: 'Thời điểm tiếp nhận không hợp lệ.',
+        intakeDateTimeRequired: 'Vui lòng chọn thời điểm tiếp nhận hồ sơ.',
+        invalidPhone: 'Số điện thoại không đúng định dạng.',
+        invalidEmail: 'Địa chỉ email không đúng định dạng.',
+      },
+
+      feedback: {
+        successTitle: 'Tiếp nhận hồ sơ thành công (Mô phỏng DEV)',
+        successDesc: 'Biên nhận mô phỏng đã được tạo; chưa lưu dữ liệu hoặc thay đổi trạng thái hồ sơ.',
+        receiptNumber: 'Mã biên nhận tiếp nhận:',
+        recordedAt: 'Thời điểm ghi nhận:',
+        simulationWarning: 'Dữ liệu chỉ được cập nhật tạm thời trong bộ nhớ phiên làm việc, không lưu vào cơ sở dữ liệu thật.',
+        errorTitle: 'Không thể ghi nhận tiếp nhận',
+        errorDesc: 'Phản hồi chưa hợp lệ hoặc yêu cầu chưa thành công. Thông tin đã nhập được giữ lại để thử lại.',
+        notReadyTitle: 'Dịch vụ tiếp nhận hồ sơ chưa sẵn sàng',
+        notReadyDesc: 'Chức năng tiếp nhận hồ sơ bản cứng (PS-38) chưa kết nối Backend thật. Vui lòng liên hệ quản trị viên.',
+        duplicateSubmitError: 'Yêu cầu tiếp nhận đang được xử lý, vui lòng không bấm gửi liên tiếp.',
+      },
+    },
+
+    statusLabels: {
+      AWAITING_VERIFICATION: 'Chờ xác minh',
+      IN_PROGRESS: 'Đang xử lý',
+      VERIFIED: 'Đã xác minh',
+    },
+
+    pagination: {
+      showing: 'Đang hiển thị',
+      to: '–',
+      of: 'trên',
+      cases: 'hồ sơ',
+      rowsPerPage: 'Số dòng mỗi trang:',
+      prev: 'Trước',
+      next: 'Sau',
+    },
+
+    states: {
+      loadingText: 'Đang tải danh sách hồ sơ…',
+      emptyTitle: 'Chưa có hồ sơ cần xác minh',
+      emptyDesc: 'Hiện tại không có trường hợp nào hết thời gian ân hạn cần xử lý.',
+      noMatchTitle: 'Không tìm thấy hồ sơ phù hợp',
+      noMatchDesc: 'Không có hồ sơ nào khớp với bộ lọc trạng thái đã chọn. Vui lòng thử lại với bộ lọc khác.',
+      errorTitle: 'Không thể tải danh sách hồ sơ',
+      errorDesc: 'Đã xảy ra sự cố khi kết nối đến máy chủ. Vui lòng kiểm tra đường truyền và thử lại.',
+      retryBtn: 'Thử lại',
+      notReadyTitle: 'Dịch vụ tiếp nhận hồ sơ chưa sẵn sàng',
+      notReadyDesc: 'Tính năng hàng đợi xác minh hồ sơ đang trong giai đoạn tích hợp dịch vụ Backend (PS-35). Vui lòng thử lại sau khi dịch vụ được kích hoạt.',
+      signInBtn: 'Đăng nhập lại',
+    },
+
+    detailModal: {
+      title: 'Thông tin tham chiếu hồ sơ',
+      caseRef: 'Mã tham chiếu hồ sơ',
+      vaultId: 'Mã kho di sản (Vault ID)',
+      vaultName: 'Tên kho di sản',
+      ownerName: 'Chủ sở hữu kho',
+      graceEndedAt: 'Thời điểm hết hạn ân hạn',
+      currentStatus: 'Trạng thái minh họa',
+      noticeTitle: 'Lưu ý nghiệp vụ PS-25',
+      noticeText: 'Đây là khung xem thông tin tham chiếu chỉ đọc cho PS-25. PS-26 phụ trách tiếp nhận người nộp và thông tin giấy tờ bản cứng. Tiếp nhận hồ sơ chưa phải xác nhận tử vong hoặc phê duyệt pháp lý.',
+      closeBtn: 'Đóng',
+      verifyBtn: 'Xác minh trực tiếp (PS-27)',
+    },
+
+    verification: {
+      eyebrow: 'TIẾP NHẬN & ĐỐI CHIẾU TRỰC TIẾP (PS-27)',
+      pageTitle: 'Tiếp nhận giấy tờ & Xác minh danh tính trực tiếp',
+      pageSubtitle: 'Kiểm tra giấy tờ tùy thân bản cứng, đối chiếu khuôn mặt trực tiếp tại quầy và ghi nhận việc bàn giao văn bản.',
+      backToListBtn: 'Quay về danh sách hồ sơ',
+      devPreviewBanner: 'Chế độ xem trước giao diện xác minh trực tiếp (DEV Preview). Dữ liệu chỉ ghi tạm trong bộ nhớ phiên làm việc, chưa kết nối API Backend chính thức (PS-45).',
+      
+      legalNoticeTitle: 'Ranh giới pháp lý & Nghiệp vụ PS-27',
+      legalNotice1: 'Đối chiếu CCCD/Passport bản cứng và khuôn mặt trực tiếp tại quầy. Không sử dụng VNeID, camera, ảnh chụp selfie, nhận diện tự động hay eKYC.',
+      legalNotice2: 'Kết quả MATCH chỉ là ghi nhận việc đối chiếu danh tính trực tiếp trùng khớp; không đồng nghĩa với phê duyệt pháp lý, xác nhận tử vong, mở khóa di chúc hay bàn giao tài sản.',
+      legalNotice3: 'Không upload hình ảnh/bản scan giấy tờ và không thu thập số định danh đầy đủ. Chỉ lưu tối đa 4 ký tự cuối (LV-ID-001).',
+
+      noCaseTitle: 'Thiếu thông tin ngữ cảnh hồ sơ',
+      noCaseDesc: 'Không tìm thấy thông tin hồ sơ cần xác minh. Vui lòng quay lại danh sách để chọn hồ sơ.',
+
+      sections: {
+        caseRef: '1. Thông tin hồ sơ đang xử lý',
+        physicalWill: '2. Tiếp nhận bản chính di chúc / văn bản di sản (Minh họa PS-39)',
+        beneficiarySelect: '3. Chọn người thụ hưởng cần xác minh (PS-45)',
+        verificationForm: '4. Biểu mẫu đối chiếu danh tính trực tiếp tại quầy',
+        history: '5. Lịch sử xác minh danh tính của người thụ hưởng',
+        review: 'Xem lại & Ghi nhận kết quả',
+      },
+
+      physicalWill: {
+        title: 'Ghi nhận giao nhận bản chính di chúc vật lý',
+        badge: 'Chưa kết nối API Backend (PS-39)',
+        notice: 'Việc tiếp nhận bản giấy chỉ là ghi nhận việc giao nhận vật lý tại văn phòng, không xác nhận tính hợp pháp (legal validity) của nội dung di chúc.',
+        statusLabel: 'Tình trạng tiếp nhận bản giấy:',
+        statusVal: 'Chưa có dữ liệu tiếp nhận từ máy chủ',
+        notesLabel: 'Ghi chú văn bản:',
+        notesVal: 'Chưa có thông tin vị trí lưu bản cứng.',
+      },
+
+      beneficiarySelect: {
+        title: 'Danh sách Người thụ hưởng thuộc hồ sơ',
+        desc: 'Nhân viên bắt buộc phải chọn đúng người thụ hưởng đang có mặt tại quầy để thực hiện đối chiếu. Không mặc định người nộp hồ sơ là người thụ hưởng.',
+        emptyList: 'Hồ sơ này chưa có người thụ hưởng nào được chỉ định.',
+        selectPrompt: 'Vui lòng chọn một người thụ hưởng bên dưới để bắt đầu xác minh:',
+        statusUnknown: 'Chọn để xem lịch sử xác minh',
+        statusNotVerified: 'Chưa xác minh',
+        statusMatch: 'Khớp danh tính (MATCH)',
+        statusNotMatch: 'Không khớp (NOT_MATCH)',
+        selectedTag: 'Đang chọn',
+        selectBtn: 'Chọn người này',
+        dobLabel: 'Ngày sinh:',
+        relationLabel: 'Quan hệ:',
+        idStatusLabel: 'Định danh:',
+        hasId: 'Đã có số định danh đã mã hóa',
+        noId: 'Chưa có số định danh',
+      },
+
+      form: {
+        title: 'Đối chiếu CCCD / Hộ chiếu và Khuôn mặt trực tiếp',
+        beneficiaryNotice: 'Đang xác minh cho:',
+        documentType: 'Loại giấy tờ kiểm tra',
+        documentTypeOptions: {
+          select: '-- Chọn loại giấy tờ --',
+          CCCD: 'Căn cước công dân (CCCD / Thẻ căn cước)',
+          PASSPORT: 'Hộ chiếu (Passport)',
+        },
+        documentTypeRequired: 'Vui lòng chọn loại giấy tờ kiểm tra.',
+        
+        result: 'Kết quả đối chiếu trực tiếp',
+        resultDesc: 'Nhân viên trực tiếp đối chiếu khuôn mặt người có mặt với ảnh trên giấy tờ gốc và kiểm tra thông tin.',
+        resultOptions: {
+          MATCH: 'MATCH — Thông tin và khuôn mặt hoàn toàn trùng khớp',
+          NOT_MATCH: 'NOT_MATCH — Thông tin hoặc khuôn mặt không trùng khớp',
+        },
+        resultRequired: 'Vui lòng chọn kết quả đối chiếu (MATCH hoặc NOT_MATCH).',
+
+        documentSuffix: 'Bốn (4) ký tự cuối số giấy tờ (Tùy chọn)',
+        documentSuffixPlaceholder: 'Ví dụ: 8901',
+        documentSuffixHint: 'Chỉ nhập đúng 4 ký tự cuối. Tuyệt đối không nhập toàn bộ số định danh (tuân thủ bảo mật LV-ID-001).',
+        documentSuffixInvalid: 'Bốn ký tự cuối phải gồm đúng 4 ký tự chữ hoặc số (ví dụ: 1234, 89AB).',
+
+        issuingAuthority: 'Cơ quan cấp giấy tờ (Tùy chọn)',
+        issuingAuthorityPlaceholder: 'Ví dụ: Cục Cảnh sát QLHC về TTXH',
+        issuingAuthorityTooLong: 'Cơ quan cấp không được vượt quá 150 ký tự.',
+
+        actorNote: 'Nhân viên thực hiện & Thời điểm xác minh:',
+        actorDesc: 'Thời gian xác minh và danh tính nhân viên sẽ được máy chủ ghi nhận tự động vào Audit Log khi kết nối API thật. Không cho phép gửi actor ID tùy ý từ giao diện.',
+      },
+
+      review: {
+        title: 'Xem lại thông tin đối chiếu trước khi ghi nhận',
+        beneficiaryLabel: 'Người được xác minh:',
+        documentLabel: 'Giấy tờ đối chiếu:',
+        suffixLabel: '4 số cuối:',
+        authorityLabel: 'Cơ quan cấp:',
+        resultLabel: 'Kết quả ghi nhận:',
+        warning: 'Lưu ý: Kết quả xác minh danh tính sẽ được lưu vĩnh viễn vào lịch sử đối chiếu (append-only) và cập nhật trạng thái người thụ hưởng.',
+      },
+
+      history: {
+        title: 'Lịch sử xác minh danh tính',
+        loadError: 'Không tải được lịch sử. Vui lòng thử lại.',
+        empty: 'Người thụ hưởng này chưa có lượt xác minh danh tính nào trước đây.',
+        colTime: 'Thời điểm',
+        colDoc: 'Giấy tờ',
+        colSuffix: '4 số cuối',
+        colAuthority: 'Cơ quan cấp',
+        colResult: 'Kết quả',
+        colActor: 'Nhân viên kiểm tra',
+        noActor: 'Chưa có thông tin từ máy chủ',
+      },
+
+      buttons: {
+        submit: 'Ghi nhận kết quả xác minh',
+        submitting: 'Đang ghi nhận…',
+        continueVerification: 'Tiếp tục xác minh người khác',
+        back: 'Quay lại danh sách hồ sơ',
+      },
+
+      feedback: {
+        successTitle: 'Ghi nhận xác minh danh tính thành công (DEV Preview)',
+        successDesc: 'Đã tạo bản ghi lịch sử mô phỏng; không lưu dữ liệu thật hoặc thay đổi trạng thái hồ sơ.',
+        receiptId: 'Mã xác minh:',
+        verifiedAt: 'Thời điểm ghi nhận:',
+        errorTitle: 'Không thể ghi nhận kết quả xác minh',
+        errorDesc: 'Yêu cầu không thành công hoặc phản hồi không hợp lệ. Dữ liệu của bạn được giữ nguyên để thử lại.',
+        notReadyTitle: 'Dịch vụ xác minh chưa sẵn sàng',
+        notReadyDesc: 'Dịch vụ xác minh danh tính trực tiếp (PS-45) hiện chưa được kết nối máy chủ Backend. Vui lòng liên hệ quản trị viên.',
+        simulationBadge: 'Dữ liệu mô phỏng',
+        duplicateSubmitError: 'Đang có một yêu cầu xác minh được xử lý, vui lòng không nhấn gửi liên tiếp.',
+      },
+    },
+  },
+
+  en: {
+    portalTitle: 'Staff Verification Portal',
+    roleBadge: 'Staff Executor (STAFF_EXECUTOR)',
+    eyebrow: 'HERITAGE VERIFICATION MANAGEMENT',
+    title: 'Verification Cases Queue',
+    subtitle: 'List of cases where the grace period has expired, requiring review according to business procedures.',
+    refreshBtn: 'Refresh',
+    refreshingBtn: 'Loading…',
+    previewBanner: 'Interface preview mode with synthetic data (DEV Preview). Data fields and workflow statuses are presentation view models, not the final API contract (PS-35).',
+
+    filters: {
+      all: 'All statuses',
+      awaiting: 'Awaiting Verification (Sample)',
+      inProgress: 'In Progress (Sample)',
+      verified: 'Verified (Sample)',
+      scopeNote: 'Note: Filters apply to the full list before pagination. Displayed statuses are presentation view models pending API contract PS-35.',
+      clearBtn: 'Clear filter',
+    },
+
+    table: {
+      colCaseRef: 'Case Reference',
+      colVaultOwner: 'Heritage Vault & Owner',
+      colGraceEnd: 'Grace Period Ended',
+      colStatus: 'Process Status',
+      colActions: 'Action',
+      viewAction: 'View Case',
+      intakeAction: 'Intake Case',
+      verifyAction: 'Direct Verification',
+    },
+
+    intake: {
+      eyebrow: 'PHYSICAL DOCUMENT INTAKE (PS-26)',
+      pageTitle: 'Physical Death Verification Intake',
+      pageSubtitle: 'Record submitter details and physical document metadata brought in by trustees/family.',
+      backToListBtn: 'Back to Cases Queue',
+      legalNoticeTitle: 'Case Intake Boundary Notice',
+      legalNotice: 'Case intake is not death confirmation or legal approval. This step only records physical document metadata for verification review.',
+      devPreviewBanner: 'Intake preview mode (DEV Preview). Data is temporarily kept in session memory and is not connected to the live Backend API (PS-38).',
+      
+      noCaseTitle: 'Missing Case Context',
+      noCaseDesc: 'No active case context was found. Please return to the verification queue and select an existing case.',
+      
+      sections: {
+        caseRef: 'A. Active Case Information',
+        submitter: 'B. Submitter Information',
+        document: 'C. Physical Document Metadata',
+        review: 'D. Intake Review & Confirmation',
+      },
+
+      fields: {
+        caseNumber: 'Case Reference',
+        vaultName: 'Heritage Vault',
+        ownerName: 'Vault Owner',
+        gracePeriodEnded: 'Grace Period Expiration',
+        
+        submitterName: 'Submitter Full Name',
+        submitterNamePlaceholder: 'Enter the full legal name of the submitter',
+        submitterNotice: 'The submitter (Trustee / Executor / Family) may be external and is not required to have an account.',
+        submitterPhone: 'Contact Phone (Proposed)',
+        submitterPhonePlaceholder: 'e.g., 0912345678',
+        submitterEmail: 'Contact Email (Proposed)',
+        submitterEmailPlaceholder: 'e.g., submitter@example.com',
+        relationship: 'Relationship to Vault Owner (Proposed)',
+        relationshipOptions: {
+          select: '-- Select relationship --',
+          TRUSTEE: 'Appointed Trustee / Guardian',
+          FAMILY_MEMBER: 'Family Member / Relative',
+          LEGAL_REPRESENTATIVE: 'Legal Representative',
+          OTHER: 'Other Relationship',
+        },
+
+        documentType: 'Physical Document Type',
+        documentTypeOptions: {
+          select: '-- Select document type --',
+          DEATH_EXTRACT: 'Death Extract (Official/Certified Copy)',
+          DEATH_CERTIFICATE: 'Death Certificate (Original/Certified)',
+          COURT_DECLARATION: 'Court Decision Declaring Death',
+        },
+        documentTypeNote: 'Note: Document catalog is a presentation view model pending backend contract alignment (PS-38).',
+        issuingAuthority: 'Issuing Authority (Optional, proposed)',
+        issuingAuthorityPlaceholder: 'e.g., Ward People’s Committee / District Court',
+        documentNumber: 'Document Number / Book Record (Optional, proposed)',
+        documentNumberPlaceholder: 'e.g., 45/2026/TLKT-BS',
+        issuingDate: 'Issuing Date (Optional, proposed)',
+        issuingDateNote: 'Optional metadata pending PS-38 API agreement. Date printed on the physical document.',
+        intakeDateTime: 'Staff Intake Date & Time',
+        intakeDateTimeNote: 'Enter local time when the paper was received; this is separate from submission time.',
+        receiverStaff: 'Staff Intake Officer',
+        receiverStaffNote: 'Derived automatically from the active Staff session; arbitrary actor IDs are not accepted.',
+        physicalNotes: 'Physical Condition Notes (Optional)',
+        physicalNotesPlaceholder: 'Condition of the physical document (original seal, integrity, stamps, etc.)',
+      },
+
+      review: {
+        summaryTitle: 'Intake Summary Review',
+        submitterLabel: 'Submitter:',
+        documentLabel: 'Document:',
+        issuedByLabel: 'Issued By:',
+        issuedDateLabel: 'Issued Date:',
+        intakeTimeLabel: 'Intake Timestamp:',
+        receiverLabel: 'Staff Officer:',
+        notProvided: 'Not provided',
+      },
+
+      buttons: {
+        submit: 'Confirm Intake Record',
+        submitting: 'Recording Intake…',
+        cancel: 'Cancel',
+        back: 'Back to Cases Queue',
+        continueIntake: 'Intake Another Case',
+      },
+
+      validation: {
+        submitterNameRequired: 'Submitter full name is required.',
+        submitterNameLength: 'Submitter full name must be between 2 and 150 characters.',
+        documentTypeRequired: 'Please select a physical document type.',
+        issuingAuthorityRequired: 'Issuing authority is required.',
+        issuingAuthorityLength: 'Issuing authority must be between 2 and 255 characters.',
+        documentNumberRequired: 'Document number is required.',
+        documentNumberLength: 'Document number must be between 2 and 100 characters.',
+        issuingDateRequired: 'Issuing date is required.',
+        issuingDateInvalid: 'Issuing date is invalid.',
+        issuingDateFuture: 'Issuing date cannot be in the future.',
+        intakeDateTimeInvalid: 'Invalid local receipt date and time.',
+        intakeDateTimeRequired: 'Staff intake date and time is required.',
+        invalidPhone: 'Phone number format is invalid.',
+        invalidEmail: 'Email address format is invalid.',
+      },
+
+      feedback: {
+        successTitle: 'Intake Recorded Successfully (DEV Preview)',
+        successDesc: 'A preview receipt was created; no data was saved and no case status was changed.',
+        receiptNumber: 'Intake Receipt Code:',
+        recordedAt: 'Recorded At:',
+        simulationWarning: 'Data is temporarily updated in session memory only and is not saved to the live database.',
+        errorTitle: 'Unable to record intake',
+        errorDesc: 'The request failed or its response was invalid. Your entries are preserved for retry.',
+        notReadyTitle: 'Intake Service Not Ready',
+        notReadyDesc: 'Physical intake service (PS-38) is not yet connected to the Backend. Please contact administrator.',
+        duplicateSubmitError: 'An intake request is currently processing, please do not resubmit repeatedly.',
+      },
+    },
+
+    statusLabels: {
+      AWAITING_VERIFICATION: 'Awaiting Review',
+      IN_PROGRESS: 'In Progress',
+      VERIFIED: 'Verified',
+    },
+
+    pagination: {
+      showing: 'Showing',
+      to: '–',
+      of: 'of',
+      cases: 'cases',
+      rowsPerPage: 'Rows per page:',
+      prev: 'Previous',
+      next: 'Next',
+    },
+
+    states: {
+      loadingText: 'Loading cases queue…',
+      emptyTitle: 'No verification cases found',
+      emptyDesc: 'There are currently no cases where the grace period has expired.',
+      noMatchTitle: 'No matching cases found',
+      noMatchDesc: 'No cases match the selected status filter. Please try a different filter option.',
+      errorTitle: 'Unable to load cases queue',
+      errorDesc: 'A network issue occurred while connecting to the server. Please check your connection and retry.',
+      retryBtn: 'Retry',
+      notReadyTitle: 'Case Queue Service Not Ready',
+      notReadyDesc: 'The verification case queue feature is currently undergoing backend service integration (PS-35). Please check back once the service is activated.',
+      signInBtn: 'Sign In Again',
+    },
+
+    detailModal: {
+      title: 'Case Reference Details',
+      caseRef: 'Case Reference ID',
+      vaultId: 'Heritage Vault ID',
+      vaultName: 'Heritage Vault Name',
+      ownerName: 'Vault Owner Name',
+      graceEndedAt: 'Grace Period Expiration',
+      currentStatus: 'Sample Process Status',
+      noticeTitle: 'PS-25 Business Note',
+      noticeText: 'This is a read-only reference preview for PS-25. PS-26 covers submitter and physical document intake information. Receiving a dossier does not confirm death or legal approval.',
+      closeBtn: 'Close',
+      verifyBtn: 'Direct Verification (PS-27)',
+    },
+
+    verification: {
+      eyebrow: 'INTAKE & IN-PERSON VERIFICATION (PS-27)',
+      pageTitle: 'Physical Document Intake & In-Person Identity Verification',
+      pageSubtitle: 'Inspect physical identity credentials, conduct face-to-face cross-checks, and record original will delivery.',
+      backToListBtn: 'Back to Cases Queue',
+      devPreviewBanner: 'In-person verification preview mode (DEV Preview). Data is kept in session memory and is not connected to the live Backend API (PS-45).',
+      
+      legalNoticeTitle: 'Legal & Operational Boundary (PS-27)',
+      legalNotice1: 'Directly compare physical National ID/Passport with the person present at the counter. No VNeID, camera, selfie, automated facial recognition, or eKYC.',
+      legalNotice2: 'A MATCH result only records identity credential consistency; it does not constitute legal approval, death certification, will unlocking, or asset handover.',
+      legalNotice3: 'No document scan/photo uploads and no full identity number collection. Only the last 4 characters are retained (LV-ID-001).',
+
+      noCaseTitle: 'Missing Case Context',
+      noCaseDesc: 'No active case context was found. Please return to the verification queue and select an existing case.',
+
+      sections: {
+        caseRef: '1. Active Case Information',
+        physicalWill: '2. Physical Original Will Intake (PS-39 Sample)',
+        beneficiarySelect: '3. Select Beneficiary to Verify (PS-45)',
+        verificationForm: '4. In-Person Identity Verification Form',
+        history: '5. Beneficiary Verification History',
+        review: 'Review & Confirm Verification',
+      },
+
+      physicalWill: {
+        title: 'Original Will Physical Delivery Record',
+        badge: 'Backend API Not Connected (PS-39)',
+        notice: 'Receiving physical documents only records physical handover at the office; it does not certify the legal validity of the will contents.',
+        statusLabel: 'Physical Delivery Status:',
+        statusVal: 'No intake record received from the server',
+        notesLabel: 'Document Notes:',
+        notesVal: 'Physical storage location has not been provided.',
+      },
+
+      beneficiarySelect: {
+        title: 'Case Beneficiaries List',
+        desc: 'Staff must specifically select the beneficiary currently present at the counter. The case submitter is not assumed to be a beneficiary.',
+        emptyList: 'No designated beneficiaries were found for this case.',
+        selectPrompt: 'Please select a beneficiary below to proceed with identity verification:',
+        statusUnknown: 'Select to view verification history',
+        statusNotVerified: 'Not Verified',
+        statusMatch: 'Identity Match (MATCH)',
+        statusNotMatch: 'No Match (NOT_MATCH)',
+        selectedTag: 'Selected',
+        selectBtn: 'Select this Person',
+        dobLabel: 'Date of Birth:',
+        relationLabel: 'Relationship:',
+        idStatusLabel: 'Identity Number:',
+        hasId: 'Encrypted ID number on file',
+        noId: 'No ID number recorded',
+      },
+
+      form: {
+        title: 'In-Person Credential & Face Cross-Check',
+        beneficiaryNotice: 'Verifying for:',
+        documentType: 'Credential Type',
+        documentTypeOptions: {
+          select: '-- Select credential type --',
+          CCCD: 'National ID Card (CCCD / Citizen Card)',
+          PASSPORT: 'Passport',
+        },
+        documentTypeRequired: 'Please select a credential type.',
+        
+        result: 'Cross-Check Result',
+        resultDesc: 'Staff physically compares the live person with the credential photo and checks official details.',
+        resultOptions: {
+          MATCH: 'MATCH — Credential details and facial appearance match',
+          NOT_MATCH: 'NOT_MATCH — Information or facial appearance does not match',
+        },
+        resultRequired: 'Please select a cross-check result (MATCH or NOT_MATCH).',
+
+        documentSuffix: 'Last Four (4) Characters of Document (Optional)',
+        documentSuffixPlaceholder: 'e.g. 8901',
+        documentSuffixHint: 'Enter only the last 4 characters. Never enter the full identity number (LV-ID-001 compliance).',
+        documentSuffixInvalid: 'Document suffix must contain exactly 4 alphanumeric characters (e.g. 1234, 89AB).',
+
+        issuingAuthority: 'Issuing Authority (Optional)',
+        issuingAuthorityPlaceholder: 'e.g. Police Department of Administrative Management',
+        issuingAuthorityTooLong: 'Issuing authority cannot exceed 150 characters.',
+
+        actorNote: 'Verifying Staff & Verification Timestamp:',
+        actorDesc: 'Verification timestamp and staff actor ID are automatically recorded by the backend server in the audit log (PS-45). Custom actor IDs cannot be supplied from the UI.',
+      },
+
+      review: {
+        title: 'Review Cross-Check Details Before Recording',
+        beneficiaryLabel: 'Beneficiary Verified:',
+        documentLabel: 'Inspected Document:',
+        suffixLabel: 'Last 4 Characters:',
+        authorityLabel: 'Issuing Authority:',
+        resultLabel: 'Recorded Result:',
+        warning: 'Notice: Identity verification is permanently logged into append-only history and updates the beneficiary status.',
+      },
+
+      history: {
+        title: 'Identity Verification History',
+        loadError: 'Unable to load verification history. Please retry.',
+        empty: 'This beneficiary has no prior identity verification records.',
+        colTime: 'Timestamp',
+        colDoc: 'Document',
+        colSuffix: 'Last 4',
+        colAuthority: 'Authority',
+        colResult: 'Result',
+        colActor: 'Verifying Staff',
+        noActor: 'Not recorded in response',
+      },
+
+      buttons: {
+        submit: 'Record Verification Result',
+        submitting: 'Recording…',
+        continueVerification: 'Verify Another Beneficiary',
+        back: 'Back to Cases Queue',
+      },
+
+      feedback: {
+        successTitle: 'Identity Verification Recorded (DEV Preview)',
+        successDesc: 'A preview history record was created; no live data or case status was changed.',
+        receiptId: 'Verification ID:',
+        verifiedAt: 'Recorded At:',
+        errorTitle: 'Unable to record verification',
+        errorDesc: 'The request failed or returned an invalid response. Your entries are preserved for retry.',
+        notReadyTitle: 'Verification Service Not Ready',
+        notReadyDesc: 'Direct identity verification service (PS-45) is not yet connected to the Backend. Please contact administrator.',
+        simulationBadge: 'Simulated Preview',
+        duplicateSubmitError: 'A verification request is currently processing, please do not resubmit repeatedly.',
+      },
+    },
+  },
+};
+
+export function getStaffCaseTranslations(lang = 'vi') {
+  return STAFF_CASE_I18N[lang] || STAFF_CASE_I18N.vi;
+}

@@ -284,9 +284,9 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
 
       {/* Main Content Area */}
       {isLoadingWills ? (
-        <div className="hn-will-card hn-will-loading-card" role="status">
-          <div className="hn-will-spin" style={{ width: 28, height: 28, margin: '0 auto 12px' }} />
-          <p>{messages.UPLOADING_BTN || 'Đang tải…'}</p>
+        <div className="hn-will-card hn-will-loading-card" role="status" aria-live="polite" aria-busy="true">
+          <p>{language === 'en' ? 'Loading will documents…' : 'Đang tải hồ sơ di chúc…'}</p>
+          <div className="hn-will-skeleton-row" aria-hidden="true" /><div className="hn-will-skeleton-row" aria-hidden="true" />
         </div>
       ) : listError ? (
         <div className="hn-will-card hn-will-error-panel" role="alert">
@@ -365,21 +365,21 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                     <tbody>
                       {versions.map((ver) => (
                         <tr key={ver.version}>
-                          <td>
+                          <td data-label={t.versionCol}>
                             <span className="hn-will-version-badge">v{ver.version}</span>
                           </td>
-                          <td style={{ fontWeight: 600 }}>{ver.fileName}</td>
-                          <td>{formatNames[ver.contentType] || ver.contentType}</td>
-                          <td>{formatFileSize(ver.sizeBytes)}</td>
-                          <td style={{ fontSize: '12.5px', color: '#68736b' }}>
+                          <td data-label={t.fileNameCol} style={{ fontWeight: 600 }}>{ver.fileName}</td>
+                          <td data-label={t.formatCol}>{formatNames[ver.contentType] || ver.contentType}</td>
+                          <td data-label={t.sizeCol}>{formatFileSize(ver.sizeBytes)}</td>
+                          <td data-label={t.dateCol} style={{ fontSize: '12.5px', color: '#68736b' }}>
                             {formatDateTime(ver.uploadedAt, language)}
                           </td>
-                          <td>
+                          <td data-label={t.hashCol}>
                             <code className="hn-will-hash-inline" title={ver.sha256}>
                               {ver.sha256.slice(0, 10)}…{ver.sha256.slice(-8)}
                             </code>
                           </td>
-                          <td style={{ textAlign: 'right' }}>
+                          <td data-label={t.actionCol} style={{ textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                               <Button
                                 variant="secondary"

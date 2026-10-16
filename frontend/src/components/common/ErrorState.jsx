@@ -7,6 +7,10 @@ export default function ErrorState({
   onNavigateToLogin,
   onCreateVault,
   lang = 'vi',
+  title: customTitle,
+  message: customMessage,
+  actionLabel: customActionLabel,
+  badge: customBadge,
 }) {
   const status = error?.status || 0;
 
@@ -63,10 +67,10 @@ export default function ErrorState({
   };
 
   const cfg = errorConfigs[status] || errorConfigs.default;
-  const badge = lang === 'en' ? cfg.badgeEn : cfg.badgeVi;
-  const title = lang === 'en' ? cfg.titleEn : cfg.titleVi;
-  const desc = lang === 'en' ? cfg.descEn : cfg.descVi;
-  const actionLabel = lang === 'en' ? cfg.actionLabelEn : cfg.actionLabelVi;
+  const badge = customBadge || (lang === 'en' ? cfg.badgeEn : cfg.badgeVi);
+  const title = customTitle || (lang === 'en' ? cfg.titleEn : cfg.titleVi);
+  const desc = customMessage || (lang === 'en' ? cfg.descEn : cfg.descVi);
+  const actionLabel = customActionLabel || (lang === 'en' ? cfg.actionLabelEn : cfg.actionLabelVi);
 
   const handleAction = () => {
     if (cfg.actionType === 'login' && typeof onNavigateToLogin === 'function') {
@@ -98,7 +102,7 @@ export default function ErrorState({
           >
             {actionLabel}
           </MagneticButton>
-          {cfg.actionType !== 'retry' && typeof onRetry === 'function' && (
+          {!customActionLabel && cfg.actionType !== 'retry' && typeof onRetry === 'function' && (
             <MagneticButton
               type="button"
               className="lv-error-secondary-btn"
