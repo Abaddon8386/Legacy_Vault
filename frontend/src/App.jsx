@@ -10,6 +10,8 @@ import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
+import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
+import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -131,6 +133,101 @@ function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   );
 }
 
+function LegalAccessDeniedFallback({ lang, onLogout }) {
+  const isEn = lang === 'en';
+  return (
+    <main
+      role="alert"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100svh',
+        backgroundColor: '#f7f5f0',
+        padding: '24px',
+        textAlign: 'center',
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        color: '#1f2421',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '480px',
+          width: '100%',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '44px 32px',
+          boxShadow: '0 4px 20px rgba(22, 70, 57, 0.05)',
+          border: '1px solid #eae5dc',
+        }}
+      >
+        <div
+          style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(179, 38, 30, 0.1)',
+            color: '#b3261e',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+            fontSize: '22px',
+            fontWeight: 700,
+          }}
+          aria-hidden="true"
+        >
+          403
+        </div>
+        <h1
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '22px',
+            color: '#164639',
+            margin: '0 0 12px',
+            fontWeight: 600,
+          }}
+        >
+          {isEn ? 'Access restricted' : 'Từ chối quyền truy cập'}
+        </h1>
+        <p
+          style={{
+            fontSize: '14.5px',
+            color: '#6b726b',
+            lineHeight: 1.6,
+            margin: '0 0 28px',
+          }}
+        >
+          {isEn
+            ? 'This section requires a Legal Verifier account (LEGAL_VERIFIER).'
+            : 'Khu vực này yêu cầu tài khoản chuyên viên pháp lý (LEGAL_VERIFIER).'}
+        </p>
+        <button
+          type="button"
+          onClick={onLogout}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            backgroundColor: '#164639',
+            color: '#ffffff',
+            fontWeight: 600,
+            fontSize: '14px',
+            padding: '12px 24px',
+            borderRadius: '10px',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          {isEn ? 'Sign in with another account' : 'Đăng nhập tài khoản khác'}
+        </button>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
@@ -170,6 +267,41 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const isLegalDossierReviewRoute = path === '/legal/dossier-review';
+  if (isLegalDossierReviewRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessLegalDossierReview(session)) {
+      return <LegalAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="LEGAL"
+          currentTab="dossier-review"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={logout}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user}
+          onNavigateTab={tab => {
+            if (tab === 'dossier-review') {
+              navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            }
+          }}
+        >
+          <LegalDossierReviewPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </AppShell>
+      </div>
+    );
+  }
   const isVaultRoute = path === '/vault' || path === '/vaults';
   const isDmsRoute = path === '/dms';
   const isAssetsRoute = path === '/assets';
