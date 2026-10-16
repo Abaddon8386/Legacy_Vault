@@ -58,6 +58,29 @@ const STAFF_NAVIGATION_REGISTRY = [
   },
 ];
 
+const LEGAL_NAVIGATION_REGISTRY = [
+  {
+    id: 'death-verification',
+    labelVi: 'Xác minh tử vong',
+    labelEn: 'Death Verification',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'will-document-verification',
+    jiraTicket: 'PS-29',
+    labelVi: 'Đối chiếu di chúc',
+    labelEn: 'Will Verification',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'basis-route-selection',
+    jiraTicket: 'PS-30',
+    labelVi: 'Thẩm định căn cứ',
+    labelEn: 'Basis Adjudication',
+    status: 'ACTIVE',
+  },
+];
+
 export default function AppShell({
   children,
   currentTab = 'vault',
@@ -102,42 +125,95 @@ export default function AppShell({
   }, []);
 
   const isStaff = role === 'STAFF';
+  const isLegal = role === 'LEGAL';
 
   const content = {
     vi: {
-      brandTag: isStaff ? 'Cổng Nhân viên Thực thi' : 'Hệ thống Quản lý Di sản Số',
-      navSectionTitle: isStaff ? 'QUẢN TRỊ NGHIỆP VỤ' : 'QUẢN LÝ DI SẢN',
-      breadcrumbHome: isStaff ? 'Cổng Nhân viên' : 'Bảng điều khiển',
-      breadcrumbCurrent: isStaff ? 'Hồ sơ căn cứ pháp lý' : 'Kho di sản cá nhân',
+      brandTag: isStaff
+        ? 'Cổng Nhân viên Thực thi'
+        : isLegal
+          ? 'Cổng Thẩm định Pháp lý'
+          : 'Hệ thống Quản lý Di sản Số',
+      navSectionTitle: isStaff
+        ? 'QUẢN TRỊ NGHIỆP VỤ'
+        : isLegal
+          ? 'THẨM ĐỊNH PHÁP LÝ'
+          : 'QUẢN LÝ DI SẢN',
+      breadcrumbHome: isStaff
+        ? 'Cổng Nhân viên'
+        : isLegal
+          ? 'Cổng Pháp lý'
+          : 'Bảng điều khiển',
+      breadcrumbCurrent: isStaff
+        ? 'Hồ sơ căn cứ pháp lý'
+        : isLegal
+          ? 'Xác minh tử vong'
+          : 'Kho di sản cá nhân',
       refreshTitle: 'Làm mới dữ liệu',
-      roleBadge: isStaff ? 'Nhân viên thực thi' : 'Chủ sở hữu kho',
+      roleBadge: isStaff
+        ? 'Nhân viên thực thi'
+        : isLegal
+          ? 'Chuyên viên Pháp lý'
+          : 'Chủ sở hữu kho',
       logout: 'Đăng xuất',
       userDisplay: isStaff
         ? (user?.fullName || user?.email || 'Nhân viên thực thi')
-        : (user?.fullName || 'Chủ sở hữu kho'),
+        : isLegal
+          ? (user?.fullName || user?.email || 'Chuyên viên Pháp lý')
+          : (user?.fullName || 'Chủ sở hữu kho'),
       userInitials: isStaff
         ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'SE')
-        : 'VO',
+        : isLegal
+          ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
+          : 'VO',
     },
     en: {
-      brandTag: isStaff ? 'Staff Executor Portal' : 'Digital Heritage Sanctuary',
-      navSectionTitle: isStaff ? 'STAFF OPERATIONS' : 'HERITAGE PORTAL',
-      breadcrumbHome: isStaff ? 'Staff Portal' : 'Dashboard',
-      breadcrumbCurrent: isStaff ? 'Legal Basis Documents' : 'Personal Heritage Vault',
+      brandTag: isStaff
+        ? 'Staff Executor Portal'
+        : isLegal
+          ? 'Legal Verification Portal'
+          : 'Digital Heritage Sanctuary',
+      navSectionTitle: isStaff
+        ? 'STAFF OPERATIONS'
+        : isLegal
+          ? 'LEGAL VERIFICATION'
+          : 'HERITAGE PORTAL',
+      breadcrumbHome: isStaff
+        ? 'Staff Portal'
+        : isLegal
+          ? 'Legal Portal'
+          : 'Dashboard',
+      breadcrumbCurrent: isStaff
+        ? 'Legal Basis Documents'
+        : isLegal
+          ? 'Death Verification'
+          : 'Personal Heritage Vault',
       refreshTitle: 'Refresh records',
-      roleBadge: isStaff ? 'Staff Executor' : 'Vault Owner',
+      roleBadge: isStaff
+        ? 'Staff Executor'
+        : isLegal
+          ? 'Legal Verifier'
+          : 'Vault Owner',
       logout: 'Sign out',
       userDisplay: isStaff
         ? (user?.fullName || user?.email || 'Staff Executor')
-        : (user?.fullName || 'Vault Owner'),
+        : isLegal
+          ? (user?.fullName || user?.email || 'Legal Verifier')
+          : (user?.fullName || 'Vault Owner'),
       userInitials: isStaff
         ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'SE')
-        : 'VO',
+        : isLegal
+          ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
+          : 'VO',
     },
   };
 
   const t = content[lang] || content.vi;
-  const navList = isStaff ? STAFF_NAVIGATION_REGISTRY : NAVIGATION_REGISTRY;
+  const navList = isStaff
+    ? STAFF_NAVIGATION_REGISTRY
+    : isLegal
+      ? LEGAL_NAVIGATION_REGISTRY
+      : NAVIGATION_REGISTRY;
 
   return (
     <div className="lv-shell">
@@ -207,6 +283,25 @@ export default function AppShell({
                         <line x1="16" y1="17" x2="8" y2="17" />
                         <line x1="10" y1="9" x2="8" y2="9" />
                       </svg>
+                    ) : item.id === 'death-verification' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="M9 12l2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'will-document-verification' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M9 15l2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'basis-route-selection' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z" />
+                        <path d="M2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z" />
+                        <path d="M7 21h10" />
+                        <path d="M12 3v18" />
+                        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+                      </svg>
                     ) : item.id === 'dms' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
@@ -233,8 +328,8 @@ export default function AppShell({
           </ul>
         </nav>
 
-        {/* User Role Footer - Hidden when unauthenticated for staff to avoid impersonation */}
-        {(!isStaff || Boolean(user)) && (
+        {/* User Role Footer - Hidden when unauthenticated for staff/legal to avoid impersonation */}
+        {((!isStaff && !isLegal) || Boolean(user)) && (
           <div className="lv-sidebar-footer">
             <div className="lv-user-badge-card">
               <div className="lv-user-avatar-initials" aria-hidden="true">
@@ -287,9 +382,17 @@ export default function AppShell({
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
                 {isStaff
-                  ? (currentTab === 'legal-documents'
-                      ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
-                      : t.breadcrumbCurrent)
+                  ? currentTab === 'legal-documents'
+                    ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
+                    : t.breadcrumbCurrent
+                  : isLegal
+                    ? currentTab === 'basis-route-selection'
+                      ? (lang === 'en' ? 'Basis Adjudication' : 'Thẩm định căn cứ')
+                      : currentTab === 'will-document-verification'
+                        ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
+                        : currentTab === 'death-verification'
+                          ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
+                          : t.breadcrumbCurrent
                   : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'
