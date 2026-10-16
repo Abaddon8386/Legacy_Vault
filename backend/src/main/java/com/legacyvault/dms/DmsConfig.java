@@ -86,6 +86,16 @@ public class DmsConfig {
 		this.updatedAt = now;
 	}
 
+	public void restoreAfterAlert(LocalDateTime now) {
+		this.status = "MONITORING";
+		this.lastCheckInAt = now;
+		this.nextCheckAt = now.plusDays(this.checkIntervalDays);
+		this.triggeredAt = null;
+		this.graceDeadline = null;
+		this.updatedAt = now;
+	}
+
+
 	public Long getId() { return id; }
 	public Long getOwnerUserId() { return ownerUserId; }
 	public int getCheckIntervalDays() { return checkIntervalDays; }
