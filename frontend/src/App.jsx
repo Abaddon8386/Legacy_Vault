@@ -10,6 +10,8 @@ import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
+import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
+import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
@@ -396,6 +398,60 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const isLegalDossierReviewRoute = path === '/legal/dossier-review';
+  if (isLegalDossierReviewRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return (
+        <div className="lv-app-root">
+          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+        </div>
+      );
+    }
+    if (!preview && !canAccessLegalDossierReview(session)) {
+      return (
+        <div className="lv-app-root">
+          <LegalAccessDeniedFallback
+            lang={lang}
+            onLogout={logout}
+            onNavigateToVault={() => navigateTo('/vault')}
+            canReturnToVault={Boolean(session?.user?.roles?.includes('VAULT_OWNER'))}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="LEGAL"
+          currentTab="dossier-review"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={logout}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user}
+          onNavigateTab={tab => {
+            if (tab === 'dossier-review') {
+              navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'death-verification') {
+              navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+            } else if (tab === 'will-document-verification') {
+              navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+            } else if (tab === 'basis-route-selection') {
+              navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            }
+          }}
+        >
+          <LegalDossierReviewPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </AppShell>
+      </div>
+    );
+  }
   const isVaultRoute = path === '/vault' || path === '/vaults';
   const isDmsRoute = path === '/dms';
   const isAssetsRoute = path === '/assets';
@@ -478,6 +534,8 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'dossier-review') {
+              navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
             }
           }}
         >
@@ -526,6 +584,8 @@ export default function App() {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'dossier-review') {
+              navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
             }
           }}
         >
@@ -574,6 +634,8 @@ export default function App() {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
             } else if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+            } else if (tab === 'dossier-review') {
+              navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
             }
           }}
         >
