@@ -46,6 +46,13 @@ const NAVIGATION_REGISTRY = [
     labelEn: 'Beneficiaries & Trustees',
     status: 'ACTIVE',
   },
+  {
+    id: 'subscription',
+    jiraTicket: 'CR-01',
+    labelVi: 'Gói sử dụng',
+    labelEn: 'Subscription Plans',
+    status: 'ACTIVE',
+  },
 ];
 
 const STAFF_NAVIGATION_REGISTRY = [
@@ -283,7 +290,12 @@ export default function AppShell({
                 >
                   <span className="lv-nav-spotlight" aria-hidden="true" />
                   <span className="lv-nav-icon" aria-hidden="true">
-                    {item.id === 'legal-documents' ? (
+                    {item.id === 'subscription' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                      </svg>
+                    ) : item.id === 'legal-documents' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
@@ -411,7 +423,7 @@ export default function AppShell({
                           : currentTab === 'death-verification'
                             ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
                             : t.breadcrumbCurrent
-                  : currentTab === 'beneficiaries'
+                  : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')
