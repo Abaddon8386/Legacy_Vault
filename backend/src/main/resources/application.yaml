@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: legacyvault-backend
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    database-platform: org.hibernate.dialect.SQLServerDialect
+    properties:
+      hibernate:
+        format_sql: true
+  # Upload di chúc số hóa (PS-17): giới hạn tầng servlet phải >= legacyvault.will.max-file-bytes;
+  # vượt giới hạn trả 413 PAYLOAD_TOO_LARGE.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+  messages:
+    basename: messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+logging:
+  level:
+    org.flywaydb: DEBUG
+    org.springframework.security: TRACE
+  pattern:
+    level: "%5p [%X{traceId:-}]"
+
+# Không để Spring tự đưa stack trace / message / chi tiết binding vào response lỗi.
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
+
+legacyvault:
+  cors:
+    # Danh sách origin được phép, phân cách bằng dấu phẩy. Mặc định rỗng (dev dùng Vite proxy nên không cần).
+    # Ví dụ khi muốn gọi thẳng không qua proxy: CORS_ALLOWED_ORIGINS=http://localhost:5173
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  jwt:
+    secret: ${JWT_SECRET_BASE64}
+    expiration-seconds: 3600
+  encryption:
+    # Khóa AES-256 mã hóa payload tài sản, file di chúc và số định danh Beneficiary (PS-15, PS-17, PS-20): base64 của đúng 32 byte.
+    # Không có giá trị mặc định, không commit khóa thật; thiếu khóa thì ứng dụng không khởi động (giống JWT_SECRET_BASE64).
+    key: ${LEGACYVAULT_ENCRYPTION_KEY}
+    # Ghi vào cột encryption_key_version để giải mã đúng khóa khi xoay khóa.
+    key-version: ${LEGACYVAULT_ENCRYPTION_KEY_VERSION:v1}
+  reauth:
+    # Xác nhận lại mật khẩu trước khi xem nội dung bảo mật (D-API-32/33). Giá trị mặc định do Dương đề xuất, cần nhóm xác nhận.
+    max-failed-attempts: ${LEGACYVAULT_REAUTH_MAX_FAILED_ATTEMPTS:5}
+    window-minutes: ${LEGACYVAULT_REAUTH_WINDOW_MINUTES:15}
+  asset:
+    # Giới hạn payload Asset tính theo byte UTF-8 (D-API-29, mặc định 64 KB).
+    max-payload-bytes: 65536
+  will:
+    # File di chúc số hóa tối đa (byte), mặc định 10 MB (D-API-14). Loại cho phép: PDF/JPEG/PNG theo nội dung file.
+    max-file-bytes: 10485760
+  dms:
+    grace-period-days: ${DMS_GRACE_PERIOD_DAYS:1}
