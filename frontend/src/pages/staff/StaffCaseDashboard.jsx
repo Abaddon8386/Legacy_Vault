@@ -18,10 +18,12 @@ import {
 import { Button } from '../../components/common/Button.jsx';
 import {
   fetchStaffCases,
+  submitPhysicalIntakeRecord,
   SYNTHETIC_STAFF_CASES,
 } from './staffCaseService.js';
 import { getStaffCaseTranslations } from './staffCaseI18n.js';
 import StaffCaseDetailModal from './StaffCaseDetailModal.jsx';
+import StaffCaseIntakePage from './StaffCaseIntakePage.jsx';
 import './StaffCaseDashboard.css';
 
 /**
@@ -36,12 +38,11 @@ export default function StaffCaseDashboard({
   onNavigateToLogin,
   onUnauthorized = onNavigateToLogin,
   loadCases = fetchStaffCases,
-  onSubmitRecord = null,
+  onSubmitRecord = submitPhysicalIntakeRecord,
   onSubmitVerification = null,
   loadBeneficiaries = null,
   loadHistory = null,
   VerificationPage = null,
-  IntakePage = null,
   initialIntakeCase = null,
   initialVerifyCase = null,
   onSelectIntakeCase,
@@ -212,9 +213,9 @@ export default function StaffCaseDashboard({
   const authFeedback = staffAuthFeedback(error, lang);
   const isBackendNotReady = error?.code === 'BACKEND_NOT_READY';
 
-  if (activeIntakeCase && IntakePage) {
+  if (activeIntakeCase) {
     return (
-      <IntakePage
+      <StaffCaseIntakePage
         caseItem={activeIntakeCase}
         onBack={() => {
           setActiveIntakeCase(null);
@@ -482,7 +483,7 @@ export default function StaffCaseDashboard({
                           <Eye size={14} aria-hidden="true" />
                           <span>{t.table.viewAction}</span>
                         </Button>
-                        {IntakePage && (<Button
+                        <Button
                           variant="primary"
                           size="sm"
                           className="lv-staff-intake-btn"
@@ -503,7 +504,7 @@ export default function StaffCaseDashboard({
                         >
                           <FileText size={14} aria-hidden="true" />
                           <span>{t.table.intakeAction}</span>
-                        </Button>)}
+                        </Button>
                         {VerificationPage && (<Button
                           variant="secondary"
                           size="sm"
@@ -578,7 +579,7 @@ export default function StaffCaseDashboard({
                       <Eye size={15} aria-hidden="true" />
                       <span>{t.table.viewAction}</span>
                     </Button>
-                    {IntakePage && (<Button
+                    <Button
                       variant="primary"
                       size="sm"
                       className="lv-staff-card__intake-btn"
@@ -599,7 +600,7 @@ export default function StaffCaseDashboard({
                     >
                       <FileText size={15} aria-hidden="true" />
                       <span>{t.table.intakeAction}</span>
-                    </Button>)}
+                    </Button>
                     {VerificationPage && (<Button
                       variant="secondary"
                       size="sm"
@@ -699,7 +700,7 @@ export default function StaffCaseDashboard({
         onClose={() => setSelectedCase(null)}
         caseItem={selectedCase?.item}
         lang={lang}
-        onStartIntake={IntakePage ? (item) => {
+        onStartIntake={(item) => {
           setSelectedCase(null);
           setActiveIntakeCase(item);
           if (typeof window !== 'undefined') {
@@ -712,7 +713,7 @@ export default function StaffCaseDashboard({
             }
           }
           onSelectIntakeCase?.(item);
-        } : undefined}
+        }}
         onStartVerification={VerificationPage ? (item) => {
           setSelectedCase(null);
           setActiveVerifyCase(item);
