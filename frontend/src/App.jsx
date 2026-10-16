@@ -10,6 +10,8 @@ import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
+import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
+import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
@@ -133,6 +135,101 @@ function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
             <span>Đến trang Đăng nhập</span>
           </button>
         </div>
+      </div>
+    </main>
+  );
+}
+
+function StaffAccessDeniedFallback({ lang, onLogout }) {
+  const isEn = lang === 'en';
+  return (
+    <main
+      role="alert"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100svh',
+        backgroundColor: '#f7f5f0',
+        padding: '24px',
+        textAlign: 'center',
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        color: '#1f2421',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '480px',
+          width: '100%',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '44px 32px',
+          boxShadow: '0 4px 20px rgba(22, 70, 57, 0.05)',
+          border: '1px solid #eae5dc',
+        }}
+      >
+        <div
+          style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(179, 38, 30, 0.1)',
+            color: '#b3261e',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+            fontSize: '22px',
+            fontWeight: 700,
+          }}
+          aria-hidden="true"
+        >
+          403
+        </div>
+        <h1
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '22px',
+            color: '#164639',
+            margin: '0 0 12px',
+            fontWeight: 600,
+          }}
+        >
+          {isEn ? 'Access restricted' : 'Từ chối quyền truy cập'}
+        </h1>
+        <p
+          style={{
+            fontSize: '14.5px',
+            color: '#6b726b',
+            lineHeight: 1.6,
+            margin: '0 0 28px',
+          }}
+        >
+          {isEn
+            ? 'This section requires a Staff Executor account (STAFF_EXECUTOR).'
+            : 'Khu vực này yêu cầu tài khoản nhân viên xử lý hồ sơ (STAFF_EXECUTOR).'}
+        </p>
+        <button
+          type="button"
+          onClick={onLogout}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            backgroundColor: '#164639',
+            color: '#ffffff',
+            fontWeight: 600,
+            fontSize: '14px',
+            padding: '12px 24px',
+            borderRadius: '10px',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          {isEn ? 'Sign in with another account' : 'Đăng nhập tài khoản khác'}
+        </button>
       </div>
     </main>
   );
@@ -291,11 +388,7 @@ export default function App() {
     if (options.signal?.aborted) return;
     if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
     setSession({ ...candidate, user }); setLang(options.lang || 'vi');
-    if (user.roles.includes('LEGAL_VERIFIER') && !user.roles.includes('VAULT_OWNER')) {
-      navigateTo('/legal/death-verification');
-    } else {
-      navigateTo('/vault');
-    }
+    navigateTo(resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
     setIsRefreshing(true); setRefreshTrigger(value => value + 1);
@@ -308,9 +401,46 @@ export default function App() {
   const isAssetsRoute = path === '/assets';
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
+  const isStaffLegalDocsRoute = path === '/staff/legal-documents';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
+
+  if (isStaffLegalDocsRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessStaffLegalDocuments(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="legal-documents"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            }
+          }}
+        >
+          <StaffLegalDocumentsPage
+            lang={lang}
+            preview={preview}
+            session={session}
+            onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          />
+        </AppShell>
+      </div>
+    );
+  }
 
   if (isLegalDeathRoute) {
     if (!isSessionActive(session) && !preview) {
