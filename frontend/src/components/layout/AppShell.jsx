@@ -50,6 +50,12 @@ const NAVIGATION_REGISTRY = [
 
 const LEGAL_NAVIGATION_REGISTRY = [
   {
+    id: 'death-verification',
+    labelVi: 'Xác minh tử vong',
+    labelEn: 'Death Verification',
+    status: 'ACTIVE',
+  },
+  {
     id: 'dossier-review',
     jiraTicket: 'PS-32',
     labelVi: 'Thẩm định hồ sơ',
@@ -105,23 +111,23 @@ export default function AppShell({
 
   const content = {
     vi: {
-      brandTag: isLegal ? 'Cổng Chuyên viên Pháp lý' : 'Hệ thống Quản lý Di sản Số',
+      brandTag: isLegal ? 'Cổng Thẩm định Pháp lý' : 'Hệ thống Quản lý Di sản Số',
       navSectionTitle: isLegal ? 'THẨM ĐỊNH PHÁP LÝ' : 'QUẢN LÝ DI SẢN',
       breadcrumbHome: isLegal ? 'Cổng Pháp lý' : 'Bảng điều khiển',
       breadcrumbCurrent: isLegal ? 'Thẩm định hồ sơ' : 'Kho di sản cá nhân',
       refreshTitle: 'Làm mới dữ liệu',
-      roleBadge: isLegal ? 'Chuyên viên pháp lý' : 'Chủ sở hữu kho',
+      roleBadge: isLegal ? 'Chuyên viên Pháp lý' : 'Chủ sở hữu kho',
       logout: 'Đăng xuất',
       userDisplay: isLegal
-        ? (user?.fullName || user?.email || 'Chuyên viên pháp lý')
+        ? (user?.fullName || user?.email || 'Chuyên viên Pháp lý')
         : (user?.fullName || 'Chủ sở hữu kho'),
       userInitials: isLegal
         ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
         : 'VO',
     },
     en: {
-      brandTag: isLegal ? 'Legal Verifier Portal' : 'Digital Heritage Sanctuary',
-      navSectionTitle: isLegal ? 'LEGAL ADJUDICATION' : 'HERITAGE PORTAL',
+      brandTag: isLegal ? 'Legal Verification Portal' : 'Digital Heritage Sanctuary',
+      navSectionTitle: isLegal ? 'LEGAL VERIFICATION' : 'HERITAGE PORTAL',
       breadcrumbHome: isLegal ? 'Legal Portal' : 'Dashboard',
       breadcrumbCurrent: isLegal ? 'Dossier Review' : 'Personal Heritage Vault',
       refreshTitle: 'Refresh records',
@@ -199,7 +205,12 @@ export default function AppShell({
                 >
                   <span className="lv-nav-spotlight" aria-hidden="true" />
                   <span className="lv-nav-icon" aria-hidden="true">
-                    {item.id === 'dossier-review' ? (
+                    {item.id === 'death-verification' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="M9 12l2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'dossier-review' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
@@ -287,9 +298,11 @@ export default function AppShell({
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
                 {isLegal
-                  ? (currentTab === 'dossier-review'
-                      ? (lang === 'en' ? 'Dossier Review' : 'Thẩm định hồ sơ')
-                      : t.breadcrumbCurrent)
+                  ? currentTab === 'dossier-review'
+                    ? (lang === 'en' ? 'Dossier Review' : 'Thẩm định hồ sơ')
+                    : currentTab === 'death-verification'
+                      ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
+                      : t.breadcrumbCurrent
                   : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'
