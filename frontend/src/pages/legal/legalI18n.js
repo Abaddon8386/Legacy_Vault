@@ -51,6 +51,9 @@ export const legalI18n = {
 
     validationSuccess: 'Biểu mẫu đã điền đủ thông tin (đã chọn kết quả và có lý do thẩm định).',
     validationFailure: 'Vui lòng kiểm tra lại: cần chọn một kết quả và nhập lý do thẩm định.',
+    decisionRequired: 'Vui lòng chọn quyết định thẩm định.',
+    decisionInvalid: 'Lựa chọn thẩm định không hợp lệ.',
+    reasonRequired: 'Lý do thẩm định không được để trống.',
   },
 
   en: {
@@ -105,5 +108,8 @@ export const legalI18n = {
 
     validationSuccess: 'Form is complete (decision selected and rationale provided).',
     validationFailure: 'Please check the form: a decision and rationale are required.',
+    decisionRequired: 'Please select a verification option.',
+    decisionInvalid: 'Invalid verification option selected.',
+    reasonRequired: 'Verification rationale / reason cannot be empty.',
   },
 };

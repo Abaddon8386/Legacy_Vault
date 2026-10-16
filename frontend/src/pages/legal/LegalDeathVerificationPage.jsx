@@ -43,10 +43,12 @@ export default function LegalDeathVerificationPage({
   const handleDecisionChange = (selected) => {
     setDecision(selected);
     if (validatedOnce) {
-      const res = validateDeathVerificationForm(
-        { docketReference, decision: selected, reason, notes },
-        lang
-      );
+      const res = validateDeathVerificationForm({
+        docketReference,
+        decision: selected,
+        reason,
+        notes,
+      });
       setErrors(res.errors);
       setValidationStatus(res.isValid ? 'success' : 'error');
     }
@@ -56,10 +58,12 @@ export default function LegalDeathVerificationPage({
     const val = e.target.value;
     setReason(val);
     if (validatedOnce) {
-      const res = validateDeathVerificationForm(
-        { docketReference, decision, reason: val, notes },
-        lang
-      );
+      const res = validateDeathVerificationForm({
+        docketReference,
+        decision,
+        reason: val,
+        notes,
+      });
       setErrors(res.errors);
       setValidationStatus(res.isValid ? 'success' : 'error');
     }
@@ -67,10 +71,12 @@ export default function LegalDeathVerificationPage({
 
   const handleValidateLocal = () => {
     setValidatedOnce(true);
-    const res = validateDeathVerificationForm(
-      { docketReference, decision, reason, notes },
-      lang
-    );
+    const res = validateDeathVerificationForm({
+      docketReference,
+      decision,
+      reason,
+      notes,
+    });
     setErrors(res.errors);
     setValidationStatus(res.isValid ? 'success' : 'error');
   };
@@ -229,7 +235,7 @@ export default function LegalDeathVerificationPage({
             {errors.decision && (
               <div className="lv-form-error-msg" role="alert" style={{ marginTop: 8 }}>
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{errors.decision}</span>
+                <span>{t[errors.decision] || errors.decision}</span>
               </div>
             )}
           </fieldset>
@@ -253,7 +259,7 @@ export default function LegalDeathVerificationPage({
             {errors.reason && (
               <div id="reason-error" className="lv-form-error-msg" role="alert">
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{errors.reason}</span>
+                <span>{t[errors.reason] || errors.reason}</span>
               </div>
             )}
           </div>

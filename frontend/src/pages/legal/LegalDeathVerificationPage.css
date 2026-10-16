@@ -2,6 +2,7 @@
    Legal Death Verification Stylesheet — LegacyVault (PS-28 / ST-12)
    Art Direction: Henedo Style (Forest Green, Sand Gold, Warm Canvas)
    Sync with Application Shell Layout
+   All selectors strictly scoped under .lv-legal-view to prevent leaking into Owner views
    ========================================================================== */
 
 .lv-legal-view {
@@ -17,7 +18,7 @@
 /* --------------------------------------------------------------------------
    Page Title Area
    -------------------------------------------------------------------------- */
-.lv-legal-title-area {
+.lv-legal-view .lv-legal-title-area {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -25,7 +26,7 @@
   flex-wrap: wrap;
 }
 
-.lv-legal-title {
+.lv-legal-view .lv-legal-title {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 28px;
   color: var(--lv-brand-forest, #164639);
@@ -35,7 +36,7 @@
   line-height: 1.25;
 }
 
-.lv-legal-subtitle {
+.lv-legal-view .lv-legal-subtitle {
   color: var(--lv-text-muted, #6b726b);
   font-size: 14.5px;
   margin: 0;
@@ -45,7 +46,7 @@
 /* --------------------------------------------------------------------------
    Regulatory Warning Banner (LV-DEATH-002)
    -------------------------------------------------------------------------- */
-.lv-dms-warning-banner {
+.lv-legal-view .lv-dms-warning-banner {
   background-color: #fffbf0;
   border: 1px solid rgba(197, 160, 89, 0.45);
   border-left: 4px solid var(--lv-accent-gold, #c5a059);
@@ -57,17 +58,17 @@
   box-shadow: 0 1px 4px rgba(22, 70, 57, 0.02);
 }
 
-.lv-dms-warning-banner__icon {
+.lv-legal-view .lv-dms-warning-banner__icon {
   color: #b5832a;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
-.lv-dms-warning-banner__body {
+.lv-legal-view .lv-dms-warning-banner__body {
   flex: 1;
 }
 
-.lv-dms-warning-banner__title {
+.lv-legal-view .lv-dms-warning-banner__title {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 14.5px;
   font-weight: 700;
@@ -77,19 +78,17 @@
   letter-spacing: 0.03em;
 }
 
-.lv-dms-warning-banner__body p {
+.lv-legal-view .lv-dms-warning-banner__body p {
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
   color: #42361e;
 }
 
-
-
 /* --------------------------------------------------------------------------
    Verification Queue Section
    -------------------------------------------------------------------------- */
-.lv-queue-card {
+.lv-legal-view .lv-queue-card {
   background: #ffffff;
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: 14px;
@@ -97,7 +96,7 @@
   box-shadow: 0 2px 8px rgba(22, 70, 57, 0.02);
 }
 
-.lv-queue-card__header h2 {
+.lv-legal-view .lv-queue-card__header h2 {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 19px;
   font-weight: 600;
@@ -105,7 +104,7 @@
   margin: 0 0 16px;
 }
 
-.lv-queue-status-box {
+.lv-legal-view .lv-queue-status-box {
   border: 1px dashed var(--lv-border-medium, #ded9ce);
   border-radius: 10px;
   background: #faf8f5;
@@ -113,20 +112,20 @@
   text-align: center;
 }
 
-.lv-queue-status-icon {
+.lv-legal-view .lv-queue-status-icon {
   color: var(--lv-brand-forest, #164639);
   margin: 0 auto 10px;
   display: block;
 }
 
-.lv-queue-status-box h3 {
+.lv-legal-view .lv-queue-status-box h3 {
   font-size: 15px;
   font-weight: 600;
   color: var(--lv-text-heading, #1f2421);
   margin: 0 0 6px;
 }
 
-.lv-queue-status-box p {
+.lv-legal-view .lv-queue-status-box p {
   font-size: 13.5px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0;
@@ -136,7 +135,7 @@
 /* --------------------------------------------------------------------------
    Review Docket Form Card
    -------------------------------------------------------------------------- */
-.lv-form-card {
+.lv-legal-view .lv-form-card {
   background: #ffffff;
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: 14px;
@@ -144,7 +143,7 @@
   box-shadow: 0 2px 8px rgba(22, 70, 57, 0.02);
 }
 
-.lv-form-card__header h2 {
+.lv-legal-view .lv-form-card__header h2 {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 20px;
   font-weight: 600;
@@ -152,7 +151,7 @@
   margin: 0 0 4px;
 }
 
-.lv-form-card__header p {
+.lv-legal-view .lv-form-card__header p {
   font-size: 13.5px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0 0 24px;
@@ -161,13 +160,13 @@
 /* --------------------------------------------------------------------------
    Form Controls
    -------------------------------------------------------------------------- */
-.lv-form-group {
+.lv-legal-view .lv-form-group {
   margin-bottom: 22px;
   display: flex;
   flex-direction: column;
 }
 
-.lv-form-label {
+.lv-legal-view .lv-form-label {
   font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-heading, #1f2421);
@@ -175,13 +174,13 @@
   display: block;
 }
 
-.lv-form-label--required::after {
+.lv-legal-view .lv-form-label--required::after {
   content: ' *';
   color: #b42318;
   font-weight: 700;
 }
 
-.lv-form-hint {
+.lv-legal-view .lv-form-hint {
   font-size: 12.5px;
   color: var(--lv-text-muted, #6b726b);
   margin-bottom: 8px;
@@ -189,8 +188,8 @@
   display: block;
 }
 
-.lv-form-input,
-.lv-form-textarea {
+.lv-legal-view .lv-form-input,
+.lv-legal-view .lv-form-textarea {
   width: 100%;
   box-sizing: border-box;
   background-color: #ffffff;
@@ -203,23 +202,23 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.lv-form-input:focus,
-.lv-form-textarea:focus {
+.lv-legal-view .lv-form-input:focus,
+.lv-legal-view .lv-form-textarea:focus {
   border-color: var(--lv-accent-gold, #c5a059);
   outline: none;
   box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2);
 }
 
-.lv-form-textarea {
+.lv-legal-view .lv-form-textarea {
   resize: vertical;
   min-height: 80px;
 }
 
-.lv-form-textarea--error {
+.lv-legal-view .lv-form-textarea--error {
   border-color: #b42318;
 }
 
-.lv-form-textarea--error:focus {
+.lv-legal-view .lv-form-textarea--error:focus {
   border-color: #b42318;
   box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
 }
@@ -227,14 +226,14 @@
 /* --------------------------------------------------------------------------
    Decision Cards Grid
    -------------------------------------------------------------------------- */
-.lv-decision-cards-grid {
+.lv-legal-view .lv-decision-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
   margin-top: 8px;
 }
 
-.lv-decision-card {
+.lv-legal-view .lv-decision-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -248,31 +247,31 @@
   box-sizing: border-box;
 }
 
-.lv-decision-card input[type='radio'] {
+.lv-legal-view .lv-decision-card input[type='radio'] {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
 
-.lv-decision-card:hover {
+.lv-legal-view .lv-decision-card:hover {
   border-color: var(--lv-border-hover, #baa375);
   background-color: #fdfcf9;
   transform: translateY(-1px);
 }
 
-.lv-decision-card--active {
+.lv-legal-view .lv-decision-card--active {
   border-color: var(--lv-brand-forest, #164639);
   background-color: #fbf9f4;
   box-shadow: 0 0 0 1px var(--lv-brand-forest, #164639), 0 2px 8px rgba(22, 70, 57, 0.06);
 }
 
-.lv-decision-card__head {
+.lv-legal-view .lv-decision-card__head {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.lv-decision-card__radio-circle {
+.lv-legal-view .lv-decision-card__radio-circle {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -283,20 +282,20 @@
   background: #ffffff;
 }
 
-.lv-decision-card__radio-dot {
+.lv-legal-view .lv-decision-card__radio-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background-color: var(--lv-brand-forest, #164639);
 }
 
-.lv-decision-card__title {
+.lv-legal-view .lv-decision-card__title {
   font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-heading, #1f2421);
 }
 
-.lv-decision-card__desc {
+.lv-legal-view .lv-decision-card__desc {
   font-size: 12.5px;
   color: var(--lv-text-muted, #6b726b);
   line-height: 1.45;
@@ -305,7 +304,7 @@
 /* --------------------------------------------------------------------------
    Audit & History Area
    -------------------------------------------------------------------------- */
-.lv-audit-card {
+.lv-legal-view .lv-audit-card {
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: 10px;
   background-color: #faf8f5;
@@ -313,7 +312,7 @@
   margin-bottom: 24px;
 }
 
-.lv-audit-card__title {
+.lv-legal-view .lv-audit-card__title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -323,7 +322,7 @@
   margin-bottom: 12px;
 }
 
-.lv-audit-no-data-box {
+.lv-legal-view .lv-audit-no-data-box {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -336,18 +335,18 @@
   font-size: 13px;
 }
 
-.lv-audit-no-data-box strong {
+.lv-legal-view .lv-audit-no-data-box strong {
   color: var(--lv-text-heading, #1f2421);
   display: block;
 }
 
-.lv-audit-no-data-box p {
+.lv-legal-view .lv-audit-no-data-box p {
   margin: 2px 0 0;
   color: #788279;
   font-size: 12.5px;
 }
 
-.lv-current-user-info {
+.lv-legal-view .lv-current-user-info {
   font-size: 13px;
   color: #555d56;
   border-top: 1px solid var(--lv-border-subtle, #eae5dc);
@@ -358,17 +357,17 @@
   gap: 4px;
 }
 
-.lv-current-user-label {
+.lv-legal-view .lv-current-user-label {
   font-weight: 500;
   color: var(--lv-text-muted, #6b726b);
 }
 
-.lv-current-user-value {
+.lv-legal-view .lv-current-user-value {
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
 }
 
-.lv-current-user-note {
+.lv-legal-view .lv-current-user-note {
   font-size: 12px;
   color: #828a84;
   font-style: italic;
@@ -377,7 +376,7 @@
 /* --------------------------------------------------------------------------
    Action Buttons Row & Validation Feedback
    -------------------------------------------------------------------------- */
-.lv-form-actions {
+.lv-legal-view .lv-form-actions {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -385,14 +384,14 @@
   border-top: 1px solid var(--lv-border-subtle, #eae5dc);
 }
 
-.lv-form-actions__row {
+.lv-legal-view .lv-form-actions__row {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
 }
 
-.lv-btn-submit-disabled {
+.lv-legal-view .lv-btn-submit-disabled {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -407,7 +406,7 @@
   transition: opacity 0.2s;
 }
 
-.lv-btn-validate-local {
+.lv-legal-view .lv-btn-validate-local {
   background-color: var(--lv-brand-forest, #164639);
   color: #ffffff;
   border: 1px solid var(--lv-brand-forest, #164639);
@@ -419,17 +418,17 @@
   transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
 }
 
-.lv-btn-validate-local:hover {
+.lv-legal-view .lv-btn-validate-local:hover {
   background-color: #0f352b;
   border-color: #0f352b;
   transform: translateY(-1px);
 }
 
-.lv-btn-validate-local:active {
+.lv-legal-view .lv-btn-validate-local:active {
   transform: translateY(0);
 }
 
-.lv-btn-reset {
+.lv-legal-view .lv-btn-reset {
   display: inline-flex;
   align-items: center;
   background-color: #ffffff;
@@ -443,12 +442,12 @@
   transition: background-color 0.2s, border-color 0.2s;
 }
 
-.lv-btn-reset:hover {
+.lv-legal-view .lv-btn-reset:hover {
   border-color: var(--lv-border-hover, #baa375);
   background-color: #faf8f5;
 }
 
-.lv-action-helper-notice {
+.lv-legal-view .lv-action-helper-notice {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -456,7 +455,7 @@
   color: #828a84;
 }
 
-.lv-validation-feedback {
+.lv-legal-view .lv-validation-feedback {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -467,19 +466,19 @@
   margin-top: 4px;
 }
 
-.lv-validation-feedback--success {
+.lv-legal-view .lv-validation-feedback--success {
   background-color: #edf7ed;
   color: #1e4620;
   border: 1px solid #c8e6c9;
 }
 
-.lv-validation-feedback--error {
+.lv-legal-view .lv-validation-feedback--error {
   background-color: #fdf2f2;
   color: #991b1b;
   border: 1px solid #fecaca;
 }
 
-.lv-form-error-msg {
+.lv-legal-view .lv-form-error-msg {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -493,30 +492,30 @@
    Responsive Design (Tablet & Mobile down to 390px)
    -------------------------------------------------------------------------- */
 @media (max-width: 640px) {
-  .lv-form-card,
-  .lv-queue-card {
+  .lv-legal-view .lv-form-card,
+  .lv-legal-view .lv-queue-card {
     padding: 20px 16px;
   }
 
-  .lv-decision-cards-grid {
+  .lv-legal-view .lv-decision-cards-grid {
     grid-template-columns: 1fr;
   }
 
-  .lv-form-actions__row {
+  .lv-legal-view .lv-form-actions__row {
     flex-direction: column;
     width: 100%;
   }
 
-  .lv-form-actions__row button {
+  .lv-legal-view .lv-form-actions__row button {
     width: 100%;
     justify-content: center;
   }
 
-  .lv-legal-title {
+  .lv-legal-view .lv-legal-title {
     font-size: 24px;
   }
 
-  .lv-dms-warning-banner {
+  .lv-legal-view .lv-dms-warning-banner {
     padding: 14px 16px;
   }
 }
