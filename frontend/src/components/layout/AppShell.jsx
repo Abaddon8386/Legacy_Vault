@@ -48,6 +48,16 @@ const NAVIGATION_REGISTRY = [
   },
 ];
 
+const LEGAL_NAVIGATION_REGISTRY = [
+  {
+    id: 'will-document-verification',
+    jiraTicket: 'PS-29',
+    labelVi: 'Đối chiếu di chúc',
+    labelEn: 'Will Verification',
+    status: 'ACTIVE',
+  },
+];
+
 export default function AppShell({
   children,
   currentTab = 'vault',
@@ -57,6 +67,8 @@ export default function AppShell({
   isRefreshing = false,
   lang = 'vi',
   onToggleLang,
+  role = 'OWNER',
+  user = null,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -89,30 +101,43 @@ export default function AppShell({
     item.style.setProperty('--item-glow-opacity', '0');
   }, []);
 
+  const isLegal = role === 'LEGAL';
+
   const content = {
     vi: {
-      brandTag: 'Hệ thống Quản lý Di sản Số',
-      navSectionTitle: 'QUẢN LÝ DI SẢN',
-      breadcrumbHome: 'Bảng điều khiển',
-      breadcrumbCurrent: 'Kho di sản cá nhân',
+      brandTag: isLegal ? 'Cổng Thẩm định Pháp lý' : 'Hệ thống Quản lý Di sản Số',
+      navSectionTitle: isLegal ? 'THẨM ĐỊNH PHÁP LÝ' : 'QUẢN LÝ DI SẢN',
+      breadcrumbHome: isLegal ? 'Cổng Pháp lý' : 'Bảng điều khiển',
+      breadcrumbCurrent: isLegal ? 'Đối chiếu di chúc' : 'Kho di sản cá nhân',
       refreshTitle: 'Làm mới dữ liệu',
-      roleBadge: 'Chủ sở hữu kho',
+      roleBadge: isLegal ? 'Chuyên viên Pháp lý' : 'Chủ sở hữu kho',
       logout: 'Đăng xuất',
-      userDisplay: 'Chủ sở hữu kho',
+      userDisplay: isLegal
+        ? (user?.fullName || user?.email || 'Chuyên viên Pháp lý')
+        : (user?.fullName || 'Chủ sở hữu kho'),
+      userInitials: isLegal
+        ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
+        : 'VO',
     },
     en: {
-      brandTag: 'Digital Heritage Sanctuary',
-      navSectionTitle: 'HERITAGE PORTAL',
-      breadcrumbHome: 'Dashboard',
-      breadcrumbCurrent: 'Personal Heritage Vault',
+      brandTag: isLegal ? 'Legal Verification Portal' : 'Digital Heritage Sanctuary',
+      navSectionTitle: isLegal ? 'LEGAL VERIFICATION' : 'HERITAGE PORTAL',
+      breadcrumbHome: isLegal ? 'Legal Portal' : 'Dashboard',
+      breadcrumbCurrent: isLegal ? 'Will Document Verification' : 'Personal Heritage Vault',
       refreshTitle: 'Refresh records',
-      roleBadge: 'Vault Owner',
+      roleBadge: isLegal ? 'Legal Verifier' : 'Vault Owner',
       logout: 'Sign out',
-      userDisplay: 'Vault Owner',
+      userDisplay: isLegal
+        ? (user?.fullName || user?.email || 'Legal Verifier')
+        : (user?.fullName || 'Vault Owner'),
+      userInitials: isLegal
+        ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
+        : 'VO',
     },
   };
 
   const t = content[lang] || content.vi;
+  const navList = isLegal ? LEGAL_NAVIGATION_REGISTRY : NAVIGATION_REGISTRY;
 
   return (
     <div className="lv-shell">
@@ -159,7 +184,7 @@ export default function AppShell({
         <nav className="lv-sidebar-nav" aria-label="Menu chức năng">
           <span className="lv-nav-heading">{t.navSectionTitle}</span>
           <ul className="lv-nav-list">
-            {NAVIGATION_REGISTRY.filter((item) => item.status === 'ACTIVE').map((item) => (
+            {navList.filter((item) => item.status === 'ACTIVE').map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -174,7 +199,13 @@ export default function AppShell({
                 >
                   <span className="lv-nav-spotlight" aria-hidden="true" />
                   <span className="lv-nav-icon" aria-hidden="true">
-                    {item.id === 'dms' ? (
+                    {item.id === 'will-document-verification' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M9 15l2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'dms' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
@@ -200,27 +231,31 @@ export default function AppShell({
           </ul>
         </nav>
 
-        {/* User Role Footer */}
-        <div className="lv-sidebar-footer">
-          <div className="lv-user-badge-card">
-            <div className="lv-user-avatar-initials" aria-hidden="true">
-              VO
+        {/* User Role Footer - Hidden when unauthenticated for legal to avoid impersonation */}
+        {(!isLegal || Boolean(user)) && (
+          <div className="lv-sidebar-footer">
+            <div className="lv-user-badge-card">
+              <div className="lv-user-avatar-initials" aria-hidden="true">
+                {t.userInitials}
+              </div>
+              <div className="lv-user-info">
+                <span className="lv-user-name">{t.userDisplay}</span>
+                <span className="lv-user-role">{t.roleBadge}</span>
+              </div>
             </div>
-            <div className="lv-user-info">
-              <span className="lv-user-name">{t.userDisplay}</span>
-              <span className="lv-user-role">{t.roleBadge}</span>
-            </div>
+            {typeof onLogout === 'function' && (
+              <MagneticButton
+                type="button"
+                className="lv-sidebar-logout-btn"
+                onClick={onLogout}
+                maxOffset={4}
+              >
+                <span aria-hidden="true">↳</span>
+                <span>{t.logout}</span>
+              </MagneticButton>
+            )}
           </div>
-          <MagneticButton
-            type="button"
-            className="lv-sidebar-logout-btn"
-            onClick={onLogout}
-            maxOffset={4}
-          >
-            <span aria-hidden="true">↳</span>
-            <span>{t.logout}</span>
-          </MagneticButton>
-        </div>
+        )}
       </aside>
 
       {/* ====================================================================
@@ -249,9 +284,19 @@ export default function AppShell({
               <span className="lv-crumb-dim">{t.breadcrumbHome}</span>
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
-                {currentTab === 'beneficiaries' ? (lang==='en'?'Beneficiaries & Trustees':'Người thụ hưởng & Người giám hộ') : currentTab === 'wills' ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : currentTab === 'assets' ? (lang === 'en' ? 'Heritage Assets' : 'Danh mục tài sản') : currentTab === 'dms'
-                  ? (lang === 'en' ? "Dead Man's Switch" : 'Giám sát hoạt động')
-                  : t.breadcrumbCurrent}
+                {isLegal
+                  ? (currentTab === 'will-document-verification'
+                      ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
+                      : t.breadcrumbCurrent)
+                  : currentTab === 'beneficiaries'
+                    ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
+                    : currentTab === 'wills'
+                      ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')
+                      : currentTab === 'assets'
+                        ? (lang === 'en' ? 'Heritage Assets' : 'Danh mục tài sản')
+                        : currentTab === 'dms'
+                          ? (lang === 'en' ? "Dead Man's Switch" : 'Giám sát hoạt động')
+                          : t.breadcrumbCurrent}
               </span>
             </nav>
           </div>
