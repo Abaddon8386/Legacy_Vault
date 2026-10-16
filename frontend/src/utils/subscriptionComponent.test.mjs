@@ -42,3 +42,24 @@ test('Demo controls never render for live or production even with preview prop',
   const prod = await mount(Production, { isDevPreview: true });
   try { assert.equal(Boolean(prod.host.querySelector('#demo-plan-select')), false); } finally { await prod.close(); }
 });
+
+
+
+test('Landing renders six 3D faces, supports pause and language, and navigates through callbacks', async () => {
+  const Landing = await component(false, 'src/pages/landing/LandingPage.jsx');
+  let login = 0; let register = 0;
+  const view = await mount(Landing, { onLogin: () => login++, onRegister: () => register++ });
+  try {
+    assert.equal(view.host.querySelectorAll('.lv-landing-face').length, 6);
+    await act(async () => view.host.querySelector('.lv-landing-login').click());
+    await act(async () => view.host.querySelector('.lv-landing-primary').click());
+    assert.equal(login, 1); assert.equal(register, 1);
+    const pause = view.host.querySelector('.lv-landing-art-footer button');
+    await act(async () => pause.click());
+    assert.ok(view.host.querySelector('.lv-landing-float.is-paused'));
+    await act(async () => pause.click());
+    assert.equal(view.host.querySelector('.lv-landing-float.is-paused'), null);
+    await act(async () => view.host.querySelector('.lv-landing-language').click());
+    assert.match(view.host.querySelector('h1').textContent, /A lifetime of stories/);
+  } finally { await view.close(); }
+});

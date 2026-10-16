@@ -8,6 +8,7 @@ import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVe
 import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
 import LegalBasisRouteSelectionPage from './pages/legal/LegalBasisRouteSelectionPage.jsx';
 import { canAccessLegalBasisRoute } from './utils/legalBasisRouteValidation.js';
+import LandingPage from './pages/landing/LandingPage.jsx';
 import { previewRoute } from './utils/previewState.js';
 import { useState, useEffect, useCallback } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
@@ -730,7 +731,8 @@ export default function App() {
         : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
-  return <div className="lv-app-root">{path === '/' || path === '/register'
+  if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
+  return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
     : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
     : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;
