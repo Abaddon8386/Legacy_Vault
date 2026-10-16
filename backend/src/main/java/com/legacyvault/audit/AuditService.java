@@ -1,6 +1,7 @@
 package com.legacyvault.audit;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -74,14 +75,35 @@ public class AuditService {
                 nowUtc.plusMonths(12),
                 event.actorType().name(),
                 rolesJson,
-                event.stateBefore(),
-                event.stateAfter(),
+                normalizeStateJson(event.stateBefore()),
+                normalizeStateJson(event.stateAfter()),
                 traceId,
                 event.stepId(),
                 event.ruleId()
         );
 
         auditLogRepository.saveAndFlush(log);
+    }
+
+    private String normalizeStateJson(String state) {
+        if (state == null) {
+            return null;
+        }
+
+        try {
+            JsonNode node = objectMapper.readTree(state);
+            if (node != null && node.isObject()) {
+                return state;
+            }
+        } catch (JsonProcessingException ignored) {
+            // Trạng thái thông thường sẽ được bọc thành JSON object bên dưới.
+        }
+
+        try {
+            return objectMapper.writeValueAsString(Map.of("status", state));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Cannot serialize audit state", exception);
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
