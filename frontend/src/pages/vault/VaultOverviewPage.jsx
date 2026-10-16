@@ -7,7 +7,6 @@ import {
 import StatusBadge from '../../components/common/StatusBadge.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
-import LoadingState from '../../components/common/LoadingState.jsx';
 import CreateVaultModal from '../../components/vault/CreateVaultModal.jsx';
 import LivingHeritageWave from '../../components/vault/LivingHeritageWave.jsx';
 import VaultSummary from '../../components/vault/VaultSummary.jsx';
@@ -31,65 +30,8 @@ export default function VaultOverviewPage({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [notification, setNotification] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const heroCardRef = useRef(null);
   const createControllerRef = useRef(null);
   useEffect(() => () => createControllerRef.current?.abort(), []);
-
-  // Hero Card background cursor spotlight handler — purely decorative background layer
-  const handleHeroMouseMove = useCallback((e) => {
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-    const el = heroCardRef.current;
-    if (!el) return;
-
-    // Detect if cursor is over the artwork column to cleanly separate hover scopes
-    const artworkCol = el.querySelector('.lv-hero-artwork-col');
-    if (artworkCol) {
-      const artRect = artworkCol.getBoundingClientRect();
-      if (
-        e.clientX >= artRect.left &&
-        e.clientX <= artRect.right &&
-        e.clientY >= artRect.top &&
-        e.clientY <= artRect.bottom
-      ) {
-        // Cursor is inside artwork panel -> fade out hero card spotlight so no overlap occurs
-        el.style.setProperty('--spotlight-opacity', '0');
-        return;
-      }
-    }
-
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    el.style.setProperty('--mouse-x', `${x}px`);
-    el.style.setProperty('--mouse-y', `${y}px`);
-    el.style.setProperty('--spotlight-opacity', '1');
-  }, []);
-
-  const handleHeroMouseEnter = useCallback((e) => {
-    if (
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-    const el = heroCardRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    el.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-    el.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-    el.style.setProperty('--spotlight-opacity', '1');
-  }, []);
-
-  const handleHeroMouseLeave = useCallback(() => {
-    const el = heroCardRef.current;
-    if (!el) return;
-    el.style.setProperty('--spotlight-opacity', '0');
-  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -196,7 +138,10 @@ export default function VaultOverviewPage({
 
       {/* Dynamic View States */}
       {loading ? (
-        <LoadingState lang={lang} />
+        <div className="lv-vault-skeleton" role="status" aria-live="polite" aria-busy="true">
+          <span>{lang === 'en' ? 'Loading your vault…' : 'Đang tải thông tin kho…'}</span>
+          <div aria-hidden="true" /><div aria-hidden="true" />
+        </div>
       ) : error ? (
         <ErrorState
           error={error}
@@ -221,15 +166,10 @@ export default function VaultOverviewPage({
         <div className="lv-vault-view">
           {/* Main Heritage Sanctuary Hero Banner */}
           <section
-            ref={heroCardRef}
             className="lv-vault-hero-card"
-            aria-label="Thông tin kho di sản"
-            onMouseMove={handleHeroMouseMove}
-            onMouseEnter={handleHeroMouseEnter}
-            onMouseLeave={handleHeroMouseLeave}
+            aria-label={lang === 'en' ? 'Vault information' : 'Thông tin kho di sản'}
           >
             {/* Background Decorative Spotlight Layer — strictly background (z-index: 0, pointer-events: none) */}
-            <div className="lv-hero-spotlight-layer" aria-hidden="true" />
 
             {/* Left Column: Core Editorial Metadata (z-index: 2, crisp text and badges) */}
             <div className="lv-hero-content-col">
