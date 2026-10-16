@@ -23,6 +23,7 @@ public enum ErrorCode {
 	ALERT_NOT_CANCELLABLE(409, "error.vault.alertNotCancellable"),
 	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
 	VERIFICATION_CASE_NOT_CLAIMABLE(409, "error.verificationCase.notClaimable"),
+	VERIFICATION_CASE_NOT_OPEN(409, "error.verificationCase.notOpen"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),

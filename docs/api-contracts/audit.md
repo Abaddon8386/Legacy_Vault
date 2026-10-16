@@ -65,6 +65,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Identity verification | `BENEFICIARY_IDENTITY_VERIFIED` | PS-45 |
 | DMS | `DMS_CONFIGURED`, `DMS_CHECKED_IN`, `DMS_TRIGGERED`, `DMS_GRACE_PERIOD_EXCEEDED` | PS-22, PS-23 |
 | Verification case | `VERIFICATION_CASE_CREATED`, `VERIFICATION_CASE_CLAIMED` | ST-09 |
+| Giấy tờ khai tử | `DEATH_DOCUMENT_RECORDED` (loại + ID công khai; không số giấy tờ) | PS-38 (ST-11) |
 
 ## Giao diện nội bộ
 
