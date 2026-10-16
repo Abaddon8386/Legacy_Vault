@@ -49,6 +49,7 @@ const NAVIGATION_REGISTRY = [
 ];
 
 const STAFF_NAVIGATION_REGISTRY = [
+  { id: 'cases', labelVi: 'Hồ sơ xác minh', labelEn: 'Verification Cases', status: 'ACTIVE' },
   {
     id: 'legal-documents',
     jiraTicket: 'PS-31',
