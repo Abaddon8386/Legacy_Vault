@@ -62,6 +62,13 @@ const LEGAL_NAVIGATION_REGISTRY = [
     labelEn: 'Will Verification',
     status: 'ACTIVE',
   },
+  {
+    id: 'basis-route-selection',
+    jiraTicket: 'PS-30',
+    labelVi: 'Thẩm định căn cứ',
+    labelEn: 'Basis Adjudication',
+    status: 'ACTIVE',
+  },
 ];
 
 export default function AppShell({
@@ -216,6 +223,14 @@ export default function AppShell({
                         <polyline points="14 2 14 8 20 8" />
                         <path d="M9 15l2 2 4-4" />
                       </svg>
+                    ) : item.id === 'basis-route-selection' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z" />
+                        <path d="M2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z" />
+                        <path d="M7 21h10" />
+                        <path d="M12 3v18" />
+                        <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+                      </svg>
                     ) : item.id === 'dms' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
@@ -296,11 +311,13 @@ export default function AppShell({
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
                 {isLegal
-                  ? currentTab === 'will-document-verification'
-                    ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
-                    : currentTab === 'death-verification'
-                      ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
-                      : t.breadcrumbCurrent
+                  ? currentTab === 'basis-route-selection'
+                    ? (lang === 'en' ? 'Basis Adjudication' : 'Thẩm định căn cứ')
+                    : currentTab === 'will-document-verification'
+                      ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
+                      : currentTab === 'death-verification'
+                        ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
+                        : t.breadcrumbCurrent
                   : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'

@@ -11,10 +11,13 @@ import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import AppShell from './components/layout/AppShell.jsx';
-import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
-import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
+import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
+import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
+import LegalBasisRouteSelectionPage from './pages/legal/LegalBasisRouteSelectionPage.jsx';
+import { canAccessLegalBasisRoute } from './utils/legalBasisRouteValidation.js';
+
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
@@ -307,6 +310,7 @@ export default function App() {
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
+  const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
   if (isLegalDeathRoute) {
     if (!isSessionActive(session) && !preview) {
@@ -342,6 +346,8 @@ export default function App() {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
             } else if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+            } else if (tab === 'basis-route-selection') {
+              navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             }
           }}
         >
@@ -388,10 +394,60 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+            } else if (tab === 'basis-route-selection') {
+              navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             }
           }}
         >
           <LegalWillDocumentVerificationPage
+            session={session}
+            lang={lang}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isLegalBasisRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return (
+        <div className="lv-app-root">
+          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+        </div>
+      );
+    }
+    if (!preview && !canAccessLegalBasisRoute(session)) {
+      return (
+        <div className="lv-app-root">
+          <LegalAccessDeniedFallback
+            lang={lang}
+            onLogout={logout}
+            onNavigateToVault={() => navigateTo('/vault')}
+            canReturnToVault={Boolean(session?.user?.roles?.includes('VAULT_OWNER'))}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="LEGAL"
+          currentTab="basis-route-selection"
+          user={session?.user || null}
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onNavigateTab={(tab) => {
+            if (tab === 'basis-route-selection') {
+              navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'death-verification') {
+              navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+            } else if (tab === 'will-document-verification') {
+              navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+            }
+          }}
+        >
+          <LegalBasisRouteSelectionPage
             session={session}
             lang={lang}
           />
