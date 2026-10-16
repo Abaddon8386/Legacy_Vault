@@ -12,7 +12,7 @@ export const STAFF_CASE_I18N = {
     refreshBtn: 'Làm mới',
     refreshingBtn: 'Đang tải…',
     previewBanner: 'Chế độ xem trước giao diện với dữ liệu tổng hợp (DEV Preview). Các trường dữ liệu và trạng thái quy trình chỉ mang tính chất minh họa trình bày, chưa phải hợp đồng API chính thức (PS-35).',
-    
+
     filters: {
       all: 'Tất cả trạng thái',
       awaiting: 'Chờ xác minh (Minh họa)',
@@ -41,10 +41,10 @@ export const STAFF_CASE_I18N = {
       legalNoticeTitle: 'Ranh giới tiếp nhận hồ sơ',
       legalNotice: 'Tiếp nhận hồ sơ chưa phải xác nhận tử vong hoặc phê duyệt pháp lý. Thao tác này chỉ ghi nhận thông tin người nộp và giấy tờ bản cứng phục vụ thẩm định hồ sơ.',
       devPreviewBanner: 'Chế độ xem trước giao diện tiếp nhận (DEV Preview). Dữ liệu chỉ ghi tạm trong bộ nhớ phiên làm việc, chưa kết nối API Backend chính thức (PS-38).',
-      
+
       noCaseTitle: 'Thiếu thông tin ngữ cảnh hồ sơ',
       noCaseDesc: 'Không tìm thấy thông tin hồ sơ cần tiếp nhận. Vui lòng quay lại danh sách hồ sơ xác minh để chọn hồ sơ cần xử lý.',
-      
+
       sections: {
         caseRef: 'A. Thông tin hồ sơ đang tiếp nhận',
         submitter: 'B. Thông tin người nộp hồ sơ',
@@ -57,7 +57,7 @@ export const STAFF_CASE_I18N = {
         vaultName: 'Kho di sản',
         ownerName: 'Chủ sở hữu kho',
         gracePeriodEnded: 'Thời điểm hết hạn ân hạn',
-        
+
         submitterName: 'Họ và tên người nộp',
         submitterNamePlaceholder: 'Nhập họ và tên người mang hồ sơ đến',
         submitterNotice: 'Người nộp (Trustee / Người thi hành / Thân nhân) có thể ở ngoài hệ thống, không yêu cầu có tài khoản.',
@@ -196,7 +196,7 @@ export const STAFF_CASE_I18N = {
       pageSubtitle: 'Kiểm tra giấy tờ tùy thân bản cứng, đối chiếu khuôn mặt trực tiếp tại quầy và ghi nhận việc bàn giao văn bản.',
       backToListBtn: 'Quay về danh sách hồ sơ',
       devPreviewBanner: 'Chế độ xem trước giao diện xác minh trực tiếp (DEV Preview). Dữ liệu chỉ ghi tạm trong bộ nhớ phiên làm việc, chưa kết nối API Backend chính thức (PS-45).',
-      
+
       legalNoticeTitle: 'Ranh giới pháp lý & Nghiệp vụ PS-27',
       legalNotice1: 'Đối chiếu CCCD/Passport bản cứng và khuôn mặt trực tiếp tại quầy. Không sử dụng VNeID, camera, ảnh chụp selfie, nhận diện tự động hay eKYC.',
       legalNotice2: 'Kết quả MATCH chỉ là ghi nhận việc đối chiếu danh tính trực tiếp trùng khớp; không đồng nghĩa với phê duyệt pháp lý, xác nhận tử vong, mở khóa di chúc hay bàn giao tài sản.',
@@ -252,7 +252,7 @@ export const STAFF_CASE_I18N = {
           PASSPORT: 'Hộ chiếu (Passport)',
         },
         documentTypeRequired: 'Vui lòng chọn loại giấy tờ kiểm tra.',
-        
+
         result: 'Kết quả đối chiếu trực tiếp',
         resultDesc: 'Nhân viên trực tiếp đối chiếu khuôn mặt người có mặt với ảnh trên giấy tờ gốc và kiểm tra thông tin.',
         resultOptions: {
@@ -357,10 +357,10 @@ export const STAFF_CASE_I18N = {
       legalNoticeTitle: 'Case Intake Boundary Notice',
       legalNotice: 'Case intake is not death confirmation or legal approval. This step only records physical document metadata for verification review.',
       devPreviewBanner: 'Intake preview mode (DEV Preview). Data is temporarily kept in session memory and is not connected to the live Backend API (PS-38).',
-      
+
       noCaseTitle: 'Missing Case Context',
       noCaseDesc: 'No active case context was found. Please return to the verification queue and select an existing case.',
-      
+
       sections: {
         caseRef: 'A. Active Case Information',
         submitter: 'B. Submitter Information',
@@ -373,7 +373,7 @@ export const STAFF_CASE_I18N = {
         vaultName: 'Heritage Vault',
         ownerName: 'Vault Owner',
         gracePeriodEnded: 'Grace Period Expiration',
-        
+
         submitterName: 'Submitter Full Name',
         submitterNamePlaceholder: 'Enter the full legal name of the submitter',
         submitterNotice: 'The submitter (Trustee / Executor / Family) may be external and is not required to have an account.',
@@ -512,7 +512,7 @@ export const STAFF_CASE_I18N = {
       pageSubtitle: 'Inspect physical identity credentials, conduct face-to-face cross-checks, and record original will delivery.',
       backToListBtn: 'Back to Cases Queue',
       devPreviewBanner: 'In-person verification preview mode (DEV Preview). Data is kept in session memory and is not connected to the live Backend API (PS-45).',
-      
+
       legalNoticeTitle: 'Legal & Operational Boundary (PS-27)',
       legalNotice1: 'Directly compare physical National ID/Passport with the person present at the counter. No VNeID, camera, selfie, automated facial recognition, or eKYC.',
       legalNotice2: 'A MATCH result only records identity credential consistency; it does not constitute legal approval, death certification, will unlocking, or asset handover.',
@@ -568,7 +568,7 @@ export const STAFF_CASE_I18N = {
           PASSPORT: 'Passport',
         },
         documentTypeRequired: 'Please select a credential type.',
-        
+
         result: 'Cross-Check Result',
         resultDesc: 'Staff physically compares the live person with the credential photo and checks official details.',
         resultOptions: {

@@ -609,4 +609,3 @@ export function validateVerificationReceipt(receipt, beneficiaryId, options = {}
     isSimulation: true,
   };
 }
-

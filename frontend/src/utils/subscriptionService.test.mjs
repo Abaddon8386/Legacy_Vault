@@ -325,5 +325,3 @@ test('Actual production build disables simulation even when caller supplies test
       headers: { get: () => 'application/json' }, json: async () => ({}) }; } }), { code: 'INVALID_RESPONSE' });
   assert.equal(calls, 1);
 });
-
-
