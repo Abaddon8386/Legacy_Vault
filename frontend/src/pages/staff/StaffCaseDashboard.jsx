@@ -20,10 +20,14 @@ import {
   fetchStaffCases,
   submitPhysicalIntakeRecord,
   SYNTHETIC_STAFF_CASES,
+  submitIdentityVerification,
+  fetchCaseBeneficiaries,
+  fetchVerificationHistory,
 } from './staffCaseService.js';
 import { getStaffCaseTranslations } from './staffCaseI18n.js';
 import StaffCaseDetailModal from './StaffCaseDetailModal.jsx';
 import StaffCaseIntakePage from './StaffCaseIntakePage.jsx';
+import StaffCaseVerificationPage from './StaffCaseVerificationPage.jsx';
 import './StaffCaseDashboard.css';
 
 /**
@@ -39,10 +43,9 @@ export default function StaffCaseDashboard({
   onUnauthorized = onNavigateToLogin,
   loadCases = fetchStaffCases,
   onSubmitRecord = submitPhysicalIntakeRecord,
-  onSubmitVerification = null,
-  loadBeneficiaries = null,
-  loadHistory = null,
-  VerificationPage = null,
+  onSubmitVerification = submitIdentityVerification,
+  loadBeneficiaries = fetchCaseBeneficiaries,
+  loadHistory = fetchVerificationHistory,
   initialIntakeCase = null,
   initialVerifyCase = null,
   onSelectIntakeCase,
@@ -243,9 +246,9 @@ export default function StaffCaseDashboard({
     );
   }
 
-  if (activeVerifyCase && VerificationPage) {
+  if (activeVerifyCase) {
     return (
-      <VerificationPage
+      <StaffCaseVerificationPage
         caseItem={activeVerifyCase}
         onBack={() => {
           setActiveVerifyCase(null);
@@ -505,7 +508,7 @@ export default function StaffCaseDashboard({
                           <FileText size={14} aria-hidden="true" />
                           <span>{t.table.intakeAction}</span>
                         </Button>
-                        {VerificationPage && (<Button
+                        <Button
                           variant="secondary"
                           size="sm"
                           className="lv-staff-verify-btn"
@@ -526,7 +529,7 @@ export default function StaffCaseDashboard({
                         >
                           <ShieldCheck size={14} aria-hidden="true" />
                           <span>{t.table.verifyAction}</span>
-                        </Button>)}
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -601,7 +604,7 @@ export default function StaffCaseDashboard({
                       <FileText size={15} aria-hidden="true" />
                       <span>{t.table.intakeAction}</span>
                     </Button>
-                    {VerificationPage && (<Button
+                    <Button
                       variant="secondary"
                       size="sm"
                       className="lv-staff-card__verify-btn"
@@ -622,7 +625,7 @@ export default function StaffCaseDashboard({
                     >
                       <ShieldCheck size={15} aria-hidden="true" />
                       <span>{t.table.verifyAction}</span>
-                    </Button>)}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -714,7 +717,7 @@ export default function StaffCaseDashboard({
           }
           onSelectIntakeCase?.(item);
         }}
-        onStartVerification={VerificationPage ? (item) => {
+        onStartVerification={(item) => {
           setSelectedCase(null);
           setActiveVerifyCase(item);
           if (typeof window !== 'undefined') {
@@ -727,7 +730,7 @@ export default function StaffCaseDashboard({
             }
           }
           onSelectVerifyCase?.(item);
-        } : undefined}
+        }}
       />
     </div>
   );
