@@ -45,4 +45,12 @@ public class StaffVerificationCaseController {
     ) {
         return caseService.getCase(caseId, principal);
     }
+
+    @PostMapping("/{caseId}/claim")
+    public StaffVerificationCaseResponse claimCase(
+            @PathVariable UUID caseId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return caseService.claimCase(caseId, principal);
+    }
 }

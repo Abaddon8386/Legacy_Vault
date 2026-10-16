@@ -1,5 +1,6 @@
 package com.legacyvault.verification;
 
+import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.user.repository.UserRepository;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -120,20 +122,21 @@ class StaffVerificationCaseServiceTest {
     }
 
     @Test
-    void getCase_caseNotAssignedToStaff_throwsNotFound() {
+    void getCase_caseNotViewableByStaff_throwsNotFound() {
         UUID caseId = UUID.randomUUID();
 
-        when(caseRepository.findByPublicIdAndAssignedStaffUserId(
+        when(caseRepository.findViewableCaseByPublicId(
                 caseId, 10L
-        )).thenReturn(java.util.Optional.empty());
+        )).thenReturn(Optional.empty());
 
         assertThrows(
-                RuntimeException.class,
+                BusinessException.class,
                 () -> service.getCase(caseId, staff)
         );
 
         verify(caseRepository)
-                .findByPublicIdAndAssignedStaffUserId(caseId, 10L);
+                .findViewableCaseByPublicId(caseId, 10L);
+
         verifyNoInteractions(vaultRepository, userRepository);
     }
 }

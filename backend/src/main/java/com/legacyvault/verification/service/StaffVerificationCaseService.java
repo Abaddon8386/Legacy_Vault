@@ -1,6 +1,10 @@
 
 package com.legacyvault.verification.service;
 
+import com.legacyvault.audit.AuditAction;
+import com.legacyvault.audit.AuditActorType;
+import com.legacyvault.audit.AuditEvent;
+import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
@@ -18,6 +22,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -25,15 +31,18 @@ public class StaffVerificationCaseService {
     private final VerificationCaseRepository caseRepository;
     private final VaultRepository vaultRepository;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public StaffVerificationCaseService(
             VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            AuditService auditService
     ) {
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
         this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
     @Transactional(readOnly = true)
@@ -46,9 +55,15 @@ public class StaffVerificationCaseService {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
 
         if (status != null && !status.isBlank()) {
-            status = status.trim().toUpperCase();
+            status = status.trim().toUpperCase(Locale.ROOT);
         } else {
             status = null;
+        }
+
+        if (status != null
+                && !VerificationCase.STATUS_OPEN.equals(status)
+                && !VerificationCase.STATUS_CANCELLED.equals(status)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "triggeredAt"));
@@ -63,7 +78,7 @@ public class StaffVerificationCaseService {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
 
         VerificationCase verificationCase =
-                caseRepository.findByPublicIdAndAssignedStaffUserId(caseId, staffUserId)
+                caseRepository.findViewableCaseByPublicId(caseId, staffUserId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         return toResponse(verificationCase);
@@ -86,5 +101,41 @@ public class StaffVerificationCaseService {
                 owner.getPublicId(),
                 owner.getFullName()
         );
+    }
+
+    @Transactional
+    public StaffVerificationCaseResponse claimCase(
+            UUID caseId,
+            CustomUserPrincipal principal
+    ) {
+        Long staffUserId = CustomUserPrincipal.requireUserId(principal);
+
+        int updated = caseRepository.claimUnassignedCase(caseId, staffUserId);
+
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_CLAIMABLE);
+        }
+
+        VerificationCase verificationCase =
+                caseRepository.findByPublicIdAndAssignedStaffUserId(caseId, staffUserId)
+                        .orElseThrow(() ->
+                                new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        auditService.record(new AuditEvent(
+                AuditAction.VERIFICATION_CASE_CLAIMED,
+                AuditActorType.USER,
+                staffUserId,
+                verificationCase.getVaultId(),
+                "VERIFICATION_CASE",
+                verificationCase.getVerificationCaseId(),
+                "{\"status\":\"OPEN\",\"assignedStaffUserId\":null}",
+                "{\"status\":\"OPEN\",\"assignedStaffUserId\":" + staffUserId + "}",
+                null,
+                Map.of("casePublicId", caseId.toString()),
+                "ST-09",
+                null
+        ));
+
+        return toResponse(verificationCase);
     }
 }
