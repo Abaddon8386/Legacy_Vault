@@ -11,7 +11,7 @@ import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
-import { canAccessStaffLegalDocuments } from './utils/staffLegalDocumentsValidation.js';
+import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
@@ -388,11 +388,7 @@ export default function App() {
     if (options.signal?.aborted) return;
     if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
     setSession({ ...candidate, user }); setLang(options.lang || 'vi');
-    if (user.roles.includes('LEGAL_VERIFIER') && !user.roles.includes('VAULT_OWNER')) {
-      navigateTo('/legal/death-verification');
-    } else {
-      navigateTo('/vault');
-    }
+    navigateTo(resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
     setIsRefreshing(true); setRefreshTrigger(value => value + 1);

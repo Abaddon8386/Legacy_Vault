@@ -41,6 +41,24 @@ export function canAccessStaffLegalDocuments(session) {
 }
 
 /**
+ * Determines the destination path after establishing a session,
+ * preserving existing Owner and Legal priorities and routing pure Staff users to /staff/legal-documents.
+ *
+ * @param {Object} [user]
+ * @returns {string}
+ */
+export function resolvePostLoginRoute(user) {
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  if (roles.includes('LEGAL_VERIFIER') && !roles.includes('VAULT_OWNER')) {
+    return '/legal/death-verification';
+  }
+  if (roles.includes('STAFF_EXECUTOR') && !roles.includes('VAULT_OWNER')) {
+    return '/staff/legal-documents';
+  }
+  return '/vault';
+}
+
+/**
  * Validates the core legal document metadata form:
  * - issuer must be non-empty after trim
  * - documentNumber must be non-empty after trim

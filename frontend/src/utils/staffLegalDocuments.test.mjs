@@ -6,11 +6,14 @@ import { fileURLToPath } from 'node:url';
 import {
   validateStaffLegalDocumentForm,
   canAccessStaffLegalDocuments,
+  resolvePostLoginRoute,
   STAFF_LEGAL_DOCS_ERROR_KEYS,
   getStaffLegalDocumentErrorMessage,
   formatStaffLegalDocumentErrors,
 } from './staffLegalDocumentsValidation.js';
 import { staffLegalDocumentsI18n } from '../pages/staff/staffLegalDocumentsI18n.js';
+import { createSession } from './session.js';
+import { readUser } from '../api/contracts.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -256,5 +259,189 @@ describe('PS-31 Staff CSS Scoping Verification - No Leakage into Owner, Legal or
       0,
       `Found unscoped CSS selectors: ${JSON.stringify(unscopedSelectors, null, 2)}`
     );
+  });
+});
+
+describe('PS-31 Post-Login Redirection & Role Hierarchy Verification', () => {
+  it('directs pure STAFF_EXECUTOR to /staff/legal-documents instead of /vault', () => {
+    const pureStaff = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f3b',
+      fullName: 'Executor Staff',
+      email: 'staff@example.com',
+      roles: ['STAFF_EXECUTOR'],
+    };
+    assert.equal(resolvePostLoginRoute(pureStaff), '/staff/legal-documents');
+  });
+
+  it('preserves existing Owner destination (/vault) for pure VAULT_OWNER', () => {
+    const pureOwner = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f3c',
+      fullName: 'Vault Owner',
+      email: 'owner@example.com',
+      roles: ['VAULT_OWNER'],
+    };
+    assert.equal(resolvePostLoginRoute(pureOwner), '/vault');
+  });
+
+  it('preserves existing Legal destination (/legal/death-verification) for pure LEGAL_VERIFIER', () => {
+    const pureLegal = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f3d',
+      fullName: 'Legal Verifier',
+      email: 'legal@example.com',
+      roles: ['LEGAL_VERIFIER'],
+    };
+    assert.equal(resolvePostLoginRoute(pureLegal), '/legal/death-verification');
+  });
+
+  it('preserves multi-role hierarchy: any account with VAULT_OWNER goes to /vault', () => {
+    const ownerStaff = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f3e',
+      fullName: 'Owner and Staff',
+      email: 'owner-staff@example.com',
+      roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'],
+    };
+    assert.equal(resolvePostLoginRoute(ownerStaff), '/vault');
+
+    const ownerLegal = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f3f',
+      fullName: 'Owner and Legal',
+      email: 'owner-legal@example.com',
+      roles: ['VAULT_OWNER', 'LEGAL_VERIFIER'],
+    };
+    assert.equal(resolvePostLoginRoute(ownerLegal), '/vault');
+
+    const allRoles = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f40',
+      fullName: 'Super User',
+      email: 'super@example.com',
+      roles: ['VAULT_OWNER', 'LEGAL_VERIFIER', 'STAFF_EXECUTOR'],
+    };
+    assert.equal(resolvePostLoginRoute(allRoles), '/vault');
+  });
+
+  it('preserves multi-role hierarchy: LEGAL_VERIFIER takes precedence over STAFF_EXECUTOR when not VAULT_OWNER', () => {
+    const legalStaff = {
+      id: 'd9b2d63d-a233-4123-8478-f99a30986f41',
+      fullName: 'Legal and Staff',
+      email: 'legal-staff@example.com',
+      roles: ['LEGAL_VERIFIER', 'STAFF_EXECUTOR'],
+    };
+    assert.equal(resolvePostLoginRoute(legalStaff), '/legal/death-verification');
+  });
+
+  it('gracefully falls back to /vault when user or roles is null, undefined or empty', () => {
+    assert.equal(resolvePostLoginRoute(null), '/vault');
+    assert.equal(resolvePostLoginRoute(undefined), '/vault');
+    assert.equal(resolvePostLoginRoute({}), '/vault');
+    assert.equal(resolvePostLoginRoute({ roles: [] }), '/vault');
+    assert.equal(resolvePostLoginRoute({ roles: ['UNKNOWN_ROLE'] }), '/vault');
+  });
+});
+
+describe('PS-31 End-to-End Post-Login Application Flow with Contract Payloads', () => {
+  function simulateEstablishSession(authResult, navigateSpy) {
+    const session = createSession(authResult);
+    const user = session.user;
+    const targetRoute = resolvePostLoginRoute(user);
+    navigateSpy(targetRoute);
+    return { session, user, targetRoute };
+  }
+
+  it('authenticates BE staff response (ROLE_STAFF_EXECUTOR) and navigates to /staff/legal-documents', () => {
+    const rawBackendAuthResponse = {
+      accessToken: 'sample-jwt-token-for-staff',
+      tokenType: 'Bearer',
+      expiresInSeconds: 3600,
+      user: {
+        id: '11111111-2222-3333-4444-555555555555',
+        fullName: 'Nguyen Van Staff',
+        email: 'staff.nguyen@legacyvault.vn',
+        roles: ['ROLE_STAFF_EXECUTOR'],
+      },
+    };
+
+    let navigatedRoute = null;
+    const navigateSpy = (route) => {
+      navigatedRoute = route;
+    };
+
+    const result = simulateEstablishSession(rawBackendAuthResponse, navigateSpy);
+
+    assert.equal(result.session.accessToken, 'sample-jwt-token-for-staff');
+    assert.deepEqual(result.user.roles, ['STAFF_EXECUTOR']);
+    assert.equal(navigatedRoute, '/staff/legal-documents');
+    assert.equal(result.targetRoute, '/staff/legal-documents');
+    assert.equal(canAccessStaffLegalDocuments(result.session), true);
+  });
+
+  it('authenticates BE owner response (ROLE_VAULT_OWNER) and navigates to /vault without regression', () => {
+    const rawBackendAuthResponse = {
+      accessToken: 'sample-jwt-token-for-owner',
+      tokenType: 'Bearer',
+      expiresInSeconds: 3600,
+      user: {
+        id: '22222222-3333-4444-5555-666666666666',
+        fullName: 'Tran Thi Owner',
+        email: 'owner.tran@legacyvault.vn',
+        roles: ['ROLE_VAULT_OWNER'],
+      },
+    };
+
+    let navigatedRoute = null;
+    const navigateSpy = (route) => {
+      navigatedRoute = route;
+    };
+
+    const result = simulateEstablishSession(rawBackendAuthResponse, navigateSpy);
+    assert.deepEqual(result.user.roles, ['VAULT_OWNER']);
+    assert.equal(navigatedRoute, '/vault');
+  });
+
+  it('authenticates BE legal response (ROLE_LEGAL_VERIFIER) and navigates to /legal/death-verification without regression', () => {
+    const rawBackendAuthResponse = {
+      accessToken: 'sample-jwt-token-for-legal',
+      tokenType: 'Bearer',
+      expiresInSeconds: 3600,
+      user: {
+        id: '33333333-4444-5555-6666-777777777777',
+        fullName: 'Le Van Legal',
+        email: 'legal.le@legacyvault.vn',
+        roles: ['ROLE_LEGAL_VERIFIER'],
+      },
+    };
+
+    let navigatedRoute = null;
+    const navigateSpy = (route) => {
+      navigatedRoute = route;
+    };
+
+    const result = simulateEstablishSession(rawBackendAuthResponse, navigateSpy);
+    assert.deepEqual(result.user.roles, ['LEGAL_VERIFIER']);
+    assert.equal(navigatedRoute, '/legal/death-verification');
+  });
+
+  it('rejects invalid authentication payload before navigation can occur', () => {
+    const invalidAuthResponse = {
+      accessToken: '',
+      tokenType: 'Bearer',
+      expiresInSeconds: 3600,
+      user: {
+        id: 'invalid-id',
+        fullName: '',
+        email: 'bad-email',
+        roles: [],
+      },
+    };
+
+    let navigatedRoute = null;
+    const navigateSpy = (route) => {
+      navigatedRoute = route;
+    };
+
+    assert.throws(
+      () => simulateEstablishSession(invalidAuthResponse, navigateSpy),
+      (err) => err?.name === 'ApiError' || err?.message === 'INVALID_AUTH_RESPONSE'
+    );
+    assert.equal(navigatedRoute, null);
   });
 });
