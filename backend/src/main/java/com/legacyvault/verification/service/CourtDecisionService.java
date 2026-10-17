@@ -58,7 +58,7 @@ public class CourtDecisionService {
                 locked.vault().getVaultId(), "COURT_DECISION", decision.getId(), null, null, null,
                 Map.of("verificationCaseId", caseId.toString(), "dossierId", dossier.getPublicId().toString(),
                         "version", evidence.version(), "sha256", evidence.sha256(), "result", decision.getResult()),
-                "ST-16", "LV-COURT-001"));
+                "ST-20", "LV-COURT-001"));
         return new CourtDecisionResponse(decision.getPublicId(), caseId, evidence.version(), evidence.sha256(),
                 decision.getResult(), decision.getReason(), principal.publicId(), decision.getReviewedAt().toInstant(ZoneOffset.UTC));
     }

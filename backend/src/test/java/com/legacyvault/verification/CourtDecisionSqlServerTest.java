@@ -5,8 +5,10 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.verification.dto.*;
 import com.legacyvault.verification.service.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import static org.junit.jupiter.api.Assertions.*;
 
+@EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class CourtDecisionSqlServerTest extends LegalBasisSqlServerSupport {
     private CourtDecisionService service() { return context.getBean(CourtDecisionService.class); }
 
@@ -39,6 +41,8 @@ class CourtDecisionSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals("LEGAL_BASIS_VERIFICATION", jdbc.queryForObject("SELECT status FROM dbo.vaults WHERE vault_id = ?", String.class, f.vaultId()));
         assertEquals(1, service().history(f.publicCaseId()).size());
         String details = jdbc.queryForObject("SELECT details FROM dbo.audit_logs WHERE vault_id = ? AND action = 'COURT_DECISION_RECORDED'", String.class, f.vaultId());
+        assertEquals("ST-20", jdbc.queryForObject("SELECT step_id FROM dbo.audit_logs WHERE vault_id = ? AND action = 'COURT_DECISION_RECORDED'", String.class, f.vaultId()));
+        assertEquals("LV-COURT-001", jdbc.queryForObject("SELECT rule_id FROM dbo.audit_logs WHERE vault_id = ? AND action = 'COURT_DECISION_RECORDED'", String.class, f.vaultId()));
         assertFalse(details.contains("Private Legal assessment"));
         assertFalse(details.contains("Document fixture"));
     }

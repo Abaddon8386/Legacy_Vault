@@ -22,7 +22,7 @@ Lỗi: 400 request sai; 401 chưa đăng nhập; 403 sai role; 404 không có ca
 `COURT_DECISION_REQUIRED` là lỗi của guard khi chưa có kết luận `VALID` mới nhất cho phiên bản hiện hành.
 
 Khóa Vault → ca → dossier, refresh trạng thái trước kiểm tra. Lưu kết luận và audit
-`COURT_DECISION_RECORDED` trong cùng transaction; audit không chứa lý do, số văn bản hay cơ quan ban hành.
+`COURT_DECISION_RECORDED` với step `ST-20` và rule `LV-COURT-001` trong cùng transaction; audit không chứa lý do, số văn bản hay cơ quan ban hành.
 V16 bổ sung bảng append-only, khóa ngoại và CHECK cho kết luận.
 
 `CourtRouteGuard` là một điều kiện pháp lý cho các bước bảo vệ về sau: caller phải giữ các khóa
@@ -31,3 +31,12 @@ unlock hoặc handover; Sprint 2 không thực hiện các bước này.
 
 Kiểm chứng: `CourtDecisionSqlServerTest` dùng DB tạm, API service tiếp nhận/chuyển thật và Flyway
 toàn nhánh; kiểm tra kết luận, phiên bản, lịch sử bất biến và rollback audit.
+
+## Review trước merge (2026-10-17)
+
+- Điều kiện `LEGAL_SQLSERVER_MASTER_URL` đặt trên chính lớp SQL Server test; thiếu biến thì skip, không mở kết nối DB.
+- Quyết định thứ tự merge: PS-46 → PS-47 → PS-48 trước PS-37 v2. PS-47 giữ
+  `V16__court_decision_assessments.sql`; PS-48 giữ V17. Nhánh PS-37 phải đổi V16 trước khi tích hợp;
+  PS-77 xử lý sau và phải cấp lại số migration không trùng. Không đổi số migration đã vào `develop`.
+- Chỉ đồng bộ từ `origin/develop`; giữ lịch sử merge `main` đã có, không viết lại lịch sử PR đang review.
+- Khi `develop` có thêm enum audit/error, merge giữ đủ giá trị hai phía và chạy lại test.
