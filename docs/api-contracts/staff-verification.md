@@ -92,6 +92,42 @@ Hệ thống tạo case sau khi Grace Period hết hạn và chuyển Vault sang
 
 Không xem việc tạo case là xác nhận tử vong hoặc tự động mở khóa/giải mã tài sản.
 
+## PS-38 — Ghi nhận giấy tờ khai tử đã nhận (ST-11, LV-DEATH-002)
+
+Staff ghi nhận **metadata** giấy chứng tử / trích lục khai tử vật lý đã nhận từ Trustee. Chỉ là ghi nhận tiếp nhận:
+**không** duyệt giấy tờ (ST-12 thuộc Legal), không đổi trạng thái Vault, không đóng ca, không tải file, không gọi VNeID.
+
+Base path: `/api/v1/staff/verification-cases/{caseId}/death-documents`. Role `STAFF_EXECUTOR`. Staff phải là người **đã nhận ca**
+(`assigned_staff_user_id`); ca chưa nhận hoặc của Staff khác → `404` (không lộ sự tồn tại).
+
+| Thao tác | Mô tả |
+|---|---|
+| `POST` | Ghi nhận một giấy tờ. `201` + `Location` + `DeathDocumentRecordResponse` |
+| `GET` | Danh sách giấy tờ đã ghi nhận của ca, mới nhất trước |
+| `GET /{recordId}` | Một bản ghi |
+
+**Request (`POST`):**
+
+| Trường | Kiểu | Bắt buộc | Ràng buộc |
+|---|---|---|---|
+| `documentType` | string | có | `DEATH_CERTIFICATE` hoặc `DEATH_REGISTRATION_EXTRACT` (**đề xuất**, xem D-API-34) |
+| `issuingAuthority` | string | có | không rỗng, ≤ 255 |
+| `documentNumber` | string | có | không rỗng, ≤ 100 |
+| `issuedDate` | date | có | `yyyy-MM-dd`, không ở tương lai |
+| `evidenceReference` | string | không | ≤ 500; mã biên nhận/vị trí lưu hồ sơ giấy, **không phải file** |
+| `notes` | string | không | ≤ 1000 |
+
+`receivedBy` (Staff đăng nhập) và `receivedAt` (giờ máy chủ, UTC) do server đặt; request gửi hai trường này bị bỏ qua.
+
+**Response:** `id`, `caseId`, `documentType`, `issuingAuthority`, `documentNumber`, `issuedDate`, `receivedBy` (ID công khai
+của Staff), `receivedAt`, `evidenceReference`, `notes`.
+
+- **Lỗi:** `400 VALIDATION_FAILED` · `401` · `403` (thiếu role) · `404` · `409 VERIFICATION_CASE_NOT_OPEN` (ca đã hủy/đóng).
+- **Bất biến:** không có API sửa hay xóa; nhận thêm giấy tờ thì tạo bản ghi mới (AC-T06, LV-AUD-001).
+- **Audit:** `DEATH_DOCUMENT_RECORDED` (ST-11, LV-DEATH-002) chỉ ghi loại giấy tờ và các ID công khai; **không** ghi số giấy tờ,
+  cơ quan cấp hay ghi chú.
+- **Chưa làm:** tiến độ hồ sơ `DEATH_DOCS_COLLECTED` chưa có cột chứa nên chưa được ghi (`TODO(open-question)`, D-API-34).
+
 ## Test và giới hạn xác minh
 
 - Test `getCase_caseNotViewableByStaff_throwsNotFound` phải mock và verify `findViewableCaseByPublicId(caseId, staffUserId)`, không dùng method cũ `findByPublicIdAndAssignedStaffUserId()` để test `getCase()`.

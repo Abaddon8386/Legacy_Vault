@@ -653,6 +653,80 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/death-documents:
+    post:
+      tags: [Staff]
+      summary: Ghi nhận giấy tờ khai tử đã nhận (PS-38, ST-11)
+      description: |
+        Staff đã nhận ca ghi nhận metadata giấy chứng tử / trích lục khai tử vật lý. Chỉ ghi nhận tiếp nhận, không duyệt
+        giấy tờ, không đổi trạng thái Vault. Người nhận và thời điểm do server đặt. Ca chưa nhận hoặc của Staff khác 404.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordDeathDocumentRequest' }
+      responses:
+        '201':
+          description: Đã ghi nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeathDocumentRecordResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Giấy tờ khai tử đã ghi nhận của ca (PS-38)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeathDocumentRecordResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/death-documents/{recordId}:
+    get:
+      tags: [Staff]
+      summary: Một bản ghi giấy tờ khai tử (PS-38)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeathDocumentRecordResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1068,6 +1142,30 @@ components:
       properties:
         id: { type: string, format: uuid }
         payload: { type: string, description: Nội dung bảo mật đã giải mã; chỉ trả ở endpoint reveal }
+    RecordDeathDocumentRequest:
+      type: object
+      required: [documentType, issuingAuthority, documentNumber, issuedDate]
+      properties:
+        documentType: { type: string, enum: [DEATH_CERTIFICATE, DEATH_REGISTRATION_EXTRACT] }
+        issuingAuthority: { type: string, minLength: 1, maxLength: 255 }
+        documentNumber: { type: string, minLength: 1, maxLength: 100 }
+        issuedDate: { type: string, format: date, description: Không ở tương lai }
+        evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu hồ sơ giấy, không phải file }
+        notes: { type: string, maxLength: 1000, nullable: true }
+    DeathDocumentRecordResponse:
+      type: object
+      required: [id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        documentType: { type: string, enum: [DEATH_CERTIFICATE, DEATH_REGISTRATION_EXTRACT] }
+        issuingAuthority: { type: string }
+        documentNumber: { type: string }
+        issuedDate: { type: string, format: date }
+        receivedBy: { type: string, format: uuid, description: ID công khai của Staff đã nhận }
+        receivedAt: { type: string, format: date-time }
+        evidenceReference: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
