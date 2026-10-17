@@ -5,7 +5,6 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.vault.service.VaultService;
-import jakarta.persistence.EntityManagerFactory;
 import org.flywaydb.core.Flyway;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.junit.jupiter.api.*;
@@ -30,15 +29,13 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Disposable database only. Unallocated feature scripts are applied as schema fixtures, never renumbered.
- * This verifies service/SQL locking, NOT successful Flyway integration of the unresolved branch. */
+/** Disposable database only. Real branch migrations run through Flyway, including the V11 upgrade path. */
 @EnabledIfEnvironmentVariable(named = "STAFF_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 public class TrusteeContactSqlServerTest {
     protected static ConfigurableApplicationContext context;
     protected static JdbcTemplate jdbc;
     static JdbcTemplate master;
     static String database;
-    static Path fixtureMigrations;
     protected static TransactionTemplate tx;
     protected static final List<String> sql = new CopyOnWriteArrayList<>();
     protected Long ownerId, staffId, vaultId, caseId;
@@ -60,31 +57,18 @@ public class TrusteeContactSqlServerTest {
         master.execute("CREATE DATABASE [" + database + "]");
         String url = masterUrl.replace("databaseName=master;", "databaseName=" + database + ";");
         jdbc = new JdbcTemplate(new DriverManagerDataSource(url));
-        fixtureMigrations = Files.createTempDirectory("legacyvault-staff-base-");
         Path migrations = Path.of("../database/migration").toAbsolutePath().normalize();
-        List<Path> features = new ArrayList<>();
-        try (var files = Files.list(migrations)) {
-            for (Path file : files.filter(p -> p.toString().endsWith(".sql")).sorted().toList()) {
-                String name = file.getFileName().toString();
-                if (name.endsWith("__trustee_contact_outcomes.sql") || name.endsWith("__beneficiary_identity_verifications.sql")) {
-                    features.add(file);
-                } else Files.copy(file, fixtureMigrations.resolve(name));
-            }
-        }
-        Flyway.configure().dataSource(url, null, null).locations("filesystem:" + fixtureMigrations).load().migrate();
-        // SQL content is unchanged. No production Flyway history/checksum is edited.
-        for (Path feature : features) {
-            for (String batch : Files.readString(feature).split("(?im)^GO\\s*$")) {
-                if (!batch.isBlank()) jdbc.execute(batch);
-            }
-        }
+        // Simulate an existing V11 deployment, then let Spring apply/validate the actual feature migrations.
+        // A fresh full-branch migration is also covered by contextLoads in the complete regression run.
+        Flyway.configure().dataSource(url, null, null).locations("filesystem:" + migrations)
+                .target("11").load().migrate();
         String key = Base64.getEncoder().encodeToString(new byte[32]);
         context = new SpringApplicationBuilder(LegacyvaultBackendApplication.class, SqlCapture.class)
                 .initializers(app -> app.addBeanFactoryPostProcessor(factory -> {
                     var registry = (BeanDefinitionRegistry) factory;
                     String name = TaskManagementConfigUtils.SCHEDULED_ANNOTATION_PROCESSOR_BEAN_NAME;
                     if (registry.containsBeanDefinition(name)) registry.removeBeanDefinition(name);
-                })).run("--spring.datasource.url=" + url, "--spring.flyway.enabled=false", "--server.port=0",
+                })).run("--spring.datasource.url=" + url, "--spring.flyway.enabled=true", "--server.port=0",
                         "--legacyvault.jwt.secret=" + key, "--legacyvault.encryption.key=" + key,
                         "--logging.level.root=ERROR", "--logging.level.org.springframework.security=ERROR");
         tx = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
@@ -96,10 +80,6 @@ public class TrusteeContactSqlServerTest {
         if (database != null && database.matches("LegacyVault_StaffPatch_[0-9a-f]{32}")) {
             master.execute("ALTER DATABASE [" + database + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
             master.execute("DROP DATABASE [" + database + "]");
-        }
-        if (fixtureMigrations != null) {
-            try (var files = Files.list(fixtureMigrations)) { for (Path file : files.toList()) Files.delete(file); }
-            Files.delete(fixtureMigrations);
         }
     }
 
@@ -211,6 +191,35 @@ public class TrusteeContactSqlServerTest {
     @Test void databaseRejectsDuplicateOpenCaseForVault() {
         assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> jdbc.update(
                 "INSERT dbo.verification_cases(vault_id,triggered_at) VALUES (?,SYSUTCDATETIME())", vaultId));
+    }
+
+    @Test void fullBranchFlywayHistoryIsValidAndHasNoPendingMigration() throws Exception {
+        Flyway flyway = context.getBean(Flyway.class);
+        flyway.validate();
+        assertEquals(0, flyway.info().pending().length);
+        long migrationCount;
+        try (var files = Files.list(Path.of("../database/migration"))) {
+            migrationCount = files.filter(p -> p.getFileName().toString().endsWith(".sql")).count();
+        }
+        assertEquals(migrationCount, flyway.info().applied().length);
+        assertTrue(Arrays.stream(flyway.info().applied())
+                .anyMatch(m -> "V12__trustee_contact_outcomes.sql".equals(m.getScript()) && m.getVersion().toString().equals("12")));
+    }
+
+    @Test void auditAdapterPersistsPlainWorkflowStatesAsValidJson() {
+        var adapter = context.getBean(com.legacyvault.common.audit.AuditService.class);
+        for (String status : List.of("MONITORING", "APPOINTED", "NOT_CONFIGURED")) {
+            tx.execute(s -> {
+                adapter.record(staffId, vaultId, "DMS_CONFIGURED", "VAULT", vaultId, "USER",
+                        Map.of("stateBefore", status, "stateAfter", status));
+                return null;
+            });
+        }
+        assertEquals(3, jdbc.queryForObject("""
+                SELECT COUNT(*) FROM dbo.audit_logs WHERE vault_id=? AND action='DMS_CONFIGURED'
+                  AND ISJSON(state_before)=1 AND ISJSON(state_after)=1
+                  AND JSON_VALUE(state_before,'$.status')=JSON_VALUE(state_after,'$.status')
+                """, Integer.class, vaultId));
     }
 
     @Test void revokedTrusteeRejectsNewContactAndRetainsExistingHistory() {
