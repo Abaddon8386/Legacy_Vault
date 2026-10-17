@@ -27,6 +27,7 @@ import org.hibernate.event.spi.EventType;
 import org.hibernate.event.spi.PostLoadEventListener;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -82,6 +83,9 @@ class SubscriptionSqlServerTest {
         String url = "jdbc:sqlserver://" + server + ";databaseName=" + database
                 + ";encrypt=true;trustServerCertificate=true;integratedSecurity=true";
         String key = Base64.getEncoder().encodeToString(new byte[32]);
+        // Exercise the upgrade from the branch's base schema; contextLoads also tests a fresh full migration.
+        Flyway.configure().dataSource(url, null, null).locations("classpath:db/migration")
+                .target("11").load().migrate();
         context = new SpringApplicationBuilder(LegacyvaultBackendApplication.class)
                 .initializers(app -> app.addBeanFactoryPostProcessor(factory -> {
                     var registry = (BeanDefinitionRegistry) factory;
@@ -128,6 +132,19 @@ class SubscriptionSqlServerTest {
     void stopWorkers() throws Exception {
         workers.shutdownNow();
         assertTrue(workers.awaitTermination(25, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void flywayUsesAllocatedVersionsAndHasNoPendingMigrations() {
+        Flyway flyway = context.getBean(Flyway.class);
+        flyway.validate();
+        assertEquals(0, flyway.info().pending().length);
+        var versions = java.util.Arrays.stream(flyway.info().applied()).collect(
+                java.util.stream.Collectors.toMap(m -> m.getScript(), m -> m.getVersion().toString()));
+        assertEquals("18", versions.get("V18__preserve_lifetime_vault_ownership.sql"));
+        assertEquals("19", versions.get("V19__subscription_catalog_and_payload_usage.sql"));
+        assertFalse(versions.containsKey("V12__preserve_lifetime_vault_ownership.sql"));
+        assertFalse(versions.containsKey("V13__subscription_catalog_and_payload_usage.sql"));
     }
 
     @Test
@@ -234,7 +251,7 @@ class SubscriptionSqlServerTest {
     @Test
     void duplicatePreflightFailsWithoutDeletingOrCombiningRows() throws Exception {
         createVault(owner);
-        String preflight = new ClassPathResource("db/migration/V12__preserve_lifetime_vault_ownership.sql")
+        String preflight = new ClassPathResource("db/migration/V18__preserve_lifetime_vault_ownership.sql")
                 .getContentAsString(StandardCharsets.UTF_8).split("(?m)^GO\\s*$")[0];
         DataAccessException failure = assertThrows(DataAccessException.class, () -> tx.execute(s -> {
             jdbc.execute("ALTER TABLE dbo.vaults DROP CONSTRAINT UQ_vaults_owner");

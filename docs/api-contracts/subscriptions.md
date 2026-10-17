@@ -96,6 +96,12 @@ Catalog trả giá paid để so sánh, không xác nhận Owner đang hưởng 
 
 ## Kiểm thử SQL Server tùy chọn
 
+PS-77 dùng `V18__preserve_lifetime_vault_ownership.sql` và
+`V19__subscription_catalog_and_payload_usage.sql`. V12/V13 dành cho PS-44/45, V14/V15 thuộc
+PS-41–43; remote còn có V16/V17 cho các nhánh legal/court/hold. Nội dung SQL của PS-77 được giữ nguyên.
+Môi trường từng áp dụng migration PS-77 với số cũ cần đánh giá lịch sử triển khai riêng;
+không tự reset DB, chạy repair hoặc sửa `flyway_schema_history`.
+
 `SubscriptionSqlServerTest` chỉ bật khi `PS77_SQLSERVER_TEST_DATABASE` khớp toàn bộ
 `LegacyVault_PS77_[A-Za-z0-9_]+`. Phải tạo trước DB dùng một lần, dùng Windows integrated authentication
 và JDBC auth DLL phù hợp; không dùng `LegacyVault` hoặc DB có dữ liệu cần giữ. Test chạy Flyway thật và ghi
