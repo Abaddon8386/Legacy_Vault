@@ -907,6 +907,115 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier:
+    post:
+      tags: [Legal]
+      summary: Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ (PS-41, ST-16)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `WILL_VERIFICATION` và kết quả đối chiếu di chúc mới
+        nhất là MATCH. Mỗi ca một hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClassifyBasisRequest' }
+      responses:
+        '201':
+          description: Đã tạo hồ sơ
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Legal]
+      summary: Xem hồ sơ căn cứ kèm lý do phân loại (PS-41)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier:
+    get:
+      tags: [Staff]
+      summary: Staff xem hồ sơ căn cứ của ca mình đã nhận (PS-41)
+      description: Không có `routeReason`. Ca không thuộc Staff trả 404.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions:
+    post:
+      tags: [Staff]
+      summary: Staff tiếp nhận văn bản căn cứ đã số hóa (PS-41, ST-18)
+      description: |
+        `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
+        và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
+        có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [metadata, file]
+              properties:
+                metadata: { $ref: '#/components/schemas/BasisIntakeMetadata' }
+                file: { type: string, format: binary }
+            encoding:
+              metadata: { contentType: application/json }
+      responses:
+        '201':
+          description: Đã tiếp nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1476,6 +1585,61 @@ components:
           type: array
           description: Mới nhất trước
           items: { $ref: '#/components/schemas/WillComparisonResponse' }
+    ClassifyBasisRequest:
+      type: object
+      required: [route, routeReason]
+      properties:
+        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
+    BasisIntakeMetadata:
+      type: object
+      required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
+      properties:
+        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
+        issuingAuthority: { type: string, maxLength: 255 }
+        documentNumber: { type: string, maxLength: 100 }
+        issueDate: { type: string, format: date }
+        notaryAuthority: { type: string, maxLength: 255, nullable: true }
+        notarialDocumentNumber: { type: string, maxLength: 100, nullable: true }
+        notarizedAt: { type: string, format: date, nullable: true }
+        evidenceReference: { type: string, maxLength: 500, nullable: true }
+        notes: { type: string, maxLength: 1000, nullable: true }
+    BasisVersionResponse:
+      type: object
+      properties:
+        version: { type: integer }
+        legalBasisType: { type: string }
+        issuingAuthority: { type: string }
+        documentNumber: { type: string }
+        issueDate: { type: string, format: date }
+        notaryAuthority: { type: string, nullable: true }
+        notarialDocumentNumber: { type: string, nullable: true }
+        notarizedAt: { type: string, format: date, nullable: true }
+        evidenceReference: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        contentType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: Hash nội dung gốc; không chứng minh giá trị pháp lý }
+        forwardStatus: { type: string, enum: [NOT_FORWARDED, FORWARDED] }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        forwardedAt: { type: string, format: date-time, nullable: true }
+    BasisDossierResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        status: { type: string, enum: [DRAFT, LEGAL_BASIS_PROVIDED, LEGAL_BASIS_FORWARDED] }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
+        routeReason: { type: string, nullable: true, description: Chỉ Legal thấy }
+        classifiedBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        versions:
+          type: array
+          description: Mới nhất trước
+          items: { $ref: '#/components/schemas/BasisVersionResponse' }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
