@@ -1,5 +1,6 @@
 package com.legacyvault.verification.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -7,10 +8,12 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Metadata Staff nhập khi tiếp nhận một phiên bản văn bản căn cứ (ST-18), gửi cùng file số hóa. Hash, phiên bản, người
- * tiếp nhận và thời điểm do server đặt. Tiếp nhận không đồng nghĩa đã duyệt.
+ * tiếp nhận và thời điểm do server đặt. Mỗi phiên bản phải kèm {@code allocations} (phạm vi phân bổ theo văn bản, kiểm tra ở
+ * service). Tiếp nhận không đồng nghĩa đã duyệt.
  */
 public record BasisIntakeMetadata(
         @NotBlank(message = "{validation.NotBlank}")
@@ -42,6 +45,9 @@ public record BasisIntakeMetadata(
         String evidenceReference,
 
         @Size(max = 1000, message = "{validation.Size}")
-        String notes
+        String notes,
+
+        @Size(max = 200, message = "{validation.Size}")
+        List<@Valid AllocationInput> allocations
 ) {
 }

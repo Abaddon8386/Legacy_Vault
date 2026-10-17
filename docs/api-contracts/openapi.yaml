@@ -1016,6 +1016,35 @@ paths:
         '413': { $ref: '#/components/responses/PayloadTooLarge' }
         '415': { $ref: '#/components/responses/UnsupportedMediaType' }
 
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{version}/forward:
+    post:
+      tags: [Staff]
+      summary: Staff chuyển văn bản căn cứ cho Legal (PS-42, ST-19)
+      description: |
+        Chỉ phiên bản mới nhất (`current = true`) được chuyển; phiên bản cũ trả `409 BASIS_VERSION_STALE` và vẫn được giữ làm
+        chứng cứ. Hồ sơ chuyển `LEGAL_BASIS_FORWARDED`, Vault chuyển `LEGAL_BASIS_VERIFICATION`. Chuyển không đồng nghĩa đã duyệt.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Đã chuyển cho Legal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1604,6 +1633,10 @@ components:
         notarizedAt: { type: string, format: date, nullable: true }
         evidenceReference: { type: string, maxLength: 500, nullable: true }
         notes: { type: string, maxLength: 1000, nullable: true }
+        allocations:
+          type: array
+          description: Kế hoạch phân bổ theo văn bản (bắt buộc, không trùng tài sản - người nhận, thuộc Vault của ca)
+          items: { $ref: '#/components/schemas/AllocationInput' }
     BasisVersionResponse:
       type: object
       properties:
@@ -1624,6 +1657,24 @@ components:
         createdBy: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
         forwardedAt: { type: string, format: date-time, nullable: true }
+        current: { type: boolean, description: Phiên bản mới nhất; chỉ phiên bản này được chuyển Legal (PS-42) }
+        allocations:
+          type: array
+          description: Kế hoạch phân bổ theo văn bản (tài sản - người nhận)
+          items: { $ref: '#/components/schemas/AllocationResponse' }
+    AllocationInput:
+      type: object
+      required: [assetId, beneficiaryId]
+      properties:
+        assetId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        description: { type: string, maxLength: 2000, nullable: true }
+    AllocationResponse:
+      type: object
+      properties:
+        assetId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        description: { type: string, nullable: true }
     BasisDossierResponse:
       type: object
       properties:

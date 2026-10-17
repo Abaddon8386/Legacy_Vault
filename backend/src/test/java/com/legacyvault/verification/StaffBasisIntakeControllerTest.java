@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +39,7 @@ import com.legacyvault.user.repository.UserRoleRepository;
 import com.legacyvault.verification.controller.StaffBasisIntakeController;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.BasisForwardService;
 import com.legacyvault.verification.service.BasisIntakeService;
 
 /** PS-41: hợp đồng HTTP của /staff/verification-cases/{caseId}/basis-dossier (multipart: metadata + file). */
@@ -69,6 +71,9 @@ class StaffBasisIntakeControllerTest {
 
     @MockitoBean
     private BasisDossierViewService views;
+
+    @MockitoBean
+    private BasisForwardService forwardService;
 
     private static RequestPostProcessor as(String role) {
         return authentication(new UsernamePasswordAuthenticationToken(STAFF, null,
@@ -158,5 +163,30 @@ class StaffBasisIntakeControllerTest {
                 .andExpect(jsonPath("$.route").value("NOTARIAL"));
         mockMvc.perform(get(URL, CASE_ID).with(as("LEGAL_VERIFIER"))).andExpect(status().isForbidden());
         mockMvc.perform(get(URL, CASE_ID)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void forward_returns200_forStaffOnly() throws Exception {
+        when(forwardService.forward(eq(CASE_ID), eq(2), any())).thenReturn(DOSSIER);
+
+        mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 2).with(staff()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.route").value("NOTARIAL"));
+        mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 2).with(as("LEGAL_VERIFIER")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 2)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void forward_mapsErrors_andRejectsVersionBelowOne() throws Exception {
+        when(forwardService.forward(eq(CASE_ID), eq(1), any()))
+                .thenThrow(new BusinessException(ErrorCode.BASIS_VERSION_STALE))
+                .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 1).with(staff()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("BASIS_VERSION_STALE"));
+        mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 1).with(staff()))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 0).with(staff()))
+                .andExpect(status().isBadRequest());
     }
 }

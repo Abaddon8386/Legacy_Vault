@@ -70,6 +70,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Thẩm định giấy tờ khai tử | `LEGAL_DEATH_DOCUMENT_DECIDED` (kết quả + ID công khai; không ghi lý do) | PS-36 (ST-12) |
 | Đối chiếu di chúc gốc | `WILL_COMPARISON_RECORDED` (kết quả, ID công khai, phiên bản, hash; không ghi lý do) | PS-40 (ST-15) |
 | Hồ sơ căn cứ phân chia | `LEGAL_BASIS_CLASSIFIED` (nhánh, ID công khai; không ghi lý do), `LEGAL_BASIS_RECEIVED` (loại, phiên bản, hash; không ghi số văn bản) | PS-41 (ST-16, ST-18) |
+| Hồ sơ căn cứ phân chia (chuyển) | `LEGAL_BASIS_FORWARDED` (phiên bản, ID công khai; Vault `AWAITING_LEGAL_BASIS` → `LEGAL_BASIS_VERIFICATION`) | PS-42 (ST-19) |
 
 ## Giao diện nội bộ
 

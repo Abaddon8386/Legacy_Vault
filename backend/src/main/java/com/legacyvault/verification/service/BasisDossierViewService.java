@@ -8,13 +8,16 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
+import com.legacyvault.verification.dto.AllocationResponse;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.BasisVersionResponse;
 import com.legacyvault.verification.entity.LegalBasisDossier;
 import com.legacyvault.verification.entity.VerificationCase;
+import com.legacyvault.verification.repository.AllocationRow;
 import com.legacyvault.verification.repository.BasisVersionRow;
 import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalBasisDossierVersionRepository;
+import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
 import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import org.springframework.stereotype.Service;
@@ -38,16 +41,18 @@ public class BasisDossierViewService {
     private final StaffCaseLockRepository staffCases;
     private final LegalBasisDossierRepository dossiers;
     private final LegalBasisDossierVersionRepository versions;
+    private final LegalBasisVersionAllocationRepository allocations;
     private final UserRepository users;
     private final ObjectMapper objectMapper;
 
     public BasisDossierViewService(LegalCaseLookupRepository caseLookup, StaffCaseLockRepository staffCases,
-            LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions, UserRepository users,
-            ObjectMapper objectMapper) {
+            LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions,
+            LegalBasisVersionAllocationRepository allocations, UserRepository users, ObjectMapper objectMapper) {
         this.caseLookup = caseLookup;
         this.staffCases = staffCases;
         this.dossiers = dossiers;
         this.versions = versions;
+        this.allocations = allocations;
         this.users = users;
         this.objectMapper = objectMapper;
     }
@@ -80,9 +85,18 @@ public class BasisDossierViewService {
         Map<Long, UUID> publicIds = users.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getUserId, User::getPublicId, (a, b) -> a));
 
+        // rows đã sắp mới nhất trước: phần tử đầu là phiên bản hiện hành, các bản còn lại là bản cũ (vẫn giữ làm chứng cứ).
+        int currentVersion = rows.isEmpty() ? 0 : rows.get(0).versionNo();
+        Map<Integer, List<AllocationResponse>> scopeByVersion = allocations
+                .findRowsByDossier(dossier.getLegalBasisDossierId()).stream()
+                .collect(Collectors.groupingBy(AllocationRow::versionNo, Collectors.mapping(
+                        a -> new AllocationResponse(a.assetId(), a.beneficiaryId(), a.description()),
+                        Collectors.toList())));
+
         List<BasisVersionResponse> items = rows.stream()
                 .map(r -> BasisVersionResponse.from(r, publicIds.get(r.createdByUserId()),
-                        evidenceReferenceOf(r.evidenceMetadata())))
+                        evidenceReferenceOf(r.evidenceMetadata()), r.versionNo() == currentVersion,
+                        scopeByVersion.getOrDefault(r.versionNo(), List.of())))
                 .toList();
         return new BasisDossierResponse(dossier.getPublicId(), verificationCase.getPublicId(), dossier.getRoute(),
                 dossier.getStatus(), dossier.getDisputeStatus(), includeReason ? dossier.getRouteReason() : null,
