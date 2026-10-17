@@ -41,3 +41,12 @@ sau khóa. V17 thêm `required_version_no`, không sửa migration đã áp dụ
 `LegalHoldSqlServerTest` kiểm tra luồng hold → resume → nộp/chuyển phiên bản mới → kết luận lại,
 giữ lịch sử/hash, ca cache cũ, rollback audit và cả hai thứ tự commit khi hold cạnh tranh với
 tiếp nhận, forward hoặc đánh giá COURT. Các DB thử nghiệm có tên ngẫu nhiên và được xóa sau khi đóng context.
+
+## Review trước merge (2026-10-17)
+
+`LegalHoldSqlServerTest` khai báo điều kiện DB trên chính lớp test: thiếu
+`LEGAL_SQLSERVER_MASTER_URL` thì bỏ qua 12 ca, không chạy khởi tạo DB.
+Thứ tự đã chốt: PS-46 → PS-47 (V16) → PS-48 (V17); thành viên phụ trách PS-37 v2
+điều chỉnh số migration trước khi tích hợp. PS-77 xử lý sau. Không đổi migration đã vào `develop`.
+Nhánh đã đồng bộ `origin/develop` qua PS-46/47; không thêm merge từ `main`.
+Audit thẩm định COURT từ PS-47 dùng `ST-20` / `LV-COURT-001`.

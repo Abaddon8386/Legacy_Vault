@@ -6,9 +6,11 @@ import com.legacyvault.verification.entity.LegalBasisDossier;
 import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.service.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+@EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
     private Fixture court(boolean forward) {
         var f = fixture(true);
