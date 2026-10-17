@@ -144,10 +144,11 @@
   border: 1px solid #f2dab2;
 }
 
-.lv-close-archive-view .lv-ca-status-box__value--unknown {
-  background: #f0f0f0;
-  color: #666666;
-  border: 1px solid #d8d8d8;
+.lv-close-archive-view .lv-ca-status-box__value--unknown,
+.lv-close-archive-view .lv-ca-status-box__value--unavailable {
+  background: #fbf9f4;
+  color: #736b5e;
+  border: 1px solid #e8e2d4;
 }
 
 /* Preconditions Evaluation Banner */
@@ -335,6 +336,12 @@
 .lv-close-archive-view .lv-ca-empty-box p {
   font-size: 13.5px;
   margin: 0;
+}
+
+.lv-close-archive-view .lv-ca-empty-box--unavailable {
+  border: 1px dashed var(--lv-color-border, #e6ded1);
+  border-radius: 10px;
+  background: #faf8f5;
 }
 
 /* Action Section */

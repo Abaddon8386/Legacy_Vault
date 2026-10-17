@@ -10,19 +10,20 @@ export const closeAndArchiveI18n = {
 
     // Server status section
     serverStatusHeading: 'Trạng thái hệ thống (từ Server)',
-    sessionStatusLabel: 'Phiên thẩm định',
+    sessionStatusLabel: 'Phiên bàn giao',
     vaultStatusLabel: 'Kho di sản',
     caseStatusLabel: 'Hồ sơ pháp lý',
 
     // Server status values
     statusSessionCompleted: 'Đã hoàn thành',
     statusSessionActive: 'Đang hoạt động',
+    statusSessionInProgress: 'Đang bàn giao',
     statusVaultArchived: 'Đã lưu trữ',
     statusVaultLocked: 'Đã khóa',
     statusVaultOpen: 'Đang mở',
     statusCaseClosed: 'Đã đóng',
     statusCaseInProgress: 'Đang xử lý',
-    statusUnknown: 'Chưa rõ',
+    statusUnavailable: 'Chưa có thông tin',
 
     // Read-only notification
     readOnlyBannerTitle: 'Hồ sơ đã lưu trữ (Chỉ đọc)',
@@ -57,7 +58,9 @@ export const closeAndArchiveI18n = {
     thIssuedDate: 'Ngày phát hành',
     thStatus: 'Trạng thái',
     receiptEmptyTitle: 'Chưa có bản ghi biên nhận',
-    receiptEmptyDesc: 'Chưa có biên nhận nào được ghi nhận cho hồ sơ này.',
+    receiptEmptyDesc: 'Danh sách biên nhận trống.',
+    receiptsUnavailableTitle: 'Chưa có thông tin biên nhận',
+    receiptsUnavailableDesc: 'Dữ liệu biên nhận chưa được tải hoặc chưa được cung cấp.',
 
     // Receipt types
     typeAssetHandover: 'Bàn giao tài sản',
@@ -69,7 +72,6 @@ export const closeAndArchiveI18n = {
     actionHeading: 'Thực hiện đóng & lưu trữ',
     btnExecuteCloseArchive: 'Đóng & Lưu trữ hồ sơ',
     functionUnavailableNotice: 'Chức năng hiện chưa khả dụng',
-    actionDisabledExpl: 'Hành động ghi yêu cầu API hoàn tất từ máy chủ; hiện tại nút bấm tạm thời khóa.',
   },
   en: {
     pageTitle: 'Close & Archive Case',
@@ -77,19 +79,20 @@ export const closeAndArchiveI18n = {
 
     // Server status section
     serverStatusHeading: 'System Status (from Server)',
-    sessionStatusLabel: 'Execution Session',
+    sessionStatusLabel: 'Handover Session',
     vaultStatusLabel: 'Heritage Vault',
     caseStatusLabel: 'Legal Dossier',
 
     // Server status values
     statusSessionCompleted: 'Completed',
     statusSessionActive: 'Active',
+    statusSessionInProgress: 'Handover in Progress',
     statusVaultArchived: 'Archived',
     statusVaultLocked: 'Locked',
     statusVaultOpen: 'Open',
     statusCaseClosed: 'Closed',
     statusCaseInProgress: 'In Progress',
-    statusUnknown: 'Unknown',
+    statusUnavailable: 'Information unavailable',
 
     // Read-only notification
     readOnlyBannerTitle: 'Case Archived (Read-Only)',
@@ -124,7 +127,9 @@ export const closeAndArchiveI18n = {
     thIssuedDate: 'Issued Date',
     thStatus: 'Status',
     receiptEmptyTitle: 'No receipts available',
-    receiptEmptyDesc: 'No receipt records have been logged for this case.',
+    receiptEmptyDesc: 'The receipt list is empty.',
+    receiptsUnavailableTitle: 'Receipt information unavailable',
+    receiptsUnavailableDesc: 'Receipt data has not been loaded or is not provided.',
 
     // Receipt types
     typeAssetHandover: 'Asset Handover',
@@ -136,6 +141,5 @@ export const closeAndArchiveI18n = {
     actionHeading: 'Execute Case Closure',
     btnExecuteCloseArchive: 'Close & Archive Case',
     functionUnavailableNotice: 'This function is currently unavailable',
-    actionDisabledExpl: 'Case closure mutation requires server-side API; write action is currently disabled.',
   },
 };

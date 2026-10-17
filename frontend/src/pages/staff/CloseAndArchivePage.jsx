@@ -18,12 +18,12 @@ import './CloseAndArchivePage.css';
 
 export default function CloseAndArchivePage({
   lang = 'vi',
-  sessionStatus = 'ACTIVE',
-  vaultStatus = 'OPEN',
-  caseStatus = 'IN_PROGRESS',
+  sessionStatus = null,
+  vaultStatus = null,
+  caseStatus = null,
   assetData = null,
   beneficiaryData = null,
-  receipts = [],
+  receipts = null,
 }) {
   const t = closeAndArchiveI18n[lang] || closeAndArchiveI18n.vi;
 
@@ -31,25 +31,44 @@ export default function CloseAndArchivePage({
   const evaluation = evaluateCloseArchivePreconditions(assetData || {}, beneficiaryData || {});
   const { eligibilityStatus, isAssetComplete, isBeneficiaryComplete, unmetConditions } = evaluation;
 
-  // Resolve status label from server status code
+  // Resolve status label from server status code - missing/invalid returns "Chưa có thông tin"
   const resolveSessionLabel = (status) => {
-    if (status === 'COMPLETED') return t.statusSessionCompleted;
-    if (status === 'ACTIVE') return t.statusSessionActive;
-    return t.statusUnknown;
+    if (typeof status !== 'string') return t.statusUnavailable;
+    const s = status.trim().toUpperCase();
+    if (s === 'COMPLETED') return t.statusSessionCompleted;
+    if (s === 'ACTIVE') return t.statusSessionActive;
+    if (s === 'HANDOVER_IN_PROGRESS') return t.statusSessionInProgress;
+    return t.statusUnavailable;
   };
 
   const resolveVaultLabel = (status) => {
-    if (status === 'ARCHIVED') return t.statusVaultArchived;
-    if (status === 'LOCKED') return t.statusVaultLocked;
-    if (status === 'OPEN') return t.statusVaultOpen;
-    return t.statusUnknown;
+    if (typeof status !== 'string') return t.statusUnavailable;
+    const s = status.trim().toUpperCase();
+    if (s === 'ARCHIVED') return t.statusVaultArchived;
+    if (s === 'LOCKED') return t.statusVaultLocked;
+    if (s === 'OPEN') return t.statusVaultOpen;
+    return t.statusUnavailable;
   };
 
   const resolveCaseLabel = (status) => {
-    if (status === 'CLOSED') return t.statusCaseClosed;
-    if (status === 'IN_PROGRESS') return t.statusCaseInProgress;
-    return t.statusUnknown;
+    if (typeof status !== 'string') return t.statusUnavailable;
+    const s = status.trim().toUpperCase();
+    if (s === 'CLOSED') return t.statusCaseClosed;
+    if (s === 'IN_PROGRESS') return t.statusCaseInProgress;
+    return t.statusUnavailable;
   };
+
+  // Guard handler: in read-only archived state, write handler is strictly blocked
+  const handleExecuteCloseArchive = (e) => {
+    e?.preventDefault();
+    if (isArchived) {
+      return;
+    }
+  };
+
+  const isSessionKnown = sessionStatus && resolveSessionLabel(sessionStatus) !== t.statusUnavailable;
+  const isVaultKnown = vaultStatus && resolveVaultLabel(vaultStatus) !== t.statusUnavailable;
+  const isCaseKnown = caseStatus && resolveCaseLabel(caseStatus) !== t.statusUnavailable;
 
   return (
     <div className="lv-close-archive-view">
@@ -84,15 +103,17 @@ export default function CloseAndArchivePage({
               className={`lv-ca-status-box__value ${
                 sessionStatus === 'COMPLETED'
                   ? 'lv-ca-status-box__value--completed'
-                  : sessionStatus === 'ACTIVE'
+                  : sessionStatus === 'ACTIVE' || sessionStatus === 'HANDOVER_IN_PROGRESS'
                   ? 'lv-ca-status-box__value--active'
-                  : 'lv-ca-status-box__value--unknown'
+                  : 'lv-ca-status-box__value--unavailable'
               }`}
             >
               {sessionStatus === 'COMPLETED' ? (
                 <CheckCircle2 size={14} aria-hidden="true" />
-              ) : (
+              ) : isSessionKnown ? (
                 <Clock size={14} aria-hidden="true" />
+              ) : (
+                <HelpCircle size={14} aria-hidden="true" />
               )}
               <span>{resolveSessionLabel(sessionStatus)}</span>
             </span>
@@ -104,15 +125,17 @@ export default function CloseAndArchivePage({
               className={`lv-ca-status-box__value ${
                 vaultStatus === 'ARCHIVED'
                   ? 'lv-ca-status-box__value--archived'
-                  : vaultStatus === 'OPEN'
+                  : vaultStatus === 'OPEN' || vaultStatus === 'LOCKED'
                   ? 'lv-ca-status-box__value--open'
-                  : 'lv-ca-status-box__value--unknown'
+                  : 'lv-ca-status-box__value--unavailable'
               }`}
             >
               {vaultStatus === 'ARCHIVED' ? (
                 <Archive size={14} aria-hidden="true" />
-              ) : (
+              ) : isVaultKnown ? (
                 <Clock size={14} aria-hidden="true" />
+              ) : (
+                <HelpCircle size={14} aria-hidden="true" />
               )}
               <span>{resolveVaultLabel(vaultStatus)}</span>
             </span>
@@ -126,13 +149,15 @@ export default function CloseAndArchivePage({
                   ? 'lv-ca-status-box__value--closed'
                   : caseStatus === 'IN_PROGRESS'
                   ? 'lv-ca-status-box__value--in-progress'
-                  : 'lv-ca-status-box__value--unknown'
+                  : 'lv-ca-status-box__value--unavailable'
               }`}
             >
               {caseStatus === 'CLOSED' ? (
                 <ShieldCheck size={14} aria-hidden="true" />
-              ) : (
+              ) : isCaseKnown ? (
                 <Clock size={14} aria-hidden="true" />
+              ) : (
+                <HelpCircle size={14} aria-hidden="true" />
               )}
               <span>{resolveCaseLabel(caseStatus)}</span>
             </span>
@@ -241,7 +266,19 @@ export default function CloseAndArchivePage({
         </h2>
         <p className="lv-ca-card__desc">{t.receiptSummaryDesc}</p>
 
-        {Array.isArray(receipts) && receipts.length > 0 ? (
+        {receipts === null || receipts === undefined ? (
+          <div className="lv-ca-empty-box lv-ca-empty-box--unavailable" role="status">
+            <HelpCircle size={32} aria-hidden="true" style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+            <h3>{t.receiptsUnavailableTitle}</h3>
+            <p>{t.receiptsUnavailableDesc}</p>
+          </div>
+        ) : Array.isArray(receipts) && receipts.length === 0 ? (
+          <div className="lv-ca-empty-box" role="status">
+            <FileText size={32} aria-hidden="true" style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+            <h3>{t.receiptEmptyTitle}</h3>
+            <p>{t.receiptEmptyDesc}</p>
+          </div>
+        ) : Array.isArray(receipts) && receipts.length > 0 ? (
           <div className="lv-ca-table-wrapper">
             <table className="lv-ca-table">
               <thead>
@@ -254,27 +291,27 @@ export default function CloseAndArchivePage({
                 </tr>
               </thead>
               <tbody>
-                {receipts.map((rc) => (
-                  <tr key={rc.id || rc.code}>
+                {receipts.map((rc, idx) => (
+                  <tr key={rc.id || rc.code || idx}>
                     <td>
-                      <span className="lv-ca-code-badge">{rc.code}</span>
+                      <span className="lv-ca-code-badge">{rc.code || t.statusUnavailable}</span>
                     </td>
                     <td>
                       {rc.type === 'ASSET_HANDOVER'
                         ? t.typeAssetHandover
                         : rc.type === 'BENEFICIARY_CONFIRM'
                         ? t.typeBeneficiaryConfirm
-                        : rc.type || '-'}
+                        : rc.type || t.statusUnavailable}
                     </td>
-                    <td>{rc.recipient || '-'}</td>
-                    <td>{rc.issuedAt || '-'}</td>
+                    <td>{rc.recipient || t.statusUnavailable}</td>
+                    <td>{rc.issuedAt || t.statusUnavailable}</td>
                     <td>
                       <span className="lv-ca-tag">
                         {rc.status === 'VERIFIED'
                           ? t.receiptVerified
                           : rc.status === 'ISSUED'
                           ? t.receiptIssued
-                          : rc.status || '-'}
+                          : rc.status || t.statusUnavailable}
                       </span>
                     </td>
                   </tr>
@@ -283,10 +320,10 @@ export default function CloseAndArchivePage({
             </table>
           </div>
         ) : (
-          <div className="lv-ca-empty-box" role="status">
-            <FileText size={32} aria-hidden="true" style={{ margin: '0 auto 12px', opacity: 0.4 }} />
-            <h3>{t.receiptEmptyTitle}</h3>
-            <p>{t.receiptEmptyDesc}</p>
+          <div className="lv-ca-empty-box lv-ca-empty-box--unavailable" role="status">
+            <HelpCircle size={32} aria-hidden="true" style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+            <h3>{t.receiptsUnavailableTitle}</h3>
+            <p>{t.receiptsUnavailableDesc}</p>
           </div>
         )}
       </section>
@@ -301,6 +338,7 @@ export default function CloseAndArchivePage({
           <button
             type="button"
             className="lv-ca-btn-primary"
+            onClick={handleExecuteCloseArchive}
             disabled={true}
             aria-disabled="true"
             title={t.functionUnavailableNotice}
@@ -313,8 +351,6 @@ export default function CloseAndArchivePage({
             <AlertTriangle size={15} aria-hidden="true" />
             <span>{t.functionUnavailableNotice}</span>
           </div>
-
-          <p className="lv-ca-disabled-note">{t.actionDisabledExpl}</p>
         </div>
       </section>
     </div>

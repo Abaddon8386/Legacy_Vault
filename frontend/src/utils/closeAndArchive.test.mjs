@@ -210,19 +210,38 @@ test('PS-56 Missing Count, Zero Count, and Out-of-Bounds Protection', async (t) 
   });
 });
 
-test('PS-56 Bilingual Dictionary Completeness (VI & EN)', () => {
+test('PS-56 Terminology & Status Accuracy', async (t) => {
   const vi = closeAndArchiveI18n.vi;
   const en = closeAndArchiveI18n.en;
 
-  assert.ok(vi.pageTitle);
-  assert.ok(en.pageTitle);
-  assert.notEqual(vi.pageTitle, en.pageTitle);
+  await t.test('uses "Phiên bàn giao" (Handover Session), NOT "Phiên thẩm định"', () => {
+    assert.equal(vi.sessionStatusLabel, 'Phiên bàn giao');
+    assert.equal(en.sessionStatusLabel, 'Handover Session');
+    assert.ok(!vi.sessionStatusLabel.includes('thẩm định'));
+  });
 
-  // Validate condition labels are present
-  for (const cond of Object.values(CLOSE_ARCHIVE_CONDITIONS)) {
-    assert.ok(vi[cond], `Missing VI translation for condition: ${cond}`);
-    assert.ok(en[cond], `Missing EN translation for condition: ${cond}`);
-  }
+  await t.test('provides "Chưa có thông tin" for missing or invalid server statuses', () => {
+    assert.equal(vi.statusUnavailable, 'Chưa có thông tin');
+    assert.equal(en.statusUnavailable, 'Information unavailable');
+  });
+
+  await t.test('distinguishes between empty receipts and unavailable receipt data in i18n', () => {
+    assert.ok(vi.receiptEmptyTitle);
+    assert.ok(vi.receiptsUnavailableTitle);
+    assert.notEqual(vi.receiptEmptyTitle, vi.receiptsUnavailableTitle);
+
+    assert.ok(en.receiptEmptyTitle);
+    assert.ok(en.receiptsUnavailableTitle);
+    assert.notEqual(en.receiptEmptyTitle, en.receiptsUnavailableTitle);
+  });
+
+  await t.test('contains ONLY "Chức năng hiện chưa khả dụng" without API/server explanations on UI', () => {
+    assert.equal(vi.functionUnavailableNotice, 'Chức năng hiện chưa khả dụng');
+    assert.equal(en.functionUnavailableNotice, 'This function is currently unavailable');
+    // Ensure no backend/API explanatory field exists
+    assert.equal(vi.actionDisabledExpl, undefined);
+    assert.equal(en.actionDisabledExpl, undefined);
+  });
 });
 
 test('PS-56 CSS Scoping Verification - No Leakage', () => {
