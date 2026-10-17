@@ -56,6 +56,13 @@ const STAFF_NAVIGATION_REGISTRY = [
     labelEn: 'Legal Basis Documents',
     status: 'ACTIVE',
   },
+  {
+    id: 'close-and-archive',
+    jiraTicket: 'PS-56',
+    labelVi: 'Đóng & Lưu trữ hồ sơ',
+    labelEn: 'Close & Archive Case',
+    status: 'ACTIVE',
+  },
 ];
 
 const LEGAL_NAVIGATION_REGISTRY = [

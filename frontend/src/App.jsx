@@ -21,6 +21,8 @@ import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVe
 import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
 import LegalBasisRouteSelectionPage from './pages/legal/LegalBasisRouteSelectionPage.jsx';
 import { canAccessLegalBasisRoute } from './utils/legalBasisRouteValidation.js';
+import CloseAndArchivePage from './pages/staff/CloseAndArchivePage.jsx';
+import { canAccessCloseArchive } from './utils/closeAndArchiveValidation.js';
 
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -458,6 +460,7 @@ export default function App() {
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isStaffCloseArchiveRoute = path === '/staff/close-and-archive';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
@@ -484,6 +487,8 @@ export default function App() {
           onNavigateTab={tab => {
             if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
             }
           }}
         >
@@ -492,6 +497,41 @@ export default function App() {
             preview={preview}
             session={session}
             onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isStaffCloseArchiveRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessCloseArchive(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="close-and-archive"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            }
+          }}
+        >
+          <CloseAndArchivePage
+            lang={lang}
           />
         </AppShell>
       </div>
