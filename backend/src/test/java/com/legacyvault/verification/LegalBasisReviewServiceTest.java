@@ -186,8 +186,11 @@ class LegalBasisReviewServiceTest {
         ArgumentCaptor<LegalBasisReviewHistory> captor =
                 ArgumentCaptor.forClass(LegalBasisReviewHistory.class);
         verify(f.history).save(captor.capture());
-        assertThat(captor.getValue().getReasonCode()).isEqualTo(expectedReason);
-        verify(f.audit).record(any(AuditEvent.class));
+        ArgumentCaptor<AuditEvent> auditCaptor =
+                ArgumentCaptor.forClass(AuditEvent.class);
+        verify(f.audit).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.LEGAL_BASIS_REVIEW_REQUIRED);
+        assertThat(auditCaptor.getValue().vaultId()).isEqualTo(VAULT_ID);
     }
 
     @Test
@@ -283,4 +286,45 @@ class LegalBasisReviewServiceTest {
         assertThat(auditCaptor.getValue().actorUserId()).isEqualTo(REVIEWER_ID);
     }
 
+    @Test
+    void evaluate_whenNoVersions_marksRequiredAndAuditsWithVaultId() {
+        Fixture f = new Fixture();
+        when(f.versions.findRows(DOSSIER_ID)).thenReturn(List.of());
+
+        LegalBasisReviewResponse response = f.evaluate();
+
+        assertThat(response.reasonCode()).isEqualTo("CURRENT_VERSION_UNAVAILABLE");
+        ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(f.audit).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.LEGAL_BASIS_REVIEW_REQUIRED);
+        assertThat(auditCaptor.getValue().vaultId()).isEqualTo(VAULT_ID);
+    }
+
+    @Test
+    void evaluateAfterChange_byCasePublicId_recordsAuditWithVaultId() {
+        Fixture f = new Fixture();
+        when(f.dossier.getLastReviewedVersionNo()).thenReturn(null);
+
+        LegalBasisReviewResponse response = f.service.evaluateAfterChange(CASE_PUBLIC_ID);
+
+        assertThat(response.reviewRequired()).isTrue();
+        ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(f.audit).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.LEGAL_BASIS_REVIEW_REQUIRED);
+        assertThat(auditCaptor.getValue().vaultId()).isEqualTo(VAULT_ID);
+    }
+
+    @Test
+    void evaluateAfterChange_byDossierIdAndVaultId_recordsAuditWithVaultId() {
+        Fixture f = new Fixture();
+        when(f.dossier.getLastReviewedVersionNo()).thenReturn(null);
+
+        LegalBasisReviewResponse response = f.service.evaluateAfterChange(DOSSIER_ID, VAULT_ID);
+
+        assertThat(response.reviewRequired()).isTrue();
+        ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(f.audit).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.LEGAL_BASIS_REVIEW_REQUIRED);
+        assertThat(auditCaptor.getValue().vaultId()).isEqualTo(VAULT_ID);
+    }
 }
