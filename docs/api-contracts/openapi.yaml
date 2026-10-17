@@ -1489,11 +1489,10 @@ components:
           description: Lý do review hoặc yêu cầu bổ sung; không rỗng sau khi trim.
     LegalBasisReviewResponse:
       type: object
-      required: [dossierId, caseId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt]
+      required: [dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt]
       description: 'D-API-08: chỉ trả public UUID, không trả khóa chính tuần tự trong database.'
       properties:
         dossierId: { type: string, format: uuid, description: Public ID của dossier }
-        caseId: { type: string, format: uuid, description: Public ID của verification case }
         reviewStatus: { type: string, nullable: true }
         reviewRequired: { type: boolean }
         reasonCode: { type: string, nullable: true }
