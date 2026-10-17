@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   User,
   Mail,
@@ -11,7 +11,12 @@ import {
 } from 'lucide-react';
 import { request } from '../../api/http.js';
 import { readUser } from '../../api/contracts.js';
-import { formatRoleName, isValidUserProfile } from '../../utils/accountProfileValidation.js';
+import {
+  formatRoleName,
+  isValidUserProfile,
+  resolveActiveProfileUser,
+  canApplyProfileRefresh,
+} from '../../utils/accountProfileValidation.js';
 import { accountProfileI18n } from './accountProfileI18n.js';
 import './AccountProfilePage.css';
 
@@ -22,15 +27,25 @@ export default function AccountProfilePage({
 }) {
   const t = accountProfileI18n[lang] || accountProfileI18n.vi;
 
-  const [refreshedUser, setRefreshedUser] = useState(null);
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  const [refreshedData, setRefreshedData] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const profileUser = refreshedUser || session?.user || null;
+  const profileUser = resolveActiveProfileUser(refreshedData, session);
+  const activeToken = session?.accessToken || null;
+  const activeFeedback = feedback?.token === activeToken ? feedback : null;
 
   // Fetch fresh profile from GET /auth/me
   const handleRefresh = async () => {
-    if (!session?.accessToken) {
+    const currentToken = sessionRef.current?.accessToken;
+    const currentUserId = sessionRef.current?.user?.id;
+
+    if (!currentToken || !currentUserId) {
       return;
     }
 
@@ -39,19 +54,43 @@ export default function AccountProfilePage({
 
     try {
       const raw = await request('/auth/me', {
-        accessToken: session.accessToken,
+        accessToken: currentToken,
         lang,
       });
       const validatedUser = readUser(raw);
-      setRefreshedUser(validatedUser);
-      setFeedback({ type: 'success', message: t.refreshSuccess });
+
+      const latestSession = sessionRef.current;
+      if (!canApplyProfileRefresh(validatedUser, latestSession, currentToken, currentUserId)) {
+        // Discard stale or mismatched response immediately
+        return;
+      }
+
+      setRefreshedData({
+        userId: currentUserId,
+        token: currentToken,
+        user: validatedUser,
+      });
+      setFeedback({
+        type: 'success',
+        message: t.refreshSuccess,
+        token: currentToken,
+      });
 
       if (typeof onRefreshSession === 'function') {
         onRefreshSession(validatedUser);
       }
     } catch {
-      // Graceful fallback: maintain cached session user without breaking
-      setFeedback({ type: 'error', message: t.refreshError });
+      const latestSession = sessionRef.current;
+      if (
+        latestSession?.accessToken === currentToken &&
+        latestSession?.user?.id === currentUserId
+      ) {
+        setFeedback({
+          type: 'error',
+          message: t.refreshError,
+          token: currentToken,
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -99,19 +138,19 @@ export default function AccountProfilePage({
       </header>
 
       {/* Temporary Feedback Callout */}
-      {feedback && (
+      {activeFeedback && (
         <div
           className={`lv-profile-feedback ${
-            feedback.type === 'success' ? 'lv-profile-feedback--success' : 'lv-profile-feedback--error'
+            activeFeedback.type === 'success' ? 'lv-profile-feedback--success' : 'lv-profile-feedback--error'
           }`}
           role="status"
         >
-          {feedback.type === 'success' ? (
+          {activeFeedback.type === 'success' ? (
             <CheckCircle2 size={16} aria-hidden="true" />
           ) : (
             <AlertCircle size={16} aria-hidden="true" />
           )}
-          <span>{feedback.message}</span>
+          <span>{activeFeedback.message}</span>
         </div>
       )}
 

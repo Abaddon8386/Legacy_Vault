@@ -1,5 +1,9 @@
 # Hợp đồng lỗi chung
 
+PS-44: `409 TRUSTEE_REVOKED` (`error.trustee.revoked`) khi Staff qua guard ca OPEN được giao nhưng
+ghi liên hệ mới với Trustee đã REVOKED. Không tạo lịch sử/audit mới; lịch sử cũ vẫn đọc theo quyền ca.
+Ngoài quyền ca vẫn trả 404 trước khi kiểm tra trạng thái Trustee.
+
 Triển khai: `backend/src/main/java/com/legacyvault/common/error/` (`ErrorCode`, `ApiError`, `BusinessException`,
 `GlobalExceptionHandler`) và `common/security/` (`ApiAuthenticationEntryPoint`, `ApiAccessDeniedHandler`).
 Mọi phản hồi lỗi — kể cả **401/403 do Spring Security** — dùng **cùng một hình dạng**.
@@ -60,6 +64,8 @@ Lỗi validation:
 | `VAULT_NOT_EDITABLE` | 409 | Vault hiện không cho phép Owner chỉnh sửa |
 | `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
+| `LEGAL_VERIFICATION_INVALID_STATE` | 409 | Legal quyết định khi ca không còn `OPEN` hoặc Vault không ở `AWAITING_VERIFICATION` (PS-36) |
+| `LEGAL_VERIFICATION_ALREADY_DECIDED` | 409 | Giấy tờ khai tử đã có quyết định thẩm định (PS-36) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |

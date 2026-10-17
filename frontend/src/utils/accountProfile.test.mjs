@@ -7,6 +7,8 @@ import {
   canAccessAccountProfile,
   formatRoleName,
   isValidUserProfile,
+  resolveActiveProfileUser,
+  canApplyProfileRefresh,
   APP_ROLES,
 } from './accountProfileValidation.js';
 import { accountProfileI18n } from '../pages/account/accountProfileI18n.js';
@@ -211,4 +213,144 @@ test('EX-01 CSS Scoping Verification - No Leakage', () => {
       }
     }
   }
+});
+
+test('EX-01 Session Isolation & Anti-Leakage (resolveActiveProfileUser)', async (t) => {
+  const userA = {
+    id: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+    fullName: 'Nguyen Van A',
+    email: 'a@legacyvault.test',
+    roles: ['VAULT_OWNER'],
+  };
+  const userB = {
+    id: 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e',
+    fullName: 'Tran Thi B',
+    email: 'b@legacyvault.test',
+    roles: ['STAFF_EXECUTOR'],
+  };
+  const refreshedUserA = {
+    ...userA,
+    fullName: 'Nguyen Van A (Updated)',
+  };
+
+  await t.test('returns null when session is null (even if refreshed data exists from earlier)', () => {
+    const refreshedData = {
+      userId: userA.id,
+      token: 'token-A',
+      user: refreshedUserA,
+    };
+    assert.equal(resolveActiveProfileUser(refreshedData, null), null);
+  });
+
+  await t.test('returns session user directly when no refreshed data exists', () => {
+    const sessionA = {
+      accessToken: 'token-A',
+      user: userA,
+    };
+    assert.deepEqual(resolveActiveProfileUser(null, sessionA), userA);
+  });
+
+  await t.test('returns refreshed user when token and userId match active session', () => {
+    const sessionA = {
+      accessToken: 'token-A',
+      user: userA,
+    };
+    const refreshedData = {
+      userId: userA.id,
+      token: 'token-A',
+      user: refreshedUserA,
+    };
+    assert.deepEqual(resolveActiveProfileUser(refreshedData, sessionA), refreshedUserA);
+  });
+
+  await t.test('NEVER leaks user A refreshed data to user B when session switches', () => {
+    const sessionB = {
+      accessToken: 'token-B',
+      user: userB,
+    };
+    // Refreshed data from previous session of User A
+    const staleDataA = {
+      userId: userA.id,
+      token: 'token-A',
+      user: refreshedUserA,
+    };
+    // Must return User B, NOT User A's stale refreshed data!
+    assert.deepEqual(resolveActiveProfileUser(staleDataA, sessionB), userB);
+  });
+
+  await t.test('ignores refreshed data if token changed even with same user ID (e.g. re-login)', () => {
+    const sessionANewToken = {
+      accessToken: 'token-A-new',
+      user: userA,
+    };
+    const oldRefreshedData = {
+      userId: userA.id,
+      token: 'token-A-old',
+      user: refreshedUserA,
+    };
+    assert.deepEqual(resolveActiveProfileUser(oldRefreshedData, sessionANewToken), userA);
+  });
+});
+
+test('EX-01 Race Condition & Identity Verification (canApplyProfileRefresh)', async (t) => {
+  const userA = {
+    id: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+    fullName: 'Nguyen Van A',
+    email: 'a@legacyvault.test',
+    roles: ['VAULT_OWNER'],
+  };
+  const activeSessionA = {
+    accessToken: 'token-A',
+    user: userA,
+  };
+
+  await t.test('allows refresh when session, token and user ID all match', () => {
+    assert.equal(
+      canApplyProfileRefresh(userA, activeSessionA, 'token-A', userA.id),
+      true
+    );
+  });
+
+  await t.test('rejects refresh when user logged out while request was in-flight (activeSession null)', () => {
+    assert.equal(
+      canApplyProfileRefresh(userA, null, 'token-A', userA.id),
+      false
+    );
+  });
+
+  await t.test('rejects refresh when user token changed during request', () => {
+    const switchedSession = {
+      accessToken: 'token-different',
+      user: userA,
+    };
+    assert.equal(
+      canApplyProfileRefresh(userA, switchedSession, 'token-A', userA.id),
+      false
+    );
+  });
+
+  await t.test('rejects refresh when user account switched during request', () => {
+    const switchedSession = {
+      accessToken: 'token-B',
+      user: {
+        id: 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e',
+        fullName: 'User B',
+      },
+    };
+    assert.equal(
+      canApplyProfileRefresh(userA, switchedSession, 'token-A', userA.id),
+      false
+    );
+  });
+
+  await t.test('rejects refresh when received user ID does not match requested user ID', () => {
+    const mismatchedUser = {
+      ...userA,
+      id: '99999999-9999-9999-9999-999999999999',
+    };
+    assert.equal(
+      canApplyProfileRefresh(mismatchedUser, activeSessionA, 'token-A', userA.id),
+      false
+    );
+  });
 });

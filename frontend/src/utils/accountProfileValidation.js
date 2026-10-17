@@ -90,3 +90,65 @@ export function isValidUserProfile(user) {
 
   return Boolean(isFullNameValid && isEmailValid && isRolesValid);
 }
+
+/**
+ * Resolves the active profile user, ensuring refreshed data is strictly bounded
+ * to the currently authenticated session and user ID.
+ *
+ * @param {{ userId: string, token: string, user: Object }|null} refreshedData
+ * @param {Object|null|undefined} session
+ * @returns {Object|null}
+ */
+export function resolveActiveProfileUser(refreshedData, session) {
+  const activeToken = session?.accessToken || null;
+  const activeUserId = session?.user?.id || null;
+
+  if (
+    refreshedData &&
+    activeToken &&
+    refreshedData.token === activeToken &&
+    refreshedData.userId === activeUserId &&
+    refreshedData.user
+  ) {
+    return refreshedData.user;
+  }
+
+  return session?.user || null;
+}
+
+/**
+ * Validates if an async GET /auth/me response can be applied safely to the current session.
+ * Guards against:
+ * 1. User logout while request was in-flight.
+ * 2. Session change/switch while request was in-flight.
+ * 3. Identity mismatch (received user id != authenticated user id).
+ *
+ * @param {Object|null|undefined} validatedUser
+ * @param {Object|null|undefined} activeSession
+ * @param {string} requestedToken
+ * @param {string} requestedUserId
+ * @returns {boolean}
+ */
+export function canApplyProfileRefresh(validatedUser, activeSession, requestedToken, requestedUserId) {
+  if (!validatedUser || typeof validatedUser !== 'object') {
+    return false;
+  }
+
+  if (!activeSession || typeof activeSession !== 'object') {
+    return false;
+  }
+
+  if (activeSession.accessToken !== requestedToken) {
+    return false;
+  }
+
+  if (activeSession.user?.id !== requestedUserId) {
+    return false;
+  }
+
+  if (validatedUser.id !== requestedUserId) {
+    return false;
+  }
+
+  return true;
+}
