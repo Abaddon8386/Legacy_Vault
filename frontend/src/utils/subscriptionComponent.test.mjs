@@ -42,3 +42,21 @@ test('Demo controls never render for live or production even with preview prop',
   const prod = await mount(Production, { isDevPreview: true });
   try { assert.equal(Boolean(prod.host.querySelector('#demo-plan-select')), false); } finally { await prod.close(); }
 });
+
+test('Live policy-pending component hides proposed plans and quotas in both locales', async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 409, headers: { get: () => 'application/json' },
+    json: async () => ({ code: 'SUBSCRIPTION_POLICY_PENDING' }) });
+  try {
+    for (const lang of ['vi', 'en']) {
+      const view = await mount(Page, { accessToken: 'synthetic', lang });
+      try {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+        assert.match(view.host.textContent, lang === 'en' ? /Subscription policy pending/ : /Chính sách gói đang được thống nhất/);
+        assert.equal(view.host.querySelector('.lv-sub-current-card'), null);
+        assert.equal(view.host.querySelector('.lv-sub-plan-price'), null);
+        assert.ok(!view.host.textContent.includes('SUBSCRIPTION_POLICY_PENDING'));
+      } finally { await view.close(); }
+    }
+  } finally { globalThis.fetch = previous; }
+});

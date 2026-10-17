@@ -144,6 +144,7 @@ export default function SubscriptionPage({
   }
 
   if (error) {
+    const policyPending = error.code === 'SUBSCRIPTION_POLICY_PENDING';
     const isBackendUnready = error.code === 'BACKEND_NOT_READY' || error.status === 404;
     return (
       <div className="lv-sub-page">
@@ -155,7 +156,7 @@ export default function SubscriptionPage({
           onNavigateToLogin={isDevPreview ? loadData : onUnauthorized}
           actionLabel={lang === 'en' ? 'Retry' : 'Thử lại'}
           badge={lang === 'en' ? 'SUBSCRIPTION' : 'GÓI SỬ DỤNG'}
-          title={isBackendUnready ? (lang === 'en' ? 'Service Unavailable' : 'Dịch vụ chưa sẵn sàng') : t.title}
+          title={policyPending ? (lang === 'en' ? 'Subscription policy pending' : 'Chính sách gói đang được thống nhất') : isBackendUnready ? (lang === 'en' ? 'Service Unavailable' : 'Dịch vụ chưa sẵn sàng') : t.title}
           message={subscriptionErrorMessage(error, lang)}
           onRetry={loadData}
         />

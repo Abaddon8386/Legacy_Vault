@@ -325,3 +325,18 @@ test('Actual production build disables simulation even when caller supplies test
       headers: { get: () => 'application/json' }, json: async () => ({}) }; } }), { code: 'INVALID_RESPONSE' });
   assert.equal(calls, 1);
 });
+
+// Current develop PS-77 deliberately keeps entitlements disabled until policy agreement.
+test('Live policy-pending response stays an error without synthetic entitlements or writes', async () => {
+  const calls = [];
+  await assert.rejects(fetchSubscription({ accessToken: 'synthetic', isDevPreview: true,
+    fetchFn: async (url, init) => { calls.push({ url, init }); return { ok: false, status: 409,
+      headers: { get: () => 'application/json' }, json: async () => ({ code: 'SUBSCRIPTION_POLICY_PENDING' }) }; }
+  }), { code: 'SUBSCRIPTION_POLICY_PENDING', status: 409 });
+  assert.equal(calls.length, 1); assert.equal(calls[0].init.method, 'GET');
+  for (const lang of ['vi', 'en']) {
+    const message = subscriptionErrorMessage({ code: 'SUBSCRIPTION_POLICY_PENDING', status: 409 }, lang);
+    assert.equal(message, subscriptionMessages[lang].policyPending);
+    assert.ok(!message.includes('SUBSCRIPTION_POLICY_PENDING'));
+  }
+});

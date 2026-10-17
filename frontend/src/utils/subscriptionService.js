@@ -54,6 +54,7 @@ export const subscriptionMessages = {
     forbidden: 'Bạn không có quyền truy cập thông tin gói dịch vụ.',
     notFound: 'Chưa tải được thông tin gói dịch vụ. Vui lòng thử lại sau.',
     networkError: 'Không thể kết nối đến máy chủ LegacyVault. Vui lòng kiểm tra kết nối mạng.',
+    policyPending: 'Gói sử dụng đang chờ thống nhất chính sách. Tài khoản chưa được áp dụng các hạn mức gói đề xuất.',
     backendNotReady: 'Dịch vụ thông tin gói hiện chưa sẵn sàng. Vui lòng thử lại sau.',
     devSimulationBadge: 'MÔ PHỎNG DEV PREVIEW — DỮ LIỆU THỬ NGHIỆM',
   },
@@ -77,6 +78,7 @@ export const subscriptionMessages = {
     forbidden: 'You do not have permission to view subscription details.',
     notFound: 'Unable to load subscription details. Please try again later.',
     networkError: 'Unable to connect to LegacyVault server. Please check your network connection.',
+    policyPending: 'Subscription policy is pending agreement. Proposed plan limits are not currently applied to your account.',
     backendNotReady: 'Subscription service is currently unavailable. Please try again later.',
     devSimulationBadge: 'DEV PREVIEW SIMULATION — TEST DATA ONLY',
   },
@@ -175,6 +177,7 @@ export function subscriptionStatusLabel(status, lang = 'vi') {
 export function subscriptionErrorMessage(error, lang = 'vi') {
   const t = subscriptionMessages[lang] || subscriptionMessages.vi;
   if (error?.status === 401) return t.unauthorized;
+  if (error?.code === 'SUBSCRIPTION_POLICY_PENDING') return t.policyPending;
   if (error?.status === 403) return t.forbidden;
   if (error?.code === 'BACKEND_NOT_READY' || error?.status >= 500) return t.backendNotReady;
   if (error?.status === 404) return t.notFound;
