@@ -20,6 +20,7 @@ tags:
   - name: Wills
   - name: Trustees
   - name: Staff
+  - name: Legal
   - name: Beneficiaries
   - name: DMS
 
@@ -653,6 +654,259 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/death-documents:
+    post:
+      tags: [Staff]
+      summary: Ghi nhận giấy tờ khai tử đã nhận (PS-38, ST-11)
+      description: |
+        Staff đã nhận ca ghi nhận metadata giấy chứng tử / trích lục khai tử vật lý. Chỉ ghi nhận tiếp nhận, không duyệt
+        giấy tờ, không đổi trạng thái Vault. Người nhận và thời điểm do server đặt. Ca chưa nhận hoặc của Staff khác 404.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordDeathDocumentRequest' }
+      responses:
+        '201':
+          description: Đã ghi nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeathDocumentRecordResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Giấy tờ khai tử đã ghi nhận của ca (PS-38)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeathDocumentRecordResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/death-documents/{recordId}:
+    get:
+      tags: [Staff]
+      summary: Một bản ghi giấy tờ khai tử (PS-38)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeathDocumentRecordResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/original-will-intakes:
+    post:
+      tags: [Staff]
+      summary: Ghi nhận bản di chúc giấy gốc đã nộp (PS-39, ST-13)
+      description: |
+        Staff đã nhận ca ghi nhận ai giao, ai nhận, khi nào, bằng chứng và tình trạng bản di chúc giấy gốc. Chỉ ghi nhận việc
+        nộp: không xác nhận hợp lệ, không đối chiếu với bản scan. Người nhận và thời điểm do server đặt.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordOriginalWillRequest' }
+      responses:
+        '201':
+          description: Đã ghi nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OriginalWillIntakeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Các lần nộp di chúc giấy gốc của ca (PS-39)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OriginalWillIntakeResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/original-will-intakes/{intakeId}:
+    get:
+      tags: [Staff]
+      summary: Một lần nộp di chúc giấy gốc (PS-39)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OriginalWillIntakeResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}/decision:
+    post:
+      tags: [Legal]
+      summary: Legal ghi quyết định thẩm định giấy tờ khai tử (PS-36, ST-12)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Mỗi giấy tờ chỉ có một quyết định. Chỉ khi ca xác minh `OPEN` và Vault `AWAITING_VERIFICATION`.
+        `APPROVE` chuyển Vault sang `DOCUMENT_VERIFICATION`; `REJECT` và `REQUEST_MORE` không đổi Vault. Không mở khóa, không
+        giải mã. Lưu quyết định và audit cùng một giao dịch.
+      x-status: implemented
+      parameters:
+        - name: deathDocumentPublicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LegalDeathDecisionRequest' }
+      responses:
+        '200':
+          description: Đã ghi quyết định
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalDeathDecisionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}:
+    get:
+      tags: [Legal]
+      summary: Chi tiết giấy tờ khai tử và lịch sử quyết định (PS-36)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Chỉ đọc, không ghi audit, không giới hạn theo trạng thái ca hay Vault. Chưa có API liệt kê
+        ca chờ thẩm định.
+      x-status: implemented
+      parameters:
+        - name: deathDocumentPublicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalDeathDocumentDetailResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons:
+    get:
+      tags: [Legal]
+      summary: Dữ liệu để đối chiếu di chúc gốc của một ca (PS-40)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Trả các lần Staff nhận bản gốc, các bản scan kèm hash, các kết quả đối chiếu đã có và cờ
+        `approvalBlocked` (true trừ khi kết quả mới nhất là MATCH).
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillComparisonOverviewResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Legal]
+      summary: Ghi kết quả đối chiếu di chúc gốc với bản scan (PS-40, ST-15)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Hash của phiên bản do server lấy từ dữ liệu đã lưu. MISMATCH và INCONCLUSIVE bắt buộc có `reason`.
+        Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION`. `MATCH` đầu tiên chuyển Vault sang `WILL_VERIFICATION` (ST-15).
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordWillComparisonRequest' }
+      responses:
+        '201':
+          description: Đã ghi kết quả
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillComparisonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1068,6 +1322,160 @@ components:
       properties:
         id: { type: string, format: uuid }
         payload: { type: string, description: Nội dung bảo mật đã giải mã; chỉ trả ở endpoint reveal }
+    RecordDeathDocumentRequest:
+      type: object
+      required: [documentType, issuingAuthority, documentNumber, issuedDate]
+      properties:
+        documentType: { type: string, enum: [DEATH_CERTIFICATE, DEATH_REGISTRATION_EXTRACT] }
+        issuingAuthority: { type: string, minLength: 1, maxLength: 255 }
+        documentNumber: { type: string, minLength: 1, maxLength: 100 }
+        issuedDate: { type: string, format: date, description: Không ở tương lai }
+        evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu hồ sơ giấy, không phải file }
+        notes: { type: string, maxLength: 1000, nullable: true }
+    DeathDocumentRecordResponse:
+      type: object
+      required: [id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        documentType: { type: string, enum: [DEATH_CERTIFICATE, DEATH_REGISTRATION_EXTRACT] }
+        issuingAuthority: { type: string }
+        documentNumber: { type: string }
+        issuedDate: { type: string, format: date }
+        receivedBy: { type: string, format: uuid, description: ID công khai của Staff đã nhận }
+        receivedAt: { type: string, format: date-time }
+        evidenceReference: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+    RecordOriginalWillRequest:
+      type: object
+      required: [deliveredByName]
+      properties:
+        deliveredByName: { type: string, minLength: 1, maxLength: 150 }
+        deliveredByRelationship: { type: string, maxLength: 100, nullable: true }
+        evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu, không phải file }
+        conditionNotes: { type: string, maxLength: 1000, nullable: true }
+    OriginalWillIntakeResponse:
+      type: object
+      required: [id, caseId, deliveredByName, receivedBy, receivedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        deliveredByName: { type: string }
+        deliveredByRelationship: { type: string, nullable: true }
+        receivedBy: { type: string, format: uuid, description: ID công khai của Staff đã nhận }
+        receivedAt: { type: string, format: date-time }
+        evidenceReference: { type: string, nullable: true }
+        conditionNotes: { type: string, nullable: true }
+    LegalDeathDecisionRequest:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT, REQUEST_MORE] }
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Lý do quyết định; không rỗng sau trim }
+    LegalDeathDecisionResponse:
+      type: object
+      required: [deathDocumentPublicId, verificationCasePublicId, result, verifierPublicId, decidedAt, reason, verificationCaseStatus, vaultStatus]
+      properties:
+        deathDocumentPublicId: { type: string, format: uuid }
+        verificationCasePublicId: { type: string, format: uuid }
+        result: { type: string, enum: [APPROVED, REJECTED, NEEDS_CORRECTION] }
+        verifierPublicId: { type: string, format: uuid, description: Legal Verifier đã quyết định }
+        decidedAt: { type: string, format: date-time }
+        reason: { type: string }
+        verificationCaseStatus: { type: string, description: Vẫn OPEN sau quyết định }
+        vaultStatus: { type: string, description: DOCUMENT_VERIFICATION sau APPROVE; giữ nguyên với REJECT/REQUEST_MORE }
+    LegalDeathDocumentDetailResponse:
+      type: object
+      required: [deathDocumentPublicId, verificationCasePublicId, verificationCaseStatus, vaultStatus, document, decisions]
+      properties:
+        deathDocumentPublicId: { type: string, format: uuid }
+        verificationCasePublicId: { type: string, format: uuid }
+        verificationCaseStatus: { type: string, enum: [OPEN, CANCELLED] }
+        vaultStatus: { type: string }
+        document:
+          type: object
+          required: [documentType, issuingAuthority, documentNumber, issuedDate, receivedByPublicId, receivedAt, createdAt]
+          properties:
+            documentType: { type: string, enum: [DEATH_CERTIFICATE, DEATH_REGISTRATION_EXTRACT] }
+            issuingAuthority: { type: string }
+            documentNumber: { type: string }
+            issuedDate: { type: string, format: date }
+            receivedByPublicId: { type: string, format: uuid, description: Staff đã nhận giấy tờ }
+            receivedAt: { type: string, format: date-time }
+            evidenceReference: { type: string, nullable: true }
+            notes: { type: string, nullable: true }
+            createdAt: { type: string, format: date-time }
+        decisions:
+          type: array
+          description: Mới nhất trước; rỗng nếu chưa có quyết định
+          items:
+            type: object
+            required: [result, requestedAt]
+            properties:
+              result: { type: string, enum: [PENDING, APPROVED, REJECTED, NEEDS_CORRECTION] }
+              verifierPublicId: { type: string, format: uuid, nullable: true }
+              requestedAt: { type: string, format: date-time }
+              decidedAt: { type: string, format: date-time, nullable: true }
+              reason: { type: string, nullable: true }
+    RecordWillComparisonRequest:
+      type: object
+      required: [originalWillIntakeId, willId, version, result]
+      properties:
+        originalWillIntakeId: { type: string, format: uuid }
+        willId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        result: { type: string, enum: [MATCH, MISMATCH, INCONCLUSIVE] }
+        reason: { type: string, maxLength: 1000, nullable: true, description: Bắt buộc khi result khác MATCH }
+    WillComparisonResponse:
+      type: object
+      required: [id, caseId, originalWillIntakeId, willId, version, sha256, result, checkedBy, comparedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        originalWillIntakeId: { type: string, format: uuid }
+        willId: { type: string, format: uuid }
+        version: { type: integer }
+        sha256: { type: string, description: Hash của phiên bản bản scan đã so; không chứng minh giá trị pháp lý }
+        result: { type: string, enum: [MATCH, MISMATCH, INCONCLUSIVE] }
+        checkedBy: { type: string, format: uuid }
+        reason: { type: string, nullable: true }
+        comparedAt: { type: string, format: date-time }
+    WillComparisonOverviewResponse:
+      type: object
+      required: [caseId, vaultStatus, approvalBlocked, originalWillIntakes, wills, comparisons]
+      properties:
+        caseId: { type: string, format: uuid }
+        vaultStatus: { type: string }
+        approvalBlocked: { type: boolean, description: true trừ khi kết quả đối chiếu mới nhất là MATCH }
+        latestResult: { type: string, nullable: true, enum: [MATCH, MISMATCH, INCONCLUSIVE, null] }
+        originalWillIntakes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              receivedAt: { type: string, format: date-time }
+              evidenceReference: { type: string, nullable: true }
+        wills:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              versions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    version: { type: integer }
+                    contentType: { type: string }
+                    sizeBytes: { type: integer, format: int64 }
+                    sha256: { type: string }
+                    uploadedAt: { type: string, format: date-time }
+        comparisons:
+          type: array
+          description: Mới nhất trước
+          items: { $ref: '#/components/schemas/WillComparisonResponse' }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'

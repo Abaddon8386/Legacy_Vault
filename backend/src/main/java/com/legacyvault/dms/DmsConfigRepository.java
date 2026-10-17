@@ -29,4 +29,20 @@ public interface DmsConfigRepository extends JpaRepository<DmsConfig, Long> {
 			+ "where d.id = :id and d.status = 'MONITORING' and d.nextCheckAt <= :triggeredAt")
 	int triggerIfExpired(@Param("id") Long id, @Param("triggeredAt") LocalDateTime triggeredAt,
 			@Param("graceDeadline") LocalDateTime graceDeadline);
+
+	@Query("""
+    select d.id from DmsConfig d
+    where d.status = 'TRIGGERED'
+      and d.graceDeadline is not null
+      and d.graceDeadline <= :now
+    order by d.graceDeadline
+    """)
+	List<Long> findGracePeriodExpiredIds(
+			@Param("now") LocalDateTime now,
+			Pageable pageable
+	);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select d from DmsConfig d where d.id = :id")
+	Optional<DmsConfig> findByIdForUpdate(@Param("id") Long id);
 }

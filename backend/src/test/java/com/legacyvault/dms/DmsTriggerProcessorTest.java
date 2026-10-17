@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.legacyvault.verification.repository.VerificationCaseRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 
@@ -35,7 +36,11 @@ class DmsTriggerProcessorTest {
 		when(vaults.findByOwnerUserId(eq(6L), org.mockito.ArgumentMatchers.any()))
 				.thenReturn(new PageImpl<>(List.of(vault)));
 		when(vault.getVaultId()).thenReturn(19L);
-		DmsTriggerProcessor processor = new DmsTriggerProcessor(configs, vaults, audit);
+		VerificationCaseRepository verificationCases =
+				mock(VerificationCaseRepository.class);
+
+		DmsTriggerProcessor processor =
+				new DmsTriggerProcessor(configs, vaults, verificationCases, audit);
 
 		processor.triggerIfExpired(81L, now);
 

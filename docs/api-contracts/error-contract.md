@@ -59,6 +59,9 @@ Lỗi validation:
 | `TRUSTEE_ALREADY_EXISTS` | 409 | Vault đã có Trustee hiện hành |
 | `VAULT_NOT_EDITABLE` | 409 | Vault hiện không cho phép Owner chỉnh sửa |
 | `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
+| `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
+| `LEGAL_VERIFICATION_INVALID_STATE` | 409 | Legal quyết định khi ca không còn `OPEN` hoặc Vault không ở `AWAITING_VERIFICATION` (PS-36) |
+| `LEGAL_VERIFICATION_ALREADY_DECIDED` | 409 | Giấy tờ khai tử đã có quyết định thẩm định (PS-36) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
