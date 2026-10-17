@@ -28,10 +28,11 @@ public class SubscriptionController {
     }
 
     @GetMapping("/api/v1/subscription-plans")
-    public List<Plan> catalog() { return quotas.catalog(); }
+    public List<Plan> catalog() { quotas.requireApprovedPolicy(); return quotas.catalog(); }
 
     @GetMapping("/api/v1/subscriptions/me")
     public Current current(@AuthenticationPrincipal CustomUserPrincipal principal) {
+        quotas.requireApprovedPolicy();
         return quotas.current(CustomUserPrincipal.requireUserId(principal));
     }
 }

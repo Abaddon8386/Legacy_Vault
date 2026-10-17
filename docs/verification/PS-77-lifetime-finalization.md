@@ -1,3 +1,7 @@
+> SUPERSEDED for policy/runtime behavior by PS-77-merge-blocker-fix.md and
+> docs/api-contracts/open-decisions.md §G. Historical validation below is not group approval.
+> Paid self-grants are blocked; proposed Owner quota defaults off; legal intake quota removed.
+
 # PS-77 lifetime plans and case evidence — 2026-10-17
 
 ## Decisions implemented

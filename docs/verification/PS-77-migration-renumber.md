@@ -1,3 +1,7 @@
+> SUPERSEDED for policy/runtime behavior by PS-77-merge-blocker-fix.md and
+> docs/api-contracts/open-decisions.md §G. Historical validation below is not group approval.
+> Paid self-grants are blocked; proposed Owner quota defaults off; legal intake quota removed.
+
 # PS-77 migration allocation — 2026-10-17
 
 Branch: feature/PS-77-subscription-quota. PR #64 remains open; no PR merge.

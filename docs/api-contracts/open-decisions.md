@@ -107,3 +107,28 @@ Theo trao đổi Dương – Long. **Xác minh trên commit `842258c` của `fea
 | N2 | `flyway.locations` phụ thuộc working directory | **Đã giải quyết** — migration được đóng gói vào classpath (`classpath:db/migration`, Maven resource `../database/migration`) |
 | N3 | V2 bị sửa tại chỗ sau khi đã push (`804b891` → `842258c`) | **Đã chốt: giữ V2** (2026-10-12). Điều kiện: báo mọi người đã chạy bản V2 cũ **reset DB cục bộ** (nếu không sẽ lỗi Flyway "checksum mismatch"); từ khi merge, mọi thay đổi schema là V3 trở đi |
 | N4 | Tài liệu DB chưa nhắc DLL xác thực Windows (`mssql-jdbc_auth-*.dll`) và chưa có cách sinh BCrypt cho seed | **Tạm bỏ qua** (2026-10-12) |
+
+## G. PS-77 — đề xuất chờ phê duyệt của nhóm (2026-10-17)
+
+Trạng thái: **PENDING — chưa có biên bản phê duyệt của nhóm**. Trao đổi với người dùng
+trong chat là đầu vào đề xuất, không thay thế Main Flow v4.2, D-TRUSTEE-001 hoặc D-LEGAL-002.
+Không ghi tên thành viên hoặc chữ ký phê duyệt khi chưa có xác nhận thực tế.
+
+- Đề xuất mô hình: chọn sau đăng ký, trọn đời, nâng hạn mức, không hạ/gia hạn/hết hạn.
+- Đề xuất giá một lần: BASIC 0, STANDARD 199000, EXTENDED 499000 VND.
+- Đề xuất Owner quota: 5/50/200 Asset, 100 MiB/1 GiB/5 GiB, 10 MiB/tệp.
+- Đề xuất evidence theo ca: 100 MiB tổng, 50 phiên bản, 10 MiB/tệp. **Không áp dụng vào PS-41**.
+- Còn phải chốt: ai xác nhận thanh toán/cấp gói, chứng từ/giao dịch nào được tin cậy,
+  idempotency và rollback, nâng gói trả chênh lệch hay cách khác; có cho mô phỏng miễn phí không.
+  Owner yêu cầu nâng gói không đồng nghĩa đã thanh toán hoặc được cấp entitlement.
+- Nhóm cần bổ sung biên bản, người duyệt, ngày duyệt và tham chiếu tài liệu nguồn trước khi
+  kích hoạt quota; cần triển khai quy trình thanh toán/xác nhận đã duyệt trước khi cho cấp gói.
+
+Hành vi hiện tại: `POST /subscriptions/me/upgrade` luôn 409
+`SUBSCRIPTION_UPGRADE_UNAVAILABLE`, không ghi entitlement/audit nâng gói; không có cờ bật cấp miễn phí.
+`legacyvault.subscription.quota-enforcement-enabled=false` mặc định: không áp các giới hạn Owner
+đề xuất, GET catalog/gói trả 409 `SUBSCRIPTION_POLICY_PENDING`. Cờ chỉ dành cho thử nghiệm cô lập
+cho đến khi có phê duyệt bằng văn bản; bật cờ không mở khóa cấp gói trả phí.
+Intake PS-41 không phụ thuộc subscription và không chặn theo tổng byte/số phiên bản đề xuất.
+Giới hạn upload và authorization/route/hold đã có của PS-41 được giữ nguyên.
+Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.

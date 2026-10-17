@@ -5,7 +5,6 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.subscription.dto.SubscriptionDtos.*;
 import com.legacyvault.subscription.entity.SubscriptionPlan;
 import com.legacyvault.subscription.repository.OwnerUsageRepository;
-import com.legacyvault.subscription.repository.OwnerSubscriptionRepository;
 import com.legacyvault.subscription.repository.SubscriptionPlanRepository;
 import com.legacyvault.subscription.service.QuotaPolicy.*;
 import com.legacyvault.user.repository.OwnerWriteLockRepository;
@@ -16,19 +15,24 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
-/** Lifetime entitlements default to BASIC; capacity snapshots survive catalog changes. */
+/** Proposed quota algorithm, disabled by default; no paid entitlement is trusted or granted. */
 @Service
 public class OwnerQuotaService {
     private final OwnerWriteLockRepository ownerLocks;
     private final SubscriptionPlanRepository plans;
     private final OwnerUsageRepository usage;
     private final VaultRepository vaults;
-    private final OwnerSubscriptionRepository entitlements;
+    @org.springframework.beans.factory.annotation.Value("${legacyvault.subscription.quota-enforcement-enabled:false}")
+    private boolean enforcementEnabled;
+
+    public void requireApprovedPolicy() {
+        if (!enforcementEnabled) throw new BusinessException(ErrorCode.SUBSCRIPTION_POLICY_PENDING);
+    }
+
     private final QuotaPolicy policy = new QuotaPolicy();
 
     public OwnerQuotaService(OwnerWriteLockRepository ownerLocks, SubscriptionPlanRepository plans,
-                             OwnerUsageRepository usage, VaultRepository vaults, OwnerSubscriptionRepository entitlements) {
-        this.entitlements = entitlements;
+                             OwnerUsageRepository usage, VaultRepository vaults) {
         this.ownerLocks = ownerLocks;
         this.plans = plans;
         this.usage = usage;
@@ -45,6 +49,7 @@ public class OwnerQuotaService {
     /** Caller holds the Owner lock. No REQUIRES_NEW: checks and writes share one transaction. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireGrowth(Long ownerUserId, Delta delta) {
+        if (!enforcementEnabled) return;
         Plan plan = effective(ownerUserId);
         Decision decision = policy.evaluate(usage.read(ownerUserId),
                 new QuotaPolicy.Limits(plan.limits().assetCount(), plan.limits().storageBytes()), delta);
@@ -54,6 +59,7 @@ public class OwnerQuotaService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireFileSize(Long ownerUserId, long bytes) {
+        if (!enforcementEnabled) return;
         if (bytes > effective(ownerUserId).limits().fileBytes()) throw new BusinessException(ErrorCode.PAYLOAD_TOO_LARGE);
     }
 
@@ -73,7 +79,8 @@ public class OwnerQuotaService {
     }
 
     private Plan effective(Long ownerUserId) {
-        return entitlements.find(ownerUserId).orElseGet(() -> Plan.from(basic()));
+        // Never trust pre-review self-granted rows as proof of payment/authorization.
+        return Plan.from(basic());
     }
 
     private SubscriptionPlan basic() {

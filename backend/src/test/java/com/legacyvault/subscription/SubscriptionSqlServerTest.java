@@ -93,7 +93,7 @@ class SubscriptionSqlServerTest {
                     if (registry.containsBeanDefinition(name)) registry.removeBeanDefinition(name);
                 })).run("--spring.datasource.url=" + url, "--server.port=0",
                         "--legacyvault.jwt.secret=" + key, "--legacyvault.encryption.key=" + key,
-                        "--logging.level.root=ERROR", "--logging.level.org.springframework.security=ERROR",
+                        "--legacyvault.subscription.quota-enforcement-enabled=true", "--logging.level.root=ERROR", "--logging.level.org.springframework.security=ERROR",
                         "--logging.level.org.hibernate=ERROR", "--logging.level.org.flywaydb=INFO");
         jdbc = context.getBean(JdbcTemplate.class);
         assertEquals(database, jdbc.queryForObject("SELECT DB_NAME()", String.class));
@@ -495,117 +495,48 @@ class SubscriptionSqlServerTest {
     }
 
     @Test
-    void purchasedCapacityIsSnapshotAndCatalogChangesDoNotReduceIt() {
-        upgrade(owner,"STANDARD");
-        var purchased=quotas.current(owner.id()).effectivePlan();
-        jdbc.update("UPDATE dbo.subscription_plans SET asset_limit=25 WHERE plan_code='STANDARD'");
-        try {
-            assertEquals(purchased,quotas.current(owner.id()).effectivePlan());
-            assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,businessError(()->upgrade(owner,"STANDARD")));
-        } finally {jdbc.update("UPDATE dbo.subscription_plans SET asset_limit=50 WHERE plan_code='STANDARD'");}
-    }
-
-    private static com.legacyvault.subscription.dto.SubscriptionDtos.UpgradeResponse upgrade(Owner who, String code) {
-        return context.getBean(com.legacyvault.subscription.service.SubscriptionUpgradeService.class).upgrade(who.id(),
-            new com.legacyvault.subscription.dto.SubscriptionDtos.UpgradeRequest(
-                com.legacyvault.subscription.dto.SubscriptionDtos.PlanCode.valueOf(code),2));
-    }
-
-    @Test
-    void ownerSelectsLifetimePlanAfterRegistrationAndCanOnlyIncreaseCapacity() throws Exception {
-        assertFalse(upgrade(owner,"BASIC").changed());
-        var standard=upgrade(owner,"STANDARD");
-        assertTrue(standard.changed());
-        assertEquals(199000,standard.priceDifferenceVnd());
-        assertNull(standard.subscription().effectiveUntil());
-        assertEquals(0,vaultCount(owner));
-        assertFalse(upgrade(owner,"STANDARD").changed());
-        assertEquals(1,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
-        UUID vault=createVault(owner).id();
-        for(int i=0;i<6;i++) assets.createAsset(vault,owner.id(),asset());
-        assertEquals(6,quotas.current(owner.id()).usage().assetCount());
-        var extended=upgrade(owner,"EXTENDED");
-        assertEquals(300000,extended.priceDifferenceVnd());
-        assertEquals("EXTENDED",extended.subscription().effectivePlan().code());
-        assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,businessError(()->upgrade(owner,"STANDARD")));
-        assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,businessError(()->upgrade(owner,"BASIC")));
-        assertEquals(2,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
-        jdbc.update("UPDATE dbo.owner_subscription_entitlements SET created_at='2000-01-01',updated_at='2000-01-01' WHERE owner_user_id=?",owner.id());
-        assertEquals("EXTENDED",quotas.current(owner.id()).effectivePlan().code());
-    }
-
-    @Test
-    void upgradeApiUsesPrincipalAndServerCatalogAndRequiresOwner() throws Exception {
-        String url="/api/v1/subscriptions/me/upgrade";
-        String body="{\"planCode\":\"STANDARD\",\"catalogVersion\":2,\"priceVnd\":1,\"limits\":{\"assetCount\":999999}}";
-        mvc.perform(post(url).contentType("application/json").content(body)).andExpect(status().isUnauthorized());
-        for(String role:List.of("STAFF_EXECUTOR","LEGAL_VERIFIER"))
-            mvc.perform(post(url).with(as(owner,role)).contentType("application/json").content(body)).andExpect(status().isForbidden());
-        mvc.perform(post(url).with(as(owner,"VAULT_OWNER")).contentType("application/json").content("{}"))
-            .andExpect(status().isBadRequest());
-        mvc.perform(post(url).with(as(owner,"VAULT_OWNER")).contentType("application/json")
-            .content("{\"planCode\":\"STANDARD\",\"catalogVersion\":1}"))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_CATALOG_STALE"));
-        Owner other=newOwner();
-        mvc.perform(post(url+"?ownerId="+other.publicId()).with(as(owner,"VAULT_OWNER")).contentType("application/json").content(body))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.priceDifferenceVnd").value(199000))
-            .andExpect(jsonPath("$.subscription.effectivePlan.limits.assetCount").value(50));
-        assertEquals("BASIC",quotas.current(other.id()).effectivePlan().code());
-    }
-
-    @Test
-    void upgradeAuditFailureRollsBackEntitlementAndCanRetry() {
-        jdbc.execute("CREATE TRIGGER dbo.TR_ps77_upgrade_failure ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS (SELECT 1 FROM inserted WHERE action='SUBSCRIPTION_UPGRADED') THROW 51802,'Synthetic upgrade audit failure',1; END");
-        try {
-            assertThrows(RuntimeException.class,()->upgrade(owner,"STANDARD"));
-            assertEquals("BASIC",quotas.current(owner.id()).effectivePlan().code());
-            assertEquals(0,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
-        } finally {jdbc.execute("DROP TRIGGER dbo.TR_ps77_upgrade_failure");}
-        assertTrue(upgrade(owner,"STANDARD").changed());
-    }
-
-    @Test
-    void concurrentUpgradesSerializeAndCannotLoseHigherEntitlement() throws Exception {
-        for(boolean higherFirst:List.of(false,true)) {
-            Owner who=newOwner();
-            CountDownLatch locked=new CountDownLatch(1), release=new CountDownLatch(1);
-            var first=workers.submit(()->{
-                afterOwnerRead.set(()->{locked.countDown();await(release);});
-                try{return upgrade(who,higherFirst?"EXTENDED":"STANDARD");}
-                finally{afterOwnerRead.remove();}
-            });
-            try {
-                assertTrue(locked.await(10,TimeUnit.SECONDS));
-                var second=workers.submit(()->{
-                    try {return upgrade(who,higherFirst?"STANDARD":"EXTENDED");}
-                    catch(BusinessException e){return e.getErrorCode();}
-                });
-                assertThrows(TimeoutException.class,()->second.get(200,TimeUnit.MILLISECONDS));
-                release.countDown();first.get(15,TimeUnit.SECONDS);
-                Object result=second.get(15,TimeUnit.SECONDS);
-                if(higherFirst) assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,result);
-                assertEquals("EXTENDED",quotas.current(who.id()).effectivePlan().code());
-                assertEquals(higherFirst?1:2,auditCount(who,"SUBSCRIPTION_UPGRADED"));
-            } finally {release.countDown();}
+    void paidUpgradeCannotGrantCapacityEvenWhenQuotaPrototypeEnabled() throws Exception {
+        var service=context.getBean(com.legacyvault.subscription.service.SubscriptionUpgradeService.class);
+        for(var code:com.legacyvault.subscription.dto.SubscriptionDtos.PlanCode.values()) {
+            var request=new com.legacyvault.subscription.dto.SubscriptionDtos.UpgradeRequest(code,2);
+            assertEquals(ErrorCode.SUBSCRIPTION_UPGRADE_UNAVAILABLE,businessError(()->service.upgrade(owner.id(),request)));
+            mvc.perform(post("/api/v1/subscriptions/me/upgrade").with(as(owner,"VAULT_OWNER"))
+                .contentType("application/json").content("{\"planCode\":\""+code+"\",\"catalogVersion\":2}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_UPGRADE_UNAVAILABLE"));
         }
+        assertEquals("BASIC",quotas.current(owner.id()).effectivePlan().code());
+        assertEquals(0,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.owner_subscription_entitlements WHERE owner_user_id=?",Integer.class,owner.id()));
+        mvc.perform(post("/api/v1/subscriptions/me/upgrade").contentType("application/json").content("{}"))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/subscriptions/me/upgrade").with(as(owner,"STAFF_EXECUTOR"))
+            .contentType("application/json").content("{\"planCode\":\"EXTENDED\",\"catalogVersion\":2}"))
+            .andExpect(status().isForbidden());
     }
 
     @Test
-    void contentWaitingForUpgradeUsesCommittedNewCapacity() throws Exception {
-        UUID vault=createVault(owner).id();
-        for(int i=0;i<5;i++) assets.createAsset(vault,owner.id(),asset());
-        CountDownLatch locked=new CountDownLatch(1),release=new CountDownLatch(1);
-        var upgrading=workers.submit(()->{
-            afterOwnerRead.set(()->{locked.countDown();await(release);});
-            try{return upgrade(owner,"STANDARD");}finally{afterOwnerRead.remove();}
-        });
+    void pendingPolicyDoesNotEnforceProposedOwnerLimitsOrExposeCatalog() throws Exception {
+        org.springframework.test.util.ReflectionTestUtils.setField(quotas,"enforcementEnabled",false);
         try {
-            assertTrue(locked.await(10,TimeUnit.SECONDS));
-            var creating=workers.submit(()->assets.createAsset(vault,owner.id(),asset()));
-            assertThrows(TimeoutException.class,()->creating.get(200,TimeUnit.MILLISECONDS));
-            release.countDown();upgrading.get(15,TimeUnit.SECONDS);creating.get(15,TimeUnit.SECONDS);
+            UUID vault=createVault(owner).id();
+            for(int i=0;i<6;i++) assets.createAsset(vault,owner.id(),asset());
             assertEquals(6,quotas.current(owner.id()).usage().assetCount());
-        } finally {release.countDown();}
+            mvc.perform(get("/api/v1/subscription-plans").with(as(owner,"VAULT_OWNER")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_POLICY_PENDING"));
+            mvc.perform(get("/api/v1/subscriptions/me").with(as(owner,"VAULT_OWNER")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_POLICY_PENDING"));
+        } finally {org.springframework.test.util.ReflectionTestUtils.setField(quotas,"enforcementEnabled",true);}
+    }
+
+    @Test
+    void legacySelfGrantedEntitlementIsNotTrustedAsPaymentConfirmation() {
+        jdbc.update("INSERT INTO dbo.owner_subscription_entitlements (owner_user_id,plan_code,catalog_version,purchase_price_vnd,asset_limit,storage_limit_bytes,file_limit_bytes) SELECT ?,plan_code,catalog_version,purchase_price_vnd,asset_limit,storage_limit_bytes,file_limit_bytes FROM dbo.subscription_plans WHERE plan_code='EXTENDED'",owner.id());
+        assertEquals("BASIC",quotas.current(owner.id()).effectivePlan().code());
+        var service=context.getBean(com.legacyvault.subscription.service.SubscriptionUpgradeService.class);
+        assertEquals(ErrorCode.SUBSCRIPTION_UPGRADE_UNAVAILABLE,businessError(()->service.upgrade(owner.id(),
+            new com.legacyvault.subscription.dto.SubscriptionDtos.UpgradeRequest(com.legacyvault.subscription.dto.SubscriptionDtos.PlanCode.EXTENDED,2))));
+        assertEquals("BASIC",quotas.current(owner.id()).effectivePlan().code());
+        assertEquals(0,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
     }
 
     private void assertSerializedGrowth(Supplier<?> operation, ErrorCode loserCode) throws Exception {

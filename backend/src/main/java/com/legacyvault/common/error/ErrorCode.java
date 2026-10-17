@@ -36,6 +36,8 @@ public enum ErrorCode {
 	LEGAL_VERIFICATION_ALREADY_DECIDED(409, "error.legalVerification.alreadyDecided"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
+	SUBSCRIPTION_POLICY_PENDING(409, "error.subscription.policyPending"),
+	SUBSCRIPTION_UPGRADE_UNAVAILABLE(409, "error.subscription.upgradeUnavailable"),
 	SUBSCRIPTION_CATALOG_STALE(409, "error.subscription.catalogStale"),
 	SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED(409, "error.subscription.downgradeNotAllowed"),
 	CASE_EVIDENCE_QUOTA_EXCEEDED(409, "error.subscription.caseEvidenceQuotaExceeded"),

@@ -32,8 +32,8 @@ paths:
   /api/v1/subscription-plans:
     get:
       tags: [Subscriptions]
-      summary: Catalog gói sử dụng (PS-77)
-      description: Quyền ROLE_VAULT_OWNER. Gói trọn đời được chọn sau đăng ký; GET không thay đổi gói.
+      summary: Prototype catalog — chờ phê duyệt PS-77
+      description: ROLE_VAULT_OWNER. Mặc định 409 SUBSCRIPTION_POLICY_PENDING; catalog chỉ có khi bật prototype cho test.
       x-status: implemented
       responses:
         '200':
@@ -45,15 +45,20 @@ paths:
                 items: { $ref: '#/components/schemas/SubscriptionPlan' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: SUBSCRIPTION_POLICY_PENDING — prototype chưa được nhóm duyệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/subscriptions/me:
     get:
       tags: [Subscriptions]
       summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
       description: |
-        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Chưa có Vault vẫn 200 với usage 0.
-        Owner mặc định BASIC; tự nâng gói trọn đời qua /subscriptions/me/upgrade, không hạ gói.
+        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Prototype bật trong test: chưa có Vault trả usage 0.
+        Mặc định 409 SUBSCRIPTION_POLICY_PENDING. Quota prototype chưa được nhóm duyệt.
         Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
-        Evidence pháp lý có quota riêng cho ca (100 MiB, 50 phiên bản), không ghép vào usage Owner.
+        Không áp quota subscription vào evidence pháp lý.
       x-status: implemented
       responses:
         '200':
@@ -63,14 +68,19 @@ paths:
               schema: { $ref: '#/components/schemas/CurrentSubscription' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: SUBSCRIPTION_POLICY_PENDING — prototype chưa được nhóm duyệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/subscriptions/me/upgrade:
     post:
       tags: [Subscriptions]
-      summary: Owner chọn hoặc nâng gói trọn đời của chính mình (PS-77)
+      summary: Nâng gói tạm khóa chờ quy trình xác nhận (PS-77)
       description: |
-        ROLE_VAULT_OWNER. Owner lấy từ principal; giá và hạn mức lấy từ catalog server.
-        Hiệu lực ngay, không hạ gói, không hết hạn. Lặp lại gói hiện tại trả changed=false.
-        priceDifferenceVnd là chênh lệch catalog; API không xử lý thanh toán hay chứng minh đã thu tiền.
+        ROLE_VAULT_OWNER. Request không phải bằng chứng thanh toán hoặc xác nhận cấp gói.
+        Luôn 409 SUBSCRIPTION_UPGRADE_UNAVAILABLE cho request hợp lệ, không cấp entitlement.
+        Chờ nhóm duyệt và triển khai quy trình thanh toán/xác nhận tin cậy; cờ quota không mở self-grant.
       x-status: implemented
       requestBody:
         required: true
@@ -78,16 +88,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/SubscriptionUpgradeRequest' }
       responses:
-        '200':
-          description: Gói đã được lưu cùng audit trong một transaction.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/SubscriptionUpgradeResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409':
-          description: SUBSCRIPTION_CATALOG_STALE hoặc SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED.
+          description: SUBSCRIPTION_UPGRADE_UNAVAILABLE — chưa có quy trình cấp gói/thanh toán được duyệt.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
@@ -1093,7 +1098,7 @@ paths:
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
         và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
         có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
-        PS-77: quota riêng mỗi ca 100 MiB / 50 phiên bản lưu giữ; đầy quota trả 409 CASE_EVIDENCE_QUOTA_EXCEEDED.
+        Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
       x-status: implemented
       parameters:
         - name: caseId

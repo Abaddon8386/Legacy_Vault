@@ -127,3 +127,8 @@ PS-48: `LEGAL_WORKFLOW_ON_HOLD` (409) khi guard phát hiện Vault/route đang O
 - `SUBSCRIPTION_CATALOG_STALE` — 409, `error.subscription.catalogStale`: reload catalog before selecting a plan.
 - `SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED` — 409, `error.subscription.downgradeNotAllowed`: lifetime capacity cannot decrease.
 - `CASE_EVIDENCE_QUOTA_EXCEEDED` — 409, `error.subscription.caseEvidenceQuotaExceeded`: case exceeds retained evidence bytes or version count; preserve existing history.
+
+PS-77 blocker fix: 409 `SUBSCRIPTION_POLICY_PENDING` (`error.subscription.policyPending`)
+for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
+(`error.subscription.upgradeUnavailable`) for any valid self-upgrade request. No entitlement is granted.
+`CASE_EVIDENCE_QUOTA_EXCEEDED` is reserved/inactive: PS-41 no longer emits this proposal-only error.
