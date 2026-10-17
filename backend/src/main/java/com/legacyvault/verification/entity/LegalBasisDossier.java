@@ -60,6 +60,9 @@ public class LegalBasisDossier {
     @Column(name = "created_by_user_id", nullable = false, updatable = false)
     private Long createdByUserId;
 
+    @Column(name = "classified_by_user_id")
+    private Long classifiedByUserId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -76,6 +79,7 @@ public class LegalBasisDossier {
         this.routeReason = routeReason;
         this.disputeStatus = disputeStatus;
         this.createdByUserId = createdByUserId;
+        this.classifiedByUserId = createdByUserId;
         this.status = STATUS_DRAFT;
     }
 
@@ -101,6 +105,21 @@ public class LegalBasisDossier {
     /** ST-19: đã chuyển phiên bản mới nhất cho Legal. */
     public void markForwarded() {
         this.status = STATUS_FORWARDED;
+    }
+
+    /**
+     * LV-HOLD-001: Legal phân loại lại hồ sơ đang ON_HOLD sang NOTARIAL/COURT. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và
+     * COURT không bao giờ bị đổi lẫn nhau (D-LEGAL-002). Người phân loại hiện hành được cập nhật.
+     */
+    public void reclassify(String newRoute, String newReason, String newDisputeStatus, Long legalUserId) {
+        if (!ROUTE_ON_HOLD.equals(route) || !STATUS_DRAFT.equals(status)
+                || !(ROUTE_NOTARIAL.equals(newRoute) || ROUTE_COURT.equals(newRoute))) {
+            throw new IllegalStateException("Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
+        }
+        this.route = newRoute;
+        this.routeReason = newReason;
+        this.disputeStatus = newDisputeStatus;
+        this.classifiedByUserId = legalUserId;
     }
 
     public boolean acceptsIntake() {
@@ -133,6 +152,11 @@ public class LegalBasisDossier {
 
     public String getDisputeStatus() {
         return disputeStatus;
+    }
+
+    /** Legal đã phân loại nhánh hiện hành (khác người tạo hồ sơ khi đã phân loại lại). */
+    public Long getClassifiedByUserId() {
+        return classifiedByUserId != null ? classifiedByUserId : createdByUserId;
     }
 
     public Long getCreatedByUserId() {

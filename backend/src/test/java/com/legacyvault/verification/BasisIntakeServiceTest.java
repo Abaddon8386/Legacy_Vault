@@ -102,14 +102,15 @@ class BasisIntakeServiceTest {
     }
 
     private static BasisIntakeMetadata metadata(String type) {
-        return new BasisIntakeMetadata(type, "  Phòng công chứng số 1  ", " 045/2026 ", LocalDate.of(2026, 9, 20), null,
-                null, null, "  BB-12  ", "  ghi chú nội bộ  ", List.of(new AllocationInput(ASSET_ID, BENEFICIARY_ID, "toàn bộ")));
+        return new BasisIntakeMetadata(type, "  Phòng công chứng số 1  ", " 045/2026 ", LocalDate.of(2026, 9, 20),
+                "  Văn phòng công chứng A  ", " CC-001 ", LocalDate.of(2026, 9, 19), "  BB-12  ", "  ghi chú nội bộ  ", List.of(new AllocationInput(ASSET_ID, BENEFICIARY_ID, "toàn bộ")));
     }
 
     private static BasisIntakeMetadata metadataWith(List<AllocationInput> allocations) {
         BasisIntakeMetadata base = metadata("NOTARIAL_PARTITION");
         return new BasisIntakeMetadata(base.legalBasisType(), base.issuingAuthority(), base.documentNumber(),
-                base.issueDate(), null, null, null, null, null, allocations);
+                base.issueDate(), base.notaryAuthority(), base.notarialDocumentNumber(), base.notarizedAt(), null, null,
+                allocations);
     }
 
     private static MockMultipartFile pdf() {
@@ -193,6 +194,26 @@ class BasisIntakeServiceTest {
         happyPath("NOTARIAL");
         assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("COURT_JUDGMENT"), pdf()))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+    }
+
+    @Test
+    void notarialIntake_requiresNotaryAuthorityNumberAndDate() {
+        BasisIntakeMetadata base = metadata("NOTARIAL_PARTITION");
+        BasisIntakeMetadata[] incomplete = {
+                new BasisIntakeMetadata(base.legalBasisType(), base.issuingAuthority(), base.documentNumber(),
+                        base.issueDate(), null, base.notarialDocumentNumber(), base.notarizedAt(), null, null,
+                        base.allocations()),
+                new BasisIntakeMetadata(base.legalBasisType(), base.issuingAuthority(), base.documentNumber(),
+                        base.issueDate(), base.notaryAuthority(), "  ", base.notarizedAt(), null, null, base.allocations()),
+                new BasisIntakeMetadata(base.legalBasisType(), base.issuingAuthority(), base.documentNumber(),
+                        base.issueDate(), base.notaryAuthority(), base.notarialDocumentNumber(), null, null, null,
+                        base.allocations()) };
+        for (BasisIntakeMetadata m : incomplete) {
+            happyPath("NOTARIAL");
+            assertThatThrownBy(() -> service.intake(CASE_ID, staff, m, pdf()))
+                    .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        }
+        verify(versions, never()).saveAndFlush(any());
     }
 
     @Test

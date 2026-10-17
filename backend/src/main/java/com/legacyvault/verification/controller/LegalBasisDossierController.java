@@ -5,6 +5,7 @@ import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.ClassifyBasisRequest;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.BasisReclassificationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,10 +30,13 @@ import java.util.UUID;
 public class LegalBasisDossierController {
 
     private final BasisClassificationService classification;
+    private final BasisReclassificationService reclassification;
     private final BasisDossierViewService views;
 
-    public LegalBasisDossierController(BasisClassificationService classification, BasisDossierViewService views) {
+    public LegalBasisDossierController(BasisClassificationService classification,
+            BasisReclassificationService reclassification, BasisDossierViewService views) {
         this.classification = classification;
+        this.reclassification = reclassification;
         this.views = views;
     }
 
@@ -45,6 +49,16 @@ public class LegalBasisDossierController {
         BasisDossierResponse created = classification.classify(caseId, principal, request);
         URI location = URI.create("/api/v1/legal-verifications/verification-cases/" + caseId + "/basis-dossier");
         return ResponseEntity.created(location).body(created);
+    }
+
+    /** PS-43: phân loại lại hồ sơ ON_HOLD sang NOTARIAL/COURT khi đã đủ chứng cứ (LV-HOLD-001). */
+    @PostMapping("/reclassification")
+    public BasisDossierResponse reclassify(
+            @PathVariable UUID caseId,
+            @Valid @RequestBody ClassifyBasisRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return reclassification.reclassify(caseId, principal, request);
     }
 
     @GetMapping

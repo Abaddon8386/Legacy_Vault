@@ -1,6 +1,6 @@
 # Hồ sơ căn cứ phân chia di sản — PS-41, PS-42, PS-43 (ST-16..19, LV-BASIS-001)
 
-**Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) và PS-42 (Staff chuyển văn bản cho Legal) đã triển khai. Các quyết định thiết kế được ghi ở
+**Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) PS-42 (Staff chuyển văn bản cho Legal) và PS-43 (Legal phân loại lại từ ON_HOLD, kiểm tra thông tin công chứng) đã triển khai. Các quyết định thiết kế được ghi ở
 [D-API-36](open-decisions.md); đó là cách đọc Main Flow v4.2 và `09_Decision_Legal_Basis_Branches.md`, chờ nhóm xác nhận.
 
 ## 1. Mô hình và luồng
@@ -25,6 +25,7 @@ Mọi ID là UUID công khai, thời gian ISO-8601 UTC có `Z`; không có khóa
 |---|---|---|---|
 | `POST` | `/api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier` | `LEGAL_VERIFIER` | Phân loại và tạo hồ sơ (ST-16). `201` |
 | `GET` | cùng đường dẫn | `LEGAL_VERIFIER` | Xem hồ sơ kèm lý do phân loại |
+| `POST` | cùng đường dẫn + `/reclassification` | `LEGAL_VERIFIER` | Phân loại lại hồ sơ `ON_HOLD` sang `NOTARIAL`/`COURT` (PS-43). `200` |
 | `POST` | `/api/v1/staff/verification-cases/{caseId}/basis-dossier/versions` | `STAFF_EXECUTOR` | Tiếp nhận văn bản số hóa (ST-18), `multipart/form-data`. `201` |
 | `POST` | `/api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{version}/forward` | `STAFF_EXECUTOR` | Chuyển phiên bản mới nhất cho Legal (ST-19, PS-42). `200` |
 | `GET` | `/api/v1/staff/verification-cases/{caseId}/basis-dossier` | `STAFF_EXECUTOR` | Xem hồ sơ (không có lý do phân loại) |
@@ -109,3 +110,12 @@ chứng ràng buộc `CHECK`/chỉ mục duy nhất trên DB. Nội dung file m�
 - Khóa dòng: đọc ca không khóa → khóa Vault → khóa ca → khóa hồ sơ (Vault → ca → bản ghi con). Audit `LEGAL_BASIS_FORWARDED` (ST-19) cùng giao dịch.
 - Kế hoạch phân bổ (tài sản - người nhận) được gửi trong `metadata.allocations` ở bước tiếp nhận, gắn với từng phiên bản; thay đổi phiên bản đồng nghĩa phân bổ mới.
 - Giới hạn: chưa có bước Legal trả hồ sơ bổ sung (ST-20) nên sau khi chuyển, Vault rời `AWAITING_LEGAL_BASIS` và không thể nộp phiên bản mới cho tới khi PS thẩm định được làm.
+
+## 7. Phân loại lại và thông tin công chứng — PS-43
+
+- **Phân loại lại (LV-HOLD-001):** body giống ST-16 (`route`, `routeReason`) nhưng `route` chỉ được `NOTARIAL` hoặc `COURT`; `ON_HOLD` hoặc lý do trống trả `400`. Điều kiện: ca `OPEN`, Vault `ON_HOLD`, hồ sơ nhánh `ON_HOLD` và còn `DRAFT`, đối chiếu di chúc không bị chặn (`WILL_NOT_VERIFIED`). Sai điều kiện trả `409 BASIS_DOSSIER_INVALID_STATE`.
+- **Không đổi `COURT` ↔ `NOTARIAL`:** hồ sơ đã ở nhánh `NOTARIAL`/`COURT` không thể phân loại lại, kể cả khi lời khai của Trustee thay đổi (D-LEGAL-002); thay đổi như vậy phải đi qua `ON_HOLD` do Legal ghi nhận (chưa có API riêng, xem giới hạn).
+- `NOTARIAL` đặt `disputeStatus = NONE`, `COURT` đặt `DISPUTED`. Lý do và chứng cứ của lần phân loại cũ được lưu vào `legal_basis_classification_history` (V15), không ghi đè; `classifiedBy` trả Legal của lần phân loại hiện hành.
+- Kết quả: Vault `ON_HOLD` → `AWAITING_LEGAL_BASIS` (qua `LEGAL_BASIS_CLASSIFICATION`); audit `LEGAL_BASIS_RECLASSIFIED` (ST-16, LV-HOLD-001), không ghi lý do. Khóa Vault → ca → hồ sơ.
+- **Thông tin công chứng (LV-NOTARY-001):** tiếp nhận văn bản nhánh `NOTARIAL` bắt buộc `notaryAuthority`, `notarialDocumentNumber` và `notarizedAt`; thiếu thì `400`. Văn bản `COURT` đã yêu cầu cơ quan, số và ngày ban hành.
+- Giới hạn: chưa có API đưa hồ sơ `NOTARIAL`/`COURT` trở lại `ON_HOLD` (LV-HOLD-001 khi có tranh chấp mới) và chưa có thẩm định/ký duyệt (ST-20, ST-21); migration V15 mới chỉ viết, **chưa chạy** trên SQL Server.

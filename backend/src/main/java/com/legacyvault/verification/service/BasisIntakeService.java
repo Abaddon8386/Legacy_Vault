@@ -195,6 +195,12 @@ public class BasisIntakeService {
         if (!ok) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
+        // LV-NOTARY-001: văn bản công chứng phải nêu tổ chức công chứng, số văn bản công chứng và ngày công chứng.
+        if (LegalBasisDossier.ROUTE_NOTARIAL.equals(dossier.getRoute())
+                && (normalize(metadata.notaryAuthority()) == null || normalize(metadata.notarialDocumentNumber()) == null
+                        || metadata.notarizedAt() == null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
     }
 
     private String evidenceJson(String evidenceReference) {
