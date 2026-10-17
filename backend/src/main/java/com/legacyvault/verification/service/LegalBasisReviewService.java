@@ -1,17 +1,16 @@
-
 package com.legacyvault.verification.service;
 
 import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
+import com.legacyvault.common.error.BusinessException;
+import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.LegalBasisReviewResponse;
 import com.legacyvault.verification.entity.*;
 import com.legacyvault.verification.repository.*;
-import com.legacyvault.common.error.BusinessException;
-import com.legacyvault.common.error.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +19,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.*;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -57,26 +60,365 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Vị trí: phương thức public đầu tiên trong class.
-     * Đánh giá snapshot hiện tại và đánh dấu cần review lại nếu phát hiện thay đổi.
+     * Đánh giá snapshot theo thứ tự khóa Vault -> VerificationCase -> Dossier.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: phương thức public đầu tiên.
      */
     @Transactional
     public LegalBasisReviewResponse evaluate(Long dossierId) {
-        LegalBasisDossier dossier = dossiers.findByDossierIdForUpdate(dossierId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (dossierId == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        // Đọc thông tin để xác định ca và Vault; chưa khóa dossier.
+        LegalBasisDossier initialDossier = dossiers.findById(dossierId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase initialCase = verificationCases
+                .findById(initialDossier.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
+        Vault vault = vaultRepository
+                .findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase verificationCase = verificationCases
+                .findByIdForUpdate(initialCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        if (!verificationCase.isOpen()) {
+            throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
+        }
+
+        LegalBasisDossier dossier = dossiers
+                .findByVerificationCaseIdForUpdate(
+                        verificationCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!Objects.equals(dossier.getLegalBasisDossierId(), dossierId)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        if (Vault.STATUS_ON_HOLD.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        return evaluateLocked(dossier, vault.getVaultId());
+    }
+
+    /**
+     * Đánh giá lại snapshot sau khi forward hoặc tiếp nhận phiên bản mới.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau evaluate().
+     */
+    @Transactional
+    public LegalBasisReviewResponse evaluateAfterChange(UUID casePublicId) {
+        if (casePublicId == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        VerificationCase initialCase = verificationCases
+                .findByPublicId(casePublicId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Vault vault = vaultRepository
+                .findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase verificationCase = verificationCases
+                .findByIdForUpdate(initialCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
+                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        if (!verificationCase.isOpen()) {
+            throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
+        }
+
+        if (Vault.STATUS_ON_HOLD.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        boolean validVaultState =
+                Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())
+                        || Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus());
+
+        if (!validVaultState) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        LegalBasisDossier dossier = dossiers
+                .findByVerificationCaseIdForUpdate(
+                        verificationCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        boolean validDossierState =
+                LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())
+                        || LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus());
+
+        if (!validDossierState) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        return evaluateLocked(dossier, vault.getVaultId());
+    }
+
+    /**
+     * Đánh giá dossier đã được caller khóa theo thứ tự chuẩn.
+     *
+     * Dùng sau khi forward hoặc khi tiếp nhận phiên bản mới.
+     * Phát hiện stale không ném exception nghiệp vụ và không tự động
+     * chuyển Vault về trạng thái khác tại đây.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau evaluate().
+     */
+    @Transactional
+    public LegalBasisReviewResponse evaluateAfterChange(
+            Long dossierId,
+            Long vaultId
+    ) {
+        if (dossierId == null || vaultId == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        LegalBasisDossier dossier = dossiers
+                .findByDossierIdForUpdate(dossierId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        return evaluateLocked(dossier, vaultId);
+    }
+
+    /**
+     * Ghi nhận hoàn thành review theo verification case.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau evaluateAfterChange().
+     */
+    @Transactional
+    public LegalBasisReviewResponse recordCompletedReviewByCasePublicId(
+            UUID casePublicId,
+            Long reviewerUserId,
+            String reason
+    ) {
+        validateReviewInput(casePublicId, reviewerUserId, reason);
+
+        VerificationCase initialCase = verificationCases
+                .findByPublicId(casePublicId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Vault vault = vaultRepository
+                .findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase verificationCase = verificationCases
+                .findByIdForUpdate(initialCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!Objects.equals(
+                verificationCase.getPublicId(), casePublicId)
+                || !Objects.equals(
+                verificationCase.getVaultId(), vault.getVaultId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        if (!verificationCase.isOpen()) {
+            throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
+        }
+
+        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(
+                vault.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        LegalBasisDossier dossier = dossiers
+                .findByVerificationCaseIdForUpdate(
+                        verificationCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        return recordCompletedReviewLocked(
+                dossier,
+                vault.getVaultId(),
+                reviewerUserId,
+                reason.trim());
+    }
+
+    /**
+     * Legal yêu cầu bổ sung hồ sơ và trả hồ sơ về Staff.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau recordCompletedReviewByCasePublicId().
+     */
+    @Transactional
+    public LegalBasisReviewResponse requestSupplementationByCasePublicId(
+            UUID casePublicId,
+            Long reviewerUserId,
+            String reason) {
+
+        if (casePublicId == null
+                || reviewerUserId == null
+                || reason == null
+                || reason.isBlank()
+                || reason.trim().length() > 1000) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        VerificationCase initialCase = verificationCases
+                .findByPublicId(casePublicId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Vault vault = vaultRepository
+                .findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase verificationCase = verificationCases
+                .findByIdForUpdate(initialCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
+                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        if (!verificationCase.isOpen()) {
+            throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
+        }
+
+        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        LegalBasisDossier dossier = dossiers
+                .findByVerificationCaseIdForUpdate(
+                        verificationCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        String previousVaultStatus = vault.getStatus();
+        String previousReviewStatus = dossier.getReviewStatus();
+
+        // Lưu trạng thái cần review lại trước khi trả dossier cho Staff.
+        dossier.requireReview("LEGAL_REQUESTED_SUPPLEMENTATION");
+        dossier.markSupplementationRequired();
+        dossiers.save(dossier);
+
+        vault.markAwaitingLegalBasisAfterReviewHold();
+
+        history.save(new LegalBasisReviewHistory(
+                dossier.getLegalBasisDossierId(),
+                null,
+                null,
+                null,
+                dossier.getDisputeStatus(),
+                null,
+                LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
+                "LEGAL_REQUESTED_SUPPLEMENTATION",
+                reason.trim(),
+                reviewerUserId));
+
+        auditService.record(new AuditEvent(
+                AuditAction.LEGAL_BASIS_REVIEW_REQUIRED,
+                AuditActorType.USER,
+                reviewerUserId,
+                vault.getVaultId(),
+                ENTITY_TYPE,
+                dossier.getLegalBasisDossierId(),
+                previousReviewStatus,
+                LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
+                null,
+                Map.of(
+                        "reasonCode", "LEGAL_REQUESTED_SUPPLEMENTATION",
+                        "vaultStatusBefore", previousVaultStatus,
+                        "vaultStatusAfter", vault.getStatus(),
+                        "verificationCaseId", verificationCase.getPublicId().toString()),
+                STEP_ID,
+                RULE_ID));
+
+        return new LegalBasisReviewResponse(
+                dossier.getLegalBasisDossierId(),
+                LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
+                true,
+                "LEGAL_REQUESTED_SUPPLEMENTATION",
+                reason.trim(),
+                dossier.getLastReviewedVersionNo(),
+                dossier.getLastReviewedSha256Hash(),
+                dossier.getDisputeStatus(),
+                dossier.getLastReviewedAllocationHash(),
+                LocalDateTime.now(ZoneOffset.UTC));
+    }
+
+    /**
+     * So sánh snapshot đã review với dữ liệu hiện tại.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau recordCompletedReviewByCasePublicId().
+     */
+    private LegalBasisReviewResponse evaluateLocked(
+            LegalBasisDossier dossier,
+            Long vaultId
+    ) {
+        Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
         BasisVersionRow current = rows.isEmpty() ? null : rows.get(0);
 
-        if (current == null || current.sha256Hash() == null
+        if (current == null
+                || current.sha256Hash() == null
                 || current.sha256Hash().isBlank()) {
             return markRequired(
-                    dossier, null, null, "CURRENT_VERSION_UNAVAILABLE",
-                    "Không đủ dữ liệu phiên bản hiện tại để xác minh snapshot."
-            );
+                    dossier,
+                    vaultId,
+                    null,
+                    null,
+                    "CURRENT_VERSION_UNAVAILABLE",
+                    "Không đủ dữ liệu phiên bản hiện tại để xác minh snapshot.");
         }
 
-        String currentAllocationHash = allocationHash(dossierId, current.versionNo());
+        String currentAllocationHash =
+                allocationHash(dossierId, current.versionNo());
 
         String reasonCode = null;
         String reason = null;
@@ -87,135 +429,67 @@ public class LegalBasisReviewService {
                 || dossier.getLastReviewedDisputeStatus() == null) {
             reasonCode = "NO_REVIEW_SNAPSHOT";
             reason = "Chưa có snapshot review đầy đủ cho dossier.";
-        } else if (!Objects.equals(dossier.getLastReviewedVersionNo(), current.versionNo())) {
+        } else if (!Objects.equals(
+                dossier.getLastReviewedVersionNo(), current.versionNo())) {
             reasonCode = "DOSSIER_VERSION_CHANGED";
             reason = "Phiên bản dossier đã thay đổi kể từ lần review trước.";
-        } else if (!dossier.getLastReviewedSha256Hash().equalsIgnoreCase(current.sha256Hash())) {
+        } else if (!dossier.getLastReviewedSha256Hash()
+                .equalsIgnoreCase(current.sha256Hash())) {
             reasonCode = "EVIDENCE_HASH_CHANGED";
             reason = "Hash chứng cứ hiện tại khác hash đã review.";
         } else if (!Objects.equals(
-                dossier.getLastReviewedDisputeStatus(), dossier.getDisputeStatus())) {
+                dossier.getLastReviewedDisputeStatus(),
+                dossier.getDisputeStatus())) {
             reasonCode = "DISPUTE_STATUS_CHANGED";
             reason = "Trạng thái tranh chấp đã thay đổi kể từ lần review trước.";
-        } else if (!dossier.getLastReviewedAllocationHash().equals(currentAllocationHash)) {
+        } else if (!dossier.getLastReviewedAllocationHash()
+                .equals(currentAllocationHash)) {
             reasonCode = "ALLOCATION_SCOPE_CHANGED";
             reason = "Phạm vi tài sản hoặc beneficiary đã thay đổi.";
         }
 
         if (reasonCode != null) {
-            return markRequired(dossier, current, currentAllocationHash, reasonCode, reason);
+            return markRequired(
+                    dossier,
+                    vaultId,
+                    current,
+                    currentAllocationHash,
+                    reasonCode,
+                    reason);
         }
 
+        boolean reviewRequired =
+                !LegalBasisReviewStatus.FRESH.name()
+                        .equals(dossier.getReviewStatus());
+
         return new LegalBasisReviewResponse(
-                dossier.getLegalBasisDossierId(),
+                dossierId,
                 dossier.getReviewStatus(),
-                !LegalBasisReviewStatus.FRESH.name().equals(dossier.getReviewStatus()),
+                reviewRequired,
                 "SNAPSHOT_MATCHES",
                 "Snapshot version, hash, dispute và allocation khớp.",
                 current.versionNo(),
                 current.sha256Hash(),
                 dossier.getDisputeStatus(),
                 currentAllocationHash,
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
+                LocalDateTime.now(ZoneOffset.UTC));
     }
 
     /**
-     * Vị trí: phương thức public thứ hai trong class.
-     * Ghi snapshot sau khi quy trình review pháp lý thực tế đã hoàn thành.
+     * Đánh dấu REVIEW_REQUIRED và ghi history/audit.
      *
-     * Chỉ gọi từ luồng được bảo vệ quyền reviewer; reviewerUserId phải lấy từ principal ở server.
+     * Không chuyển trạng thái Vault tại đây vì việc đánh giá snapshot
+     * không đồng nghĩa với quyết định trả hồ sơ về Staff.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau evaluateLocked().
      */
-    @Transactional
-    public LegalBasisReviewResponse recordCompletedReview(
-            Long dossierId,
-            Long reviewerUserId,
-            String reason
-    ) {
-        if (reviewerUserId == null
-                || reason == null
-                || reason.isBlank()
-                || reason.length() > 1000) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-        }
-
-        LegalBasisDossier dossier = dossiers.findByDossierIdForUpdate(dossierId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        List<BasisVersionRow> rows = versions.findRows(dossierId);
-        BasisVersionRow current = rows.isEmpty() ? null : rows.get(0);
-        if (current == null
-                || current.sha256Hash() == null
-                || current.sha256Hash().isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
-        }
-
-        String currentAllocationHash = allocationHash(dossierId, current.versionNo());
-        String previousStatus = dossier.getReviewStatus();
-
-        dossier.recordReviewSnapshot(
-                current.versionNo(),
-                current.sha256Hash(),
-                dossier.getDisputeStatus(),
-                currentAllocationHash,
-                reviewerUserId
-        );
-        dossiers.save(dossier);
-
-        LegalBasisDossierVersion version = versions
-                .findByLegalBasisDossierIdAndVersionNo(dossierId, current.versionNo())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        history.save(new LegalBasisReviewHistory(
-                dossierId,
-                version.getDossierVersionId(),
-                current.versionNo(),
-                current.sha256Hash(),
-                dossier.getDisputeStatus(),
-                currentAllocationHash,
-                LegalBasisReviewStatus.FRESH.name(),
-                "REVIEW_COMPLETED",
-                reason,
-                reviewerUserId
-        ));
-
-        auditService.record(new AuditEvent(
-                AuditAction.LEGAL_BASIS_REVIEW_RECORDED,
-                AuditActorType.USER,
-                reviewerUserId,
-                null,
-                ENTITY_TYPE,
-                dossierId,
-                previousStatus,
-                LegalBasisReviewStatus.FRESH.name(),
-                null,
-                Map.of(
-                        "versionNo", current.versionNo(),
-                        "reasonCode", "REVIEW_COMPLETED"
-                ),
-                STEP_ID,
-                RULE_ID
-        ));
-
-        return new LegalBasisReviewResponse(
-                dossierId,
-                LegalBasisReviewStatus.FRESH.name(),
-                false,
-                "REVIEW_COMPLETED",
-                reason,
-                current.versionNo(),
-                current.sha256Hash(),
-                dossier.getDisputeStatus(),
-                currentAllocationHash,
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
-    }
-
     private LegalBasisReviewResponse markRequired(
             LegalBasisDossier dossier,
+            Long vaultId,
             BasisVersionRow current,
-            String allocationHash,
+            String currentAllocationHash,
             String reasonCode,
             String reason
     ) {
@@ -225,12 +499,19 @@ public class LegalBasisReviewService {
         dossier.requireReview(reasonCode);
         dossiers.save(dossier);
 
-        if (!LegalBasisReviewStatus.REVIEW_REQUIRED.name().equals(previousStatus)
-                || !Objects.equals(previousReason, reasonCode)) {
+        boolean changed =
+                !LegalBasisReviewStatus.REVIEW_REQUIRED.name()
+                        .equals(previousStatus)
+                        || !Objects.equals(previousReason, reasonCode);
+
+        if (changed) {
             Long versionId = null;
+
             if (current != null) {
-                versionId = versions.findByLegalBasisDossierIdAndVersionNo(
-                                dossier.getLegalBasisDossierId(), current.versionNo())
+                versionId = versions
+                        .findByLegalBasisDossierIdAndVersionNo(
+                                dossier.getLegalBasisDossierId(),
+                                current.versionNo())
                         .map(LegalBasisDossierVersion::getDossierVersionId)
                         .orElse(null);
             }
@@ -241,27 +522,27 @@ public class LegalBasisReviewService {
                     current == null ? null : current.versionNo(),
                     current == null ? null : current.sha256Hash(),
                     dossier.getDisputeStatus(),
-                    allocationHash,
+                    currentAllocationHash,
                     LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
                     reasonCode,
                     reason,
-                    null
-            ));
+                    null));
 
             auditService.record(new AuditEvent(
                     AuditAction.LEGAL_BASIS_REVIEW_REQUIRED,
                     AuditActorType.SYSTEM,
                     null,
-                    null,
+                    vaultId,
                     ENTITY_TYPE,
                     dossier.getLegalBasisDossierId(),
                     previousStatus,
                     LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
                     null,
-                    Map.of("reasonCode", reasonCode),
+                    Map.of(
+                            "reasonCode", reasonCode,
+                            "reason", reason),
                     STEP_ID,
-                    RULE_ID
-            ));
+                    RULE_ID));
         }
 
         return new LegalBasisReviewResponse(
@@ -273,66 +554,132 @@ public class LegalBasisReviewService {
                 current == null ? null : current.versionNo(),
                 current == null ? null : current.sha256Hash(),
                 dossier.getDisputeStatus(),
-                allocationHash,
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
+                currentAllocationHash,
+                LocalDateTime.now(ZoneOffset.UTC));
     }
 
-
     /**
-     * ST-20 / PS-37:
-     * Ghi nhận hoàn thành review bằng public ID của verification case.
+     * Ghi snapshot, lịch sử review và audit sau khi reviewer hoàn tất.
      *
      * Package: com.legacyvault.verification.service
-     * Vị trí: trong class LegalBasisReviewService, đặt sau recordCompletedReview().
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau markRequired().
      */
-    @Transactional
-    public LegalBasisReviewResponse recordCompletedReviewByCasePublicId(
-            UUID casePublicId,
+    private LegalBasisReviewResponse recordCompletedReviewLocked(
+            LegalBasisDossier dossier,
+            Long vaultId,
             Long reviewerUserId,
-            String reason) {
+            String reason
+    ) {
+        Long dossierId = dossier.getLegalBasisDossierId();
 
-        if (casePublicId == null
-                || reviewerUserId == null
-                || reason == null
-                || reason.isBlank()
-                || reason.length() > 1000) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-        }
+        List<BasisVersionRow> rows = versions.findRows(dossierId);
+        BasisVersionRow current = rows.isEmpty() ? null : rows.get(0);
 
-        VerificationCase verificationCase = verificationCases
-                .findByPublicId(casePublicId)
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        LegalBasisDossier dossier = dossiers
-                .findByVerificationCaseIdForUpdate(
-                        verificationCase.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        Vault vault = vaultRepository
-                .findByIdForUpdate(verificationCase.getVaultId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())
-                || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
+        if (current == null
+                || current.sha256Hash() == null
+                || current.sha256Hash().isBlank()) {
             throw new BusinessException(
                     ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
-        return recordCompletedReview(
-                dossier.getLegalBasisDossierId(),
+        String currentAllocationHash =
+                allocationHash(dossierId, current.versionNo());
+
+        String previousStatus = dossier.getReviewStatus();
+
+        dossier.recordReviewSnapshot(
+                current.versionNo(),
+                current.sha256Hash(),
+                dossier.getDisputeStatus(),
+                currentAllocationHash,
+                reviewerUserId);
+
+        dossiers.save(dossier);
+
+        LegalBasisDossierVersion version = versions
+                .findByLegalBasisDossierIdAndVersionNo(
+                        dossierId,
+                        current.versionNo())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        history.save(new LegalBasisReviewHistory(
+                dossierId,
+                version.getDossierVersionId(),
+                current.versionNo(),
+                current.sha256Hash(),
+                dossier.getDisputeStatus(),
+                currentAllocationHash,
+                LegalBasisReviewStatus.FRESH.name(),
+                "REVIEW_COMPLETED",
+                reason,
+                reviewerUserId));
+
+        auditService.record(new AuditEvent(
+                AuditAction.LEGAL_BASIS_REVIEW_RECORDED,
+                AuditActorType.USER,
                 reviewerUserId,
-                reason.trim());
+                vaultId,
+                ENTITY_TYPE,
+                dossierId,
+                previousStatus,
+                LegalBasisReviewStatus.FRESH.name(),
+                null,
+                Map.of(
+                        "versionNo", current.versionNo(),
+                        "reasonCode", "REVIEW_COMPLETED"),
+                STEP_ID,
+                RULE_ID));
+
+        return new LegalBasisReviewResponse(
+                dossierId,
+                LegalBasisReviewStatus.FRESH.name(),
+                false,
+                "REVIEW_COMPLETED",
+                reason,
+                current.versionNo(),
+                current.sha256Hash(),
+                dossier.getDisputeStatus(),
+                currentAllocationHash,
+                LocalDateTime.now(ZoneOffset.UTC));
     }
 
+    /**
+     * Kiểm tra tham số review.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: ngay sau recordCompletedReviewLocked().
+     */
+    private void validateReviewInput(
+            UUID casePublicId,
+            Long reviewerUserId,
+            String reason
+    ) {
+        if (casePublicId == null
+                || reviewerUserId == null
+                || reason == null
+                || reason.isBlank()
+                || reason.trim().length() > 1000) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+    }
 
-    public static String allocationHashFromCanonicalValues(List<String> values) {
+    /**
+     * Tạo hash ổn định cho các dòng phân bổ.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalBasisReviewService
+     * Vị trí: nhóm phương thức hỗ trợ cuối class.
+     */
+    public static String allocationHashFromCanonicalValues(
+            List<String> values
+    ) {
         return sha256Static(
-                values.stream().sorted().collect(Collectors.joining("\n"))
-        );
+                values.stream()
+                        .sorted()
+                        .collect(Collectors.joining("\n")));
     }
 
     private String allocationHash(Long dossierId, int versionNo) {
@@ -348,9 +695,11 @@ public class LegalBasisReviewService {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(value.getBytes(StandardCharsets.UTF_8));
+
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 is not available.", ex);
+            throw new IllegalStateException(
+                    "SHA-256 is not available.", ex);
         }
     }
 
@@ -359,5 +708,4 @@ public class LegalBasisReviewService {
                 + String.valueOf(row.beneficiaryId()) + "|"
                 + String.valueOf(row.description());
     }
-
 }

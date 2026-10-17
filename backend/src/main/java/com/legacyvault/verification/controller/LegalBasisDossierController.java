@@ -99,6 +99,30 @@ public class LegalBasisDossierController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * PS-37: Legal trả hồ sơ về Staff để bổ sung chứng cứ.
+     *
+     * Package: com.legacyvault.verification.controller
+     * Class: LegalBasisDossierController
+     * Vị trí: ngay sau recordReview().
+     */
+    @PostMapping("/request-supplementation")
+    public ResponseEntity<LegalBasisReviewResponse> requestSupplementation(
+            @PathVariable UUID caseId,
+            @Valid @RequestBody RecordLegalBasisReviewRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+
+        Long reviewerUserId = CustomUserPrincipal.requireUserId(principal);
+
+        LegalBasisReviewResponse response =
+                legalBasisReviewService.requestSupplementationByCasePublicId(
+                        caseId,
+                        reviewerUserId,
+                        request.reason());
+
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
     public BasisDossierResponse get(@PathVariable UUID caseId) {
         return views.forLegal(caseId);

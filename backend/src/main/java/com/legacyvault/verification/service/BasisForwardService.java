@@ -1,4 +1,3 @@
-
 package com.legacyvault.verification.service;
 
 import com.legacyvault.audit.AuditAction;
@@ -40,6 +39,7 @@ public class BasisForwardService {
     private final LegalBasisDossierVersionRepository versions;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisReviewService reviewService;
 
     public BasisForwardService(
             StaffCaseLockRepository staffCases,
@@ -48,7 +48,9 @@ public class BasisForwardService {
             LegalBasisDossierRepository dossiers,
             LegalBasisDossierVersionRepository versions,
             BasisDossierViewService views,
-            AuditService auditService) {
+            AuditService auditService,
+            LegalBasisReviewService reviewService
+    ) {
         this.staffCases = staffCases;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -56,14 +58,24 @@ public class BasisForwardService {
         this.versions = versions;
         this.views = views;
         this.auditService = auditService;
+        this.reviewService = reviewService;
     }
 
+    /**
+     * ST-19: chuyển phiên bản dossier mới nhất cho Legal.
+     *
+     * Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: BasisForwardService
+     * Vị trí: phương thức public chính của class.
+     */
     @Transactional
     public BasisDossierResponse forward(
             UUID caseId,
             int versionNo,
-            CustomUserPrincipal principal) {
-
+            CustomUserPrincipal principal
+    ) {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
 
         VerificationCase initialCase = staffCases
@@ -71,7 +83,6 @@ public class BasisForwardService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // Giữ thứ tự khóa: Vault -> VerificationCase -> Dossier.
         Vault vault = vaultRepository
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
@@ -85,7 +96,9 @@ public class BasisForwardService {
         if (!Objects.equals(
                 verificationCase.getAssignedStaffUserId(), staffUserId)
                 || !Objects.equals(
-                verificationCase.getVaultId(), vault.getVaultId())) {
+                verificationCase.getVaultId(), vault.getVaultId())
+                || !Objects.equals(
+                verificationCase.getPublicId(), caseId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
@@ -138,7 +151,7 @@ public class BasisForwardService {
                 AuditAction.LEGAL_BASIS_FORWARDED,
                 AuditActorType.USER,
                 staffUserId,
-                verificationCase.getVaultId(),
+                vault.getVaultId(),
                 ENTITY_TYPE,
                 dossier.getLegalBasisDossierId(),
                 vaultStatusBefore,
@@ -149,11 +162,18 @@ public class BasisForwardService {
                         "verificationCaseId",
                         verificationCase.getPublicId().toString(),
                         "version", versionNo,
-                        "route", dossier.getRoute()
-                ),
+                        "route", dossier.getRoute()),
                 STEP_ID,
-                RULE_ID
-        ));
+                RULE_ID));
+
+        /*
+         * PS-37: đánh giá snapshot sau khi forward.
+         * REVIEW_REQUIRED là kết quả nghiệp vụ hợp lệ, không phải exception.
+         * Không chuyển Vault về trạng thái Staff tại bước này.
+         */
+// PS-37: kiểm tra snapshot sau khi forward.
+// REVIEW_REQUIRED là kết quả nghiệp vụ, không phải lỗi forward.
+        reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
         return views.view(verificationCase, false);
     }
