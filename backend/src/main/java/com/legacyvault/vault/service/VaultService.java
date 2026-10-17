@@ -8,16 +8,23 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.common.web.PageResponse;
+import com.legacyvault.dms.DmsConfig;
+import com.legacyvault.dms.DmsConfigRepository;
 import com.legacyvault.vault.dto.CreateVaultRequest;
 import com.legacyvault.vault.dto.VaultResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
+import com.legacyvault.verification.entity.VerificationCase;
+import com.legacyvault.verification.repository.VerificationCaseRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,10 +36,19 @@ public class VaultService {
 
     private final VaultRepository vaultRepository;
     private final AuditService auditService;
+    private final DmsConfigRepository dmsConfigRepository;
+    private final VerificationCaseRepository verificationCaseRepository;
 
-    public VaultService(VaultRepository vaultRepository, AuditService auditService) {
+    public VaultService(
+            VaultRepository vaultRepository,
+            AuditService auditService,
+            DmsConfigRepository dmsConfigRepository,
+            VerificationCaseRepository verificationCaseRepository
+    ) {
         this.vaultRepository = vaultRepository;
         this.auditService = auditService;
+        this.dmsConfigRepository = dmsConfigRepository;
+        this.verificationCaseRepository = verificationCaseRepository;
     }
 
     @Transactional
@@ -120,6 +136,76 @@ public class VaultService {
         }
         return vault;
     }
+
+    @Transactional
+    public VaultResponse cancelAlert(UUID vaultId, CustomUserPrincipal principal) {
+        Long ownerUserId = CustomUserPrincipal.requireUserId(principal);
+
+        // Khóa Vault và xác minh ownership trước khi kiểm tra trạng thái.
+        Vault vault = vaultRepository.findOwnedVaultForUpdate(vaultId, ownerUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!"AWAITING_VERIFICATION".equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.ALERT_NOT_CANCELLABLE);
+        }
+
+        // Khóa DMS để tránh scheduler thay đổi trạng thái cùng lúc.
+        DmsConfig dms = dmsConfigRepository.findByOwnerUserIdForUpdate(ownerUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ALERT_NOT_CANCELLABLE));
+
+        // Grace Period đã hết; trạng thái cần khớp với vòng đời DMS thực tế.
+        if (!"GRACE_PERIOD_EXCEEDED".equals(dms.getStatus())) {
+            throw new BusinessException(ErrorCode.ALERT_NOT_CANCELLABLE);
+        }
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        // Khóa các vụ việc của Vault và chỉ hủy intake chưa hoàn tất.
+        List<VerificationCase> cases =
+                verificationCaseRepository.findByVaultIdForUpdate(vault.getVaultId());
+
+        long cancelledCaseCount = cases.stream()
+                .filter(VerificationCase::isOpen)
+                .count();
+
+        for (VerificationCase verificationCase : cases) {
+            if (verificationCase.isOpen()) {
+                verificationCase.cancel(now);
+            }
+        }
+
+        // Phục hồi Vault và DMS trong cùng transaction.
+        vault.restoreActive();
+        dms.restoreAfterAlert(now);
+
+        vaultRepository.saveAndFlush(vault);
+        dmsConfigRepository.saveAndFlush(dms);
+        verificationCaseRepository.flush();
+
+        auditService.record(new AuditEvent(
+                AuditAction.VAULT_ALERT_CANCELLED,
+                AuditActorType.USER,
+                ownerUserId,
+                vault.getVaultId(),
+                "VAULT",
+                vault.getVaultId(),
+                "AWAITING_VERIFICATION",
+                "ACTIVE",
+                null,
+                Map.of(
+                        "dmsStateBefore", "GRACE_PERIOD_EXCEEDED",
+                        "dmsStateAfter", "MONITORING",
+                        "cancelledOpenCaseCount", cancelledCaseCount,
+                        "stepId", "ST-08",
+                        "ruleId", "LV-OWN-001"
+                ),
+                "ST-08",
+                "LV-OWN-001"
+        ));
+
+        return toResponse(vault);
+    }
+
 
     private VaultResponse toResponse(Vault vault) {
         return new VaultResponse(

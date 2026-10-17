@@ -20,6 +20,7 @@ public enum ErrorCode {
 	VAULT_ALREADY_EXISTS(409, "error.vault.alreadyExists"),
 	TRUSTEE_ALREADY_EXISTS(409, "error.trustee.alreadyExists"),
 	VAULT_NOT_EDITABLE(409, "error.vault.notEditable"),
+	ALERT_NOT_CANCELLABLE(409, "error.vault.alertNotCancellable"),
 	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
