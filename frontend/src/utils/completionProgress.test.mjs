@@ -5,11 +5,44 @@ import { resolve } from 'node:path';
 
 import {
   canAccessCompletionProgress,
+  normalizeSafeIntegerCount,
   evaluateCompletionProgress,
   COMPLETION_PROGRESS_STATUS,
   COMPLETION_MISSING_CONDITIONS,
 } from './completionProgressValidation.js';
 import { completionProgressI18n } from '../pages/staff/completionProgressI18n.js';
+
+test('PS-55 Strict Safe Integer Counter Validation (normalizeSafeIntegerCount)', async (t) => {
+  await t.test('accepts valid non-negative safe integers', () => {
+    assert.equal(normalizeSafeIntegerCount(0), 0);
+    assert.equal(normalizeSafeIntegerCount(1), 1);
+    assert.equal(normalizeSafeIntegerCount(42), 42);
+    assert.equal(normalizeSafeIntegerCount(Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
+  });
+
+  await t.test('strictly rejects non-number types without coercion', () => {
+    assert.equal(normalizeSafeIntegerCount(''), null);
+    assert.equal(normalizeSafeIntegerCount(' '), null);
+    assert.equal(normalizeSafeIntegerCount('0'), null);
+    assert.equal(normalizeSafeIntegerCount('42'), null);
+    assert.equal(normalizeSafeIntegerCount(false), null);
+    assert.equal(normalizeSafeIntegerCount(true), null);
+    assert.equal(normalizeSafeIntegerCount(null), null);
+    assert.equal(normalizeSafeIntegerCount(undefined), null);
+    assert.equal(normalizeSafeIntegerCount({}), null);
+    assert.equal(normalizeSafeIntegerCount([]), null);
+  });
+
+  await t.test('strictly rejects invalid numbers (NaN, Infinity, negative, floating point)', () => {
+    assert.equal(normalizeSafeIntegerCount(NaN), null);
+    assert.equal(normalizeSafeIntegerCount(Infinity), null);
+    assert.equal(normalizeSafeIntegerCount(-Infinity), null);
+    assert.equal(normalizeSafeIntegerCount(-1), null);
+    assert.equal(normalizeSafeIntegerCount(-42), null);
+    assert.equal(normalizeSafeIntegerCount(1.5), null);
+    assert.equal(normalizeSafeIntegerCount(3.14159), null);
+  });
+});
 
 test('PS-55 Route & Client Role Guard', async (t) => {
   await t.test('rejects access when session is null, undefined, or expired', () => {
@@ -116,41 +149,82 @@ test('PS-55 LV-CLOSE-001 Dual 100% AND Condition Evaluation', async (t) => {
     assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.ASSET_DELIVERY_INCOMPLETE));
     assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.BENEFICIARY_CONFIRMATION_INCOMPLETE));
   });
+
+  await t.test('conclusion relies on direct count equality (delivered === total), NOT rounded percentage', () => {
+    // 999 out of 1000 items is 99.9%, which might round to 100% in some formatters,
+    // but count equality strictly marks is100 as false and isComplete as false
+    const res = evaluateCompletionProgress(
+      { delivered: 999, total: 1000 },
+      { confirmed: 10, total: 10 }
+    );
+    assert.equal(res.assetMetric.is100, false);
+    assert.equal(res.isComplete, false);
+    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.INCOMPLETE);
+  });
 });
 
-test('PS-55 Missing Count & Zero Count (0/0) Protection', async (t) => {
-  await t.test('0/0 is NEVER treated as complete and evaluates to PENDING_VERIFICATION', () => {
+test('PS-55 Missing Count, Zero Count, and Out-of-Bounds Rejection', async (t) => {
+  await t.test('0/0 is NEVER treated as complete and evaluates to INDETERMINATE', () => {
     const res = evaluateCompletionProgress(
       { delivered: 0, total: 0 },
       { confirmed: 0, total: 0 }
     );
     assert.equal(res.isComplete, false);
-    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.PENDING_VERIFICATION);
+    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.INDETERMINATE);
     assert.equal(res.assetMetric.isVerified, false);
     assert.equal(res.beneficiaryMetric.isVerified, false);
-    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.ZERO_TOTAL_AWAITING_CONFIRMATION));
+    assert.equal(res.assetMetric.percentage, null);
+    assert.equal(res.beneficiaryMetric.percentage, null);
+    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.ASSET_DATA_UNAVAILABLE));
+    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.BENEFICIARY_DATA_UNAVAILABLE));
   });
 
-  await t.test('assets 100% (2/2) but beneficiaries 0/0 does not complete', () => {
+  await t.test('completed count exceeding total (delivered > total) is rejected as invalid/indeterminate', () => {
     const res = evaluateCompletionProgress(
-      { delivered: 2, total: 2 },
-      { confirmed: 0, total: 0 }
+      { delivered: 5, total: 4 },
+      { confirmed: 2, total: 2 }
     );
     assert.equal(res.isComplete, false);
-    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.PENDING_VERIFICATION);
-    assert.equal(res.assetMetric.is100, true);
-    assert.equal(res.beneficiaryMetric.isVerified, false);
+    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.INDETERMINATE);
+    assert.equal(res.assetMetric.isVerified, false);
+    assert.equal(res.assetMetric.percentage, null);
+    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.ASSET_DATA_UNAVAILABLE));
   });
 
-  await t.test('missing or null total count flags as unverified and blocks completion', () => {
+  await t.test('confirmed count exceeding total (confirmed > total) is rejected as invalid/indeterminate', () => {
+    const res = evaluateCompletionProgress(
+      { delivered: 4, total: 4 },
+      { confirmed: 3, total: 2 }
+    );
+    assert.equal(res.isComplete, false);
+    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.INDETERMINATE);
+    assert.equal(res.beneficiaryMetric.isVerified, false);
+    assert.equal(res.beneficiaryMetric.percentage, null);
+    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.BENEFICIARY_DATA_UNAVAILABLE));
+  });
+
+  await t.test('assets 100% (2/2) but beneficiaries missing data evaluates to INDETERMINATE', () => {
+    const res = evaluateCompletionProgress(
+      { delivered: 2, total: 2 },
+      { confirmed: null, total: null }
+    );
+    assert.equal(res.isComplete, false);
+    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.INDETERMINATE);
+    assert.equal(res.assetMetric.is100, true);
+    assert.equal(res.beneficiaryMetric.isVerified, false);
+    assert.equal(res.beneficiaryMetric.percentage, null);
+  });
+
+  await t.test('missing or null total count flags as unverified and blocks completion without showing 0%', () => {
     const res = evaluateCompletionProgress(
       { delivered: 2, total: null },
       { confirmed: 1, total: 1 }
     );
     assert.equal(res.isComplete, false);
-    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.PENDING_VERIFICATION);
+    assert.equal(res.overallStatus, COMPLETION_PROGRESS_STATUS.INDETERMINATE);
     assert.equal(res.assetMetric.isVerified, false);
-    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.ASSET_TOTAL_UNVERIFIED));
+    assert.equal(res.assetMetric.percentage, null);
+    assert.ok(res.missingConditions.includes(COMPLETION_MISSING_CONDITIONS.ASSET_DATA_UNAVAILABLE));
   });
 
   await t.test('calculates independent ratios without blending percentages', () => {

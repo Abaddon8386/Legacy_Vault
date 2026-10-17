@@ -120,7 +120,7 @@ export default function CompletionProgressPage({
         </section>
       )}
 
-      {overallStatus === COMPLETION_PROGRESS_STATUS.PENDING_VERIFICATION && (
+      {overallStatus === COMPLETION_PROGRESS_STATUS.INDETERMINATE && (
         <section className="lv-overall-banner lv-overall-banner--awaiting" role="status" aria-labelledby="awaiting-banner-heading">
           <HelpCircle size={26} className="lv-overall-banner__icon" aria-hidden="true" />
           <div className="lv-overall-banner__body">
@@ -168,7 +168,7 @@ export default function CompletionProgressPage({
             <>
               <div className="lv-metric-numbers">
                 <span className="lv-metric-ratio">
-                  {assetMetric.delivered ?? 0} / {assetMetric.total}
+                  {assetMetric.delivered} / {assetMetric.total}
                 </span>
                 <span className="lv-metric-percentage">
                   {assetMetric.percentage}%
@@ -184,7 +184,7 @@ export default function CompletionProgressPage({
           ) : (
             <div className="lv-unverified-notice" role="status">
               <HelpCircle size={16} aria-hidden="true" />
-              <span>{t.unverifiedTotal}</span>
+              <span>{t.unverifiedNotice}</span>
             </div>
           )}
         </section>
@@ -218,7 +218,7 @@ export default function CompletionProgressPage({
             <>
               <div className="lv-metric-numbers">
                 <span className="lv-metric-ratio">
-                  {beneficiaryMetric.confirmed ?? 0} / {beneficiaryMetric.total}
+                  {beneficiaryMetric.confirmed} / {beneficiaryMetric.total}
                 </span>
                 <span className="lv-metric-percentage">
                   {beneficiaryMetric.percentage}%
@@ -234,7 +234,7 @@ export default function CompletionProgressPage({
           ) : (
             <div className="lv-unverified-notice" role="status">
               <HelpCircle size={16} aria-hidden="true" />
-              <span>{t.unverifiedTotal}</span>
+              <span>{t.unverifiedNotice}</span>
             </div>
           )}
         </section>

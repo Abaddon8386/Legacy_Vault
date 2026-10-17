@@ -1,7 +1,7 @@
 /**
  * Localization dictionary for PS-55 Completion Progress
  * Clean, user-friendly copy adhering to Henedo art direction.
- * Does not expose raw internal enums or tickets to end-users.
+ * Uses "Chưa đủ thông tin" / "Information unavailable" for missing/indeterminate data.
  */
 
 export const completionProgressI18n = {
@@ -20,24 +20,23 @@ export const completionProgressI18n = {
     benProgressCardDesc: 'Tỷ lệ người thụ hưởng đã hoàn tất ký nhận và xác nhận.',
     countLabel: 'Số lượng thực hiện',
     percentageLabel: 'Tiến độ',
-    unverifiedTotal: 'Chờ xác nhận tổng số từ máy chủ',
+    unverifiedNotice: 'Chưa đủ thông tin',
     // Status badges
     statusComplete100: 'Đạt 100%',
     statusIncomplete: 'Chưa hoàn tất',
-    statusAwaitingData: 'Chờ xác nhận số liệu',
+    statusAwaitingData: 'Chưa đủ thông tin',
     // Overall status banners
     overallCompletedTitle: 'Đủ điều kiện hoàn tất hồ sơ',
     overallCompletedDesc: 'Cả hai tiêu chí bàn giao tài sản (100%) và xác nhận thụ hưởng (100%) đều đã hoàn thành trọn vẹn.',
     overallIncompleteTitle: 'Chưa đủ điều kiện hoàn tất',
     overallIncompleteDesc: 'Hồ sơ chưa thể hoàn tất do còn điều kiện chưa đạt:',
-    overallAwaitingTitle: 'Cần xác nhận số liệu từ máy chủ',
-    overallAwaitingDesc: 'Dữ liệu tổng số tài sản hoặc người thụ hưởng cần được xác nhận chính thức từ máy chủ.',
+    overallAwaitingTitle: 'Chưa đủ thông tin',
+    overallAwaitingDesc: 'Chưa có đủ thông tin số liệu hợp lệ để xác định tiến độ hoàn tất.',
     // Missing condition labels
     assetDeliveryIncomplete: 'Tài sản chưa được bàn giao đủ 100%.',
     beneficiaryConfirmationIncomplete: 'Người thụ hưởng chưa xác nhận đủ 100%.',
-    assetTotalUnverified: 'Chưa có thông tin tổng số tài sản được duyệt.',
-    beneficiaryTotalUnverified: 'Chưa có thông tin tổng số người thụ hưởng.',
-    zeroTotalAwaitingConfirmation: 'Tổng số bằng 0 cần được máy chủ xác nhận trước khi đánh giá hoàn tất.',
+    assetDataUnavailable: 'Chưa đủ thông tin hợp lệ về tài sản.',
+    beneficiaryDataUnavailable: 'Chưa đủ thông tin hợp lệ về người thụ hưởng.',
   },
   en: {
     pageTitle: 'Case Completion Progress',
@@ -54,23 +53,22 @@ export const completionProgressI18n = {
     benProgressCardDesc: 'Proportion of designated beneficiaries who confirmed acknowledgement.',
     countLabel: 'Execution Count',
     percentageLabel: 'Progress',
-    unverifiedTotal: 'Awaiting verified total from server',
+    unverifiedNotice: 'Information unavailable',
     // Status badges
     statusComplete100: '100% Completed',
     statusIncomplete: 'Incomplete',
-    statusAwaitingData: 'Pending Verification',
+    statusAwaitingData: 'Information unavailable',
     // Overall status banners
     overallCompletedTitle: 'Eligible for Case Completion',
     overallCompletedDesc: 'Both criteria—100% asset delivery and 100% beneficiary confirmation—are fully satisfied.',
     overallIncompleteTitle: 'Completion Criteria Not Met',
     overallIncompleteDesc: 'This case cannot be completed due to unfulfilled criteria:',
-    overallAwaitingTitle: 'Awaiting Server Verification',
-    overallAwaitingDesc: 'Total counts for assets or beneficiaries must be verified by the server.',
+    overallAwaitingTitle: 'Information unavailable',
+    overallAwaitingDesc: 'Valid data is unavailable to determine completion progress.',
     // Missing condition labels
     assetDeliveryIncomplete: 'Asset deliveries are not 100% complete.',
     beneficiaryConfirmationIncomplete: 'Beneficiary confirmations are not 100% complete.',
-    assetTotalUnverified: 'Approved total asset count is missing.',
-    beneficiaryTotalUnverified: 'Approved total beneficiary count is missing.',
-    zeroTotalAwaitingConfirmation: 'Zero total requires server confirmation before completion can be evaluated.',
+    assetDataUnavailable: 'Valid asset information is unavailable.',
+    beneficiaryDataUnavailable: 'Valid beneficiary information is unavailable.',
   },
 };
