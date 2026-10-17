@@ -1251,6 +1251,70 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review:
+    post:
+      tags: [Legal]
+      summary: Legal ghi nhận hoàn thành review hồ sơ căn cứ (PS-37, ST-20)
+      description: |
+        Chỉ LEGAL_VERIFIER. reviewerUserId lấy từ principal phía server.
+        Chỉ review khi ca OPEN, Vault/dossier ở trạng thái cho phép và không bị hold.
+        Ghi audit LEGAL_BASIS_REVIEW_RECORDED cùng transaction, kèm vaultId.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            example: { reason: "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan." }
+      responses:
+        '200':
+          description: Review đã được ghi nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalBasisReviewResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/request-supplementation:
+    post:
+      tags: [Legal]
+      summary: Legal yêu cầu bổ sung hồ sơ căn cứ (PS-37, ST-20)
+      description: |
+        Chỉ LEGAL_VERIFIER. reviewerUserId lấy từ principal phía server.
+        Ghi nhận yêu cầu bổ sung với reasonCode LEGAL_REQUESTED_SUPPLEMENTATION,
+        audit LEGAL_BASIS_REVIEW_REQUIRED cùng transaction, kèm vaultId.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            example: { reason: "Đề nghị Staff bổ sung bản sao chứng thực còn thiếu." }
+      responses:
+        '200':
+          description: Đã ghi nhận yêu cầu bổ sung
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalBasisReviewResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
     post:
       tags: [Legal]
@@ -1413,6 +1477,30 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    RecordLegalBasisReviewRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Lý do review hoặc yêu cầu bổ sung; không rỗng sau khi trim.
+    LegalBasisReviewResponse:
+      type: object
+      required: [dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt]
+      properties:
+        dossierId: { type: integer, format: int64, nullable: true }
+        reviewStatus: { type: string, nullable: true }
+        reviewRequired: { type: boolean }
+        reasonCode: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+        currentVersionNo: { type: integer, nullable: true }
+        currentSha256Hash: { type: string, nullable: true }
+        currentDisputeStatus: { type: string, nullable: true }
+        currentAllocationHash: { type: string, nullable: true }
+        checkedAt: { type: string, format: date-time, nullable: true }
     HoldBasisRequest:
       type: object
       required: [cause, reason]
@@ -1464,6 +1552,8 @@ components:
             - TRUSTEE_ALREADY_EXISTS
             - VAULT_NOT_EDITABLE
             - DMS_NOT_MONITORING
+            - VERIFICATION_CASE_NOT_OPEN
+            - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
         message:
           type: string
