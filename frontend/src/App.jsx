@@ -14,6 +14,8 @@ import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
+import ScopedAssetHandoverPage from './pages/staff/ScopedAssetHandoverPage.jsx';
+import { canAccessScopedAssetHandover } from './utils/scopedAssetHandoverValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
@@ -458,6 +460,7 @@ export default function App() {
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isStaffAssetHandoverRoute = path === '/staff/asset-handover';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
@@ -484,6 +487,8 @@ export default function App() {
           onNavigateTab={tab => {
             if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
             }
           }}
         >
@@ -492,6 +497,43 @@ export default function App() {
             preview={preview}
             session={session}
             onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isStaffAssetHandoverRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessScopedAssetHandover(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="asset-handover"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            }
+          }}
+        >
+          <ScopedAssetHandoverPage
+            lang={lang}
+            preview={preview}
+            session={session}
           />
         </AppShell>
       </div>
