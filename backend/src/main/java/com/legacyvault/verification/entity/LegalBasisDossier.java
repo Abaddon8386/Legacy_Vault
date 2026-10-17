@@ -98,6 +98,11 @@ public class LegalBasisDossier {
         this.status = STATUS_PROVIDED;
     }
 
+    /** ST-19: đã chuyển phiên bản mới nhất cho Legal. */
+    public void markForwarded() {
+        this.status = STATUS_FORWARDED;
+    }
+
     public boolean acceptsIntake() {
         return ROUTE_NOTARIAL.equals(route) || ROUTE_COURT.equals(route);
     }

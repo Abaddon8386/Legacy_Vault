@@ -24,9 +24,11 @@ import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.entity.LegalBasisDossier;
 import com.legacyvault.verification.entity.VerificationCase;
+import com.legacyvault.verification.repository.AllocationRow;
 import com.legacyvault.verification.repository.BasisVersionRow;
 import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalBasisDossierVersionRepository;
+import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
 import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
@@ -43,9 +45,10 @@ class BasisDossierViewServiceTest {
     private final StaffCaseLockRepository staffCases = mock(StaffCaseLockRepository.class);
     private final LegalBasisDossierRepository dossiers = mock(LegalBasisDossierRepository.class);
     private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
+    private final LegalBasisVersionAllocationRepository allocations = mock(LegalBasisVersionAllocationRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final BasisDossierViewService service = new BasisDossierViewService(caseLookup, staffCases, dossiers,
-            versions, users, new ObjectMapper());
+            versions, allocations, users, new ObjectMapper());
 
     private final UUID legalPublicId = UUID.randomUUID();
     private final UUID staffPublicId = UUID.randomUUID();
@@ -72,10 +75,18 @@ class BasisDossierViewServiceTest {
         ReflectionTestUtils.setField(d, "createdAt", LocalDateTime.of(2026, 10, 3, 9, 0));
         ReflectionTestUtils.setField(d, "updatedAt", LocalDateTime.of(2026, 10, 3, 9, 0));
         when(dossiers.findByVerificationCaseId(CASE_DB_ID)).thenReturn(Optional.of(d));
-        when(versions.findRows(900L)).thenReturn(List.of(new BasisVersionRow(1, "NOTARIAL_PARTITION", "Phòng CC 1",
-                "045/2026", LocalDate.of(2026, 9, 20), null, null, null, "{\"evidenceReference\":\"BB-12\"}", "ghi chú",
+        BasisVersionRow v1 = new BasisVersionRow(1, "NOTARIAL_PARTITION", "Phòng CC 1", "045/2026",
+                LocalDate.of(2026, 9, 20), null, null, null, "{\"evidenceReference\":\"BB-12\"}", "ghi chú",
                 "application/pdf", 1234L, "a".repeat(64), "NOT_FORWARDED", STAFF_ID,
-                LocalDateTime.of(2026, 10, 4, 10, 0), null)));
+                LocalDateTime.of(2026, 10, 4, 10, 0), null);
+        BasisVersionRow v2 = new BasisVersionRow(2, "NOTARIAL_PARTITION", "Phòng CC 1", "045/2026-BS",
+                LocalDate.of(2026, 9, 25), null, null, null, null, null, "application/pdf", 2345L, "b".repeat(64),
+                "NOT_FORWARDED", STAFF_ID, LocalDateTime.of(2026, 10, 5, 10, 0), null);
+        when(versions.findRows(900L)).thenReturn(List.of(v2, v1));
+        UUID assetId = UUID.randomUUID();
+        UUID beneficiaryId = UUID.randomUUID();
+        when(allocations.findRowsByDossier(900L)).thenReturn(List.of(
+                new AllocationRow(2, assetId, beneficiaryId, "toàn bộ"), new AllocationRow(1, assetId, beneficiaryId, null)));
         when(users.findAllById(org.mockito.ArgumentMatchers.anyIterable()))
                 .thenReturn(List.of(user(LEGAL_ID, legalPublicId), user(STAFF_ID, staffPublicId)));
     }
@@ -93,10 +104,16 @@ class BasisDossierViewServiceTest {
         assertThat(viewedByStaff.routeReason()).isNull();
         assertThat(legal.route()).isEqualTo("NOTARIAL");
         assertThat(legal.classifiedBy()).isEqualTo(legalPublicId);
-        assertThat(legal.versions()).hasSize(1);
-        assertThat(legal.versions().get(0).createdBy()).isEqualTo(staffPublicId);
-        assertThat(legal.versions().get(0).evidenceReference()).isEqualTo("BB-12");
-        assertThat(legal.versions().get(0).sha256()).hasSize(64);
+        assertThat(legal.versions()).hasSize(2);
+        assertThat(legal.versions().get(0).version()).isEqualTo(2);
+        assertThat(legal.versions().get(0).current()).as("phiên bản mới nhất là hiện hành").isTrue();
+        assertThat(legal.versions().get(1).current()).as("phiên bản cũ không còn hiện hành").isFalse();
+        assertThat(legal.versions().get(0).allocations()).hasSize(1);
+        assertThat(legal.versions().get(0).allocations().get(0).description()).isEqualTo("toàn bộ");
+        assertThat(legal.versions().get(1).allocations()).hasSize(1);
+        assertThat(legal.versions().get(1).createdBy()).isEqualTo(staffPublicId);
+        assertThat(legal.versions().get(1).evidenceReference()).isEqualTo("BB-12");
+        assertThat(legal.versions().get(1).sha256()).hasSize(64);
         assertThat(legal.createdAt().toString()).endsWith("Z");
     }
 

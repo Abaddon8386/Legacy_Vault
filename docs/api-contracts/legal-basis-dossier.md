@@ -1,6 +1,6 @@
 # Hồ sơ căn cứ phân chia di sản — PS-41, PS-42, PS-43 (ST-16..19, LV-BASIS-001)
 
-**Trạng thái:** PS-41 đã triển khai (phân loại của Legal và tiếp nhận văn bản của Staff). Các quyết định thiết kế được ghi ở
+**Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) và PS-42 (Staff chuyển văn bản cho Legal) đã triển khai. Các quyết định thiết kế được ghi ở
 [D-API-36](open-decisions.md); đó là cách đọc Main Flow v4.2 và `09_Decision_Legal_Basis_Branches.md`, chờ nhóm xác nhận.
 
 ## 1. Mô hình và luồng
@@ -26,6 +26,7 @@ Mọi ID là UUID công khai, thời gian ISO-8601 UTC có `Z`; không có khóa
 | `POST` | `/api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier` | `LEGAL_VERIFIER` | Phân loại và tạo hồ sơ (ST-16). `201` |
 | `GET` | cùng đường dẫn | `LEGAL_VERIFIER` | Xem hồ sơ kèm lý do phân loại |
 | `POST` | `/api/v1/staff/verification-cases/{caseId}/basis-dossier/versions` | `STAFF_EXECUTOR` | Tiếp nhận văn bản số hóa (ST-18), `multipart/form-data`. `201` |
+| `POST` | `/api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{version}/forward` | `STAFF_EXECUTOR` | Chuyển phiên bản mới nhất cho Legal (ST-19, PS-42). `200` |
 | `GET` | `/api/v1/staff/verification-cases/{caseId}/basis-dossier` | `STAFF_EXECUTOR` | Xem hồ sơ (không có lý do phân loại) |
 
 Staff chỉ thao tác trên ca **mình đã nhận**; ca khác hoặc ca chưa nhận trả `404`.
@@ -82,6 +83,7 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 | Thiếu hoặc sai trường, loại văn bản không khớp nhánh, thiếu phần `metadata`/`file` | 400 | `VALIDATION_FAILED` |
 | Không có ca / ca không thuộc Staff / chưa có hồ sơ | 404 | `RESOURCE_NOT_FOUND` |
 | Chưa có kết quả đối chiếu di chúc khớp | 409 | `WILL_NOT_VERIFIED` |
+| Phiên bản chuyển không phải mới nhất | 409 | `BASIS_VERSION_STALE` |
 | Ca đã có hồ sơ | 409 | `BASIS_DOSSIER_ALREADY_EXISTS` |
 | Ca/Vault/hồ sơ không ở trạng thái cho phép (ca đã hủy, Vault sai trạng thái, nhánh `ON_HOLD`, đã có phiên bản) | 409 | `BASIS_DOSSIER_INVALID_STATE` |
 | File không phải PDF/JPEG/PNG | 415 | `UNSUPPORTED_MEDIA_TYPE` |
@@ -99,3 +101,11 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 Đã có: test dịch vụ (phân loại 8, tiếp nhận 7, đọc hồ sơ 2), test controller (Legal 4, Staff 5), toàn bộ bộ test Maven chỉ `contextLoads` lỗi
 (cần SQL Server). Migration `V14` đã qua kiểm tra cú pháp trên SQL Server thật (chỉ phân tích); **chưa chạy lưu thật** và chưa kiểm
 chứng ràng buộc `CHECK`/chỉ mục duy nhất trên DB. Nội dung file mã hóa chưa có API giải mã cho Legal.
+
+## 6. Chuyển văn bản cho Legal — PS-42 (ST-19)
+
+- Điều kiện: Staff sở hữu ca, ca `OPEN`, Vault `AWAITING_LEGAL_BASIS`, hồ sơ `LEGAL_BASIS_PROVIDED`. `version` phải **bằng phiên bản mới nhất**, nếu không `409 BASIS_VERSION_STALE`; số ngoài phạm vi trả `404`.
+- Kết quả: phiên bản được đánh dấu đã chuyển (cập nhật có điều kiện, chống chuyển đôi), hồ sơ `LEGAL_BASIS_FORWARDED`, Vault `LEGAL_BASIS_VERIFICATION`. Phiên bản cũ không bị sửa hay xóa.
+- Khóa dòng: đọc ca không khóa → khóa Vault → khóa ca → khóa hồ sơ (Vault → ca → bản ghi con). Audit `LEGAL_BASIS_FORWARDED` (ST-19) cùng giao dịch.
+- Kế hoạch phân bổ (tài sản - người nhận) được gửi trong `metadata.allocations` ở bước tiếp nhận, gắn với từng phiên bản; thay đổi phiên bản đồng nghĩa phân bổ mới.
+- Giới hạn: chưa có bước Legal trả hồ sơ bổ sung (ST-20) nên sau khi chuyển, Vault rời `AWAITING_LEGAL_BASIS` và không thể nộp phiên bản mới cho tới khi PS thẩm định được làm.

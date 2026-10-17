@@ -4,8 +4,10 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.BasisIntakeMetadata;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.BasisForwardService;
 import com.legacyvault.verification.service.BasisIntakeService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,10 +33,13 @@ import java.util.UUID;
 public class StaffBasisIntakeController {
 
     private final BasisIntakeService intake;
+    private final BasisForwardService forwarding;
     private final BasisDossierViewService views;
 
-    public StaffBasisIntakeController(BasisIntakeService intake, BasisDossierViewService views) {
+    public StaffBasisIntakeController(BasisIntakeService intake, BasisForwardService forwarding,
+            BasisDossierViewService views) {
         this.intake = intake;
+        this.forwarding = forwarding;
         this.views = views;
     }
 
@@ -49,6 +54,16 @@ public class StaffBasisIntakeController {
         BasisDossierResponse updated = intake.intake(caseId, principal, metadata, file);
         URI location = URI.create("/api/v1/staff/verification-cases/" + caseId + "/basis-dossier");
         return ResponseEntity.created(location).body(updated);
+    }
+
+    /** ST-19: chuyển đúng phiên bản (chỉ phiên bản mới nhất) cho Legal. Phiên bản cũ trả 409 BASIS_VERSION_STALE. */
+    @PostMapping("/versions/{version}/forward")
+    public BasisDossierResponse forward(
+            @PathVariable UUID caseId,
+            @PathVariable @Min(1) int version,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return forwarding.forward(caseId, version, principal);
     }
 
     @GetMapping

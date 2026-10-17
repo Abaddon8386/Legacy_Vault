@@ -27,6 +27,7 @@ public enum ErrorCode {
 	WILL_NOT_VERIFIED(409, "error.legalBasis.willNotVerified"),
 	BASIS_DOSSIER_ALREADY_EXISTS(409, "error.legalBasis.dossierExists"),
 	BASIS_DOSSIER_INVALID_STATE(409, "error.legalBasis.invalidState"),
+	BASIS_VERSION_STALE(409, "error.legalBasis.versionStale"),
 	LEGAL_VERIFICATION_INVALID_STATE(409, "error.legalVerification.invalidState"),
 	LEGAL_VERIFICATION_ALREADY_DECIDED(409, "error.legalVerification.alreadyDecided"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
