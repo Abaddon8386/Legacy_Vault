@@ -43,6 +43,7 @@ class LegalBasisReviewServiceTest {
     private static final Long VAULT_ID = 77L;
     private static final Long REVIEWER_ID = 25L;
     private static final UUID CASE_PUBLIC_ID = UUID.randomUUID();
+    private static final UUID DOSSIER_PUBLIC_ID = UUID.randomUUID();
     private static final String HASH = "a".repeat(64);
 
     private static final class Fixture {
@@ -65,6 +66,7 @@ class LegalBasisReviewServiceTest {
 
         Fixture() {
             when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
+            when(dossier.getPublicId()).thenReturn(DOSSIER_PUBLIC_ID);
             when(dossier.getVerificationCaseId()).thenReturn(CASE_DB_ID);
             when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
             when(dossier.getRoute()).thenReturn("NOTARIAL");
@@ -145,6 +147,8 @@ class LegalBasisReviewServiceTest {
 
         LegalBasisReviewResponse response = f.evaluate();
 
+        assertThat(response.dossierId()).isEqualTo(DOSSIER_PUBLIC_ID);
+        assertThat(response.dossierId()).isNotEqualTo(DOSSIER_ID);
         assertThat(response.reasonCode()).isEqualTo("NO_REVIEW_SNAPSHOT");
 
         ArgumentCaptor<LegalBasisReviewHistory> historyCaptor =
@@ -214,6 +218,7 @@ class LegalBasisReviewServiceTest {
         LegalBasisReviewResponse response = f.service.requestSupplementationByCasePublicId(
                 CASE_PUBLIC_ID, REVIEWER_ID, "  Bổ sung giấy tờ còn thiếu  ");
 
+        assertThat(response.dossierId()).isEqualTo(DOSSIER_PUBLIC_ID);
         assertThat(response.reasonCode()).isEqualTo("LEGAL_REQUESTED_SUPPLEMENTATION");
         assertThat(response.reviewRequired()).isTrue();
         verify(f.dossier).requireReview("LEGAL_REQUESTED_SUPPLEMENTATION");
@@ -301,6 +306,7 @@ class LegalBasisReviewServiceTest {
         LegalBasisReviewResponse response = f.service.recordCompletedReviewByCasePublicId(
                 CASE_PUBLIC_ID, REVIEWER_ID, "  Đã kiểm tra hồ sơ  ");
 
+        assertThat(response.dossierId()).isEqualTo(DOSSIER_PUBLIC_ID);
         assertThat(response.reviewStatus()).isEqualTo("FRESH");
         assertThat(response.reviewRequired()).isFalse();
         verify(f.dossier).recordReviewSnapshot(
@@ -368,3 +374,4 @@ class LegalBasisReviewServiceTest {
         assertThat(auditCaptor.getValue().vaultId()).isEqualTo(VAULT_ID);
     }
 }
+

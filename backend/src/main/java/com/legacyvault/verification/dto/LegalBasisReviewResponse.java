@@ -1,10 +1,14 @@
-
 package com.legacyvault.verification.dto;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
+/**
+ * Response cho kết quả đánh giá/review hồ sơ căn cứ pháp lý.
+ * dossierId là UUID công khai, không phải khóa chính tuần tự trong database.
+ */
 public record LegalBasisReviewResponse(
-        Long dossierId,
+        UUID dossierId,
         String reviewStatus,
         boolean reviewRequired,
         String reasonCode,

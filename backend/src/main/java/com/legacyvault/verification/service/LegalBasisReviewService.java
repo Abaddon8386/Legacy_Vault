@@ -356,7 +356,7 @@ public class LegalBasisReviewService {
                 RULE_ID));
 
         return new LegalBasisReviewResponse(
-                dossier.getLegalBasisDossierId(),
+                dossier.getPublicId(),
                 LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
                 true,
                 "LEGAL_REQUESTED_SUPPLEMENTATION",
@@ -437,7 +437,7 @@ public class LegalBasisReviewService {
                 !LegalBasisReviewStatus.FRESH.name().equals(dossier.getReviewStatus());
 
         return new LegalBasisReviewResponse(
-                dossierId,
+                dossier.getPublicId(),
                 dossier.getReviewStatus(),
                 reviewRequired,
                 "SNAPSHOT_MATCHES",
@@ -510,7 +510,7 @@ public class LegalBasisReviewService {
         }
 
         return new LegalBasisReviewResponse(
-                dossier.getLegalBasisDossierId(),
+                dossier.getPublicId(),
                 dossier.getReviewStatus(),
                 true,
                 reasonCode,
@@ -588,7 +588,7 @@ public class LegalBasisReviewService {
                 RULE_ID));
 
         return new LegalBasisReviewResponse(
-                dossierId,
+                dossier.getPublicId(),
                 LegalBasisReviewStatus.FRESH.name(),
                 false,
                 "REVIEW_COMPLETED",
@@ -653,3 +653,4 @@ public class LegalBasisReviewService {
                 + String.valueOf(row.description());
     }
 }
+

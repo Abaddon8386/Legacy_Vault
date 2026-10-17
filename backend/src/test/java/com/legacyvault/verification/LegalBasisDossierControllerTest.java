@@ -1,4 +1,3 @@
-
 package com.legacyvault.verification;
 
 import com.legacyvault.auth.JwtService;
@@ -53,6 +52,9 @@ class LegalBasisDossierControllerTest {
     private static final UUID CASE_ID =
             UUID.fromString("6f1a4c2d-0000-4000-8000-000000000001");
 
+    private static final UUID DOSSIER_ID =
+            UUID.fromString("7a2b5d3e-0000-4000-8000-000000000001");
+
     private static final String URL =
             "/api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier";
 
@@ -72,7 +74,7 @@ class LegalBasisDossierControllerTest {
 
     private static final LegalBasisReviewResponse REVIEW_RESPONSE =
             new LegalBasisReviewResponse(
-                    100L,
+                    DOSSIER_ID,
                     "FRESH",
                     false,
                     "REVIEW_COMPLETED",
@@ -325,7 +327,7 @@ class LegalBasisDossierControllerTest {
                 "{\"reason\":\"Đã kiểm tra hồ sơ\"}",
                 legal())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.dossierId").value(100))
+                .andExpect(jsonPath("$.dossierId").value(DOSSIER_ID.toString()))
                 .andExpect(jsonPath("$.reviewStatus").value("FRESH"))
                 .andExpect(jsonPath("$.reasonCode").value("REVIEW_COMPLETED"));
 
@@ -394,7 +396,7 @@ class LegalBasisDossierControllerTest {
             throws Exception {
         LegalBasisReviewResponse response =
                 new LegalBasisReviewResponse(
-                        100L,
+                        DOSSIER_ID,
                         "REVIEW_REQUIRED",
                         true,
                         "LEGAL_REQUESTED_SUPPLEMENTATION",
