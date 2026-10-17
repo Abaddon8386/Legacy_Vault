@@ -471,7 +471,7 @@ describe('PS-5 Asset Service & Contract Validation Tests', () => {
       const t = getAssetTranslations(undefined, 'vi');
       assert.ok(t.assets);
       assert.equal(t.assets.title, 'Danh sách Tài sản');
-      assert.equal(t.assets.types.TEXT, 'Ghi chú riêng tư');
+      assert.equal(t.assets.types.TEXT, 'Ghi chú văn bản bảo mật');
       assert.equal(t.assets.types.CREDENTIAL, 'Thông tin xác thực');
       assert.ok(t.assets.alerts.UNAUTHENTICATED);
       assert.ok(t.assets.alerts.VAULT_ACCESS_DENIED);
@@ -485,7 +485,7 @@ describe('PS-5 Asset Service & Contract Validation Tests', () => {
       const t = getAssetTranslations(undefined, 'en');
       assert.ok(t.assets);
       assert.equal(t.assets.title, 'Asset Inventory');
-      assert.equal(t.assets.types.TEXT, 'Private Note');
+      assert.equal(t.assets.types.TEXT, 'Secured Text Note');
       assert.equal(t.assets.types.CREDENTIAL, 'Credentials');
       assert.ok(t.assets.alerts.UNAUTHENTICATED);
       assert.ok(t.assets.alerts.NETWORK_ERROR);
@@ -543,6 +543,104 @@ describe('PS-5 Asset Service & Contract Validation Tests', () => {
       );
       assert.equal(results2.length, 1);
       assert.equal(results2[0].id, '1');
+    });
+  });
+
+  describe('revealAsset (PS-6 Reveal API)', () => {
+    const validAssetId = '11111111-1111-1111-1111-111111111111';
+
+    it('rejects call if vaultId is invalid', async () => {
+      await assert.rejects(
+        () => assetService.revealAsset('invalid', validAssetId, 'Password123'),
+        { code: 'VAULT_REQUIRED' }
+      );
+    });
+
+    it('rejects call if assetId is invalid', async () => {
+      await assert.rejects(
+        () => assetService.revealAsset(mockVaultId, 'invalid', 'Password123'),
+        { code: 'ASSET_REQUIRED' }
+      );
+    });
+
+    it('rejects call if password is empty or too long', async () => {
+      await assert.rejects(
+        () => assetService.revealAsset(mockVaultId, validAssetId, ''),
+        { code: 'VALIDATION_FAILED' }
+      );
+      await assert.rejects(
+        () => assetService.revealAsset(mockVaultId, validAssetId, 'x'.repeat(73)),
+        { code: 'VALIDATION_FAILED' }
+      );
+    });
+
+    it('successfully calls reveal and returns payload', async () => {
+      globalThis.fetch = async (url, init) => {
+        assert.ok(url.endsWith(`/vaults/${mockVaultId}/assets/${validAssetId}/reveal`));
+        assert.equal(init.method, 'POST');
+        assert.deepEqual(JSON.parse(init.body), { password: 'MyPassword' });
+        assert.equal(init.headers.Authorization, 'Bearer token123');
+        return new Response(
+          JSON.stringify({ id: validAssetId, payload: 'Secret Note Content' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      };
+
+      const result = await assetService.revealAsset(mockVaultId, validAssetId, 'MyPassword', {
+        accessToken: 'token123',
+      });
+      assert.equal(result.id, validAssetId);
+      assert.equal(result.payload, 'Secret Note Content');
+    });
+
+    it('propagates REAUTH_FAILED (403) and does not map to UNAUTHENTICATED', async () => {
+      globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({ code: 'REAUTH_FAILED', status: 403, message: 'Sai mật khẩu.' }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
+        );
+
+      await assert.rejects(
+        () => assetService.revealAsset(mockVaultId, validAssetId, 'WrongPassword'),
+        (err) => {
+          assert.equal(err.status, 403);
+          assert.equal(err.code, 'REAUTH_FAILED');
+          return true;
+        }
+      );
+    });
+
+    it('propagates TOO_MANY_ATTEMPTS (429)', async () => {
+      globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({ code: 'TOO_MANY_ATTEMPTS', status: 429, message: 'Quá số lần.' }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } }
+        );
+
+      await assert.rejects(
+        () => assetService.revealAsset(mockVaultId, validAssetId, 'AnyPassword'),
+        (err) => {
+          assert.equal(err.status, 429);
+          assert.equal(err.code, 'TOO_MANY_ATTEMPTS');
+          return true;
+        }
+      );
+    });
+
+    it('propagates VAULT_NOT_EDITABLE (409)', async () => {
+      globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({ code: 'VAULT_NOT_EDITABLE', status: 409 }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } }
+        );
+
+      await assert.rejects(
+        () => assetService.revealAsset(mockVaultId, validAssetId, 'AnyPassword'),
+        (err) => {
+          assert.equal(err.status, 409);
+          return true;
+        }
+      );
     });
   });
 });

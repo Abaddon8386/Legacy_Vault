@@ -47,5 +47,22 @@ export const assetService = {
   if (formData.description && formData.description.length>1000) throw bad('Description exceeds 1000 characters');
   const body={name,assetType:formData.assetType,description:formData.description?.trim()||null,payload:formData.payload};
   return readAsset(await request(`/vaults/${vaultId}/assets`, {...options,method:'POST',expectedStatus:201,body}),vaultId);
+ },
+ async revealAsset(vaultId, assetId, password, options = {}) {
+  context(vaultId);
+  if (!isUuid(assetId)) throw bad('Asset UUID required', 'ASSET_REQUIRED');
+  if (typeof password !== 'string' || !password || password.length > 72) {
+    throw bad('Password is required and must not exceed 72 characters', 'VALIDATION_FAILED');
+  }
+  const data = await request(`/vaults/${vaultId}/assets/${assetId}/reveal`, {
+    ...options,
+    method: 'POST',
+    expectedStatus: 200,
+    body: { password },
+  });
+  if (data?.id !== assetId || typeof data?.payload !== 'string') {
+    throw new ApiError('INVALID_RESPONSE', 200);
+  }
+  return { id: data.id, payload: data.payload };
  }
 };

@@ -161,11 +161,15 @@ export function AssetFormModal({
                 </option>
               ))}
             </select>
-            {errors.assetType && (
+            {errors.assetType ? (
               <p className="lv-form-error" role="alert">
                 <AlertCircle size={14} /> {t.assets.validation[errors.assetType]}
               </p>
-            )}
+            ) : formData.assetType ? (
+              <span className="lv-form-hint" style={{ marginTop: '6px', display: 'block' }}>
+                {formData.assetType === 'TEXT' ? t.assets.addModal.typeDescText : t.assets.addModal.typeDescCredential}
+              </span>
+            ) : null}
           </div>
 
           {/* Confidential Payload (Write-Only) */}
@@ -214,6 +218,22 @@ export function AssetFormModal({
                 <AlertCircle size={14} /> {t.assets.validation[errors.description]}
               </p>
             )}
+          </div>
+
+          {/* Non-blocking Beneficiary Vault Configuration Notice */}
+          <div
+            style={{
+              padding: '10px 14px',
+              backgroundColor: '#fbf7ee',
+              border: '1px solid #e7d8b8',
+              borderRadius: 'var(--lv-radius-control, 10px)',
+              fontSize: '12.5px',
+              color: '#775722',
+              lineHeight: 1.5,
+              margin: '12px 0 16px',
+            }}
+          >
+            <span>{t.assets.addModal.beneficiaryHint}</span>
           </div>
 
           {/* Actions */}

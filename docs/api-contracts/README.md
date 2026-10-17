@@ -24,6 +24,9 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [trustees.md](trustees.md) | Trustee (tùy chọn) | PS-19 |
 | [beneficiaries.md](beneficiaries.md) | Beneficiary + kiểm tra điều kiện cấu hình | PS-20, PS-21 |
 | [dms.md](dms.md) | Cấu hình/check-in DMS, scheduler TRIGGERED + Grace | PS-22, PS-23 |
+| [staff-verification.md](staff-verification.md) | Ca xác minh của Staff: hàng đợi, nhận ca, ghi nhận giấy tờ khai tử và di chúc gốc | PS-34, PS-35, PS-38, PS-39 |
+| [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
+| [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
 
@@ -41,7 +44,8 @@ Mỗi endpoint ghi: **quyền** (ai gọi được) · **ownership** (dữ liệ
 - DB là SQL Server nhưng contract **không phụ thuộc** chi tiết SQL (tên bảng/cột, kiểu dữ liệu riêng của DB).
 - Không có endpoint cho chức năng đã bãi bỏ: Guest Portal (`/api/v1/guest/*`), Claim Link, OTP email, eKYC online,
   `SCOPE_RETRIEVAL` (xem `.claude/rules/obsolete-scope.md`).
-- Sprint 1 **không** có API mở khóa/giải mã/bàn giao: DMS hết hạn **không** đồng nghĩa tử vong (LV-DEATH-001).
+- Sprint 1 **không** có API mở khóa/bàn giao, và không có giải mã cho ai khác ngoài **chính Owner** xem lại dữ liệu của mình
+  sau khi nhập lại mật khẩu khi kho còn `ACTIVE` (D-API-32/33). DMS hết hạn **không** đồng nghĩa tử vong (LV-DEATH-001).
 
 ## Quy trình thay đổi contract
 

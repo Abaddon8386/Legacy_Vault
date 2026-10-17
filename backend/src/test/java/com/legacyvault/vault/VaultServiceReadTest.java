@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.legacyvault.dms.DmsConfigRepository;
+import com.legacyvault.verification.repository.VerificationCaseRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
@@ -44,7 +46,10 @@ class VaultServiceReadTest {
 			"stranger@example.com");
 
 	private final VaultRepository vaultRepository = mock(VaultRepository.class);
-	private final VaultService vaultService = new VaultService(vaultRepository, mock(AuditService.class));
+	private final AuditService auditService = mock(AuditService.class);
+	private final DmsConfigRepository dmsConfigRepository = mock(DmsConfigRepository.class);
+	private final VerificationCaseRepository verificationCaseRepository = mock(VerificationCaseRepository.class);
+	private final VaultService vaultService = new VaultService(vaultRepository, auditService, dmsConfigRepository, verificationCaseRepository);
 
 	private static Vault storedVault(String status) {
 		Vault vault = new Vault();

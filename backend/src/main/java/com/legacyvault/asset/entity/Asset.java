@@ -111,6 +111,11 @@ public class Asset {
 		return encryptedPayload != null;
 	}
 
+	/** Dữ liệu đã mã hóa để giải mã (chỉ cho luồng Owner xác nhận lại mật khẩu); null nếu chưa có payload. */
+	public EncryptedData encryptedPayload() {
+		return encryptedPayload == null ? null : new EncryptedData(encryptedPayload, encryptionIv, encryptionKeyVersion);
+	}
+
 	public Long getAssetId() {
 		return assetId;
 	}

@@ -10,21 +10,19 @@ import ErrorState from '../../components/common/ErrorState.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import CreateVaultModal from '../../components/vault/CreateVaultModal.jsx';
 import LivingHeritageWave from '../../components/vault/LivingHeritageWave.jsx';
+import VaultSummary from '../../components/vault/VaultSummary.jsx';
 import './VaultOverviewPage.css';
 
-const formatVaultId = (rawId, lang = 'vi') => {
-  if (!rawId) return lang === 'en' ? 'Unassigned' : 'Chưa có mã';
-  const cleanId = String(rawId).replace(/^vlt-/, '').toUpperCase();
-  return cleanId.startsWith('#') ? cleanId : `#VLT-${cleanId}`;
-};
 
 export default function VaultOverviewPage({
   lang = 'vi',
   accessToken,
+  ownerId,
   onUnauthorized,
   showDevToolbar = false,
   onNavigateToLogin,
   onRefreshTrigger,
+  onNavigate,
 }) {
   const [vault, setVault] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,34 +31,9 @@ export default function VaultOverviewPage({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [notification, setNotification] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [copiedId, setCopiedId] = useState(false);
   const heroCardRef = useRef(null);
   const createControllerRef = useRef(null);
   useEffect(() => () => createControllerRef.current?.abort(), []);
-
-  const handleCopyId = useCallback(async (idToCopy) => {
-    if (!idToCopy) return;
-    try {
-      let copySuccess = false;
-      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(String(idToCopy));
-        copySuccess = true;
-      } else if (typeof document !== 'undefined') {
-        const textArea = document.createElement('textarea');
-        textArea.value = String(idToCopy);
-        document.body.appendChild(textArea);
-        textArea.select();
-        copySuccess = document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
-      if (copySuccess) {
-        setCopiedId(true);
-        setTimeout(() => setCopiedId(false), 2000);
-      }
-    } catch {
-      // Graceful fallback: do not indicate copied if failed
-    }
-  }, []);
 
   // Hero Card background cursor spotlight handler — purely decorative background layer
   const handleHeroMouseMove = useCallback((e) => {
@@ -174,8 +147,8 @@ export default function VaultOverviewPage({
     setIsModalOpen(false);
     setNotification(
       lang === 'en'
-        ? 'Heritage vault initialized successfully (Status ACTIVE).'
-        : 'Kho di sản số đã được khởi tạo thành công (Trạng thái ACTIVE).'
+        ? 'Heritage vault initialized successfully.'
+        : 'Kho di sản số đã được khởi tạo thành công.'
     );
     setTimeout(() => setNotification(''), 4000);
   };
@@ -183,11 +156,9 @@ export default function VaultOverviewPage({
   const content = {
     vi: {
       overviewEyebrow: 'KHO DI SẢN SỐ',
-      vaultIdLabel: 'Mã định danh kho:',
       createdLabel: 'Khởi tạo:',
       ownerRoleLabel: 'Chủ sở hữu:',
       ownerRoleVal: 'Chủ sở hữu cá nhân',
-      securityLabel: 'Bảo vệ dữ liệu:',
       overviewHeading: 'Tổng quan Kho di sản',
       statusHeading: 'Trạng thái vận hành:',
       createAnotherNotice:
@@ -198,11 +169,9 @@ export default function VaultOverviewPage({
     },
     en: {
       overviewEyebrow: 'HERITAGE VAULT',
-      vaultIdLabel: 'Vault ID:',
       createdLabel: 'Initialized:',
       ownerRoleLabel: 'Ownership:',
       ownerRoleVal: 'Personal Vault Owner',
-      securityLabel: 'Data Protection:',
       overviewHeading: 'Heritage Sanctuary Overview',
       statusHeading: 'Operational Status:',
       createAnotherNotice:
@@ -286,45 +255,6 @@ export default function VaultOverviewPage({
               {/* Metadata Badges Bar */}
               <div className="lv-vault-meta-grid">
                 <div className="lv-meta-item">
-                  <span className="lv-meta-label">{t.vaultIdLabel}</span>
-                  <div className="lv-meta-id-wrap">
-                    <span
-                      className="lv-meta-value lv-mono"
-                      title={
-                        vault.id
-                          ? (lang === 'en' ? `Full Vault ID: ${vault.id}` : `Mã kho đầy đủ: ${vault.id}`)
-                          : (lang === 'en' ? 'No ID assigned yet' : 'Chưa được cấp mã định danh')
-                      }
-                    >
-                      {formatVaultId(vault.id, lang)}
-                    </span>
-                    {Boolean(vault.id) && (
-                      <button
-                        type="button"
-                        className="lv-id-copy-btn"
-                        onClick={() => handleCopyId(vault.id)}
-                        title={
-                          copiedId
-                            ? (lang === 'en' ? 'Copied full ID!' : 'Đã sao chép mã đầy đủ!')
-                            : (lang === 'en' ? `Copy full ID: ${vault.id}` : `Sao chép mã đầy đủ: ${vault.id}`)
-                        }
-                        aria-label={lang === 'en' ? 'Copy full Vault ID' : 'Sao chép mã kho đầy đủ'}
-                      >
-                        {copiedId ? (
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        ) : (
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="lv-meta-item">
                   <span className="lv-meta-label">{t.createdLabel}</span>
                   <span className="lv-meta-value">
                     {vault.created_at
@@ -339,14 +269,7 @@ export default function VaultOverviewPage({
                   <span className="lv-meta-label">{t.ownerRoleLabel}</span>
                   <span className="lv-meta-value">{t.ownerRoleVal}</span>
                 </div>
-                <div className="lv-meta-item">
-                  <span className="lv-meta-label">{t.securityLabel}</span>
-                  <span className="lv-meta-value">
-                    {vault.isSimulation
-                      ? (lang === 'en' ? 'Not verified' : 'Chưa xác minh')
-                      : (lang === 'en' ? 'Not verified' : 'Chưa xác minh')}
-                  </span>
-                </div>
+
               </div>
             </div>
 
@@ -357,6 +280,8 @@ export default function VaultOverviewPage({
           </section>
 
           {/* 1:1 Ownership Policy Footnote — Quiet, balanced editorial policy */}
+          {/* Overview Resource & Operational Summary */}
+          <VaultSummary onNavigate={onNavigate} vaultId={vault.id} ownerId={ownerId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} refreshKey={onRefreshTrigger} isSimulation={vault.isSimulation} />
           <footer className="lv-vault-policy-footer">
             <p className="lv-policy-text">{t.createAnotherNotice}</p>
           </footer>

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.legacyvault.asset.dto.AssetResponse;
+import com.legacyvault.asset.dto.AssetSecretResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
 import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.entity.Asset;
@@ -23,6 +24,7 @@ import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.crypto.EncryptionService;
+import com.legacyvault.common.security.PasswordReauthService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.web.PageResponse;
@@ -42,13 +44,15 @@ public class AssetService {
 	private final VaultService vaultService;
 	private final EncryptionService encryptionService;
 	private final AuditService auditService;
+	private final PasswordReauthService reauthService;
 
 	public AssetService(AssetRepository assetRepository, VaultService vaultService,
-			EncryptionService encryptionService, AuditService auditService) {
+			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService) {
 		this.assetRepository = assetRepository;
 		this.vaultService = vaultService;
 		this.encryptionService = encryptionService;
 		this.auditService = auditService;
+		this.reauthService = reauthService;
 	}
 
 	@Transactional
@@ -116,6 +120,28 @@ public class AssetService {
 		auditService.record(new AuditEvent(AuditAction.ASSET_UPDATED, AuditActorType.USER, ownerUserId, vault.getVaultId(),
 				ENTITY_ASSET, saved.getAssetId(), null, null, null, Map.of("changedFields", changedFields), "ST-02", null));
 		return AssetResponse.from(saved, vault.getPublicId());
+	}
+
+	/**
+	 * Xem nội dung bảo mật (D-API-32): chỉ Owner của kho, kho còn {@code ACTIVE} và nhập đúng mật khẩu hiện tại.
+	 * Thứ tự kiểm tra: ownership (404) -> trạng thái kho (409) -> mật khẩu/giới hạn (403/429), nên người lạ không thể
+	 * dùng việc dò mật khẩu để biết Asset có tồn tại. Giải mã chỉ trong bộ nhớ; audit không ghi nội dung.
+	 */
+	@Transactional
+	public AssetSecretResponse revealAsset(UUID vaultId, UUID assetId, Long ownerUserId, String password) {
+		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		Asset asset = requireAsset(vault, assetId);
+		reauthService.requirePassword(ownerUserId, vault.getVaultId(), password);
+
+		if (!asset.hasPayload()) {
+			throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+		}
+		String payload = encryptionService.decrypt(asset.encryptedPayload(), associatedData(asset));
+
+		auditService.record(new AuditEvent(AuditAction.ASSET_REVEALED, AuditActorType.USER, ownerUserId, vault.getVaultId(),
+				ENTITY_ASSET, asset.getAssetId(), null, null, null, Map.of("assetType", asset.getAssetType().name()), "ST-02",
+				null));
+		return new AssetSecretResponse(asset.getPublicId(), payload);
 	}
 
 	/** Asset không tồn tại, thuộc Vault khác, hoặc là di chúc -> cùng 404 (D-API-07). */

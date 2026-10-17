@@ -10,9 +10,9 @@ import {
   getDmsMessage,
 } from '../../utils/dmsService.js';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
-import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import MagneticButton from '../../components/common/MagneticButton.jsx';
+import OwnerCancelAlert from '../../components/dms/OwnerCancelAlert.jsx';
 import './DMSOverviewPage.css';
 
 export default function DMSOverviewPage({
@@ -23,7 +23,12 @@ export default function DMSOverviewPage({
   isDevPreview = false,
   showDevToolbar = false, // Kept for prop compatibility, but no toolbar is ever rendered
   onNavigateToLogin,
-  onRefreshTrigger,
+  onRefreshTrigger, // Numeric counter from parent context, used as dependency
+  onRequestRefreshParent, // Optional callback function for refreshing parent/app state
+  canCancelAlert,
+  customCancelCapability,
+  onCancelAlert,
+  isOwner = true,
 }) {
   const [dmsData, setDmsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -225,7 +230,7 @@ export default function DMSOverviewPage({
   const content = {
     vi: {
       eyebrow: 'GIÁM SÁT HOẠT ĐỘNG ĐỊNH KỲ',
-      pageTitle: "Giám sát hoạt động (Dead Man's Switch)",
+      pageTitle: "Giám sát hoạt động",
       pageSubtitle:
         'Thiết lập chu kỳ kiểm tra định kỳ để hệ thống theo dõi tín hiệu hiện diện và chủ động bảo vệ kho di sản của bạn.',
       infoBtnLabel: 'Thông tin bảo vệ di sản',
@@ -327,13 +332,10 @@ export default function DMSOverviewPage({
   if (loading) {
     return (
       <div className="lv-dms-page">
-        <LoadingState
-          message={
-            lang === 'en'
-              ? 'Loading vitality monitoring records…'
-              : 'Đang tải dữ liệu giám sát hoạt động…'
-          }
-        />
+        <div className="lv-dms-skeleton" role="status" aria-busy="true" aria-live="polite">
+          <span>{lang === 'en' ? 'Loading activity monitoring…' : 'Đang tải thông tin giám sát hoạt động…'}</span>
+          <div aria-hidden="true" /><div aria-hidden="true" />
+        </div>
       </div>
     );
   }
@@ -376,7 +378,6 @@ export default function DMSOverviewPage({
       <header className="lv-dms-header lv-dms-stagger" style={{ '--stagger': 0 }}>
         <div className="lv-dms-header-top-row">
           <div className="lv-dms-header-titles">
-            <span className="lv-dms-eyebrow">{t.eyebrow}</span>
             <div className="lv-dms-title-row">
               <h1 className="lv-dms-title">{t.pageTitle}</h1>
               {/* Discrete Info Popover Toggle */}
@@ -407,7 +408,7 @@ export default function DMSOverviewPage({
                         type="button"
                         className="lv-dms-info-popover-close"
                         onClick={() => setShowInfoPopover(false)}
-                        aria-label="Đóng"
+                        aria-label={lang === 'en' ? 'Close' : 'Đóng'}
                       >
                         ✕
                       </button>
@@ -417,32 +418,10 @@ export default function DMSOverviewPage({
                 )}
               </div>
             </div>
-            <p className="lv-dms-subtitle">{t.pageSubtitle}</p>
+            <p className="lv-dms-subtitle">{lang === 'en' ? 'Your check-in schedule and activity confirmations.' : 'Theo dõi lịch kiểm tra và xác nhận bạn vẫn đang hoạt động.'}</p>
           </div>
         </div>
       </header>
-
-      {/* TRIGGERED / GRACE PERIOD Alert Banner */}
-      {isTriggered && (
-        <section className="lv-dms-triggered-banner lv-dms-stagger" style={{ '--stagger': 1 }} role="alert" aria-live="polite">
-          <div className="lv-dms-triggered-icon" aria-hidden="true">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </div>
-          <div className="lv-dms-triggered-content">
-            <h2 className="lv-dms-triggered-title">{t.triggeredAlertTitle}</h2>
-            <p className="lv-dms-triggered-desc">{t.triggeredAlertDesc}</p>
-            {dmsData.graceDeadline && (
-              <span className="lv-dms-triggered-deadline-tag">
-                {t.triggeredDeadlinePrefix} {formatDmsDate(dmsData.graceDeadline, lang)}
-              </span>
-            )}
-          </div>
-        </section>
-      )}
 
       {/* Main Content Area */}
       {isNotConfigured && !isConfiguringNew ? (
@@ -488,11 +467,6 @@ export default function DMSOverviewPage({
                 </div>
                 <div className="lv-dms-badge-group">
                   <div className="lv-dms-status-badge-wrap">
-                    {dmsData.status === 'MONITORING' ? (
-                      <span className="lv-dms-status-pulse-dot" aria-hidden="true" />
-                    ) : isTriggered ? (
-                      <span className="lv-dms-status-triggered-dot" aria-hidden="true" />
-                    ) : null}
                     <StatusBadge status={dmsData.status} lang={lang} />
                   </div>
                   {dmsData.isSimulation && (
@@ -501,27 +475,54 @@ export default function DMSOverviewPage({
                 </div>
               </div>
 
+      {/* TRIGGERED / GRACE PERIOD Alert Banner */}
+      {isTriggered && (
+        <section className="lv-dms-triggered-banner lv-dms-stagger" style={{ '--stagger': 1 }} role="alert" aria-live="polite">
+          <div className="lv-dms-triggered-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className="lv-dms-triggered-content">
+            <h2 className="lv-dms-triggered-title">{t.triggeredAlertTitle}</h2>
+            <p className="lv-dms-triggered-desc">{t.triggeredAlertDesc}</p>
+            <div className="lv-dms-triggered-actions-row">
+              {dmsData.graceDeadline && (
+                <span className="lv-dms-triggered-deadline-tag">
+                  {t.triggeredDeadlinePrefix} {formatDmsDate(dmsData.graceDeadline, lang)}
+                </span>
+              )}
+              {/* PS-24: Owner Cancel Alert action */}
+              <OwnerCancelAlert
+                lang={lang}
+                dmsStatus={dmsData.status}
+                canCancel={canCancelAlert}
+                customCapability={customCancelCapability}
+                isOwner={isOwner}
+                isDevPreview={isDevPreview}
+                ownerId={dmsData?.ownerId || ownerId}
+                onCancelAlert={onCancelAlert}
+                onSuccess={() => {
+                  setCheckInNotice('SUCCESS');
+                }}
+                onRefreshRequired={() => {
+                  handleManualRetry();
+                  if (typeof onRequestRefreshParent === 'function') {
+                    return onRequestRefreshParent();
+                  }
+                }}
+                onUnauthorized={onUnauthorized}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+
               {/* Read-Only Summary Metric Cards */}
               <div className="lv-dms-metrics-grid">
-                {/* Metric 1: Trạng thái theo dõi */}
-                <div className="lv-dms-metric-item">
-                  <span className="lv-dms-metric-label">{t.metricStatus}</span>
-                  <div className="lv-dms-metric-value-row">
-                    <span className="lv-dms-metric-value">
-                      {dmsData.status === 'MONITORING'
-                        ? (lang === 'en' ? 'Monitoring' : 'Đang theo dõi')
-                        : isTriggered
-                        ? (lang === 'en' ? 'Triggered (Grace)' : 'Kích hoạt chờ phản hồi')
-                        : dmsData.status}
-                    </span>
-                  </div>
-                  <span className="lv-dms-metric-sub">
-                    {dmsData.status === 'MONITORING'
-                      ? (lang === 'en' ? 'Active check-in countdown running' : 'Bộ đếm chu kỳ đang hoạt động')
-                      : (lang === 'en' ? 'Pending response or grace countdown' : 'Chờ phản hồi trong thời gian ân hạn')}
-                  </span>
-                </div>
-
                 {/* Metric 2: Next Check-in Deadline */}
                 <div className="lv-dms-metric-item">
                   <span className="lv-dms-metric-label">{t.metricNextCheck}</span>
@@ -558,38 +559,7 @@ export default function DMSOverviewPage({
                 </div>
               </div>
 
-              {/* Cycle Timeline / Progress Indicator with visible animation */}
-              {cycleProgress !== null && (
-                <div className="lv-dms-cycle-timeline">
-                  <div className="lv-dms-cycle-timeline-header">
-                    <span className="lv-dms-cycle-timeline-label">{t.cycleProgressTitle}</span>
-                    <span className="lv-dms-cycle-timeline-percent">{cycleProgress}% {t.cycleProgressElapsed}</span>
-                  </div>
-                  <div
-                    className="lv-dms-cycle-progress-track"
-                    role="progressbar"
-                    aria-valuenow={cycleProgress}
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    aria-label={t.cycleProgressTitle}
-                  >
-                    <div
-                      className="lv-dms-cycle-progress-bar"
-                      style={{ width: `${animatedProgress}%` }}
-                    />
-                  </div>
-                  <div className="lv-dms-cycle-timeline-bounds">
-                    <span>{formatDmsDate(dmsData.lastCheckInAt, lang)}</span>
-                    <span>{formatDmsDate(dmsData.nextCheckAt, lang)}</span>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Dedicated Vitality Action Card */}
-          {dmsData && (
-            <section className="lv-dms-card lv-dms-action-card lv-dms-stagger" style={{ '--stagger': 2 }} aria-labelledby="dms-action-heading">
+            <div className="lv-dms-action-card" role="group" aria-labelledby="dms-action-heading">
               <div className="lv-dms-action-card-inner">
                 <div className="lv-dms-action-text-col">
                   <div className="lv-dms-action-icon-wrap" aria-hidden="true">
@@ -621,6 +591,34 @@ export default function DMSOverviewPage({
                   </MagneticButton>
                 </div>
               </div>
+            </div>
+
+              {/* Cycle Timeline / Progress Indicator with visible animation */}
+              {cycleProgress !== null && (
+                <div className="lv-dms-cycle-timeline">
+                  <div className="lv-dms-cycle-timeline-header">
+                    <span className="lv-dms-cycle-timeline-label">{t.cycleProgressTitle}</span>
+                    <span className="lv-dms-cycle-timeline-percent">{cycleProgress}% {t.cycleProgressElapsed}</span>
+                  </div>
+                  <div
+                    className="lv-dms-cycle-progress-track"
+                    role="progressbar"
+                    aria-valuenow={cycleProgress}
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-label={t.cycleProgressTitle}
+                  >
+                    <div
+                      className="lv-dms-cycle-progress-bar"
+                      style={{ width: `${animatedProgress}%` }}
+                    />
+                  </div>
+                  <div className="lv-dms-cycle-timeline-bounds">
+                    <span>{formatDmsDate(dmsData.lastCheckInAt, lang)}</span>
+                    <span>{formatDmsDate(dmsData.nextCheckAt, lang)}</span>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

@@ -100,6 +100,11 @@ public class AssetVersion {
 		this.encryptionKeyVersion = data.keyVersion();
 	}
 
+	/** Dữ liệu đã mã hóa của file (chỉ cho luồng Owner xác nhận lại mật khẩu để mở file). */
+	public EncryptedData encryptedContent() {
+		return new EncryptedData(encryptedFileContent, encryptionIv, encryptionKeyVersion);
+	}
+
 	public Long getAssetVersionId() {
 		return assetVersionId;
 	}

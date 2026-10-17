@@ -3,6 +3,7 @@ package com.legacyvault.will;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -33,6 +34,7 @@ import com.legacyvault.common.crypto.EncryptedData;
 import com.legacyvault.common.crypto.EncryptionService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
+import com.legacyvault.common.security.PasswordReauthService;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.service.VaultService;
 import com.legacyvault.will.dto.WillResponse;
@@ -43,6 +45,7 @@ import com.legacyvault.will.repository.AssetVersionRepository;
 import com.legacyvault.will.repository.LegalDocumentRepository;
 import com.legacyvault.will.repository.WillAssetRepository;
 import com.legacyvault.will.repository.WillVersionView;
+import com.legacyvault.will.service.WillFileDownload;
 import com.legacyvault.will.service.WillService;
 
 /** PS-17/PS-18 ở tầng service: UPLOADED không phải LEGAL_APPROVED, version + SHA-256, mã hóa, audit, ownership. */
@@ -62,8 +65,9 @@ class WillServiceTest {
 	private final EncryptionService encryptionService = new EncryptionService(
 			Base64.getEncoder().encodeToString(new byte[32]), "v1");
 	private final AuditService auditService = mock(AuditService.class);
+	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final WillService willService = new WillService(willAssetRepository, versionRepository,
-			legalDocumentRepository, vaultService, encryptionService, auditService, 10_485_760);
+			legalDocumentRepository, vaultService, encryptionService, auditService, reauthService, 10_485_760);
 
 	private static Vault vault() {
 		Vault vault = new Vault();
@@ -273,5 +277,106 @@ class WillServiceTest {
 				.extracting(ex -> ((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
 		assertThatThrownBy(() -> willService.listVersions(VAULT_ID, UUID.randomUUID(), 2L))
 				.extracting(ex -> ((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+	}
+
+	// ---------- D-API-33: mở/tải nội dung file sau khi nhập lại mật khẩu ----------
+
+	private final UUID willPublicId = storedWill().getPublicId();
+
+	/** Tải lên bằng chính service để có AssetVersion mã hóa đúng như production rồi trả về bản đã lưu. */
+	private AssetVersion uploadedVersion(byte[] content) {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		willService.uploadWill(VAULT_ID, OWNER_ID, pdf(content), null);
+		ArgumentCaptor<AssetVersion> saved = ArgumentCaptor.forClass(AssetVersion.class);
+		verify(versionRepository).save(saved.capture());
+		org.mockito.Mockito.clearInvocations(auditService, versionRepository);
+		return saved.getValue();
+	}
+
+	/** Dựng Asset di chúc trong DB giả với đúng publicId mà test sẽ truyền vào service. */
+	private void willAndVersionExist(AssetVersion version) {
+		Asset will = storedWill();
+		ReflectionTestUtils.setField(will, "publicId", willPublicId);
+		when(willAssetRepository.findWill(willPublicId, VAULT_DB_ID)).thenReturn(Optional.of(will));
+		when(versionRepository.findByAssetIdAndVersionNo(WILL_DB_ID, version.getVersionNo()))
+				.thenReturn(Optional.of(version));
+	}
+
+	private static ErrorCode codeOf(Throwable ex) {
+		return ((BusinessException) ex).getErrorCode();
+	}
+
+	@Test
+	void open_returnsOriginalBytes_afterPasswordCheck_andAuditsIntegrityOnly() {
+		AssetVersion version = uploadedVersion(PDF_V1);
+		willAndVersionExist(version);
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+
+		WillFileDownload file = willService.openVersion(VAULT_ID, willPublicId, 1, OWNER_ID, "MatKhau@123");
+
+		assertThat(file.content()).isEqualTo(PDF_V1);
+		assertThat(file.contentType()).isEqualTo("application/pdf");
+		assertThat(file.sha256()).isEqualTo(version.getSha256Hash());
+		verify(reauthService).requirePassword(OWNER_ID, VAULT_DB_ID, "MatKhau@123");
+
+		ArgumentCaptor<AuditEvent> audit = ArgumentCaptor.forClass(AuditEvent.class);
+		verify(auditService).record(audit.capture());
+		AuditEvent event = audit.getValue();
+		assertThat(event.action()).isEqualTo(AuditAction.WILL_FILE_OPENED);
+		assertThat(event.stepId()).isEqualTo("ST-03");
+		assertThat(event.ruleId()).isEqualTo("LV-WILL-001");
+		assertThat(event.context()).containsEntry("version", 1).containsEntry("sha256", version.getSha256Hash());
+		assertThat(event.context().toString()).doesNotContain("di-chuc.pdf", "MatKhau@123", "ban scan");
+		assertThat(file.toString()).doesNotContain("ban scan");
+	}
+
+	@Test
+	void open_withWrongPassword_neverAudits() {
+		AssetVersion version = uploadedVersion(PDF_V1);
+		willAndVersionExist(version);
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		doThrow(new BusinessException(ErrorCode.REAUTH_FAILED)).when(reauthService)
+				.requirePassword(OWNER_ID, VAULT_DB_ID, "sai");
+
+		assertThatThrownBy(() -> willService.openVersion(VAULT_ID, willPublicId, 1, OWNER_ID, "sai"))
+				.satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.REAUTH_FAILED));
+		verifyNoInteractions(auditService);
+	}
+
+	@Test
+	void open_onFrozenVault_isRejectedBeforeAnythingElse() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
+
+		assertThatThrownBy(() -> willService.openVersion(VAULT_ID, UUID.randomUUID(), 1, OWNER_ID, "x"))
+				.satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VAULT_NOT_EDITABLE));
+		verifyNoInteractions(reauthService, willAssetRepository, versionRepository, auditService);
+	}
+
+	@Test
+	void open_unknownWillOrVersion_isNotFound_andPasswordIsNeverChecked() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		Asset will = storedWill();
+		ReflectionTestUtils.setField(will, "publicId", willPublicId);
+		when(willAssetRepository.findWill(willPublicId, VAULT_DB_ID)).thenReturn(Optional.of(will));
+		when(versionRepository.findByAssetIdAndVersionNo(WILL_DB_ID, 9)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> willService.openVersion(VAULT_ID, UUID.randomUUID(), 1, OWNER_ID, "x"))
+				.satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+		assertThatThrownBy(() -> willService.openVersion(VAULT_ID, willPublicId, 9, OWNER_ID, "x"))
+				.satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+		verifyNoInteractions(reauthService, auditService);
+	}
+
+	@Test
+	void open_refusesToServeContentThatNoLongerMatchesItsRecordedHash() {
+		AssetVersion version = uploadedVersion(PDF_V1);
+		ReflectionTestUtils.setField(version, "sha256Hash", "0".repeat(64));
+		willAndVersionExist(version);
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+
+		assertThatThrownBy(() -> willService.openVersion(VAULT_ID, willPublicId, 1, OWNER_ID, "x"))
+				.isInstanceOf(IllegalStateException.class);
+		verifyNoInteractions(auditService);
 	}
 }
