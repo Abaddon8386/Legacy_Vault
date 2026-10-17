@@ -30,6 +30,7 @@ test('Landing renders six 3D faces, supports pause and language, and navigates t
   const view = await mount(Landing, { onLogin: () => login++, onRegister: () => register++ });
   try {
     assert.equal(view.host.querySelectorAll('.lv-landing-face').length, 6);
+    assert.match(view.host.querySelector('#plans').textContent, /Các gói đề xuất để tham khảo/);
     await act(async () => view.host.querySelector('.lv-landing-login').click());
     await act(async () => view.host.querySelector('.lv-landing-primary').click());
     assert.equal(login, 1); assert.equal(register, 1);
@@ -40,5 +41,6 @@ test('Landing renders six 3D faces, supports pause and language, and navigates t
     assert.equal(view.host.querySelector('.lv-landing-float.is-paused'), null);
     await act(async () => view.host.querySelector('.lv-landing-language').click());
     assert.match(view.host.querySelector('h1').textContent, /A lifetime of stories/);
+    assert.match(view.host.querySelector('#plans').textContent, /Proposed plans for reference/);
   } finally { await view.close(); }
 });
