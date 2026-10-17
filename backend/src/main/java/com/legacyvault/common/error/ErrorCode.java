@@ -26,6 +26,8 @@ public enum ErrorCode {
 	VERIFICATION_CASE_NOT_OPEN(409, "error.verificationCase.notOpen"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
 	PAYLOAD_TOO_LARGE(413, "error.request.payloadTooLarge"),
+	ASSET_QUOTA_EXCEEDED(409, "error.subscription.assetQuotaExceeded"),
+	STORAGE_QUOTA_EXCEEDED(409, "error.subscription.storageQuotaExceeded"),
 	UNSUPPORTED_MEDIA_TYPE(415, "error.request.unsupportedMediaType"),
 	TOO_MANY_ATTEMPTS(429, "error.auth.tooManyAttempts"),
 	INTERNAL_ERROR(500, "error.internal");

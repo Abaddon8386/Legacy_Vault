@@ -72,3 +72,10 @@ vì mật khẩu nằm trong body (không đưa vào URL/log); không thay đổ
 
 Tạo/liệt kê/xem/cập nhật thành công · validation (tên rỗng, loại sai) · `payload` không xuất hiện trong bất kỳ response nào ·
 không log `payload` hay mật khẩu · `reveal`: đúng mật khẩu trả `payload`, sai → 403, vượt giới hạn → 429, kho đóng băng → 409 · ownership (Vault/Asset người khác → 404; role sai → 403) · 401 · chỉ trường hợp lệ được đổi.
+
+## PS-77 — quota nội dung
+
+Tạo Asset tăng một đơn vị count và số byte payload UTF-8; thay payload tính chênh lệch byte.
+Mọi Asset còn lưu kể cả DOCUMENT được tính, không chỉ các hàng trong endpoint danh sách này.
+409 `ASSET_QUOTA_EXCEEDED` / `STORAGE_QUOTA_EXCEEDED` dùng shared ApiError và vi/en.
+Không tăng usage vẫn phải thỏa ownership/trạng thái. Chi tiết: [subscriptions.md](subscriptions.md).

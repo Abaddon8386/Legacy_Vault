@@ -37,6 +37,8 @@ import com.legacyvault.will.repository.AssetVersionRepository;
 import com.legacyvault.will.repository.LegalDocumentRepository;
 import com.legacyvault.will.repository.WillAssetRepository;
 import com.legacyvault.will.repository.WillVersionView;
+import com.legacyvault.subscription.service.OwnerQuotaService;
+import com.legacyvault.subscription.service.QuotaPolicy.Delta;
 
 /**
  * Bản số hóa di chúc (PS-17, PS-18 — ST-03, LV-WILL-001).
@@ -65,11 +67,12 @@ public class WillService {
 	private final AuditService auditService;
 	private final PasswordReauthService reauthService;
 	private final long maxFileBytes;
+	private final OwnerQuotaService quotas;
 
 	public WillService(WillAssetRepository willAssetRepository, AssetVersionRepository versionRepository,
 			LegalDocumentRepository legalDocumentRepository, VaultService vaultService,
 			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService,
-			@Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes) {
+			@Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes, OwnerQuotaService quotas) {
 		this.willAssetRepository = willAssetRepository;
 		this.versionRepository = versionRepository;
 		this.legalDocumentRepository = legalDocumentRepository;
@@ -78,13 +81,17 @@ public class WillService {
 		this.auditService = auditService;
 		this.reauthService = reauthService;
 		this.maxFileBytes = maxFileBytes;
+		this.quotas = quotas;
 	}
 
 	/** PS-17: tạo hồ sơ di chúc mới với phiên bản 1. */
 	@Transactional
 	public WillResponse uploadWill(UUID vaultId, Long ownerUserId, MultipartFile file, String note) {
+		quotas.lockOwner(ownerUserId);
 		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
 		WillFile willFile = WillFile.inspect(file, maxFileBytes);
+		quotas.requireFileSize(willFile.size());
+		quotas.requireGrowth(ownerUserId, new Delta(1, willFile.size()));
 
 		Asset will = willAssetRepository.save(new Asset(vault.getVaultId(), AssetType.DOCUMENT,
 				truncate(willFile.fileName(), MAX_TITLE_LENGTH), normalize(note)));
@@ -99,10 +106,13 @@ public class WillService {
 	/** PS-18: thêm phiên bản mới cho hồ sơ di chúc đã có; phiên bản cũ không bị sửa. */
 	@Transactional
 	public WillResponse addVersion(UUID vaultId, UUID willId, Long ownerUserId, MultipartFile file) {
+		quotas.lockOwner(ownerUserId);
 		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
 		Asset will = willAssetRepository.findWillForUpdate(willId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		WillFile willFile = WillFile.inspect(file, maxFileBytes);
+		quotas.requireFileSize(willFile.size());
+		quotas.requireGrowth(ownerUserId, new Delta(0, willFile.size()));
 
 		int nextVersion = versionRepository.findMaxVersionNo(will.getAssetId()) + 1;
 		AssetVersion version = storeVersion(will, nextVersion, willFile, ownerUserId);

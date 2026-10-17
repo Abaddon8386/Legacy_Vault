@@ -67,7 +67,8 @@ class WillServiceTest {
 	private final AuditService auditService = mock(AuditService.class);
 	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final WillService willService = new WillService(willAssetRepository, versionRepository,
-			legalDocumentRepository, vaultService, encryptionService, auditService, reauthService, 10_485_760);
+			legalDocumentRepository, vaultService, encryptionService, auditService, reauthService, 10_485_760,
+			mock(com.legacyvault.subscription.service.OwnerQuotaService.class));
 
 	private static Vault vault() {
 		Vault vault = new Vault();

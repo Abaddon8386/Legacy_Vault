@@ -49,7 +49,8 @@ class VaultServiceReadTest {
 	private final AuditService auditService = mock(AuditService.class);
 	private final DmsConfigRepository dmsConfigRepository = mock(DmsConfigRepository.class);
 	private final VerificationCaseRepository verificationCaseRepository = mock(VerificationCaseRepository.class);
-	private final VaultService vaultService = new VaultService(vaultRepository, auditService, dmsConfigRepository, verificationCaseRepository);
+	private final VaultService vaultService = new VaultService(vaultRepository, auditService, dmsConfigRepository, verificationCaseRepository,
+			mock(com.legacyvault.user.repository.OwnerWriteLockRepository.class));
 
 	private static Vault storedVault(String status) {
 		Vault vault = new Vault();

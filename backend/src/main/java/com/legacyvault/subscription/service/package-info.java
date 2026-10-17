@@ -1,14 +1,13 @@
 /**
- * PS-77 experimental pure domain calculations, not wired into Spring, HTTP, persistence or writers.
+ * PS-77 catalog, default BASIC entitlement, real Owner usage and transactional content quotas.
  *
- * <p>Review assumptions before integration: grants use [from, until); each quota dimension permits
- * non-increasing usage while over its limit. These are proposed semantics, not approved API contracts.
- * Callers must supply authorized non-overlapping finite grants and the fallback plan; indefinite paid
- * grants and overlap precedence are intentionally unsupported pending policy decisions.
+ * <p>Approved measurement: binary byte units, all retained Assets including DOCUMENT, UTF-8 payload
+ * content and every retained file version. Writers serialize on the existing Owner account before
+ * taking resource locks and keep quota checks, data and audit in the same transaction. Each dimension
+ * permits non-increasing usage while over quota; this never grants authorization or bypasses legal guards.
  *
- * <p>No calendar-month calculation, plan prices, MB/GB conversion, asset-type counting, payload-size
- * measurement, legal evidence allocation, backfill, authorization or database locking is implemented.
- * A quota decision does not grant permission to write or bypass ownership/legal guards. Future writers
- * must derive usage/delta from real data and evaluate under the same Owner lock as the atomic write.
+ * <p>Paid grant authority, periods and legal evidence allocation remain unresolved. No paid assignment,
+ * grant endpoint, automatic renewal or calendar scheduler is enabled. EffectivePlanResolver remains
+ * a standalone proposed finite-interval calculation; it is not a source of paid production entitlement.
  */
 package com.legacyvault.subscription.service;

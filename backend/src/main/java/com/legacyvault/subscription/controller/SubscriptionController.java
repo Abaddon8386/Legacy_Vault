@@ -1,0 +1,25 @@
+package com.legacyvault.subscription.controller;
+
+import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.subscription.dto.SubscriptionDtos.*;
+import com.legacyvault.subscription.service.OwnerQuotaService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+
+@RestController
+@PreAuthorize("hasRole('VAULT_OWNER')")
+public class SubscriptionController {
+    private final OwnerQuotaService quotas;
+    public SubscriptionController(OwnerQuotaService quotas) { this.quotas = quotas; }
+
+    @GetMapping("/api/v1/subscription-plans")
+    public List<Plan> catalog() { return quotas.catalog(); }
+
+    @GetMapping("/api/v1/subscriptions/me")
+    public Current current(@AuthenticationPrincipal CustomUserPrincipal principal) {
+        return quotas.current(CustomUserPrincipal.requireUserId(principal));
+    }
+}

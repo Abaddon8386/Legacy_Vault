@@ -22,11 +22,46 @@ tags:
   - name: Staff
   - name: Beneficiaries
   - name: DMS
+  - name: Subscriptions
 
 security:
   - bearerAuth: []
 
 paths:
+  /api/v1/subscription-plans:
+    get:
+      tags: [Subscriptions]
+      summary: Catalog gói sử dụng (PS-77)
+      description: Quyền ROLE_VAULT_OWNER. Catalog paid chỉ để so sánh, không cấp quyền sử dụng paid.
+      x-status: implemented
+      responses:
+        '200':
+          description: Ba gói theo giới hạn tài sản tăng dần. Byte nhị phân; giá VND/tháng.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubscriptionPlan' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/subscriptions/me:
+    get:
+      tags: [Subscriptions]
+      summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
+      description: |
+        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Chưa có Vault vẫn 200 với usage 0.
+        Hiện mọi Owner có BASIC mặc định, chưa có API cấp paid hoặc kỳ hạn paid.
+        Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
+        Quota evidence pháp lý chưa được chốt và chưa ghép vào usage này.
+      x-status: implemented
+      responses:
+        '200':
+          description: Snapshot gói/usage dưới cùng khóa Owner.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentSubscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /api/v1/system/ping:
     get:
       tags: [System]
@@ -137,7 +172,10 @@ paths:
     post:
       tags: [Vaults]
       summary: Tạo Vault (PS-12, ST-02)
-      description: Chủ sở hữu lấy từ Security Context. Mọi trường `ownerId`/`status` trong body bị bỏ qua.
+      description: |
+        Chủ sở hữu lấy từ Security Context. Mọi trường `ownerId`/`status` trong body bị bỏ qua.
+        Mỗi Owner chỉ từng tạo thành công một Vault trong suốt vòng đời, bất kể trạng thái/gói.
+        Request đồng thời được serialize; lần tạo thứ hai trả 409 VAULT_ALREADY_EXISTS.
       x-status: designed
       requestBody:
         required: true
@@ -219,7 +257,9 @@ paths:
     post:
       tags: [Assets]
       summary: Tạo Asset (PS-15, ST-02)
-      description: '`payload` chỉ ghi, mã hóa phía server, không bao giờ có trong response.'
+      description: |
+        `payload` chỉ ghi, mã hóa phía server, không có trong response tạo Asset.
+        Count mọi Asset còn lưu kể cả DOCUMENT; vượt quota trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED (PS-77).
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -280,7 +320,9 @@ paths:
     patch:
       tags: [Assets]
       summary: Cập nhật một phần Asset (PS-16, D-API-24)
-      description: Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+      description: |
+        Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+        Payload tính quota theo chênh lệch byte UTF-8; tăng vượt storage trả 409 STORAGE_QUOTA_EXCEEDED (PS-77).
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -338,7 +380,9 @@ paths:
       summary: Upload bản số hóa di chúc (PS-17, ST-03)
       description: |
         Trạng thái chỉ `UPLOADED`; không bao giờ `LEGAL_APPROVED`. SHA-256 chỉ phát hiện thay đổi,
-        không chứng minh giá trị pháp lý. Loại file: PDF/JPEG/PNG, ≤ 10 MB, cấu hình được (D-API-14).
+        không chứng minh giá trị pháp lý. Loại file: PDF/JPEG/PNG, tối đa 10485760 byte.
+        Một Will mới chiếm một Asset; mọi file version còn lưu đều tính storage (PS-77).
+        Tăng vượt quota trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -405,6 +449,7 @@ paths:
     post:
       tags: [Wills]
       summary: Tải phiên bản mới, giữ phiên bản cũ (PS-18)
+      description: Tính dung lượng mọi version còn lưu; thêm version không tăng count Asset. Vượt storage trả 409 STORAGE_QUOTA_EXCEEDED (PS-77).
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -1035,7 +1080,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
     Conflict:
-      description: Xung đột trạng thái/dữ liệu (ví dụ VAULT_NOT_EDITABLE, TRUSTEE_ALREADY_EXISTS, DMS_NOT_MONITORING)
+      description: Xung đột trạng thái/dữ liệu (VAULT_NOT_EDITABLE, TRUSTEE_ALREADY_EXISTS, DMS_NOT_MONITORING, ASSET_QUOTA_EXCEEDED, STORAGE_QUOTA_EXCEEDED)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
@@ -1061,6 +1106,41 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    SubscriptionLimits:
+      type: object
+      required: [assetCount, storageBytes, fileBytes]
+      properties:
+        assetCount: { type: integer, format: int64, minimum: 1 }
+        storageBytes: { type: integer, format: int64, minimum: 1, description: Byte nội dung theo đơn vị nhị phân }
+        fileBytes: { type: integer, format: int64, minimum: 1 }
+    SubscriptionPlan:
+      type: object
+      required: [code, version, monthlyPriceVnd, limits]
+      properties:
+        code: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        version: { type: integer, minimum: 1 }
+        monthlyPriceVnd: { type: integer, format: int64, minimum: 0 }
+        limits: { $ref: '#/components/schemas/SubscriptionLimits' }
+    CurrentSubscription:
+      type: object
+      required: [effectivePlan, effectiveUntil, usage, overQuota, vaultCreated, evaluatedAt]
+      properties:
+        effectivePlan: { $ref: '#/components/schemas/SubscriptionPlan' }
+        effectiveUntil: { type: string, format: date-time, nullable: true, description: BASIC không hết hạn }
+        usage:
+          type: object
+          required: [assetCount, storageBytes]
+          properties:
+            assetCount: { type: integer, format: int64, minimum: 0 }
+            storageBytes: { type: integer, format: int64, minimum: 0 }
+        overQuota:
+          type: object
+          required: [assets, storage]
+          properties:
+            assets: { type: boolean }
+            storage: { type: boolean }
+        vaultCreated: { type: boolean }
+        evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
     ApiError:
       type: object
       required: [timestamp, status, code, messageKey, message, path, traceId, errors]
@@ -1080,6 +1160,8 @@ components:
             - METHOD_NOT_ALLOWED
             - EMAIL_ALREADY_EXISTS
             - PAYLOAD_TOO_LARGE
+            - ASSET_QUOTA_EXCEEDED
+            - STORAGE_QUOTA_EXCEEDED
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
             - BENEFICIARY_REQUIRED

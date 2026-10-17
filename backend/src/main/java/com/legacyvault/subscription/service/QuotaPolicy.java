@@ -2,7 +2,7 @@ package com.legacyvault.subscription.service;
 
 import java.util.Objects;
 
-/** Proposed PS-77 delta policy. Pure calculation; not a production authorization/quota guard. */
+/** PS-77 delta calculation. The transactional OwnerQuotaService supplies real usage and limits. */
 public final class QuotaPolicy {
     public record Usage(long assets, long bytes) {
         public Usage {

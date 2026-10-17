@@ -46,7 +46,8 @@ class VaultCancelAlertTest {
                 vaultRepository,
                 auditService,
                 dmsConfigRepository,
-                verificationCaseRepository
+                verificationCaseRepository,
+                mock(com.legacyvault.user.repository.OwnerWriteLockRepository.class)
         );
     }
 

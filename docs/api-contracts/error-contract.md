@@ -62,6 +62,8 @@ Lỗi validation:
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
+| `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
+| `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |

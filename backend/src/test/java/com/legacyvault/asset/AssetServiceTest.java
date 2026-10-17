@@ -61,7 +61,7 @@ class AssetServiceTest {
 	private final AuditService auditService = mock(AuditService.class);
 	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final AssetService assetService = new AssetService(assetRepository, vaultService, encryptionService,
-			auditService, reauthService);
+			auditService, reauthService, mock(com.legacyvault.subscription.service.OwnerQuotaService.class));
 
 	private static Vault vault() {
 		Vault vault = new Vault();

@@ -25,6 +25,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [beneficiaries.md](beneficiaries.md) | Beneficiary + kiểm tra điều kiện cấu hình | PS-20, PS-21 |
 | [dms.md](dms.md) | Cấu hình/check-in DMS, scheduler TRIGGERED + Grace | PS-22, PS-23 |
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
+| [subscriptions.md](subscriptions.md) | Catalog, BASIC mặc định, usage thật, quota content và một kho suốt đời; chưa cấp paid | PS-77 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
 
 ## Cách đọc một endpoint
