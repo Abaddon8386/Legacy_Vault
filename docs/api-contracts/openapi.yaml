@@ -1251,6 +1251,33 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
+    post:
+      tags: [Legal]
+      summary: Legal đưa hồ sơ về ON_HOLD để xét lại bằng phiên bản mới (PS-48)
+      description: Chỉ LEGAL_VERIFIER; giữ nguyên lịch sử và phiên bản. Không unlock/handover.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HoldBasisRequest' }
+      responses:
+        '200':
+          description: Hồ sơ ON_HOLD cùng requiredVersion để nộp lại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1386,6 +1413,12 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    HoldBasisRequest:
+      type: object
+      required: [cause, reason]
+      properties:
+        cause: { type: string, enum: [NEW_DISPUTE, INSUFFICIENT_EVIDENCE] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
     CourtDecisionRequest:
       type: object
       required: [version, result, reason]
@@ -1778,6 +1811,7 @@ components:
     BasisDossierResponse:
       type: object
       properties:
+        requiredVersion: { type: integer, minimum: 1, description: Minimum new version required after a hold }
         id: { type: string, format: uuid }
         caseId: { type: string, format: uuid }
         route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }

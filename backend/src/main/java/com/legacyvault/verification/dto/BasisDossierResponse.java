@@ -18,6 +18,7 @@ public record BasisDossierResponse(
         UUID classifiedBy,
         Instant createdAt,
         Instant updatedAt,
-        List<BasisVersionResponse> versions
+        List<BasisVersionResponse> versions,
+        int requiredVersion
 ) {
 }

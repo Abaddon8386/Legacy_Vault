@@ -57,6 +57,9 @@ public class LegalBasisDossier {
     @Column(name = "dispute_status", nullable = false, length = 20)
     private String disputeStatus;
 
+    @Column(name = "required_version_no", nullable = false)
+    private int requiredVersionNo = 1;
+
     @Column(name = "created_by_user_id", nullable = false, updatable = false)
     private Long createdByUserId;
 
@@ -109,7 +112,7 @@ public class LegalBasisDossier {
 
     /**
      * LV-HOLD-001: Legal phân loại lại hồ sơ đang ON_HOLD sang NOTARIAL/COURT. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và
-     * COURT không bao giờ bị đổi lẫn nhau (D-LEGAL-002). Người phân loại hiện hành được cập nhật.
+     * COURT không đổi trực tiếp lẫn nhau (D-LEGAL-002). Người phân loại hiện hành được cập nhật.
      */
     public void reclassify(String newRoute, String newReason, String newDisputeStatus, Long legalUserId) {
         if (!ROUTE_ON_HOLD.equals(route) || !STATUS_DRAFT.equals(status)
@@ -125,6 +128,19 @@ public class LegalBasisDossier {
     public boolean acceptsIntake() {
         return ROUTE_NOTARIAL.equals(route) || ROUTE_COURT.equals(route);
     }
+
+    /** A hold invalidates earlier clearance while preserving all versions and assessment history. */
+    public void placeOnHold(String reason, String dispute, Long legalUserId, int requiredVersion) {
+        if (!acceptsIntake() || requiredVersion < 1) throw new IllegalStateException("Invalid hold transition");
+        route = ROUTE_ON_HOLD;
+        status = STATUS_DRAFT;
+        routeReason = reason;
+        disputeStatus = dispute;
+        classifiedByUserId = legalUserId;
+        requiredVersionNo = Math.max(requiredVersionNo, requiredVersion);
+    }
+
+    public int getRequiredVersionNo() { return requiredVersionNo; }
 
     public Long getLegalBasisDossierId() {
         return legalBasisDossierId;

@@ -27,7 +27,7 @@ import java.util.UUID;
 
 /**
  * PS-43 (ST-16, LV-HOLD-001): Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (chưa đủ thông tin) sang NOTARIAL hoặc COURT khi đã
- * có đủ chứng cứ. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và COURT không đổi lẫn nhau, dù Trustee đổi lời khai (D-LEGAL-002).
+ * có đủ chứng cứ. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và COURT không đổi trực tiếp lẫn nhau, dù Trustee đổi lời khai (D-LEGAL-002).
  * Phân loại cũ được lưu vào lịch sử, không ghi đè. Vault ON_HOLD -> AWAITING_LEGAL_BASIS (qua LEGAL_BASIS_CLASSIFICATION).
  * Thứ tự khóa Vault -> ca -> hồ sơ.
  */

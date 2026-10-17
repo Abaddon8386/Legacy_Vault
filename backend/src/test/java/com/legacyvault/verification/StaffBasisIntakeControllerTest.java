@@ -52,7 +52,7 @@ class StaffBasisIntakeControllerTest {
     private static final String URL = "/api/v1/staff/verification-cases/{caseId}/basis-dossier";
     private static final BasisDossierResponse DOSSIER = new BasisDossierResponse(UUID.randomUUID(), CASE_ID,
             "NOTARIAL", "LEGAL_BASIS_PROVIDED", "NONE", null, UUID.randomUUID(), Instant.parse("2026-10-04T10:00:00Z"),
-            Instant.parse("2026-10-04T10:00:00Z"), List.of());
+            Instant.parse("2026-10-04T10:00:00Z"), List.of(), 1);
 
     @Autowired
     private MockMvc mockMvc;

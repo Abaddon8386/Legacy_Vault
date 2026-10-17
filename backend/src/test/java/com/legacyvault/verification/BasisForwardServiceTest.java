@@ -37,6 +37,7 @@ import com.legacyvault.verification.repository.LegalBasisDossierVersionRepositor
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.BasisForwardService;
 
 /** PS-42 (ST-19): chỉ phiên bản mới nhất được chuyển Legal; phiên bản cũ bị phân biệt và vẫn được giữ. */
@@ -56,7 +57,7 @@ class BasisForwardServiceTest {
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
     private final BasisForwardService service = new BasisForwardService(staffCases, caseRepository, vaultRepository,
-            dossiers, versions, views, auditService);
+            dossiers, versions, views, auditService, mock(LegalBasisLockedState.class));
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
