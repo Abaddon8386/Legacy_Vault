@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import com.legacyvault.asset.controller.AssetController;
 import com.legacyvault.asset.dto.AssetResponse;
+import com.legacyvault.asset.dto.AssetSecretResponse;
 import com.legacyvault.asset.dto.CreateAssetRequest;
 import com.legacyvault.asset.dto.UpdateAssetRequest;
 import com.legacyvault.asset.entity.AssetType;
@@ -374,6 +375,66 @@ class AssetControllerTest {
 				.andExpect(status().isForbidden());
 		mockMvc.perform(patch("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID)
 				.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"x\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	// ---------- PS-16: POST .../reveal (xem nội dung bảo mật) ----------
+
+	private ResultActions reveal(String json, RequestPostProcessor who) throws Exception {
+		return mockMvc.perform(post("/api/v1/vaults/{vaultId}/assets/{assetId}/reveal", VAULT_ID, ASSET_ID).with(who)
+				.contentType(MediaType.APPLICATION_JSON).content(json));
+	}
+
+	private static String pw(String value) {
+		return "{\"password\":\"" + value + "\"}";
+	}
+
+	@Test
+	void reveal_returnsPayloadWithNoStore_andNeverLogsPasswordOrSecret(CapturedOutput output) throws Exception {
+		when(assetService.revealAsset(VAULT_ID, ASSET_ID, OWNER.userId(), "MatKhau@123"))
+				.thenReturn(new AssetSecretResponse(ASSET_ID, SECRET));
+
+		reveal(pw("MatKhau@123"), owner())
+				.andExpect(status().isOk())
+				.andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+				.andExpect(jsonPath("$.id").value(ASSET_ID.toString()))
+				.andExpect(jsonPath("$.payload").value(SECRET));
+
+		assertThat(output.getAll()).doesNotContain(SECRET).doesNotContain("MatKhau@123");
+	}
+
+	@Test
+	void reveal_blankOrMissingOrTooLongPassword_returns400_withoutCallingService() throws Exception {
+		reveal("{}", owner()).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[?(@.field=='password')].code").value("NOT_BLANK"));
+		reveal(pw("   "), owner()).andExpect(status().isBadRequest());
+		reveal(pw("a".repeat(73)), owner()).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[?(@.field=='password')].code").value("SIZE"));
+		verifyNoInteractions(assetService);
+	}
+
+	@Test
+	void reveal_mapsWrongPassword403_lockout429_frozen409_otherUsers404_wrongRole403_noLogin401() throws Exception {
+		when(assetService.revealAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), eq("sai")))
+				.thenThrow(new BusinessException(ErrorCode.REAUTH_FAILED));
+		when(assetService.revealAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), eq("khoa")))
+				.thenThrow(new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS));
+		when(assetService.revealAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), eq("dong-bang")))
+				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
+		when(assetService.revealAsset(eq(VAULT_ID), eq(ASSET_ID), eq(2L), any()))
+				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		reveal(pw("sai"), owner()).andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("REAUTH_FAILED"));
+		reveal(pw("khoa"), owner()).andExpect(status().isTooManyRequests())
+				.andExpect(jsonPath("$.code").value("TOO_MANY_ATTEMPTS"));
+		reveal(pw("dong-bang"), owner()).andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("VAULT_NOT_EDITABLE"));
+		reveal(pw("x"), as(new CustomUserPrincipal(2L, UUID.randomUUID(), "user@example.com"), "VAULT_OWNER"))
+				.andExpect(status().isNotFound());
+		reveal(pw("x"), as(OWNER, "BENEFICIARY")).andExpect(status().isForbidden());
+		mockMvc.perform(post("/api/v1/vaults/{vaultId}/assets/{assetId}/reveal", VAULT_ID, ASSET_ID)
+				.contentType(MediaType.APPLICATION_JSON).content(pw("x")))
 				.andExpect(status().isUnauthorized());
 	}
 }

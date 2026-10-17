@@ -64,4 +64,15 @@ public class VaultController {
     ) {
         return vaultService.listVaults(principal, page, size);
     }
+
+
+    @PostMapping("/{vaultId}/cancel-alert")
+    @PreAuthorize("hasRole('VAULT_OWNER')")
+    public VaultResponse cancelAlert(
+            @PathVariable UUID vaultId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return vaultService.cancelAlert(vaultId, principal);
+    }
+
 }

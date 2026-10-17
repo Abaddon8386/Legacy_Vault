@@ -1,0 +1,569 @@
+/* ==========================================================================
+   Legal Basis Route Selection Stylesheet — LegacyVault (PS-30 / ST-16 / LV-BASIS-001)
+   Art Direction: Henedo Style (Forest Green, Sand Gold, Warm Canvas)
+   Sync with Application Shell Layout
+   All selectors strictly scoped under .lv-basis-route-view to prevent leaking into Owner or other Legal views
+   ========================================================================== */
+
+.lv-basis-route-view {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   Page Title Area
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-legal-title-area {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lv-basis-route-view .lv-legal-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 28px;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 0 6px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.lv-basis-route-view .lv-legal-subtitle {
+  color: var(--lv-text-muted, #6b726b);
+  font-size: 14.5px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   Regulatory Warning Banner (LV-BASIS-001)
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-basis-warning-banner {
+  background-color: #fffbf0;
+  border: 1px solid rgba(197, 160, 89, 0.45);
+  border-left: 4px solid var(--lv-accent-gold, #c5a059);
+  border-radius: 12px;
+  padding: 18px 22px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  box-shadow: 0 1px 4px rgba(22, 70, 57, 0.02);
+}
+
+.lv-basis-route-view .lv-basis-warning-banner__icon {
+  color: #b5832a;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-basis-route-view .lv-basis-warning-banner__body {
+  flex: 1;
+}
+
+.lv-basis-route-view .lv-basis-warning-banner__title {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #7a5510;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lv-basis-route-view .lv-basis-warning-banner__body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #42361e;
+}
+
+/* --------------------------------------------------------------------------
+   Docket Information & Server State Section
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-docket-card {
+  background: #ffffff;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 14px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 8px rgba(22, 70, 57, 0.02);
+}
+
+.lv-basis-route-view .lv-docket-card__header h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 0 16px;
+}
+
+.lv-basis-route-view .lv-docket-unconnected-box {
+  border: 1px dashed var(--lv-border-medium, #ded9ce);
+  border-radius: 10px;
+  background: #faf8f5;
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.lv-basis-route-view .lv-docket-unconnected-icon {
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 auto 10px;
+  display: block;
+}
+
+.lv-basis-route-view .lv-docket-unconnected-box h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lv-text-heading, #1f2421);
+  margin: 0 0 6px;
+}
+
+.lv-basis-route-view .lv-docket-unconnected-box p {
+  font-size: 13.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.lv-basis-route-view .lv-docket-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  background: #faf8f5;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+.lv-basis-route-view .lv-docket-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-basis-route-view .lv-docket-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-heading, #1f2421);
+}
+
+.lv-basis-route-view .lv-docket-status-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lv-basis-route-view .lv-docket-value-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  background-color: #eef4f1;
+  border: 1px solid rgba(22, 70, 57, 0.15);
+  border-radius: 6px;
+  padding: 6px 12px;
+  width: fit-content;
+}
+
+.lv-basis-route-view .lv-docket-value-unloaded {
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+  font-style: italic;
+}
+
+.lv-basis-route-view .lv-docket-status-note {
+  font-size: 12px;
+  color: #828a84;
+  font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   Basis Route Selection Form Card
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-form-card {
+  background: #ffffff;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 14px;
+  padding: 28px 28px;
+  box-shadow: 0 2px 8px rgba(22, 70, 57, 0.02);
+}
+
+.lv-basis-route-view .lv-form-card__header h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 0 4px;
+}
+
+.lv-basis-route-view .lv-form-card__header p {
+  font-size: 13.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 0 0 24px;
+}
+
+/* --------------------------------------------------------------------------
+   Form Controls
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-form-group {
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lv-basis-route-view .lv-form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lv-text-heading, #1f2421);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.lv-basis-route-view .lv-form-label--required::after {
+  content: ' *';
+  color: #b42318;
+  font-weight: 700;
+}
+
+.lv-basis-route-view .lv-form-hint {
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin-bottom: 8px;
+  line-height: 1.4;
+  display: block;
+}
+
+.lv-basis-route-view .lv-form-input,
+.lv-basis-route-view .lv-form-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--lv-text-heading, #1f2421);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.lv-basis-route-view .lv-form-input:focus,
+.lv-basis-route-view .lv-form-textarea:focus {
+  border-color: var(--lv-accent-gold, #c5a059);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2);
+}
+
+.lv-basis-route-view .lv-form-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   Route Choice Cards Grid (NOTARIAL / COURT / ON_HOLD)
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-route-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.lv-basis-route-view .lv-route-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1.5px solid var(--lv-border-medium, #ded9ce);
+  border-radius: 10px;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.lv-basis-route-view .lv-route-card input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lv-basis-route-view .lv-route-card:hover {
+  border-color: var(--lv-border-hover, #baa375);
+  background-color: #fdfcf9;
+  transform: translateY(-1px);
+}
+
+.lv-basis-route-view .lv-route-card--active {
+  border-color: var(--lv-brand-forest, #164639);
+  background-color: #fbf9f4;
+  box-shadow: 0 0 0 1px var(--lv-brand-forest, #164639), 0 2px 8px rgba(22, 70, 57, 0.06);
+}
+
+.lv-basis-route-view .lv-route-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-basis-route-view .lv-route-card__radio-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--lv-border-hover, #baa375);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.lv-basis-route-view .lv-route-card__radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--lv-brand-forest, #164639);
+}
+
+.lv-basis-route-view .lv-route-card__title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--lv-text-heading, #1f2421);
+}
+
+.lv-basis-route-view .lv-route-card__desc {
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------------------------
+   Audit & History Area
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-audit-card {
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 10px;
+  background-color: #faf8f5;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.lv-basis-route-view .lv-audit-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin-bottom: 12px;
+}
+
+.lv-basis-route-view .lv-audit-no-data-box {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  color: #555d56;
+  font-size: 13px;
+}
+
+.lv-basis-route-view .lv-audit-no-data-box strong {
+  color: var(--lv-text-heading, #1f2421);
+  display: block;
+}
+
+.lv-basis-route-view .lv-audit-no-data-box p {
+  margin: 2px 0 0;
+  color: #788279;
+  font-size: 12.5px;
+}
+
+.lv-basis-route-view .lv-current-user-info {
+  font-size: 13px;
+  color: #555d56;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lv-basis-route-view .lv-current-user-label {
+  font-weight: 500;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-basis-route-view .lv-current-user-value {
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-basis-route-view .lv-current-user-note {
+  font-size: 12px;
+  color: #828a84;
+  font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   Action Buttons Row & Validation Feedback
+   -------------------------------------------------------------------------- */
+.lv-basis-route-view .lv-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-basis-route-view .lv-form-actions__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lv-basis-route-view .lv-btn-submit-disabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #e6e2da;
+  color: #828a84;
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: 8px;
+  padding: 12px 22px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: not-allowed;
+  transition: opacity 0.2s;
+}
+
+.lv-basis-route-view .lv-btn-validate-local {
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  border-radius: 8px;
+  padding: 12px 22px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.lv-basis-route-view .lv-btn-validate-local:hover {
+  background-color: #0f352b;
+  border-color: #0f352b;
+  transform: translateY(-1px);
+}
+
+.lv-basis-route-view .lv-btn-validate-local:active {
+  transform: translateY(0);
+}
+
+.lv-basis-route-view .lv-btn-reset {
+  display: inline-flex;
+  align-items: center;
+  background-color: #ffffff;
+  color: var(--lv-brand-forest, #164639);
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.lv-basis-route-view .lv-btn-reset:hover {
+  border-color: var(--lv-border-hover, #baa375);
+  background-color: #faf8f5;
+}
+
+.lv-basis-route-view .lv-action-helper-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #828a84;
+}
+
+.lv-basis-route-view .lv-validation-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.lv-basis-route-view .lv-validation-feedback--success {
+  background-color: #edf7ed;
+  color: #1e4620;
+  border: 1px solid #c8e6c9;
+}
+
+.lv-basis-route-view .lv-validation-feedback--error {
+  background-color: #fdf2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.lv-basis-route-view .lv-form-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #b42318;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Design (Tablet & Mobile down to 390px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .lv-basis-route-view .lv-form-card,
+  .lv-basis-route-view .lv-docket-card {
+    padding: 20px 16px;
+  }
+
+  .lv-basis-route-view .lv-route-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lv-basis-route-view .lv-form-actions__row {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .lv-basis-route-view .lv-form-actions__row button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lv-basis-route-view .lv-legal-title {
+    font-size: 24px;
+  }
+
+  .lv-basis-route-view .lv-basis-warning-banner {
+    padding: 14px 16px;
+  }
+}

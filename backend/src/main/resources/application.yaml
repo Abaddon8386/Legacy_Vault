@@ -54,6 +54,10 @@ legacyvault:
     key: ${LEGACYVAULT_ENCRYPTION_KEY}
     # Ghi vào cột encryption_key_version để giải mã đúng khóa khi xoay khóa.
     key-version: ${LEGACYVAULT_ENCRYPTION_KEY_VERSION:v1}
+  reauth:
+    # Xác nhận lại mật khẩu trước khi xem nội dung bảo mật (D-API-32/33). Giá trị mặc định do Dương đề xuất, cần nhóm xác nhận.
+    max-failed-attempts: ${LEGACYVAULT_REAUTH_MAX_FAILED_ATTEMPTS:5}
+    window-minutes: ${LEGACYVAULT_REAUTH_WINDOW_MINUTES:15}
   asset:
     # Giới hạn payload Asset tính theo byte UTF-8 (D-API-29, mặc định 64 KB).
     max-payload-bytes: 65536

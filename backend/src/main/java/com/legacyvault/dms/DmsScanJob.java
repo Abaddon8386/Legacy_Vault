@@ -27,13 +27,30 @@ public class DmsScanJob {
 	@Scheduled(fixedDelayString = "${legacyvault.dms.scheduler.fixed-delay-ms:60000}")
 	public void scanExpiredConfigs() {
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
 		List<Long> expiredIds = configs.findExpiredIds(now, PageRequest.of(0, BATCH_SIZE));
+
 		for (Long configId : expiredIds) {
 			try {
 				processor.triggerIfExpired(configId, now);
 			} catch (RuntimeException ex) {
-				log.error("DMS scan skipped one config; configId={}, causeType={}", configId,
-						ex.getClass().getSimpleName());
+				log.error(
+						"DMS trigger processing failed; configId={}, causeType={}",
+						configId, ex.getClass().getSimpleName()
+				);
+			}
+		}
+
+		List<Long> graceExpiredIds = configs.findGracePeriodExpiredIds(now, PageRequest.of(0, BATCH_SIZE));
+
+		for (Long configId : graceExpiredIds) {
+			try {
+				processor.processGracePeriodExpired(configId, now);
+			} catch (RuntimeException ex) {
+				log.error(
+						"Grace Period processing failed; configId={}, causeType={}",
+						configId, ex.getClass().getSimpleName()
+				);
 			}
 		}
 	}

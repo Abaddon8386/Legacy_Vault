@@ -24,6 +24,7 @@ import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.verification.service.StaffVaultCaseGuard;
 
 class TrusteeContactServiceTest {
 
@@ -56,8 +57,9 @@ class TrusteeContactServiceTest {
 		when(records.saveAndFlush(any(TrusteeContactRecord.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		AuditService audit = mock(AuditService.class);
+		StaffVaultCaseGuard cases = mock(StaffVaultCaseGuard.class);
 		TrusteeContactService service = new TrusteeContactService(trustees, records,
-				new StaffContextService(new OwnerContextService(users)), audit);
+				new StaffContextService(new OwnerContextService(users)), audit, cases);
 
 		service.record(trusteePublicId, new TrusteeContactDtos.RecordRequest(TrusteeContactDtos.Channel.PHONE,
 				TrusteeContactDtos.Outcome.NO_RESPONSE, TrusteeContactDtos.FallbackStatus.REQUIRED,
@@ -72,5 +74,6 @@ class TrusteeContactServiceTest {
 		verify(audit).record(eq(17L), eq(23L), eq("TRUSTEE_CONTACT_RECORDED"), eq("TRUSTEE_CONTACT"),
 				any(), eq("USER"), auditContext.capture());
 		assertNull(auditContext.getValue().get("note"));
+		verify(cases).requireOpenForWrite(23L, 17L);
 	}
 }

@@ -2,6 +2,7 @@ package com.legacyvault.will.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
@@ -16,6 +17,14 @@ import com.legacyvault.will.entity.AssetVersion;
 public interface AssetVersionRepository extends Repository<AssetVersion, Long> {
 
 	AssetVersion save(AssetVersion version);
+
+	/** Nạp cả nội dung mã hóa; chỉ dùng cho luồng Owner mở file sau khi xác nhận lại mật khẩu. */
+	Optional<AssetVersion> findByAssetIdAndVersionNo(Long assetId, int versionNo);
+
+	/** Khóa + hash của một phiên bản để tham chiếu (vd đối chiếu di chúc gốc, PS-40); không nạp nội dung file. */
+	@Query("select new com.legacyvault.will.repository.WillVersionRef(v.assetVersionId, v.versionNo, v.sha256Hash) "
+			+ "from AssetVersion v where v.assetId = :assetId and v.versionNo = :versionNo")
+	Optional<WillVersionRef> findRef(@Param("assetId") Long assetId, @Param("versionNo") int versionNo);
 
 	@Query("select coalesce(max(v.versionNo), 0) from AssetVersion v where v.assetId = :assetId")
 	int findMaxVersionNo(@Param("assetId") Long assetId);
