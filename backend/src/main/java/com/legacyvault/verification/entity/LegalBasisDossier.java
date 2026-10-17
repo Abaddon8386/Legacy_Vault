@@ -57,6 +57,26 @@ public class LegalBasisDossier {
     @Column(name = "dispute_status", nullable = false, length = 20)
     private String disputeStatus;
 
+
+    @Column(name = "review_status", nullable = false, length = 30)
+    private String reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
+
+    @Column(name = "review_required_reason", length = 1000)
+    private String reviewRequiredReason;
+
+    @Column(name = "last_reviewed_version_no")
+    private Integer lastReviewedVersionNo;
+
+    @Column(name = "last_reviewed_sha256_hash", length = 64)
+    private String lastReviewedSha256Hash;
+
+    @Column(name = "last_reviewed_dispute_status", length = 20)
+    private String lastReviewedDisputeStatus;
+
+    @Column(name = "last_reviewed_allocation_hash", length = 64)
+    private String lastReviewedAllocationHash;
+
+
     @Column(name = "created_by_user_id", nullable = false, updatable = false)
     private Long createdByUserId;
 
@@ -170,4 +190,57 @@ public class LegalBasisDossier {
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
+
+
+    public String getReviewStatus() {
+        return reviewStatus;
+    }
+
+    public String getReviewRequiredReason() {
+        return reviewRequiredReason;
+    }
+
+    public Integer getLastReviewedVersionNo() {
+        return lastReviewedVersionNo;
+    }
+
+    public String getLastReviewedSha256Hash() {
+        return lastReviewedSha256Hash;
+    }
+
+    public String getLastReviewedDisputeStatus() {
+        return lastReviewedDisputeStatus;
+    }
+
+    public String getLastReviewedAllocationHash() {
+        return lastReviewedAllocationHash;
+    }
+
+    public void requireReview(String reasonCode) {
+        this.reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
+        this.reviewRequiredReason = reasonCode;
+    }
+
+    public void recordReviewSnapshot(
+            int versionNo,
+            String sha256Hash,
+            String currentDisputeStatus,
+            String allocationHash,
+            Long reviewerUserId
+    ) {
+        if (versionNo < 1 || sha256Hash == null || sha256Hash.isBlank()
+                || currentDisputeStatus == null || currentDisputeStatus.isBlank()
+                || allocationHash == null || allocationHash.isBlank()
+                || reviewerUserId == null) {
+            throw new IllegalArgumentException("Complete review snapshot is required");
+        }
+
+        this.lastReviewedVersionNo = versionNo;
+        this.lastReviewedSha256Hash = sha256Hash;
+        this.lastReviewedDisputeStatus = currentDisputeStatus;
+        this.lastReviewedAllocationHash = allocationHash;
+        this.reviewStatus = LegalBasisReviewStatus.FRESH.name();
+        this.reviewRequiredReason = null;
+    }
+
 }

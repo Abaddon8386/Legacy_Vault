@@ -11,6 +11,7 @@ import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.entity.LegalBasisDossier;
+import com.legacyvault.verification.entity.LegalBasisReviewStatus;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalBasisDossierVersionRepository;
@@ -46,10 +47,12 @@ public class BasisForwardService {
     private final LegalBasisDossierVersionRepository versions;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisReviewService legalBasisReviewService;
 
     public BasisForwardService(StaffCaseLockRepository staffCases, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers,
-            LegalBasisDossierVersionRepository versions, BasisDossierViewService views, AuditService auditService) {
+            LegalBasisDossierVersionRepository versions, BasisDossierViewService views, AuditService auditService,
+                               LegalBasisReviewService legalBasisReviewService) {
         this.staffCases = staffCases;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -57,6 +60,7 @@ public class BasisForwardService {
         this.versions = versions;
         this.views = views;
         this.auditService = auditService;
+        this.legalBasisReviewService = legalBasisReviewService;
     }
 
     @Transactional
@@ -82,6 +86,20 @@ public class BasisForwardService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         if (!LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        boolean hasPreviousReview = dossier.getLastReviewedVersionNo() != null;
+
+        if (hasPreviousReview) {
+            legalBasisReviewService.evaluate(dossier.getLegalBasisDossierId());
+
+            dossier = dossiers.findByVerificationCaseIdForUpdate(
+                    verificationCase.getVerificationCaseId()
+            ).orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+            if (!LegalBasisReviewStatus.FRESH.name().equals(dossier.getReviewStatus())) {
+                throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+            }
         }
 
         int current = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());

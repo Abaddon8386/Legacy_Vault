@@ -16,9 +16,11 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.legacyvault.verification.service.LegalBasisReviewService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.Mock;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.legacyvault.audit.AuditAction;
@@ -55,8 +57,19 @@ class BasisForwardServiceTest {
     private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
-    private final BasisForwardService service = new BasisForwardService(staffCases, caseRepository, vaultRepository,
-            dossiers, versions, views, auditService);
+    private final LegalBasisReviewService legalBasisReviewService = mock(LegalBasisReviewService.class);
+
+    private final BasisForwardService service = new BasisForwardService(
+            staffCases,
+            caseRepository,
+            vaultRepository,
+            dossiers,
+            versions,
+            views,
+            auditService,
+            legalBasisReviewService
+    );
+
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
