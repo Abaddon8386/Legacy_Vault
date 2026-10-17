@@ -59,6 +59,18 @@ public class Vault {
 
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_AWAITING_VERIFICATION = "AWAITING_VERIFICATION";
+    public static final String STATUS_DOCUMENT_VERIFICATION = "DOCUMENT_VERIFICATION";
+
+    public void markDocumentVerification() {
+        if (!STATUS_AWAITING_VERIFICATION.equals(this.status)) {
+            throw new IllegalStateException(
+                    "Vault is not awaiting death-document verification"
+            );
+        }
+
+        this.status = STATUS_DOCUMENT_VERIFICATION;
+        this.updatedAt = Instant.now();
+    }
 
     public boolean canEnterVerification() {
         return STATUS_ACTIVE.equals(status);
