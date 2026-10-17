@@ -14,6 +14,8 @@ import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
+import CompletionProgressPage from './pages/staff/CompletionProgressPage.jsx';
+import { canAccessCompletionProgress } from './utils/completionProgressValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
@@ -458,6 +460,7 @@ export default function App() {
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isStaffCompletionProgressRoute = path === '/staff/completion-progress';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
@@ -484,6 +487,8 @@ export default function App() {
           onNavigateTab={tab => {
             if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             }
           }}
         >
@@ -492,6 +497,43 @@ export default function App() {
             preview={preview}
             session={session}
             onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isStaffCompletionProgressRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessCompletionProgress(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="completion-progress"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            }
+          }}
+        >
+          <CompletionProgressPage
+            lang={lang}
+            preview={preview}
+            session={session}
           />
         </AppShell>
       </div>

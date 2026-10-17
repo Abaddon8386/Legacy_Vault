@@ -56,6 +56,13 @@ const STAFF_NAVIGATION_REGISTRY = [
     labelEn: 'Legal Basis Documents',
     status: 'ACTIVE',
   },
+  {
+    id: 'completion-progress',
+    jiraTicket: 'PS-55',
+    labelVi: 'Tiến độ hoàn tất',
+    labelEn: 'Completion Progress',
+    status: 'ACTIVE',
+  },
 ];
 
 const LEGAL_NAVIGATION_REGISTRY = [
@@ -152,7 +159,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? 'Hồ sơ căn cứ pháp lý'
+        ? (currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -191,7 +198,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? 'Legal Basis Documents'
+        ? (currentTab === 'completion-progress' ? 'Completion Progress' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',

@@ -1,0 +1,347 @@
+/* ==========================================================================
+   Completion Progress Page Styles — PS-55 / ST-27
+   Strict CSS Scoping under .lv-completion-progress-view
+   Art Direction: Editorial Sanctuary / Henedo Theme
+   ========================================================================== */
+
+.lv-completion-progress-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Header & Subtitle Area */
+.lv-completion-progress-view .lv-progress-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-completion-progress-view .lv-progress-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.lv-completion-progress-view .lv-progress-subtitle {
+  font-size: 14.5px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Notice & Rule Banner */
+.lv-completion-progress-view .lv-progress-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background-color: #fbf9f4;
+  border: 1px solid var(--lv-accent-gold-border, rgba(197, 160, 89, 0.28));
+  border-left: 4px solid var(--lv-accent-gold, #c5a059);
+  border-radius: var(--lv-radius-md, 10px);
+  padding: 16px 20px;
+}
+
+.lv-completion-progress-view .lv-progress-notice-banner__icon {
+  color: var(--lv-accent-gold, #c5a059);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-completion-progress-view .lv-progress-notice-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lv-completion-progress-view .lv-progress-notice-banner__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+}
+
+.lv-completion-progress-view .lv-progress-notice-banner__body p {
+  font-size: 13.5px;
+  color: var(--lv-text-body, #2b302c);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Overall Status Banner */
+.lv-completion-progress-view .lv-overall-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px;
+  border-radius: var(--lv-radius-lg, 12px);
+  box-shadow: 0 2px 10px rgba(22, 70, 57, 0.04);
+}
+
+.lv-completion-progress-view .lv-overall-banner--completed {
+  background-color: #f4fbf7;
+  border: 1px solid #c9ecdb;
+  border-left: 5px solid var(--lv-status-success-text, #1d724f);
+}
+
+.lv-completion-progress-view .lv-overall-banner--incomplete {
+  background-color: #fff9f8;
+  border: 1px solid #f9d3cf;
+  border-left: 5px solid var(--lv-status-error-text, #c25149);
+}
+
+.lv-completion-progress-view .lv-overall-banner--awaiting {
+  background-color: #fff8eb;
+  border: 1px solid #f9e2b8;
+  border-left: 5px solid #b46b18;
+}
+
+.lv-completion-progress-view .lv-overall-banner__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-completion-progress-view .lv-overall-banner--completed .lv-overall-banner__icon {
+  color: #1d724f;
+}
+
+.lv-completion-progress-view .lv-overall-banner--incomplete .lv-overall-banner__icon {
+  color: #c25149;
+}
+
+.lv-completion-progress-view .lv-overall-banner--awaiting .lv-overall-banner__icon {
+  color: #b46b18;
+}
+
+.lv-completion-progress-view .lv-overall-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-completion-progress-view .lv-overall-banner__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+}
+
+.lv-completion-progress-view .lv-overall-banner__body p {
+  font-size: 14px;
+  color: var(--lv-text-body, #2b302c);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.lv-completion-progress-view .lv-overall-missing-list {
+  margin: 8px 0 0 18px;
+  padding: 0;
+  font-size: 13.5px;
+  color: #b3261e;
+  line-height: 1.6;
+}
+
+/* Case Selector Card */
+.lv-completion-progress-view .lv-progress-card {
+  background-color: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(22, 70, 57, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lv-completion-progress-view .lv-progress-case-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lv-completion-progress-view .lv-progress-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.lv-completion-progress-view .lv-progress-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-body, #2b302c);
+}
+
+.lv-completion-progress-view .lv-progress-input {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 14px;
+  color: var(--lv-text-ink, #1f2421);
+  background-color: #faf9f6;
+  box-sizing: border-box;
+}
+
+.lv-completion-progress-view .lv-progress-input:focus {
+  outline: none;
+  border-color: var(--lv-border-focus, #c5a059);
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.18);
+  background-color: #ffffff;
+}
+
+.lv-completion-progress-view .lv-progress-btn-reset {
+  height: 42px;
+  padding: 0 18px;
+  background-color: var(--lv-bg-muted, #efece6);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-body, #2b302c);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Dual Metrics Grid */
+.lv-completion-progress-view .lv-dual-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.lv-completion-progress-view .lv-metric-card {
+  background-color: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(22, 70, 57, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lv-completion-progress-view .lv-metric-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #f1ede4;
+  padding-bottom: 12px;
+}
+
+.lv-completion-progress-view .lv-metric-card__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 0 4px;
+}
+
+.lv-completion-progress-view .lv-metric-card__desc {
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Badges */
+.lv-completion-progress-view .lv-metric-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lv-completion-progress-view .lv-metric-badge--complete {
+  background-color: var(--lv-status-success-bg, #f4fbf7);
+  color: var(--lv-status-success-text, #1d724f);
+  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+}
+
+.lv-completion-progress-view .lv-metric-badge--incomplete {
+  background-color: var(--lv-status-pending-bg, #f7f9fc);
+  color: var(--lv-status-pending-text, #2b5788);
+  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+}
+
+.lv-completion-progress-view .lv-metric-badge--awaiting {
+  background-color: #fff8eb;
+  color: #b46b18;
+  border: 1px solid #f9e2b8;
+}
+
+/* Numbers and Progress Bars */
+.lv-completion-progress-view .lv-metric-numbers {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lv-completion-progress-view .lv-metric-ratio {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-completion-progress-view .lv-metric-percentage {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lv-accent-gold, #c5a059);
+}
+
+.lv-completion-progress-view .lv-progress-track {
+  width: 100%;
+  height: 10px;
+  background-color: #ece8df;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.lv-completion-progress-view .lv-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #164639 0%, #c5a059 100%);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.lv-completion-progress-view .lv-progress-fill--complete {
+  background: #1d724f;
+}
+
+.lv-completion-progress-view .lv-unverified-notice {
+  font-size: 13px;
+  color: #b46b18;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #fefaf3;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #fae6c6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lv-completion-progress-view .lv-dual-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
