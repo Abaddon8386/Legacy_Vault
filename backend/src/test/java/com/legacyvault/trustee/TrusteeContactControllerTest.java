@@ -79,4 +79,11 @@ class TrusteeContactControllerTest {
         mvc.perform(get(path).with(user("staff").roles("STAFF_EXECUTOR")))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
     }
+
+    @Test void revokedTrusteeReturnsExplicitConflict() throws Exception {
+        when(service.record(eq(id), any())).thenThrow(new BusinessException(ErrorCode.TRUSTEE_REVOKED));
+        mvc.perform(post(path).with(user("staff").roles("STAFF_EXECUTOR"))
+                .contentType(MediaType.APPLICATION_JSON).content(valid)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TRUSTEE_REVOKED"));
+    }
 }

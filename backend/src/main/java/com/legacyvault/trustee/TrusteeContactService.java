@@ -13,6 +13,8 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.verification.service.StaffVaultCaseGuard;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 @Service
 public class TrusteeContactService {
@@ -22,14 +24,16 @@ public class TrusteeContactService {
 	private final StaffContextService staff;
 	private final AuditService audit;
 	private final StaffVaultCaseGuard cases;
+	private final EntityManager entities;
 
 	public TrusteeContactService(TrusteeRepository trustees, TrusteeContactRecordRepository records,
-			StaffContextService staff, AuditService audit, StaffVaultCaseGuard cases) {
+			StaffContextService staff, AuditService audit, StaffVaultCaseGuard cases, EntityManager entities) {
 		this.trustees = trustees;
 		this.records = records;
 		this.staff = staff;
 		this.audit = audit;
 		this.cases = cases;
+		this.entities = entities;
 	}
 
 	@Transactional
@@ -37,8 +41,16 @@ public class TrusteeContactService {
 		User actor = staff.requireStaff();
 		Trustee trustee = trustees.findByPublicId(trusteeId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		// Trustee's vault relationship cannot be changed through the domain/API.
-		cases.requireOpenForWrite(trustee.getVault().getVaultId(), actor.getUserId());
+		Long vaultId = trustee.getVault().getVaultId();
+		cases.requireOpenForWrite(vaultId, actor.getUserId());
+		// Re-read and lock current status after authorization; a revoke may have committed while we waited.
+		entities.refresh(trustee, LockModeType.PESSIMISTIC_WRITE);
+		if (!vaultId.equals(trustee.getVault().getVaultId())) {
+			throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+		}
+		if ("REVOKED".equals(trustee.getStatus())) {
+			throw new BusinessException(ErrorCode.TRUSTEE_REVOKED);
+		}
 		String note = clean(request.note());
 		TrusteeContactRecord record = records.saveAndFlush(new TrusteeContactRecord(trustee, actor.getUserId(),
 				request.channel().name(), request.outcome().name(), request.fallbackStatus().name(), note));

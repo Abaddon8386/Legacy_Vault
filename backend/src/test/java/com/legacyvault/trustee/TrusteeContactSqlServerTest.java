@@ -212,4 +212,33 @@ public class TrusteeContactSqlServerTest {
         assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> jdbc.update(
                 "INSERT dbo.verification_cases(vault_id,triggered_at) VALUES (?,SYSUTCDATETIME())", vaultId));
     }
+
+    @Test void revokedTrusteeRejectsNewContactAndRetainsExistingHistory() {
+        contact();
+        jdbc.update("UPDATE dbo.trustees SET status='REVOKED',revoked_at=SYSUTCDATETIME() WHERE public_id=?", trusteePublicId.toString());
+        assertEquals(ErrorCode.TRUSTEE_REVOKED, assertThrows(BusinessException.class, this::contact).getErrorCode());
+        assertEquals(1, contacts());
+        assertEquals(1, audits("TRUSTEE_CONTACT_RECORDED"));
+        assertEquals(1, asStaff(() -> context.getBean(TrusteeContactService.class).history(trusteePublicId)).size());
+        jdbc.update("UPDATE dbo.verification_cases SET assigned_staff_user_id=NULL WHERE verification_case_id=?", caseId);
+        notFound(this::contact); // case authorization precedes REVOKED policy and does not reveal status.
+    }
+
+    @Test void staleTrusteeLoadedBeforeRevocationIsRefreshedUnderLocks() throws Exception {
+        CountDownLatch loaded = new CountDownLatch(1), release = new CountDownLatch(1);
+        Future<?> write = workers.submit(() -> assertEquals(ErrorCode.TRUSTEE_REVOKED,
+                assertThrows(BusinessException.class, () -> tx.execute(s -> {
+            Trustee stale = context.getBean(TrusteeRepository.class).findByPublicId(trusteePublicId).orElseThrow();
+            assertEquals("APPOINTED", stale.getStatus());
+            loaded.countDown(); await(release);
+            contact();
+            return null;
+        })).getErrorCode()));
+        try {
+            assertTrue(loaded.await(10, TimeUnit.SECONDS));
+            jdbc.update("UPDATE dbo.trustees SET status='REVOKED',revoked_at=SYSUTCDATETIME() WHERE public_id=?", trusteePublicId.toString());
+            release.countDown(); write.get(20, TimeUnit.SECONDS);
+            assertEquals(0, contacts()); assertEquals(0, audits("TRUSTEE_CONTACT_RECORDED"));
+        } finally { release.countDown(); }
+    }
 }
