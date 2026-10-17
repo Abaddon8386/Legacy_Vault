@@ -1085,7 +1085,7 @@ paths:
     post:
       tags: [Staff]
       summary: Ghi nhận xác minh danh tính trực tiếp (PS-45, ST-14)
-      description: Chỉ đối chiếu CCCD/passport bản cứng và khuôn mặt trực tiếp. Không gọi VNeID, camera hay eKYC. Chỉ lưu metadata; số giấy tờ tối đa là 4 ký tự cuối.
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. MATCH sets VERIFIED_AT_COUNTER; NOT_MATCH sets NOT_VERIFIED even from VERIFIED_AT_COUNTER. Both append their unchanged result to history and commit current state and audit atomically. Concurrent decisions are serialized; current state follows the last processed result. Hard-copy CCCD/passport and in-person face comparison only; no eKYC. Optional documentSuffix is exactly four alphanumeric characters. Staff target discovery remains a FE dependency. OPEN is not legal clearance.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -1096,7 +1096,7 @@ paths:
             schema: { $ref: '#/components/schemas/IdentityVerificationRequest' }
       responses:
         '201':
-          description: Đã lưu kết quả xác minh và cập nhật trạng thái Beneficiary
+          description: History appended; current status is VERIFIED_AT_COUNTER for MATCH or NOT_VERIFIED for NOT_MATCH
           content:
             application/json:
               schema: { $ref: '#/components/schemas/IdentityVerificationResponse' }
@@ -1107,6 +1107,7 @@ paths:
     get:
       tags: [Staff]
       summary: Lịch sử xác minh danh tính trực tiếp (PS-45)
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor, even for empty history. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. Existing MATCH and NOT_MATCH history remains unchanged.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -1121,7 +1122,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
@@ -1947,7 +1947,7 @@ components:
         result: { type: string, enum: [MATCH, NOT_MATCH] }
     IdentityVerificationResponse:
       type: object
-      required: [id, beneficiaryId, documentType, result, verifiedAt]
+      required: [id, beneficiaryId, documentType, result, verifiedBy, verifiedAt]
       properties:
         id: { type: string, format: uuid }
         beneficiaryId: { type: string, format: uuid }
@@ -1955,6 +1955,12 @@ components:
         issuingAuthority: { type: string, nullable: true }
         documentSuffix: { type: string, nullable: true }
         result: { type: string, enum: [MATCH, NOT_MATCH] }
+        verifiedBy:
+          type: object
+          required: [id, fullName]
+          properties:
+            id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
+            fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
         verifiedAt: { type: string, format: date-time }
     BeneficiaryResponse:
       type: object
