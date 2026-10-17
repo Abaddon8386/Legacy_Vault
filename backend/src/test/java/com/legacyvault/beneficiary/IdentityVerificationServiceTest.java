@@ -23,6 +23,8 @@ import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.verification.service.StaffVaultCaseGuard;
+import jakarta.persistence.EntityManager;
 
 class IdentityVerificationServiceTest {
 
@@ -57,14 +59,15 @@ class IdentityVerificationServiceTest {
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		AuditService audit = mock(AuditService.class);
 		IdentityVerificationService service = new IdentityVerificationService(beneficiaries, records,
-				new StaffContextService(new OwnerContextService(users)), users, audit);
+				new StaffContextService(new OwnerContextService(users)), users, audit,
+				mock(StaffVaultCaseGuard.class), mock(EntityManager.class));
 
 		var response = service.verify(beneficiaryId, new IdentityVerificationDtos.Request(IdentityVerificationDtos.DocumentType.CCCD,
-				"Cong an", "1234", IdentityVerificationDtos.Result.NOT_MATCH));
+				"Cong an", "1234", IdentityVerificationDtos.Result.MATCH));
 		assertEquals(staffId, response.verifiedBy().id());
 		assertEquals("Staff Examiner", response.verifiedBy().fullName());
 
-		verify(beneficiary).recordIdentityVerification("NOT_MATCH");
+		verify(beneficiary).verifyAtCounter();
 		verify(beneficiaries).save(beneficiary);
 		verify(records).saveAndFlush(any(IdentityVerificationRecord.class));
 		verify(audit).record(eq(7L), eq(9L), eq("BENEFICIARY_IDENTITY_VERIFIED"), eq("BENEFICIARY"),
@@ -84,7 +87,9 @@ class IdentityVerificationServiceTest {
 		Beneficiary beneficiary = mock(Beneficiary.class);
 		when(beneficiary.getPublicId()).thenReturn(beneficiaryId);
 		BeneficiaryRepository beneficiaries = mock(BeneficiaryRepository.class);
-		when(beneficiaries.existsByPublicId(beneficiaryId)).thenReturn(true);
+		when(beneficiaries.findByPublicId(beneficiaryId)).thenReturn(Optional.of(beneficiary));
+		Vault vault = mock(Vault.class);
+		when(beneficiary.getVault()).thenReturn(vault);
 		IdentityVerificationRecord record = mock(IdentityVerificationRecord.class);
 		when(record.getActorUserId()).thenReturn(7L);
 		when(record.getBeneficiary()).thenReturn(beneficiary);
@@ -93,8 +98,10 @@ class IdentityVerificationServiceTest {
 		IdentityVerificationRepository records = mock(IdentityVerificationRepository.class);
 		when(records.findAllByBeneficiary_PublicIdOrderByVerifiedAtDesc(beneficiaryId))
 				.thenReturn(List.of(record));
+		StaffContextService staff = mock(StaffContextService.class);
+		when(staff.requireStaff()).thenReturn(actor);
 		var service = new IdentityVerificationService(beneficiaries, records,
-				mock(StaffContextService.class), users, mock(AuditService.class));
+				staff, users, mock(AuditService.class), mock(StaffVaultCaseGuard.class), mock(EntityManager.class));
 
 		var history = service.history(beneficiaryId);
 		assertEquals(staffId, history.get(0).verifiedBy().id());

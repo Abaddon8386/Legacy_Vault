@@ -15,6 +15,8 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
+import com.legacyvault.verification.service.StaffVaultCaseGuard;
+import jakarta.persistence.EntityManager;
 
 @Service
 public class IdentityVerificationService {
@@ -24,15 +26,19 @@ public class IdentityVerificationService {
 	private final StaffContextService staff;
 	private final UserRepository users;
 	private final AuditService audit;
+	private final StaffVaultCaseGuard cases;
+	private final EntityManager entities;
 
 	public IdentityVerificationService(BeneficiaryRepository beneficiaries,
 			IdentityVerificationRepository verifications, StaffContextService staff,
-			UserRepository users, AuditService audit) {
+			UserRepository users, AuditService audit, StaffVaultCaseGuard cases, EntityManager entities) {
 		this.beneficiaries = beneficiaries;
 		this.verifications = verifications;
 		this.staff = staff;
 		this.users = users;
 		this.audit = audit;
+		this.cases = cases;
+		this.entities = entities;
 	}
 
 	@Transactional
@@ -40,11 +46,23 @@ public class IdentityVerificationService {
 		User actor = staff.requireStaff();
 		Beneficiary beneficiary = beneficiaries.findByPublicId(beneficiaryId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+		Long vaultId = beneficiary.getVault().getVaultId();
+		cases.requireOpenForWrite(vaultId, actor.getUserId());
+		// A waiting transaction may have loaded the old state before another verifier committed.
+		// Refresh under the Vault/Case locks before modifying the managed entity.
+		entities.refresh(beneficiary);
+		if (!vaultId.equals(beneficiary.getVault().getVaultId())) {
+			throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+		}
+		if (request.result() == IdentityVerificationDtos.Result.NOT_MATCH) {
+			// Fail closed until the business transition (including an already verified beneficiary) is approved.
+			throw new BusinessException(ErrorCode.IDENTITY_VERIFICATION_POLICY_UNDECIDED);
+		}
 		String authority = clean(request.issuingAuthority());
 		IdentityVerificationRecord record = verifications.saveAndFlush(new IdentityVerificationRecord(beneficiary,
 				actor.getUserId(), request.documentType().name(), authority, clean(request.documentSuffix()),
 				request.result().name()));
-		beneficiary.recordIdentityVerification(request.result().name());
+		beneficiary.verifyAtCounter();
 		beneficiaries.save(beneficiary);
 		audit.record(actor.getUserId(), beneficiary.getVault().getVaultId(), "BENEFICIARY_IDENTITY_VERIFIED", "BENEFICIARY",
 				beneficiary.getId(), "USER", Map.of("result", request.result().name(), "documentType",
@@ -54,21 +72,21 @@ public class IdentityVerificationService {
 
 	@Transactional(readOnly = true)
 	public List<IdentityVerificationDtos.Response> history(UUID beneficiaryId) {
-		staff.requireStaff();
-		if (!beneficiaries.existsByPublicId(beneficiaryId)) {
-			throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
-		}
+		User actor = staff.requireStaff();
+		Beneficiary beneficiary = beneficiaries.findByPublicId(beneficiaryId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+		cases.requireOpenForRead(beneficiary.getVault().getVaultId(), actor.getUserId());
 		List<IdentityVerificationRecord> history = verifications
 				.findAllByBeneficiary_PublicIdOrderByVerifiedAtDesc(beneficiaryId);
 		Map<Long, User> actors = users.findAllById(history.stream()
 				.map(IdentityVerificationRecord::getActorUserId).distinct().toList()).stream()
 				.collect(Collectors.toMap(User::getUserId, Function.identity()));
 		return history.stream().map(record -> {
-			User actor = actors.get(record.getActorUserId());
-			if (actor == null) {
+			User verifier = actors.get(record.getActorUserId());
+			if (verifier == null) {
 				throw new IllegalStateException("Verification actor is missing");
 			}
-			return IdentityVerificationDtos.Response.from(record, actor);
+			return IdentityVerificationDtos.Response.from(record, verifier);
 		}).toList();
 	}
 

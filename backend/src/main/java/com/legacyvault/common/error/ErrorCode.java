@@ -24,6 +24,7 @@ public enum ErrorCode {
 	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
 	VERIFICATION_CASE_NOT_CLAIMABLE(409, "error.verificationCase.notClaimable"),
 	VERIFICATION_CASE_NOT_OPEN(409, "error.verificationCase.notOpen"),
+	IDENTITY_VERIFICATION_POLICY_UNDECIDED(409, "error.identityVerification.policyUndecided"),
 	LEGAL_VERIFICATION_INVALID_STATE(409, "error.legalVerification.invalidState"),
 	LEGAL_VERIFICATION_ALREADY_DECIDED(409, "error.legalVerification.alreadyDecided"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),

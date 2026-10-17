@@ -23,6 +23,9 @@ import jakarta.persistence.Table;
 @Table(name = "beneficiaries", schema = "dbo")
 public class Beneficiary {
 
+	public static final String NOT_VERIFIED = "NOT_VERIFIED";
+	public static final String VERIFIED_AT_COUNTER = "VERIFIED_AT_COUNTER";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "beneficiary_id")
@@ -57,7 +60,7 @@ public class Beneficiary {
 	private String status;
 
 	@Column(name = "id_verification_status", nullable = false, length = 30)
-	private String identityVerificationStatus = "NOT_VERIFIED";
+	private String identityVerificationStatus = NOT_VERIFIED;
 
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
@@ -125,7 +128,8 @@ public class Beneficiary {
 	public boolean hasIdentityNumber() { return identityNumberEncrypted != null && identityNumberEncrypted.length > 0; }
 	public boolean hasAccount() { return linkedUserId != null; }
 	public String getIdentityVerificationStatus() { return identityVerificationStatus; }
-	public void recordIdentityVerification(String result) { this.identityVerificationStatus = result; }
+	/** Only the approved MATCH transition. NOT_MATCH policy must be settled before adding a transition. */
+	public void verifyAtCounter() { this.identityVerificationStatus = VERIFIED_AT_COUNTER; }
 	public String getStatus() { return status; }
 	public LocalDateTime getCreatedAt() { return createdAt; }
 	public LocalDateTime getUpdatedAt() { return updatedAt; }

@@ -912,7 +912,7 @@ paths:
     post:
       tags: [Staff]
       summary: Ghi nhận xác minh danh tính trực tiếp (PS-45, ST-14)
-      description: Chỉ đối chiếu CCCD/passport bản cứng và khuôn mặt trực tiếp. Không gọi VNeID, camera hay eKYC. Chỉ lưu metadata; số giấy tờ tối đa là 4 ký tự cuối.
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. MATCH appends history and sets VERIFIED_AT_COUNTER atomically with audit. NOT_MATCH temporarily returns 409 IDENTITY_VERIFICATION_POLICY_UNDECIDED without writes pending a business decision, including transitions from VERIFIED_AT_COUNTER. Hard-copy CCCD/passport and in-person face comparison only; no eKYC. Optional documentSuffix is exactly four alphanumeric characters. Staff target discovery remains a FE dependency. OPEN is not legal clearance.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -923,7 +923,7 @@ paths:
             schema: { $ref: '#/components/schemas/IdentityVerificationRequest' }
       responses:
         '201':
-          description: Đã lưu kết quả xác minh và cập nhật trạng thái Beneficiary
+          description: MATCH history saved and current status set to VERIFIED_AT_COUNTER
           content:
             application/json:
               schema: { $ref: '#/components/schemas/IdentityVerificationResponse' }
@@ -931,9 +931,15 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: IDENTITY_VERIFICATION_POLICY_UNDECIDED - NOT_MATCH transition awaits business approval; no history, status or audit writes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
     get:
       tags: [Staff]
       summary: Lịch sử xác minh danh tính trực tiếp (PS-45)
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor, even for empty history. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. Existing MATCH and NOT_MATCH history remains unchanged.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -948,7 +954,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:

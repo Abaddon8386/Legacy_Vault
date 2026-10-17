@@ -1,5 +1,9 @@
 # Hợp đồng lỗi chung
 
+PS-45 tạm dùng `409 IDENTITY_VERIFICATION_POLICY_UNDECIDED` (`error.identityVerification.policyUndecided`)
+khi Staff đã qua guard nhưng gửi `NOT_MATCH` trong lúc chính sách chuyển trạng thái chưa được xác nhận.
+Không có lịch sử/trạng thái/audit mới. Đối tượng ngoài quyền vẫn trả 404 trước khi kiểm tra chính sách.
+
 Triển khai: `backend/src/main/java/com/legacyvault/common/error/` (`ErrorCode`, `ApiError`, `BusinessException`,
 `GlobalExceptionHandler`) và `common/security/` (`ApiAuthenticationEntryPoint`, `ApiAccessDeniedHandler`).
 Mọi phản hồi lỗi — kể cả **401/403 do Spring Security** — dùng **cùng một hình dạng**.

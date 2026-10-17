@@ -7,19 +7,27 @@ Trạng thái PS-20/21: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở 
 Luồng Staff nhận `beneficiaryId` từ danh sách trong Vault đang mở vẫn chờ xác định API nguồn cho
 `vaultId` và danh sách Beneficiary. FE không dùng ô nhập UUID thủ công làm luồng chính.
 
-Điều kiện nghiệp vụ đã xác nhận: Staff chỉ xác minh sau khi **vụ việc của Vault đã kích hoạt**.
-Schema và luồng kích hoạt vụ việc thuộc PS-41/42 chưa có trong stack này, nên API PS-45 hiện **chưa
-chặn được** yêu cầu theo điều kiện đó. Giữ PR ở trạng thái draft và không tích hợp luồng xác minh
-cho đến khi có nguồn trạng thái vụ việc; không suy diễn từ `vaults.status` hay DMS `TRIGGERED`.
+POST và GET đều kiểm tra `verification_cases`: ca phải `OPEN`, thuộc đúng Vault của Beneficiary,
+và được giao cho Staff đang đăng nhập. Không có đối tượng/ca, ca chưa nhận, đã hủy, khác Staff
+hoặc khác Vault đều trả `404 RESOURCE_NOT_FOUND`, kể cả lịch sử rỗng. Chưa đăng nhập: 401;
+sai role: 403. Không suy diễn quyền từ `vaults.status` hoặc DMS.
+Ghi khóa Vault rồi VerificationCase trong cùng transaction với lịch sử, trạng thái và audit;
+lỗi audit rollback tất cả. Beneficiary được refresh sau khi lấy khóa để tránh trạng thái cũ khi chờ.
+Ca OPEN không chứng minh hồ sơ pháp lý đủ điều kiện cho PS-46–48.
 
-**Điều kiện đưa PS-45 vào `develop`:** trưởng nhóm chốt mô hình case/dossier và luồng kích hoạt
-của PS-41/42, thống nhất nguồn trạng thái với PS-45, rồi Backend triển khai và kiểm thử guard
-theo quyết định đó. Trước khi các điều kiện này hoàn tất, PS-45 phải giữ draft.
+`MATCH` được lưu nguyên trong lịch sử và đặt trạng thái hiện tại thành `VERIFIED_AT_COUNTER`.
+`NOT_MATCH` chưa có quyết định cập nhật trạng thái, đặc biệt khi đã `VERIFIED_AT_COUNTER`:
+tạm trả `409 IDENTITY_VERIFICATION_POLICY_UNDECIDED` sau khi kiểm tra quyền, không ghi lịch sử,
+trạng thái hoặc audit. Đây là blocker nghiệp vụ; PS-45 chưa hoàn tất. Lịch sử NOT_MATCH cũ vẫn đọc nguyên vẹn.
+Migration V7/V8 vẫn xung đột, chờ nhóm cấp số; không dùng V12/V13 của PS-77 hay số dành cho PS-41–43.
+Staff queue/detail hiện trả Vault/Owner IDs, không trả beneficiaryId; cần API discovery theo ca được giao.
+Không dùng endpoint Owner hoặc ô nhập UUID thay cho dependency này.
 
 Staff Executor đối chiếu bản cứng CCCD/passport với khuôn mặt trực tiếp qua
 `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`. Kết quả `MATCH` hoặc `NOT_MATCH`,
-loại giấy tờ, cơ quan cấp (nếu có), tối đa bốn ký tự cuối và thời điểm UTC được lưu trong lịch sử append-only;
-trạng thái hiện tại của Beneficiary được cập nhật theo kết quả. Actor được ghi trong record và audit log.
+loại giấy tờ, cơ quan cấp (nếu có), hậu tố đúng bốn ký tự chữ/số nếu được gửi và thời điểm UTC được lưu
+trong lịch sử append-only cho kết quả đã được chốt chính sách. Actor được ghi trong record và audit log;
+audit chỉ chứa result, documentType, stepId, ruleId, không chứa cơ quan cấp, hậu tố hoặc giấy tờ.
 Response của POST và GET lịch sử trả `verifiedBy: { id, fullName }` cùng `verifiedAt` UTC để FE hiển thị
 người kiểm tra và thời gian theo PS-27. `id` là public UUID của tài khoản Staff; `fullName` là tên hiện tại
 của tài khoản, không phải bản chụp tên tại thời điểm xác minh.
