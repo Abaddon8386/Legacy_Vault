@@ -181,6 +181,21 @@ test('EX-02 Bilingual Dictionary Completeness (VI & EN)', () => {
   for (const key of Object.keys(vi)) {
     assert.ok(en[key], `Missing EN translation for key: ${key}`);
   }
+
+  // Verify Reset vs Cancel distinction
+  assert.equal(vi.btnCancel, 'Hủy bỏ');
+  assert.equal(vi.btnReset, 'Khôi phục');
+  assert.notEqual(vi.btnCancel, vi.btnReset);
+
+  assert.equal(en.btnCancel, 'Cancel');
+  assert.equal(en.btnReset, 'Reset');
+  assert.notEqual(en.btnCancel, en.btnReset);
+
+  // Ensure no proposal/technical justification jargon in user copy
+  const allTextVi = Object.values(vi).join(' ');
+  const allTextEn = Object.values(en).join(' ');
+  assert.equal(allTextVi.includes('đề xuất'), false, 'VI dictionary must not contain "đề xuất"');
+  assert.equal(allTextEn.toLowerCase().includes('proposal'), false, 'EN dictionary must not contain "proposal"');
 });
 
 test('EX-02 CSS Scoping Verification - No Leakage', () => {

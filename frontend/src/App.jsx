@@ -1,5 +1,5 @@
 import { previewRoute } from './utils/previewState.js';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
@@ -368,19 +368,35 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditFormDirty, setIsEditFormDirty] = useState(false);
   const [pendingNavigationTarget, setPendingNavigationTarget] = useState(null);
+  const isEditFormDirtyRef = useRef(false);
+  const locationRef = useRef(location);
+  useEffect(() => {
+    isEditFormDirtyRef.current = isEditFormDirty;
+  }, [isEditFormDirty]);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
   const navigateTo = useCallback(path => {
     window.history.pushState({}, '', path); setLocation(path);
   }, []);
   const logout = useCallback(() => {
+    isEditFormDirtyRef.current = false;
     setIsEditFormDirty(false);
     setPendingNavigationTarget(null);
     setSession(null);
     navigateTo('/login');
   }, [navigateTo]);
   useEffect(() => {
-    const sync = () => setLocation(window.location.pathname + window.location.search);
-    window.addEventListener('popstate', sync);
-    return () => window.removeEventListener('popstate', sync);
+    const handlePopState = () => {
+      if (isEditFormDirtyRef.current) {
+        window.history.pushState(null, '', locationRef.current);
+        setPendingNavigationTarget('__POPSTATE_BACK__');
+        return;
+      }
+      setLocation(window.location.pathname + window.location.search);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
   useEffect(() => {
     if (!session) return;
@@ -441,7 +457,11 @@ export default function App() {
           session={session}
           user={session?.user}
           onNavigateTab={tab => {
-            if (tab === 'dossier-review') {
+            if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
+            } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -449,8 +469,6 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -499,7 +517,9 @@ export default function App() {
       : 'OWNER';
 
     const handleExecuteNavigation = (targetTab) => {
-      if (targetTab === 'account-edit') {
+      if (targetTab === 'account-profile') {
+        navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+      } else if (targetTab === 'account-edit') {
         navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
       } else if (targetTab === 'legal-documents') {
         navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
@@ -543,13 +563,22 @@ export default function App() {
             pendingNavigation={pendingNavigationTarget}
             onConfirmNavigation={() => {
               const target = pendingNavigationTarget;
-              setPendingNavigationTarget(null);
+              isEditFormDirtyRef.current = false;
               setIsEditFormDirty(false);
-              if (target) {
+              setPendingNavigationTarget(null);
+              if (target === '__POPSTATE_BACK__') {
+                window.history.back();
+              } else if (target) {
                 handleExecuteNavigation(target);
               }
             }}
             onCancelNavigation={() => setPendingNavigationTarget(null)}
+            onCancel={() => {
+              isEditFormDirtyRef.current = false;
+              setIsEditFormDirty(false);
+              setPendingNavigationTarget(null);
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            }}
           />
         </AppShell>
       </div>
@@ -578,6 +607,8 @@ export default function App() {
           onNavigateTab={tab => {
             if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             } else if (tab === 'account-edit') {
               navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
@@ -624,7 +655,11 @@ export default function App() {
           onToggleLang={setLang}
           onLogout={session ? logout : null}
           onNavigateTab={(tab) => {
-            if (tab === 'death-verification') {
+            if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
+            } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
             } else if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
@@ -632,8 +667,6 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -676,7 +709,11 @@ export default function App() {
           onToggleLang={setLang}
           onLogout={session ? logout : null}
           onNavigateTab={(tab) => {
-            if (tab === 'will-document-verification') {
+            if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
+            } else if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -684,8 +721,6 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -728,7 +763,11 @@ export default function App() {
           onToggleLang={setLang}
           onLogout={session ? logout : null}
           onNavigateTab={(tab) => {
-            if (tab === 'basis-route-selection') {
+            if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
+            } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -736,8 +775,6 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -764,7 +801,9 @@ export default function App() {
     return <div className="lv-app-root"><AppShell currentTab={isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
       onNavigateTab={tab => {
-        if (tab === 'account-edit') {
+        if (tab === 'account-profile') {
+          navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+        } else if (tab === 'account-edit') {
           navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
         } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') {
           navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`);

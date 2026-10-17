@@ -23,6 +23,7 @@ export default function AccountEditPage({
   pendingNavigation = null,
   onConfirmNavigation,
   onCancelNavigation,
+  onCancel,
 }) {
   const t = accountEditI18n[lang] || accountEditI18n.vi;
 
@@ -33,11 +34,13 @@ export default function AccountEditPage({
   const [prevUserId, setPrevUserId] = useState(session?.user?.id || null);
   const [fullName, setFullName] = useState(initialData?.fullName || '');
   const [validationError, setValidationError] = useState(null);
+  const [localPendingCancel, setLocalPendingCancel] = useState(false);
 
   if (session?.user?.id !== prevUserId) {
     setPrevUserId(session?.user?.id || null);
     setFullName(initialData?.fullName || '');
     setValidationError(null);
+    setLocalPendingCancel(false);
   }
 
   const dirty = isFormDirty(fullName, initialData?.fullName);
@@ -74,10 +77,38 @@ export default function AccountEditPage({
     }
   };
 
-  // Reset form to initial session values
+  // Reset form to initial session values (revert modifications, stay on page)
   const handleReset = () => {
     setFullName(initialData?.fullName || '');
     setValidationError(null);
+  };
+
+  // Cancel action: leave the page, prompt if dirty
+  const handleCancelClick = () => {
+    if (dirty) {
+      setLocalPendingCancel(true);
+    } else if (typeof onCancel === 'function') {
+      onCancel();
+    }
+  };
+
+  // Modal actions
+  const handleModalStay = () => {
+    setLocalPendingCancel(false);
+    if (typeof onCancelNavigation === 'function') {
+      onCancelNavigation();
+    }
+  };
+
+  const handleModalDiscard = () => {
+    if (localPendingCancel) {
+      setLocalPendingCancel(false);
+      if (typeof onCancel === 'function') {
+        onCancel();
+      }
+    } else if (typeof onConfirmNavigation === 'function') {
+      onConfirmNavigation();
+    }
   };
 
   // Intercept form submit (disabled API)
@@ -85,6 +116,8 @@ export default function AccountEditPage({
     e.preventDefault();
     // Save is strictly unavailable per contract; do nothing
   };
+
+  const isModalOpen = Boolean(pendingNavigation || localPendingCancel);
 
   return (
     <div className="lv-account-edit-view">
@@ -121,7 +154,7 @@ export default function AccountEditPage({
           <p className="lv-edit-card__desc">{t.personalInfoDesc}</p>
 
           <form className="lv-form" onSubmit={handleSubmit} noValidate>
-            {/* 1. Full Name (Editable proposal) */}
+            {/* 1. Full Name */}
             <div className="lv-form-group">
               <label htmlFor="lv-edit-fullname" className="lv-form-label">
                 <span>{t.fullNameLabel}</span>
@@ -185,8 +218,17 @@ export default function AccountEditPage({
               <p className="lv-form-help">{t.rolesHelp}</p>
             </div>
 
-            {/* Actions Bar */}
+            {/* Actions Bar: Cancel (Exit) vs Reset (Revert) vs Save (Disabled) */}
             <div className="lv-form-actions">
+              <button
+                type="button"
+                className="lv-btn lv-btn-secondary"
+                onClick={handleCancelClick}
+                aria-label={t.btnCancel}
+              >
+                <span>{t.btnCancel}</span>
+              </button>
+
               <button
                 type="button"
                 className="lv-btn lv-btn-secondary"
@@ -224,7 +266,7 @@ export default function AccountEditPage({
       )}
 
       {/* Unsaved Changes Confirmation Modal */}
-      {Boolean(pendingNavigation) && (
+      {isModalOpen && (
         <div
           className="lv-modal-overlay"
           role="dialog"
@@ -248,7 +290,7 @@ export default function AccountEditPage({
               <button
                 type="button"
                 className="lv-btn lv-modal-btn-stay"
-                onClick={onCancelNavigation}
+                onClick={handleModalStay}
                 autoFocus
               >
                 {t.btnStay}
@@ -256,7 +298,7 @@ export default function AccountEditPage({
               <button
                 type="button"
                 className="lv-btn lv-modal-btn-discard"
-                onClick={onConfirmNavigation}
+                onClick={handleModalDiscard}
               >
                 {t.btnDiscardAndLeave}
               </button>

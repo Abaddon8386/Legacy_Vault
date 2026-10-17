@@ -348,13 +348,13 @@ export default function AppShell({
           <div className="lv-sidebar-footer">
             <button
               type="button"
-              className={`lv-user-badge-card ${currentTab === 'account-edit' ? 'is-active' : ''}`}
+              className={`lv-user-badge-card ${currentTab === 'account-profile' || currentTab === 'account-edit' ? 'is-active' : ''}`}
               onClick={() => {
-                if (typeof onNavigateTab === 'function') onNavigateTab('account-edit');
+                if (typeof onNavigateTab === 'function') onNavigateTab('account-profile');
                 setMobileMenuOpen(false);
               }}
-              title={lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ'}
-              aria-label={lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ'}
+              title={lang === 'en' ? 'Account Profile' : 'Hồ sơ tài khoản'}
+              aria-label={lang === 'en' ? 'Account Profile' : 'Hồ sơ tài khoản'}
             >
               <div className="lv-user-avatar-initials" aria-hidden="true">
                 {t.userInitials}
