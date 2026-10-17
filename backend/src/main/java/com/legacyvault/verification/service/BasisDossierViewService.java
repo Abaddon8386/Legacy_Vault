@@ -80,7 +80,7 @@ public class BasisDossierViewService {
         List<BasisVersionRow> rows = versions.findRows(dossier.getLegalBasisDossierId());
 
         Set<Long> userIds = new HashSet<>();
-        userIds.add(dossier.getCreatedByUserId());
+        userIds.add(dossier.getClassifiedByUserId());
         rows.forEach(r -> userIds.add(r.createdByUserId()));
         Map<Long, UUID> publicIds = users.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getUserId, User::getPublicId, (a, b) -> a));
@@ -100,7 +100,7 @@ public class BasisDossierViewService {
                 .toList();
         return new BasisDossierResponse(dossier.getPublicId(), verificationCase.getPublicId(), dossier.getRoute(),
                 dossier.getStatus(), dossier.getDisputeStatus(), includeReason ? dossier.getRouteReason() : null,
-                publicIds.get(dossier.getCreatedByUserId()),
+                publicIds.get(dossier.getClassifiedByUserId()),
                 dossier.getCreatedAt().toInstant(ZoneOffset.UTC), dossier.getUpdatedAt().toInstant(ZoneOffset.UTC),
                 items);
     }

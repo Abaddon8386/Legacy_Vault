@@ -955,6 +955,36 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/reclassification:
+    post:
+      tags: [Legal]
+      summary: Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (PS-43, ST-16, LV-HOLD-001)
+      description: |
+        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `NOTARIAL` hoặc `COURT`; Vault
+        `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. `NOTARIAL` và `COURT` không đổi lẫn nhau. Phân loại cũ được lưu vào lịch sử.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClassifyBasisRequest' }
+      responses:
+        '200':
+          description: Đã phân loại lại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/verification-cases/{caseId}/basis-dossier:
     get:
       tags: [Staff]

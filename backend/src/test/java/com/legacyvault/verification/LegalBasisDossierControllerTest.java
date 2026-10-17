@@ -37,6 +37,7 @@ import com.legacyvault.verification.controller.LegalBasisDossierController;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.BasisReclassificationService;
 
 /** PS-41: hợp đồng HTTP của /legal-verifications/verification-cases/{caseId}/basis-dossier. */
 @WebMvcTest(controllers = LegalBasisDossierController.class)
@@ -64,6 +65,9 @@ class LegalBasisDossierControllerTest {
 
     @MockitoBean
     private BasisClassificationService classification;
+
+    @MockitoBean
+    private BasisReclassificationService reclassification;
 
     @MockitoBean
     private BasisDossierViewService views;
@@ -136,5 +140,34 @@ class LegalBasisDossierControllerTest {
         mockMvc.perform(get(URL, CASE_ID).with(as("STAFF_EXECUTOR"))).andExpect(status().isForbidden());
         mockMvc.perform(get(URL, CASE_ID)).andExpect(status().isUnauthorized());
         mockMvc.perform(get(URL, "not-a-uuid").with(legal())).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void reclassify_returns200_forLegalOnly() throws Exception {
+        when(reclassification.reclassify(eq(CASE_ID), any(), any())).thenReturn(DOSSIER);
+        String body = "{\"route\":\"COURT\",\"routeReason\":\"Đã đủ chứng cứ\"}";
+
+        mockMvc.perform(post(URL + "/reclassification", CASE_ID).with(legal()).contentType(MediaType.APPLICATION_JSON)
+                .content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.route").value("NOTARIAL"));
+        mockMvc.perform(post(URL + "/reclassification", CASE_ID).with(as("STAFF_EXECUTOR"))
+                .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        mockMvc.perform(post(URL + "/reclassification", CASE_ID).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void reclassify_invalidBodyIs400_andErrorsAreMapped() throws Exception {
+        mockMvc.perform(post(URL + "/reclassification", CASE_ID).with(legal()).contentType(MediaType.APPLICATION_JSON)
+                .content("{}")).andExpect(status().isBadRequest());
+        verifyNoInteractions(reclassification);
+
+        when(reclassification.reclassify(eq(CASE_ID), any(), any()))
+                .thenThrow(new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE))
+                .thenThrow(new BusinessException(ErrorCode.VALIDATION_FAILED));
+        String body = "{\"route\":\"NOTARIAL\",\"routeReason\":\"x\"}";
+        mockMvc.perform(post(URL + "/reclassification", CASE_ID).with(legal()).contentType(MediaType.APPLICATION_JSON)
+                .content(body)).andExpect(status().isConflict());
+        mockMvc.perform(post(URL + "/reclassification", CASE_ID).with(legal()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"route\":\"ON_HOLD\",\"routeReason\":\"x\"}")).andExpect(status().isBadRequest());
     }
 }
