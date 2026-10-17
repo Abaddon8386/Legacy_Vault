@@ -577,7 +577,7 @@ paths:
     post:
       tags: [Staff]
       summary: Ghi nhận kết quả liên hệ Trustee và trạng thái fallback (PS-44, ST-10)
-      description: Staff ghi từng lần liên hệ. Ngưỡng thử lại/kênh/thời gian chờ chưa chốt; API không tự quyết định khi nào chuyển fallback.
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Trustee Vault assigned to the actor. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND. Anonymous 401; other roles 403. New contacts for REVOKED Trustees return 409 TRUSTEE_REVOKED after authorization. Trustee status is refreshed under lock. History and audit commit atomically. Staff target discovery API remains pending. Retry and fallback thresholds remain undecided.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/TrusteeId'
@@ -596,9 +596,15 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: TRUSTEE_REVOKED - new contact records are not allowed for a revoked Trustee.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
     get:
       tags: [Staff]
       summary: Lịch sử liên hệ Trustee (PS-44)
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Trustee Vault assigned to the actor, even for empty history. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND. Anonymous 401; other roles 403.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/TrusteeId'

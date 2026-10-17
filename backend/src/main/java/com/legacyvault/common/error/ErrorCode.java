@@ -19,6 +19,7 @@ public enum ErrorCode {
 	EMAIL_ALREADY_EXISTS(409, "error.auth.emailExists"),
 	VAULT_ALREADY_EXISTS(409, "error.vault.alreadyExists"),
 	TRUSTEE_ALREADY_EXISTS(409, "error.trustee.alreadyExists"),
+	TRUSTEE_REVOKED(409, "error.trustee.revoked"),
 	VAULT_NOT_EDITABLE(409, "error.vault.notEditable"),
 	ALERT_NOT_CANCELLABLE(409, "error.vault.alertNotCancellable"),
 	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
