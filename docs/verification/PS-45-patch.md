@@ -1,44 +1,60 @@
 # PS-45 patch validation — 2026-10-17
 
-PS-45 merges patched PS-44, which merges develop `7205d17`. Existing PRs #47/#48 are reused.
-No rebase, force push, develop push, merge of a PR, or PS-77 code integration.
+PS-45 merges patched PS-44 on develop `7205d17`; existing PRs #47/#48 are reused.
+Latest leader instruction assigns `V12__trustee_contact_outcomes.sql` to PS-44 and
+`V13__beneficiary_identity_verifications.sql` to PS-45. Both renames preserve SQL contents.
+The conflicting old feature filenames are removed; no Dương/PS-77 migrations are changed.
 
-POST/GET use the shared OPEN/assigned/Vault guard. Write refreshes the Beneficiary after locks,
-appends history, updates canonical status, and audits in one transaction. Arbitrary String status
-assignment is removed; `MATCH` uses `verifyAtCounter()` and `VERIFIED_AT_COUNTER`, while `NOT_MATCH`
-uses `markIdentityNotVerified()` and `NOT_VERIFIED`, including from VERIFIED_AT_COUNTER.
-Audit metadata is whitelisted; issuer, suffix, notes, and identity documents are excluded.
+POST/GET use the OPEN/assigned/Vault guard. Writes lock Vault then Case, refresh the Beneficiary,
+append history, update canonical current status and audit in one transaction. MATCH sets
+VERIFIED_AT_COUNTER; NOT_MATCH sets NOT_VERIFIED even after VERIFIED_AT_COUNTER. Both retain
+unchanged history results and return 201. Concurrent current status follows the last serialized result.
+Audit excludes issuer, suffix, notes and identity documents. Confirmed REVOKED Trustee policy is
+inherited from PS-44; inaccessible targets always receive 404 before business-state checks.
 
-The user confirmed both business policies on 2026-10-17: every new NOT_MATCH resets current status
-to NOT_VERIFIED even after VERIFIED_AT_COUNTER, and REVOKED Trustees cannot receive new contacts.
-Both identity outcomes append unchanged results and return 201. The temporary NOT_MATCH 409 error,
-message and contract are removed. Current state follows the last result processed under the locks.
-Trustee revocation policy is included from PS-44; unauthorized targets still receive 404 first.
+## Validation
 
-Validation with repository Maven wrapper / JDK 25:
+- Full `backend/mvnw.cmd clean test` with STAFF_SQLSERVER_MASTER_URL enabled: **274 discovered,
+  271 passed, 0 failures/errors, 3 skipped**. BUILD SUCCESS, including contextLoads.
+- The 3 skipped tests belong to the separate opt-in DmsSqlServerConcurrencyTest suite.
+- Identity SQL suite: 20 passed (10 identity + 10 inherited PS-44 scenarios). The standalone
+  Trustee SQL suite also passes all 10 tests against the stacked schema.
+- contextLoads migrates an empty temporary database through all 14 branch migrations.
+  The SQL service suites migrate to V11, then Spring Flyway applies V12 and V13 and validates the
+  actual full-branch scripts/history/checksums. No feature SQL fixtures or migration exclusions remain.
+- Real SQL tests cover both Cancel Alert orders, concurrent MATCH writes, mixed MATCH/NOT_MATCH
+  in BOTH serialized orders with consistent final state/full history, NOT_MATCH from both prior
+  states, denied SQL row shapes and audit-failure rollback for both outcomes. A failed NOT_MATCH
+  preserves prior VERIFIED_AT_COUNTER plus its earlier MATCH history/audit.
+- Actual SQL Server UPDLOCK/HOLDLOCK/ROWLOCK observed. Inherited tests verify audit ISJSON and
+  REVOKED Trustees, including stale entities loaded before concurrent revocation.
+- Full regression log: `backend/ps45-migrations-regression.log` (ignored).
+- git diff --check and strict UTF-8 decoding of messages passed. Build was clean to remove stale
+  copied migration resources after renaming; no shared database was reset or repaired.
 
-- `-Dtest=IdentityVerification*Test test` with STAFF_SQLSERVER_MASTER_URL: 30 passed, 0 failed/skipped:
-  12 service/controller + 18 real SQL tests (10 identity scenarios + 8 inherited PS-44 regression scenarios).
-- `test`: 269 discovered; 240 passed, 1 error, 28 skipped. BUILD FAILURE.
-  contextLoads fails on duplicate Flyway V7; V8 is also duplicated on disk. Opt-in SQL suites
-  are skipped in ordinary regression and run explicitly above. No failed test was excluded to claim green.
-- SQL Server tests verify both Cancel Alert orders, two concurrent MATCH writes, mixed MATCH/NOT_MATCH
-  writes in BOTH serialized orders with matching final state and complete history, denied SQL row shapes,
-  NOT_MATCH from both prior states, and real audit-failure rollback of history AND status for both outcomes.
-  A failed NOT_MATCH retains an earlier VERIFIED_AT_COUNTER status and its successful MATCH history/audit.
-- The SQL harness creates/drops only its random LegacyVault_StaffPatch_* DB. Develop's 12 migrations
-  run via Flyway; unchanged feature SQL is applied as schema fixtures. This does NOT prove branch-wide
-  Flyway integration; feature version allocation remains blocked.
-- Local logs: backend/target/ps45-policy-focused.log, ps45-policy-regression.log (ignored).
-- git diff --check and strict UTF-8 decoding of changed messages passed.
+## Review and integration
 
-Data repair: `scripts/testing/ps45-identity-status-preflight.sql` is read-only and reports canonical/unknown
-states and invalid MATCH/NOT_MATCH state counts versus latest history. It has NOT been run on real data.
-NOT_MATCH mapping is now approved. No repair migration is issued until affected deployment scope
-and migration version are confirmed;
-unknown states must never be silently normalized. Existing history is untouched.
+Older audit JSON, encryption variable/key version, configurable Grace Period and duplicate service
+observations are already resolved in current code; see PS-44-patch.md. Existing V5.1 is retained:
+V9 is already used by OPEN-case uniqueness and applied migrations must not be blindly renamed.
 
-Remaining blockers: the team confirmed migration numbers are not allocated (V12/V13 belong to PS-77,
-V14+ reserved per review); Staff target-discovery API (case DTO exposes
-Vault/Owner IDs only). Keep both PRs out of merge until applicable blockers are resolved.
-Integrate PS-44 before PS-45. OPEN cases never imply PS-46–48 legal clearance.
+The only actual shared-file merge conflicts found against main/PS-38–43 were messages files.
+The Trustee key is now grouped beside existing Trustee keys instead of at EOF. Synthetic Git merges
+with develop, main and each PS-38/39/40-followup/41/42/43 branch are clean; AuditAction, ErrorCode,
+messages, OpenAPI and error contract preserve both sides. This is a conflict check, not a deployment
+or a full test of the combined PS-38–43 runtime. No other team's implementation is pulled into the PR.
+
+The requested V12/V13 assignment removes duplicates with current develop/main. Open PS-77 #64
+still contains its own V12/V13: coordinate that separate branch before combining both feature streams.
+PS-41–43 use V14/V15 and are preserved. No PS-77 migrations were edited or merged into this branch.
+
+Staff target-discovery remains a FE dependency: case DTO currently exposes Vault/Owner IDs, not
+Trustee/Beneficiary IDs. Owner APIs and UUID entry are not supported substitutes. OPEN never means
+PS-46–48 legal clearance. Integrate PS-44 before PS-45, without claiming PS-77 numbering resolved.
+
+## Data repair
+
+`scripts/testing/ps45-identity-status-preflight.sql` is read-only and reports canonical/unknown states
+and invalid historical current-status counts versus latest history. It has not run on real data.
+The business mapping is approved; a repair still needs deployment scope and its own migration version.
+Unknown states and existing history must not be silently rewritten. No shared Flyway history was changed.

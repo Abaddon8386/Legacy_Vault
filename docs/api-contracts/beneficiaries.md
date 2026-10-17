@@ -20,7 +20,9 @@ Quyết định xác nhận ngày 2026-10-17: `NOT_MATCH` đặt trạng thái h
 kể cả từ `VERIFIED_AT_COUNTER`. Kết quả lịch sử vẫn là `NOT_MATCH`; mỗi lần xác minh thêm bản ghi mới,
 không ghi đè lịch sử cũ. Cả MATCH và NOT_MATCH trả 201 khi hợp lệ. Khi có nhiều lần ghi đồng thời,
 khóa tuần tự hóa xử lý; trạng thái hiện tại khớp với kết quả được xử lý cuối cùng.
-Migration V7/V8 vẫn xung đột, chờ nhóm cấp số; không dùng V12/V13 của PS-77 hay số dành cho PS-41–43.
+Theo chỉ định mới nhất của leader, PS-44 dùng `V12__trustee_contact_outcomes.sql` và PS-45 dùng
+`V13__beneficiary_identity_verifications.sql`; cả hai đã chạy qua Flyway trên DB tạm. Nhánh PS-77 riêng
+vẫn có V12/V13 và cần điều phối số trước khi tích hợp cùng nhau; không sửa migration PS-77 trong bản vá này.
 Staff queue/detail hiện trả Vault/Owner IDs, không trả beneficiaryId; cần API discovery theo ca được giao.
 Không dùng endpoint Owner hoặc ô nhập UUID thay cho dependency này.
 
