@@ -26,8 +26,7 @@ public class CourtRouteGuard {
         int current = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         var evidence = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), current)
                 .orElseThrow(CourtRouteGuard::blocked);
-        if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())
-                || !evidence.isReviewable()) throw blocked();
+        if (current < dossier.getRequiredVersionNo() || !evidence.isReviewable()) throw blocked();
         var decision = decisions.findFirstByDossierVersionIdOrderByIdDesc(evidence.id())
                 .orElseThrow(CourtRouteGuard::blocked);
         if (!"VALID".equals(decision.getResult())) throw blocked();

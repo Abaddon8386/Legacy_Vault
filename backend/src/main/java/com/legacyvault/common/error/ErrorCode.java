@@ -31,6 +31,7 @@ public enum ErrorCode {
 	BASIS_VERSION_STALE(409, "error.legalBasis.versionStale"),
 	COURT_EVIDENCE_REQUIRED(409, "error.legalBasis.courtEvidenceRequired"),
 	COURT_DECISION_REQUIRED(409, "error.legalBasis.courtDecisionRequired"),
+	LEGAL_WORKFLOW_ON_HOLD(409, "error.legalBasis.onHold"),
 	LEGAL_VERIFICATION_INVALID_STATE(409, "error.legalVerification.invalidState"),
 	LEGAL_VERIFICATION_ALREADY_DECIDED(409, "error.legalVerification.alreadyDecided"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),

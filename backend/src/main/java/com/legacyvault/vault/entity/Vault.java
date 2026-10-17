@@ -95,6 +95,14 @@ public class Vault {
         moveTo(STATUS_ON_HOLD, STATUS_AWAITING_LEGAL_BASIS);
     }
 
+    /** Legal reopens review on new dispute/missing evidence; this never unlocks the Vault. */
+    public void holdLegalBasisReview() {
+        if (!STATUS_AWAITING_LEGAL_BASIS.equals(status) && !STATUS_LEGAL_BASIS_VERIFICATION.equals(status))
+            throw new IllegalStateException("Vault is not in the legal-basis workflow");
+        status = STATUS_ON_HOLD;
+        updatedAt = Instant.now();
+    }
+
     /** ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION. */
     public void markLegalBasisVerification() {
         moveTo(STATUS_AWAITING_LEGAL_BASIS, STATUS_LEGAL_BASIS_VERIFICATION);

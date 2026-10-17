@@ -46,10 +46,11 @@ public class BasisForwardService {
     private final LegalBasisDossierVersionRepository versions;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisLockedState lockedState;
 
     public BasisForwardService(StaffCaseLockRepository staffCases, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers,
-            LegalBasisDossierVersionRepository versions, BasisDossierViewService views, AuditService auditService) {
+            LegalBasisDossierVersionRepository versions, BasisDossierViewService views, AuditService auditService, LegalBasisLockedState lockedState) {
         this.staffCases = staffCases;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -57,6 +58,7 @@ public class BasisForwardService {
         this.versions = versions;
         this.views = views;
         this.auditService = auditService;
+        this.lockedState = lockedState;
     }
 
     @Transactional
@@ -68,8 +70,10 @@ public class BasisForwardService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
         VerificationCase verificationCase = caseRepository.findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
         if (!Objects.equals(verificationCase.getAssignedStaffUserId(), staffUserId)
                 || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -80,6 +84,8 @@ public class BasisForwardService {
 
         LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
+        LegalWorkflowGuard.requireNotOnHold(vault, dossier);
         if (!LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
@@ -88,7 +94,7 @@ public class BasisForwardService {
         if (versionNo < 1 || versionNo > current) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
-        if (versionNo != current) {
+        if (versionNo != current || versionNo < dossier.getRequiredVersionNo()) {
             throw new BusinessException(ErrorCode.BASIS_VERSION_STALE);
         }
 

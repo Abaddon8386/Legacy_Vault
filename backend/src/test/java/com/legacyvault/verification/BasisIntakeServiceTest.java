@@ -48,6 +48,7 @@ import com.legacyvault.verification.repository.LegalBasisDossierVersionRepositor
 import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.BasisIntakeService;
 
 /** PS-41 (ST-18, LV-BASIS-001): Staff đã nhận ca tiếp nhận văn bản vào hồ sơ do Legal tạo; hash, mã hóa, đúng nhánh. */
@@ -75,7 +76,8 @@ class BasisIntakeServiceTest {
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
     private final BasisIntakeService service = new BasisIntakeService(staffCases, vaultRepository, dossiers, versions,
-            allocationRepository, assets, beneficiaries, encryption, new ObjectMapper(), views, auditService, 10_485_760L);
+            allocationRepository, assets, beneficiaries, encryption, new ObjectMapper(), views, auditService,
+            mock(LegalBasisLockedState.class), 10_485_760L);
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
@@ -124,7 +126,8 @@ class BasisIntakeServiceTest {
     private Vault happyPath(String route) {
         Vault vault = vault("AWAITING_LEGAL_BASIS");
         when(staffCases.findOwnedByStaffForUpdate(CASE_ID, STAFF_ID)).thenReturn(Optional.of(openCase()));
-        when(vaultRepository.findById(VAULT_ID)).thenReturn(Optional.of(vault));
+        when(staffCases.findOwnedByStaff(CASE_ID, STAFF_ID)).thenReturn(Optional.of(openCase()));
+        when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(dossier(route)));
         when(versions.findMaxVersionNo(DOSSIER_DB_ID)).thenReturn(0);
         when(versions.saveAndFlush(any(LegalBasisDossierVersion.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -241,7 +244,7 @@ class BasisIntakeServiceTest {
 
         for (String status : new String[] { "ON_HOLD", "WILL_VERIFICATION", "LEGAL_BASIS_VERIFICATION" }) {
             happyPath("NOTARIAL");
-            when(vaultRepository.findById(VAULT_ID)).thenReturn(Optional.of(vault(status)));
+            when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault(status)));
             assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
                     .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
         }

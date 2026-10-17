@@ -49,7 +49,7 @@ class LegalBasisDossierControllerTest {
     private static final String URL = "/api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier";
     private static final BasisDossierResponse DOSSIER = new BasisDossierResponse(UUID.randomUUID(), CASE_ID,
             "NOTARIAL", "DRAFT", "NONE", "Không tranh chấp", LEGAL.publicId(), Instant.parse("2026-10-04T10:00:00Z"),
-            Instant.parse("2026-10-04T10:00:00Z"), List.of());
+            Instant.parse("2026-10-04T10:00:00Z"), List.of(), 1);
 
     @Autowired
     private MockMvc mockMvc;

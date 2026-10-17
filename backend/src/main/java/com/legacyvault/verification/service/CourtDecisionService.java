@@ -43,13 +43,14 @@ public class CourtDecisionService {
         var locked = access.lock(caseId);
         locked.requireOpen();
         var dossier = locked.dossier();
+        LegalWorkflowGuard.requireNotOnHold(locked.vault(), dossier);
         if (!LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())
                 || !Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(locked.vault().getStatus())
                 || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus()))
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         var evidence = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), request.version())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        if (request.version() != versions.findMaxVersionNo(dossier.getLegalBasisDossierId()))
+        if (request.version() < dossier.getRequiredVersionNo() || request.version() != versions.findMaxVersionNo(dossier.getLegalBasisDossierId()))
             throw new BusinessException(ErrorCode.BASIS_VERSION_STALE);
         if (!evidence.isReviewable())
             throw new BusinessException(ErrorCode.COURT_EVIDENCE_REQUIRED);

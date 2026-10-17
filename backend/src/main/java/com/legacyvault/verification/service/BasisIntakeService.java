@@ -67,13 +67,14 @@ public class BasisIntakeService {
     private final ObjectMapper objectMapper;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisLockedState lockedState;
     private final long maxFileBytes;
 
     public BasisIntakeService(StaffCaseLockRepository staffCases, VaultRepository vaultRepository,
             LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations, AssetRepository assets, BeneficiaryRepository beneficiaries,
             EncryptionService encryption, ObjectMapper objectMapper, BasisDossierViewService views,
-            AuditService auditService, @Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes) {
+            AuditService auditService, LegalBasisLockedState lockedState, @Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes) {
         this.staffCases = staffCases;
         this.vaultRepository = vaultRepository;
         this.dossiers = dossiers;
@@ -85,6 +86,7 @@ public class BasisIntakeService {
         this.objectMapper = objectMapper;
         this.views = views;
         this.auditService = auditService;
+        this.lockedState = lockedState;
         this.maxFileBytes = maxFileBytes;
     }
 
@@ -96,18 +98,27 @@ public class BasisIntakeService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
+        VerificationCase initialCase = staffCases.findOwnedByStaff(caseId, staffUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
         VerificationCase verificationCase = staffCases.findOwnedByStaffForUpdate(caseId, staffUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        Vault vault = vaultRepository.findById(verificationCase.getVaultId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
+        if (!java.util.Objects.equals(verificationCase.getAssignedStaffUserId(), staffUserId)
+                || !java.util.Objects.equals(verificationCase.getVaultId(), vault.getVaultId()))
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         if (!verificationCase.isOpen() || !Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
         LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
         if (!dossier.acceptsIntake()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
+        LegalWorkflowGuard.requireNotOnHold(vault, dossier);
 
         requireTypeMatchesRoute(metadata, dossier);
         List<long[]> scope = resolveScope(metadata, vault.getVaultId());
