@@ -168,7 +168,6 @@ Request body giống endpoint `/review`, dùng `reason` bắt buộc, tối đa 
 | Trường | Kiểu | Ý nghĩa |
 |---|---|---|
 | `dossierId` | string / UUID | Public ID của dossier; không trả khóa chính tuần tự trong database theo D-API-08 |
-| `caseId` | string / UUID | Public ID của verification case, hỗ trợ FE liên kết dữ liệu |
 | `reviewStatus` | string | Trạng thái review hiện tại |
 | `reviewRequired` | boolean | Dossier có cần review hay không |
 | `reasonCode` | string / nullable | Mã lý do review hoặc kết quả kiểm tra |
