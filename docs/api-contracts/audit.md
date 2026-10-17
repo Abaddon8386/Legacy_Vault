@@ -68,6 +68,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Giấy tờ khai tử | `DEATH_DOCUMENT_RECORDED` (loại + ID công khai; không số giấy tờ) | PS-38 (ST-11) |
 | Di chúc giấy gốc | `ORIGINAL_WILL_RECEIVED` (chỉ ID công khai; không tên người giao) | PS-39 (ST-13) |
 | Thẩm định giấy tờ khai tử | `LEGAL_DEATH_DOCUMENT_DECIDED` (kết quả + ID công khai; không ghi lý do) | PS-36 (ST-12) |
+| Đối chiếu di chúc gốc | `WILL_COMPARISON_RECORDED` (kết quả, ID công khai, phiên bản, hash; không ghi lý do) | PS-40 (ST-15) |
 
 ## Giao diện nội bộ
 
