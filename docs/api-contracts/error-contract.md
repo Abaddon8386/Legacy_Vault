@@ -62,6 +62,9 @@ Lỗi validation:
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
 | `LEGAL_VERIFICATION_INVALID_STATE` | 409 | Legal quyết định khi ca không còn `OPEN` hoặc Vault không ở `AWAITING_VERIFICATION` (PS-36) |
 | `LEGAL_VERIFICATION_ALREADY_DECIDED` | 409 | Giấy tờ khai tử đã có quyết định thẩm định (PS-36) |
+| `WILL_NOT_VERIFIED` | 409 | Phân loại căn cứ khi chưa có kết quả đối chiếu di chúc khớp (PS-41) |
+| `BASIS_DOSSIER_ALREADY_EXISTS` | 409 | Ca đã có hồ sơ căn cứ (PS-41) |
+| `BASIS_DOSSIER_INVALID_STATE` | 409 | Ca, Vault hoặc hồ sơ căn cứ không ở trạng thái cho phép thao tác (PS-41, PS-42, PS-43) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
