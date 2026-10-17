@@ -50,6 +50,22 @@ Trustee không tự thành Beneficiary · không tạo tài khoản · ownership
 
 ## Staff contact history — PS-44 (ST-10, LV-EXT-001)
 
+Both POST and GET require `ROLE_STAFF_EXECUTOR` and an `OPEN` row in `verification_cases`
+for the target Trustee's Vault assigned to the authenticated Staff. A missing target, missing/unassigned/
+cancelled case, another Staff's case, or a case for another Vault all return `404 RESOURCE_NOT_FOUND`,
+including empty history. Anonymous callers receive 401; other roles receive 403.
+Writes lock Vault then VerificationCase until history and audit commit together; audit failure rolls back both.
+The Vault relationship is immutable through this API. OPEN is authorization only, not legal clearance for PS-46–48.
+
+FE dependency: the Staff case queue/detail currently returns Vault/Owner IDs, not Trustee IDs.
+No Staff target-discovery API is implemented; Owner endpoints and manual UUID entry are not a supported workflow.
+Confirmed policy (2026-10-17): new contact records for a REVOKED Trustee are rejected with
+`409 TRUSTEE_REVOKED` after the case guard succeeds. Writes refresh and lock the Trustee after Vault/Case
+locks so a previously loaded APPOINTED entity cannot bypass a committed revocation.
+Existing history remains readable under the same OPEN/assigned case guard; unauthorized targets still return 404.
+Per the latest leader review, PS-44 uses `V12__trustee_contact_outcomes.sql`; PS-45 will use V13.
+The separate PS-77 PR also has V12/V13 and needs numbering coordination before combining those branches.
+
 Staff ghi nhận từng lần liên hệ Trustee và trạng thái fallback tường minh qua
 `POST /api/v1/staff/trustees/{trusteeId}/contact-outcomes`; xem lịch sử qua `GET` cùng path.
 Các trường gồm kênh (`PHONE`, `EMAIL`, `IN_PERSON`, `OTHER`), kết quả (`CONTACTED`, `NO_RESPONSE`,
