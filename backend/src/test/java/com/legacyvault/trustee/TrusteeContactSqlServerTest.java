@@ -1,0 +1,206 @@
+package com.legacyvault.trustee;
+
+import com.legacyvault.LegacyvaultBackendApplication;
+import com.legacyvault.common.error.BusinessException;
+import com.legacyvault.common.error.ErrorCode;
+import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.vault.service.VaultService;
+import jakarta.persistence.EntityManagerFactory;
+import org.flywaydb.core.Flyway;
+import org.hibernate.resource.jdbc.spi.StatementInspector;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.scheduling.config.TaskManagementConfigUtils;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Supplier;
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Disposable database only. Unallocated feature scripts are applied as schema fixtures, never renumbered.
+ * This verifies service/SQL locking, NOT successful Flyway integration of the unresolved branch. */
+@EnabledIfEnvironmentVariable(named = "STAFF_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
+public class TrusteeContactSqlServerTest {
+    protected static ConfigurableApplicationContext context;
+    protected static JdbcTemplate jdbc;
+    static JdbcTemplate master;
+    static String database;
+    static Path fixtureMigrations;
+    protected static TransactionTemplate tx;
+    protected static final List<String> sql = new CopyOnWriteArrayList<>();
+    protected Long ownerId, staffId, vaultId, caseId;
+    protected UUID ownerPublicId, staffPublicId, vaultPublicId, trusteePublicId;
+    protected ExecutorService workers;
+
+    @Configuration(proxyBeanMethods = false)
+    public static class SqlCapture {
+        @Bean HibernatePropertiesCustomizer captureSql() {
+            return properties -> properties.put("hibernate.session_factory.statement_inspector",
+                    (StatementInspector) statement -> { sql.add(statement); return statement; });
+        }
+    }
+
+    @BeforeAll static void start() throws Exception {
+        String masterUrl = System.getenv("STAFF_SQLSERVER_MASTER_URL");
+        master = new JdbcTemplate(new DriverManagerDataSource(masterUrl));
+        database = "LegacyVault_StaffPatch_" + UUID.randomUUID().toString().replace("-", "");
+        master.execute("CREATE DATABASE [" + database + "]");
+        String url = masterUrl.replace("databaseName=master;", "databaseName=" + database + ";");
+        jdbc = new JdbcTemplate(new DriverManagerDataSource(url));
+        fixtureMigrations = Files.createTempDirectory("legacyvault-staff-base-");
+        Path migrations = Path.of("../database/migration").toAbsolutePath().normalize();
+        List<Path> features = new ArrayList<>();
+        try (var files = Files.list(migrations)) {
+            for (Path file : files.filter(p -> p.toString().endsWith(".sql")).sorted().toList()) {
+                String name = file.getFileName().toString();
+                if (name.endsWith("__trustee_contact_outcomes.sql") || name.endsWith("__beneficiary_identity_verifications.sql")) {
+                    features.add(file);
+                } else Files.copy(file, fixtureMigrations.resolve(name));
+            }
+        }
+        Flyway.configure().dataSource(url, null, null).locations("filesystem:" + fixtureMigrations).load().migrate();
+        // SQL content is unchanged. No production Flyway history/checksum is edited.
+        for (Path feature : features) {
+            for (String batch : Files.readString(feature).split("(?im)^GO\\s*$")) {
+                if (!batch.isBlank()) jdbc.execute(batch);
+            }
+        }
+        String key = Base64.getEncoder().encodeToString(new byte[32]);
+        context = new SpringApplicationBuilder(LegacyvaultBackendApplication.class, SqlCapture.class)
+                .initializers(app -> app.addBeanFactoryPostProcessor(factory -> {
+                    var registry = (BeanDefinitionRegistry) factory;
+                    String name = TaskManagementConfigUtils.SCHEDULED_ANNOTATION_PROCESSOR_BEAN_NAME;
+                    if (registry.containsBeanDefinition(name)) registry.removeBeanDefinition(name);
+                })).run("--spring.datasource.url=" + url, "--spring.flyway.enabled=false", "--server.port=0",
+                        "--legacyvault.jwt.secret=" + key, "--legacyvault.encryption.key=" + key,
+                        "--logging.level.root=ERROR", "--logging.level.org.springframework.security=ERROR");
+        tx = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
+        tx.setTimeout(20);
+    }
+
+    @AfterAll static void stop() throws Exception {
+        if (context != null) context.close();
+        if (database != null && database.matches("LegacyVault_StaffPatch_[0-9a-f]{32}")) {
+            master.execute("ALTER DATABASE [" + database + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");
+            master.execute("DROP DATABASE [" + database + "]");
+        }
+        if (fixtureMigrations != null) {
+            try (var files = Files.list(fixtureMigrations)) { for (Path file : files.toList()) Files.delete(file); }
+            Files.delete(fixtureMigrations);
+        }
+    }
+
+    @BeforeEach void seed() {
+        ownerPublicId = UUID.randomUUID(); staffPublicId = UUID.randomUUID();
+        ownerId = user(ownerPublicId); staffId = user(staffPublicId);
+        vaultPublicId = UUID.randomUUID(); trusteePublicId = UUID.randomUUID();
+        jdbc.update("INSERT dbo.vaults(public_id,owner_user_id,vault_name,status) VALUES (?,?,'Staff Patch','AWAITING_VERIFICATION')", vaultPublicId.toString(), ownerId);
+        vaultId = jdbc.queryForObject("SELECT vault_id FROM dbo.vaults WHERE owner_user_id=?", Long.class, ownerId);
+        jdbc.update("INSERT dbo.dms_configs(owner_user_id,check_interval_days,grace_period_days,status,triggered_at,grace_period_ends_at) VALUES (?,30,1,'GRACE_PERIOD_EXCEEDED',DATEADD(day,-2,SYSUTCDATETIME()),DATEADD(day,-1,SYSUTCDATETIME()))", ownerId);
+        jdbc.update("INSERT dbo.trustees(public_id,vault_id,full_name,status,phone_number) VALUES (?,?,'Trustee','APPOINTED','0900000000')", trusteePublicId.toString(), vaultId);
+        jdbc.update("INSERT dbo.verification_cases(vault_id,triggered_at,assigned_staff_user_id) VALUES (?,SYSUTCDATETIME(),?)", vaultId, staffId);
+        caseId = jdbc.queryForObject("SELECT verification_case_id FROM dbo.verification_cases WHERE vault_id=?", Long.class, vaultId);
+        workers = Executors.newFixedThreadPool(2);
+        sql.clear();
+    }
+
+    Long user(UUID id) {
+        jdbc.update("INSERT dbo.users(public_id,full_name,email,password_hash,status) VALUES (?,'Staff Patch',?,'unused','ACTIVE')", id.toString(), id + "@test.invalid");
+        return jdbc.queryForObject("SELECT user_id FROM dbo.users WHERE public_id=?", Long.class, id.toString());
+    }
+    @AfterEach void stopWorkers() throws Exception {
+        if (workers != null) { workers.shutdownNow(); assertTrue(workers.awaitTermination(25, TimeUnit.SECONDS)); }
+    }
+    protected <T> T asStaff(Supplier<T> work) {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                new CustomUserPrincipal(staffId, staffPublicId, "staff@test.invalid"), null,
+                List.of(new SimpleGrantedAuthority("ROLE_STAFF_EXECUTOR"))));
+        try { return work.get(); } finally { SecurityContextHolder.clearContext(); }
+    }
+    protected void contact() {
+        asStaff(() -> context.getBean(TrusteeContactService.class).record(trusteePublicId,
+                new TrusteeContactDtos.RecordRequest(TrusteeContactDtos.Channel.PHONE,
+                        TrusteeContactDtos.Outcome.CONTACTED, TrusteeContactDtos.FallbackStatus.NOT_REQUIRED, "sensitive note")));
+    }
+    protected void cancel() {
+        context.getBean(VaultService.class).cancelAlert(vaultPublicId, new CustomUserPrincipal(ownerId, ownerPublicId, "owner@test.invalid"));
+    }
+    protected int contacts() { return jdbc.queryForObject("SELECT COUNT(*) FROM dbo.trustee_contact_records r JOIN dbo.trustees t ON t.trustee_id=r.trustee_id WHERE t.vault_id=?", Integer.class, vaultId); }
+    protected int audits(String action) { return jdbc.queryForObject("SELECT COUNT(*) FROM dbo.audit_logs WHERE vault_id=? AND action=?", Integer.class, vaultId, action); }
+    protected void notFound(Runnable work) { assertEquals(ErrorCode.RESOURCE_NOT_FOUND, assertThrows(BusinessException.class, work::run).getErrorCode()); }
+    protected static void await(CountDownLatch latch) {
+        try { assertTrue(latch.await(15, TimeUnit.SECONDS)); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException(e); }
+    }
+
+    @Test void sqlPredicatesHideEveryRejectedCaseAndEmptyHistory() {
+        for (String update : List.of("assigned_staff_user_id=NULL", "assigned_staff_user_id=" + ownerId,
+                "status='CANCELLED'", "vault_id=" + (vaultId + 1000000))) {
+            if (update.startsWith("vault_id")) {
+                jdbc.update("DELETE dbo.verification_cases WHERE verification_case_id=?", caseId);
+            } else jdbc.update("UPDATE dbo.verification_cases SET " + update + " WHERE verification_case_id=?", caseId);
+            notFound(this::contact);
+            notFound(() -> asStaff(() -> context.getBean(TrusteeContactService.class).history(trusteePublicId)));
+            jdbc.update("UPDATE dbo.verification_cases SET status='OPEN',assigned_staff_user_id=? WHERE verification_case_id=?", staffId, caseId);
+        }
+        assertEquals(0, contacts()); assertEquals(0, audits("TRUSTEE_CONTACT_RECORDED"));
+    }
+
+    @Test void repeatedContactsAndSqlServerUpdateLocks() {
+        contact(); contact(); assertEquals(2, contacts());
+        assertEquals(2, audits("TRUSTEE_CONTACT_RECORDED"));
+        assertTrue(sql.stream().anyMatch(s -> s.toLowerCase().contains("verification_cases") && s.toLowerCase().contains("updlock")), sql.toString());
+        assertTrue(sql.stream().anyMatch(s -> s.toLowerCase().contains("vaults") && s.toLowerCase().contains("updlock")));
+        assertFalse(jdbc.queryForObject("SELECT TOP 1 details FROM dbo.audit_logs WHERE vault_id=? AND action='TRUSTEE_CONTACT_RECORDED'", String.class, vaultId).contains("sensitive note"));
+    }
+
+    @Test void auditDatabaseFailureRollsBackHistory() {
+        String trigger = "fail_contact_" + vaultId;
+        jdbc.execute("CREATE TRIGGER dbo." + trigger + " ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS (SELECT 1 FROM inserted WHERE vault_id=" + vaultId + " AND action='TRUSTEE_CONTACT_RECORDED') THROW 51000, 'injected audit failure', 1; END");
+        try { assertThrows(RuntimeException.class, this::contact); }
+        finally { jdbc.execute("DROP TRIGGER dbo." + trigger); }
+        assertEquals(0, contacts()); assertEquals(0, audits("TRUSTEE_CONTACT_RECORDED"));
+    }
+
+    @Test void cancelCommitsFirstSoWaitingContactIsRejected() throws Exception {
+        CountDownLatch locked = new CountDownLatch(1), release = new CountDownLatch(1);
+        Future<?> cancellation = workers.submit(() -> tx.execute(s -> { cancel(); locked.countDown(); await(release); return null; }));
+        try {
+            assertTrue(locked.await(10, TimeUnit.SECONDS));
+            Future<?> write = workers.submit(() -> notFound(this::contact));
+            assertThrows(TimeoutException.class, () -> write.get(300, TimeUnit.MILLISECONDS));
+            release.countDown(); cancellation.get(20, TimeUnit.SECONDS); write.get(20, TimeUnit.SECONDS);
+            assertEquals(0, contacts()); assertEquals(0, audits("TRUSTEE_CONTACT_RECORDED"));
+        } finally { release.countDown(); }
+    }
+
+    @Test void contactRetainsLocksUntilCommitThenCancelContinues() throws Exception {
+        CountDownLatch locked = new CountDownLatch(1), release = new CountDownLatch(1);
+        Future<?> write = workers.submit(() -> tx.execute(s -> { contact(); locked.countDown(); await(release); return null; }));
+        try {
+            assertTrue(locked.await(10, TimeUnit.SECONDS));
+            Future<?> cancellation = workers.submit(this::cancel);
+            assertThrows(TimeoutException.class, () -> cancellation.get(300, TimeUnit.MILLISECONDS));
+            release.countDown(); write.get(20, TimeUnit.SECONDS); cancellation.get(20, TimeUnit.SECONDS);
+            assertEquals(1, contacts()); assertEquals(1, audits("TRUSTEE_CONTACT_RECORDED"));
+            notFound(this::contact);
+        } finally { release.countDown(); }
+    }
+
+    @Test void databaseRejectsDuplicateOpenCaseForVault() {
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> jdbc.update(
+                "INSERT dbo.verification_cases(vault_id,triggered_at) VALUES (?,SYSUTCDATETIME())", vaultId));
+    }
+}

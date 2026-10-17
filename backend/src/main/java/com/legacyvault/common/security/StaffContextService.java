@@ -4,7 +4,9 @@ import org.springframework.stereotype.Service;
 
 import com.legacyvault.user.entity.User;
 
-/** Resolves the authenticated staff principal to the internal user key used by persistence and audit. */
+/** Resolves the authenticated actor only. OwnerContextService.requireOwner is a legacy name:
+ * it resolves an active JWT user, without checking Owner authority. Controllers enforce Staff role;
+ * StaffVaultCaseGuard independently enforces ownership of an OPEN verification case. */
 @Service
 public class StaffContextService {
 
