@@ -21,6 +21,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import jakarta.persistence.EntityManager;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -39,19 +41,22 @@ public class VaultService {
     private final DmsConfigRepository dmsConfigRepository;
     private final VerificationCaseRepository verificationCaseRepository;
     private final OwnerWriteLockRepository creationLockRepository;
+    private final EntityManager entities;
 
     public VaultService(
             VaultRepository vaultRepository,
             AuditService auditService,
             DmsConfigRepository dmsConfigRepository,
             VerificationCaseRepository verificationCaseRepository,
-            OwnerWriteLockRepository creationLockRepository
+            OwnerWriteLockRepository creationLockRepository,
+            EntityManager entities
     ) {
         this.vaultRepository = vaultRepository;
         this.auditService = auditService;
         this.dmsConfigRepository = dmsConfigRepository;
         this.verificationCaseRepository = verificationCaseRepository;
         this.creationLockRepository = creationLockRepository;
+        this.entities = entities;
     }
 
     @Transactional
@@ -129,6 +134,22 @@ public class VaultService {
     @Transactional(readOnly = true)
     public Vault requireEditableVault(UUID vaultId, Long ownerUserId) {
         Vault vault = requireOwnedVault(vaultId, ownerUserId);
+        if (!EDITABLE_STATUS.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
+        }
+        return vault;
+    }
+
+    /** Content writers hold Owner -> Vault locks through quota checks, content and audit commit.
+     * Re-read status after locking: a cached ACTIVE entity cannot bypass a committed freeze/hold. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Vault requireEditableVaultForUpdate(UUID vaultId, Long ownerUserId) {
+        Vault vault = vaultRepository.findOwnedVaultForUpdate(vaultId, ownerUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        entities.refresh(vault);
+        if (!ownerUserId.equals(vault.getOwnerUserId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         if (!EDITABLE_STATUS.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
         }

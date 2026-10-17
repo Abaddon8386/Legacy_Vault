@@ -6,10 +6,14 @@ import java.time.Instant;
 
 public final class SubscriptionDtos {
     private SubscriptionDtos() {}
+    public enum PlanCode { BASIC, STANDARD, EXTENDED }
+    public record UpgradeRequest(@jakarta.validation.constraints.NotNull PlanCode planCode,
+        @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Min(1) Integer catalogVersion) {}
+    public record UpgradeResponse(Current subscription, long priceDifferenceVnd, boolean changed) {}
     public record Limits(long assetCount, long storageBytes, long fileBytes) {}
-    public record Plan(String code, int version, long monthlyPriceVnd, Limits limits) {
+    public record Plan(String code, int version, long priceVnd, String billingModel, Limits limits) {
         public static Plan from(SubscriptionPlan plan) {
-            return new Plan(plan.getCode(), plan.getVersion(), plan.getMonthlyPriceVnd(),
+            return new Plan(plan.getCode(), plan.getVersion(), plan.getPriceVnd(), plan.getBillingModel(),
                     new Limits(plan.getAssetLimit(), plan.getStorageLimitBytes(), plan.getFileLimitBytes()));
         }
     }

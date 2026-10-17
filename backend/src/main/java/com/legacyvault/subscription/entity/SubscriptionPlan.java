@@ -16,8 +16,10 @@ public class SubscriptionPlan {
     private String code;
     @Column(name = "catalog_version")
     private int version;
-    @Column(name = "monthly_price_vnd")
-    private long monthlyPriceVnd;
+    @Column(name = "purchase_price_vnd")
+    private long priceVnd;
+    @Column(name = "billing_model")
+    private String billingModel;
     @Column(name = "asset_limit")
     private long assetLimit;
     @Column(name = "storage_limit_bytes")
@@ -29,7 +31,8 @@ public class SubscriptionPlan {
 
     public String getCode() { return code; }
     public int getVersion() { return version; }
-    public long getMonthlyPriceVnd() { return monthlyPriceVnd; }
+    public long getPriceVnd() { return priceVnd; }
+    public String getBillingModel() { return billingModel; }
     public long getAssetLimit() { return assetLimit; }
     public long getStorageLimitBytes() { return storageLimitBytes; }
     public long getFileLimitBytes() { return fileLimitBytes; }

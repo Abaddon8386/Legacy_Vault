@@ -141,8 +141,10 @@ class SubscriptionSqlServerTest {
         assertEquals(0, flyway.info().pending().length);
         var versions = java.util.Arrays.stream(flyway.info().applied()).collect(
                 java.util.stream.Collectors.toMap(m -> m.getScript(), m -> m.getVersion().toString()));
-        assertEquals("18", versions.get("V18__preserve_lifetime_vault_ownership.sql"));
-        assertEquals("19", versions.get("V19__subscription_catalog_and_payload_usage.sql"));
+        assertEquals("19", versions.get("V19__preserve_lifetime_vault_ownership.sql"));
+        assertEquals("20", versions.get("V20__subscription_catalog_and_payload_usage.sql"));
+        assertEquals("21", versions.get("V21__lifetime_subscription_catalog.sql"));
+        assertEquals("22", versions.get("V22__owner_lifetime_entitlements.sql"));
         assertFalse(versions.containsKey("V12__preserve_lifetime_vault_ownership.sql"));
         assertFalse(versions.containsKey("V13__subscription_catalog_and_payload_usage.sql"));
     }
@@ -157,7 +159,11 @@ class SubscriptionSqlServerTest {
                 .andExpect(jsonPath("$.usage.storageBytes").value(0))
                 .andExpect(jsonPath("$.vaultCreated").value(false));
         mvc.perform(get("/api/v1/subscription-plans").with(as(owner, "VAULT_OWNER")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[1].monthlyPriceVnd").value(29000))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[1].priceVnd").value(199000))
+                .andExpect(jsonPath("$[2].priceVnd").value(499000))
+                .andExpect(jsonPath("$[1].billingModel").value("LIFETIME"))
+                .andExpect(jsonPath("$[1].version").value(2))
+                .andExpect(jsonPath("$[1].monthlyPriceVnd").doesNotExist())
                 .andExpect(jsonPath("$[2].limits.storageBytes").value(5_368_709_120L));
         assertEquals(0, vaultCount(owner));
     }
@@ -185,6 +191,99 @@ class SubscriptionSqlServerTest {
         createVault(other);
         mvc.perform(get("/api/v1/subscriptions/me?ownerId=" + other.publicId()).with(as(owner, "VAULT_OWNER")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.vaultCreated").value(false));
+    }
+
+    @Test
+    void realBearerAuthenticationUsesCurrentDatabaseRolesAndAccountState() throws Exception {
+        String token = context.getBean(com.legacyvault.auth.JwtService.class)
+                .generateAccessToken(owner.publicId(), owner.email(), List.of("ROLE_VAULT_OWNER"));
+        // A claimed role alone grants nothing: JwtAuthenticationFilter reloads actual DB roles.
+        mvc.perform(get("/api/v1/subscriptions/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+        jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_VAULT_OWNER'", owner.id());
+        mvc.perform(get("/api/v1/subscriptions/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.effectivePlan.code").value("BASIC"));
+        mvc.perform(get("/api/v1/subscription-plans").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        jdbc.update("DELETE dbo.user_roles WHERE user_id=?", owner.id());
+        mvc.perform(get("/api/v1/subscription-plans").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+        jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_VAULT_OWNER'", owner.id());
+        jdbc.update("UPDATE dbo.users SET deleted_at=SYSUTCDATETIME() WHERE user_id=?", owner.id());
+        mvc.perform(get("/api/v1/subscriptions/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        jdbc.update("UPDATE dbo.users SET deleted_at=NULL,status='INACTIVE' WHERE user_id=?", owner.id());
+        mvc.perform(get("/api/v1/subscription-plans").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void staleActiveVaultCannotBypassACommittedHold() throws Exception {
+        UUID vaultId = createVault(owner).id();
+        CountDownLatch loaded = new CountDownLatch(1), release = new CountDownLatch(1);
+        Future<ErrorCode> write = workers.submit(() -> businessError(() -> tx.execute(s -> {
+            var cached = context.getBean(com.legacyvault.vault.repository.VaultRepository.class)
+                    .findByPublicId(vaultId).orElseThrow();
+            assertEquals("ACTIVE", cached.getStatus());
+            loaded.countDown(); await(release);
+            return assets.createAsset(vaultId, owner.id(), asset());
+        })));
+        try {
+            assertTrue(loaded.await(10, TimeUnit.SECONDS));
+            jdbc.update("UPDATE dbo.vaults SET status='ON_HOLD' WHERE public_id=?", vaultId.toString());
+            release.countDown();
+            assertEquals(ErrorCode.VAULT_NOT_EDITABLE, write.get(20, TimeUnit.SECONDS));
+            assertEquals(0, quotas.current(owner.id()).usage().assetCount());
+            assertEquals(0, auditCount(owner, "ASSET_CREATED"));
+        } finally { release.countDown(); }
+    }
+
+    @Test
+    void contentWriteRetainsVaultLockUntilContentAndAuditCommit() throws Exception {
+        UUID vaultId = createVault(owner).id();
+        CountDownLatch written = new CountDownLatch(1), release = new CountDownLatch(1);
+        Future<?> write = workers.submit(() -> tx.execute(s -> {
+            assets.createAsset(vaultId, owner.id(), asset());
+            written.countDown(); await(release); return null;
+        }));
+        try {
+            assertTrue(written.await(10, TimeUnit.SECONDS));
+            Future<?> hold = workers.submit(() -> jdbc.update(
+                    "UPDATE dbo.vaults SET status='ON_HOLD' WHERE public_id=?", vaultId.toString()));
+            assertThrows(TimeoutException.class, () -> hold.get(300, TimeUnit.MILLISECONDS));
+            release.countDown(); write.get(20, TimeUnit.SECONDS); hold.get(20, TimeUnit.SECONDS);
+            assertEquals(1, quotas.current(owner.id()).usage().assetCount());
+            assertEquals(1, auditCount(owner, "ASSET_CREATED"));
+            assertEquals(ErrorCode.VAULT_NOT_EDITABLE,
+                    businessError(() -> assets.createAsset(vaultId, owner.id(), asset())));
+        } finally { release.countDown(); }
+    }
+
+    @Test
+    void stalePayloadSizeIsRefreshedBeforeCalculatingQuotaDelta() throws Exception {
+        UUID vaultId = createVault(owner).id();
+        var initial = assets.createAsset(vaultId, owner.id(), new CreateAssetRequest("Payload", "TEXT", null, "x".repeat(20)));
+        var will = wills.uploadWill(vaultId, owner.id(), pdf(32), null);
+        jdbc.update("UPDATE dbo.asset_versions SET file_size_bytes=? WHERE asset_id=(SELECT asset_id FROM dbo.assets WHERE public_id=?)",
+                BASIC_BYTES - 40, will.id().toString());
+        long vaultDbId = jdbc.queryForObject("SELECT vault_id FROM dbo.vaults WHERE public_id=?", Long.class, vaultId.toString());
+        CountDownLatch loaded = new CountDownLatch(1), release = new CountDownLatch(1);
+        Future<?> shrink = workers.submit(() -> tx.execute(s -> {
+            var cached = context.getBean(com.legacyvault.asset.repository.AssetRepository.class)
+                    .findByPublicIdAndVaultIdAndAssetTypeNot(initial.id(), vaultDbId, com.legacyvault.asset.entity.AssetType.DOCUMENT)
+                    .orElseThrow();
+            assertEquals(20, cached.getPayloadSizeBytes());
+            loaded.countDown(); await(release);
+            return assets.updateAsset(vaultId, initial.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(30)));
+        }));
+        try {
+            assertTrue(loaded.await(10, TimeUnit.SECONDS));
+            assets.updateAsset(vaultId, initial.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(40)));
+            assertEquals(BASIC_BYTES, quotas.current(owner.id()).usage().storageBytes());
+            release.countDown(); shrink.get(20, TimeUnit.SECONDS);
+            assertEquals(BASIC_BYTES - 10, quotas.current(owner.id()).usage().storageBytes());
+            assertEquals(2, auditCount(owner, "ASSET_UPDATED"));
+        } finally { release.countDown(); }
     }
 
     @Test
@@ -251,7 +350,7 @@ class SubscriptionSqlServerTest {
     @Test
     void duplicatePreflightFailsWithoutDeletingOrCombiningRows() throws Exception {
         createVault(owner);
-        String preflight = new ClassPathResource("db/migration/V18__preserve_lifetime_vault_ownership.sql")
+        String preflight = new ClassPathResource("db/migration/V19__preserve_lifetime_vault_ownership.sql")
                 .getContentAsString(StandardCharsets.UTF_8).split("(?m)^GO\\s*$")[0];
         DataAccessException failure = assertThrows(DataAccessException.class, () -> tx.execute(s -> {
             jdbc.execute("ALTER TABLE dbo.vaults DROP CONSTRAINT UQ_vaults_owner");
@@ -393,6 +492,120 @@ class SubscriptionSqlServerTest {
         jdbc.update("UPDATE dbo.vaults SET status = 'AWAITING_VERIFICATION' WHERE owner_user_id = ?", owner.id());
         assertEquals(ErrorCode.VAULT_NOT_EDITABLE, businessError(() -> assets.createAsset(vault, owner.id(), asset())));
         assertEquals(0, quotas.current(owner.id()).usage().assetCount());
+    }
+
+    @Test
+    void purchasedCapacityIsSnapshotAndCatalogChangesDoNotReduceIt() {
+        upgrade(owner,"STANDARD");
+        var purchased=quotas.current(owner.id()).effectivePlan();
+        jdbc.update("UPDATE dbo.subscription_plans SET asset_limit=25 WHERE plan_code='STANDARD'");
+        try {
+            assertEquals(purchased,quotas.current(owner.id()).effectivePlan());
+            assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,businessError(()->upgrade(owner,"STANDARD")));
+        } finally {jdbc.update("UPDATE dbo.subscription_plans SET asset_limit=50 WHERE plan_code='STANDARD'");}
+    }
+
+    private static com.legacyvault.subscription.dto.SubscriptionDtos.UpgradeResponse upgrade(Owner who, String code) {
+        return context.getBean(com.legacyvault.subscription.service.SubscriptionUpgradeService.class).upgrade(who.id(),
+            new com.legacyvault.subscription.dto.SubscriptionDtos.UpgradeRequest(
+                com.legacyvault.subscription.dto.SubscriptionDtos.PlanCode.valueOf(code),2));
+    }
+
+    @Test
+    void ownerSelectsLifetimePlanAfterRegistrationAndCanOnlyIncreaseCapacity() throws Exception {
+        assertFalse(upgrade(owner,"BASIC").changed());
+        var standard=upgrade(owner,"STANDARD");
+        assertTrue(standard.changed());
+        assertEquals(199000,standard.priceDifferenceVnd());
+        assertNull(standard.subscription().effectiveUntil());
+        assertEquals(0,vaultCount(owner));
+        assertFalse(upgrade(owner,"STANDARD").changed());
+        assertEquals(1,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
+        UUID vault=createVault(owner).id();
+        for(int i=0;i<6;i++) assets.createAsset(vault,owner.id(),asset());
+        assertEquals(6,quotas.current(owner.id()).usage().assetCount());
+        var extended=upgrade(owner,"EXTENDED");
+        assertEquals(300000,extended.priceDifferenceVnd());
+        assertEquals("EXTENDED",extended.subscription().effectivePlan().code());
+        assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,businessError(()->upgrade(owner,"STANDARD")));
+        assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,businessError(()->upgrade(owner,"BASIC")));
+        assertEquals(2,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
+        jdbc.update("UPDATE dbo.owner_subscription_entitlements SET created_at='2000-01-01',updated_at='2000-01-01' WHERE owner_user_id=?",owner.id());
+        assertEquals("EXTENDED",quotas.current(owner.id()).effectivePlan().code());
+    }
+
+    @Test
+    void upgradeApiUsesPrincipalAndServerCatalogAndRequiresOwner() throws Exception {
+        String url="/api/v1/subscriptions/me/upgrade";
+        String body="{\"planCode\":\"STANDARD\",\"catalogVersion\":2,\"priceVnd\":1,\"limits\":{\"assetCount\":999999}}";
+        mvc.perform(post(url).contentType("application/json").content(body)).andExpect(status().isUnauthorized());
+        for(String role:List.of("STAFF_EXECUTOR","LEGAL_VERIFIER"))
+            mvc.perform(post(url).with(as(owner,role)).contentType("application/json").content(body)).andExpect(status().isForbidden());
+        mvc.perform(post(url).with(as(owner,"VAULT_OWNER")).contentType("application/json").content("{}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post(url).with(as(owner,"VAULT_OWNER")).contentType("application/json")
+            .content("{\"planCode\":\"STANDARD\",\"catalogVersion\":1}"))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_CATALOG_STALE"));
+        Owner other=newOwner();
+        mvc.perform(post(url+"?ownerId="+other.publicId()).with(as(owner,"VAULT_OWNER")).contentType("application/json").content(body))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.priceDifferenceVnd").value(199000))
+            .andExpect(jsonPath("$.subscription.effectivePlan.limits.assetCount").value(50));
+        assertEquals("BASIC",quotas.current(other.id()).effectivePlan().code());
+    }
+
+    @Test
+    void upgradeAuditFailureRollsBackEntitlementAndCanRetry() {
+        jdbc.execute("CREATE TRIGGER dbo.TR_ps77_upgrade_failure ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS (SELECT 1 FROM inserted WHERE action='SUBSCRIPTION_UPGRADED') THROW 51802,'Synthetic upgrade audit failure',1; END");
+        try {
+            assertThrows(RuntimeException.class,()->upgrade(owner,"STANDARD"));
+            assertEquals("BASIC",quotas.current(owner.id()).effectivePlan().code());
+            assertEquals(0,auditCount(owner,"SUBSCRIPTION_UPGRADED"));
+        } finally {jdbc.execute("DROP TRIGGER dbo.TR_ps77_upgrade_failure");}
+        assertTrue(upgrade(owner,"STANDARD").changed());
+    }
+
+    @Test
+    void concurrentUpgradesSerializeAndCannotLoseHigherEntitlement() throws Exception {
+        for(boolean higherFirst:List.of(false,true)) {
+            Owner who=newOwner();
+            CountDownLatch locked=new CountDownLatch(1), release=new CountDownLatch(1);
+            var first=workers.submit(()->{
+                afterOwnerRead.set(()->{locked.countDown();await(release);});
+                try{return upgrade(who,higherFirst?"EXTENDED":"STANDARD");}
+                finally{afterOwnerRead.remove();}
+            });
+            try {
+                assertTrue(locked.await(10,TimeUnit.SECONDS));
+                var second=workers.submit(()->{
+                    try {return upgrade(who,higherFirst?"STANDARD":"EXTENDED");}
+                    catch(BusinessException e){return e.getErrorCode();}
+                });
+                assertThrows(TimeoutException.class,()->second.get(200,TimeUnit.MILLISECONDS));
+                release.countDown();first.get(15,TimeUnit.SECONDS);
+                Object result=second.get(15,TimeUnit.SECONDS);
+                if(higherFirst) assertEquals(ErrorCode.SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED,result);
+                assertEquals("EXTENDED",quotas.current(who.id()).effectivePlan().code());
+                assertEquals(higherFirst?1:2,auditCount(who,"SUBSCRIPTION_UPGRADED"));
+            } finally {release.countDown();}
+        }
+    }
+
+    @Test
+    void contentWaitingForUpgradeUsesCommittedNewCapacity() throws Exception {
+        UUID vault=createVault(owner).id();
+        for(int i=0;i<5;i++) assets.createAsset(vault,owner.id(),asset());
+        CountDownLatch locked=new CountDownLatch(1),release=new CountDownLatch(1);
+        var upgrading=workers.submit(()->{
+            afterOwnerRead.set(()->{locked.countDown();await(release);});
+            try{return upgrade(owner,"STANDARD");}finally{afterOwnerRead.remove();}
+        });
+        try {
+            assertTrue(locked.await(10,TimeUnit.SECONDS));
+            var creating=workers.submit(()->assets.createAsset(vault,owner.id(),asset()));
+            assertThrows(TimeoutException.class,()->creating.get(200,TimeUnit.MILLISECONDS));
+            release.countDown();upgrading.get(15,TimeUnit.SECONDS);creating.get(15,TimeUnit.SECONDS);
+            assertEquals(6,quotas.current(owner.id()).usage().assetCount());
+        } finally {release.countDown();}
     }
 
     private void assertSerializedGrowth(Supplier<?> operation, ErrorCode loserCode) throws Exception {

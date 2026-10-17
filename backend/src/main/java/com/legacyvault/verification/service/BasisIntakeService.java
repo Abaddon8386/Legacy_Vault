@@ -27,6 +27,7 @@ import com.legacyvault.verification.repository.LegalBasisDossierVersionRepositor
 import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.will.service.WillFile;
+import com.legacyvault.subscription.service.LegalEvidenceQuotaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,13 +69,14 @@ public class BasisIntakeService {
     private final BasisDossierViewService views;
     private final AuditService auditService;
     private final LegalBasisLockedState lockedState;
+    private final LegalEvidenceQuotaService evidenceQuotas;
     private final long maxFileBytes;
 
     public BasisIntakeService(StaffCaseLockRepository staffCases, VaultRepository vaultRepository,
             LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations, AssetRepository assets, BeneficiaryRepository beneficiaries,
             EncryptionService encryption, ObjectMapper objectMapper, BasisDossierViewService views,
-            AuditService auditService, LegalBasisLockedState lockedState, @Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes) {
+            AuditService auditService, LegalBasisLockedState lockedState, LegalEvidenceQuotaService evidenceQuotas, @Value("${legacyvault.will.max-file-bytes:10485760}") long maxFileBytes) {
         this.staffCases = staffCases;
         this.vaultRepository = vaultRepository;
         this.dossiers = dossiers;
@@ -88,6 +90,7 @@ public class BasisIntakeService {
         this.auditService = auditService;
         this.lockedState = lockedState;
         this.maxFileBytes = maxFileBytes;
+        this.evidenceQuotas = evidenceQuotas;
     }
 
     @Transactional
@@ -123,6 +126,7 @@ public class BasisIntakeService {
         requireTypeMatchesRoute(metadata, dossier);
         List<long[]> scope = resolveScope(metadata, vault.getVaultId());
         WillFile scan = WillFile.inspect(file, maxFileBytes);
+        evidenceQuotas.requireGrowth(verificationCase.getVerificationCaseId(), scan.size());
 
         // Hồ sơ đã bị khóa nên số phiên bản tăng dần không trùng; phiên bản cũ giữ nguyên.
         int versionNo = versions.findMaxVersionNo(dossier.getLegalBasisDossierId()) + 1;

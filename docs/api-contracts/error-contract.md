@@ -121,3 +121,9 @@ PS-47: `COURT_EVIDENCE_REQUIRED` (409) khi thiếu văn bản tòa đã chuyển
 `COURT_DECISION_REQUIRED` (409) khi guard chưa có kết luận VALID mới nhất cho phiên bản hiện hành.
 
 PS-48: `LEGAL_WORKFLOW_ON_HOLD` (409) khi guard phát hiện Vault/route đang ON_HOLD.
+
+## PS-77 lifetime subscription / case evidence
+
+- `SUBSCRIPTION_CATALOG_STALE` — 409, `error.subscription.catalogStale`: reload catalog before selecting a plan.
+- `SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED` — 409, `error.subscription.downgradeNotAllowed`: lifetime capacity cannot decrease.
+- `CASE_EVIDENCE_QUOTA_EXCEEDED` — 409, `error.subscription.caseEvidenceQuotaExceeded`: case exceeds retained evidence bytes or version count; preserve existing history.

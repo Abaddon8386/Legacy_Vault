@@ -5,6 +5,7 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.subscription.dto.SubscriptionDtos.*;
 import com.legacyvault.subscription.entity.SubscriptionPlan;
 import com.legacyvault.subscription.repository.OwnerUsageRepository;
+import com.legacyvault.subscription.repository.OwnerSubscriptionRepository;
 import com.legacyvault.subscription.repository.SubscriptionPlanRepository;
 import com.legacyvault.subscription.service.QuotaPolicy.*;
 import com.legacyvault.user.repository.OwnerWriteLockRepository;
@@ -15,17 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
-/** Initial BASIC entitlement. Paid granting and legal-evidence allocation remain unavailable. */
+/** Lifetime entitlements default to BASIC; capacity snapshots survive catalog changes. */
 @Service
 public class OwnerQuotaService {
     private final OwnerWriteLockRepository ownerLocks;
     private final SubscriptionPlanRepository plans;
     private final OwnerUsageRepository usage;
     private final VaultRepository vaults;
+    private final OwnerSubscriptionRepository entitlements;
     private final QuotaPolicy policy = new QuotaPolicy();
 
     public OwnerQuotaService(OwnerWriteLockRepository ownerLocks, SubscriptionPlanRepository plans,
-                             OwnerUsageRepository usage, VaultRepository vaults) {
+                             OwnerUsageRepository usage, VaultRepository vaults, OwnerSubscriptionRepository entitlements) {
+        this.entitlements = entitlements;
         this.ownerLocks = ownerLocks;
         this.plans = plans;
         this.usage = usage;
@@ -42,16 +45,16 @@ public class OwnerQuotaService {
     /** Caller holds the Owner lock. No REQUIRES_NEW: checks and writes share one transaction. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireGrowth(Long ownerUserId, Delta delta) {
-        SubscriptionPlan plan = basic();
+        Plan plan = effective(ownerUserId);
         Decision decision = policy.evaluate(usage.read(ownerUserId),
-                new QuotaPolicy.Limits(plan.getAssetLimit(), plan.getStorageLimitBytes()), delta);
+                new QuotaPolicy.Limits(plan.limits().assetCount(), plan.limits().storageBytes()), delta);
         if (decision.assetLimitExceeded()) throw new BusinessException(ErrorCode.ASSET_QUOTA_EXCEEDED);
         if (decision.storageLimitExceeded()) throw new BusinessException(ErrorCode.STORAGE_QUOTA_EXCEEDED);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void requireFileSize(long bytes) {
-        if (bytes > basic().getFileLimitBytes()) throw new BusinessException(ErrorCode.PAYLOAD_TOO_LARGE);
+    public void requireFileSize(Long ownerUserId, long bytes) {
+        if (bytes > effective(ownerUserId).limits().fileBytes()) throw new BusinessException(ErrorCode.PAYLOAD_TOO_LARGE);
     }
 
     @Transactional(readOnly = true)
@@ -62,11 +65,15 @@ public class OwnerQuotaService {
     @Transactional
     public Current current(Long ownerUserId) {
         lockOwner(ownerUserId);
-        SubscriptionPlan plan = basic();
+        Plan plan = effective(ownerUserId);
         Usage observed = usage.read(ownerUserId);
-        return new Current(Plan.from(plan), null, UsageView.from(observed),
-                new OverQuota(observed.assets() > plan.getAssetLimit(), observed.bytes() > plan.getStorageLimitBytes()),
+        return new Current(plan, null, UsageView.from(observed),
+                new OverQuota(observed.assets() > plan.limits().assetCount(), observed.bytes() > plan.limits().storageBytes()),
                 vaults.existsByOwnerUserId(ownerUserId), Instant.now());
+    }
+
+    private Plan effective(Long ownerUserId) {
+        return entitlements.find(ownerUserId).orElseGet(() -> Plan.from(basic()));
     }
 
     private SubscriptionPlan basic() {

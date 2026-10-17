@@ -88,9 +88,9 @@ public class WillService {
 	@Transactional
 	public WillResponse uploadWill(UUID vaultId, Long ownerUserId, MultipartFile file, String note) {
 		quotas.lockOwner(ownerUserId);
-		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		Vault vault = vaultService.requireEditableVaultForUpdate(vaultId, ownerUserId);
 		WillFile willFile = WillFile.inspect(file, maxFileBytes);
-		quotas.requireFileSize(willFile.size());
+		quotas.requireFileSize(ownerUserId, willFile.size());
 		quotas.requireGrowth(ownerUserId, new Delta(1, willFile.size()));
 
 		Asset will = willAssetRepository.save(new Asset(vault.getVaultId(), AssetType.DOCUMENT,
@@ -107,11 +107,11 @@ public class WillService {
 	@Transactional
 	public WillResponse addVersion(UUID vaultId, UUID willId, Long ownerUserId, MultipartFile file) {
 		quotas.lockOwner(ownerUserId);
-		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		Vault vault = vaultService.requireEditableVaultForUpdate(vaultId, ownerUserId);
 		Asset will = willAssetRepository.findWillForUpdate(willId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		WillFile willFile = WillFile.inspect(file, maxFileBytes);
-		quotas.requireFileSize(willFile.size());
+		quotas.requireFileSize(ownerUserId, willFile.size());
 		quotas.requireGrowth(ownerUserId, new Delta(0, willFile.size()));
 
 		int nextVersion = versionRepository.findMaxVersionNo(will.getAssetId()) + 1;

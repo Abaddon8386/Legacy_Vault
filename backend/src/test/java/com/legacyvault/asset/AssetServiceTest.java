@@ -61,7 +61,8 @@ class AssetServiceTest {
 	private final AuditService auditService = mock(AuditService.class);
 	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final AssetService assetService = new AssetService(assetRepository, vaultService, encryptionService,
-			auditService, reauthService, mock(com.legacyvault.subscription.service.OwnerQuotaService.class));
+			auditService, reauthService, mock(com.legacyvault.subscription.service.OwnerQuotaService.class),
+			mock(jakarta.persistence.EntityManager.class));
 
 	private static Vault vault() {
 		Vault vault = new Vault();
@@ -87,7 +88,7 @@ class AssetServiceTest {
 
 	@Test
 	void create_encryptsPayload_savesAndAudits() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		repositoryAssignsIdOnSave();
 
 		AssetResponse response = assetService.createAsset(VAULT_ID, OWNER_ID,
@@ -125,7 +126,7 @@ class AssetServiceTest {
 
 	@Test
 	void create_onVaultOfOtherUser_isNotFoundAndNothingSaved() {
-		when(vaultService.requireEditableVault(VAULT_ID, 2L))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, 2L))
 				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
 		assertThatThrownBy(() -> assetService.createAsset(VAULT_ID, 2L,
@@ -137,7 +138,7 @@ class AssetServiceTest {
 
 	@Test
 	void create_onFrozenVault_isRejectedAndNothingSaved() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID))
 				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
 
 		assertThatThrownBy(() -> assetService.createAsset(VAULT_ID, OWNER_ID,
@@ -222,7 +223,7 @@ class AssetServiceTest {
 		Asset asset = storedAsset();
 		byte[] oldIv = new byte[12];
 		asset.setEncryptedPayload(new EncryptedData(new byte[] { 1 }, oldIv, "v1"));
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		ownerFinds(asset);
 		when(assetRepository.saveAndFlush(asset)).thenReturn(asset);
 
@@ -248,7 +249,7 @@ class AssetServiceTest {
 	@Test
 	void update_nameAndClearDescription() {
 		Asset asset = storedAsset();
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		ownerFinds(asset);
 		when(assetRepository.saveAndFlush(asset)).thenReturn(asset);
 
@@ -266,7 +267,7 @@ class AssetServiceTest {
 	@Test
 	void update_withSameValues_writesNothingAndDoesNotAudit() {
 		Asset asset = storedAsset();
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		ownerFinds(asset);
 
 		AssetResponse response = assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
@@ -279,7 +280,7 @@ class AssetServiceTest {
 
 	@Test
 	void update_onFrozenVault_isRejectedBeforeTouchingAsset() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID))
 				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
 
 		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID,

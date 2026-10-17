@@ -1,33 +1,23 @@
-# PS-77 migration numbering — 2026-10-17
+# PS-77 migration allocation — 2026-10-17
 
-Existing branch/PR: feature/PS-77-subscription-quota, #64. No PR merge requested or performed.
+Branch: feature/PS-77-subscription-quota. PR #64 remains open; no PR merge.
 
-- V18__preserve_lifetime_vault_ownership.sql replaces the former PS-77 V12 filename.
-- V19__subscription_catalog_and_payload_usage.sql replaces the former PS-77 V13 filename.
-- Both SQL blobs are byte-for-byte identical to origin's former scripts; only filenames change.
-- V12/V13 belong to PS-44/45; V14/V15 to PS-41–43. All fetched remote branches were scanned;
-  legal rereview/court/hold branches additionally use V16/V17. V18/V19 were unused.
-- SubscriptionSqlServerTest reads the renamed V18 preflight and verifies Flyway records V18/V19,
-  has no pending migrations, validates checksums and no longer contains the former PS-77 script names.
+The latest remote scan found PS-37 rereview-v2 commit 713eabe newly using V18.
+The PS-77 sequence therefore moves again, preserving both original script bytes:
 
-## Validation
+- V19__preserve_lifetime_vault_ownership.sql (formerly V18, originally V12).
+- V20__subscription_catalog_and_payload_usage.sql (formerly V19, originally V13).
+- V21__lifetime_subscription_catalog.sql: one-time 199000 / 499000 VND, catalog version 2.
+- V22__owner_lifetime_entitlements.sql: Owner capacity/price/version snapshots, no expiry.
 
-Repository Maven wrapper, JDK 25, `backend/mvnw.cmd clean test`, with the PS-77 SQL suite enabled:
-**219 discovered; 216 passed, 0 failures, 0 errors, 3 skipped. BUILD SUCCESS.**
+V12/V13 belong to PS-44/45; V14/V15 to PS-41–43; V16/V17 to court/hold;
+V18 is reserved by the active PS-37 revalidation branch. No other fetched remote branch
+used V19–V22 except PS-77's previous V19 allocation.
 
-SubscriptionSqlServerTest: 16 passed, none skipped. Coverage includes API/auth/catalog, default BASIC,
-count/storage boundaries, UTF-8 and all-version usage, concurrency, real audit rollback, lifetime DB
-guards, duplicate preflight and the migration-version check. The 3 skipped tests belong to the
-separate opt-in DmsSqlServerConcurrencyTest suite.
+Current develop 75fc18b was merged locally into the feature branch to test the actual
+case/legal foundation. No feature PR was merged into develop/main. The earlier 219-test
+numbering-only report is superseded by PS-77-lifetime-finalization.md.
 
-contextLoads applies all 14 branch migrations to a fresh disposable database. The SQL service suite
-uses a separate disposable database: first migrate to V11, then Spring applies V18/V19 and validates
-the full history. Log: backend/ps77-migration-renumber-regression.log (ignored).
-
-Both databases are task-created LegacyVault_PS77_* databases and are removed after the run.
-The existing LegacyVault database, shared Flyway history, constraints and checksums are untouched.
-No Flyway repair or shared DB reset is performed. An environment that already applied the old
-PS-77 filenames requires its own reviewed deployment plan; this rename does not rewrite that history.
-
-This follow-up changes numbering, its resource-path test and documentation only. It does not merge
-develop/main into PS-77 or expand the existing paid-subscription/legal-evidence implementation scope.
+Deployment data was not reset or repaired. Environments that already applied any former
+PS-77 numbering need a separately reviewed deployment-history plan. This change does not
+rewrite flyway_schema_history or change already-applied shared database checksums.

@@ -33,11 +33,11 @@ paths:
     get:
       tags: [Subscriptions]
       summary: Catalog gói sử dụng (PS-77)
-      description: Quyền ROLE_VAULT_OWNER. Catalog paid chỉ để so sánh, không cấp quyền sử dụng paid.
+      description: Quyền ROLE_VAULT_OWNER. Gói trọn đời được chọn sau đăng ký; GET không thay đổi gói.
       x-status: implemented
       responses:
         '200':
-          description: Ba gói theo giới hạn tài sản tăng dần. Byte nhị phân; giá VND/tháng.
+          description: Ba gói theo giới hạn tài sản tăng dần. Byte nhị phân; giá VND một lần, trọn đời.
           content:
             application/json:
               schema:
@@ -51,9 +51,9 @@ paths:
       summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
       description: |
         Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Chưa có Vault vẫn 200 với usage 0.
-        Hiện mọi Owner có BASIC mặc định, chưa có API cấp paid hoặc kỳ hạn paid.
+        Owner mặc định BASIC; tự nâng gói trọn đời qua /subscriptions/me/upgrade, không hạ gói.
         Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
-        Quota evidence pháp lý chưa được chốt và chưa ghép vào usage này.
+        Evidence pháp lý có quota riêng cho ca (100 MiB, 50 phiên bản), không ghép vào usage Owner.
       x-status: implemented
       responses:
         '200':
@@ -63,6 +63,34 @@ paths:
               schema: { $ref: '#/components/schemas/CurrentSubscription' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/subscriptions/me/upgrade:
+    post:
+      tags: [Subscriptions]
+      summary: Owner chọn hoặc nâng gói trọn đời của chính mình (PS-77)
+      description: |
+        ROLE_VAULT_OWNER. Owner lấy từ principal; giá và hạn mức lấy từ catalog server.
+        Hiệu lực ngay, không hạ gói, không hết hạn. Lặp lại gói hiện tại trả changed=false.
+        priceDifferenceVnd là chênh lệch catalog; API không xử lý thanh toán hay chứng minh đã thu tiền.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionUpgradeRequest' }
+      responses:
+        '200':
+          description: Gói đã được lưu cùng audit trong một transaction.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionUpgradeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: SUBSCRIPTION_CATALOG_STALE hoặc SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/system/ping:
     get:
       tags: [System]
@@ -1065,6 +1093,7 @@ paths:
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
         và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
         có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+        PS-77: quota riêng mỗi ca 100 MiB / 50 phiên bản lưu giữ; đầy quota trả 409 CASE_EVIDENCE_QUOTA_EXCEEDED.
       x-status: implemented
       parameters:
         - name: caseId
@@ -1458,6 +1487,19 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    SubscriptionUpgradeRequest:
+      type: object
+      required: [planCode, catalogVersion]
+      properties:
+        planCode: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        catalogVersion: { type: integer, minimum: 1, example: 2 }
+    SubscriptionUpgradeResponse:
+      type: object
+      required: [subscription, priceDifferenceVnd, changed]
+      properties:
+        subscription: { $ref: '#/components/schemas/CurrentSubscription' }
+        priceDifferenceVnd: { type: integer, format: int64, minimum: 0 }
+        changed: { type: boolean }
     SubscriptionLimits:
       type: object
       required: [assetCount, storageBytes, fileBytes]
@@ -1467,18 +1509,19 @@ components:
         fileBytes: { type: integer, format: int64, minimum: 1 }
     SubscriptionPlan:
       type: object
-      required: [code, version, monthlyPriceVnd, limits]
+      required: [code, version, priceVnd, billingModel, limits]
       properties:
         code: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
         version: { type: integer, minimum: 1 }
-        monthlyPriceVnd: { type: integer, format: int64, minimum: 0 }
+        priceVnd: { type: integer, format: int64, minimum: 0, description: One-time purchase price in VND }
+        billingModel: { type: string, enum: [LIFETIME] }
         limits: { $ref: '#/components/schemas/SubscriptionLimits' }
     CurrentSubscription:
       type: object
       required: [effectivePlan, effectiveUntil, usage, overQuota, vaultCreated, evaluatedAt]
       properties:
         effectivePlan: { $ref: '#/components/schemas/SubscriptionPlan' }
-        effectiveUntil: { type: string, format: date-time, nullable: true, description: BASIC không hết hạn }
+        effectiveUntil: { type: string, format: date-time, nullable: true, description: Luôn null vì mọi gói đều trọn đời }
         usage:
           type: object
           required: [assetCount, storageBytes]

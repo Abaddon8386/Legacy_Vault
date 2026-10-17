@@ -77,7 +77,7 @@ class BasisIntakeServiceTest {
     private final AuditService auditService = mock(AuditService.class);
     private final BasisIntakeService service = new BasisIntakeService(staffCases, vaultRepository, dossiers, versions,
             allocationRepository, assets, beneficiaries, encryption, new ObjectMapper(), views, auditService,
-            mock(LegalBasisLockedState.class), 10_485_760L);
+            mock(LegalBasisLockedState.class), mock(com.legacyvault.subscription.service.LegalEvidenceQuotaService.class), 10_485_760L);
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
