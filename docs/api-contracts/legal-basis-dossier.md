@@ -3,6 +3,9 @@
 **Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) PS-42 (Staff chuyển văn bản cho Legal) và PS-43 (Legal phân loại lại từ ON_HOLD, kiểm tra thông tin công chứng) đã triển khai. Các quyết định thiết kế được ghi ở
 [D-API-36](open-decisions.md); đó là cách đọc Main Flow v4.2 và `09_Decision_Legal_Basis_Branches.md`, chờ nhóm xác nhận.
 
+PS-46–48 bổ sung kiểm chứng và luồng COURT/hold: xem [court-route.md](court-route.md) và
+[legal-workflow-hold.md](legal-workflow-hold.md). Các giới hạn cũ bên dưới được thay thế ở phạm vi này.
+
 ## 1. Mô hình và luồng
 
 Một ca xác minh có tối đa **một hồ sơ căn cứ** (`legal_basis_dossiers`), gồm nhiều **phiên bản văn bản** (`legal_basis_dossier_versions`).
@@ -71,7 +74,7 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 ### 2.3 Response (`BasisDossierResponse`)
 
 `id`, `caseId`, `route`, `status`, `disputeStatus`, `routeReason` (**chỉ Legal thấy**, Staff là `null`), `classifiedBy` (uuid Legal),
-`createdAt`, `updatedAt`, `versions[]` (mới nhất trước). Mỗi phiên bản: `version`, `legalBasisType`, `issuingAuthority`, `documentNumber`,
+`createdAt`, `updatedAt`, `requiredVersion` (phiên bản tối thiểu cần nộp sau hold), `versions[]` (mới nhất trước). Mỗi phiên bản: `version`, `legalBasisType`, `issuingAuthority`, `documentNumber`,
 `issueDate`, `notaryAuthority`, `notarialDocumentNumber`, `notarizedAt`, `evidenceReference`, `notes`, `contentType`, `sizeBytes`, `sha256`,
 `forwardStatus` (`NOT_FORWARDED`/`FORWARDED`), `createdBy` (uuid Staff), `createdAt`, `forwardedAt`. Không có tên file hay nội dung.
 
@@ -94,14 +97,26 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 
 - `LEGAL_BASIS_CLASSIFIED` (ST-16): nhánh, tình trạng tranh chấp, ID công khai; trạng thái Vault trước/sau đi qua `stateBefore/After`. **Không** ghi `routeReason`.
 - `LEGAL_BASIS_RECEIVED` (ST-18): loại văn bản, phiên bản, `sha256`, kích thước, ID công khai. **Không** ghi số văn bản, cơ quan, ghi chú hay tên file.
-- Phân loại khóa dòng **Vault → ca** (như Cancel Alert, PS-36, PS-40); tiếp nhận khóa ca rồi hồ sơ. Lưu và audit cùng một giao dịch.
+- Phân loại khóa dòng **Vault → ca** (như Cancel Alert, PS-36, PS-40); tiếp nhận/chuyển/hold khóa Vault → ca → hồ sơ và refresh trạng thái sau khóa. Lưu và audit cùng một giao dịch.
 - Phiên bản chỉ thêm mới; không có API sửa hay xóa.
+
+PS-46 dùng lại API phân loại/phân loại lại ở trên, không tạo endpoint song song. Sau khi khóa
+Vault → ca → hồ sơ, Backend refresh trạng thái từ SQL Server trước khi kiểm tra điều kiện;
+entity cũ trong persistence context không được bỏ qua ca đã hủy hoặc Vault đã chuyển trạng thái.
+`routeReason` được giữ trong hồ sơ/lịch sử và chỉ trả cho Legal, không đưa vào audit.
+
+Kiểm chứng PS-46: `LegalRouteSqlServerTest` tạo DB ngẫu nhiên từ `LEGAL_SQLSERVER_MASTER_URL`
+(JDBC URL tới `master`), chạy Flyway thật và xóa riêng DB đó sau test. Các tình huống gồm cả ba
+nhánh, thiếu đối chiếu MATCH, tạo hồ sơ đồng thời, ca cache cũ sau hủy và rollback khi audit lỗi.
 
 ## 5. Kiểm chứng và giới hạn
 
-Đã có: test dịch vụ (phân loại 8, tiếp nhận 7, đọc hồ sơ 2), test controller (Legal 4, Staff 5), toàn bộ bộ test Maven chỉ `contextLoads` lỗi
-(cần SQL Server). Migration `V14` đã qua kiểm tra cú pháp trên SQL Server thật (chỉ phân tích); **chưa chạy lưu thật** và chưa kiểm
-chứng ràng buộc `CHECK`/chỉ mục duy nhất trên DB. Nội dung file mã hóa chưa có API giải mã cho Legal.
+PS-46–48 đã kiểm chứng trên SQL Server thật bằng DB tạm, gồm Flyway toàn nhánh,
+phân loại đồng thời, tiếp nhận file mã hóa, chuyển phiên bản, kết luận COURT và hold/resume/re-review.
+Lượt Maven clean test cuối trên develop `2a1ad38`: 352 test được phát hiện, 349 pass,
+0 failure/error, 3 test DMS opt-in cũ bỏ qua. Đã bật cả SQL suite Staff/identity: 53 SQL tests pass. Ba bộ SQL mới chạy đủ 23 test (5 route, 6 court, 12 hold), không có test bị bỏ qua.
+Các DB thử nghiệm đã được đóng/xóa; không sửa Flyway history của DB dùng chung.
+Nội dung file vẫn không có API tải xuống dành cho Legal; thẩm định giấy tờ thuộc trách nhiệm của Legal.
 
 ## 6. Chuyển văn bản cho Legal — PS-42 (ST-19)
 
@@ -109,13 +124,13 @@ chứng ràng buộc `CHECK`/chỉ mục duy nhất trên DB. Nội dung file m�
 - Kết quả: phiên bản được đánh dấu đã chuyển (cập nhật có điều kiện, chống chuyển đôi), hồ sơ `LEGAL_BASIS_FORWARDED`, Vault `LEGAL_BASIS_VERIFICATION`. Phiên bản cũ không bị sửa hay xóa.
 - Khóa dòng: đọc ca không khóa → khóa Vault → khóa ca → khóa hồ sơ (Vault → ca → bản ghi con). Audit `LEGAL_BASIS_FORWARDED` (ST-19) cùng giao dịch.
 - Kế hoạch phân bổ (tài sản - người nhận) được gửi trong `metadata.allocations` ở bước tiếp nhận, gắn với từng phiên bản; thay đổi phiên bản đồng nghĩa phân bổ mới.
-- Giới hạn: chưa có bước Legal trả hồ sơ bổ sung (ST-20) nên sau khi chuyển, Vault rời `AWAITING_LEGAL_BASIS` và không thể nộp phiên bản mới cho tới khi PS thẩm định được làm.
+- PS-48 cho phép Legal đưa hồ sơ về hold khi thiếu chứng cứ/tranh chấp mới, rồi resume để Staff nộp và chuyển phiên bản mới. Phiên bản cũ không bị ghi đè.
 
 ## 7. Phân loại lại và thông tin công chứng — PS-43
 
 - **Phân loại lại (LV-HOLD-001):** body giống ST-16 (`route`, `routeReason`) nhưng `route` chỉ được `NOTARIAL` hoặc `COURT`; `ON_HOLD` hoặc lý do trống trả `400`. Điều kiện: ca `OPEN`, Vault `ON_HOLD`, hồ sơ nhánh `ON_HOLD` và còn `DRAFT`, đối chiếu di chúc không bị chặn (`WILL_NOT_VERIFIED`). Sai điều kiện trả `409 BASIS_DOSSIER_INVALID_STATE`.
-- **Không đổi `COURT` ↔ `NOTARIAL`:** hồ sơ đã ở nhánh `NOTARIAL`/`COURT` không thể phân loại lại, kể cả khi lời khai của Trustee thay đổi (D-LEGAL-002); thay đổi như vậy phải đi qua `ON_HOLD` do Legal ghi nhận (chưa có API riêng, xem giới hạn).
+- **Không đổi `COURT` ↔ `NOTARIAL`:** hồ sơ đã ở nhánh `NOTARIAL`/`COURT` không thể phân loại lại, kể cả khi lời khai của Trustee thay đổi (D-LEGAL-002); thay đổi như vậy phải đi qua `ON_HOLD` do Legal ghi nhận qua API PS-48.
 - `NOTARIAL` đặt `disputeStatus = NONE`, `COURT` đặt `DISPUTED`. Lý do và chứng cứ của lần phân loại cũ được lưu vào `legal_basis_classification_history` (V15), không ghi đè; `classifiedBy` trả Legal của lần phân loại hiện hành.
 - Kết quả: Vault `ON_HOLD` → `AWAITING_LEGAL_BASIS` (qua `LEGAL_BASIS_CLASSIFICATION`); audit `LEGAL_BASIS_RECLASSIFIED` (ST-16, LV-HOLD-001), không ghi lý do. Khóa Vault → ca → hồ sơ.
 - **Thông tin công chứng (LV-NOTARY-001):** tiếp nhận văn bản nhánh `NOTARIAL` bắt buộc `notaryAuthority`, `notarialDocumentNumber` và `notarizedAt`; thiếu thì `400`. Văn bản `COURT` đã yêu cầu cơ quan, số và ngày ban hành.
-- Giới hạn: chưa có API đưa hồ sơ `NOTARIAL`/`COURT` trở lại `ON_HOLD` (LV-HOLD-001 khi có tranh chấp mới) và chưa có thẩm định/ký duyệt (ST-20, ST-21); migration V15 mới chỉ viết, **chưa chạy** trên SQL Server.
+- PS-48 bổ sung API `/hold`, giữ lịch sử và yêu cầu phiên bản mới; PS-47 bổ sung kết luận COURT theo phiên bản. Migration V15–V17 đã chạy trong các test SQL Server dùng DB tạm. Ký duyệt/unlock/handover thuộc các ticket sau Sprint 2.

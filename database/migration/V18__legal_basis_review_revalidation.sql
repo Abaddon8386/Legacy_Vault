@@ -1,16 +1,16 @@
 
 /*
- * LegacyVault - V16 (PS-37)
+ * LegacyVault - V18 (PS-37)
  * LV-BASIS-001 / LV-HOLD-001
  * Track review snapshots and re-review history independently from dossier route/status.
  */
 SET XACT_ABORT ON;
 
 IF OBJECT_ID(N'dbo.legal_basis_dossiers', N'U') IS NULL
-    THROW 51160, 'V16 requires dbo.legal_basis_dossiers.', 1;
+    THROW 51160, 'V18 requires dbo.legal_basis_dossiers.', 1;
 
 IF OBJECT_ID(N'dbo.legal_basis_dossier_versions', N'U') IS NULL
-    THROW 51161, 'V16 requires dbo.legal_basis_dossier_versions.', 1;
+    THROW 51161, 'V18 requires dbo.legal_basis_dossier_versions.', 1;
 
 IF COL_LENGTH(N'dbo.legal_basis_dossiers', N'review_status') IS NULL
 ALTER TABLE dbo.legal_basis_dossiers ADD review_status NVARCHAR(30) NOT NULL

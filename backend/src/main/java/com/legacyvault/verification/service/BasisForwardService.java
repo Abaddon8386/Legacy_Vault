@@ -39,6 +39,7 @@ public class BasisForwardService {
     private final LegalBasisDossierVersionRepository versions;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisLockedState lockedState;
     private final LegalBasisReviewService reviewService;
 
     public BasisForwardService(
@@ -49,6 +50,7 @@ public class BasisForwardService {
             LegalBasisDossierVersionRepository versions,
             BasisDossierViewService views,
             AuditService auditService,
+            LegalBasisLockedState lockedState,
             LegalBasisReviewService reviewService
     ) {
         this.staffCases = staffCases;
@@ -58,6 +60,7 @@ public class BasisForwardService {
         this.versions = versions;
         this.views = views;
         this.auditService = auditService;
+        this.lockedState = lockedState;
         this.reviewService = reviewService;
     }
 
@@ -65,10 +68,6 @@ public class BasisForwardService {
      * ST-19: chuyển phiên bản dossier mới nhất cho Legal.
      *
      * Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisForwardService
-     * Vị trí: phương thức public chính của class.
      */
     @Transactional
     public BasisDossierResponse forward(
@@ -78,56 +77,45 @@ public class BasisForwardService {
     ) {
         Long staffUserId = CustomUserPrincipal.requireUserId(principal);
 
-        VerificationCase initialCase = staffCases
-                .findOwnedByStaff(caseId, staffUserId)
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        // Đọc không khóa để biết Vault cần khóa trước; sau đó khóa Vault -> ca -> hồ sơ.
+        VerificationCase initialCase = staffCases.findOwnedByStaff(caseId, staffUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        Vault vault = vaultRepository
-                .findByIdForUpdate(initialCase.getVaultId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
 
-        VerificationCase verificationCase = caseRepository
-                .findByIdForUpdate(initialCase.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        VerificationCase verificationCase = caseRepository.findByIdForUpdate(initialCase.getVerificationCaseId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
-        if (!Objects.equals(
-                verificationCase.getAssignedStaffUserId(), staffUserId)
-                || !Objects.equals(
-                verificationCase.getVaultId(), vault.getVaultId())
-                || !Objects.equals(
-                verificationCase.getPublicId(), caseId)) {
+        if (!Objects.equals(verificationCase.getAssignedStaffUserId(), staffUserId)
+                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())
+                || !Objects.equals(verificationCase.getPublicId(), caseId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
         if (!verificationCase.isOpen()
-                || !Vault.STATUS_AWAITING_LEGAL_BASIS.equals(
-                vault.getStatus())) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+                || !Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
-        LegalBasisDossier dossier = dossiers
-                .findByVerificationCaseIdForUpdate(
-                        verificationCase.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
+        LegalWorkflowGuard.requireNotOnHold(vault, dossier);
 
         if (!LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
-        int latestVersionNo =
-                versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
+        int latestVersionNo = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
 
         if (versionNo < 1 || versionNo > latestVersionNo) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
-        if (versionNo != latestVersionNo) {
+        if (versionNo != latestVersionNo || versionNo < dossier.getRequiredVersionNo()) {
             throw new BusinessException(ErrorCode.BASIS_VERSION_STALE);
         }
 
@@ -138,8 +126,7 @@ public class BasisForwardService {
                 versionNo,
                 staffUserId,
                 now) != 1) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
         String vaultStatusBefore = vault.getStatus();
@@ -159,8 +146,7 @@ public class BasisForwardService {
                 null,
                 Map.of(
                         "dossierId", dossier.getPublicId().toString(),
-                        "verificationCaseId",
-                        verificationCase.getPublicId().toString(),
+                        "verificationCaseId", verificationCase.getPublicId().toString(),
                         "version", versionNo,
                         "route", dossier.getRoute()),
                 STEP_ID,
@@ -169,10 +155,7 @@ public class BasisForwardService {
         /*
          * PS-37: đánh giá snapshot sau khi forward.
          * REVIEW_REQUIRED là kết quả nghiệp vụ hợp lệ, không phải exception.
-         * Không chuyển Vault về trạng thái Staff tại bước này.
          */
-// PS-37: kiểm tra snapshot sau khi forward.
-// REVIEW_REQUIRED là kết quả nghiệp vụ, không phải lỗi forward.
         reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
         return views.view(verificationCase, false);

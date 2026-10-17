@@ -67,7 +67,8 @@ class LegalBasisDossierControllerTest {
                     LEGAL.publicId(),
                     Instant.parse("2026-10-04T10:00:00Z"),
                     Instant.parse("2026-10-04T10:00:00Z"),
-                    List.of());
+                    List.of(),
+                    1);
 
     private static final LegalBasisReviewResponse REVIEW_RESPONSE =
             new LegalBasisReviewResponse(

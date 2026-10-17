@@ -1206,6 +1206,78 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/court-decisions:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Legal]
+      summary: Legal thẩm định phiên bản quyết định tòa đã chuyển (PS-47)
+      description: Chỉ LEGAL_VERIFIER. Ca OPEN, dossier COURT, Vault LEGAL_BASIS_VERIFICATION; chỉ phiên bản mới nhất đã FORWARDED. Không unlock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CourtDecisionRequest' }
+      responses:
+        '201':
+          description: Kết luận được lưu cùng audit, lịch sử append-only
+          headers:
+            Location:
+              schema: { type: string }
+              description: URL collection court-decisions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourtDecisionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Legal]
+      summary: Lịch sử thẩm định quyết định tòa, chỉ Legal (PS-47)
+      responses:
+        '200':
+          description: Mới nhất trước, không trả nội dung file
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CourtDecisionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
+    post:
+      tags: [Legal]
+      summary: Legal đưa hồ sơ về ON_HOLD để xét lại bằng phiên bản mới (PS-48)
+      description: Chỉ LEGAL_VERIFIER; giữ nguyên lịch sử và phiên bản. Không unlock/handover.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HoldBasisRequest' }
+      responses:
+        '200':
+          description: Hồ sơ ON_HOLD cùng requiredVersion để nộp lại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1341,6 +1413,31 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    HoldBasisRequest:
+      type: object
+      required: [cause, reason]
+      properties:
+        cause: { type: string, enum: [NEW_DISPUTE, INSUFFICIENT_EVIDENCE] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    CourtDecisionRequest:
+      type: object
+      required: [version, result, reason]
+      properties:
+        version: { type: integer, minimum: 1 }
+        result: { type: string, enum: [VALID, INVALID, INCONCLUSIVE] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    CourtDecisionResponse:
+      type: object
+      required: [id, caseId, version, sha256, result, reason, reviewedBy, reviewedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        sha256: { type: string, minLength: 64, maxLength: 64 }
+        result: { type: string, enum: [VALID, INVALID, INCONCLUSIVE] }
+        reason: { type: string, maxLength: 1000 }
+        reviewedBy: { type: string, format: uuid }
+        reviewedAt: { type: string, format: date-time }
     ApiError:
       type: object
       required: [timestamp, status, code, messageKey, message, path, traceId, errors]
@@ -1714,6 +1811,7 @@ components:
     BasisDossierResponse:
       type: object
       properties:
+        requiredVersion: { type: integer, minimum: 1, description: Minimum new version required after a hold }
         id: { type: string, format: uuid }
         caseId: { type: string, format: uuid }
         route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }

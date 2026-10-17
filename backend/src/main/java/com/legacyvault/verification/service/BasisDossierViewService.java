@@ -102,7 +102,7 @@ public class BasisDossierViewService {
                 dossier.getStatus(), dossier.getDisputeStatus(), includeReason ? dossier.getRouteReason() : null,
                 publicIds.get(dossier.getClassifiedByUserId()),
                 dossier.getCreatedAt().toInstant(ZoneOffset.UTC), dossier.getUpdatedAt().toInstant(ZoneOffset.UTC),
-                items);
+                items, dossier.getRequiredVersionNo());
     }
 
     private String evidenceReferenceOf(String evidenceMetadata) {

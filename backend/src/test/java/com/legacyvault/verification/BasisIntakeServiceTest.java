@@ -46,6 +46,7 @@ import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisIntakeService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.LegalBasisReviewService;
 
 import org.junit.jupiter.api.Test;
@@ -102,12 +103,13 @@ class BasisIntakeServiceTest {
             mock(BasisDossierViewService.class);
     private final AuditService auditService =
             mock(AuditService.class);
+    private final LegalBasisLockedState lockedState =
+            mock(LegalBasisLockedState.class);
     private final LegalBasisReviewService reviewService =
             mock(LegalBasisReviewService.class);
 
     private final BasisIntakeService service = new BasisIntakeService(
             staffCases,
-            caseRepository,
             vaultRepository,
             dossiers,
             versions,
@@ -118,6 +120,7 @@ class BasisIntakeServiceTest {
             objectMapper,
             views,
             auditService,
+            lockedState,
             reviewService,
             MAX_FILE_BYTES
     );
@@ -237,10 +240,10 @@ class BasisIntakeServiceTest {
 
         when(staffCases.findOwnedByStaff(CASE_ID, STAFF_ID))
                 .thenReturn(Optional.of(verificationCase));
+        when(staffCases.findOwnedByStaffForUpdate(CASE_ID, STAFF_ID))
+                .thenReturn(Optional.of(openCase()));
         when(vaultRepository.findByIdForUpdate(VAULT_ID))
                 .thenReturn(Optional.of(vault));
-        when(caseRepository.findByIdForUpdate(CASE_DB_ID))
-                .thenReturn(Optional.of(verificationCase));
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID))
                 .thenReturn(Optional.of(dossier(route)));
         when(versions.findMaxVersionNo(DOSSIER_DB_ID))
@@ -364,13 +367,11 @@ class BasisIntakeServiceTest {
         InOrder order = inOrder(
                 staffCases,
                 vaultRepository,
-                caseRepository,
                 dossiers
         );
 
         order.verify(staffCases).findOwnedByStaff(CASE_ID, STAFF_ID);
         order.verify(vaultRepository).findByIdForUpdate(VAULT_ID);
-        order.verify(caseRepository).findByIdForUpdate(CASE_DB_ID);
         order.verify(dossiers).findByVerificationCaseIdForUpdate(CASE_DB_ID);
     }
 
@@ -495,13 +496,13 @@ class BasisIntakeServiceTest {
 
     @Test
     void wrongStates_areConflict() {
-        // Case đã hủy phải trả về VERIFICATION_CASE_NOT_OPEN.
+        // Case đã hủy phải trả về lỗi trạng thái.
         happyPath("NOTARIAL");
 
         VerificationCase cancelled = openCase();
         cancelled.cancel(LocalDateTime.of(2026, 10, 2, 8, 0));
 
-        when(caseRepository.findByIdForUpdate(CASE_DB_ID))
+        when(staffCases.findOwnedByStaffForUpdate(CASE_ID, STAFF_ID))
                 .thenReturn(Optional.of(cancelled));
 
         assertThatThrownBy(() -> service.intake(

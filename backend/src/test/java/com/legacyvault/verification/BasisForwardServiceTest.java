@@ -33,6 +33,7 @@ import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisForwardService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.LegalBasisReviewService;
 
 import org.junit.jupiter.api.Test;
@@ -54,22 +55,15 @@ class BasisForwardServiceTest {
 
     private static final UUID CASE_ID = UUID.randomUUID();
 
-    private final StaffCaseLockRepository staffCases =
-            mock(StaffCaseLockRepository.class);
-    private final VerificationCaseRepository caseRepository =
-            mock(VerificationCaseRepository.class);
-    private final VaultRepository vaultRepository =
-            mock(VaultRepository.class);
-    private final LegalBasisDossierRepository dossiers =
-            mock(LegalBasisDossierRepository.class);
-    private final LegalBasisDossierVersionRepository versions =
-            mock(LegalBasisDossierVersionRepository.class);
-    private final BasisDossierViewService views =
-            mock(BasisDossierViewService.class);
-    private final AuditService auditService =
-            mock(AuditService.class);
-    private final LegalBasisReviewService legalBasisReviewService =
-            mock(LegalBasisReviewService.class);
+    private final StaffCaseLockRepository staffCases = mock(StaffCaseLockRepository.class);
+    private final VerificationCaseRepository caseRepository = mock(VerificationCaseRepository.class);
+    private final VaultRepository vaultRepository = mock(VaultRepository.class);
+    private final LegalBasisDossierRepository dossiers = mock(LegalBasisDossierRepository.class);
+    private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
+    private final BasisDossierViewService views = mock(BasisDossierViewService.class);
+    private final AuditService auditService = mock(AuditService.class);
+    private final LegalBasisLockedState lockedState = mock(LegalBasisLockedState.class);
+    private final LegalBasisReviewService legalBasisReviewService = mock(LegalBasisReviewService.class);
 
     private final BasisForwardService service = new BasisForwardService(
             staffCases,
@@ -79,6 +73,7 @@ class BasisForwardServiceTest {
             versions,
             views,
             auditService,
+            lockedState,
             legalBasisReviewService
     );
 

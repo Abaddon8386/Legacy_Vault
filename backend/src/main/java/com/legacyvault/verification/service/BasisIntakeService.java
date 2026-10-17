@@ -26,7 +26,6 @@ import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalBasisDossierVersionRepository;
 import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
-import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.will.service.WillFile;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -52,9 +51,6 @@ import java.util.UUID;
  *
  * PS-37: Sau khi tiếp nhận phiên bản mới, đánh giá lại snapshot để phát
  * hiện thay đổi và đánh dấu REVIEW_REQUIRED nếu cần.
- *
- * Package: com.legacyvault.verification.service
- * Tác dụng: Tiếp nhận phiên bản dossier và kiểm tra phạm vi phân bổ.
  */
 @Service
 public class BasisIntakeService {
@@ -64,7 +60,6 @@ public class BasisIntakeService {
     static final String RULE_ID = "LV-BASIS-001";
 
     private final StaffCaseLockRepository staffCases;
-    private final VerificationCaseRepository caseRepository;
     private final VaultRepository vaultRepository;
     private final LegalBasisDossierRepository dossiers;
     private final LegalBasisDossierVersionRepository versions;
@@ -75,12 +70,12 @@ public class BasisIntakeService {
     private final ObjectMapper objectMapper;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisLockedState lockedState;
     private final LegalBasisReviewService reviewService;
     private final long maxFileBytes;
 
     public BasisIntakeService(
             StaffCaseLockRepository staffCases,
-            VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository,
             LegalBasisDossierRepository dossiers,
             LegalBasisDossierVersionRepository versions,
@@ -91,12 +86,12 @@ public class BasisIntakeService {
             ObjectMapper objectMapper,
             BasisDossierViewService views,
             AuditService auditService,
+            LegalBasisLockedState lockedState,
             LegalBasisReviewService reviewService,
             @Value("${legacyvault.will.max-file-bytes:10485760}")
             long maxFileBytes
     ) {
         this.staffCases = staffCases;
-        this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
         this.dossiers = dossiers;
         this.versions = versions;
@@ -107,6 +102,7 @@ public class BasisIntakeService {
         this.objectMapper = objectMapper;
         this.views = views;
         this.auditService = auditService;
+        this.lockedState = lockedState;
         this.reviewService = reviewService;
         this.maxFileBytes = maxFileBytes;
     }
@@ -116,10 +112,6 @@ public class BasisIntakeService {
      *
      * Thứ tự khóa bắt buộc: Vault -> VerificationCase -> Dossier.
      * Sau khi lưu phiên bản và audit, đánh giá lại snapshot PS-37.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisIntakeService
-     * Vị trí: phương thức public chính của class.
      */
     @Transactional
     public BasisDossierResponse intake(
@@ -138,36 +130,29 @@ public class BasisIntakeService {
          * Bước 1: Đọc ca để xác định vaultId.
          * Chưa khóa ca hoặc dossier ở bước này.
          */
-        VerificationCase initialCase = staffCases
-                .findOwnedByStaff(caseId, staffUserId)
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        VerificationCase initialCase = staffCases.findOwnedByStaff(caseId, staffUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         /*
          * Bước 2: Khóa Vault trước.
          */
-        Vault vault = vaultRepository
-                .findByIdForUpdate(initialCase.getVaultId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
 
         /*
          * Bước 3: Khóa VerificationCase sau Vault.
          */
-        VerificationCase verificationCase = caseRepository
-                .findByIdForUpdate(initialCase.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        VerificationCase verificationCase = staffCases.findOwnedByStaffForUpdate(caseId, staffUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
         /*
          * Bước 4: Kiểm tra lại quyền sở hữu và quan hệ sau khi khóa.
          */
-        if (!Objects.equals(
-                verificationCase.getPublicId(), caseId)
-                || !Objects.equals(
-                verificationCase.getAssignedStaffUserId(), staffUserId)
-                || !Objects.equals(
-                verificationCase.getVaultId(), vault.getVaultId())) {
+        if (!Objects.equals(verificationCase.getAssignedStaffUserId(), staffUserId)
+                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())
+                || !Objects.equals(verificationCase.getPublicId(), caseId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
@@ -182,15 +167,14 @@ public class BasisIntakeService {
         /*
          * Bước 5: Chỉ khóa dossier sau Vault và VerificationCase.
          */
-        LegalBasisDossier dossier = dossiers
-                .findByVerificationCaseIdForUpdate(
-                        verificationCase.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         if (!dossier.acceptsIntake()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
+        LegalWorkflowGuard.requireNotOnHold(vault, dossier);
 
         /*
          * Bước 6: Kiểm tra loại văn bản, phạm vi phân bổ và file.
@@ -206,8 +190,7 @@ public class BasisIntakeService {
          * Dossier đã được khóa nên số phiên bản được tăng tuần tự.
          * Phiên bản cũ không bị ghi đè.
          */
-        int versionNo =
-                versions.findMaxVersionNo(dossier.getLegalBasisDossierId()) + 1;
+        int versionNo = versions.findMaxVersionNo(dossier.getLegalBasisDossierId()) + 1;
 
         LegalBasisDossierVersion version = new LegalBasisDossierVersion(
                 dossier.getLegalBasisDossierId(),
@@ -278,8 +261,7 @@ public class BasisIntakeService {
                 null,
                 Map.of(
                         "dossierId", dossier.getPublicId().toString(),
-                        "verificationCaseId",
-                        verificationCase.getPublicId().toString(),
+                        "verificationCaseId", verificationCase.getPublicId().toString(),
                         "version", saved.getVersionNo(),
                         "legalBasisType", metadata.legalBasisType(),
                         "sha256", saved.getSha256Hash(),
@@ -307,10 +289,6 @@ public class BasisIntakeService {
     /**
      * Gắn ciphertext với đúng phiên bản.
      * Sao chép ciphertext sang phiên bản khác sẽ khiến giải mã thất bại.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisIntakeService
-     * Vị trí: ngay sau intake().
      */
     static byte[] associatedData(UUID versionPublicId) {
         return ("LEGAL_BASIS_VERSION:" + versionPublicId)
@@ -322,10 +300,6 @@ public class BasisIntakeService {
      *
      * Mỗi dòng phải tham chiếu tài sản và beneficiary thuộc cùng Vault;
      * không cho phép trùng cặp asset-beneficiary.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisIntakeService
-     * Vị trí: sau associatedData().
      */
     private List<long[]> resolveScope(
             BasisIntakeMetadata metadata,
@@ -378,10 +352,6 @@ public class BasisIntakeService {
 
     /**
      * Kiểm tra loại văn bản khớp với nhánh pháp lý của dossier.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisIntakeService
-     * Vị trí: ngay sau resolveScope().
      */
     private static void requireTypeMatchesRoute(
             BasisIntakeMetadata metadata,
@@ -410,10 +380,6 @@ public class BasisIntakeService {
 
     /**
      * Serialize metadata tham chiếu chứng cứ.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisIntakeService
-     * Vị trí: sau requireTypeMatchesRoute().
      */
     private String evidenceJson(String evidenceReference) {
         String value = normalize(evidenceReference);
@@ -434,10 +400,6 @@ public class BasisIntakeService {
 
     /**
      * Chuẩn hóa chuỗi rỗng thành null.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: BasisIntakeService
-     * Vị trí: phương thức cuối class.
      */
     private static String normalize(String value) {
         if (value == null) {

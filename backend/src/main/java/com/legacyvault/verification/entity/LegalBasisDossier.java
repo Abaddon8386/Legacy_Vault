@@ -60,6 +60,9 @@ public class LegalBasisDossier {
     @Column(name = "dispute_status", nullable = false, length = 20)
     private String disputeStatus;
 
+    @Column(name = "required_version_no", nullable = false)
+    private int requiredVersionNo = 1;
+
     @Column(name = "review_status", nullable = false, length = 30)
     private String reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
 
@@ -134,12 +137,7 @@ public class LegalBasisDossier {
 
     /**
      * PS-37 / ST-20: Legal yêu cầu Staff bổ sung hồ sơ.
-     *
      * Chỉ hồ sơ đã forward mới được trả về trạng thái PROVIDED.
-     *
-     * Package: com.legacyvault.verification.entity
-     * Class: LegalBasisDossier
-     * Vị trí: ngay sau markForwarded().
      */
     public void markSupplementationRequired() {
         if (!STATUS_FORWARDED.equals(this.status)) {
@@ -151,8 +149,8 @@ public class LegalBasisDossier {
     }
 
     /**
-     * LV-HOLD-001: chỉ hồ sơ ON_HOLD ở trạng thái DRAFT mới được
-     * phân loại lại sang NOTARIAL hoặc COURT.
+     * LV-HOLD-001: Legal phân loại lại hồ sơ đang ON_HOLD sang NOTARIAL/COURT. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và
+     * COURT không đổi trực tiếp lẫn nhau (D-LEGAL-002). Người phân loại hiện hành được cập nhật.
      */
     public void reclassify(
             String newRoute,
@@ -177,6 +175,19 @@ public class LegalBasisDossier {
     public boolean acceptsIntake() {
         return ROUTE_NOTARIAL.equals(route) || ROUTE_COURT.equals(route);
     }
+
+    /** A hold invalidates earlier clearance while preserving all versions and assessment history. */
+    public void placeOnHold(String reason, String dispute, Long legalUserId, int requiredVersion) {
+        if (!acceptsIntake() || requiredVersion < 1) throw new IllegalStateException("Invalid hold transition");
+        route = ROUTE_ON_HOLD;
+        status = STATUS_DRAFT;
+        routeReason = reason;
+        disputeStatus = dispute;
+        classifiedByUserId = legalUserId;
+        requiredVersionNo = Math.max(requiredVersionNo, requiredVersion);
+    }
+
+    public int getRequiredVersionNo() { return requiredVersionNo; }
 
     public Long getLegalBasisDossierId() {
         return legalBasisDossierId;

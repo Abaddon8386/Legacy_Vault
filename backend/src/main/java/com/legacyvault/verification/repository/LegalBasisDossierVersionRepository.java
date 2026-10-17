@@ -13,6 +13,17 @@ import java.util.Optional;
 /** Phiên bản chỉ thêm mới; các truy vấn đọc trả {@link BasisVersionRow} để không nạp nội dung file. */
 public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalBasisDossierVersion, Long> {
 
+    @Query("""
+        select new com.legacyvault.verification.repository.CourtEvidenceVersion(
+            v.dossierVersionId, v.versionNo, v.sha256Hash, v.legalBasisType, v.issuingAuthority,
+            v.documentNumber, v.issueDate, v.forwardStatus,
+            case when v.encryptedFileContent is not null and v.fileSizeBytes > 0 then true else false end)
+        from LegalBasisDossierVersion v
+        where v.legalBasisDossierId = :dossierId and v.versionNo = :versionNo
+        """)
+    java.util.Optional<CourtEvidenceVersion> findCourtEvidence(@Param("dossierId") Long dossierId,
+            @Param("versionNo") int versionNo);
+
     @Query("select coalesce(max(v.versionNo), 0) from LegalBasisDossierVersion v where v.legalBasisDossierId = :dossierId")
     int findMaxVersionNo(@Param("dossierId") Long dossierId);
 
