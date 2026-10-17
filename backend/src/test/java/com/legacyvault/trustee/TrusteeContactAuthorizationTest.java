@@ -10,6 +10,8 @@ import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import com.legacyvault.verification.service.StaffVaultCaseGuard;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -26,8 +28,10 @@ class TrusteeContactAuthorizationTest {
     final AuditService audit = mock(AuditService.class);
     final StaffCaseLockRepository cases = mock(StaffCaseLockRepository.class);
     final VaultRepository vaults = mock(VaultRepository.class);
+    final EntityManager entities = mock(EntityManager.class);
+    final Trustee trustee = mock(Trustee.class);
     final TrusteeContactService service = new TrusteeContactService(trustees, records, staff, audit,
-            new StaffVaultCaseGuard(vaults, cases));
+            new StaffVaultCaseGuard(vaults, cases), entities);
     final TrusteeContactDtos.RecordRequest request = new TrusteeContactDtos.RecordRequest(
             TrusteeContactDtos.Channel.PHONE, TrusteeContactDtos.Outcome.CONTACTED,
             TrusteeContactDtos.FallbackStatus.NOT_REQUIRED, "private note");
@@ -39,7 +43,6 @@ class TrusteeContactAuthorizationTest {
         Vault vault = mock(Vault.class);
         when(vault.getVaultId()).thenReturn(23L);
         when(vaults.findByIdForUpdate(23L)).thenReturn(Optional.of(vault));
-        Trustee trustee = mock(Trustee.class);
         when(trustee.getVault()).thenReturn(vault);
         when(trustees.findByPublicId(id)).thenReturn(Optional.of(trustee));
     }
@@ -49,7 +52,7 @@ class TrusteeContactAuthorizationTest {
     @Test void rejectedCaseDoesNotWriteOrRevealEmptyHistory() {
         assertNotFound(() -> service.record(id, request));
         assertNotFound(() -> service.history(id));
-        verifyNoInteractions(records, audit);
+        verifyNoInteractions(records, audit, entities);
         verify(cases).findOpenOwnedByStaffForVaultForUpdate(23L, 17L);
         verify(cases).findOpenOwnedByStaffForVault(23L, 17L);
     }
@@ -70,9 +73,10 @@ class TrusteeContactAuthorizationTest {
         var captured = org.mockito.ArgumentCaptor.forClass(TrusteeContactRecord.class);
         verify(records, times(2)).saveAndFlush(captured.capture());
         assertNotSame(captured.getAllValues().get(0), captured.getAllValues().get(1));
-        var order = inOrder(vaults, cases, records, audit);
+        var order = inOrder(vaults, cases, entities, records, audit);
         order.verify(vaults).findByIdForUpdate(23L);
         order.verify(cases).findOpenOwnedByStaffForVaultForUpdate(23L, 17L);
+        order.verify(entities).refresh(trustee, LockModeType.PESSIMISTIC_WRITE);
         order.verify(records).saveAndFlush(any());
         order.verify(audit).record(eq(17L), eq(23L), any(), any(), any(), eq("USER"), any());
     }
@@ -81,8 +85,22 @@ class TrusteeContactAuthorizationTest {
         when(cases.findOpenOwnedByStaffForVault(23L, 17L)).thenReturn(Optional.of(mock(VerificationCase.class)));
         when(records.findAllByTrustee_PublicIdOrderByOccurredAtDesc(id)).thenReturn(List.of());
         assertTrue(service.history(id).isEmpty());
-        verifyNoInteractions(vaults, audit);
+        verifyNoInteractions(vaults, audit, entities);
         verify(cases, never()).findOpenOwnedByStaffForVaultForUpdate(any(), any());
+    }
+
+    @Test void revokedTrusteeRejectsNewContactButKeepsAuthorizedHistoryReadable() {
+        when(cases.findOpenOwnedByStaffForVaultForUpdate(23L, 17L))
+                .thenReturn(Optional.of(mock(VerificationCase.class)));
+        // Simulate a revoke that committed after the initial target lookup, before refresh under lock.
+        doAnswer(i -> { when(trustee.getStatus()).thenReturn("REVOKED"); return null; })
+                .when(entities).refresh(trustee, LockModeType.PESSIMISTIC_WRITE);
+        assertEquals(ErrorCode.TRUSTEE_REVOKED,
+                assertThrows(BusinessException.class, () -> service.record(id, request)).getErrorCode());
+        verifyNoInteractions(records, audit);
+        when(cases.findOpenOwnedByStaffForVault(23L, 17L)).thenReturn(Optional.of(mock(VerificationCase.class)));
+        when(records.findAllByTrustee_PublicIdOrderByOccurredAtDesc(id)).thenReturn(List.of());
+        assertTrue(service.history(id).isEmpty());
     }
 
     static void assertNotFound(Runnable call) {

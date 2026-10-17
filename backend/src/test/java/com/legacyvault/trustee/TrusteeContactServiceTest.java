@@ -25,6 +25,7 @@ import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.verification.service.StaffVaultCaseGuard;
+import jakarta.persistence.EntityManager;
 
 class TrusteeContactServiceTest {
 
@@ -59,7 +60,7 @@ class TrusteeContactServiceTest {
 		AuditService audit = mock(AuditService.class);
 		StaffVaultCaseGuard cases = mock(StaffVaultCaseGuard.class);
 		TrusteeContactService service = new TrusteeContactService(trustees, records,
-				new StaffContextService(new OwnerContextService(users)), audit, cases);
+				new StaffContextService(new OwnerContextService(users)), audit, cases, mock(EntityManager.class));
 
 		service.record(trusteePublicId, new TrusteeContactDtos.RecordRequest(TrusteeContactDtos.Channel.PHONE,
 				TrusteeContactDtos.Outcome.NO_RESPONSE, TrusteeContactDtos.FallbackStatus.REQUIRED,
