@@ -1,4 +1,3 @@
-
 package com.legacyvault.verification;
 
 import com.legacyvault.audit.AuditAction;
@@ -7,6 +6,7 @@ import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.LegalDeathDecisionRequest;
@@ -49,6 +49,9 @@ class LegalDeathVerificationServiceTest {
     private VaultRepository vaultRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private AuditService auditService;
 
     private LegalDeathVerificationService service;
@@ -63,6 +66,12 @@ class LegalDeathVerificationServiceTest {
     private VerificationCase verificationCase;
     private Vault vault;
 
+    /*
+     * Khởi tạo service và các đối tượng dùng chung cho test.
+     * Package: com.legacyvault.verification
+     * Class: LegalDeathVerificationServiceTest
+     * Vị trí: phương thức setUp(), ngay đầu class.
+     */
     @BeforeEach
     void setUp() {
         service = new LegalDeathVerificationService(
@@ -70,7 +79,9 @@ class LegalDeathVerificationServiceTest {
                 legalVerificationRepository,
                 verificationCaseRepository,
                 vaultRepository,
-                auditService
+                auditService,
+                userRepository
+
         );
 
         principal = new CustomUserPrincipal(
@@ -85,10 +96,10 @@ class LegalDeathVerificationServiceTest {
     }
 
     /*
-     * Helper cho các test thành công.
+     * Thiết lập dữ liệu giả cho luồng quyết định xác minh thành công.
      * Package: com.legacyvault.verification
      * Class: LegalDeathVerificationServiceTest
-     * Vị trí: phương thức private trước các test.
+     * Vị trí: phương thức private trước các test nghiệp vụ.
      */
     private void stubSuccessfulDecisionFlow() {
         when(deathDocumentRecordRepository.findByPublicId(deathDocumentId))
@@ -364,6 +375,7 @@ class LegalDeathVerificationServiceTest {
                 verificationCaseRepository,
                 vaultRepository,
                 legalVerificationRepository,
+                userRepository,
                 auditService
         );
     }
@@ -390,6 +402,7 @@ class LegalDeathVerificationServiceTest {
                 verificationCaseRepository,
                 vaultRepository,
                 legalVerificationRepository,
+                userRepository,
                 auditService
         );
     }
@@ -420,6 +433,7 @@ class LegalDeathVerificationServiceTest {
         verifyNoInteractions(verificationCaseRepository);
         verifyNoInteractions(vaultRepository);
         verifyNoInteractions(legalVerificationRepository);
+        verifyNoInteractions(userRepository);
     }
 
     @Test

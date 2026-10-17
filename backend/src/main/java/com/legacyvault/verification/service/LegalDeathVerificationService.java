@@ -8,6 +8,8 @@ import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.user.entity.User;
+import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.LegalDeathDecisionRequest;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -43,6 +46,7 @@ public class LegalDeathVerificationService {
     private final VerificationCaseRepository verificationCaseRepository;
     private final VaultRepository vaultRepository;
     private final AuditService auditService;
+    private final UserRepository userRepository;
     private final Clock clock;
 
     public LegalDeathVerificationService(
@@ -50,13 +54,15 @@ public class LegalDeathVerificationService {
             LegalVerificationRepository legalVerificationRepository,
             VerificationCaseRepository verificationCaseRepository,
             VaultRepository vaultRepository,
-            AuditService auditService
+            AuditService auditService,
+            UserRepository userRepository
     ) {
         this.deathDocumentRecordRepository = deathDocumentRecordRepository;
         this.legalVerificationRepository = legalVerificationRepository;
         this.verificationCaseRepository = verificationCaseRepository;
         this.vaultRepository = vaultRepository;
         this.auditService = auditService;
+        this.userRepository = userRepository;
         this.clock = Clock.systemUTC();
     }
 
@@ -82,7 +88,6 @@ public class LegalDeathVerificationService {
 
         validateRequest(request);
 
-        // Đọc không khóa để xác định VerificationCase và Vault cần khóa.
         DeathDocumentRecord initialDeathRecord = deathDocumentRecordRepository
                 .findByPublicId(deathDocumentPublicId)
                 .orElseThrow(() ->
@@ -120,19 +125,16 @@ public class LegalDeathVerificationService {
                     ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
 
-        // Chỉ xử lý case đang mở.
         if (!verificationCase.isOpen()) {
             throw new BusinessException(
                     ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
 
-        // Dead Man's Switch không thay thế quyết định thẩm định pháp lý.
         if (!Vault.STATUS_AWAITING_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(
                     ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
 
-        // Mỗi hồ sơ chứng tử chỉ có một quyết định.
         if (legalVerificationRepository.existsByDeathDocumentRecordId(
                 deathRecord.getDeathDocumentRecordId())) {
             throw new BusinessException(
@@ -147,7 +149,6 @@ public class LegalDeathVerificationService {
                 ZoneOffset.UTC
         );
 
-        // Persist decision, actor, time và reason trong LegalVerification.
         LegalVerification verification = LegalVerification.createDeathDecision(
                 deathRecord.getDeathDocumentRecordId(),
                 actorUserId,
@@ -158,7 +159,6 @@ public class LegalDeathVerificationService {
 
         verification = legalVerificationRepository.saveAndFlush(verification);
 
-        // Chỉ APPROVE mới chuyển Vault theo logic hiện tại.
         if (request.decision()
                 == LegalDeathDecisionRequest.Decision.APPROVE) {
             vault.markDocumentVerification();
@@ -166,8 +166,7 @@ public class LegalDeathVerificationService {
 
         String vaultStatusAfter = vault.getStatus();
 
-        // Audit nằm trong cùng transaction.
-        // Không ghi nguyên văn reason vào metadata audit.
+        // Audit cùng transaction; không ghi nguyên văn reason vào metadata.
         auditService.record(new AuditEvent(
                 AuditAction.LEGAL_DEATH_DOCUMENT_DECIDED,
                 AuditActorType.USER,
@@ -194,10 +193,9 @@ public class LegalDeathVerificationService {
         return new LegalDeathDecisionResponse(
                 deathRecord.getPublicId(),
                 verificationCase.getPublicId(),
-                verification.getVerificationId(),
                 verification.getResult(),
                 principal.publicId(),
-                verification.getDecidedAt(),
+                toUtcInstant(verification.getDecidedAt()),
                 verification.getRemarks(),
                 verificationCase.getStatus(),
                 vaultStatusAfter
@@ -205,11 +203,116 @@ public class LegalDeathVerificationService {
     }
 
     /**
+     * Đọc chi tiết hồ sơ chứng tử và lịch sử thẩm định.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalDeathVerificationService
+     * Vị trí: phương thức công khai getDetail(), sau decide().
+     *
+     * @param deathDocumentPublicId UUID công khai của giấy tờ chứng tử
+     * @return metadata, trạng thái và lịch sử quyết định
+     */
+    @Transactional(readOnly = true)
+    public LegalDeathDocumentDetailResponse getDetail(
+            UUID deathDocumentPublicId
+    ) {
+        DeathDocumentRecord deathRecord = deathDocumentRecordRepository
+                .findByPublicId(deathDocumentPublicId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase verificationCase = verificationCaseRepository
+                .findById(deathRecord.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Vault vault = vaultRepository
+                .findById(verificationCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        UUID receivedByPublicId = findUserPublicId(
+                deathRecord.getReceivedByUserId());
+
+        List<LegalDeathDocumentDetailResponse.DecisionHistory> decisions =
+                legalVerificationRepository
+                        .findByDeathDocumentRecordIdOrderByRequestedAtDescVerificationIdDesc(
+                                deathRecord.getDeathDocumentRecordId())
+                        .stream()
+                        .map(verification -> {
+                            UUID verifierPublicId =
+                                    verification.getVerifierUserId() == null
+                                            ? null
+                                            : findUserPublicId(
+                                            verification.getVerifierUserId());
+
+                            return new LegalDeathDocumentDetailResponse.DecisionHistory(
+                                    verification.getResult(),
+                                    verifierPublicId,
+                                    toUtcInstant(verification.getRequestedAt()),
+                                    toUtcInstant(verification.getDecidedAt()),
+                                    verification.getRemarks()
+                            );
+                        })
+                        .toList();
+
+        LegalDeathDocumentDetailResponse.DocumentMetadata metadata =
+                new LegalDeathDocumentDetailResponse.DocumentMetadata(
+                        deathRecord.getDocumentType(),
+                        deathRecord.getIssuingAuthority(),
+                        deathRecord.getDocumentNumber(),
+                        deathRecord.getIssuedDate(),
+                        receivedByPublicId,
+                        toUtcInstant(deathRecord.getReceivedAt()),
+                        deathRecord.getEvidenceReference(),
+                        deathRecord.getNotes(),
+                        toUtcInstant(deathRecord.getCreatedAt())
+                );
+
+        return new LegalDeathDocumentDetailResponse(
+                deathRecord.getPublicId(),
+                verificationCase.getPublicId(),
+                verificationCase.getStatus(),
+                vault.getStatus(),
+                metadata,
+                decisions
+        );
+    }
+
+    /**
+     * Lấy public UUID của user từ khóa nội bộ.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalDeathVerificationService
+     * Vị trí: phương thức private ngay dưới getDetail().
+     */
+    private UUID findUserPublicId(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        return user.getPublicId();
+    }
+
+    /**
+     * Chuyển LocalDateTime được lưu theo quy ước UTC thành Instant.
+     *
+     * Package: com.legacyvault.verification.service
+     * Class: LegalDeathVerificationService
+     * Vị trí: phương thức private ngay dưới findUserPublicId().
+     */
+    private Instant toUtcInstant(LocalDateTime value) {
+        return value == null
+                ? null
+                : value.toInstant(ZoneOffset.UTC);
+    }
+
+    /**
      * Kiểm tra dữ liệu đầu vào ở tầng service.
      *
      * Package: com.legacyvault.verification.service
      * Class: LegalDeathVerificationService
-     * Vị trí: phương thức private ngay dưới decide().
+     * Vị trí: phương thức private ngay dưới toUtcInstant().
      */
     private void validateRequest(LegalDeathDecisionRequest request) {
         if (request == null
@@ -230,7 +333,7 @@ public class LegalDeathVerificationService {
      *
      * Package: com.legacyvault.verification.service
      * Class: LegalDeathVerificationService
-     * Vị trí: phương thức private ngay dưới validateRequest().
+     * Vị trí: phương thức private cuối class.
      */
     private String mapDecision(
             LegalDeathDecisionRequest.Decision decision
@@ -241,68 +344,4 @@ public class LegalDeathVerificationService {
             case REQUEST_MORE -> LegalVerification.RESULT_NEEDS_CORRECTION;
         };
     }
-
-
-    /**
-     * Đọc chi tiết hồ sơ chứng tử và lịch sử thẩm định.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalDeathVerificationService
-     * Vị trí: ngay sau decide(), trước validateRequest().
-     */
-    @Transactional(readOnly = true)
-    public LegalDeathDocumentDetailResponse getDetail(UUID deathDocumentPublicId) {
-        DeathDocumentRecord deathRecord = deathDocumentRecordRepository
-                .findByPublicId(deathDocumentPublicId)
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        VerificationCase verificationCase = verificationCaseRepository
-                .findById(deathRecord.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        Vault vault = vaultRepository
-                .findById(verificationCase.getVaultId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-
-        List<LegalDeathDocumentDetailResponse.DecisionHistory> decisions =
-                legalVerificationRepository
-                        .findByDeathDocumentRecordIdOrderByRequestedAtDescVerificationIdDesc(
-                                deathRecord.getDeathDocumentRecordId())
-                        .stream()
-                        .map(verification -> new LegalDeathDocumentDetailResponse.DecisionHistory(
-                                verification.getVerificationId(),
-                                verification.getResult(),
-                                verification.getVerifierUserId(),
-                                verification.getRequestedAt(),
-                                verification.getDecidedAt(),
-                                verification.getRemarks()
-                        ))
-                        .toList();
-
-        LegalDeathDocumentDetailResponse.DocumentMetadata metadata =
-                new LegalDeathDocumentDetailResponse.DocumentMetadata(
-                        deathRecord.getDocumentType(),
-                        deathRecord.getIssuingAuthority(),
-                        deathRecord.getDocumentNumber(),
-                        deathRecord.getIssuedDate(),
-                        deathRecord.getReceivedByUserId(),
-                        deathRecord.getReceivedAt(),
-                        deathRecord.getEvidenceReference(),
-                        deathRecord.getNotes(),
-                        deathRecord.getCreatedAt()
-                );
-
-        return new LegalDeathDocumentDetailResponse(
-                deathRecord.getPublicId(),
-                verificationCase.getPublicId(),
-                verificationCase.getStatus(),
-                vault.getStatus(),
-                metadata,
-                decisions
-        );
-    }
-
 }

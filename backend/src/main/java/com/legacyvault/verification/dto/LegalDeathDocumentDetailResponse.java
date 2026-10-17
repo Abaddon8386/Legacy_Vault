@@ -1,8 +1,7 @@
-
 package com.legacyvault.verification.dto;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,20 +18,19 @@ public record LegalDeathDocumentDetailResponse(
             String issuingAuthority,
             String documentNumber,
             LocalDate issuedDate,
-            Long receivedByUserId,
-            LocalDateTime receivedAt,
+            UUID receivedByPublicId,
+            Instant receivedAt,
             String evidenceReference,
             String notes,
-            LocalDateTime createdAt
+            Instant createdAt
     ) {
     }
 
     public record DecisionHistory(
-            Long verificationId,
             String result,
-            Long verifierUserId,
-            LocalDateTime requestedAt,
-            LocalDateTime decidedAt,
+            UUID verifierPublicId,
+            Instant requestedAt,
+            Instant decidedAt,
             String reason
     ) {
     }
