@@ -128,6 +128,41 @@ của Staff), `receivedAt`, `evidenceReference`, `notes`.
   cơ quan cấp hay ghi chú.
 - **Chưa làm:** tiến độ hồ sơ `DEATH_DOCS_COLLECTED` chưa có cột chứa nên chưa được ghi (`TODO(open-question)`, D-API-34).
 
+## PS-39 — Ghi nhận bản di chúc giấy gốc đã nộp (ST-13, LV-WILL-001)
+
+Staff ghi nhận Trustee đã **nộp bản di chúc giấy gốc** tại quầy: ai giao, ai nhận, khi nào, bằng chứng và tình trạng. Chỉ là
+ghi nhận việc nộp: **không** xác nhận di chúc hợp lệ, **không** đối chiếu với bản scan (việc của Legal), không đổi trạng thái
+Vault hay ca, không tải file.
+
+Base path: `/api/v1/staff/verification-cases/{caseId}/original-will-intakes`. Role `STAFF_EXECUTOR`; Staff phải là người **đã nhận
+ca**, ca chưa nhận hoặc của Staff khác → `404`.
+
+| Thao tác | Mô tả |
+|---|---|
+| `POST` | Ghi nhận một lần nộp. `201` + `Location` + `OriginalWillIntakeResponse` |
+| `GET` | Các lần nộp của ca, mới nhất trước |
+| `GET /{intakeId}` | Một bản ghi |
+
+**Request (`POST`):**
+
+| Trường | Kiểu | Bắt buộc | Ràng buộc |
+|---|---|---|---|
+| `deliveredByName` | string | có | không rỗng, ≤ 150 (người giao) |
+| `deliveredByRelationship` | string | không | ≤ 100 (quan hệ với chủ kho) |
+| `evidenceReference` | string | không | ≤ 500; mã biên nhận/vị trí lưu, **không phải file** |
+| `conditionNotes` | string | không | ≤ 1000 (tình trạng bản gốc) |
+
+`receivedBy` (Staff đăng nhập) và `receivedAt` (giờ máy chủ, UTC) do server đặt; gửi hai trường này bị bỏ qua.
+
+**Response:** `id`, `caseId`, `deliveredByName`, `deliveredByRelationship`, `receivedBy`, `receivedAt`, `evidenceReference`,
+`conditionNotes`.
+
+- **Lỗi:** `400 VALIDATION_FAILED` · `401` · `403` · `404` · `409 VERIFICATION_CASE_NOT_OPEN`.
+- **Bất biến:** không có API sửa hay xóa; nộp thêm thì tạo bản ghi mới.
+- **Audit:** `ORIGINAL_WILL_RECEIVED` (ST-13, LV-WILL-001) chỉ ghi các ID công khai; **không** ghi tên người giao hay ghi chú tình trạng.
+- **Chưa làm / chờ xác nhận (D-API-34):** tiến độ `WILL_AND_IDS_SUBMITTED` chưa có cột chứa; chưa bắt buộc ST-12 đã duyệt trước ST-13.
+  Phần "giấy tờ nhân thân nhóm Beneficiary" của ST-13 không thuộc bảng `original_will_intakes` nên **chưa** nằm trong PS-39.
+
 ## Test và giới hạn xác minh
 
 - Test `getCase_caseNotViewableByStaff_throwsNotFound` phải mock và verify `findViewableCaseByPublicId(caseId, staffUserId)`, không dùng method cũ `findByPublicIdAndAssignedStaffUserId()` để test `getCase()`.
