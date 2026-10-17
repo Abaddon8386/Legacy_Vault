@@ -66,8 +66,7 @@ class BasisForwardServiceTest {
             dossiers,
             versions,
             views,
-            auditService,
-            legalBasisReviewService
+            auditService
     );
 
 

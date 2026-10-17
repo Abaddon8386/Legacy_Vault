@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.legacyvault.verification.service.LegalBasisReviewService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -71,6 +72,9 @@ class LegalBasisDossierControllerTest {
 
     @MockitoBean
     private BasisDossierViewService views;
+
+    @MockitoBean
+    private LegalBasisReviewService legalBasisReviewService;
 
     private static RequestPostProcessor as(String role) {
         return authentication(new UsernamePasswordAuthenticationToken(LEGAL, null,

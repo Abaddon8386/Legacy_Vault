@@ -5,17 +5,11 @@ import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
+import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.LegalBasisReviewResponse;
-import com.legacyvault.verification.entity.LegalBasisDossier;
-import com.legacyvault.verification.entity.LegalBasisDossierVersion;
-import com.legacyvault.verification.entity.LegalBasisReviewHistory;
-import com.legacyvault.verification.entity.LegalBasisReviewStatus;
-import com.legacyvault.verification.repository.BasisVersionRow;
-import com.legacyvault.verification.repository.AllocationRow;
-import com.legacyvault.verification.repository.LegalBasisDossierRepository;
-import com.legacyvault.verification.repository.LegalBasisDossierVersionRepository;
-import com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository;
-import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
+import com.legacyvault.verification.entity.*;
+import com.legacyvault.verification.repository.*;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -26,10 +20,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,19 +35,25 @@ public class LegalBasisReviewService {
     private final LegalBasisVersionAllocationRepository allocations;
     private final LegalBasisReviewHistoryRepository history;
     private final AuditService auditService;
+    private final VerificationCaseRepository verificationCases;
+    private final VaultRepository vaultRepository;
 
     public LegalBasisReviewService(
             LegalBasisDossierRepository dossiers,
             LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations,
             LegalBasisReviewHistoryRepository history,
-            AuditService auditService
+            AuditService auditService,
+            VerificationCaseRepository verificationCases,
+            VaultRepository vaultRepository
     ) {
         this.dossiers = dossiers;
         this.versions = versions;
         this.allocations = allocations;
         this.history = history;
         this.auditService = auditService;
+        this.verificationCases = verificationCases;
+        this.vaultRepository = vaultRepository;
     }
 
     /**
@@ -135,8 +132,11 @@ public class LegalBasisReviewService {
             Long reviewerUserId,
             String reason
     ) {
-        if (reviewerUserId == null || reason == null || reason.isBlank() || reason.length() > 1000) {
-            throw new IllegalArgumentException("Reviewer and review reason are required.");
+        if (reviewerUserId == null
+                || reason == null
+                || reason.isBlank()
+                || reason.length() > 1000) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
         LegalBasisDossier dossier = dossiers.findByDossierIdForUpdate(dossierId)
@@ -144,8 +144,11 @@ public class LegalBasisReviewService {
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
         BasisVersionRow current = rows.isEmpty() ? null : rows.get(0);
-        if (current == null || current.sha256Hash() == null || current.sha256Hash().isBlank()) {
-            throw new IllegalStateException("Cannot complete review without a valid dossier version.");
+        if (current == null
+                || current.sha256Hash() == null
+                || current.sha256Hash().isBlank()) {
+            throw new BusinessException(
+                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
         String currentAllocationHash = allocationHash(dossierId, current.versionNo());
@@ -274,6 +277,57 @@ public class LegalBasisReviewService {
                 LocalDateTime.now(ZoneOffset.UTC)
         );
     }
+
+
+    /**
+     * ST-20 / PS-37:
+     * Ghi nhận hoàn thành review bằng public ID của verification case.
+     *
+     * Package: com.legacyvault.verification.service
+     * Vị trí: trong class LegalBasisReviewService, đặt sau recordCompletedReview().
+     */
+    @Transactional
+    public LegalBasisReviewResponse recordCompletedReviewByCasePublicId(
+            UUID casePublicId,
+            Long reviewerUserId,
+            String reason) {
+
+        if (casePublicId == null
+                || reviewerUserId == null
+                || reason == null
+                || reason.isBlank()
+                || reason.length() > 1000) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        VerificationCase verificationCase = verificationCases
+                .findByPublicId(casePublicId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        LegalBasisDossier dossier = dossiers
+                .findByVerificationCaseIdForUpdate(
+                        verificationCase.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Vault vault = vaultRepository
+                .findByIdForUpdate(verificationCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())
+                || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
+
+        return recordCompletedReview(
+                dossier.getLegalBasisDossierId(),
+                reviewerUserId,
+                reason.trim());
+    }
+
 
     public static String allocationHashFromCanonicalValues(List<String> values) {
         return sha256Static(
