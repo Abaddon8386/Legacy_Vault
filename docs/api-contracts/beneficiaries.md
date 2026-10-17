@@ -16,9 +16,10 @@ lỗi audit rollback tất cả. Beneficiary được refresh sau khi lấy khó
 Ca OPEN không chứng minh hồ sơ pháp lý đủ điều kiện cho PS-46–48.
 
 `MATCH` được lưu nguyên trong lịch sử và đặt trạng thái hiện tại thành `VERIFIED_AT_COUNTER`.
-`NOT_MATCH` chưa có quyết định cập nhật trạng thái, đặc biệt khi đã `VERIFIED_AT_COUNTER`:
-tạm trả `409 IDENTITY_VERIFICATION_POLICY_UNDECIDED` sau khi kiểm tra quyền, không ghi lịch sử,
-trạng thái hoặc audit. Đây là blocker nghiệp vụ; PS-45 chưa hoàn tất. Lịch sử NOT_MATCH cũ vẫn đọc nguyên vẹn.
+Quyết định xác nhận ngày 2026-10-17: `NOT_MATCH` đặt trạng thái hiện tại về `NOT_VERIFIED`,
+kể cả từ `VERIFIED_AT_COUNTER`. Kết quả lịch sử vẫn là `NOT_MATCH`; mỗi lần xác minh thêm bản ghi mới,
+không ghi đè lịch sử cũ. Cả MATCH và NOT_MATCH trả 201 khi hợp lệ. Khi có nhiều lần ghi đồng thời,
+khóa tuần tự hóa xử lý; trạng thái hiện tại khớp với kết quả được xử lý cuối cùng.
 Migration V7/V8 vẫn xung đột, chờ nhóm cấp số; không dùng V12/V13 của PS-77 hay số dành cho PS-41–43.
 Staff queue/detail hiện trả Vault/Owner IDs, không trả beneficiaryId; cần API discovery theo ca được giao.
 Không dùng endpoint Owner hoặc ô nhập UUID thay cho dependency này.
@@ -26,7 +27,7 @@ Không dùng endpoint Owner hoặc ô nhập UUID thay cho dependency này.
 Staff Executor đối chiếu bản cứng CCCD/passport với khuôn mặt trực tiếp qua
 `POST /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications`. Kết quả `MATCH` hoặc `NOT_MATCH`,
 loại giấy tờ, cơ quan cấp (nếu có), hậu tố đúng bốn ký tự chữ/số nếu được gửi và thời điểm UTC được lưu
-trong lịch sử append-only cho kết quả đã được chốt chính sách. Actor được ghi trong record và audit log;
+trong lịch sử append-only. Actor được ghi trong record và audit log;
 audit chỉ chứa result, documentType, stepId, ruleId, không chứa cơ quan cấp, hậu tố hoặc giấy tờ.
 Response của POST và GET lịch sử trả `verifiedBy: { id, fullName }` cùng `verifiedAt` UTC để FE hiển thị
 người kiểm tra và thời gian theo PS-27. `id` là public UUID của tài khoản Staff; `fullName` là tên hiện tại

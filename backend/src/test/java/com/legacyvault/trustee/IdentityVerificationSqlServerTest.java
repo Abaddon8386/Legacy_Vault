@@ -5,6 +5,8 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import java.util.*;
 import java.util.concurrent.*;
@@ -60,14 +62,17 @@ class IdentityVerificationSqlServerTest extends TrusteeContactSqlServerTest {
         assertEquals(0,records()); assertEquals(0,audits("BENEFICIARY_IDENTITY_VERIFIED"));
     }
 
-    @Test void notMatchIsBlockedWithoutChangingEitherPriorState() {
+    @Test void notMatchResetsBothPriorStatesAndPreservesEveryHistoryRecord() {
+        int expectedRecords = 0;
         for (String before : List.of(Beneficiary.NOT_VERIFIED,Beneficiary.VERIFIED_AT_COUNTER)) {
             jdbc.update("UPDATE dbo.beneficiaries SET id_verification_status=? WHERE beneficiary_id=?",before,beneficiaryId);
-            assertEquals(ErrorCode.IDENTITY_VERIFICATION_POLICY_UNDECIDED,
-                    assertThrows(BusinessException.class,() -> verify(IdentityVerificationDtos.Result.NOT_MATCH,"1234")).getErrorCode());
-            assertEquals(before,status()); assertEquals(0,records());
+            verify(IdentityVerificationDtos.Result.NOT_MATCH,"1234");
+            assertEquals(Beneficiary.NOT_VERIFIED,status()); assertEquals(++expectedRecords,records());
         }
-        assertEquals(0,audits("BENEFICIARY_IDENTITY_VERIFIED"));
+        assertEquals(2,audits("BENEFICIARY_IDENTITY_VERIFIED"));
+        assertEquals(List.of("NOT_MATCH", "NOT_MATCH"), jdbc.queryForList(
+                "SELECT result FROM dbo.beneficiary_identity_verifications WHERE beneficiary_id=? ORDER BY verification_id",
+                String.class, beneficiaryId));
     }
 
     @Test void auditFailureReallyRollsBackIdentityHistoryAndCurrentStatus() {
@@ -77,6 +82,16 @@ class IdentityVerificationSqlServerTest extends TrusteeContactSqlServerTest {
         finally { jdbc.execute("DROP TRIGGER dbo."+trigger); }
         assertEquals(0,records()); assertEquals(Beneficiary.NOT_VERIFIED,status());
         assertEquals(0,audits("BENEFICIARY_IDENTITY_VERIFIED"));
+    }
+
+    @Test void auditFailureOnNotMatchRetainsPreviousVerifiedStatus() {
+        match();
+        String trigger="fail_not_match_"+vaultId;
+        jdbc.execute("CREATE TRIGGER dbo."+trigger+" ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS (SELECT 1 FROM inserted WHERE vault_id="+vaultId+" AND action='BENEFICIARY_IDENTITY_VERIFIED') THROW 51000, 'injected audit failure', 1; END");
+        try { assertThrows(RuntimeException.class, () -> verify(IdentityVerificationDtos.Result.NOT_MATCH,"4321")); }
+        finally { jdbc.execute("DROP TRIGGER dbo."+trigger); }
+        assertEquals(1,records()); assertEquals(Beneficiary.VERIFIED_AT_COUNTER,status());
+        assertEquals(1,audits("BENEFICIARY_IDENTITY_VERIFIED"));
     }
 
     @Test void concurrentMatchesSerializeWithoutLosingHistory() throws Exception {
@@ -89,6 +104,30 @@ class IdentityVerificationSqlServerTest extends TrusteeContactSqlServerTest {
             release.countDown();first.get(20,TimeUnit.SECONDS);second.get(20,TimeUnit.SECONDS);
             assertEquals(2,records());assertEquals(Beneficiary.VERIFIED_AT_COUNTER,status());
             assertEquals(List.of("1111","2222"),jdbc.queryForList("SELECT document_suffix FROM dbo.beneficiary_identity_verifications WHERE beneficiary_id=? ORDER BY verification_id",String.class,beneficiaryId));
+            assertEquals(2,audits("BENEFICIARY_IDENTITY_VERIFIED"));
+        } finally { release.countDown(); }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IdentityVerificationDtos.Result.class)
+    void concurrentMixedResultsFollowSerializedOrder(IdentityVerificationDtos.Result firstResult) throws Exception {
+        var secondResult = firstResult == IdentityVerificationDtos.Result.MATCH
+                ? IdentityVerificationDtos.Result.NOT_MATCH : IdentityVerificationDtos.Result.MATCH;
+        CountDownLatch locked=new CountDownLatch(1),release=new CountDownLatch(1);
+        Future<?> first=workers.submit(() -> tx.execute(s -> {
+            verify(firstResult,"1111"); locked.countDown(); await(release); return null;
+        }));
+        try {
+            assertTrue(locked.await(10,TimeUnit.SECONDS));
+            Future<?> second=workers.submit(() -> verify(secondResult,"2222"));
+            assertThrows(TimeoutException.class,() -> second.get(300,TimeUnit.MILLISECONDS));
+            release.countDown(); first.get(20,TimeUnit.SECONDS); second.get(20,TimeUnit.SECONDS);
+            assertEquals(2,records());
+            assertEquals(secondResult == IdentityVerificationDtos.Result.MATCH
+                    ? Beneficiary.VERIFIED_AT_COUNTER : Beneficiary.NOT_VERIFIED,status());
+            assertEquals(List.of(firstResult.name(),secondResult.name()),jdbc.queryForList(
+                    "SELECT result FROM dbo.beneficiary_identity_verifications WHERE beneficiary_id=? ORDER BY verification_id",
+                    String.class,beneficiaryId));
             assertEquals(2,audits("BENEFICIARY_IDENTITY_VERIFIED"));
         } finally { release.countDown(); }
     }

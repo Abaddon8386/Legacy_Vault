@@ -128,8 +128,9 @@ public class Beneficiary {
 	public boolean hasIdentityNumber() { return identityNumberEncrypted != null && identityNumberEncrypted.length > 0; }
 	public boolean hasAccount() { return linkedUserId != null; }
 	public String getIdentityVerificationStatus() { return identityVerificationStatus; }
-	/** Only the approved MATCH transition. NOT_MATCH policy must be settled before adding a transition. */
 	public void verifyAtCounter() { this.identityVerificationStatus = VERIFIED_AT_COUNTER; }
+	/** A new NOT_MATCH invalidates any previous at-counter verification. History remains append-only. */
+	public void markIdentityNotVerified() { this.identityVerificationStatus = NOT_VERIFIED; }
 	public String getStatus() { return status; }
 	public LocalDateTime getCreatedAt() { return createdAt; }
 	public LocalDateTime getUpdatedAt() { return updatedAt; }

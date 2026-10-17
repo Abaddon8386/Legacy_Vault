@@ -1,6 +1,7 @@
 /* Read-only preflight. Run only on an explicitly selected database; no updates or default mappings.
-   Does not expose identity documents. A repair migration needs an approved NOT_MATCH policy and
-   confirmation of deployment/Flyway history before any data changes. Unknown states stay untouched. */
+   Does not expose identity documents. Approved on 2026-10-17: MATCH -> VERIFIED_AT_COUNTER;
+   NOT_MATCH -> NOT_VERIFIED, including from VERIFIED_AT_COUNTER. A repair migration still needs
+   confirmed deployment scope, allocated version and Flyway history before changes. Unknown states stay untouched. */
 SET NOCOUNT ON;
 
 SELECT id_verification_status, COUNT_BIG(*) AS beneficiary_count

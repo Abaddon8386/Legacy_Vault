@@ -75,10 +75,12 @@ class IdentityVerificationControllerTest {
         mvc.perform(get(path).with(user("staff").roles("STAFF_EXECUTOR")))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
     }
-    @Test void pendingPolicyUsesExplicitConflictContract() throws Exception {
-        when(service.verify(eq(id),any())).thenThrow(new BusinessException(ErrorCode.IDENTITY_VERIFICATION_POLICY_UNDECIDED));
+    @Test void notMatchReturnsCreatedWithUnchangedHistoryResult() throws Exception {
+        when(service.verify(eq(id),any())).thenReturn(new IdentityVerificationDtos.Response(UUID.randomUUID(), id,
+                IdentityVerificationDtos.DocumentType.CCCD, null, "1234", IdentityVerificationDtos.Result.NOT_MATCH,
+                new IdentityVerificationDtos.Verifier(UUID.randomUUID(), "Staff"), "2026-10-17T00:00:00Z"));
         mvc.perform(post(path).with(user("staff").roles("STAFF_EXECUTOR"))
                 .contentType(MediaType.APPLICATION_JSON).content(valid.replace("MATCH","NOT_MATCH")))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("IDENTITY_VERIFICATION_POLICY_UNDECIDED"));
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.result").value("NOT_MATCH"));
     }
 }

@@ -54,15 +54,14 @@ public class IdentityVerificationService {
 		if (!vaultId.equals(beneficiary.getVault().getVaultId())) {
 			throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
 		}
-		if (request.result() == IdentityVerificationDtos.Result.NOT_MATCH) {
-			// Fail closed until the business transition (including an already verified beneficiary) is approved.
-			throw new BusinessException(ErrorCode.IDENTITY_VERIFICATION_POLICY_UNDECIDED);
-		}
 		String authority = clean(request.issuingAuthority());
 		IdentityVerificationRecord record = verifications.saveAndFlush(new IdentityVerificationRecord(beneficiary,
 				actor.getUserId(), request.documentType().name(), authority, clean(request.documentSuffix()),
 				request.result().name()));
-		beneficiary.verifyAtCounter();
+		switch (request.result()) {
+			case MATCH -> beneficiary.verifyAtCounter();
+			case NOT_MATCH -> beneficiary.markIdentityNotVerified();
+		}
 		beneficiaries.save(beneficiary);
 		audit.record(actor.getUserId(), beneficiary.getVault().getVaultId(), "BENEFICIARY_IDENTITY_VERIFIED", "BENEFICIARY",
 				beneficiary.getId(), "USER", Map.of("result", request.result().name(), "documentType",

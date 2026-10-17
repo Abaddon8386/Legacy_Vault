@@ -917,7 +917,7 @@ paths:
     post:
       tags: [Staff]
       summary: Ghi nhận xác minh danh tính trực tiếp (PS-45, ST-14)
-      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. MATCH appends history and sets VERIFIED_AT_COUNTER atomically with audit. NOT_MATCH temporarily returns 409 IDENTITY_VERIFICATION_POLICY_UNDECIDED without writes pending a business decision, including transitions from VERIFIED_AT_COUNTER. Hard-copy CCCD/passport and in-person face comparison only; no eKYC. Optional documentSuffix is exactly four alphanumeric characters. Staff target discovery remains a FE dependency. OPEN is not legal clearance.
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. MATCH sets VERIFIED_AT_COUNTER; NOT_MATCH sets NOT_VERIFIED even from VERIFIED_AT_COUNTER. Both append their unchanged result to history and commit current state and audit atomically. Concurrent decisions are serialized; current state follows the last processed result. Hard-copy CCCD/passport and in-person face comparison only; no eKYC. Optional documentSuffix is exactly four alphanumeric characters. Staff target discovery remains a FE dependency. OPEN is not legal clearance.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -928,7 +928,7 @@ paths:
             schema: { $ref: '#/components/schemas/IdentityVerificationRequest' }
       responses:
         '201':
-          description: MATCH history saved and current status set to VERIFIED_AT_COUNTER
+          description: History appended; current status is VERIFIED_AT_COUNTER for MATCH or NOT_VERIFIED for NOT_MATCH
           content:
             application/json:
               schema: { $ref: '#/components/schemas/IdentityVerificationResponse' }
@@ -936,11 +936,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409':
-          description: IDENTITY_VERIFICATION_POLICY_UNDECIDED - NOT_MATCH transition awaits business approval; no history, status or audit writes.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiError' }
     get:
       tags: [Staff]
       summary: Lịch sử xác minh danh tính trực tiếp (PS-45)

@@ -49,7 +49,7 @@ class IdentityVerificationAuthorizationTest {
     void allowWrite() { when(cases.findOpenOwnedByStaffForVaultForUpdate(23L,17L)).thenReturn(Optional.of(mock(VerificationCase.class))); }
     void notFound(Runnable call) { assertEquals(ErrorCode.RESOURCE_NOT_FOUND, assertThrows(BusinessException.class, call::run).getErrorCode()); }
 
-    @Test void rejectedCaseDoesNotWriteReadHistoryOrExposePolicy() {
+    @Test void rejectedCaseDoesNotWriteOrReadHistory() {
         for (var result : IdentityVerificationDtos.Result.values()) notFound(() -> service.verify(id, request(result)));
         notFound(() -> service.history(id));
         verifyNoInteractions(records, audit, entities, users);
@@ -74,17 +74,21 @@ class IdentityVerificationAuthorizationTest {
         order.verify(audit).record(eq(17L),eq(23L),eq("BENEFICIARY_IDENTITY_VERIFIED"),eq("BENEFICIARY"),any(),eq("USER"),details.capture());
         assertEquals(Set.of("result","documentType","stepId","ruleId"), details.getValue().keySet());
     }
-    @Test void undecidedNotMatchRejectsBothPriorStatesWithoutMutation() {
+    @Test void notMatchResetsBothPriorStatesAndAppendsUnchangedResult() {
         allowWrite();
         for (boolean verified : List.of(false,true)) {
             if (verified) beneficiary.verifyAtCounter();
-            String before = beneficiary.getIdentityVerificationStatus();
-            assertEquals(ErrorCode.IDENTITY_VERIFICATION_POLICY_UNDECIDED,
-                    assertThrows(BusinessException.class, () -> service.verify(id,request(IdentityVerificationDtos.Result.NOT_MATCH))).getErrorCode());
-            assertEquals(before,beneficiary.getIdentityVerificationStatus());
+            var response = service.verify(id, request(IdentityVerificationDtos.Result.NOT_MATCH));
+            assertEquals(IdentityVerificationDtos.Result.NOT_MATCH, response.result());
+            assertEquals(Beneficiary.NOT_VERIFIED, beneficiary.getIdentityVerificationStatus());
         }
-        verifyNoInteractions(records,audit);
-        verify(beneficiaries,never()).save(any());
+        var captured = org.mockito.ArgumentCaptor.forClass(IdentityVerificationRecord.class);
+        verify(records, times(2)).saveAndFlush(captured.capture());
+        assertNotSame(captured.getAllValues().get(0), captured.getAllValues().get(1));
+        assertTrue(captured.getAllValues().stream().allMatch(r -> "NOT_MATCH".equals(r.getResult())));
+        verify(beneficiaries, times(2)).save(beneficiary);
+        verify(audit, times(2)).record(eq(17L), eq(23L), eq("BENEFICIARY_IDENTITY_VERIFIED"),
+                eq("BENEFICIARY"), any(), eq("USER"), any());
     }
     @Test void emptyHistoryIsAuthorizedWithoutWriteLocks() {
         when(cases.findOpenOwnedByStaffForVault(23L,17L)).thenReturn(Optional.of(mock(VerificationCase.class)));

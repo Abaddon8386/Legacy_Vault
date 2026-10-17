@@ -1,8 +1,5 @@
 # Hợp đồng lỗi chung
 
-PS-45 tạm dùng `409 IDENTITY_VERIFICATION_POLICY_UNDECIDED` (`error.identityVerification.policyUndecided`)
-khi Staff đã qua guard nhưng gửi `NOT_MATCH` trong lúc chính sách chuyển trạng thái chưa được xác nhận.
-Không có lịch sử/trạng thái/audit mới. Đối tượng ngoài quyền vẫn trả 404 trước khi kiểm tra chính sách.
 PS-44: `409 TRUSTEE_REVOKED` (`error.trustee.revoked`) khi Staff qua guard ca OPEN được giao nhưng
 ghi liên hệ mới với Trustee đã REVOKED. Không tạo lịch sử/audit mới; lịch sử cũ vẫn đọc theo quyền ca.
 Ngoài quyền ca vẫn trả 404 trước khi kiểm tra trạng thái Trustee.
