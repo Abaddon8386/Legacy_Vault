@@ -856,6 +856,57 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/will-comparisons:
+    get:
+      tags: [Legal]
+      summary: Dữ liệu để đối chiếu di chúc gốc của một ca (PS-40)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Trả các lần Staff nhận bản gốc, các bản scan kèm hash, các kết quả đối chiếu đã có và cờ
+        `approvalBlocked` (true trừ khi kết quả mới nhất là MATCH).
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillComparisonOverviewResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Legal]
+      summary: Ghi kết quả đối chiếu di chúc gốc với bản scan (PS-40, ST-15)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Hash của phiên bản do server lấy từ dữ liệu đã lưu. MISMATCH và INCONCLUSIVE bắt buộc có `reason`.
+        Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION`. Không đổi trạng thái Vault.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordWillComparisonRequest' }
+      responses:
+        '201':
+          description: Đã ghi kết quả
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WillComparisonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1366,6 +1417,65 @@ components:
               requestedAt: { type: string, format: date-time }
               decidedAt: { type: string, format: date-time, nullable: true }
               reason: { type: string, nullable: true }
+    RecordWillComparisonRequest:
+      type: object
+      required: [originalWillIntakeId, willId, version, result]
+      properties:
+        originalWillIntakeId: { type: string, format: uuid }
+        willId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        result: { type: string, enum: [MATCH, MISMATCH, INCONCLUSIVE] }
+        reason: { type: string, maxLength: 1000, nullable: true, description: Bắt buộc khi result khác MATCH }
+    WillComparisonResponse:
+      type: object
+      required: [id, caseId, originalWillIntakeId, willId, version, sha256, result, checkedBy, comparedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        originalWillIntakeId: { type: string, format: uuid }
+        willId: { type: string, format: uuid }
+        version: { type: integer }
+        sha256: { type: string, description: Hash của phiên bản bản scan đã so; không chứng minh giá trị pháp lý }
+        result: { type: string, enum: [MATCH, MISMATCH, INCONCLUSIVE] }
+        checkedBy: { type: string, format: uuid }
+        reason: { type: string, nullable: true }
+        comparedAt: { type: string, format: date-time }
+    WillComparisonOverviewResponse:
+      type: object
+      required: [caseId, vaultStatus, approvalBlocked, originalWillIntakes, wills, comparisons]
+      properties:
+        caseId: { type: string, format: uuid }
+        vaultStatus: { type: string }
+        approvalBlocked: { type: boolean, description: true trừ khi kết quả đối chiếu mới nhất là MATCH }
+        latestResult: { type: string, nullable: true, enum: [MATCH, MISMATCH, INCONCLUSIVE, null] }
+        originalWillIntakes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              receivedAt: { type: string, format: date-time }
+              evidenceReference: { type: string, nullable: true }
+        wills:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              versions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    version: { type: integer }
+                    contentType: { type: string }
+                    sizeBytes: { type: integer, format: int64 }
+                    sha256: { type: string }
+                    uploadedAt: { type: string, format: date-time }
+        comparisons:
+          type: array
+          description: Mới nhất trước
+          items: { $ref: '#/components/schemas/WillComparisonResponse' }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
