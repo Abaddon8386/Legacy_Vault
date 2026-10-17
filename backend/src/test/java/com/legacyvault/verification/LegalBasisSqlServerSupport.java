@@ -88,5 +88,19 @@ abstract class LegalBasisSqlServerSupport {
         return jdbc.queryForObject("SELECT COUNT(*) FROM dbo." + table + " WHERE " + where, Integer.class, args);
     }
 
+    static com.legacyvault.verification.dto.BasisDossierResponse intakeVersion(Fixture f, String type) {
+        UUID asset = UUID.randomUUID();
+        UUID beneficiary = UUID.randomUUID();
+        jdbc.update("INSERT dbo.assets (public_id, vault_id, asset_type, title) VALUES (?, ?, 'TEXT', 'Allocation fixture')", asset.toString(), f.vaultId());
+        jdbc.update("INSERT dbo.beneficiaries (public_id, vault_id, full_name) VALUES (?, ?, 'Beneficiary fixture')", beneficiary.toString(), f.vaultId());
+        var metadata = new com.legacyvault.verification.dto.BasisIntakeMetadata(type, "Court fixture", "Document fixture",
+                java.time.LocalDate.of(2026, 1, 1), "Notary fixture", "Notarial fixture", java.time.LocalDate.of(2026, 1, 1),
+                "Receipt fixture", null, java.util.List.of(new com.legacyvault.verification.dto.AllocationInput(asset, beneficiary, null)));
+        var file = new org.springframework.mock.web.MockMultipartFile("file", "fixture.pdf", "application/pdf",
+                "%PDF-1.4\nFixture only\n%%EOF".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return context.getBean(com.legacyvault.verification.service.BasisIntakeService.class)
+                .intake(f.publicCaseId(), f.legal(), metadata, file);
+    }
+
     record Fixture(long userId, long vaultId, long caseId, UUID publicCaseId, CustomUserPrincipal legal) { }
 }
