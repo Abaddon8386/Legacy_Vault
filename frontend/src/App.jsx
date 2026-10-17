@@ -15,6 +15,8 @@ import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidatio
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
+import StaffShell from './components/layout/StaffShell.jsx';
+import StaffCaseDashboard from './pages/staff/StaffCaseDashboard.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
 import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
@@ -390,7 +392,7 @@ export default function App() {
     if (options.signal?.aborted) return;
     if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
     setSession({ ...candidate, user }); setLang(options.lang || 'vi');
-    navigateTo(resolvePostLoginRoute(user));
+    navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
     setIsRefreshing(true); setRefreshTrigger(value => value + 1);
@@ -398,6 +400,56 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const isStaffRoute = path === '/staff/cases';
+  if (isStaffRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !session.user.roles.includes('STAFF_EXECUTOR')) {
+      return (
+        <main role="alert" style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", backgroundColor: '#f7f5f0' }}>
+          <p style={{ fontSize: '16px', color: '#164639', fontWeight: 600, marginBottom: '16px' }}>
+            {lang === 'en' ? 'This portal requires a Staff Executor account.' : 'Cổng này chỉ dành cho tài khoản Nhân viên xử lý (STAFF_EXECUTOR).'}
+          </p>
+          <button
+            type="button"
+            onClick={logout}
+            style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: '#164639', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+          >
+            {lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}
+          </button>
+        </main>
+      );
+    }
+    const staffContext = {
+      accessToken: session?.accessToken,
+      onUnauthorized: logout,
+      lang,
+      onNavigateToLogin: logout,
+      onRefreshTrigger: refreshTrigger,
+    };
+    return (
+      <div className="lv-app-root">
+        <StaffShell
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={logout}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          isPreview={preview}
+          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+        >
+          <StaffCaseDashboard
+            key={session?.user.id || 'preview'}
+            {...staffContext}
+            isDevPreview={preview}
+          />
+        </StaffShell>
+      </div>
+    );
+  }
+
+
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (isLegalDossierReviewRoute) {
     if (!isSessionActive(session) && !preview) {
@@ -482,7 +534,9 @@ export default function App() {
           session={session}
           user={session?.user || null}
           onNavigateTab={tab => {
-            if (tab === 'legal-documents') {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
             }
           }}
