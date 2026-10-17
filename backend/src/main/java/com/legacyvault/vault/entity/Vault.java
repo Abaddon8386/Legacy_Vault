@@ -52,6 +52,30 @@ public class Vault {
         if (updatedAt == null) updatedAt = now;
     }
 
+    public void restoreActive() {
+        this.status = "ACTIVE";
+        this.updatedAt = java.time.Instant.now();
+    }
+
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_AWAITING_VERIFICATION = "AWAITING_VERIFICATION";
+
+    public boolean canEnterVerification() {
+        return STATUS_ACTIVE.equals(status);
+    }
+
+    public void markAwaitingVerification() {
+        if (!canEnterVerification()) {
+            throw new IllegalStateException(
+                    "Vault is not eligible for verification transition"
+            );
+        }
+
+        this.status = STATUS_AWAITING_VERIFICATION;
+        this.updatedAt = Instant.now();
+    }
+
+
     public Long getVaultId() {
         return vaultId;
     }
@@ -95,11 +119,5 @@ public class Vault {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
-
-    public void restoreActive() {
-        this.status = "ACTIVE";
-        this.updatedAt = java.time.Instant.now();
-    }
-
 
 }

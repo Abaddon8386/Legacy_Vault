@@ -50,6 +50,17 @@ public class VerificationCase {
     protected VerificationCase() {
     }
 
+    public VerificationCase(
+            Long vaultId,
+            LocalDateTime triggeredAt,
+            Long openedByUserId
+    ) {
+        this.vaultId = vaultId;
+        this.triggeredAt = triggeredAt;
+        this.openedByUserId = openedByUserId;
+        this.status = STATUS_OPEN;
+    }
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
@@ -104,5 +115,21 @@ public class VerificationCase {
 
     public LocalDateTime getClosedAt() {
         return closedAt;
+    }
+
+    public Long getOpenedByUserId() {
+        return openedByUserId;
+    }
+
+    public LocalDateTime getOpenedAt() {
+        return openedAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }

@@ -32,4 +32,13 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
             @Param("publicId") UUID publicId,
             @Param("ownerUserId") Long ownerUserId
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    select v from Vault v
+    where v.ownerUserId = :ownerUserId
+    """)
+    Optional<Vault> findByOwnerUserIdForUpdate(
+            @Param("ownerUserId") Long ownerUserId
+    );
 }
