@@ -147,14 +147,21 @@ public class TrusteeContactSqlServerTest {
 
     @Test void sqlPredicatesHideEveryRejectedCaseAndEmptyHistory() {
         for (String update : List.of("assigned_staff_user_id=NULL", "assigned_staff_user_id=" + ownerId,
-                "status='CANCELLED'", "vault_id=" + (vaultId + 1000000))) {
-            if (update.startsWith("vault_id")) {
-                jdbc.update("DELETE dbo.verification_cases WHERE verification_case_id=?", caseId);
-            } else jdbc.update("UPDATE dbo.verification_cases SET " + update + " WHERE verification_case_id=?", caseId);
+                "status='CANCELLED'")) {
+            jdbc.update("UPDATE dbo.verification_cases SET " + update + " WHERE verification_case_id=?", caseId);
             notFound(this::contact);
             notFound(() -> asStaff(() -> context.getBean(TrusteeContactService.class).history(trusteePublicId)));
             jdbc.update("UPDATE dbo.verification_cases SET status='OPEN',assigned_staff_user_id=? WHERE verification_case_id=?", staffId, caseId);
         }
+        Long otherOwner = user(UUID.randomUUID());
+        jdbc.update("INSERT dbo.vaults(owner_user_id,vault_name) VALUES (?,'Other Vault')", otherOwner);
+        Long otherVault = jdbc.queryForObject("SELECT vault_id FROM dbo.vaults WHERE owner_user_id=?", Long.class, otherOwner);
+        jdbc.update("UPDATE dbo.verification_cases SET vault_id=? WHERE verification_case_id=?", otherVault, caseId);
+        notFound(this::contact);
+        notFound(() -> asStaff(() -> context.getBean(TrusteeContactService.class).history(trusteePublicId)));
+        jdbc.update("DELETE dbo.verification_cases WHERE verification_case_id=?", caseId);
+        notFound(this::contact);
+        notFound(() -> asStaff(() -> context.getBean(TrusteeContactService.class).history(trusteePublicId)));
         assertEquals(0, contacts()); assertEquals(0, audits("TRUSTEE_CONTACT_RECORDED"));
     }
 
@@ -163,6 +170,8 @@ public class TrusteeContactSqlServerTest {
         assertEquals(2, audits("TRUSTEE_CONTACT_RECORDED"));
         assertTrue(sql.stream().anyMatch(s -> s.toLowerCase().contains("verification_cases") && s.toLowerCase().contains("updlock")), sql.toString());
         assertTrue(sql.stream().anyMatch(s -> s.toLowerCase().contains("vaults") && s.toLowerCase().contains("updlock")));
+        sql.stream().filter(s -> s.toLowerCase().contains("updlock")).distinct()
+                .forEach(s -> System.out.println("Verified Hibernate SQL Server lock: " + s));
         assertFalse(jdbc.queryForObject("SELECT TOP 1 details FROM dbo.audit_logs WHERE vault_id=? AND action='TRUSTEE_CONTACT_RECORDED'", String.class, vaultId).contains("sensitive note"));
     }
 
