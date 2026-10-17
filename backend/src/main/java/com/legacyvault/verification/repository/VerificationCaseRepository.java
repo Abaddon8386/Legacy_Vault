@@ -72,4 +72,13 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             @Param("staffUserId") Long staffUserId
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    select c from VerificationCase c
+    where c.verificationCaseId = :caseId
+    """)
+    Optional<VerificationCase> findByIdForUpdate(
+            @Param("caseId") Long caseId
+    );
+
 }
