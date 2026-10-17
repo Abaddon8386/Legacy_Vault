@@ -12,6 +12,7 @@ import {
   shouldUpdateFormFromSession,
   APP_ROLES,
 } from './accountEditValidation.js';
+import { resolvePostLoginRoute } from './staffLegalDocumentsValidation.js';
 import { accountEditI18n } from '../pages/account/accountEditI18n.js';
 
 test('EX-02 Session Guard (canAccessAccountEdit)', async (t) => {
@@ -222,4 +223,35 @@ test('EX-02 CSS Scoping Verification - No Leakage', () => {
       }
     }
   }
+});
+
+test('EX-02 Portal Home Destination on Cancel (Pre-EX-01 merge)', () => {
+  // Vault Owner returns to /vault
+  assert.equal(resolvePostLoginRoute({ roles: ['VAULT_OWNER'] }), '/vault');
+  // Staff Executor returns to /staff/legal-documents
+  assert.equal(resolvePostLoginRoute({ roles: ['STAFF_EXECUTOR'] }), '/staff/legal-documents');
+  // Legal Verifier returns to /legal/death-verification
+  assert.equal(resolvePostLoginRoute({ roles: ['LEGAL_VERIFIER'] }), '/legal/death-verification');
+});
+
+test('EX-02 AppShell & App.jsx Navigation Destination Verification', () => {
+  const appShellPath = resolve('src/components/layout/AppShell.jsx');
+  const appShellCode = readFileSync(appShellPath, 'utf8');
+  assert.ok(
+    appShellCode.includes("onNavigateTab('account-edit')"),
+    'AppShell badge card must navigate to account-edit before EX-01 is merged'
+  );
+  assert.equal(
+    appShellCode.includes("onNavigateTab('account-profile')"),
+    false,
+    'AppShell must not navigate to unmerged account-profile'
+  );
+
+  const appPath = resolve('src/App.jsx');
+  const appCode = readFileSync(appPath, 'utf8');
+  assert.equal(
+    appCode.includes("navigateTo(preview ? '/account/profile"),
+    false,
+    'App.jsx must not navigate to non-existent /account/profile before EX-01 is merged'
+  );
 });

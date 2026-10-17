@@ -370,15 +370,33 @@ export default function App() {
   const [pendingNavigationTarget, setPendingNavigationTarget] = useState(null);
   const isEditFormDirtyRef = useRef(false);
   const locationRef = useRef(location);
+  const historyIndexRef = useRef(0);
+  const isRevertingPopStateRef = useRef(false);
+
   useEffect(() => {
     isEditFormDirtyRef.current = isEditFormDirty;
   }, [isEditFormDirty]);
   useEffect(() => {
     locationRef.current = location;
   }, [location]);
-  const navigateTo = useCallback(path => {
-    window.history.pushState({}, '', path); setLocation(path);
+
+  useEffect(() => {
+    const state = window.history.state;
+    if (!state || typeof state.lvIdx !== 'number') {
+      window.history.replaceState({ ...(state || {}), lvIdx: 0 }, '');
+      historyIndexRef.current = 0;
+    } else {
+      historyIndexRef.current = state.lvIdx;
+    }
   }, []);
+
+  const navigateTo = useCallback(path => {
+    const nextIdx = (historyIndexRef.current || 0) + 1;
+    historyIndexRef.current = nextIdx;
+    window.history.pushState({ lvIdx: nextIdx }, '', path);
+    setLocation(path);
+  }, []);
+
   const logout = useCallback(() => {
     isEditFormDirtyRef.current = false;
     setIsEditFormDirty(false);
@@ -386,15 +404,35 @@ export default function App() {
     setSession(null);
     navigateTo('/login');
   }, [navigateTo]);
+
   useEffect(() => {
-    const handlePopState = () => {
-      if (isEditFormDirtyRef.current) {
-        window.history.pushState(null, '', locationRef.current);
-        setPendingNavigationTarget('__POPSTATE_BACK__');
+    const handlePopState = (event) => {
+      if (isRevertingPopStateRef.current) {
+        isRevertingPopStateRef.current = false;
         return;
       }
-      setLocation(window.location.pathname + window.location.search);
+
+      const targetIdx = event.state?.lvIdx;
+      const currentIdx = historyIndexRef.current;
+      const delta = typeof targetIdx === 'number' ? targetIdx - currentIdx : -1;
+      const targetPath = window.location.pathname + window.location.search;
+
+      if (isEditFormDirtyRef.current) {
+        // Revert history pointer without pushing new entry to preserve forward/back stacks
+        isRevertingPopStateRef.current = true;
+        if (delta !== 0) {
+          window.history.go(-delta);
+        }
+        setPendingNavigationTarget({ type: 'POPSTATE', delta, targetPath });
+        return;
+      }
+
+      if (typeof targetIdx === 'number') {
+        historyIndexRef.current = targetIdx;
+      }
+      setLocation(targetPath);
     };
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -457,11 +495,7 @@ export default function App() {
           session={session}
           user={session?.user}
           onNavigateTab={tab => {
-            if (tab === 'account-profile') {
-              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
-            } else if (tab === 'dossier-review') {
+            if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -469,6 +503,8 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -516,10 +552,19 @@ export default function App() {
       ? 'LEGAL'
       : 'OWNER';
 
+    const getPortalHomeRoute = () => {
+      if (session?.user) {
+        const postLogin = resolvePostLoginRoute(session.user);
+        return preview ? `${postLogin}?preview=true` : postLogin;
+      }
+      if (preview) {
+        return '/vault?preview=true';
+      }
+      return '/vault';
+    };
+
     const handleExecuteNavigation = (targetTab) => {
-      if (targetTab === 'account-profile') {
-        navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
-      } else if (targetTab === 'account-edit') {
+      if (targetTab === 'account-edit') {
         navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
       } else if (targetTab === 'legal-documents') {
         navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
@@ -550,7 +595,7 @@ export default function App() {
           user={session?.user || null}
           onNavigateTab={tab => {
             if (isEditFormDirty) {
-              setPendingNavigationTarget(tab);
+              setPendingNavigationTarget({ type: 'TAB', tab });
             } else {
               handleExecuteNavigation(tab);
             }
@@ -566,9 +611,16 @@ export default function App() {
               isEditFormDirtyRef.current = false;
               setIsEditFormDirty(false);
               setPendingNavigationTarget(null);
-              if (target === '__POPSTATE_BACK__') {
-                window.history.back();
-              } else if (target) {
+              if (target?.type === 'POPSTATE') {
+                if (typeof target.delta === 'number' && target.delta !== 0) {
+                  historyIndexRef.current = historyIndexRef.current + target.delta;
+                  window.history.go(target.delta);
+                } else if (target.targetPath) {
+                  setLocation(target.targetPath);
+                }
+              } else if (target?.type === 'TAB') {
+                handleExecuteNavigation(target.tab);
+              } else if (typeof target === 'string') {
                 handleExecuteNavigation(target);
               }
             }}
@@ -577,7 +629,7 @@ export default function App() {
               isEditFormDirtyRef.current = false;
               setIsEditFormDirty(false);
               setPendingNavigationTarget(null);
-              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+              navigateTo(getPortalHomeRoute());
             }}
           />
         </AppShell>
@@ -607,8 +659,6 @@ export default function App() {
           onNavigateTab={tab => {
             if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'account-profile') {
-              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             } else if (tab === 'account-edit') {
               navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
@@ -655,11 +705,7 @@ export default function App() {
           onToggleLang={setLang}
           onLogout={session ? logout : null}
           onNavigateTab={(tab) => {
-            if (tab === 'account-profile') {
-              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
-            } else if (tab === 'death-verification') {
+            if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
             } else if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
@@ -667,6 +713,8 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -709,11 +757,7 @@ export default function App() {
           onToggleLang={setLang}
           onLogout={session ? logout : null}
           onNavigateTab={(tab) => {
-            if (tab === 'account-profile') {
-              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
-            } else if (tab === 'will-document-verification') {
+            if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -721,6 +765,8 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -763,11 +809,7 @@ export default function App() {
           onToggleLang={setLang}
           onLogout={session ? logout : null}
           onNavigateTab={(tab) => {
-            if (tab === 'account-profile') {
-              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
-            } else if (tab === 'account-edit') {
-              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
-            } else if (tab === 'basis-route-selection') {
+            if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -775,6 +817,8 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-edit') {
+              navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
             }
           }}
         >
@@ -801,9 +845,7 @@ export default function App() {
     return <div className="lv-app-root"><AppShell currentTab={isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
       onNavigateTab={tab => {
-        if (tab === 'account-profile') {
-          navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
-        } else if (tab === 'account-edit') {
+        if (tab === 'account-edit') {
           navigateTo(preview ? '/account/edit?preview=true' : '/account/edit');
         } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') {
           navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`);
