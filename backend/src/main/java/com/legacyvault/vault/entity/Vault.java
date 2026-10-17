@@ -72,6 +72,42 @@ public class Vault {
         this.updatedAt = Instant.now();
     }
 
+    public static final String STATUS_WILL_VERIFICATION = "WILL_VERIFICATION";
+    public static final String STATUS_AWAITING_LEGAL_BASIS = "AWAITING_LEGAL_BASIS";
+    public static final String STATUS_ON_HOLD = "ON_HOLD";
+    public static final String STATUS_LEGAL_BASIS_VERIFICATION = "LEGAL_BASIS_VERIFICATION";
+
+    /** ST-15: Legal đối chiếu di chúc gốc khớp bản scan. DOCUMENT_VERIFICATION -> WILL_VERIFICATION. */
+    public void markWillVerification() {
+        moveTo(STATUS_DOCUMENT_VERIFICATION, STATUS_WILL_VERIFICATION);
+    }
+
+    /**
+     * ST-16: Legal phân loại căn cứ. WILL_VERIFICATION -> AWAITING_LEGAL_BASIS (NOTARIAL/COURT) hoặc ON_HOLD (chưa đủ
+     * thông tin). Qua LEGAL_BASIS_CLASSIFICATION trong cùng một thao tác.
+     */
+    public void markLegalBasisRouted(boolean onHold) {
+        moveTo(STATUS_WILL_VERIFICATION, onHold ? STATUS_ON_HOLD : STATUS_AWAITING_LEGAL_BASIS);
+    }
+
+    /** ON_HOLD -> LEGAL_BASIS_CLASSIFICATION -> AWAITING_LEGAL_BASIS khi Legal đã đủ chứng cứ phân loại lại. */
+    public void markAwaitingLegalBasisAfterHold() {
+        moveTo(STATUS_ON_HOLD, STATUS_AWAITING_LEGAL_BASIS);
+    }
+
+    /** ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION. */
+    public void markLegalBasisVerification() {
+        moveTo(STATUS_AWAITING_LEGAL_BASIS, STATUS_LEGAL_BASIS_VERIFICATION);
+    }
+
+    private void moveTo(String expectedFrom, String to) {
+        if (!expectedFrom.equals(this.status)) {
+            throw new IllegalStateException("Vault must be " + expectedFrom + " to move to " + to);
+        }
+        this.status = to;
+        this.updatedAt = Instant.now();
+    }
+
     public boolean canEnterVerification() {
         return STATUS_ACTIVE.equals(status);
     }

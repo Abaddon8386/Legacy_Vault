@@ -332,4 +332,35 @@ class WillComparisonServiceTest {
         assertThatThrownBy(() -> service.overview(CASE_ID))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
     }
+
+    @Test
+    void firstMatch_movesVaultToWillVerification_perST15() {
+        happyPathData();
+        Vault vault = vault("DOCUMENT_VERIFICATION");
+        when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
+
+        service.record(CASE_ID, legal, request(Result.MATCH, null));
+
+        assertThat(vault.getStatus()).isEqualTo("WILL_VERIFICATION");
+        ArgumentCaptor<AuditEvent> audit = ArgumentCaptor.forClass(AuditEvent.class);
+        verify(auditService).record(audit.capture());
+        assertThat(audit.getValue().context()).containsEntry("vaultStatusBefore", "DOCUMENT_VERIFICATION")
+                .containsEntry("vaultStatusAfter", "WILL_VERIFICATION");
+    }
+
+    @Test
+    void recompareAllowedInWillVerification_andMismatchOrInconclusiveNeverMoveTheVault() {
+        happyPathData();
+        Vault vault = vault("WILL_VERIFICATION");
+        when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
+
+        service.record(CASE_ID, legal, request(Result.MATCH, null));
+        assertThat(vault.getStatus()).isEqualTo("WILL_VERIFICATION");
+
+        Vault documentVault = vault("DOCUMENT_VERIFICATION");
+        when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(documentVault));
+        service.record(CASE_ID, legal, request(Result.INCONCLUSIVE, "chưa đủ cơ sở"));
+        service.record(CASE_ID, legal, request(Result.MISMATCH, "khác"));
+        assertThat(documentVault.getStatus()).isEqualTo("DOCUMENT_VERIFICATION");
+    }
 }
