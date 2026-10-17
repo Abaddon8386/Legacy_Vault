@@ -16,9 +16,11 @@ ghi ở [D-API-35](open-decisions.md).
 - Ba kết quả: `MATCH`, `MISMATCH`, `INCONCLUSIVE` (chưa đủ cơ sở kết luận). `MISMATCH` và `INCONCLUSIVE` **bắt buộc có `reason`**.
 - **Chặn luồng duyệt thông thường:** `approvalBlocked = true` cho tới khi kết quả đối chiếu **mới nhất** của ca là `MATCH`. Chưa
   đối chiếu, `MISMATCH` và `INCONCLUSIVE` đều chặn. Đối chiếu lại (sau khi bổ sung chứng cứ) là một bản ghi mới; bản ghi cũ giữ nguyên.
-- Chỉ ghi nhận kết quả: **không** đổi trạng thái Vault hay ca, không mở khóa, không phê duyệt. Cổng `approvalBlocked` dành cho
-  bước duyệt căn cứ (ST-21) về sau.
-- Điều kiện ghi: ca `OPEN` **và** Vault `DOCUMENT_VERIFICATION` (nghĩa là Legal đã chấp thuận giấy tờ khai tử ở ST-12, PS-36).
+- Chỉ ghi nhận kết quả: không đóng ca, không mở khóa, không phê duyệt. **Kết quả `MATCH` đầu tiên chuyển Vault
+  `DOCUMENT_VERIFICATION → WILL_VERIFICATION`** đúng ST-15 (Main Flow v4.2); `MISMATCH` và `INCONCLUSIVE` không đổi trạng thái.
+  Cổng `approvalBlocked` dành cho các bước sau (phân loại ST-16, duyệt ST-21).
+- Điều kiện ghi: ca `OPEN` **và** Vault `DOCUMENT_VERIFICATION` (Legal đã chấp thuận giấy tờ khai tử ở ST-12, PS-36) hoặc
+  `WILL_VERIFICATION` (đối chiếu lại).
 
 ## 2. Endpoint
 
@@ -99,8 +101,7 @@ Chưa kiểm chứng: lưu vào **SQL Server thật** (ràng buộc `CK_will_com
 Còn mở:
 
 - **Legal chưa có cách xem nội dung bản scan** để đối chiếu (chỉ có hash). Việc Legal đọc/tải file di chúc cần nhóm chốt.
-- **Chưa chuyển Vault sang `WILL_VERIFICATION`** khi `MATCH`; tài liệu chưa nói rõ thời điểm chuyển (`TODO(open-question)`).
-- Cổng `approvalBlocked` chưa có nơi dùng cho tới khi làm bước duyệt căn cứ (ST-21).
+- Cổng `approvalBlocked` được dùng khi phân loại căn cứ (ST-16, PS-41); chưa dùng ở bước duyệt ST-21.
 - Không có API liệt kê các ca đang chờ Legal; Legal cần biết `caseId` từ nơi khác.
 
 ## 8. Phân biệt các bước

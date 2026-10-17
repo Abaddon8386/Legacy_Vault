@@ -883,7 +883,7 @@ paths:
       summary: Ghi kết quả đối chiếu di chúc gốc với bản scan (PS-40, ST-15)
       description: |
         Chỉ `LEGAL_VERIFIER`. Hash của phiên bản do server lấy từ dữ liệu đã lưu. MISMATCH và INCONCLUSIVE bắt buộc có `reason`.
-        Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION`. Không đổi trạng thái Vault.
+        Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION`. `MATCH` đầu tiên chuyển Vault sang `WILL_VERIFICATION` (ST-15).
       x-status: implemented
       parameters:
         - name: caseId
