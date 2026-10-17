@@ -113,8 +113,8 @@ nhánh, thiếu đối chiếu MATCH, tạo hồ sơ đồng thời, ca cache c�
 
 PS-46–48 đã kiểm chứng trên SQL Server thật bằng DB tạm, gồm Flyway toàn nhánh,
 phân loại đồng thời, tiếp nhận file mã hóa, chuyển phiên bản, kết luận COURT và hold/resume/re-review.
-Lượt Maven clean test của toàn stack: 320 test được phát hiện, 307 pass, 0 failure/error, 13 test
-opt-in cũ bỏ qua. Ba bộ SQL mới chạy đủ 23 test (5 route, 6 court, 12 hold), không có test bị bỏ qua.
+Lượt Maven clean test cuối trên develop `2a1ad38`: 352 test được phát hiện, 349 pass,
+0 failure/error, 3 test DMS opt-in cũ bỏ qua. Đã bật cả SQL suite Staff/identity: 53 SQL tests pass. Ba bộ SQL mới chạy đủ 23 test (5 route, 6 court, 12 hold), không có test bị bỏ qua.
 Các DB thử nghiệm đã được đóng/xóa; không sửa Flyway history của DB dùng chung.
 Nội dung file vẫn không có API tải xuống dành cho Legal; thẩm định giấy tờ thuộc trách nhiệm của Legal.
 

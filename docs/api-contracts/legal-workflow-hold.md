@@ -31,7 +31,7 @@ trạng thái cũ; `BASIS_VERSION_STALE` chặn chuyển phiên bản thấp hơ
 `LegalWorkflowGuard.requireProtectedTransition(caseId, APPROVAL|UNLOCK|HANDOVER)` là guard pháp lý
 dùng trong transaction của use-case bảo vệ. Nó khóa và refresh Vault → ca → dossier, chặn hold,
 chặn thiếu phiên bản mới đã chuyển và gọi cổng quyết định COURT. Guard dùng `MANDATORY`: caller phải
-có transaction và giữ khóa cho tới khi hoàn tất thao tác. Caller vẫn phải kiểm tra quyền, giai đoạn
+có transaction, gọi guard trước khi thay đổi dữ liệu và giữ khóa cho tới khi hoàn tất thao tác. Caller vẫn phải kiểm tra quyền, giai đoạn
 và các điều kiện nghiệp vụ khác; guard này không phê duyệt hoặc cấp quyền unlock/handover.
 Sprint 2 không thêm endpoint unlock/handover hoặc chuyển Vault sang trạng thái mở khóa.
 
