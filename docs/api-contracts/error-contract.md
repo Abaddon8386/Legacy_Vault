@@ -114,3 +114,6 @@ catch (e) {
 ```
 
 Client dùng chung: `frontend/src/api/http.js` (`ApiError.code`, `.status`, `.traceId`, `.fieldErrors`).
+
+PS-47: `COURT_EVIDENCE_REQUIRED` (409) khi thiếu văn bản tòa đã chuyển/metadata;
+`COURT_DECISION_REQUIRED` (409) khi guard chưa có kết luận VALID mới nhất cho phiên bản hiện hành.
