@@ -115,21 +115,10 @@ test('PS-25 Service: isStaffSimulationPermitted enforces safety boundaries', () 
   );
 });
 
-test('PS-25 Service: Live mode rejects guessed contracts and throws BACKEND_NOT_READY', async () => {
-  await assert.rejects(
-    async () => {
-      await fetchStaffCases({
-        accessToken: 'real-staff-token',
-        isDevPreview: false,
-      });
-    },
-    (err) => {
-      assert.equal(err.code, 'BACKEND_NOT_READY');
-      assert.equal(err.status, 503);
-      assert.match(err.message, /PS-35/);
-      return true;
-    }
-  );
+test('PS-25 service preserves server failures without synthetic fallback', async () => {
+  await assert.rejects(fetchStaffCases({ accessToken: 'synthetic', fetchFn: async () => ({
+    ok: false, status: 403, headers: { get: () => 'application/json' },
+    json: async () => ({ code: 'ACCESS_DENIED' }) }) }), { code: 'ACCESS_DENIED', status: 403 });
 });
 
 test('PS-25 Service: Synthetic fixture supports filtering and pagination', async () => {
@@ -351,6 +340,7 @@ test('PS-25 Component: Detail modal opens read-only information with PS-25/PS-26
 test('PS-25 Component: Live mode displays "Dịch vụ chưa sẵn sàng" and no fake synthetic data', async () => {
   const view = await mount(StaffCaseDashboard, {
     accessToken: 'real-user-token',
+    loadCases: async () => { const error = new Error('PS-35'); error.code = 'BACKEND_NOT_READY'; throw error; },
     isDevPreview: false,
     lang: 'vi',
   });
@@ -502,7 +492,7 @@ test('PS-25: switching preview to authenticated context removes rows and details
     await view.render({ accessToken: 'synthetic-staff-token', isDevPreview: true });
     assert.equal(document.querySelector('.lv-modal'), null);
     assert.equal(view.host.querySelectorAll('.lv-staff-table-row').length, 0);
-    assert.match(view.host.textContent, /Dịch vụ tiếp nhận hồ sơ chưa sẵn sàng/);
+    assert.match(view.host.textContent, /Không thể tải danh sách hồ sơ/);
   } finally { await view.close(); }
 });
 
@@ -510,7 +500,7 @@ test('PS-25: actual production compilation blocks preview and test overrides', a
   const compiled = await loadComponentModule('src/pages/staff/staffCaseService.js', true);
   for (const options of [ {isDevPreview: true}, {isTest: true}, {isDevPreview: true, isTest: true, testEnv: {PROD: false}} ]) {
     assert.equal(compiled.isStaffSimulationPermitted(options), false);
-    await assert.rejects(compiled.fetchStaffCases(options), {code: 'BACKEND_NOT_READY'});
+    await assert.rejects(compiled.fetchStaffCases({ ...options, fetchFn: async () => { throw new Error('offline'); } }), {code: 'NETWORK_ERROR'});
   }
 });
 
@@ -530,6 +520,7 @@ test('PS-25 App route: anonymous login, Staff access, Owner/Admin/Legal denial a
       await setRoute('/staff/cases');
       globalThis.__PS25_AUTH_USER__ = { id: '11111111-1111-4111-8111-111111111111', fullName: 'Synthetic User', email: 'synthetic@example.test', roles: [role] };
       globalThis.fetch = async url => {
+        if (String(url).includes('/staff/verification-cases?')) return new Response(JSON.stringify({content:[],page:0,size:5,totalElements:0,totalPages:0}), {status:200,headers:{'Content-Type':'application/json'}});
         assert.match(String(url), /\/auth\/me$/);
         return new Response(JSON.stringify(globalThis.__PS25_AUTH_USER__), {status: 200, headers: {'Content-Type': 'application/json'}});
       };
@@ -542,7 +533,7 @@ test('PS-25 App route: anonymous login, Staff access, Owner/Admin/Legal denial a
         if (role === 'VAULT_OWNER') assert.match(view.host.textContent, /Owner dashboard marker/);
         await setRoute('/staff/cases?preview=true');
         if (role === 'STAFF_EXECUTOR') {
-          assert.match(view.host.textContent, /Dịch vụ tiếp nhận hồ sơ chưa sẵn sàng/);
+          assert.match(view.host.textContent, /Chưa có hồ sơ cần xác minh/);
         } else {
           assert.match(view.host.textContent, /Cổng này chỉ dành cho tài khoản/);
         }
@@ -676,4 +667,21 @@ test('PS-27 Integration: StaffCaseDashboard transitions between Dashboard, Intak
   assert.ok(app.host.querySelector('.lv-staff-dashboard'), 'Must return to dashboard after clicking back');
 
   await app.close();
+});
+
+test('Live dashboard renders server OPEN status and only server filters; no preview workflow actions', async () => {
+ const previous = globalThis.fetch;
+ const id = '12345678-1234-4234-8234-123456789012';
+ globalThis.fetch = async () => new Response(JSON.stringify({ content: [{ caseId: id, vaultId: id, ownerId: id, vaultName: 'Synthetic live vault', ownerName: 'Synthetic owner', status: 'OPEN', triggeredAt: '2026-10-17T10:00:00', closedAt: null }], page:0,size:5,totalElements:1,totalPages:1 }), {status:200,headers:{'Content-Type':'application/json'}});
+ const view = await mount(StaffCaseDashboard, { accessToken:'synthetic', isDevPreview:true });
+ try {
+  await act(async () => { await new Promise(resolve => setTimeout(resolve,20)); });
+  assert.match(view.host.textContent,/Synthetic live vault/);
+  assert.match(view.host.textContent,/Đang mở/);
+  assert.deepEqual([...view.host.querySelectorAll('.lv-staff-filter-select option')].map(option => option.value),['ALL','OPEN','CANCELLED']);
+  assert.equal(view.host.textContent.includes('CASE-2026-0001'),false);
+  assert.equal(view.host.querySelector('.lv-staff-preview-banner'),null);
+  await act(async () => view.host.querySelector('.lv-staff-view-btn').click());
+  assert.match(document.body.textContent,/Thời điểm tạo hồ sơ/);
+ } finally { await view.close(); globalThis.fetch = previous; }
 });

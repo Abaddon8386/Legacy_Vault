@@ -1,3 +1,4 @@
+import { request, ApiError } from '../../api/http.js';
 import { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
 export { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
 export async function fetchStaffCases(options = {}) {
@@ -48,18 +49,26 @@ export async function fetchStaffCases(options = {}) {
     };
   }
 
-  // Chế độ thật (Live Mode):
-  // BE PS-35 đã có controller/contract trên develop; adapter FE chưa nối trong PR tách giao diện này.
-  // Không dùng dữ liệu tổng hợp để thay phản hồi live.
-  // Trả về lỗi BACKEND_NOT_READY rõ ràng để UI hiển thị trạng thái phù hợp.
-  const notReadyError = new Error(
-    'Dịch vụ tiếp nhận hồ sơ xác minh (PS-35) hiện chưa được kết nối máy chủ.'
-  );
-  notReadyError.code = 'BACKEND_NOT_READY';
-  notReadyError.status = 503;
-  throw notReadyError;
+  if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100
+    || !['ALL', 'OPEN', 'CANCELLED'].includes(status)) throw new ApiError('VALIDATION_FAILED', 400);
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status !== 'ALL') query.set('status', status);
+  const raw = await request(`/staff/verification-cases?${query}`, { ...options, expectedStatus: 200 });
+  const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
+  if (!raw || !Array.isArray(raw.content) || raw.content.length > size) invalid();
+  for (const key of ['page', 'size', 'totalElements', 'totalPages']) {
+    if (!Number.isSafeInteger(raw[key]) || raw[key] < 0) invalid();
+  }
+  if (raw.size !== size || raw.page !== page || raw.totalElements < raw.content.length
+    || raw.totalPages !== Math.ceil(raw.totalElements / size)) invalid();
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const content = raw.content.map(item => {
+    if (!item || !['OPEN', 'CANCELLED'].includes(item.status)
+      || !['caseId', 'vaultId', 'ownerId'].every(key => uuid.test(item[key]))
+      || !['vaultName', 'ownerName'].every(key => typeof item[key] === 'string')
+      || typeof item.triggeredAt !== 'string' || !Number.isFinite(Date.parse(item.triggeredAt))
+      || (item.closedAt !== null && (typeof item.closedAt !== 'string' || !Number.isFinite(Date.parse(item.closedAt))))) invalid();
+    return { ...item, id: item.caseId, caseNumber: item.caseId, gracePeriodEndedAt: item.triggeredAt, isSimulation: false };
+  });
+  return { ...raw, content, totalPages: Math.max(1, raw.totalPages), isSimulation: false };
 }
-
-/**
- * Kiểm tra tính hợp lệ của dữ liệu biểu mẫu tiếp nhận hồ sơ (PS-26 / PS-38)
- */

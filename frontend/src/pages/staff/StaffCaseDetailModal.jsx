@@ -41,7 +41,7 @@ export default function StaffCaseDetailModal({
   };
 
   const getStatusBadge = (status) => {
-    const label = t.statusLabels[status] || status;
+    const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeModifier = 'awaiting';
     if (status === 'IN_PROGRESS') badgeModifier = 'progress';
     if (status === 'VERIFIED') badgeModifier = 'verified';
@@ -124,7 +124,7 @@ export default function StaffCaseDetailModal({
           <div className="lv-case-detail__card">
             <div className="lv-case-detail__card-label">
               <Clock size={14} aria-hidden="true" />
-              <span>{t.detailModal.graceEndedAt}</span>
+              <span>{caseItem.isSimulation === false ? (lang === 'en' ? 'Case triggered at' : 'Thời điểm tạo hồ sơ') : t.detailModal.graceEndedAt}</span>
             </div>
             <div className="lv-case-detail__card-val">
               {formatDate(caseItem.gracePeriodEndedAt)}

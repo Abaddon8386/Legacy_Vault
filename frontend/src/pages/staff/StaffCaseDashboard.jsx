@@ -18,6 +18,7 @@ import {
 import { Button } from '../../components/common/Button.jsx';
 import {
   fetchStaffCases,
+  isStaffSimulationPermitted,
   SYNTHETIC_STAFF_CASES,
 } from './staffCaseService.js';
 import { getStaffCaseTranslations } from './staffCaseI18n.js';
@@ -50,6 +51,8 @@ export default function StaffCaseDashboard({
   onSelectVerifyCase,
 }) {
   const t = getStaffCaseTranslations(lang);
+  const simulation = isStaffSimulationPermitted({ accessToken, isDevPreview });
+  const dateLabel = simulation ? t.table.colGraceEnd : (lang === 'en' ? 'Case triggered at' : 'Thời điểm tạo hồ sơ');
   const notifySessionExpiry = useStaffSessionExpiry({ accessToken, isDevPreview, onUnauthorized });
 
   // States
@@ -197,7 +200,7 @@ export default function StaffCaseDashboard({
   };
 
   const renderStatusBadge = (status) => {
-    const label = t.statusLabels[status] || status;
+    const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeClass = 'lv-staff-status-badge--awaiting';
     if (status === 'IN_PROGRESS') badgeClass = 'lv-staff-status-badge--progress';
     if (status === 'VERIFIED') badgeClass = 'lv-staff-status-badge--verified';
@@ -287,7 +290,7 @@ export default function StaffCaseDashboard({
       </div>
 
       {/* DEV Preview Notice Banner */}
-      {isDevPreview && (
+      {simulation && (
         <div className="lv-staff-preview-banner" role="status">
           <div className="lv-staff-preview-banner__icon-wrap">
             <Sparkles size={16} aria-hidden="true" />
@@ -311,9 +314,9 @@ export default function StaffCaseDashboard({
               disabled={pending}
             >
               <option value="ALL">{t.filters.all}</option>
-              <option value="AWAITING_VERIFICATION">{t.filters.awaiting}</option>
+              {simulation ? <><option value="AWAITING_VERIFICATION">{t.filters.awaiting}</option>
               <option value="IN_PROGRESS">{t.filters.inProgress}</option>
-              <option value="VERIFIED">{t.filters.verified}</option>
+              <option value="VERIFIED">{t.filters.verified}</option></> : <><option value="OPEN">{lang === 'en' ? 'Open' : 'Đang mở'}</option><option value="CANCELLED">{lang === 'en' ? 'Cancelled' : 'Đã hủy'}</option></>}
             </select>
           </div>
 
@@ -347,7 +350,7 @@ export default function StaffCaseDashboard({
 
       {/* Scope Note */}
       <p className="lv-staff-filter-scope" role="note">
-        {t.filters.scopeNote}
+        {simulation ? t.filters.scopeNote : (lang === 'en' ? 'Open unassigned cases and cases assigned to you. Intake and identity forms remain available in DEV preview while their contracts are being aligned.' : 'Hồ sơ đang mở chưa được nhận và hồ sơ đã giao cho bạn. Biểu mẫu tiếp nhận và xác minh hiện chỉ có trong DEV preview, chờ thống nhất dữ liệu với máy chủ.')}
       </p>
 
       {/* Main Content Area based on states */}
@@ -430,7 +433,7 @@ export default function StaffCaseDashboard({
                 <tr>
                   <th scope="col">{t.table.colCaseRef}</th>
                   <th scope="col">{t.table.colVaultOwner}</th>
-                  <th scope="col">{t.table.colGraceEnd}</th>
+                  <th scope="col">{dateLabel}</th>
                   <th scope="col">{t.table.colStatus}</th>
                   <th scope="col" className="lv-staff-th-actions">{t.table.colActions}</th>
                 </tr>
@@ -484,7 +487,7 @@ export default function StaffCaseDashboard({
                           <Eye size={14} aria-hidden="true" />
                           <span>{t.table.viewAction}</span>
                         </Button>
-                        {IntakePage && (<Button
+                        {simulation && IntakePage && (<Button
                           variant="primary"
                           size="sm"
                           className="lv-staff-intake-btn"
@@ -506,7 +509,7 @@ export default function StaffCaseDashboard({
                           <FileText size={14} aria-hidden="true" />
                           <span>{t.table.intakeAction}</span>
                         </Button>)}
-                        {VerificationPage && (<Button
+                        {simulation && VerificationPage && (<Button
                           variant="secondary"
                           size="sm"
                           className="lv-staff-verify-btn"
@@ -560,7 +563,7 @@ export default function StaffCaseDashboard({
                   </div>
 
                   <div className="lv-staff-card__field">
-                    <span className="lv-staff-card__label">{t.table.colGraceEnd}</span>
+                    <span className="lv-staff-card__label">{dateLabel}</span>
                     <span className="lv-staff-card__val">
                       <Clock size={13} aria-hidden="true" />
                       <span>{formatDate(c.gracePeriodEndedAt)}</span>
@@ -580,7 +583,7 @@ export default function StaffCaseDashboard({
                       <Eye size={15} aria-hidden="true" />
                       <span>{t.table.viewAction}</span>
                     </Button>
-                    {IntakePage && (<Button
+                    {simulation && IntakePage && (<Button
                       variant="primary"
                       size="sm"
                       className="lv-staff-card__intake-btn"
@@ -602,7 +605,7 @@ export default function StaffCaseDashboard({
                       <FileText size={15} aria-hidden="true" />
                       <span>{t.table.intakeAction}</span>
                     </Button>)}
-                    {VerificationPage && (<Button
+                    {simulation && VerificationPage && (<Button
                       variant="secondary"
                       size="sm"
                       className="lv-staff-card__verify-btn"
@@ -701,7 +704,7 @@ export default function StaffCaseDashboard({
         onClose={() => setSelectedCase(null)}
         caseItem={selectedCase?.item}
         lang={lang}
-        onStartIntake={IntakePage ? (item) => {
+        onStartIntake={simulation && IntakePage ? (item) => {
           setSelectedCase(null);
           setActiveIntakeCase(item);
           if (typeof window !== 'undefined') {
@@ -715,7 +718,7 @@ export default function StaffCaseDashboard({
           }
           onSelectIntakeCase?.(item);
         } : undefined}
-        onStartVerification={VerificationPage ? (item) => {
+        onStartVerification={simulation && VerificationPage ? (item) => {
           setSelectedCase(null);
           setActiveVerifyCase(item);
           if (typeof window !== 'undefined') {
