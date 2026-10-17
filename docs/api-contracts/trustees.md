@@ -63,7 +63,8 @@ Confirmed policy (2026-10-17): new contact records for a REVOKED Trustee are rej
 `409 TRUSTEE_REVOKED` after the case guard succeeds. Writes refresh and lock the Trustee after Vault/Case
 locks so a previously loaded APPOINTED entity cannot bypass a committed revocation.
 Existing history remains readable under the same OPEN/assigned case guard; unauthorized targets still return 404.
-Migration numbering remains unallocated by the team (V12/V13 belong to PS-77).
+Per the latest leader review, PS-44 uses `V12__trustee_contact_outcomes.sql`; PS-45 will use V13.
+The separate PS-77 PR also has V12/V13 and needs numbering coordination before combining those branches.
 
 Staff ghi nhận từng lần liên hệ Trustee và trạng thái fallback tường minh qua
 `POST /api/v1/staff/trustees/{trusteeId}/contact-outcomes`; xem lịch sử qua `GET` cùng path.
