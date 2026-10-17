@@ -186,6 +186,11 @@ test('EX-01 Bilingual Dictionary Completeness (VI & EN)', () => {
   for (const key of Object.keys(vi)) {
     assert.ok(en[key], `Missing EN translation for key: ${key}`);
   }
+
+  assert.equal(vi.noInformation, 'Chưa có thông tin');
+  assert.equal(en.noInformation, 'No information provided');
+  assert.equal(vi.unavailableNotice, 'Chức năng hiện chưa khả dụng');
+  assert.equal(en.unavailableNotice, 'This function is currently unavailable.');
 });
 
 test('EX-01 CSS Scoping Verification - No Leakage', () => {

@@ -24,6 +24,7 @@ export default function AccountProfilePage({
   session = null,
   lang = 'vi',
   onRefreshSession,
+  preview = false,
 }) {
   const t = accountProfileI18n[lang] || accountProfileI18n.vi;
 
@@ -97,6 +98,8 @@ export default function AccountProfilePage({
   };
 
   const hasValidProfile = isValidUserProfile(profileUser);
+  const isDevPreviewActive = Boolean(typeof import.meta !== 'undefined' && import.meta.env?.DEV && preview);
+  const shouldRenderLayout = hasValidProfile || isDevPreviewActive;
 
   // Format expiration timestamp
   const formatExpiresAt = (expiresAt) => {
@@ -123,12 +126,13 @@ export default function AccountProfilePage({
           <p className="lv-profile-subtitle">{t.pageSubtitle}</p>
         </div>
 
-        {hasValidProfile && session?.accessToken && (
+        {shouldRenderLayout && (
           <button
             type="button"
             className="lv-profile-refresh-btn"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={!session?.accessToken || isRefreshing}
+            title={!session?.accessToken ? t.unavailableNotice : undefined}
             aria-label={t.btnRefresh}
           >
             <RotateCw size={15} className={isRefreshing ? 'is-spinning' : ''} aria-hidden="true" />
@@ -155,7 +159,7 @@ export default function AccountProfilePage({
       )}
 
       {/* Profile Content */}
-      {hasValidProfile ? (
+      {shouldRenderLayout ? (
         <>
           {/* 1. Personal Identity Information */}
           <section className="lv-profile-card" aria-labelledby="personal-info-heading">
@@ -168,7 +172,7 @@ export default function AccountProfilePage({
               <div className="lv-profile-field-item">
                 <span className="lv-profile-field-label">{t.fullNameLabel}</span>
                 <div className="lv-profile-field-value">
-                  <span>{profileUser.fullName}</span>
+                  <span>{profileUser?.fullName || t.noInformation}</span>
                   <User size={16} style={{ color: '#8c734b' }} aria-hidden="true" />
                 </div>
               </div>
@@ -176,12 +180,14 @@ export default function AccountProfilePage({
               <div className="lv-profile-field-item">
                 <span className="lv-profile-field-label">{t.emailLabel}</span>
                 <div className="lv-profile-field-value">
-                  <span>{profileUser.email}</span>
+                  <span>{profileUser?.email || t.noInformation}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="lv-profile-verified-badge">
-                      <CheckCircle2 size={11} aria-hidden="true" />
-                      <span>{t.verifiedBadge}</span>
-                    </span>
+                    {Boolean(profileUser?.email) && (
+                      <span className="lv-profile-verified-badge">
+                        <CheckCircle2 size={11} aria-hidden="true" />
+                        <span>{t.verifiedBadge}</span>
+                      </span>
+                    )}
                     <Mail size={16} style={{ color: '#8c734b' }} aria-hidden="true" />
                   </div>
                 </div>
@@ -197,17 +203,24 @@ export default function AccountProfilePage({
             <p className="lv-profile-card__desc">{t.rolesDesc}</p>
 
             <ul className="lv-profile-roles-list" aria-label={t.rolesLabel}>
-              {profileUser.roles.map((role) => (
-                <li key={role} className="lv-profile-role-chip">
+              {Array.isArray(profileUser?.roles) && profileUser.roles.length > 0 ? (
+                profileUser.roles.map((role) => (
+                  <li key={role} className="lv-profile-role-chip">
+                    <Shield size={15} className="lv-profile-role-chip__icon" aria-hidden="true" />
+                    <span>{formatRoleName(role, lang)}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="lv-profile-role-chip lv-profile-role-chip--empty">
                   <Shield size={15} className="lv-profile-role-chip__icon" aria-hidden="true" />
-                  <span>{formatRoleName(role, lang)}</span>
+                  <span>{t.noInformation}</span>
                 </li>
-              ))}
+              )}
             </ul>
           </section>
 
           {/* 3. Session Status */}
-          {session && (
+          {session ? (
             <section className="lv-profile-card" aria-labelledby="session-info-heading">
               <h2 id="session-info-heading" className="lv-profile-card__title">
                 {t.sessionStatusSection}
@@ -231,7 +244,29 @@ export default function AccountProfilePage({
                 </div>
               </div>
             </section>
-          )}
+          ) : isDevPreviewActive ? (
+            <section className="lv-profile-card" aria-labelledby="session-info-heading">
+              <h2 id="session-info-heading" className="lv-profile-card__title">
+                {t.sessionStatusSection}
+              </h2>
+
+              <div className="lv-profile-session-grid">
+                <div className="lv-profile-session-box">
+                  <span className="lv-profile-session-box__label">{t.sessionActiveLabel}</span>
+                  <span className="lv-profile-session-box__value" style={{ color: '#606863' }}>
+                    <span>{t.noInformation}</span>
+                  </span>
+                </div>
+
+                <div className="lv-profile-session-box">
+                  <span className="lv-profile-session-box__label">{t.sessionExpiresLabel}</span>
+                  <span className="lv-profile-session-box__value" style={{ color: '#606863' }}>
+                    <span>{t.noInformation}</span>
+                  </span>
+                </div>
+              </div>
+            </section>
+          ) : null}
         </>
       ) : (
         /* Empty / Unavailable State (Truthful presentation when no real user data is present) */

@@ -162,6 +162,13 @@
   color: #c5a059;
 }
 
+.lv-account-profile-view .lv-profile-role-chip--empty {
+  background: #faf8f5;
+  color: var(--lv-color-text-muted, #606863);
+  border-color: var(--lv-color-border, #e6ded1);
+  font-weight: 500;
+}
+
 /* Session Info */
 .lv-account-profile-view .lv-profile-session-grid {
   display: grid;

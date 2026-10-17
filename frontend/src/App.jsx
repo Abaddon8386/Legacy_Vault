@@ -520,6 +520,7 @@ export default function App() {
           <AccountProfilePage
             session={session}
             lang={lang}
+            preview={preview}
             onRefreshSession={updatedUser => {
               if (session) {
                 setSession({ ...session, user: updatedUser });

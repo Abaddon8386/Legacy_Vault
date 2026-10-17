@@ -23,6 +23,8 @@ export const accountProfileI18n = {
     noDataTitle: 'Chưa có thông tin tài khoản',
     noDataDesc: 'Không tìm thấy dữ liệu người dùng hợp lệ trong phiên làm việc hiện tại.',
     verifiedBadge: 'Đã xác thực',
+    noInformation: 'Chưa có thông tin',
+    unavailableNotice: 'Chức năng hiện chưa khả dụng',
   },
   en: {
     pageTitle: 'Account Profile',
@@ -43,5 +45,7 @@ export const accountProfileI18n = {
     noDataTitle: 'Account information unavailable',
     noDataDesc: 'No valid user data was found in the current active session.',
     verifiedBadge: 'Verified',
+    noInformation: 'No information provided',
+    unavailableNotice: 'This function is currently unavailable.',
   },
 };
