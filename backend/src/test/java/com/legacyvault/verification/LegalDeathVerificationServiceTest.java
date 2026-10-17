@@ -1,3 +1,4 @@
+
 package com.legacyvault.verification;
 
 import com.legacyvault.audit.AuditAction;
@@ -6,11 +7,13 @@ import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
+import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.LegalDeathDecisionRequest;
 import com.legacyvault.verification.dto.LegalDeathDecisionResponse;
+import com.legacyvault.verification.dto.LegalDeathDocumentDetailResponse;
 import com.legacyvault.verification.entity.DeathDocumentRecord;
 import com.legacyvault.verification.entity.LegalVerification;
 import com.legacyvault.verification.entity.VerificationCase;
@@ -26,6 +29,10 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,7 +77,6 @@ class LegalDeathVerificationServiceTest {
      * Khởi tạo service và các đối tượng dùng chung cho test.
      * Package: com.legacyvault.verification
      * Class: LegalDeathVerificationServiceTest
-     * Vị trí: phương thức setUp(), ngay đầu class.
      */
     @BeforeEach
     void setUp() {
@@ -81,7 +87,6 @@ class LegalDeathVerificationServiceTest {
                 vaultRepository,
                 auditService,
                 userRepository
-
         );
 
         principal = new CustomUserPrincipal(
@@ -99,7 +104,7 @@ class LegalDeathVerificationServiceTest {
      * Thiết lập dữ liệu giả cho luồng quyết định xác minh thành công.
      * Package: com.legacyvault.verification
      * Class: LegalDeathVerificationServiceTest
-     * Vị trí: phương thức private trước các test nghiệp vụ.
+     * Vị trí: trước các test nghiệp vụ.
      */
     private void stubSuccessfulDecisionFlow() {
         when(deathDocumentRecordRepository.findByPublicId(deathDocumentId))
@@ -459,5 +464,148 @@ class LegalDeathVerificationServiceTest {
         inOrder.verify(verificationCaseRepository).findByIdForUpdate(20L);
         inOrder.verify(deathDocumentRecordRepository)
                 .findByPublicIdForUpdate(deathDocumentId);
+    }
+
+    /*
+     * Kiểm tra GET chi tiết trả public UUID và timestamp UTC.
+     * Package: com.legacyvault.verification
+     * Class: LegalDeathVerificationServiceTest
+     * Vị trí: nhóm test GET chi tiết ở cuối class.
+     */
+    @Test
+    void getDetail_successReturnsPublicIdsAndDecisionHistory() {
+        UUID receivedByPublicId = UUID.randomUUID();
+        UUID verifierPublicId = UUID.randomUUID();
+        LocalDateTime receivedAt = LocalDateTime.of(2026, 10, 17, 8, 30);
+        LocalDateTime createdAt = LocalDateTime.of(2026, 10, 17, 8, 25);
+        LocalDateTime requestedAt = LocalDateTime.of(2026, 10, 17, 8, 35);
+        LocalDateTime decidedAt = LocalDateTime.of(2026, 10, 17, 8, 40);
+
+        User receiver = mock(User.class);
+        User verifier = mock(User.class);
+        LegalVerification decision = mock(LegalVerification.class);
+
+        when(deathDocumentRecordRepository.findByPublicId(deathDocumentId))
+                .thenReturn(Optional.of(deathRecord));
+        when(deathRecord.getVerificationCaseId()).thenReturn(20L);
+        when(deathRecord.getDeathDocumentRecordId()).thenReturn(30L);
+        when(deathRecord.getPublicId()).thenReturn(deathDocumentId);
+        when(deathRecord.getDocumentType()).thenReturn("DEATH_CERTIFICATE");
+        when(deathRecord.getIssuingAuthority()).thenReturn("UBND");
+        when(deathRecord.getDocumentNumber()).thenReturn("DC-2026-001");
+        when(deathRecord.getIssuedDate()).thenReturn(LocalDate.of(2026, 10, 10));
+        when(deathRecord.getReceivedByUserId()).thenReturn(40L);
+        when(deathRecord.getReceivedAt()).thenReturn(receivedAt);
+        when(deathRecord.getEvidenceReference()).thenReturn("evidence/ref/001");
+        when(deathRecord.getNotes()).thenReturn("Hồ sơ hợp lệ về mặt tiếp nhận");
+        when(deathRecord.getCreatedAt()).thenReturn(createdAt);
+
+        when(verificationCaseRepository.findById(20L))
+                .thenReturn(Optional.of(verificationCase));
+        when(verificationCase.getVaultId()).thenReturn(100L);
+        when(verificationCase.getPublicId()).thenReturn(casePublicId);
+        when(verificationCase.getStatus()).thenReturn("OPEN");
+
+        when(vaultRepository.findById(100L)).thenReturn(Optional.of(vault));
+        when(vault.getStatus()).thenReturn(Vault.STATUS_AWAITING_VERIFICATION);
+
+        when(legalVerificationRepository
+                .findByDeathDocumentRecordIdOrderByRequestedAtDescVerificationIdDesc(30L))
+                .thenReturn(List.of(decision));
+        when(decision.getResult()).thenReturn(LegalVerification.RESULT_APPROVED);
+        when(decision.getVerifierUserId()).thenReturn(8L);
+        when(decision.getRequestedAt()).thenReturn(requestedAt);
+        when(decision.getDecidedAt()).thenReturn(decidedAt);
+        when(decision.getRemarks()).thenReturn("Đã xác minh");
+
+        when(userRepository.findById(40L)).thenReturn(Optional.of(receiver));
+        when(receiver.getPublicId()).thenReturn(receivedByPublicId);
+        when(userRepository.findById(8L)).thenReturn(Optional.of(verifier));
+        when(verifier.getPublicId()).thenReturn(verifierPublicId);
+
+        LegalDeathDocumentDetailResponse response = service.getDetail(deathDocumentId);
+
+        assertEquals(deathDocumentId, response.deathDocumentPublicId());
+        assertEquals(casePublicId, response.verificationCasePublicId());
+        assertEquals("OPEN", response.verificationCaseStatus());
+        assertEquals(Vault.STATUS_AWAITING_VERIFICATION, response.vaultStatus());
+
+        assertEquals("DEATH_CERTIFICATE", response.document().documentType());
+        assertEquals(receivedByPublicId, response.document().receivedByPublicId());
+        assertEquals(receivedAt.toInstant(ZoneOffset.UTC), response.document().receivedAt());
+        assertEquals(createdAt.toInstant(ZoneOffset.UTC), response.document().createdAt());
+
+        assertEquals(1, response.decisions().size());
+        LegalDeathDocumentDetailResponse.DecisionHistory history =
+                response.decisions().get(0);
+        assertEquals(LegalVerification.RESULT_APPROVED, history.result());
+        assertEquals(verifierPublicId, history.verifierPublicId());
+        assertEquals(requestedAt.toInstant(ZoneOffset.UTC), history.requestedAt());
+        assertEquals(decidedAt.toInstant(ZoneOffset.UTC), history.decidedAt());
+        assertEquals("Đã xác minh", history.reason());
+
+        verify(userRepository).findById(40L);
+        verify(userRepository).findById(8L);
+    }
+
+    @Test
+    void getDetail_missingDocument_throwsNotFound() {
+        when(deathDocumentRecordRepository.findByPublicId(deathDocumentId))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.getDetail(deathDocumentId)
+        );
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND, exception.getErrorCode());
+        verifyNoInteractions(
+                verificationCaseRepository,
+                vaultRepository,
+                legalVerificationRepository,
+                userRepository,
+                auditService
+        );
+    }
+
+    @Test
+    void getDetail_missingVerificationCase_throwsNotFound() {
+        when(deathDocumentRecordRepository.findByPublicId(deathDocumentId))
+                .thenReturn(Optional.of(deathRecord));
+        when(deathRecord.getVerificationCaseId()).thenReturn(20L);
+        when(verificationCaseRepository.findById(20L))
+                .thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.getDetail(deathDocumentId)
+        );
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND, exception.getErrorCode());
+        verifyNoInteractions(
+                vaultRepository,
+                legalVerificationRepository,
+                userRepository,
+                auditService
+        );
+    }
+
+    @Test
+    void getDetail_missingVault_throwsNotFound() {
+        when(deathDocumentRecordRepository.findByPublicId(deathDocumentId))
+                .thenReturn(Optional.of(deathRecord));
+        when(deathRecord.getVerificationCaseId()).thenReturn(20L);
+        when(verificationCaseRepository.findById(20L))
+                .thenReturn(Optional.of(verificationCase));
+        when(verificationCase.getVaultId()).thenReturn(100L);
+        when(vaultRepository.findById(100L)).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> service.getDetail(deathDocumentId)
+        );
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND, exception.getErrorCode());
+        verifyNoInteractions(legalVerificationRepository, userRepository, auditService);
     }
 }

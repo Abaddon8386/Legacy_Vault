@@ -10,6 +10,7 @@ import com.legacyvault.verification.dto.LegalDeathDecisionResponse;
 import com.legacyvault.verification.service.LegalDeathVerificationService;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -111,13 +112,12 @@ class LegalDeathVerificationControllerTest {
         LegalDeathDecisionResponse response = new LegalDeathDecisionResponse(
                 documentPublicId,
                 casePublicId,
-                50L,
                 "APPROVED",
                 actorPublicId,
-                LocalDateTime.now(Clock.systemUTC()),
-                "Da kiem tra",
-                "OPEN",
-                "DOCUMENT_VERIFICATION"
+                Instant.now(),
+                "Da kiem tra giay to",
+                "CLOSED",
+                "ACTIVE"
         );
 
         when(service.decide(
