@@ -32,6 +32,7 @@ export const accountEditI18n = {
     accessRestricted: 'Từ chối quyền truy cập',
     relogin: 'Đăng nhập lại',
     breadcrumbCurrent: 'Chỉnh sửa hồ sơ',
+    noInformation: 'Chưa có thông tin',
   },
   en: {
     pageTitle: 'Edit Profile',
@@ -61,5 +62,6 @@ export const accountEditI18n = {
     accessRestricted: 'Access restricted',
     relogin: 'Sign in again',
     breadcrumbCurrent: 'Edit Profile',
+    noInformation: 'No information provided',
   },
 };

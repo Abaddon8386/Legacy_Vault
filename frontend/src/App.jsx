@@ -603,6 +603,7 @@ export default function App() {
         >
           <AccountEditPage
             session={session}
+            preview={preview}
             lang={lang}
             onDirtyChange={setIsEditFormDirty}
             pendingNavigation={pendingNavigationTarget}

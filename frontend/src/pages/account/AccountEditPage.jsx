@@ -24,20 +24,26 @@ export default function AccountEditPage({
   onConfirmNavigation,
   onCancelNavigation,
   onCancel,
+  preview = false,
 }) {
   const t = accountEditI18n[lang] || accountEditI18n.vi;
 
-  // Active user session data
-  const initialData = resolveInitialProfileData(session);
+  // Active user session data, or empty form structure in DEV preview
+  const resolvedSessionData = resolveInitialProfileData(session);
+  const isDevPreviewActive = Boolean(typeof import.meta !== 'undefined' && import.meta.env?.DEV && preview);
+  const initialData = resolvedSessionData || (isDevPreviewActive
+    ? { id: '', fullName: '', email: '', roles: [] }
+    : null);
 
   // State adjustment during render if user account switched or logged out
-  const [prevUserId, setPrevUserId] = useState(session?.user?.id || null);
+  const currentUserId = session?.user?.id || (isDevPreviewActive ? 'dev-preview' : null);
+  const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [fullName, setFullName] = useState(initialData?.fullName || '');
   const [validationError, setValidationError] = useState(null);
   const [localPendingCancel, setLocalPendingCancel] = useState(false);
 
-  if (session?.user?.id !== prevUserId) {
-    setPrevUserId(session?.user?.id || null);
+  if (currentUserId !== prevUserId) {
+    setPrevUserId(currentUserId);
     setFullName(initialData?.fullName || '');
     setValidationError(null);
     setLocalPendingCancel(false);
@@ -188,9 +194,9 @@ export default function AccountEditPage({
               </div>
               <input
                 id="lv-edit-email"
-                type="email"
+                type="text"
                 className="lv-input-text"
-                value={initialData.email}
+                value={initialData.email || t.noInformation}
                 disabled
                 readOnly
                 aria-readonly="true"
@@ -208,12 +214,19 @@ export default function AccountEditPage({
                 </span>
               </div>
               <div className="lv-role-chips" aria-label={t.rolesLabel}>
-                {initialData.roles.map((role) => (
-                  <span key={role} className="lv-role-chip">
+                {Array.isArray(initialData.roles) && initialData.roles.length > 0 ? (
+                  initialData.roles.map((role) => (
+                    <span key={role} className="lv-role-chip">
+                      <Shield size={13} aria-hidden="true" />
+                      <span>{formatRoleName(role, lang)}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span className="lv-role-chip lv-role-chip--empty">
                     <Shield size={13} aria-hidden="true" />
-                    <span>{formatRoleName(role, lang)}</span>
+                    <span>{t.noInformation}</span>
                   </span>
-                ))}
+                )}
               </div>
               <p className="lv-form-help">{t.rolesHelp}</p>
             </div>
