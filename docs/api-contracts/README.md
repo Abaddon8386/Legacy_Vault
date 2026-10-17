@@ -29,6 +29,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [legal-basis-dossier.md](legal-basis-dossier.md) | Hồ sơ căn cứ phân chia: Legal phân loại nhánh, Staff tiếp nhận và chuyển văn bản | PS-41, PS-42, PS-43 |
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
+| [subscriptions.md](subscriptions.md) | PS-77 prototype chờ duyệt; self-grant bị chặn, quota mặc định tắt, một Vault/Owner | PS-77 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
 
 ## Cách đọc một endpoint

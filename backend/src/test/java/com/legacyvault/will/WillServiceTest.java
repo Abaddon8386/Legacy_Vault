@@ -67,7 +67,8 @@ class WillServiceTest {
 	private final AuditService auditService = mock(AuditService.class);
 	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final WillService willService = new WillService(willAssetRepository, versionRepository,
-			legalDocumentRepository, vaultService, encryptionService, auditService, reauthService, 10_485_760);
+			legalDocumentRepository, vaultService, encryptionService, auditService, reauthService, 10_485_760,
+			mock(com.legacyvault.subscription.service.OwnerQuotaService.class));
 
 	private static Vault vault() {
 		Vault vault = new Vault();
@@ -113,7 +114,7 @@ class WillServiceTest {
 
 	@Test
 	void upload_createsWillWithVersion1_statusUploaded_neverLegalApproved() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 
 		WillResponse response = willService.uploadWill(VAULT_ID, OWNER_ID, pdf(PDF_V1), "  Bản scan  ");
 
@@ -143,7 +144,7 @@ class WillServiceTest {
 
 	@Test
 	void upload_storesOnlyEncryptedContent_boundToItsVersion() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 
 		willService.uploadWill(VAULT_ID, OWNER_ID, pdf(PDF_V1), null);
 
@@ -160,7 +161,7 @@ class WillServiceTest {
 
 	@Test
 	void upload_auditsIntegrityMetadataOnly() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 
 		WillResponse response = willService.uploadWill(VAULT_ID, OWNER_ID, pdf(PDF_V1), "ghi chú riêng tư");
 
@@ -180,9 +181,9 @@ class WillServiceTest {
 
 	@Test
 	void upload_onFrozenVaultOrOtherUsersVault_savesNothing() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID))
 				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
-		when(vaultService.requireEditableVault(VAULT_ID, 2L))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, 2L))
 				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
 		assertThatThrownBy(() -> willService.uploadWill(VAULT_ID, OWNER_ID, pdf(PDF_V1), null))
@@ -196,7 +197,7 @@ class WillServiceTest {
 
 	@Test
 	void upload_invalidFile_savesNothing() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		MockMultipartFile text = new MockMultipartFile("file", "a.txt", "text/plain", "hello".getBytes());
 
 		assertThatThrownBy(() -> willService.uploadWill(VAULT_ID, OWNER_ID, text, null))
@@ -210,7 +211,7 @@ class WillServiceTest {
 
 	@Test
 	void addVersion_usesLockedLookup_incrementsVersion_newHash_keepsOldVersion() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		Asset will = storedWill();
 		when(willAssetRepository.findWillForUpdate(will.getPublicId(), VAULT_DB_ID)).thenReturn(Optional.of(will));
 		when(versionRepository.findMaxVersionNo(WILL_DB_ID)).thenReturn(1);
@@ -237,7 +238,7 @@ class WillServiceTest {
 
 	@Test
 	void addVersion_toOtherVaultsOrUnknownWill_isNotFound() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		UUID unknown = UUID.randomUUID();
 		when(willAssetRepository.findWillForUpdate(unknown, VAULT_DB_ID)).thenReturn(Optional.empty());
 
@@ -285,7 +286,7 @@ class WillServiceTest {
 
 	/** Tải lên bằng chính service để có AssetVersion mã hóa đúng như production rồi trả về bản đã lưu. */
 	private AssetVersion uploadedVersion(byte[] content) {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		willService.uploadWill(VAULT_ID, OWNER_ID, pdf(content), null);
 		ArgumentCaptor<AssetVersion> saved = ArgumentCaptor.forClass(AssetVersion.class);
 		verify(versionRepository).save(saved.capture());

@@ -72,6 +72,8 @@ Lỗi validation:
 | `BASIS_VERSION_STALE` | 409 | Phiên bản được chuyển không phải phiên bản mới nhất của hồ sơ (PS-42) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
+| `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
+| `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
@@ -119,3 +121,14 @@ PS-47: `COURT_EVIDENCE_REQUIRED` (409) khi thiếu văn bản tòa đã chuyển
 `COURT_DECISION_REQUIRED` (409) khi guard chưa có kết luận VALID mới nhất cho phiên bản hiện hành.
 
 PS-48: `LEGAL_WORKFLOW_ON_HOLD` (409) khi guard phát hiện Vault/route đang ON_HOLD.
+
+## PS-77 lifetime subscription / case evidence
+
+- `SUBSCRIPTION_CATALOG_STALE` — 409, `error.subscription.catalogStale`: reload catalog before selecting a plan.
+- `SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED` — 409, `error.subscription.downgradeNotAllowed`: lifetime capacity cannot decrease.
+- `CASE_EVIDENCE_QUOTA_EXCEEDED` — 409, `error.subscription.caseEvidenceQuotaExceeded`: case exceeds retained evidence bytes or version count; preserve existing history.
+
+PS-77 blocker fix: 409 `SUBSCRIPTION_POLICY_PENDING` (`error.subscription.policyPending`)
+for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
+(`error.subscription.upgradeUnavailable`) for any valid self-upgrade request. No entitlement is granted.
+`CASE_EVIDENCE_QUOTA_EXCEEDED` is reserved/inactive: PS-41 no longer emits this proposal-only error.

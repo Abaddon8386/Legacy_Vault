@@ -34,7 +34,7 @@ public class Vault {
     @Column(name = "public_id", nullable = false, unique = true, updatable = false)
     private UUID publicId;
 
-    @Column(name = "owner_user_id", nullable = false)
+    @Column(name = "owner_user_id", nullable = false, updatable = false)
     private Long ownerUserId;
 
     @Column(name = "vault_name", nullable = false, length = 150)
