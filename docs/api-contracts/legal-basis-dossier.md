@@ -134,3 +134,67 @@ Nội dung file vẫn không có API tải xuống dành cho Legal; thẩm đị
 - Kết quả: Vault `ON_HOLD` → `AWAITING_LEGAL_BASIS` (qua `LEGAL_BASIS_CLASSIFICATION`); audit `LEGAL_BASIS_RECLASSIFIED` (ST-16, LV-HOLD-001), không ghi lý do. Khóa Vault → ca → hồ sơ.
 - **Thông tin công chứng (LV-NOTARY-001):** tiếp nhận văn bản nhánh `NOTARIAL` bắt buộc `notaryAuthority`, `notarialDocumentNumber` và `notarizedAt`; thiếu thì `400`. Văn bản `COURT` đã yêu cầu cơ quan, số và ngày ban hành.
 - PS-48 bổ sung API `/hold`, giữ lịch sử và yêu cầu phiên bản mới; PS-47 bổ sung kết luận COURT theo phiên bản. Migration V15–V17 đã chạy trong các test SQL Server dùng DB tạm. Ký duyệt/unlock/handover thuộc các ticket sau Sprint 2.
+
+## 8. Legal review và yêu cầu bổ sung — PS-37 (ST-20, LV-BASIS-001/LV-HOLD-001)
+
+Hai endpoint chỉ dành cho role `LEGAL_VERIFIER`; `caseId` là UUID công khai của verification case. `reviewerUserId` lấy từ principal phía server, không nhận từ request.
+
+### 8.1 POST hoàn thành review
+
+`POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review`
+
+Request body (`application/json`):
+
+```json
+{
+  "reason": "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan."
+}
+```
+
+| Trường | Kiểu | Bắt buộc | Quy tắc |
+|---|---|---|---|
+| `reason` | string | Có | Không rỗng/không chỉ chứa khoảng trắng; tối đa 1000 ký tự |
+
+Response `200 OK`: `LegalBasisReviewResponse`.
+
+### 8.2 POST yêu cầu bổ sung
+
+`POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/request-supplementation`
+
+Request body giống endpoint `/review`, dùng `reason` bắt buộc, tối đa 1000 ký tự. Response `200 OK`: `LegalBasisReviewResponse`. Khi thành công, dossier được đánh dấu cần review lại với reason code `LEGAL_REQUESTED_SUPPLEMENTATION`; việc chuyển trạng thái Vault/dossier tuân theo service và workflow hiện hành.
+
+### 8.3 Response — `LegalBasisReviewResponse`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `dossierId` | string / UUID | Public ID của dossier; không trả khóa chính tuần tự trong database theo D-API-08 |
+| `reviewStatus` | string | Trạng thái review hiện tại |
+| `reviewRequired` | boolean | Dossier có cần review hay không |
+| `reasonCode` | string / nullable | Mã lý do review hoặc kết quả kiểm tra |
+| `reason` | string / nullable | Lý do nghiệp vụ được trả về |
+| `currentVersionNo` | integer / nullable | Phiên bản hiện tại |
+| `currentSha256Hash` | string / nullable | Hash SHA-256 hiện tại |
+| `currentDisputeStatus` | string / nullable | Trạng thái tranh chấp hiện tại |
+| `currentAllocationHash` | string / nullable | Hash phạm vi phân bổ hiện tại |
+| `checkedAt` | string, date-time | Thời điểm kiểm tra |
+
+### 8.4 Mã lỗi
+
+| HTTP | `code` | Tình huống |
+|---|---|---|
+| `400` | `VALIDATION_FAILED` | `reason` thiếu, rỗng/chỉ có khoảng trắng hoặc dài hơn 1000 ký tự |
+| `401` | `UNAUTHENTICATED` | Chưa đăng nhập hoặc token không hợp lệ |
+| `403` | `ACCESS_DENIED` | Đã đăng nhập nhưng không có role `LEGAL_VERIFIER` |
+| `404` | `RESOURCE_NOT_FOUND` | Không tìm thấy ca, Vault hoặc dossier liên quan |
+| `409` | `VERIFICATION_CASE_NOT_OPEN` | Verification case không ở trạng thái `OPEN` |
+| `409` | `BASIS_DOSSIER_INVALID_STATE` | Vault/dossier không ở trạng thái cho phép review hoặc đang bị hold |
+
+Các lỗi dùng cấu trúc `ApiError` chung; FE phân loại bằng `code`, không dựa vào `message`.
+
+### 8.5 Audit và migration
+
+- `LEGAL_BASIS_REVIEW_RECORDED`: ghi nhận Legal hoàn thành review; context chứa reason code `REVIEW_COMPLETED`; audit phải gắn `vaultId` khi Vault đã được xác định.
+- `LEGAL_BASIS_REVIEW_REQUIRED`: ghi nhận dossier cần review lại hoặc Legal yêu cầu bổ sung; context chứa reason code, không thay thế audit bằng cách ghi đè lịch sử review; audit phải gắn `vaultId` khi Vault đã được xác định.
+- Thay đổi trạng thái, review history và audit phải commit trong cùng transaction.
+- Migration cho phần revalidation/review phải dùng `V18__legal_basis_review_revalidation.sql` nếu V16 chưa được merge/chạy trên môi trường dùng chung và nhóm đã thống nhất dành V18 cho PS-37. Không đổi tên migration đã áp dụng; nếu V16 đã chạy, giữ nguyên lịch sử Flyway và thống nhất một migration bổ sung riêng trước khi triển khai.
+

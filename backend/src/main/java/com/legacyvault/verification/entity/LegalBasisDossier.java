@@ -1,3 +1,4 @@
+
 package com.legacyvault.verification.entity;
 
 import jakarta.persistence.Column;
@@ -14,9 +15,11 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
- * Hồ sơ căn cứ phân chia di sản của một ca xác minh (ST-16..20, LV-BASIS-001). Do Legal tạo khi phân loại nhánh; Staff chỉ
- * bổ sung phiên bản văn bản. Mỗi ca tối đa một hồ sơ (chỉ mục duy nhất ở DB). {@code status} là tiến độ hồ sơ theo Main Flow:
- * DRAFT -> LEGAL_BASIS_PROVIDED (ST-18) -> LEGAL_BASIS_FORWARDED (ST-19).
+ * Hồ sơ căn cứ phân chia di sản của một ca xác minh (ST-16..20, LV-BASIS-001).
+ * Legal tạo khi phân loại nhánh; Staff bổ sung phiên bản văn bản.
+ * Mỗi ca tối đa một hồ sơ theo ràng buộc unique tại DB.
+ *
+ * Package: com.legacyvault.verification.entity
  */
 @Entity
 @Table(name = "legal_basis_dossiers", schema = "dbo")
@@ -60,6 +63,24 @@ public class LegalBasisDossier {
     @Column(name = "required_version_no", nullable = false)
     private int requiredVersionNo = 1;
 
+    @Column(name = "review_status", nullable = false, length = 30)
+    private String reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
+
+    @Column(name = "review_required_reason", length = 1000)
+    private String reviewRequiredReason;
+
+    @Column(name = "last_reviewed_version_no")
+    private Integer lastReviewedVersionNo;
+
+    @Column(name = "last_reviewed_sha256_hash", length = 64)
+    private String lastReviewedSha256Hash;
+
+    @Column(name = "last_reviewed_dispute_status", length = 20)
+    private String lastReviewedDisputeStatus;
+
+    @Column(name = "last_reviewed_allocation_hash", length = 64)
+    private String lastReviewedAllocationHash;
+
     @Column(name = "created_by_user_id", nullable = false, updatable = false)
     private Long createdByUserId;
 
@@ -75,7 +96,11 @@ public class LegalBasisDossier {
     protected LegalBasisDossier() {
     }
 
-    public LegalBasisDossier(Long verificationCaseId, String route, String routeReason, String disputeStatus,
+    public LegalBasisDossier(
+            Long verificationCaseId,
+            String route,
+            String routeReason,
+            String disputeStatus,
             Long createdByUserId) {
         this.verificationCaseId = verificationCaseId;
         this.route = route;
@@ -100,7 +125,7 @@ public class LegalBasisDossier {
         updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
-    /** ST-18: đã tiếp nhận phiên bản văn bản (tiếp nhận không đồng nghĩa đã duyệt). */
+    /** ST-18: đã tiếp nhận phiên bản văn bản; không đồng nghĩa đã duyệt. */
     public void markProvided() {
         this.status = STATUS_PROVIDED;
     }
@@ -111,14 +136,36 @@ public class LegalBasisDossier {
     }
 
     /**
+     * PS-37 / ST-20: Legal yêu cầu Staff bổ sung hồ sơ.
+     * Chỉ hồ sơ đã forward mới được trả về trạng thái PROVIDED.
+     */
+    public void markSupplementationRequired() {
+        if (!STATUS_FORWARDED.equals(this.status)) {
+            throw new IllegalStateException(
+                    "Only a forwarded dossier can be returned for supplementation");
+        }
+
+        this.status = STATUS_PROVIDED;
+    }
+
+    /**
      * LV-HOLD-001: Legal phân loại lại hồ sơ đang ON_HOLD sang NOTARIAL/COURT. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và
      * COURT không đổi trực tiếp lẫn nhau (D-LEGAL-002). Người phân loại hiện hành được cập nhật.
      */
-    public void reclassify(String newRoute, String newReason, String newDisputeStatus, Long legalUserId) {
-        if (!ROUTE_ON_HOLD.equals(route) || !STATUS_DRAFT.equals(status)
-                || !(ROUTE_NOTARIAL.equals(newRoute) || ROUTE_COURT.equals(newRoute))) {
-            throw new IllegalStateException("Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
+    public void reclassify(
+            String newRoute,
+            String newReason,
+            String newDisputeStatus,
+            Long legalUserId) {
+
+        if (!ROUTE_ON_HOLD.equals(route)
+                || !STATUS_DRAFT.equals(status)
+                || !(ROUTE_NOTARIAL.equals(newRoute)
+                || ROUTE_COURT.equals(newRoute))) {
+            throw new IllegalStateException(
+                    "Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
         }
+
         this.route = newRoute;
         this.routeReason = newReason;
         this.disputeStatus = newDisputeStatus;
@@ -170,7 +217,7 @@ public class LegalBasisDossier {
         return disputeStatus;
     }
 
-    /** Legal đã phân loại nhánh hiện hành (khác người tạo hồ sơ khi đã phân loại lại). */
+    /** Legal đã phân loại nhánh hiện hành. */
     public Long getClassifiedByUserId() {
         return classifiedByUserId != null ? classifiedByUserId : createdByUserId;
     }
@@ -185,5 +232,61 @@ public class LegalBasisDossier {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getReviewStatus() {
+        return reviewStatus;
+    }
+
+    public String getReviewRequiredReason() {
+        return reviewRequiredReason;
+    }
+
+    public Integer getLastReviewedVersionNo() {
+        return lastReviewedVersionNo;
+    }
+
+    public String getLastReviewedSha256Hash() {
+        return lastReviewedSha256Hash;
+    }
+
+    public String getLastReviewedDisputeStatus() {
+        return lastReviewedDisputeStatus;
+    }
+
+    public String getLastReviewedAllocationHash() {
+        return lastReviewedAllocationHash;
+    }
+
+    public void requireReview(String reasonCode) {
+        this.reviewStatus = LegalBasisReviewStatus.REVIEW_REQUIRED.name();
+        this.reviewRequiredReason = reasonCode;
+    }
+
+    public void recordReviewSnapshot(
+            int versionNo,
+            String sha256Hash,
+            String currentDisputeStatus,
+            String allocationHash,
+            Long reviewerUserId) {
+
+        if (versionNo < 1
+                || sha256Hash == null
+                || sha256Hash.isBlank()
+                || currentDisputeStatus == null
+                || currentDisputeStatus.isBlank()
+                || allocationHash == null
+                || allocationHash.isBlank()
+                || reviewerUserId == null) {
+            throw new IllegalArgumentException(
+                    "Complete review snapshot is required");
+        }
+
+        this.lastReviewedVersionNo = versionNo;
+        this.lastReviewedSha256Hash = sha256Hash;
+        this.lastReviewedDisputeStatus = currentDisputeStatus;
+        this.lastReviewedAllocationHash = allocationHash;
+        this.reviewStatus = LegalBasisReviewStatus.FRESH.name();
+        this.reviewRequiredReason = null;
     }
 }

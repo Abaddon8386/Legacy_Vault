@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /** Phiên bản chỉ thêm mới; các truy vấn đọc trả {@link BasisVersionRow} để không nạp nội dung file. */
 public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalBasisDossierVersion, Long> {
@@ -25,6 +26,11 @@ public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalB
 
     @Query("select coalesce(max(v.versionNo), 0) from LegalBasisDossierVersion v where v.legalBasisDossierId = :dossierId")
     int findMaxVersionNo(@Param("dossierId") Long dossierId);
+
+    Optional<LegalBasisDossierVersion> findByLegalBasisDossierIdAndVersionNo(
+            Long legalBasisDossierId,
+            int versionNo
+    );
 
     /**
      * Đánh dấu một phiên bản đã chuyển Legal bằng một câu UPDATE có điều kiện (chỉ khi chưa chuyển): an toàn khi hai Staff

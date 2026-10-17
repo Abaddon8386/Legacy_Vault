@@ -1,17 +1,29 @@
+
 package com.legacyvault.vault.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Quản lý Vault và các trạng thái xử lý nghiệp vụ.
+ *
+ * Package: com.legacyvault.vault.entity
+ */
 @Entity
 @Table(
         name = "vaults",
         uniqueConstraints = @UniqueConstraint(
                 name = "UQ_vaults_owner_user_id",
-                columnNames = "owner_user_id"
-        )
-)
+                columnNames = "owner_user_id"))
 public class Vault {
 
     @Id
@@ -47,50 +59,49 @@ public class Vault {
     protected void onCreate() {
         Instant now = Instant.now();
         if (publicId == null) publicId = UUID.randomUUID();
-        if (status == null) status = "ACTIVE";
+        if (status == null) status = STATUS_ACTIVE;
         if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
-    }
-
-    public void restoreActive() {
-        this.status = "ACTIVE";
-        this.updatedAt = java.time.Instant.now();
     }
 
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final String STATUS_AWAITING_VERIFICATION = "AWAITING_VERIFICATION";
     public static final String STATUS_DOCUMENT_VERIFICATION = "DOCUMENT_VERIFICATION";
+    public static final String STATUS_WILL_VERIFICATION = "WILL_VERIFICATION";
+    public static final String STATUS_AWAITING_LEGAL_BASIS = "AWAITING_LEGAL_BASIS";
+    public static final String STATUS_ON_HOLD = "ON_HOLD";
+    public static final String STATUS_LEGAL_BASIS_VERIFICATION = "LEGAL_BASIS_VERIFICATION";
+
+    public void restoreActive() {
+        this.status = STATUS_ACTIVE;
+        this.updatedAt = Instant.now();
+    }
 
     public void markDocumentVerification() {
         if (!STATUS_AWAITING_VERIFICATION.equals(this.status)) {
             throw new IllegalStateException(
-                    "Vault is not awaiting death-document verification"
-            );
+                    "Vault is not awaiting death-document verification");
         }
 
         this.status = STATUS_DOCUMENT_VERIFICATION;
         this.updatedAt = Instant.now();
     }
 
-    public static final String STATUS_WILL_VERIFICATION = "WILL_VERIFICATION";
-    public static final String STATUS_AWAITING_LEGAL_BASIS = "AWAITING_LEGAL_BASIS";
-    public static final String STATUS_ON_HOLD = "ON_HOLD";
-    public static final String STATUS_LEGAL_BASIS_VERIFICATION = "LEGAL_BASIS_VERIFICATION";
-
-    /** ST-15: Legal đối chiếu di chúc gốc khớp bản scan. DOCUMENT_VERIFICATION -> WILL_VERIFICATION. */
+    /** ST-15: DOCUMENT_VERIFICATION -> WILL_VERIFICATION. */
     public void markWillVerification() {
         moveTo(STATUS_DOCUMENT_VERIFICATION, STATUS_WILL_VERIFICATION);
     }
 
     /**
-     * ST-16: Legal phân loại căn cứ. WILL_VERIFICATION -> AWAITING_LEGAL_BASIS (NOTARIAL/COURT) hoặc ON_HOLD (chưa đủ
-     * thông tin). Qua LEGAL_BASIS_CLASSIFICATION trong cùng một thao tác.
+     * ST-16: WILL_VERIFICATION -> AWAITING_LEGAL_BASIS hoặc ON_HOLD.
      */
     public void markLegalBasisRouted(boolean onHold) {
-        moveTo(STATUS_WILL_VERIFICATION, onHold ? STATUS_ON_HOLD : STATUS_AWAITING_LEGAL_BASIS);
+        moveTo(
+                STATUS_WILL_VERIFICATION,
+                onHold ? STATUS_ON_HOLD : STATUS_AWAITING_LEGAL_BASIS);
     }
 
-    /** ON_HOLD -> LEGAL_BASIS_CLASSIFICATION -> AWAITING_LEGAL_BASIS khi Legal đã đủ chứng cứ phân loại lại. */
+    /** ON_HOLD -> AWAITING_LEGAL_BASIS sau khi Legal phân loại lại. */
     public void markAwaitingLegalBasisAfterHold() {
         moveTo(STATUS_ON_HOLD, STATUS_AWAITING_LEGAL_BASIS);
     }
@@ -105,13 +116,29 @@ public class Vault {
 
     /** ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION. */
     public void markLegalBasisVerification() {
-        moveTo(STATUS_AWAITING_LEGAL_BASIS, STATUS_LEGAL_BASIS_VERIFICATION);
+        moveTo(
+                STATUS_AWAITING_LEGAL_BASIS,
+                STATUS_LEGAL_BASIS_VERIFICATION);
+    }
+
+    /**
+     * PS-37 / ST-20:
+     * Legal yêu cầu Staff bổ sung chứng cứ sau khi review.
+     *
+     * LEGAL_BASIS_VERIFICATION -> AWAITING_LEGAL_BASIS.
+     */
+    public void markAwaitingLegalBasisAfterReviewHold() {
+        moveTo(
+                STATUS_LEGAL_BASIS_VERIFICATION,
+                STATUS_AWAITING_LEGAL_BASIS);
     }
 
     private void moveTo(String expectedFrom, String to) {
         if (!expectedFrom.equals(this.status)) {
-            throw new IllegalStateException("Vault must be " + expectedFrom + " to move to " + to);
+            throw new IllegalStateException(
+                    "Vault must be " + expectedFrom + " to move to " + to);
         }
+
         this.status = to;
         this.updatedAt = Instant.now();
     }
@@ -123,14 +150,12 @@ public class Vault {
     public void markAwaitingVerification() {
         if (!canEnterVerification()) {
             throw new IllegalStateException(
-                    "Vault is not eligible for verification transition"
-            );
+                    "Vault is not eligible for verification transition");
         }
 
         this.status = STATUS_AWAITING_VERIFICATION;
         this.updatedAt = Instant.now();
     }
-
 
     public Long getVaultId() {
         return vaultId;

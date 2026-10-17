@@ -17,4 +17,10 @@ public interface LegalBasisDossierRepository extends JpaRepository<LegalBasisDos
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from LegalBasisDossier d where d.verificationCaseId = :caseId")
     Optional<LegalBasisDossier> findByVerificationCaseIdForUpdate(@Param("caseId") Long caseId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from LegalBasisDossier d where d.legalBasisDossierId = :dossierId")
+    Optional<LegalBasisDossier> findByDossierIdForUpdate(
+            @Param("dossierId") Long dossierId
+    );
 }
