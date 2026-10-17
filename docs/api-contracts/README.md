@@ -24,6 +24,8 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [trustees.md](trustees.md) | Trustee (tùy chọn) | PS-19 |
 | [beneficiaries.md](beneficiaries.md) | Beneficiary + kiểm tra điều kiện cấu hình | PS-20, PS-21 |
 | [dms.md](dms.md) | Cấu hình/check-in DMS, scheduler TRIGGERED + Grace | PS-22, PS-23 |
+| [staff-verification.md](staff-verification.md) | Ca xác minh của Staff: hàng đợi, nhận ca, ghi nhận giấy tờ khai tử và di chúc gốc | PS-34, PS-35, PS-38, PS-39 |
+| [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
 

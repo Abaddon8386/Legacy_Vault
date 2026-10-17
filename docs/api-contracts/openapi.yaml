@@ -20,6 +20,7 @@ tags:
   - name: Wills
   - name: Trustees
   - name: Staff
+  - name: Legal
   - name: Beneficiaries
   - name: DMS
 
@@ -801,6 +802,60 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}/decision:
+    post:
+      tags: [Legal]
+      summary: Legal ghi quyết định thẩm định giấy tờ khai tử (PS-36, ST-12)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Mỗi giấy tờ chỉ có một quyết định. Chỉ khi ca xác minh `OPEN` và Vault `AWAITING_VERIFICATION`.
+        `APPROVE` chuyển Vault sang `DOCUMENT_VERIFICATION`; `REJECT` và `REQUEST_MORE` không đổi Vault. Không mở khóa, không
+        giải mã. Lưu quyết định và audit cùng một giao dịch.
+      x-status: implemented
+      parameters:
+        - name: deathDocumentPublicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LegalDeathDecisionRequest' }
+      responses:
+        '200':
+          description: Đã ghi quyết định
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalDeathDecisionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}:
+    get:
+      tags: [Legal]
+      summary: Chi tiết giấy tờ khai tử và lịch sử quyết định (PS-36)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Chỉ đọc, không ghi audit, không giới hạn theo trạng thái ca hay Vault. Chưa có API liệt kê
+        ca chờ thẩm định.
+      x-status: implemented
+      parameters:
+        - name: deathDocumentPublicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalDeathDocumentDetailResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1260,6 +1315,57 @@ components:
         receivedAt: { type: string, format: date-time }
         evidenceReference: { type: string, nullable: true }
         conditionNotes: { type: string, nullable: true }
+    LegalDeathDecisionRequest:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT, REQUEST_MORE] }
+        reason: { type: string, minLength: 1, maxLength: 1000, description: Lý do quyết định; không rỗng sau trim }
+    LegalDeathDecisionResponse:
+      type: object
+      required: [deathDocumentPublicId, verificationCasePublicId, result, verifierPublicId, decidedAt, reason, verificationCaseStatus, vaultStatus]
+      properties:
+        deathDocumentPublicId: { type: string, format: uuid }
+        verificationCasePublicId: { type: string, format: uuid }
+        result: { type: string, enum: [APPROVED, REJECTED, NEEDS_CORRECTION] }
+        verifierPublicId: { type: string, format: uuid, description: Legal Verifier đã quyết định }
+        decidedAt: { type: string, format: date-time }
+        reason: { type: string }
+        verificationCaseStatus: { type: string, description: Vẫn OPEN sau quyết định }
+        vaultStatus: { type: string, description: DOCUMENT_VERIFICATION sau APPROVE; giữ nguyên với REJECT/REQUEST_MORE }
+    LegalDeathDocumentDetailResponse:
+      type: object
+      required: [deathDocumentPublicId, verificationCasePublicId, verificationCaseStatus, vaultStatus, document, decisions]
+      properties:
+        deathDocumentPublicId: { type: string, format: uuid }
+        verificationCasePublicId: { type: string, format: uuid }
+        verificationCaseStatus: { type: string, enum: [OPEN, CANCELLED] }
+        vaultStatus: { type: string }
+        document:
+          type: object
+          required: [documentType, issuingAuthority, documentNumber, issuedDate, receivedByPublicId, receivedAt, createdAt]
+          properties:
+            documentType: { type: string, enum: [DEATH_CERTIFICATE, DEATH_REGISTRATION_EXTRACT] }
+            issuingAuthority: { type: string }
+            documentNumber: { type: string }
+            issuedDate: { type: string, format: date }
+            receivedByPublicId: { type: string, format: uuid, description: Staff đã nhận giấy tờ }
+            receivedAt: { type: string, format: date-time }
+            evidenceReference: { type: string, nullable: true }
+            notes: { type: string, nullable: true }
+            createdAt: { type: string, format: date-time }
+        decisions:
+          type: array
+          description: Mới nhất trước; rỗng nếu chưa có quyết định
+          items:
+            type: object
+            required: [result, requestedAt]
+            properties:
+              result: { type: string, enum: [PENDING, APPROVED, REJECTED, NEEDS_CORRECTION] }
+              verifierPublicId: { type: string, format: uuid, nullable: true }
+              requestedAt: { type: string, format: date-time }
+              decidedAt: { type: string, format: date-time, nullable: true }
+              reason: { type: string, nullable: true }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
