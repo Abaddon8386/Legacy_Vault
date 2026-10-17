@@ -7,11 +7,13 @@ import com.legacyvault.verification.dto.ClassifyBasisRequest.Route;
 import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.service.BasisClassificationService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class LegalRouteSqlServerTest extends LegalBasisSqlServerSupport {
     private BasisClassificationService service() { return context.getBean(BasisClassificationService.class); }
 
