@@ -1,4 +1,3 @@
-
 package com.legacyvault.verification.service;
 
 import com.legacyvault.audit.AuditAction;
@@ -211,6 +210,7 @@ public class LegalBasisReviewService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        // Khóa theo thứ tự: Vault -> VerificationCase -> Dossier.
         Vault vault = vaultRepository
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
@@ -222,7 +222,8 @@ public class LegalBasisReviewService {
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
-                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
+                || !Objects.equals(
+                verificationCase.getVaultId(), vault.getVaultId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
@@ -230,15 +231,18 @@ public class LegalBasisReviewService {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }
 
-        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
-            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
-        }
-
         LegalBasisDossier dossier = dossiers
                 .findByVerificationCaseIdForUpdate(
                         verificationCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // Kiểm tra hold trước khi kiểm tra trạng thái nghiệp vụ.
+        LegalWorkflowGuard.requireNotOnHold(vault, dossier);
+
+        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
 
         if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -250,6 +254,7 @@ public class LegalBasisReviewService {
                 reviewerUserId,
                 reason.trim());
     }
+
 
     /**
      * Legal yêu cầu bổ sung hồ sơ và trả hồ sơ về Staff.
@@ -273,6 +278,7 @@ public class LegalBasisReviewService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        // Khóa theo thứ tự: Vault -> VerificationCase -> Dossier.
         Vault vault = vaultRepository
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
@@ -284,7 +290,8 @@ public class LegalBasisReviewService {
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
-                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
+                || !Objects.equals(
+                verificationCase.getVaultId(), vault.getVaultId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
@@ -292,15 +299,18 @@ public class LegalBasisReviewService {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }
 
-        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
-            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
-        }
-
         LegalBasisDossier dossier = dossiers
                 .findByVerificationCaseIdForUpdate(
                         verificationCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // Phải chạy trước các kiểm tra trạng thái Vault và dossier.
+        LegalWorkflowGuard.requireNotOnHold(vault, dossier);
+
+        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        }
 
         if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -357,6 +367,7 @@ public class LegalBasisReviewService {
                 dossier.getLastReviewedAllocationHash(),
                 LocalDateTime.now(ZoneOffset.UTC));
     }
+
 
     /**
      * So sánh snapshot đã review với dữ liệu hiện tại.

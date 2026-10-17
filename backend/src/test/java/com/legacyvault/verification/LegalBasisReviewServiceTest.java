@@ -234,6 +234,46 @@ class LegalBasisReviewServiceTest {
         assertThat(auditCaptor.getValue().vaultId()).isEqualTo(VAULT_ID);
     }
 
+
+    @Test
+    void requestSupplementation_whenVaultOnHold_rejectsWithoutWritingHistoryOrAudit() {
+        Fixture f = new Fixture();
+        when(f.vault.getStatus()).thenReturn(Vault.STATUS_ON_HOLD);
+
+        assertThatThrownBy(() -> f.service.requestSupplementationByCasePublicId(
+                CASE_PUBLIC_ID, REVIEWER_ID, "Bổ sung giấy tờ"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
+
+        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit);
+        org.mockito.Mockito.verify(f.dossiers, org.mockito.Mockito.never()).save(any());
+        org.mockito.Mockito.verify(f.vault, org.mockito.Mockito.never())
+                .markAwaitingLegalBasisAfterReviewHold();
+    }
+
+    @Test
+    void completedReview_whenVaultOnHold_rejectsWithoutWritingHistoryOrAudit() {
+        Fixture f = new Fixture();
+        when(f.vault.getStatus()).thenReturn(Vault.STATUS_ON_HOLD);
+
+        assertThatThrownBy(() -> f.service.recordCompletedReviewByCasePublicId(
+                CASE_PUBLIC_ID, REVIEWER_ID, "Đã kiểm tra hồ sơ"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
+
+        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit);
+        org.mockito.Mockito.verify(f.dossiers, org.mockito.Mockito.never()).save(any());
+        org.mockito.Mockito.verify(f.dossier, org.mockito.Mockito.never())
+                .recordReviewSnapshot(
+                        org.mockito.ArgumentMatchers.anyInt(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyLong());
+    }
+
     @Test
     void requestSupplementation_rejectsBlankReason_withoutWritingHistoryOrAudit() {
         Fixture f = new Fixture();

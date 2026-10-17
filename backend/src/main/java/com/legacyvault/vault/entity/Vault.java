@@ -200,8 +200,5 @@ public class Vault {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/develop
 }
