@@ -1,9 +1,9 @@
+
 package com.legacyvault.verification;
 
 import com.legacyvault.common.error.ApiErrorFactory;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.common.security.JwtAuthenticationFilter;
-
 import com.legacyvault.verification.controller.LegalDeathVerificationController;
 import com.legacyvault.verification.dto.LegalDeathDecisionRequest;
 import com.legacyvault.verification.dto.LegalDeathDecisionResponse;
@@ -21,10 +21,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,9 +33,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -67,12 +67,7 @@ class LegalDeathVerificationControllerTest {
                         .with(user("staff").roles("STAFF"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "decision": "APPROVE",
-                                  "reason": "Da kiem tra giay to"
-                                }
-                                """))
+                        .content(validRequest()))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(service);
@@ -84,13 +79,19 @@ class LegalDeathVerificationControllerTest {
                         .with(user("owner").roles("OWNER"))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "decision": "APPROVE",
-                                  "reason": "Da kiem tra giay to"
-                                }
-                                """))
+                        .content(validRequest()))
                 .andExpect(status().isForbidden());
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void unauthenticatedUserCannotDecideDeathDocument() throws Exception {
+        mockMvc.perform(post(DECISION_URL, UUID.randomUUID())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest()))
+                .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(service);
     }
@@ -137,12 +138,7 @@ class LegalDeathVerificationControllerTest {
                         ))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "decision": "APPROVE",
-                                  "reason": "Da kiem tra giay to"
-                                }
-                                """))
+                        .content(validRequest()))
                 .andExpect(status().isOk());
 
         verify(service).decide(
@@ -150,6 +146,48 @@ class LegalDeathVerificationControllerTest {
                 any(LegalDeathDecisionRequest.class),
                 any(CustomUserPrincipal.class)
         );
+    }
+
+    @Test
+    void invalidDecisionRequestReturnsBadRequest() throws Exception {
+        mockMvc.perform(post(DECISION_URL, UUID.randomUUID())
+                        .with(user("legal").roles("LEGAL_VERIFIER"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "INVALID_DECISION",
+                                  "reason": "Da kiem tra giay to"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void missingReasonReturnsBadRequest() throws Exception {
+        mockMvc.perform(post(DECISION_URL, UUID.randomUUID())
+                        .with(user("legal").roles("LEGAL_VERIFIER"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "APPROVE"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(service);
+    }
+
+    private String validRequest() {
+        return """
+                {
+                  "decision": "APPROVE",
+                  "reason": "Da kiem tra giay to"
+                }
+                """;
     }
 
     @TestConfiguration

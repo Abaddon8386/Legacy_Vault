@@ -3,6 +3,7 @@ package com.legacyvault.verification.controller;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.dto.LegalDeathDecisionRequest;
 import com.legacyvault.verification.dto.LegalDeathDecisionResponse;
+import com.legacyvault.verification.dto.LegalDeathDocumentDetailResponse;
 import com.legacyvault.verification.service.LegalDeathVerificationService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,4 +39,20 @@ public class LegalDeathVerificationController {
     ) {
         return service.decide(deathDocumentPublicId, request, principal);
     }
+
+
+    /**
+     * Đọc chi tiết hồ sơ chứng tử và kết quả thẩm định.
+     *
+     * Package: com.legacyvault.verification.controller
+     * Class: LegalDeathVerificationController
+     * Vị trí: ngay sau phương thức decide().
+     */
+    @GetMapping("/{deathDocumentPublicId}")
+    public LegalDeathDocumentDetailResponse getDetail(
+            @PathVariable UUID deathDocumentPublicId
+    ) {
+        return service.getDetail(deathDocumentPublicId);
+    }
+
 }
