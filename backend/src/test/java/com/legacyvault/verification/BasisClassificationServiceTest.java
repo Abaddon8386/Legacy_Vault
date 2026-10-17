@@ -37,6 +37,7 @@ import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.WillComparisonService;
 
 /** PS-41 (ST-16, LV-BASIS-001): chỉ Legal phân loại; cần MATCH; một hồ sơ mỗi ca; chuyển Vault đúng nhánh. */
@@ -55,7 +56,7 @@ class BasisClassificationServiceTest {
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
     private final BasisClassificationService service = new BasisClassificationService(caseLookup, caseRepository,
-            vaultRepository, dossiers, willComparisons, views, auditService);
+            vaultRepository, dossiers, willComparisons, views, auditService, mock(LegalBasisLockedState.class));
 
     private final CustomUserPrincipal legal = new CustomUserPrincipal(LEGAL_ID, UUID.randomUUID(), "legal@example.com");
 

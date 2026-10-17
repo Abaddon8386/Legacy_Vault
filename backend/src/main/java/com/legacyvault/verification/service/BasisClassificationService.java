@@ -43,10 +43,11 @@ public class BasisClassificationService {
     private final WillComparisonService willComparisons;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisLockedState lockedState;
 
     public BasisClassificationService(LegalCaseLookupRepository caseLookup, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers, WillComparisonService willComparisons,
-            BasisDossierViewService views, AuditService auditService) {
+            BasisDossierViewService views, AuditService auditService, LegalBasisLockedState lockedState) {
         this.caseLookup = caseLookup;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -54,6 +55,7 @@ public class BasisClassificationService {
         this.willComparisons = willComparisons;
         this.views = views;
         this.auditService = auditService;
+        this.lockedState = lockedState;
     }
 
     @Transactional
@@ -65,8 +67,10 @@ public class BasisClassificationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
         VerificationCase verificationCase = caseRepository.findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
         if (!Objects.equals(verificationCase.getVaultId(), vault.getVaultId()) || !verificationCase.isOpen()
                 || !Vault.STATUS_WILL_VERIFICATION.equals(vault.getStatus())) {
