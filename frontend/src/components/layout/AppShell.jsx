@@ -56,6 +56,13 @@ const STAFF_NAVIGATION_REGISTRY = [
     labelEn: 'Legal Basis Documents',
     status: 'ACTIVE',
   },
+  {
+    id: 'beneficiary-confirmation',
+    jiraTicket: 'PS-54',
+    labelVi: 'Xác nhận người thụ hưởng',
+    labelEn: 'Beneficiary Confirmation',
+    status: 'ACTIVE',
+  },
 ];
 
 const LEGAL_NAVIGATION_REGISTRY = [
@@ -152,7 +159,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? 'Hồ sơ căn cứ pháp lý'
+        ? (currentTab === 'beneficiary-confirmation' ? 'Xác nhận người thụ hưởng' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -191,7 +198,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? 'Legal Basis Documents'
+        ? (currentTab === 'beneficiary-confirmation' ? 'Beneficiary Confirmation' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
