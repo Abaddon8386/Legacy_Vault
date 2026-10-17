@@ -97,6 +97,15 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 - Phân loại khóa dòng **Vault → ca** (như Cancel Alert, PS-36, PS-40); tiếp nhận khóa ca rồi hồ sơ. Lưu và audit cùng một giao dịch.
 - Phiên bản chỉ thêm mới; không có API sửa hay xóa.
 
+PS-46 dùng lại API phân loại/phân loại lại ở trên, không tạo endpoint song song. Sau khi khóa
+Vault → ca → hồ sơ, Backend refresh trạng thái từ SQL Server trước khi kiểm tra điều kiện;
+entity cũ trong persistence context không được bỏ qua ca đã hủy hoặc Vault đã chuyển trạng thái.
+`routeReason` được giữ trong hồ sơ/lịch sử và chỉ trả cho Legal, không đưa vào audit.
+
+Kiểm chứng PS-46: `LegalRouteSqlServerTest` tạo DB ngẫu nhiên từ `LEGAL_SQLSERVER_MASTER_URL`
+(JDBC URL tới `master`), chạy Flyway thật và xóa riêng DB đó sau test. Các tình huống gồm cả ba
+nhánh, thiếu đối chiếu MATCH, tạo hồ sơ đồng thời, ca cache cũ sau hủy và rollback khi audit lỗi.
+
 ## 5. Kiểm chứng và giới hạn
 
 Đã có: test dịch vụ (phân loại 8, tiếp nhận 7, đọc hồ sơ 2), test controller (Legal 4, Staff 5), toàn bộ bộ test Maven chỉ `contextLoads` lỗi

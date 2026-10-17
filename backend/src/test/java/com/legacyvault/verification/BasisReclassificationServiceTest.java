@@ -38,6 +38,7 @@ import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.WillComparisonService;
 
@@ -59,7 +60,7 @@ class BasisReclassificationServiceTest {
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
     private final BasisReclassificationService service = new BasisReclassificationService(caseLookup, caseRepository,
-            vaultRepository, dossiers, history, willComparisons, views, auditService);
+            vaultRepository, dossiers, history, willComparisons, views, auditService, mock(LegalBasisLockedState.class));
 
     private final CustomUserPrincipal legal = new CustomUserPrincipal(LEGAL_ID, UUID.randomUUID(), "legal@example.com");
 
