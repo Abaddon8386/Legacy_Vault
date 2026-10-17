@@ -233,11 +233,15 @@
 
 /* Sidebar Footer */
 .lv-sidebar-footer {
-  padding: 16px 14px 20px;
+  position: relative;
+  z-index: 110;
+  padding: 14px 14px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: auto;
 }
 
 .lv-user-badge-card {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -249,18 +253,26 @@
   padding: 8px 10px;
   border-radius: var(--lv-radius-md, 10px);
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 10px;
-  transition: background-color var(--lv-transition-interactive), border-color var(--lv-transition-interactive);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background-color var(--lv-transition-interactive),
+              border-color var(--lv-transition-interactive),
+              box-shadow var(--lv-transition-fast);
 }
 
 .lv-user-badge-card:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(197, 160, 89, 0.25);
 }
 
-.lv-user-badge-card.is-active {
+.lv-user-badge-card.is-active,
+.lv-user-badge-card.is-menu-open {
   background: rgba(197, 160, 89, 0.15);
   border-color: rgba(197, 160, 89, 0.45);
+}
+
+.lv-user-badge-card:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+  outline-offset: 2px;
 }
 
 .lv-user-avatar-initials {
@@ -277,10 +289,18 @@
   flex-shrink: 0;
 }
 
+.lv-user-avatar-initials.is-neutral {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 .lv-user-info {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  flex: 1;
 }
 
 .lv-user-name {
@@ -288,6 +308,9 @@
   font-weight: 600;
   color: #ffffff;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lv-user-role {
@@ -295,37 +318,223 @@
   color: var(--lv-accent-gold, #c5a059);
   font-weight: 500;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.lv-sidebar-logout-btn {
+.lv-user-card-chevron {
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+  transition: transform var(--lv-transition-fast), color var(--lv-transition-fast);
+}
+
+.lv-user-badge-card:hover .lv-user-card-chevron {
+  color: var(--lv-accent-gold, #c5a059);
+}
+
+.lv-user-card-chevron.is-open {
+  transform: rotate(180deg);
+  color: var(--lv-accent-gold, #c5a059);
+}
+
+/* Floating Popover Menu above the badge card */
+.lv-account-popover-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  right: 12px;
+  z-index: 120;
+  box-sizing: border-box;
+  max-height: min(420px, calc(100vh - 120px));
+  overflow-y: auto;
+  background: #0d2c23;
+  background: linear-gradient(180deg, #133d32 0%, #0d2c23 100%);
+  border: 1px solid rgba(197, 160, 89, 0.32);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 8px 6px 8px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: lv-menu-pop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom center;
+}
+
+@keyframes lv-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.lv-account-popover-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 10px;
+}
+
+.lv-account-popover-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--lv-accent-gold, #c5a059);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.lv-account-popover-avatar.is-neutral {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.lv-account-popover-user {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.lv-account-popover-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.lv-account-popover-sub {
+  font-size: 11px;
+  color: var(--lv-accent-gold, #c5a059);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.lv-account-popover-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 6px;
+  list-style: none;
+}
+
+.lv-account-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lv-account-menu-item {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 8px 10px;
-  border-radius: var(--lv-radius-md, 10px);
+  border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 12px;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
   cursor: pointer;
   transition: background-color var(--lv-transition-fast),
               color var(--lv-transition-fast),
               transform var(--lv-transition-fast);
 }
 
-.lv-sidebar-logout-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+.lv-account-menu-item svg {
+  color: var(--lv-accent-gold, #c5a059);
+  flex-shrink: 0;
+  transition: transform var(--lv-transition-fast);
+}
+
+.lv-account-menu-item:hover {
+  background: rgba(255, 255, 255, 0.09);
   color: #ffffff;
   transform: translateX(2px);
 }
 
-.lv-sidebar-logout-btn:active {
-  transform: translateX(0);
+.lv-account-menu-item:hover svg {
+  transform: scale(1.1);
 }
 
-.lv-sidebar-logout-btn:focus-visible {
-  outline: 2px solid var(--lv-accent-gold);
+.lv-account-menu-item.is-active {
+  background: rgba(197, 160, 89, 0.16);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.lv-account-menu-item.is-active svg {
+  color: #ffffff;
+}
+
+.lv-account-menu-item:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
   outline-offset: -1px;
+}
+
+.lv-menu-active-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--lv-accent-gold, #c5a059);
+  margin-left: auto;
+  box-shadow: 0 0 6px rgba(197, 160, 89, 0.7);
+}
+
+.lv-account-menu-item--logout {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.lv-account-menu-item--logout svg {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lv-account-menu-item--logout:hover:not(:disabled) {
+  background: rgba(220, 53, 69, 0.18);
+  color: #ff9b9b;
+}
+
+.lv-account-menu-item--logout:hover:not(:disabled) svg {
+  color: #ff9b9b;
+}
+
+.lv-account-menu-item:disabled,
+.lv-account-menu-item--logout:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  color: rgba(255, 255, 255, 0.4);
+  transform: none;
+}
+
+.lv-account-menu-item:disabled svg,
+.lv-account-menu-item--logout:disabled svg {
+  color: rgba(255, 255, 255, 0.35);
+  transform: none;
+}
+
+.lv-account-menu-item:disabled:hover,
+.lv-account-menu-item--logout:disabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  transform: none;
 }
 
 /* ==========================================================================

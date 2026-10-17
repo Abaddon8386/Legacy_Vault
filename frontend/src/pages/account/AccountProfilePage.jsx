@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  Edit3,
 } from 'lucide-react';
 import { request } from '../../api/http.js';
 import { readUser } from '../../api/contracts.js';
@@ -25,6 +26,7 @@ export default function AccountProfilePage({
   lang = 'vi',
   onRefreshSession,
   preview = false,
+  onNavigateEdit,
 }) {
   const t = accountProfileI18n[lang] || accountProfileI18n.vi;
 
@@ -127,17 +129,29 @@ export default function AccountProfilePage({
         </div>
 
         {shouldRenderLayout && (
-          <button
-            type="button"
-            className="lv-profile-refresh-btn"
-            onClick={handleRefresh}
-            disabled={!session?.accessToken || isRefreshing}
-            title={!session?.accessToken ? t.unavailableNotice : undefined}
-            aria-label={t.btnRefresh}
-          >
-            <RotateCw size={15} className={isRefreshing ? 'is-spinning' : ''} aria-hidden="true" />
-            <span>{isRefreshing ? t.btnRefreshing : t.btnRefresh}</span>
-          </button>
+          <div className="lv-profile-header-actions">
+            <button
+              type="button"
+              className="lv-profile-edit-btn"
+              onClick={() => onNavigateEdit && onNavigateEdit()}
+              aria-label={t.btnEditProfile}
+            >
+              <Edit3 size={15} aria-hidden="true" />
+              <span>{t.btnEditProfile}</span>
+            </button>
+
+            <button
+              type="button"
+              className="lv-profile-refresh-btn"
+              onClick={handleRefresh}
+              disabled={!session?.accessToken || isRefreshing}
+              title={!session?.accessToken ? t.unavailableNotice : undefined}
+              aria-label={t.btnRefresh}
+            >
+              <RotateCw size={15} className={isRefreshing ? 'is-spinning' : ''} aria-hidden="true" />
+              <span>{isRefreshing ? t.btnRefreshing : t.btnRefresh}</span>
+            </button>
+          </div>
         )}
       </header>
 

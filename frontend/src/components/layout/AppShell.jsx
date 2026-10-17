@@ -1,5 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import MagneticButton from '../common/MagneticButton.jsx';
+import {
+  resolveAppShellAuthState,
+  resolveUserRoleLabel,
+  resolveAccountDisplayName,
+  resolveAccountInitials,
+} from '../../utils/accountProfileValidation.js';
 import './AppShell.css';
 
 /**
@@ -99,8 +105,27 @@ export default function AppShell({
   onToggleLang,
   role = 'OWNER',
   user = null,
+  session = null,
+  isAuthenticated = undefined,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [prevTab, setPrevTab] = useState(currentTab);
+  const [prevMobileMenuOpen, setPrevMobileMenuOpen] = useState(mobileMenuOpen);
+  const accountFooterRef = useRef(null);
+  const badgeButtonRef = useRef(null);
+
+  // Close account menu during render when currentTab or mobileMenuOpen changes
+  if (currentTab !== prevTab) {
+    setPrevTab(currentTab);
+    setIsAccountMenuOpen(false);
+  }
+  if (mobileMenuOpen !== prevMobileMenuOpen) {
+    setPrevMobileMenuOpen(mobileMenuOpen);
+    if (!mobileMenuOpen) {
+      setIsAccountMenuOpen(false);
+    }
+  }
 
   // Close mobile drawer on route change or resize
   useEffect(() => {
@@ -110,6 +135,31 @@ export default function AppShell({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Close account popover menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (accountFooterRef.current && !accountFooterRef.current.contains(event.target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsAccountMenuOpen(false);
+        badgeButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
 
   // Cursor-reactive spotlight tracking for sidebar nav item
   const handleNavItemMouseMove = useCallback((e) => {
@@ -163,16 +213,11 @@ export default function AppShell({
           ? 'Chuyên viên Pháp lý'
           : 'Chủ sở hữu kho',
       logout: 'Đăng xuất',
-      userDisplay: isStaff
-        ? (user?.fullName || user?.email || 'Nhân viên thực thi')
-        : isLegal
-          ? (user?.fullName || user?.email || 'Chuyên viên Pháp lý')
-          : (user?.fullName || 'Chủ sở hữu kho'),
-      userInitials: isStaff
-        ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'SE')
-        : isLegal
-          ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
-          : 'VO',
+      accountCardAria: 'Tùy chọn tài khoản',
+      accountMenuTitle: 'Menu tài khoản',
+      accountProfile: 'Hồ sơ tài khoản',
+      editProfile: 'Chỉnh sửa hồ sơ',
+      neutralAccount: 'Tài khoản',
     },
     en: {
       brandTag: isStaff
@@ -202,16 +247,11 @@ export default function AppShell({
           ? 'Legal Verifier'
           : 'Vault Owner',
       logout: 'Sign out',
-      userDisplay: isStaff
-        ? (user?.fullName || user?.email || 'Staff Executor')
-        : isLegal
-          ? (user?.fullName || user?.email || 'Legal Verifier')
-          : (user?.fullName || 'Vault Owner'),
-      userInitials: isStaff
-        ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'SE')
-        : isLegal
-          ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
-          : 'VO',
+      accountCardAria: 'Account options',
+      accountMenuTitle: 'Account menu',
+      accountProfile: 'Account Profile',
+      editProfile: 'Edit Profile',
+      neutralAccount: 'Account',
     },
   };
 
@@ -221,6 +261,28 @@ export default function AppShell({
     : isLegal
       ? LEGAL_NAVIGATION_REGISTRY
       : NAVIGATION_REGISTRY;
+
+  const hasSession = resolveAppShellAuthState({
+    isAuthenticated,
+    session,
+    user,
+    onLogout,
+  });
+  // Immediately clear user reference when there is no active session to prevent stale info
+  const resolvedUser = hasSession ? (session?.user || user || null) : null;
+  const displayRole = hasSession
+    ? resolveUserRoleLabel(resolvedUser, session, role, lang)
+    : null;
+  const displayName = resolveAccountDisplayName(
+    resolvedUser,
+    session,
+    hasSession,
+    displayRole,
+    lang
+  );
+  const displayInitials = hasSession
+    ? (resolveAccountInitials(displayName) || (isStaff ? 'SE' : isLegal ? 'LV' : 'VO'))
+    : '';
 
   return (
     <div className="lv-shell">
@@ -343,40 +405,214 @@ export default function AppShell({
           </ul>
         </nav>
 
-        {/* User Role Footer - Hidden when unauthenticated for staff/legal to avoid impersonation */}
-        {((!isStaff && !isLegal) || Boolean(user)) && (
-          <div className="lv-sidebar-footer">
-            <button
-              type="button"
-              className={`lv-user-badge-card ${currentTab === 'account-profile' ? 'is-active' : ''}`}
-              onClick={() => {
-                if (typeof onNavigateTab === 'function') onNavigateTab('account-profile');
-                setMobileMenuOpen(false);
-              }}
-              title={lang === 'en' ? 'Account Profile' : 'Hồ sơ tài khoản'}
-              aria-label={lang === 'en' ? 'Account Profile' : 'Hồ sơ tài khoản'}
+        {/* User Account Footer & Floating Popover Menu */}
+        <div className="lv-sidebar-footer" ref={accountFooterRef}>
+          {isAccountMenuOpen && (
+            <div
+              id="lv-account-popover-menu"
+              className="lv-account-popover-menu"
+              role="menu"
+              aria-label={t.accountMenuTitle}
             >
-              <div className="lv-user-avatar-initials" aria-hidden="true">
-                {t.userInitials}
+              <div className="lv-account-popover-header" role="presentation">
+                <div
+                  className={`lv-account-popover-avatar ${!hasSession ? 'is-neutral' : ''}`}
+                  aria-hidden="true"
+                >
+                  {hasSession ? (
+                    displayInitials
+                  ) : (
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </div>
+                <div className="lv-account-popover-user">
+                  <span className="lv-account-popover-name">{displayName}</span>
+                  {hasSession && displayRole && (
+                    <span className="lv-account-popover-sub">{displayRole}</span>
+                  )}
+                </div>
               </div>
-              <div className="lv-user-info">
-                <span className="lv-user-name">{t.userDisplay}</span>
-                <span className="lv-user-role">{t.roleBadge}</span>
-              </div>
-            </button>
-            {typeof onLogout === 'function' && (
-              <MagneticButton
-                type="button"
-                className="lv-sidebar-logout-btn"
-                onClick={onLogout}
-                maxOffset={4}
-              >
-                <span aria-hidden="true">↳</span>
-                <span>{t.logout}</span>
-              </MagneticButton>
-            )}
-          </div>
-        )}
+
+              <div className="lv-account-popover-divider" role="separator" />
+
+              <ul className="lv-account-popover-list" role="none">
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`lv-account-menu-item ${currentTab === 'account-profile' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      setMobileMenuOpen(false);
+                      if (typeof onNavigateTab === 'function') {
+                        onNavigateTab('account-profile');
+                      }
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    <span>{t.accountProfile}</span>
+                    {currentTab === 'account-profile' && (
+                      <span className="lv-menu-active-dot" aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`lv-account-menu-item ${currentTab === 'account-edit' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      setMobileMenuOpen(false);
+                      if (typeof onNavigateTab === 'function') {
+                        onNavigateTab('account-edit');
+                      }
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    <span>{t.editProfile}</span>
+                    {currentTab === 'account-edit' && (
+                      <span className="lv-menu-active-dot" aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+
+                <li role="separator" className="lv-account-popover-divider" />
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="lv-account-menu-item lv-account-menu-item--logout"
+                    disabled={!hasSession || typeof onLogout !== 'function'}
+                    aria-disabled={!hasSession || typeof onLogout !== 'function'}
+                    title={t.logout}
+                    onClick={() => {
+                      if (!hasSession || typeof onLogout !== 'function') {
+                        return;
+                      }
+                      setIsAccountMenuOpen(false);
+                      setMobileMenuOpen(false);
+                      onLogout();
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    <span>{t.logout}</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          <button
+            ref={badgeButtonRef}
+            type="button"
+            className={`lv-user-badge-card ${isAccountMenuOpen ? 'is-menu-open' : ''} ${currentTab === 'account-profile' || currentTab === 'account-edit' ? 'is-active' : ''}`}
+            onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={isAccountMenuOpen}
+            aria-controls="lv-account-popover-menu"
+            aria-label={t.accountCardAria}
+            title={t.accountCardAria}
+          >
+            <div
+              className={`lv-user-avatar-initials ${!hasSession ? 'is-neutral' : ''}`}
+              aria-hidden="true"
+            >
+              {hasSession ? (
+                displayInitials
+              ) : (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </div>
+            <div className="lv-user-info">
+              <span className="lv-user-name">{displayName}</span>
+              {hasSession && displayRole && (
+                <span className="lv-user-role">{displayRole}</span>
+              )}
+            </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`lv-user-card-chevron ${isAccountMenuOpen ? 'is-open' : ''}`}
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
       </aside>
 
       {/* ====================================================================
@@ -407,6 +643,8 @@ export default function AppShell({
               <span className="lv-crumb-active">
                 {currentTab === 'account-profile'
                   ? (lang === 'en' ? 'Account Profile' : 'Hồ sơ tài khoản')
+                  : currentTab === 'account-edit'
+                  ? (lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ')
                   : isStaff
                   ? currentTab === 'legal-documents'
                     ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')

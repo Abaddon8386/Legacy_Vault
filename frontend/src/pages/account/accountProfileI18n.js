@@ -25,6 +25,7 @@ export const accountProfileI18n = {
     verifiedBadge: 'Đã xác thực',
     noInformation: 'Chưa có thông tin',
     unavailableNotice: 'Chức năng hiện chưa khả dụng',
+    btnEditProfile: 'Chỉnh sửa hồ sơ',
   },
   en: {
     pageTitle: 'Account Profile',
@@ -47,5 +48,6 @@ export const accountProfileI18n = {
     verifiedBadge: 'Verified',
     noInformation: 'No information provided',
     unavailableNotice: 'This function is currently unavailable.',
+    btnEditProfile: 'Edit Profile',
   },
 };

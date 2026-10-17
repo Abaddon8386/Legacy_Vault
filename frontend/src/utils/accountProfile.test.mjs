@@ -9,6 +9,10 @@ import {
   isValidUserProfile,
   resolveActiveProfileUser,
   canApplyProfileRefresh,
+  resolveAppShellAuthState,
+  resolveUserRoleLabel,
+  resolveAccountDisplayName,
+  resolveAccountInitials,
   APP_ROLES,
 } from './accountProfileValidation.js';
 import { accountProfileI18n } from '../pages/account/accountProfileI18n.js';
@@ -358,4 +362,293 @@ test('EX-01 Race Condition & Identity Verification (canApplyProfileRefresh)', as
       false
     );
   });
+});
+
+test('EX-01 AppShell Auth State Resolution (resolveAppShellAuthState)', async (t) => {
+  const activeSession = {
+    accessToken: 'test-token-valid',
+    expiresAt: Date.now() + 60000,
+    user: { id: 'u1', fullName: 'Nguyen Van A', roles: ['VAULT_OWNER'] },
+  };
+
+  await t.test('explicit boolean isAuthenticated takes precedence', () => {
+    assert.equal(resolveAppShellAuthState({ isAuthenticated: true }), true);
+    assert.equal(
+      resolveAppShellAuthState({ isAuthenticated: false, session: activeSession }),
+      false
+    );
+  });
+
+  await t.test('resolves true from active session with valid accessToken and expiresAt', () => {
+    assert.equal(resolveAppShellAuthState({ session: activeSession }), true);
+  });
+
+  await t.test('resolves false if session is expired', () => {
+    const expiredSession = {
+      accessToken: 'test-token-expired',
+      expiresAt: Date.now() - 5000,
+      user: { id: 'u1', fullName: 'Nguyen Van A' },
+    };
+    assert.equal(resolveAppShellAuthState({ session: expiredSession }), false);
+  });
+
+  await t.test('does NOT infer unauthenticated when user prop is omitted if session or onLogout is present', () => {
+    // User prop omitted but valid session present
+    assert.equal(
+      resolveAppShellAuthState({
+        session: activeSession,
+        user: undefined,
+        onLogout: () => {},
+      }),
+      true
+    );
+    // User prop null but onLogout function present
+    assert.equal(
+      resolveAppShellAuthState({
+        user: null,
+        onLogout: () => {},
+      }),
+      true
+    );
+  });
+
+  await t.test('resolves false for DEV preview without active session and without onLogout', () => {
+    assert.equal(
+      resolveAppShellAuthState({
+        isAuthenticated: false,
+        session: null,
+        user: null,
+        onLogout: null,
+      }),
+      false
+    );
+    assert.equal(
+      resolveAppShellAuthState({
+        session: null,
+        user: null,
+        onLogout: null,
+      }),
+      false
+    );
+  });
+
+  await t.test('resolves false when candidate user is preview dummy', () => {
+    assert.equal(
+      resolveAppShellAuthState({
+        user: { id: 'preview' },
+      }),
+      false
+    );
+    assert.equal(
+      resolveAppShellAuthState({
+        user: { id: 'preview' },
+        onLogout: () => {},
+      }),
+      false
+    );
+  });
+});
+
+test('EX-01 AppShell Dashboard & Navigation Auth State Regression Verification', () => {
+  const appJsx = readFileSync(resolve('src/App.jsx'), 'utf8');
+  const appShellJsx = readFileSync(resolve('src/components/layout/AppShell.jsx'), 'utf8');
+  const appShellCss = readFileSync(resolve('src/components/layout/AppShell.css'), 'utf8');
+
+  // Verify AppShell imports and uses resolveAppShellAuthState
+  assert.ok(
+    appShellJsx.includes('resolveAppShellAuthState') &&
+      appShellJsx.includes('../../utils/accountProfileValidation.js'),
+    'AppShell must import resolveAppShellAuthState'
+  );
+  assert.ok(
+    appShellJsx.includes('isAuthenticated = undefined'),
+    'AppShell must accept isAuthenticated prop'
+  );
+  assert.ok(
+    appShellJsx.includes('const hasSession = resolveAppShellAuthState({'),
+    'AppShell must use resolveAppShellAuthState'
+  );
+  assert.ok(
+    appShellJsx.includes('const resolvedUser = hasSession ? (session?.user || user || null) : null;'),
+    'AppShell must resolve user from session?.user when user prop is omitted and clear when no session'
+  );
+
+  // Verify that all 8 AppShell render sites in App.jsx pass isAuthenticated and onLogout correctly
+  const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
+  assert.equal(
+    appShellMatches.length,
+    8,
+    'Expected exactly 8 AppShell render sites across all routes in App.jsx'
+  );
+
+  for (let i = 0; i < appShellMatches.length; i++) {
+    const site = appShellMatches[i];
+    assert.ok(
+      site.includes('isAuthenticated={isSessionActive(session)}'),
+      `AppShell render site ${i + 1} must pass isAuthenticated={isSessionActive(session)}`
+    );
+    assert.ok(
+      site.includes('onLogout={isSessionActive(session) ? logout : null}'),
+      `AppShell render site ${i + 1} must pass onLogout={isSessionActive(session) ? logout : null}`
+    );
+    assert.ok(
+      site.includes('session={session}'),
+      `AppShell render site ${i + 1} must pass session={session}`
+    );
+  }
+
+  // Verify Owner dashboard specifically passes role="OWNER"
+  const ownerSite = appShellMatches.find((site) => site.includes('isVaultRoute') || site.includes('isBeneficiariesRoute') || site.includes('role="OWNER"'));
+  assert.ok(ownerSite, 'Owner dashboard AppShell render site must exist');
+  assert.ok(ownerSite.includes('role="OWNER"'), 'Owner dashboard AppShell must pass role="OWNER"');
+
+  // Verify AppShell.css layout guarantees: no clipping of the last menu item
+  assert.ok(
+    appShellCss.includes('z-index: 110;'),
+    '.lv-sidebar-footer must have z-index: 110 to layer over navigation'
+  );
+  assert.ok(
+    appShellCss.includes('overflow-y: auto;'),
+    '.lv-account-popover-menu must have overflow-y: auto to prevent clipping'
+  );
+
+  // Verify no duplicate logout button outside menu
+  const logoutButtons = appShellJsx.match(/onLogout\(\)/g) || [];
+  assert.equal(
+    logoutButtons.length,
+    1,
+    'There must be exactly 1 onLogout() call in AppShell, strictly inside the popover menu'
+  );
+});
+
+test('EX-01 Product UI Account Widget Data Resolution Verification', async (t) => {
+  await t.test('resolves real fullName when session is active', () => {
+    const session = {
+      accessToken: 'token-active',
+      user: {
+        id: 'u1',
+        fullName: 'Le Gia Huy',
+        email: 'huy@legacyvault.test',
+        roles: ['STAFF_EXECUTOR'],
+      },
+    };
+    assert.equal(
+      resolveAccountDisplayName(session.user, session, true, 'Nhân viên thực thi', 'vi'),
+      'Le Gia Huy'
+    );
+  });
+
+  await t.test('STRICT: never displays email, token, or technical IDs as a fallback for name', () => {
+    const userWithOnlyEmail = {
+      id: 'usr_secret_id_12345',
+      accessToken: 'jwt.token.secret',
+      email: 'sensitive.email@test.corp',
+    };
+    const displayNameVi = resolveAccountDisplayName(
+      userWithOnlyEmail,
+      null,
+      true,
+      'Chủ sở hữu kho',
+      'vi'
+    );
+    assert.equal(displayNameVi, 'Chủ sở hữu kho');
+    assert.doesNotMatch(displayNameVi, /sensitive\.email|jwt|secret|12345/);
+
+    const displayNameEn = resolveAccountDisplayName(
+      userWithOnlyEmail,
+      null,
+      true,
+      'Vault Owner',
+      'en'
+    );
+    assert.equal(displayNameEn, 'Vault Owner');
+    assert.doesNotMatch(displayNameEn, /sensitive\.email|jwt|secret|12345/);
+
+    // Completely empty user
+    const fallbackNoRole = resolveAccountDisplayName({}, null, true, '', 'vi');
+    assert.equal(fallbackNoRole, 'Tài khoản');
+  });
+
+  await t.test('resolves neutral "Tài khoản" / "Account" when no session is present', () => {
+    assert.equal(resolveAccountDisplayName(null, null, false, '', 'vi'), 'Tài khoản');
+    assert.equal(resolveAccountDisplayName(null, null, false, '', 'en'), 'Account');
+  });
+
+  await t.test('resolves translated role labels from session.user in VI and EN', () => {
+    const staffSession = {
+      user: {
+        roles: ['STAFF_EXECUTOR'],
+      },
+    };
+    assert.equal(resolveUserRoleLabel(null, staffSession, 'OWNER', 'vi'), 'Nhân viên thực thi');
+    assert.equal(resolveUserRoleLabel(null, staffSession, 'OWNER', 'en'), 'Staff Executor');
+
+    const legalSession = {
+      user: {
+        roles: ['ROLE_LEGAL_VERIFIER'],
+      },
+    };
+    assert.equal(resolveUserRoleLabel(null, legalSession, 'OWNER', 'vi'), 'Chuyên viên pháp lý');
+    assert.equal(resolveUserRoleLabel(null, legalSession, 'OWNER', 'en'), 'Legal Verifier');
+
+    const ownerSession = {
+      user: {
+        roles: ['VAULT_OWNER'],
+      },
+    };
+    assert.equal(resolveUserRoleLabel(null, ownerSession, 'OWNER', 'vi'), 'Chủ sở hữu kho');
+    assert.equal(resolveUserRoleLabel(null, ownerSession, 'OWNER', 'en'), 'Vault Owner');
+  });
+
+  await t.test('extracts uppercase initials from fullName correctly', () => {
+    assert.equal(resolveAccountInitials('Le Gia Huy'), 'LH');
+    assert.equal(resolveAccountInitials('Nguyen Van A'), 'NA');
+    assert.equal(resolveAccountInitials('Vance'), 'VA');
+    assert.equal(resolveAccountInitials(''), '');
+    assert.equal(resolveAccountInitials(null), '');
+  });
+});
+
+test('EX-01 Product UI AppShell Template & Guard Regression Verification', () => {
+  const appShellJsx = readFileSync(resolve('src/components/layout/AppShell.jsx'), 'utf8');
+
+  // Verify previewBadge is completely removed
+  assert.equal(
+    appShellJsx.includes('previewBadge'),
+    false,
+    'previewBadge property must be completely removed from AppShell.jsx'
+  );
+
+  // Verify neither "Xem thử" nor "Preview" is rendered as a role badge
+  assert.equal(
+    appShellJsx.includes("'Xem thử'"),
+    false,
+    'The string "Xem thử" must not be present in AppShell.jsx'
+  );
+
+  // Verify that when !hasSession, neutral SVG icon is used in avatar
+  assert.ok(
+    appShellJsx.includes("!hasSession ? 'is-neutral' : ''"),
+    'Avatar element must include is-neutral modifier when !hasSession'
+  );
+
+  // Verify that when !hasSession, no subtitle / secondary line is rendered
+  assert.ok(
+    appShellJsx.includes('{hasSession && displayRole && ('),
+    'Badge card and popover must conditionally render displayRole only when hasSession is true'
+  );
+
+  // Verify that Đăng xuất is rendered in the popover menu with disabled guard when !hasSession
+  assert.ok(
+    appShellJsx.includes("className=\"lv-account-menu-item lv-account-menu-item--logout\""),
+    'Đăng xuất menu item must be rendered in the popover menu'
+  );
+  assert.ok(
+    appShellJsx.includes("disabled={!hasSession || typeof onLogout !== 'function'}"),
+    'Đăng xuất menu item must be disabled when !hasSession or onLogout is not a function'
+  );
+  assert.ok(
+    appShellJsx.includes("if (!hasSession || typeof onLogout !== 'function') {"),
+    'Đăng xuất onClick handler must exit early without fake session or action when !hasSession'
+  );
 });

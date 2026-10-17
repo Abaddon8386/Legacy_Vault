@@ -58,6 +58,32 @@
   border-color: #c5a059;
 }
 
+.lv-account-profile-view .lv-profile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-account-profile-view .lv-profile-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--lv-color-primary, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-color-primary, #164639);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lv-account-profile-view .lv-profile-edit-btn:hover {
+  background: #11382d;
+  border-color: #11382d;
+}
+
 .lv-account-profile-view .lv-profile-refresh-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
