@@ -346,7 +346,16 @@ export default function AppShell({
         {/* User Role Footer - Hidden when unauthenticated for staff/legal to avoid impersonation */}
         {((!isStaff && !isLegal) || Boolean(user)) && (
           <div className="lv-sidebar-footer">
-            <div className="lv-user-badge-card">
+            <button
+              type="button"
+              className={`lv-user-badge-card ${currentTab === 'account-edit' ? 'is-active' : ''}`}
+              onClick={() => {
+                if (typeof onNavigateTab === 'function') onNavigateTab('account-edit');
+                setMobileMenuOpen(false);
+              }}
+              title={lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ'}
+              aria-label={lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ'}
+            >
               <div className="lv-user-avatar-initials" aria-hidden="true">
                 {t.userInitials}
               </div>
@@ -354,7 +363,7 @@ export default function AppShell({
                 <span className="lv-user-name">{t.userDisplay}</span>
                 <span className="lv-user-role">{t.roleBadge}</span>
               </div>
-            </div>
+            </button>
             {typeof onLogout === 'function' && (
               <MagneticButton
                 type="button"
@@ -396,7 +405,9 @@ export default function AppShell({
               <span className="lv-crumb-dim">{t.breadcrumbHome}</span>
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
-                {isStaff
+                {currentTab === 'account-edit'
+                  ? (lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ')
+                  : isStaff
                   ? currentTab === 'legal-documents'
                     ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
                     : t.breadcrumbCurrent
