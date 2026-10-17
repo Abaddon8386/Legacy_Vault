@@ -1,6 +1,6 @@
 .lv-summary-cards-grid {
   display: grid;
-  grid-template-columns: 280px 220px 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -12,14 +12,13 @@
   padding: 16px 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: var(--lv-shadow-card);
-  transition: transform var(--lv-transition-fast), box-shadow var(--lv-transition-fast);
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: border-color var(--lv-transition-fast);
 }
 
 .lv-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(32, 33, 31, 0.06);
+  border-color: #d8d2c4;
 }
 
 .lv-stat-card--distribution {
@@ -27,9 +26,9 @@
 }
 
 .lv-stat-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--lv-radius-control);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,12 +36,12 @@
 }
 
 .lv-stat-card__icon--gold {
-  background-color: var(--lv-accent-gold-subtle);
+  background-color: rgba(197, 160, 89, 0.12);
   color: #8c6820;
 }
 
 .lv-stat-card__icon--forest {
-  background-color: var(--lv-brand-forest-subtle);
+  background-color: rgba(22, 70, 57, 0.08);
   color: var(--lv-brand-forest);
 }
 
@@ -53,15 +52,17 @@
 }
 
 .lv-stat-card__label {
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--lv-text-muted);
   margin-bottom: 4px;
   white-space: nowrap;
 }
 
 .lv-stat-card__value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--lv-brand-forest);
   line-height: 1.2;
@@ -98,14 +99,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .lv-dist-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 3px 10px;
   background-color: #faf8f5;
   border: 1px solid var(--lv-border-subtle);
   border-radius: var(--lv-radius-pill);
@@ -121,6 +122,7 @@
 
 .lv-dist-pill__name {
   color: var(--lv-text-muted);
+  font-size: 11.5px;
 }
 
 .lv-dist-pill__count {
@@ -129,7 +131,7 @@
   padding-left: 2px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
   .lv-summary-cards-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -141,7 +143,7 @@
 @media (max-width: 640px) {
   .lv-summary-cards-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
   .lv-stat-card--distribution {
     grid-column: span 1;
