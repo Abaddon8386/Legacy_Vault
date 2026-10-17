@@ -8,7 +8,7 @@ import java.util.UUID;
 @Table(
         name = "vaults",
         uniqueConstraints = @UniqueConstraint(
-                name = "UQ_vaults_owner",
+                name = "UQ_vaults_owner_user_id",
                 columnNames = "owner_user_id"
         )
 )

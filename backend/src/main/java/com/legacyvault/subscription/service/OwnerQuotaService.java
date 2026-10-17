@@ -25,7 +25,7 @@ public class OwnerQuotaService {
     @org.springframework.beans.factory.annotation.Value("${legacyvault.subscription.quota-enforcement-enabled:false}")
     private boolean enforcementEnabled;
 
-    public void requireApprovedPolicy() {
+    public void requirePrototypeEnabled() {
         if (!enforcementEnabled) throw new BusinessException(ErrorCode.SUBSCRIPTION_POLICY_PENDING);
     }
 

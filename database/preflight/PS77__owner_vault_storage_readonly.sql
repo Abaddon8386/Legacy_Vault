@@ -120,7 +120,8 @@ SELECT N'ps77_schema_inventory' AS section, s.name AS schema_name, t.name AS tab
 FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id
 JOIN sys.columns c ON c.object_id = t.object_id
 JOIN sys.types ty ON ty.user_type_id = c.user_type_id
-WHERE t.name IN (N'subscription_plan_versions', N'owner_subscriptions', N'subscription_change_records')
+WHERE t.name IN (N'subscription_plans', N'owner_subscription_entitlements',
+                 N'subscription_plan_versions', N'owner_subscriptions', N'subscription_change_records')
    OR (s.name = N'dbo' AND t.name = N'assets' AND c.name = N'payload_size_bytes')
 ORDER BY schema_name, table_name, c.column_id;
 

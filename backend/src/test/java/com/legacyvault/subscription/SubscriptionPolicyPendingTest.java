@@ -18,7 +18,7 @@ class SubscriptionPolicyPendingTest {
         var vaults=mock(VaultRepository.class);
         var quotas=new OwnerQuotaService(locks,plans,usage,vaults);
         assertEquals(ErrorCode.SUBSCRIPTION_POLICY_PENDING,
-            assertThrows(BusinessException.class,quotas::requireApprovedPolicy).getErrorCode());
+            assertThrows(BusinessException.class,quotas::requirePrototypeEnabled).getErrorCode());
         assertDoesNotThrow(()->quotas.requireGrowth(1L,new QuotaPolicy.Delta(1,1)));
         assertDoesNotThrow(()->quotas.requireFileSize(1L,10485761));
         verifyNoInteractions(locks,plans,usage,vaults);

@@ -293,7 +293,7 @@ paths:
       summary: Tạo Asset (PS-15, ST-02)
       description: |
         `payload` chỉ ghi, mã hóa phía server, không có trong response tạo Asset.
-        Count mọi Asset còn lưu kể cả DOCUMENT; vượt quota trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED (PS-77).
+        PS-77 quota prototype mặc định tắt, chờ duyệt tại open-decisions.md §G. Chỉ khi bật prototype: count mọi Asset kể cả DOCUMENT; vượt quota trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -356,7 +356,7 @@ paths:
       summary: Cập nhật một phần Asset (PS-16, D-API-24)
       description: |
         Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
-        Payload tính quota theo chênh lệch byte UTF-8; tăng vượt storage trả 409 STORAGE_QUOTA_EXCEEDED (PS-77).
+        Chỉ khi bật quota prototype PS-77: payload tính chênh lệch byte UTF-8; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED. Mặc định không áp quota đề xuất.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -416,7 +416,7 @@ paths:
         Trạng thái chỉ `UPLOADED`; không bao giờ `LEGAL_APPROVED`. SHA-256 chỉ phát hiện thay đổi,
         không chứng minh giá trị pháp lý. Loại file: PDF/JPEG/PNG, tối đa 10485760 byte.
         Một Will mới chiếm một Asset; mọi file version còn lưu đều tính storage (PS-77).
-        Tăng vượt quota trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED.
+        Chỉ khi bật quota prototype PS-77 mới trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED; mặc định tắt, chờ nhóm duyệt.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -483,7 +483,7 @@ paths:
     post:
       tags: [Wills]
       summary: Tải phiên bản mới, giữ phiên bản cũ (PS-18)
-      description: Tính dung lượng mọi version còn lưu; thêm version không tăng count Asset. Vượt storage trả 409 STORAGE_QUOTA_EXCEEDED (PS-77).
+      description: Quota PS-77 mặc định tắt. Khi bật prototype thì tính mọi version; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED; chờ phê duyệt tại open-decisions.md §G.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -1492,55 +1492,6 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
-    SubscriptionUpgradeRequest:
-      type: object
-      required: [planCode, catalogVersion]
-      properties:
-        planCode: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
-        catalogVersion: { type: integer, minimum: 1, example: 2 }
-    SubscriptionUpgradeResponse:
-      type: object
-      required: [subscription, priceDifferenceVnd, changed]
-      properties:
-        subscription: { $ref: '#/components/schemas/CurrentSubscription' }
-        priceDifferenceVnd: { type: integer, format: int64, minimum: 0 }
-        changed: { type: boolean }
-    SubscriptionLimits:
-      type: object
-      required: [assetCount, storageBytes, fileBytes]
-      properties:
-        assetCount: { type: integer, format: int64, minimum: 1 }
-        storageBytes: { type: integer, format: int64, minimum: 1, description: Byte nội dung theo đơn vị nhị phân }
-        fileBytes: { type: integer, format: int64, minimum: 1 }
-    SubscriptionPlan:
-      type: object
-      required: [code, version, priceVnd, billingModel, limits]
-      properties:
-        code: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
-        version: { type: integer, minimum: 1 }
-        priceVnd: { type: integer, format: int64, minimum: 0, description: One-time purchase price in VND }
-        billingModel: { type: string, enum: [LIFETIME] }
-        limits: { $ref: '#/components/schemas/SubscriptionLimits' }
-    CurrentSubscription:
-      type: object
-      required: [effectivePlan, effectiveUntil, usage, overQuota, vaultCreated, evaluatedAt]
-      properties:
-        effectivePlan: { $ref: '#/components/schemas/SubscriptionPlan' }
-        effectiveUntil: { type: string, format: date-time, nullable: true, description: Luôn null vì mọi gói đều trọn đời }
-        usage:
-          type: object
-          required: [assetCount, storageBytes]
-          properties:
-            assetCount: { type: integer, format: int64, minimum: 0 }
-            storageBytes: { type: integer, format: int64, minimum: 0 }
-        overQuota:
-          type: object
-          required: [assets, storage]
-          properties:
-            assets: { type: boolean }
-            storage: { type: boolean }
-        vaultCreated: { type: boolean }
-        evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
     HoldBasisRequest:
       type: object
       required: [cause, reason]
@@ -1576,6 +1527,26 @@ components:
           type: string
           description: Mã ổn định để FE phân loại. Xem error-contract.md
           enum:
+            - REAUTH_FAILED
+            - TRUSTEE_REVOKED
+            - ALERT_NOT_CANCELLABLE
+            - VERIFICATION_CASE_NOT_CLAIMABLE
+            - WILL_NOT_VERIFIED
+            - BASIS_DOSSIER_ALREADY_EXISTS
+            - BASIS_VERSION_STALE
+            - COURT_EVIDENCE_REQUIRED
+            - COURT_DECISION_REQUIRED
+            - LEGAL_WORKFLOW_ON_HOLD
+            - LEGAL_VERIFICATION_INVALID_STATE
+            - LEGAL_VERIFICATION_ALREADY_DECIDED
+            - SUBSCRIPTION_POLICY_PENDING
+            - SUBSCRIPTION_UPGRADE_UNAVAILABLE
+            - SUBSCRIPTION_CATALOG_STALE
+            - SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED
+            - CASE_EVIDENCE_QUOTA_EXCEEDED
+            - ASSET_QUOTA_EXCEEDED
+            - STORAGE_QUOTA_EXCEEDED
+            - TOO_MANY_ATTEMPTS
             - VALIDATION_FAILED
             - MALFORMED_REQUEST
             - UNAUTHENTICATED
@@ -1585,8 +1556,6 @@ components:
             - METHOD_NOT_ALLOWED
             - EMAIL_ALREADY_EXISTS
             - PAYLOAD_TOO_LARGE
-            - ASSET_QUOTA_EXCEEDED
-            - STORAGE_QUOTA_EXCEEDED
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR
             - BENEFICIARY_REQUIRED
@@ -1594,6 +1563,8 @@ components:
             - TRUSTEE_ALREADY_EXISTS
             - VAULT_NOT_EDITABLE
             - DMS_NOT_MONITORING
+            - VERIFICATION_CASE_NOT_OPEN
+            - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
         message:
           type: string
@@ -2163,3 +2134,53 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+
+    SubscriptionUpgradeRequest:
+      type: object
+      required: [planCode, catalogVersion]
+      properties:
+        planCode: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        catalogVersion: { type: integer, minimum: 1, example: 2 }
+    SubscriptionUpgradeResponse:
+      type: object
+      required: [subscription, priceDifferenceVnd, changed]
+      properties:
+        subscription: { $ref: '#/components/schemas/CurrentSubscription' }
+        priceDifferenceVnd: { type: integer, format: int64, minimum: 0 }
+        changed: { type: boolean }
+    SubscriptionLimits:
+      type: object
+      required: [assetCount, storageBytes, fileBytes]
+      properties:
+        assetCount: { type: integer, format: int64, minimum: 1 }
+        storageBytes: { type: integer, format: int64, minimum: 1, description: Byte nội dung theo đơn vị nhị phân }
+        fileBytes: { type: integer, format: int64, minimum: 1 }
+    SubscriptionPlan:
+      type: object
+      required: [code, version, priceVnd, billingModel, limits]
+      properties:
+        code: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        version: { type: integer, minimum: 1 }
+        priceVnd: { type: integer, format: int64, minimum: 0, description: One-time purchase price in VND }
+        billingModel: { type: string, enum: [LIFETIME] }
+        limits: { $ref: '#/components/schemas/SubscriptionLimits' }
+    CurrentSubscription:
+      type: object
+      required: [effectivePlan, effectiveUntil, usage, overQuota, vaultCreated, evaluatedAt]
+      properties:
+        effectivePlan: { $ref: '#/components/schemas/SubscriptionPlan' }
+        effectiveUntil: { type: string, format: date-time, nullable: true, description: Luôn null vì mọi gói đều trọn đời }
+        usage:
+          type: object
+          required: [assetCount, storageBytes]
+          properties:
+            assetCount: { type: integer, format: int64, minimum: 0 }
+            storageBytes: { type: integer, format: int64, minimum: 0 }
+        overQuota:
+          type: object
+          required: [assets, storage]
+          properties:
+            assets: { type: boolean }
+            storage: { type: boolean }
+        vaultCreated: { type: boolean }
+        evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
