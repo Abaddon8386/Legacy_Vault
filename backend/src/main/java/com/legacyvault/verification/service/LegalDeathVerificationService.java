@@ -25,6 +25,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -75,30 +76,55 @@ public class LegalDeathVerificationService {
     ) {
         Long actorUserId = CustomUserPrincipal.requireUserId(principal);
 
-        if (request == null || request.decision() == null
-                || request.reason() == null || request.reason().isBlank()) {
+        if (request == null
+                || request.decision() == null
+                || request.reason() == null
+                || request.reason().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
+
+        // Đọc không khóa để xác định VerificationCase và Vault cần khóa.
+        DeathDocumentRecord initialDeathRecord = deathDocumentRecordRepository
+                .findByPublicId(deathDocumentPublicId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase initialCase = verificationCaseRepository
+                .findById(initialDeathRecord.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // Thứ tự khóa thống nhất: Vault -> VerificationCase -> DeathDocumentRecord.
+        Vault vault = vaultRepository
+                .findByIdForUpdate(initialCase.getVaultId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        VerificationCase verificationCase = verificationCaseRepository
+                .findByIdForUpdate(initialDeathRecord.getVerificationCaseId())
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         DeathDocumentRecord deathRecord = deathDocumentRecordRepository
                 .findByPublicIdForUpdate(deathDocumentPublicId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        VerificationCase verificationCase = verificationCaseRepository
-                .findByIdForUpdate(deathRecord.getVerificationCaseId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        // Kiểm tra lại quan hệ sau khi đã lấy các khóa.
+        if (!Objects.equals(
+                verificationCase.getVaultId(),
+                vault.getVaultId())
+                || !Objects.equals(
+                deathRecord.getVerificationCaseId(),
+                verificationCase.getVerificationCaseId())) {
+            throw new BusinessException(
+                    ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
+        }
 
         if (!verificationCase.isOpen()) {
             throw new BusinessException(
                     ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
-
-        Vault vault = vaultRepository.findByIdForUpdate(
-                        verificationCase.getVaultId())
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (!Vault.STATUS_AWAITING_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(
@@ -115,13 +141,15 @@ public class LegalDeathVerificationService {
         String vaultStatusBefore = vault.getStatus();
 
         LocalDateTime nowUtc = LocalDateTime.ofInstant(
-                clock.instant(), ZoneOffset.UTC);
+                clock.instant(),
+                ZoneOffset.UTC
+        );
 
         LegalVerification verification = LegalVerification.createDeathDecision(
                 deathRecord.getDeathDocumentRecordId(),
                 actorUserId,
                 result,
-                request.reason(),
+                request.reason().trim(),
                 nowUtc
         );
 
@@ -134,8 +162,8 @@ public class LegalDeathVerificationService {
 
         String vaultStatusAfter = vault.getStatus();
 
-        // Ghi audit trong cùng transaction: lỗi audit phải rollback quyết định.
-        // Không đưa số giấy tờ, nội dung file hay thông tin định danh vào audit.
+        // Ghi audit trong cùng transaction để lỗi audit làm rollback quyết định.
+        // Không lưu nguyên văn reason hoặc thông tin định danh vào metadata audit.
         auditService.record(new AuditEvent(
                 AuditAction.LEGAL_DEATH_DOCUMENT_DECIDED,
                 AuditActorType.USER,
@@ -152,7 +180,6 @@ public class LegalDeathVerificationService {
                         deathRecord.getPublicId().toString(),
                         "verificationCasePublicId",
                         verificationCase.getPublicId().toString(),
-                        "reason", request.reason().trim(),
                         "vaultStatusBefore", vaultStatusBefore,
                         "vaultStatusAfter", vaultStatusAfter
                 ),
@@ -172,7 +199,6 @@ public class LegalDeathVerificationService {
                 vaultStatusAfter
         );
     }
-
     /**
      * Chuyển enum public API sang result được SQL Server hỗ trợ.
      *
