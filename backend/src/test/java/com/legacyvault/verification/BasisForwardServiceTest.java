@@ -370,4 +370,28 @@ class BasisForwardServiceTest {
                 any(LocalDateTime.class)
         );
     }
+
+    @Test
+    void successfulForward_rechecksLegalBasisSnapshot() {
+        happyPath(dossier("LEGAL_BASIS_PROVIDED"), 2);
+        when(views.view(any(VerificationCase.class),
+                org.mockito.ArgumentMatchers.eq(false)))
+                .thenReturn(mock(BasisDossierResponse.class));
+
+        service.forward(CASE_ID, 2, staff);
+
+        verify(legalBasisReviewService).evaluateAfterChange(CASE_ID);
+    }
+
+    @Test
+    void failedForward_doesNotRecheckLegalBasisSnapshot() {
+        happyPath(dossier("LEGAL_BASIS_PROVIDED"), 3);
+
+        assertThatThrownBy(() -> service.forward(CASE_ID, 2, staff))
+                .satisfies(exception ->
+                        assertThat(codeOf(exception)).isEqualTo(ErrorCode.BASIS_VERSION_STALE));
+
+        verify(legalBasisReviewService, never()).evaluateAfterChange(CASE_ID);
+    }
+
 }

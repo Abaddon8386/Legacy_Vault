@@ -1,3 +1,4 @@
+
 package com.legacyvault.verification.service;
 
 import com.legacyvault.audit.AuditAction;
@@ -61,10 +62,6 @@ public class LegalBasisReviewService {
 
     /**
      * Đánh giá snapshot theo thứ tự khóa Vault -> VerificationCase -> Dossier.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: phương thức public đầu tiên.
      */
     @Transactional
     public LegalBasisReviewResponse evaluate(Long dossierId) {
@@ -72,7 +69,6 @@ public class LegalBasisReviewService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        // Đọc thông tin để xác định ca và Vault; chưa khóa dossier.
         LegalBasisDossier initialDossier = dossiers.findById(dossierId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
@@ -82,7 +78,6 @@ public class LegalBasisReviewService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        // Thứ tự khóa chuẩn: Vault -> VerificationCase -> Dossier.
         Vault vault = vaultRepository
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
@@ -119,11 +114,7 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Đánh giá lại snapshot sau khi forward hoặc tiếp nhận phiên bản mới.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau evaluate().
+     * Đánh giá lại snapshot theo verification case sau khi có thay đổi.
      */
     @Transactional
     public LegalBasisReviewResponse evaluateAfterChange(UUID casePublicId) {
@@ -185,15 +176,7 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Đánh giá dossier đã được caller khóa theo thứ tự chuẩn.
-     *
-     * Dùng sau khi forward hoặc khi tiếp nhận phiên bản mới.
-     * Phát hiện stale không ném exception nghiệp vụ và không tự động
-     * chuyển Vault về trạng thái khác tại đây.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau evaluate().
+     * Đánh giá dossier đã được caller khóa.
      */
     @Transactional
     public LegalBasisReviewResponse evaluateAfterChange(
@@ -213,11 +196,7 @@ public class LegalBasisReviewService {
     }
 
     /**
-     * Ghi nhận hoàn thành review theo verification case.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau evaluateAfterChange().
+     * Ghi nhận review hoàn tất theo verification case.
      */
     @Transactional
     public LegalBasisReviewResponse recordCompletedReviewByCasePublicId(
@@ -242,10 +221,8 @@ public class LegalBasisReviewService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        if (!Objects.equals(
-                verificationCase.getPublicId(), casePublicId)
-                || !Objects.equals(
-                verificationCase.getVaultId(), vault.getVaultId())) {
+        if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
+                || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
@@ -253,10 +230,8 @@ public class LegalBasisReviewService {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }
 
-        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(
-                vault.getStatus())) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
         LegalBasisDossier dossier = dossiers
@@ -266,8 +241,7 @@ public class LegalBasisReviewService {
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
         return recordCompletedReviewLocked(
@@ -279,17 +253,13 @@ public class LegalBasisReviewService {
 
     /**
      * Legal yêu cầu bổ sung hồ sơ và trả hồ sơ về Staff.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau recordCompletedReviewByCasePublicId().
      */
     @Transactional
     public LegalBasisReviewResponse requestSupplementationByCasePublicId(
             UUID casePublicId,
             Long reviewerUserId,
-            String reason) {
-
+            String reason
+    ) {
         if (casePublicId == null
                 || reviewerUserId == null
                 || reason == null
@@ -339,7 +309,6 @@ public class LegalBasisReviewService {
         String previousVaultStatus = vault.getStatus();
         String previousReviewStatus = dossier.getReviewStatus();
 
-        // Lưu trạng thái cần review lại trước khi trả dossier cho Staff.
         dossier.requireReview("LEGAL_REQUESTED_SUPPLEMENTATION");
         dossier.markSupplementationRequired();
         dossiers.save(dossier);
@@ -391,10 +360,6 @@ public class LegalBasisReviewService {
 
     /**
      * So sánh snapshot đã review với dữ liệu hiện tại.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau recordCompletedReviewByCasePublicId().
      */
     private LegalBasisReviewResponse evaluateLocked(
             LegalBasisDossier dossier,
@@ -417,8 +382,7 @@ public class LegalBasisReviewService {
                     "Không đủ dữ liệu phiên bản hiện tại để xác minh snapshot.");
         }
 
-        String currentAllocationHash =
-                allocationHash(dossierId, current.versionNo());
+        String currentAllocationHash = allocationHash(dossierId, current.versionNo());
 
         String reasonCode = null;
         String reason = null;
@@ -459,8 +423,7 @@ public class LegalBasisReviewService {
         }
 
         boolean reviewRequired =
-                !LegalBasisReviewStatus.FRESH.name()
-                        .equals(dossier.getReviewStatus());
+                !LegalBasisReviewStatus.FRESH.name().equals(dossier.getReviewStatus());
 
         return new LegalBasisReviewResponse(
                 dossierId,
@@ -477,13 +440,6 @@ public class LegalBasisReviewService {
 
     /**
      * Đánh dấu REVIEW_REQUIRED và ghi history/audit.
-     *
-     * Không chuyển trạng thái Vault tại đây vì việc đánh giá snapshot
-     * không đồng nghĩa với quyết định trả hồ sơ về Staff.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau evaluateLocked().
      */
     private LegalBasisReviewResponse markRequired(
             LegalBasisDossier dossier,
@@ -500,8 +456,7 @@ public class LegalBasisReviewService {
         dossiers.save(dossier);
 
         boolean changed =
-                !LegalBasisReviewStatus.REVIEW_REQUIRED.name()
-                        .equals(previousStatus)
+                !LegalBasisReviewStatus.REVIEW_REQUIRED.name().equals(previousStatus)
                         || !Objects.equals(previousReason, reasonCode);
 
         if (changed) {
@@ -538,9 +493,7 @@ public class LegalBasisReviewService {
                     previousStatus,
                     LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
                     null,
-                    Map.of(
-                            "reasonCode", reasonCode,
-                            "reason", reason),
+                    Map.of("reasonCode", reasonCode, "reason", reason),
                     STEP_ID,
                     RULE_ID));
         }
@@ -560,10 +513,6 @@ public class LegalBasisReviewService {
 
     /**
      * Ghi snapshot, lịch sử review và audit sau khi reviewer hoàn tất.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau markRequired().
      */
     private LegalBasisReviewResponse recordCompletedReviewLocked(
             LegalBasisDossier dossier,
@@ -579,13 +528,10 @@ public class LegalBasisReviewService {
         if (current == null
                 || current.sha256Hash() == null
                 || current.sha256Hash().isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
-        String currentAllocationHash =
-                allocationHash(dossierId, current.versionNo());
-
+        String currentAllocationHash = allocationHash(dossierId, current.versionNo());
         String previousStatus = dossier.getReviewStatus();
 
         dossier.recordReviewSnapshot(
@@ -598,9 +544,7 @@ public class LegalBasisReviewService {
         dossiers.save(dossier);
 
         LegalBasisDossierVersion version = versions
-                .findByLegalBasisDossierIdAndVersionNo(
-                        dossierId,
-                        current.versionNo())
+                .findByLegalBasisDossierIdAndVersionNo(dossierId, current.versionNo())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
@@ -647,10 +591,6 @@ public class LegalBasisReviewService {
 
     /**
      * Kiểm tra tham số review.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: ngay sau recordCompletedReviewLocked().
      */
     private void validateReviewInput(
             UUID casePublicId,
@@ -668,14 +608,8 @@ public class LegalBasisReviewService {
 
     /**
      * Tạo hash ổn định cho các dòng phân bổ.
-     *
-     * Package: com.legacyvault.verification.service
-     * Class: LegalBasisReviewService
-     * Vị trí: nhóm phương thức hỗ trợ cuối class.
      */
-    public static String allocationHashFromCanonicalValues(
-            List<String> values
-    ) {
+    public static String allocationHashFromCanonicalValues(List<String> values) {
         return sha256Static(
                 values.stream()
                         .sorted()
@@ -698,8 +632,7 @@ public class LegalBasisReviewService {
 
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException(
-                    "SHA-256 is not available.", ex);
+            throw new IllegalStateException("SHA-256 is not available.", ex);
         }
     }
 

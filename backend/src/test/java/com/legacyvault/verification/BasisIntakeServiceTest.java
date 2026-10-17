@@ -740,4 +740,26 @@ class BasisIntakeServiceTest {
         verify(allocationRepository, never()).saveAll(any());
         verifyNoInteractions(auditService);
     }
+
+    @Test
+    void successfulIntake_rechecksLegalBasisSnapshot() {
+        happyPath("NOTARIAL");
+
+        service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf());
+
+        verify(reviewService).evaluateAfterChange(CASE_ID);
+    }
+
+    @Test
+    void failedIntake_doesNotRecheckLegalBasisSnapshot() {
+        happyPath("NOTARIAL");
+
+        assertThatThrownBy(() -> service.intake(
+                CASE_ID, staff, metadata("NOTARIAL_PARTITION"), null
+        )).satisfies(exception ->
+                assertThat(codeOf(exception)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+
+        verify(reviewService, never()).evaluateAfterChange(CASE_ID);
+    }
+
 }
