@@ -21,6 +21,8 @@ import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVe
 import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
 import LegalBasisRouteSelectionPage from './pages/legal/LegalBasisRouteSelectionPage.jsx';
 import { canAccessLegalBasisRoute } from './utils/legalBasisRouteValidation.js';
+import AccountProfilePage from './pages/account/AccountProfilePage.jsx';
+import { canAccessAccountProfile } from './utils/accountProfileValidation.js';
 
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -440,6 +442,8 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             }
           }}
         >
@@ -458,9 +462,74 @@ export default function App() {
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isAccountProfileRoute = path === '/account/profile';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
+
+  if (isAccountProfileRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessAccountProfile(session)) {
+      return (
+        <div className="lv-app-root">
+          <main role="alert" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p>{lang === 'en' ? 'Access restricted' : 'Từ chối quyền truy cập'}</p>
+            <button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button>
+          </main>
+        </div>
+      );
+    }
+    const shellRole = session?.user?.roles?.includes('STAFF_EXECUTOR')
+      ? 'STAFF'
+      : session?.user?.roles?.includes('LEGAL_VERIFIER')
+      ? 'LEGAL'
+      : 'OWNER';
+
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role={shellRole}
+          currentTab="account-profile"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'death-verification') {
+              navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+            } else if (tab === 'will-document-verification') {
+              navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+            } else if (tab === 'basis-route-selection') {
+              navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'dossier-review') {
+              navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') {
+              navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`);
+            }
+          }}
+        >
+          <AccountProfilePage
+            session={session}
+            lang={lang}
+            onRefreshSession={updatedUser => {
+              if (session) {
+                setSession({ ...session, user: updatedUser });
+              }
+            }}
+          />
+        </AppShell>
+      </div>
+    );
+  }
 
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
@@ -484,6 +553,8 @@ export default function App() {
           onNavigateTab={tab => {
             if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             }
           }}
         >
@@ -536,6 +607,8 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             }
           }}
         >
@@ -586,6 +659,8 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             }
           }}
         >
@@ -636,6 +711,8 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-profile') {
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
             }
           }}
         >
@@ -661,7 +738,13 @@ export default function App() {
     };
     return <div className="lv-app-root"><AppShell currentTab={isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
-      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`); }}>
+      onNavigateTab={tab => {
+        if (tab === 'account-profile') {
+          navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+        } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') {
+          navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`);
+        }
+      }}>
       {preview && (isBeneficiariesRoute || isWillsRoute) ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
         <h2>{isWillsRoute ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng và người giám hộ')}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>
