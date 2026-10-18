@@ -13,6 +13,7 @@ import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import SubscriptionPage from './pages/subscription/SubscriptionPage.jsx';
 import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
+import LegalApprovalReviewPage from './pages/legal/LegalApprovalReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
@@ -453,6 +454,11 @@ export default function App() {
 
 
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
+  if (path === '/legal/approval-review') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'This portal requires a Legal Verifier account.' : 'Cổng này chỉ dành cho tài khoản Thẩm định Pháp lý (LEGAL_VERIFIER).'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><LegalApprovalReviewPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   if (isLegalDossierReviewRoute) {
     if (!isSessionActive(session) && !preview) {
       return (
