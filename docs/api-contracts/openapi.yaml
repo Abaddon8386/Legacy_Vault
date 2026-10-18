@@ -1165,6 +1165,99 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/eligible-assets:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Tài sản được phép bàn giao theo phê duyệt hiện hành (PS-64, ST-25)
+      description: |
+        Passes the central handover gate (PS-66) first, then lists only the Legal-approved allocation lines of the
+        current dossier version whose recipient passed the in-person check (VERIFIED_AT_COUNTER). The Owner configured
+        Beneficiary list is never used. Optional recipientId narrows the list; a recipient outside the approved scope or
+        not verified returns 409 HANDOVER_RECIPIENT_NOT_ELIGIBLE. deliveryStatus is ELIGIBLE or DELIVERED.
+      x-status: implemented
+      parameters:
+        - name: recipientId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Eligible and already delivered assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EligibleHandoverAssetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/deliveries:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Ghi nhận bàn giao tài sản tại quầy (PS-65, ST-25)
+      description: |
+        Passes the central handover gate (PS-66): Staff owns an OPEN case, the Vault is UNLOCKED or
+        HANDOVER_IN_PROGRESS, no hold, the Legal approval still matches the current version/hash/scope, and the
+        session is OPEN. Every requested asset must be an approved line for the recipient and not yet delivered;
+        the whole request is all or nothing. The first delivery moves the Vault UNLOCKED -> HANDOVER_IN_PROGRESS.
+        Audit HANDOVER_ASSET_DELIVERED (ST-25, LV-HANDOVER-001). No asset content is returned.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandoverDeliveryRequest' }
+      responses:
+        '201':
+          description: Deliveries recorded
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Lịch sử bàn giao của phiên (PS-65)
+      description: Staff must own the case and the session; otherwise 404. Read only, oldest first.
+      x-status: implemented
+      responses:
+        '200':
+          description: Deliveries of the session
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverItemResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts:
     description: Receipt issuance is fail-closed until authoritative per-asset delivery and beneficiary confirmation evidence is integrated (PS-64 through PS-71).
     parameters:
@@ -1956,6 +2049,36 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
         supersedesReceiptId: { type: string, format: uuid, nullable: true }
+    EligibleHandoverAssetResponse:
+      type: object
+      required: [assetId, recipientId, deliveryStatus]
+      properties:
+        assetId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        description: { type: string, nullable: true, description: Mô tả dòng phân bổ theo văn bản căn cứ }
+        deliveryStatus: { type: string, enum: [ELIGIBLE, DELIVERED] }
+    HandoverDeliveryRequest:
+      type: object
+      required: [recipientId, assetIds]
+      properties:
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    HandoverItemResponse:
+      type: object
+      required: [itemId, sessionId, assetId, recipientId, status, deliveredAt, staffId]
+      properties:
+        itemId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        assetId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        status: { type: string, enum: [DELIVERED, VERIFIED_BY_BENEFICIARY] }
+        deliveredAt: { type: string, format: date-time }
+        staffId: { type: string, format: uuid }
     HandoverReceiptResponse:
       type: object
       required: [receiptId, sessionId, recipientId, assetIds, staffId, dossierVersionNo, sha256Hash, allocationHash, confirmationType, confirmedAt]
@@ -2027,6 +2150,10 @@ components:
             - HANDOVER_RECEIPT_INVALID_STATE
             - HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED
             - HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED
+            - HANDOVER_VAULT_NOT_UNLOCKED
+            - HANDOVER_RECIPIENT_NOT_ELIGIBLE
+            - HANDOVER_ASSET_NOT_ELIGIBLE
+            - HANDOVER_ASSET_ALREADY_DELIVERED
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE

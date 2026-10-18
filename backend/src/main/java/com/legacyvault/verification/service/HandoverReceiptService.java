@@ -77,7 +77,8 @@ public class HandoverReceiptService {
         var dossier = locked.dossier();
         if (!verificationCase.getVerificationCaseId().equals(initialCase.getVerificationCaseId())
                 || !staffId.equals(verificationCase.getAssignedStaffUserId())
-                || !Vault.STATUS_UNLOCKED.equals(locked.vault().getStatus())) {
+                || !(Vault.STATUS_UNLOCKED.equals(locked.vault().getStatus())
+                || Vault.STATUS_HANDOVER_IN_PROGRESS.equals(locked.vault().getStatus()))) {
             throw invalidState();
         }
 
