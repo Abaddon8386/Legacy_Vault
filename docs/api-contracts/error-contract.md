@@ -1,5 +1,9 @@
 # Hợp đồng lỗi chung
 
+PS-44: `409 TRUSTEE_REVOKED` (`error.trustee.revoked`) khi Staff qua guard ca OPEN được giao nhưng
+ghi liên hệ mới với Trustee đã REVOKED. Không tạo lịch sử/audit mới; lịch sử cũ vẫn đọc theo quyền ca.
+Ngoài quyền ca vẫn trả 404 trước khi kiểm tra trạng thái Trustee.
+
 Triển khai: `backend/src/main/java/com/legacyvault/common/error/` (`ErrorCode`, `ApiError`, `BusinessException`,
 `GlobalExceptionHandler`) và `common/security/` (`ApiAuthenticationEntryPoint`, `ApiAccessDeniedHandler`).
 Mọi phản hồi lỗi — kể cả **401/403 do Spring Security** — dùng **cùng một hình dạng**.
@@ -60,8 +64,16 @@ Lỗi validation:
 | `VAULT_NOT_EDITABLE` | 409 | Vault hiện không cho phép Owner chỉnh sửa |
 | `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
+| `LEGAL_VERIFICATION_INVALID_STATE` | 409 | Legal quyết định khi ca không còn `OPEN` hoặc Vault không ở `AWAITING_VERIFICATION` (PS-36) |
+| `LEGAL_VERIFICATION_ALREADY_DECIDED` | 409 | Giấy tờ khai tử đã có quyết định thẩm định (PS-36) |
+| `WILL_NOT_VERIFIED` | 409 | Phân loại căn cứ khi chưa có kết quả đối chiếu di chúc khớp (PS-41) |
+| `BASIS_DOSSIER_ALREADY_EXISTS` | 409 | Ca đã có hồ sơ căn cứ (PS-41) |
+| `BASIS_DOSSIER_INVALID_STATE` | 409 | Ca, Vault hoặc hồ sơ căn cứ không ở trạng thái cho phép thao tác (PS-41, PS-42, PS-43) |
+| `BASIS_VERSION_STALE` | 409 | Phiên bản được chuyển không phải phiên bản mới nhất của hồ sơ (PS-42) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
+| `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
+| `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
@@ -104,3 +116,19 @@ catch (e) {
 ```
 
 Client dùng chung: `frontend/src/api/http.js` (`ApiError.code`, `.status`, `.traceId`, `.fieldErrors`).
+
+PS-47: `COURT_EVIDENCE_REQUIRED` (409) khi thiếu văn bản tòa đã chuyển/metadata;
+`COURT_DECISION_REQUIRED` (409) khi guard chưa có kết luận VALID mới nhất cho phiên bản hiện hành.
+
+PS-48: `LEGAL_WORKFLOW_ON_HOLD` (409) khi guard phát hiện Vault/route đang ON_HOLD.
+
+## PS-77 lifetime subscription / case evidence
+
+- `SUBSCRIPTION_CATALOG_STALE` — 409, `error.subscription.catalogStale`: reload catalog before selecting a plan.
+- `SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED` — 409, `error.subscription.downgradeNotAllowed`: lifetime capacity cannot decrease.
+- `CASE_EVIDENCE_QUOTA_EXCEEDED` — 409, `error.subscription.caseEvidenceQuotaExceeded`: case exceeds retained evidence bytes or version count; preserve existing history.
+
+PS-77 blocker fix: 409 `SUBSCRIPTION_POLICY_PENDING` (`error.subscription.policyPending`)
+for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
+(`error.subscription.upgradeUnavailable`) for any valid self-upgrade request. No entitlement is granted.
+`CASE_EVIDENCE_QUOTA_EXCEEDED` is reserved/inactive: PS-41 no longer emits this proposal-only error.

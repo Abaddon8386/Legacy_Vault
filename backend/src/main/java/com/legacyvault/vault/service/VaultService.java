@@ -14,13 +14,15 @@ import com.legacyvault.vault.dto.CreateVaultRequest;
 import com.legacyvault.vault.dto.VaultResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
+import com.legacyvault.user.repository.OwnerWriteLockRepository;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import jakarta.persistence.EntityManager;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -38,22 +40,32 @@ public class VaultService {
     private final AuditService auditService;
     private final DmsConfigRepository dmsConfigRepository;
     private final VerificationCaseRepository verificationCaseRepository;
+    private final OwnerWriteLockRepository creationLockRepository;
+    private final EntityManager entities;
 
     public VaultService(
             VaultRepository vaultRepository,
             AuditService auditService,
             DmsConfigRepository dmsConfigRepository,
-            VerificationCaseRepository verificationCaseRepository
+            VerificationCaseRepository verificationCaseRepository,
+            OwnerWriteLockRepository creationLockRepository,
+            EntityManager entities
     ) {
         this.vaultRepository = vaultRepository;
         this.auditService = auditService;
         this.dmsConfigRepository = dmsConfigRepository;
         this.verificationCaseRepository = verificationCaseRepository;
+        this.creationLockRepository = creationLockRepository;
+        this.entities = entities;
     }
 
     @Transactional
     public VaultResponse createVault(CreateVaultRequest request, CustomUserPrincipal principal) {
-        Long ownerUserId = principal.userId();
+        Long ownerUserId = CustomUserPrincipal.requireUserId(principal);
+
+        // Serialize first creation on a row that already exists. A lock on a missing Vault is insufficient.
+        creationLockRepository.findActiveOwnerForUpdate(ownerUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
 
         if (vaultRepository.existsByOwnerUserId(ownerUserId)) {
             throw new BusinessException(ErrorCode.VAULT_ALREADY_EXISTS);
@@ -64,17 +76,8 @@ public class VaultService {
         vault.setName(request.name().trim());
         vault.setDescription(request.description());
 
-        final Vault savedVault;
-
-        try {
-            savedVault = vaultRepository.saveAndFlush(vault);
-        } catch (DataIntegrityViolationException exception) {
-            // Chỉ xử lý lỗi khi lưu Vault, không bắt lỗi từ AuditService.
-            if (vaultRepository.existsByOwnerUserId(ownerUserId)) {
-                throw new BusinessException(ErrorCode.VAULT_ALREADY_EXISTS);
-            }
-            throw exception;
-        }
+        // The DB unique key remains the final constraint; do not query a failed Hibernate transaction.
+        Vault savedVault = vaultRepository.saveAndFlush(vault);
 
         // Ghi audit trong transaction tạo Vault hiện tại.
         auditService.record(new AuditEvent(
@@ -131,6 +134,22 @@ public class VaultService {
     @Transactional(readOnly = true)
     public Vault requireEditableVault(UUID vaultId, Long ownerUserId) {
         Vault vault = requireOwnedVault(vaultId, ownerUserId);
+        if (!EDITABLE_STATUS.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
+        }
+        return vault;
+    }
+
+    /** Content writers hold Owner -> Vault locks through quota checks, content and audit commit.
+     * Re-read status after locking: a cached ACTIVE entity cannot bypass a committed freeze/hold. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Vault requireEditableVaultForUpdate(UUID vaultId, Long ownerUserId) {
+        Vault vault = vaultRepository.findOwnedVaultForUpdate(vaultId, ownerUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        entities.refresh(vault);
+        if (!ownerUserId.equals(vault.getOwnerUserId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         if (!EDITABLE_STATUS.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
         }

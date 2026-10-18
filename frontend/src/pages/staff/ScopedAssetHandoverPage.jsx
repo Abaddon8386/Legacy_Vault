@@ -19,12 +19,11 @@ import './ScopedAssetHandoverPage.css';
 export default function ScopedAssetHandoverPage({
   lang = 'vi',
   initialScope = null,
-  initialCandidates = [],
+  initialCandidates = null,
 }) {
   const t = scopedAssetHandoverI18n[lang] || scopedAssetHandoverI18n.vi;
   const caseInputId = useId();
 
-  // State
   const [caseReference, setCaseReference] = useState('');
   const [scopeData, setScopeData] = useState(initialScope);
   const [candidates, setCandidates] = useState(initialCandidates);
@@ -37,16 +36,16 @@ export default function ScopedAssetHandoverPage({
   const handleCaseChange = (newRef) => {
     setCaseReference(newRef);
     // When changing case, if it does not match current scope, clear scope data
-    if (!newRef.trim()) {
+    if (newRef !== caseReference) {
       setScopeData(null);
-      setCandidates([]);
+      setCandidates(null);
     }
   };
 
   const handleReset = () => {
     setCaseReference('');
-    setScopeData(initialScope);
-    setCandidates(initialCandidates);
+    setScopeData(null);
+    setCandidates(null);
   };
 
   return (
@@ -82,7 +81,7 @@ export default function ScopedAssetHandoverPage({
           ) : (
             <span className="lv-scope-badge lv-scope-badge--unapproved">
               <Clock size={13} aria-hidden="true" />
-              <span>{t.scopeUnapprovedBadge}</span>
+              <span>{scopeData ? t.scopeUnapprovedBadge : t.informationUnavailable}</span>
             </span>
           )}
         </div>
@@ -122,7 +121,7 @@ export default function ScopedAssetHandoverPage({
       </section>
 
       {/* Eligible Scoped Assets Table Section */}
-      {scopeValidation.isValid && (
+      {(
         <section className="lv-handover-card" aria-labelledby="table-heading">
           <div className="lv-handover-card__header">
             <h2 id="table-heading" className="lv-handover-card__title">
@@ -136,31 +135,36 @@ export default function ScopedAssetHandoverPage({
             <span>{t.apiPendingNotice}</span>
           </div>
 
-          {eligible.length === 0 ? (
-            <div className="lv-handover-scope-empty" role="status">
-              <p>{t.emptyAssets}</p>
-            </div>
-          ) : (
-            <div className="lv-handover-table-wrapper">
-              <table className="lv-handover-table">
-                <thead>
+          <div className="lv-handover-table-wrapper">
+            <table className="lv-handover-table">
+              <thead>
+                <tr>
+                  <th>{t.assetNameCol}</th>
+                  <th>{t.beneficiaryCol}</th>
+                  <th>{t.scopeStatusCol}</th>
+                  <th>{t.handoverStatusCol}</th>
+                  <th>{t.actionCol}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!scopeValidation.isValid || !Array.isArray(candidates) || eligible.length === 0 ? (
                   <tr>
-                    <th>{t.assetNameCol}</th>
-                    <th>{t.beneficiaryCol}</th>
-                    <th>{t.scopeStatusCol}</th>
-                    <th>{t.handoverStatusCol}</th>
-                    <th>{t.actionCol}</th>
+                    <td colSpan="5">
+                      <div className="lv-handover-scope-empty" role="status">
+                        <p>{!scopeValidation.isValid || !Array.isArray(candidates) ? t.informationUnavailable : t.emptyAssets}</p>
+                        <button type="button" className="lv-btn-handover-action" disabled title={t.apiPendingNotice}>{t.btnRecordHandover}</button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {eligible.map((item) => {
+                ) : (
+                  eligible.map((item) => {
                     const isDelivered = item.handoverStatus === HANDOVER_STATUS.DELIVERED;
                     return (
                       <tr key={item.assetId}>
                         <td>
-                          <strong>{item.assetName || item.title || item.assetId}</strong>
+                          <strong>{item.assetName || t.informationUnavailable}</strong>
                         </td>
-                        <td>{item.beneficiaryName || t.statusInScope}</td>
+                        <td>{item.beneficiaryName || t.informationUnavailable}</td>
                         <td>
                           <span className="lv-scope-badge lv-scope-badge--approved">
                             {t.statusInScope}
@@ -172,12 +176,12 @@ export default function ScopedAssetHandoverPage({
                               <CheckCircle2 size={12} aria-hidden="true" />
                               <span>{t.statusDelivered}</span>
                             </span>
-                          ) : (
+                          ) : item.handoverStatus === HANDOVER_STATUS.PENDING ? (
                             <span className="lv-status-pill lv-status-pill--pending">
                               <Clock size={12} aria-hidden="true" />
                               <span>{t.statusPending}</span>
                             </span>
-                          )}
+                          ) : <span>{t.informationUnavailable}</span>}
                         </td>
                         <td>
                           <button
@@ -194,11 +198,11 @@ export default function ScopedAssetHandoverPage({
                         </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 

@@ -6,6 +6,7 @@
  * - Client guard strictly verifies active session and STAFF_EXECUTOR role.
  * - Client guard does NOT substitute for backend authorization.
  * - If approved allocation scope data is missing or unapproved, handover actions are blocked.
+ * - Scope fields below are a local FE model, not a confirmed handover API payload.
  * - State preserves language-neutral error keys for dynamic VI <-> EN rendering.
  */
 
@@ -116,7 +117,7 @@ export function filterScopedHandoverItems(candidates = [], approvedScope = null)
   const eligible = [];
   const blocked = [];
 
-  for (const candidate of candidates) {
+  for (const candidate of (Array.isArray(candidates) ? candidates : [])) {
     if (!candidate || !candidate.assetId) {
       blocked.push({ ...candidate, reason: SCOPED_ASSET_HANDOVER_ERROR_KEYS.ASSET_OUT_OF_SCOPE });
       continue;
@@ -126,7 +127,7 @@ export function filterScopedHandoverItems(candidates = [], approvedScope = null)
     const matchedAllocation = approvedAllocations.find(
       (alloc) =>
         alloc.assetId === candidate.assetId &&
-        (!alloc.beneficiaryId || !candidate.beneficiaryId || alloc.beneficiaryId === candidate.beneficiaryId)
+        (Boolean(alloc.beneficiaryId) && Boolean(candidate.beneficiaryId) && alloc.beneficiaryId === candidate.beneficiaryId)
     );
 
     if (matchedAllocation) {
@@ -134,7 +135,7 @@ export function filterScopedHandoverItems(candidates = [], approvedScope = null)
         ...candidate,
         allocationId: matchedAllocation.allocationId || matchedAllocation.id || null,
         beneficiaryName: candidate.beneficiaryName || matchedAllocation.beneficiaryName || '',
-        handoverStatus: candidate.handoverStatus === HANDOVER_STATUS.DELIVERED ? HANDOVER_STATUS.DELIVERED : HANDOVER_STATUS.PENDING,
+        handoverStatus: Object.values(HANDOVER_STATUS).includes(candidate.handoverStatus) ? candidate.handoverStatus : null,
         isInApprovedScope: true,
       });
     } else {
@@ -171,7 +172,7 @@ export function validateHandoverAttempt(item, approvedScope) {
   const isScoped = approvedAllocations.some(
     (alloc) =>
       alloc.assetId === item.assetId &&
-      (!alloc.beneficiaryId || !item.beneficiaryId || alloc.beneficiaryId === item.beneficiaryId)
+      (Boolean(alloc.beneficiaryId) && Boolean(item.beneficiaryId) && alloc.beneficiaryId === item.beneficiaryId)
   );
 
   if (!isScoped) {
@@ -180,6 +181,10 @@ export function validateHandoverAttempt(item, approvedScope) {
 
   if (item.handoverStatus === HANDOVER_STATUS.DELIVERED) {
     return { isAllowed: false, errorKey: SCOPED_ASSET_HANDOVER_ERROR_KEYS.ALREADY_DELIVERED };
+  }
+
+  if (item.handoverStatus !== HANDOVER_STATUS.PENDING) {
+    return { isAllowed: false, errorKey: SCOPED_ASSET_HANDOVER_ERROR_KEYS.INVALID_DELIVERY_STATUS };
   }
 
   return { isAllowed: true, errorKey: null };

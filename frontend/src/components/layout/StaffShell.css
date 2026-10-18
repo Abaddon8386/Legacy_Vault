@@ -1,0 +1,286 @@
+/* ==========================================================================
+   LegacyVault — StaffShell Styles (PS-25)
+   Chuyên biệt cho Cổng xác minh hồ sơ Staff, đồng bộ thẩm mỹ xanh rừng - kem - vàng.
+   ========================================================================== */
+
+.lv-staff-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lv-bg-canvas, #f7f5f0);
+  color: var(--lv-text-ink, #1f2421);
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
+}
+
+/* Header */
+.lv-staff-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  box-shadow: 0 1px 3px rgba(22, 70, 57, 0.04);
+}
+
+.lv-staff-header__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Brand Group */
+.lv-staff-header__brand-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.lv-staff-header__logo-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--lv-brand-forest, #164639) 0%, #0c2b22 100%);
+  color: var(--lv-accent-gold, #c5a059);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(22, 70, 57, 0.15);
+  flex-shrink: 0;
+}
+
+.lv-staff-header__logo-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.lv-staff-header__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lv-staff-header__brand-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  line-height: 1.2;
+}
+
+.lv-staff-header__preview-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background-color: rgba(197, 160, 89, 0.15);
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  border-radius: 999px;
+  font-family: var(--lv-font-sans, system-ui, sans-serif);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #8c6820;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lv-staff-header__portal-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lv-text-muted, #6b726b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Actions & Utilities */
+.lv-staff-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.lv-staff-header__role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background-color: #f1ede4;
+  border: 1px solid #ded9ce;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  white-space: nowrap;
+}
+
+.lv-staff-header__role-icon {
+  color: var(--lv-accent-gold, #c5a059);
+}
+
+.lv-staff-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  background-color: #faf8f5;
+  color: var(--lv-text-ink, #1f2421);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.lv-staff-btn:hover:not(:disabled) {
+  background-color: #f3ede2;
+  border-color: #ded9ce;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-staff-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.lv-staff-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lv-staff-btn--icon {
+  width: 38px;
+  padding: 0;
+}
+
+.lv-staff-btn__lang-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-left: 2px;
+}
+
+.lv-staff-btn--logout {
+  background-color: #faf8f5;
+  color: #8c3b3b;
+  border-color: #f0dede;
+}
+
+.lv-staff-btn--logout:hover:not(:disabled) {
+  background-color: #fdf2f2;
+  border-color: #e8c4c4;
+  color: #a82828;
+}
+
+.lv-staff-btn--spinning svg {
+  animation: lv-staff-spin 1s linear infinite;
+}
+
+@keyframes lv-staff-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Main Workspace */
+.lv-staff-main {
+  flex: 1;
+  padding: 32px 0 48px;
+}
+
+.lv-staff-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Footer */
+.lv-staff-footer {
+  background-color: #ffffff;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  padding: 20px 0;
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-staff-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lv-staff-footer__security {
+  font-weight: 500;
+  color: #8c6820;
+}
+
+/* Responsive (Mobile <= 768px) */
+@media (max-width: 768px) {
+  .lv-staff-header__inner {
+    padding: 0 16px;
+    height: auto;
+    min-height: 60px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .lv-staff-container {
+    padding: 0 16px;
+  }
+
+  .lv-staff-header__role-pill {
+    display: none; /* Hide role pill on mobile to save space */
+  }
+
+  /* Nút thao tác tối thiểu 44px trên mobile */
+  .lv-staff-btn {
+    min-height: 44px;
+    height: 44px;
+    font-size: 13.5px;
+  }
+
+  .lv-staff-btn--icon {
+    min-width: 44px;
+    width: 44px;
+  }
+
+  .lv-staff-btn--logout .lv-staff-btn__text {
+    display: none; /* Icon-only on mobile */
+  }
+
+  .lv-staff-btn--logout {
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
+  }
+
+  .lv-staff-footer__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+.lv-staff-header__navigation { max-width: 1200px; margin: 0 auto; padding: 0 24px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 768px) { .lv-staff-header__navigation { padding: 0 16px 8px; } }

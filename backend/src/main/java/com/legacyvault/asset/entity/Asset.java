@@ -52,6 +52,12 @@ public class Asset {
 	@Column(name = "encrypted_payload")
 	private byte[] encryptedPayload;
 
+	/** Computed by SQL Server from the current AES-GCM content length; excludes the 16-byte tag. */
+	@Column(name = "payload_size_bytes", insertable = false, updatable = false)
+	private long payloadSizeBytes;
+
+	public long getPayloadSizeBytes() { return payloadSizeBytes; }
+
 	@Column(name = "encryption_iv")
 	private byte[] encryptionIv;
 

@@ -46,9 +46,17 @@ const NAVIGATION_REGISTRY = [
     labelEn: 'Beneficiaries & Trustees',
     status: 'ACTIVE',
   },
+  {
+    id: 'subscription',
+    jiraTicket: 'CR-01',
+    labelVi: 'Gói sử dụng',
+    labelEn: 'Subscription Plans',
+    status: 'ACTIVE',
+  },
 ];
 
 const STAFF_NAVIGATION_REGISTRY = [
+  { id: 'cases', labelVi: 'Hồ sơ xác minh', labelEn: 'Verification Cases', status: 'ACTIVE' },
   {
     id: 'legal-documents',
     jiraTicket: 'PS-31',
@@ -159,7 +167,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'asset-handover' ? 'Bàn giao tài sản' : 'Hồ sơ căn cứ pháp lý')
+        ? (currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -198,7 +206,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'asset-handover' ? 'Asset Handover' : 'Legal Basis Documents')
+        ? (currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
@@ -289,7 +297,12 @@ export default function AppShell({
                 >
                   <span className="lv-nav-spotlight" aria-hidden="true" />
                   <span className="lv-nav-icon" aria-hidden="true">
-                    {item.id === 'legal-documents' ? (
+                    {item.id === 'subscription' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                      </svg>
+                    ) : item.id === 'legal-documents' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
@@ -328,6 +341,18 @@ export default function AppShell({
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    ) : item.id === 'cases' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                        <path d="m9 14 2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'asset-handover' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
                       </svg>
                     ) : (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -417,7 +442,7 @@ export default function AppShell({
                           : currentTab === 'death-verification'
                             ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
                             : t.breadcrumbCurrent
-                  : currentTab === 'beneficiaries'
+                  : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')

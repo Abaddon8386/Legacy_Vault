@@ -137,14 +137,18 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [policyModal]);
 
-  const handleLoginClick = (e) => {
-    e.preventDefault();
+  const navigateToLogin = () => {
     if (typeof onNavigateToLogin === 'function') {
       onNavigateToLogin();
     } else {
       window.history.pushState({}, '', '/login');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
+  };
+
+  const handleLoginClick = (e) => {
+    e.preventDefault();
+    navigateToLogin();
   };
 
   const handleLanguageChange = (nextLang) => {
@@ -181,6 +185,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
       await registerUser(values, { lang, signal: controller.signal });
       if (controller.signal.aborted) return;
       setValues(initialForm); setStatus('success'); setStatusCode('SUCCESS');
+      navigateToLogin();
     } catch (error) {
       if (controller.signal.aborted) return;
       setStatus('failure'); setStatusCode(error.code || 'INTERNAL_ERROR');

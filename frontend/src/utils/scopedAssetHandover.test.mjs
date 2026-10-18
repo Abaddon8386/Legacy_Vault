@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import path, { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import {
   canAccessScopedAssetHandover,
@@ -204,7 +208,7 @@ test('PS-53 Dynamic Language Switching (VI <-> EN)', () => {
 });
 
 test('PS-53 CSS Scoping Verification - No Leakage', () => {
-  const cssPath = resolve('src/pages/staff/ScopedAssetHandoverPage.css');
+  const cssPath = path.resolve(__dirname, '../pages/staff/ScopedAssetHandoverPage.css');
   const css = readFileSync(cssPath, 'utf8');
 
   // Strip comments
@@ -228,4 +232,25 @@ test('PS-53 CSS Scoping Verification - No Leakage', () => {
       }
     }
   }
+});
+
+test('PS-53 missing recipients never match approved allocations', () => {
+  const scope = { isApproved: true, allocations: [{ assetId: 'a', beneficiaryId: 'b' }] };
+  const missingRecipient = { assetId: 'a', handoverStatus: 'PENDING' };
+  assert.equal(filterScopedHandoverItems([missingRecipient], scope).eligible.length, 0);
+  assert.equal(validateHandoverAttempt(missingRecipient, scope).isAllowed, false);
+  const incompleteScope = { isApproved: true, allocations: [{ assetId: 'a' }] };
+  const candidate = { assetId: 'a', beneficiaryId: 'b', handoverStatus: 'PENDING' };
+  assert.equal(filterScopedHandoverItems([candidate], incompleteScope).eligible.length, 0);
+  assert.equal(validateHandoverAttempt(candidate, incompleteScope).isAllowed, false);
+});
+
+test('PS-53 unknown delivery status stays unknown and cannot be recorded', () => {
+  const scope = { isApproved: true, allocations: [{ assetId: 'a', beneficiaryId: 'b' }] };
+  for (const handoverStatus of [undefined, null, '', 'UNKNOWN']) {
+    const candidate = { assetId: 'a', beneficiaryId: 'b', handoverStatus };
+    assert.equal(filterScopedHandoverItems([candidate], scope).eligible[0].handoverStatus, null);
+    assert.equal(validateHandoverAttempt(candidate, scope).isAllowed, false);
+  }
+  assert.deepEqual(filterScopedHandoverItems(null, scope), { eligible: [], blocked: [] });
 });

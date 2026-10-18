@@ -498,6 +498,27 @@
    RESPONSIVE DESIGN (1024px Laptop, 768px Tablet, 375px/360px Mobile)
    ========================================================================== */
 @media (max-width: 960px) {
+  .lv-header-left {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .lv-header-breadcrumbs {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .lv-crumb-active {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lv-header-right,
+  .lv-mobile-menu-trigger {
+    flex-shrink: 0;
+  }
+
   .lv-shell-sidebar {
     transform: translateX(-100%);
     box-shadow: 0 0 24px rgba(0, 0, 0, 0.25);
