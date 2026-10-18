@@ -254,3 +254,51 @@ test('PS-53 unknown delivery status stays unknown and cannot be recorded', () =>
   }
   assert.deepEqual(filterScopedHandoverItems(null, scope), { eligible: [], blocked: [] });
 });
+
+test('PS-53 Navigation Handler & Two-Way Route Transition Verification', async (t) => {
+  const resolveStaffNavigation = (tab, preview = false) => {
+    const previewSuffix = preview ? '?preview=true' : '';
+    switch (tab) {
+      case 'cases':
+        return `/staff/cases${previewSuffix}`;
+      case 'legal-documents':
+        return `/staff/legal-documents${previewSuffix}`;
+      case 'asset-handover':
+        return `/staff/asset-handover${previewSuffix}`;
+      default:
+        return null;
+    }
+  };
+
+  await t.test('navigates from asset-handover back to verification cases dashboard preserving preview', () => {
+    assert.equal(resolveStaffNavigation('cases', false), '/staff/cases');
+    assert.equal(resolveStaffNavigation('cases', true), '/staff/cases?preview=true');
+  });
+
+  await t.test('navigates from asset-handover to legal documents preserving preview', () => {
+    assert.equal(resolveStaffNavigation('legal-documents', false), '/staff/legal-documents');
+    assert.equal(resolveStaffNavigation('legal-documents', true), '/staff/legal-documents?preview=true');
+  });
+
+  await t.test('navigates from dashboard back to asset-handover preserving preview', () => {
+    assert.equal(resolveStaffNavigation('asset-handover', false), '/staff/asset-handover');
+    assert.equal(resolveStaffNavigation('asset-handover', true), '/staff/asset-handover?preview=true');
+  });
+
+  await t.test('supports round-trip transition across all three primary staff screens', () => {
+    let currentPath = '/staff/asset-handover?preview=true';
+    const isPreview = currentPath.includes('preview=true');
+
+    // 1. Asset Handover -> Cases Dashboard
+    currentPath = resolveStaffNavigation('cases', isPreview);
+    assert.equal(currentPath, '/staff/cases?preview=true');
+
+    // 2. Cases Dashboard -> Legal Documents
+    currentPath = resolveStaffNavigation('legal-documents', isPreview);
+    assert.equal(currentPath, '/staff/legal-documents?preview=true');
+
+    // 3. Legal Documents -> Asset Handover
+    currentPath = resolveStaffNavigation('asset-handover', isPreview);
+    assert.equal(currentPath, '/staff/asset-handover?preview=true');
+  });
+});

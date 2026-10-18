@@ -283,4 +283,14 @@
 }
 
 .lv-staff-header__navigation { max-width: 1200px; margin: 0 auto; padding: 0 24px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.lv-staff-btn--active {
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border-color: var(--lv-brand-forest, #164639);
+  font-weight: 600;
+}
+.lv-staff-btn--active:hover:not(:disabled) {
+  background-color: var(--lv-brand-forest-dark, #0c2b22);
+  color: #ffffff;
+}
 @media (max-width: 768px) { .lv-staff-header__navigation { padding: 0 16px 8px; } }
