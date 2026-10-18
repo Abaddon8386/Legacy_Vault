@@ -1677,6 +1677,7 @@ components:
             - BASIS_DOSSIER_ALREADY_EXISTS
             - BASIS_VERSION_STALE
             - LEGAL_DECISION_STALE
+            - LEGAL_APPROVAL_REQUIRED
             - COURT_EVIDENCE_REQUIRED
             - COURT_DECISION_REQUIRED
             - LEGAL_WORKFLOW_ON_HOLD

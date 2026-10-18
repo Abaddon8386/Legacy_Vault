@@ -134,3 +134,5 @@ for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
 `CASE_EVIDENCE_QUOTA_EXCEEDED` is reserved/inactive: PS-41 no longer emits this proposal-only error.
 
 PS-57: `LEGAL_DECISION_STALE` (409, `error.legalApproval.snapshotStale`) when version, hash, allocation scope, or review snapshot no longer matches.
+
+PS-58: `LEGAL_APPROVAL_REQUIRED` (409, `error.legalApproval.required`) when a protected transition has no matching current-version Legal approval. `LEGAL_DECISION_STALE` indicates that an existing review/approval snapshot no longer matches the current version, hash, dispute state, or allocation scope.
