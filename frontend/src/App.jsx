@@ -1,6 +1,7 @@
 import { previewRoute } from './utils/previewState.js';
 import { useState, useEffect, useCallback } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
+import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
@@ -10,6 +11,7 @@ import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
+import SubscriptionPage from './pages/subscription/SubscriptionPage.jsx';
 import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
@@ -17,6 +19,8 @@ import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/sta
 import CompletionProgressPage from './pages/staff/CompletionProgressPage.jsx';
 import { canAccessCompletionProgress } from './utils/completionProgressValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
+import StaffShell from './components/layout/StaffShell.jsx';
+import StaffCaseDashboard from './pages/staff/StaffCaseDashboard.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
 import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
@@ -392,7 +396,7 @@ export default function App() {
     if (options.signal?.aborted) return;
     if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
     setSession({ ...candidate, user }); setLang(options.lang || 'vi');
-    navigateTo(resolvePostLoginRoute(user));
+    navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
     setIsRefreshing(true); setRefreshTrigger(value => value + 1);
@@ -400,6 +404,56 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const isStaffRoute = path === '/staff/cases';
+  if (isStaffRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !session.user.roles.includes('STAFF_EXECUTOR')) {
+      return (
+        <main role="alert" style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", backgroundColor: '#f7f5f0' }}>
+          <p style={{ fontSize: '16px', color: '#164639', fontWeight: 600, marginBottom: '16px' }}>
+            {lang === 'en' ? 'This portal requires a Staff Executor account.' : 'Cổng này chỉ dành cho tài khoản Nhân viên xử lý (STAFF_EXECUTOR).'}
+          </p>
+          <button
+            type="button"
+            onClick={logout}
+            style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: '#164639', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+          >
+            {lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}
+          </button>
+        </main>
+      );
+    }
+    const staffContext = {
+      accessToken: session?.accessToken,
+      onUnauthorized: logout,
+      lang,
+      onNavigateToLogin: logout,
+      onRefreshTrigger: refreshTrigger,
+    };
+    return (
+      <div className="lv-app-root">
+        <StaffShell
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={logout}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          isPreview={preview}
+          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+        >
+          <StaffCaseDashboard
+            key={session?.user.id || 'preview'}
+            {...staffContext}
+            isDevPreview={preview}
+          />
+        </StaffShell>
+      </div>
+    );
+  }
+
+
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (isLegalDossierReviewRoute) {
     if (!isSessionActive(session) && !preview) {
@@ -459,6 +513,7 @@ export default function App() {
   const isAssetsRoute = path === '/assets';
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
+  const isSubscriptionRoute = path === '/subscription' || path === '/subscriptions';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
   const isStaffCompletionProgressRoute = path === '/staff/completion-progress';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
@@ -485,7 +540,9 @@ export default function App() {
           session={session}
           user={session?.user || null}
           onNavigateTab={tab => {
-            if (tab === 'legal-documents') {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
@@ -689,7 +746,7 @@ export default function App() {
       </div>
     );
   }
-  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute) {
+  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute || isSubscriptionRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
@@ -701,22 +758,24 @@ export default function App() {
       accessToken: session?.accessToken, ownerId: session?.user.id,
       onUnauthorized: logout, lang, onNavigateToLogin: logout, onRefreshTrigger: refreshTrigger
     };
-    return <div className="lv-app-root"><AppShell currentTab={isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
+    return <div className="lv-app-root"><AppShell currentTab={isSubscriptionRoute ? 'subscription' : isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
-      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`); }}>
+      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries' || tab === 'subscription') navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`); }}>
       {preview && (isBeneficiariesRoute || isWillsRoute) ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
         <h2>{isWillsRoute ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng và người giám hộ')}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--primary" onClick={() => navigateTo(previewRoute('vault', window.location.search, lang))}>{lang === 'en' ? 'Back to preview' : 'Quay lại tổng quan'}</button>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--gold" onClick={() => navigateTo('/login')}>{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</button>
-      </section> : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
+      </section> : isSubscriptionRoute ? <SubscriptionPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
+        : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
             : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
               : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
-  return <div className="lv-app-root">{path === '/' || path === '/register'
+  if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
+  return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
     : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
       : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;
