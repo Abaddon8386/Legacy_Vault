@@ -1813,6 +1813,48 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiary-confirmations:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: PS-67 Staff reads explicit recipient confirmations
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/BeneficiaryConfirmationResponse' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiaries/{beneficiaryId}/confirmation:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: PS-67 Staff records separate confirmation after all recipient allocations delivered
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmBeneficiaryRequest' }
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryConfirmationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -1949,6 +1991,21 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    ConfirmBeneficiaryRequest:
+      type: object
+      required: [receiptReference]
+      properties:
+        receiptReference: { type: string, minLength: 1, maxLength: 200 }
+    BeneficiaryConfirmationResponse:
+      type: object
+      properties:
+        confirmationId: { type: string, format: uuid, nullable: true }
+        sessionId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, CONFIRMED] }
+        confirmedBy: { type: string, format: uuid, nullable: true }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        receiptReference: { type: string, nullable: true }
     LegalApprovalRequest:
       type: object
       additionalProperties: false
@@ -2155,6 +2212,8 @@ components:
             - HANDOVER_RECIPIENT_NOT_ELIGIBLE
             - HANDOVER_ASSET_NOT_ELIGIBLE
             - HANDOVER_ASSET_ALREADY_DELIVERED
+            - HANDOVER_CONFIRMATION_PENDING_DELIVERY
+            - HANDOVER_CONFIRMATION_CONFLICT
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE

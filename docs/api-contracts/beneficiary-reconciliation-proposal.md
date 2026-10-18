@@ -1,5 +1,8 @@
 # PS-67 — Beneficiary reconciliation (đề xuất tích hợp)
 
+> Cập nhật triển khai: xem [handover-completion.md](handover-completion.md).
+> Phần DRAFT bên dưới là snapshot lịch sử trước khi PS-57–66 có trên develop.
+
 Trạng thái: **DRAFT, chưa phải API đã triển khai hoặc contract đã chốt**.
 Nguồn: PS-67 và PS-54; đối chiếu `origin/develop` tại `d612b5d` ngày 2026-10-18.
 
