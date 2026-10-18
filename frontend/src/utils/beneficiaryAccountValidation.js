@@ -1,0 +1,55 @@
+export function validateLinkExistingAccountForm(email) {
+  const trimmed = String(email || '').trim();
+  if (!trimmed) {
+    return {
+      isValid: false,
+      errorKey: 'emailRequired',
+      messageVi: 'Vui lòng nhập email tài khoản cần liên kết.',
+      messageEn: 'Please enter registered account email.',
+    };
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmed)) {
+    return {
+      isValid: false,
+      errorKey: 'emailInvalid',
+      messageVi: 'Định dạng email không hợp lệ.',
+      messageEn: 'Invalid email format.',
+    };
+  }
+
+  return { isValid: true, email: trimmed };
+}
+
+export function validateCreateBeneficiaryAccountForm(data = {}) {
+  const errors = {};
+
+  const fullName = String(data.fullName || '').trim();
+  if (!fullName) {
+    errors.fullName = 'Vui lòng nhập họ và tên người thụ hưởng.';
+  } else if (fullName.length > 150) {
+    errors.fullName = 'Họ và tên không được vượt quá 150 ký tự.';
+  }
+
+  const email = String(data.email || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email) {
+    errors.email = 'Vui lòng nhập email người thụ hưởng.';
+  } else if (!emailRegex.test(email)) {
+    errors.email = 'Định dạng email không hợp lệ.';
+  }
+
+  const phone = String(data.phone || '').trim();
+  if (phone) {
+    const phoneRegex = /^[0-9+() -]{8,20}$/;
+    if (!phoneRegex.test(phone)) {
+      errors.phone = 'Số điện thoại không đúng định dạng.';
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
