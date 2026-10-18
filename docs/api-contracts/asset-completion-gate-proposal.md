@@ -1,5 +1,10 @@
 # PS-68 — Asset Completion Gate: phần chuẩn bị
 
+> Superseded: API/service đã nối vào snapshot có khóa trên develop e9ea7f0.
+> GET .../handover-sessions/{sessionId}/asset-completion trả completed/total/pending/complete.
+> Asset nhiều người nhận chỉ complete khi mọi allocation APPROVED đã delivered.
+> Scope rỗng không được xem complete. Không lọc người chưa verified khỏi mẫu số.
+
 Trạng thái **QUEUED / chưa tích hợp**, nhánh riêng từ develop `d612b5d`.
 Nguồn: [PS-68](https://thaithai9785.atlassian.net/browse/PS-68), LV-CLOSE-001:
 100% Asset trong approved scope phải Delivered; còn pending thì chặn complete.
