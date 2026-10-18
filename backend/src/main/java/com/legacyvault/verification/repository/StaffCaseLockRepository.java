@@ -20,6 +20,21 @@ public interface StaffCaseLockRepository extends Repository<VerificationCase, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         select c from VerificationCase c
+        where c.vaultId = :vaultId and c.assignedStaffUserId = :staffUserId and c.status = 'OPEN'
+        """)
+    Optional<VerificationCase> findOpenOwnedByStaffForVaultForUpdate(
+            @Param("vaultId") Long vaultId, @Param("staffUserId") Long staffUserId);
+
+    @Query("""
+        select c from VerificationCase c
+        where c.vaultId = :vaultId and c.assignedStaffUserId = :staffUserId and c.status = 'OPEN'
+        """)
+    Optional<VerificationCase> findOpenOwnedByStaffForVault(
+            @Param("vaultId") Long vaultId, @Param("staffUserId") Long staffUserId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select c from VerificationCase c
         where c.publicId = :caseId
           and c.assignedStaffUserId = :staffUserId
         """)

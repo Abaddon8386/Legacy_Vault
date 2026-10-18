@@ -10,7 +10,6 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import {
-  validateBeneficiaryConfirmationForm,
   BENEFICIARY_CONFIRM_STATUS,
 } from '../../utils/beneficiaryConfirmationValidation.js';
 import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';

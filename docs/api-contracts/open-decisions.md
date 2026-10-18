@@ -49,6 +49,8 @@
 | D-API-32 | PS-16 | Owner xem nội dung bảo mật của Asset | **Đảo ngược** "payload không bao giờ có trong response". Owner xem lại `payload` bằng `POST .../assets/{assetId}/reveal` sau khi nhập lại **mật khẩu đăng nhập hiện tại** (không có mã/PIN riêng). Chỉ khi Vault `ACTIVE`; sau đó 409 `VAULT_NOT_EDITABLE`. Sai mật khẩu `403 REAUTH_FAILED`; quá giới hạn `429 TOO_MANY_ATTEMPTS` (mặc định 5 lần/15 phút, cấu hình được, **chờ nhóm xác nhận**). Chốt 2026-10-14 (Dương) |
 | D-API-33 | PS-17 / PS-18 | Owner mở/tải file di chúc | **Thay** "chưa có API tải xuống" của D-API-14. `POST .../wills/{willId}/versions/{version}/download` với **mật khẩu đăng nhập hiện tại**, chỉ khi Vault `ACTIVE`, response `attachment` + `no-store` + `nosniff`. BE so lại SHA-256 trước khi trả. Dùng chung giới hạn thử với D-API-32 (mặc định 5 lần/15 phút, **chờ nhóm xác nhận**). Chốt 2026-10-14 (Dương) |
 | D-API-34 | PS-38 / PS-39 | Ghi nhận giấy tờ do Staff nhận | **Đề xuất, chờ nhóm xác nhận.** (1) Hai loại giấy tờ khai tử: `DEATH_CERTIFICATE`, `DEATH_REGISTRATION_EXTRACT` (suy từ LV-DEATH-002 "Giấy chứng tử / Trích lục khai tử"; chỉ `DEATH_CERTIFICATE` có trong data dictionary). (2) Chỉ Staff **đã nhận ca** mới ghi nhận; ca phải `OPEN`. (3) PS-38/39 chỉ ghi nhận, **không** đổi trạng thái Vault/ca: tiến độ hồ sơ (`DEATH_DOCS_COLLECTED`, `WILL_AND_IDS_SUBMITTED`) chưa có cột chứa, `verification_cases.status` chỉ có `OPEN`/`CANCELLED`. (4) PS-39 không bắt buộc ST-12 đã được duyệt. |
+| D-API-35 | PS-40 | Đối chiếu di chúc gốc của Legal | **Đề xuất, chờ nhóm xác nhận.** (1) Legal (không phải Staff) đối chiếu, theo chỉ đạo của Dương. (2) Ba kết quả `MATCH`/`MISMATCH`/`INCONCLUSIVE`; `MISMATCH` và `INCONCLUSIVE` bắt buộc có lý do. (3) Hash do server lấy từ phiên bản đã lưu. (4) "Chặn luồng duyệt thông thường" hiểu là `approvalBlocked` cho tới khi kết quả **mới nhất** của ca là `MATCH`; chưa đối chiếu cũng chặn. (5) Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION`. (6) **Đã giải quyết theo Main Flow ST-15:** `MATCH` đầu tiên chuyển Vault sang `WILL_VERIFICATION`. Còn mở: Legal chưa có cách xem nội dung bản scan. |
+| D-API-36 | PS-41 / PS-42 / PS-43 | Hồ sơ căn cứ phân chia | **Giải quyết theo Main Flow v4.2 (ST-16..19) và D-LEGAL-002; chờ nhóm xác nhận.** (1) Hồ sơ do **Legal** tạo ở ST-16 kèm nhánh; Staff không bao giờ chọn nhánh (AC-L04). (2) "Chưa đủ thông tin" là `ON_HOLD`; hồ sơ `ON_HOLD` chưa nhận văn bản. (3) Tiến độ hồ sơ ở `legal_basis_dossiers.status`: `DRAFT` → `LEGAL_BASIS_PROVIDED` (ST-18) → `LEGAL_BASIS_FORWARDED` (ST-19). (4) ST-18 yêu cầu văn bản **được số hóa và có hash**: Staff tải file, server tính SHA-256, mã hóa, sinh `file_reference`; migration V14 thêm cột lưu file và `legal_basis_type`. (5) Mỗi ca một hồ sơ. (6) Vault: ST-15 `MATCH` → `WILL_VERIFICATION`; ST-16 → `AWAITING_LEGAL_BASIS`/`ON_HOLD`; ST-19 → `LEGAL_BASIS_VERIFICATION`. (7) Tranh chấp suy từ nhánh: NOTARIAL=`NONE`, COURT=`DISPUTED`, ON_HOLD=`UNDETERMINED`. (8) PS-43: chỉ hồ sơ `ON_HOLD` được phân loại lại sang NOTARIAL/COURT; NOTARIAL↔COURT không đổi lẫn nhau; lịch sử phân loại lưu ở `legal_basis_classification_history` (V15). (9) Văn bản NOTARIAL bắt buộc tổ chức, số và ngày công chứng. |
 
 ## C. Câu hỏi mở kế thừa từ tài liệu nghiệp vụ — **TẠM HOÃN** (2026-10-12)
 
@@ -105,3 +107,28 @@ Theo trao đổi Dương – Long. **Xác minh trên commit `842258c` của `fea
 | N2 | `flyway.locations` phụ thuộc working directory | **Đã giải quyết** — migration được đóng gói vào classpath (`classpath:db/migration`, Maven resource `../database/migration`) |
 | N3 | V2 bị sửa tại chỗ sau khi đã push (`804b891` → `842258c`) | **Đã chốt: giữ V2** (2026-10-12). Điều kiện: báo mọi người đã chạy bản V2 cũ **reset DB cục bộ** (nếu không sẽ lỗi Flyway "checksum mismatch"); từ khi merge, mọi thay đổi schema là V3 trở đi |
 | N4 | Tài liệu DB chưa nhắc DLL xác thực Windows (`mssql-jdbc_auth-*.dll`) và chưa có cách sinh BCrypt cho seed | **Tạm bỏ qua** (2026-10-12) |
+
+## G. PS-77 — đề xuất chờ phê duyệt của nhóm (2026-10-17)
+
+Trạng thái: **PENDING — chưa có biên bản phê duyệt của nhóm**. Trao đổi với người dùng
+trong chat là đầu vào đề xuất, không thay thế Main Flow v4.2, D-TRUSTEE-001 hoặc D-LEGAL-002.
+Không ghi tên thành viên hoặc chữ ký phê duyệt khi chưa có xác nhận thực tế.
+
+- Đề xuất mô hình: chọn sau đăng ký, trọn đời, nâng hạn mức, không hạ/gia hạn/hết hạn.
+- Đề xuất giá một lần: BASIC 0, STANDARD 199000, EXTENDED 499000 VND.
+- Đề xuất Owner quota: 5/50/200 Asset, 100 MiB/1 GiB/5 GiB, 10 MiB/tệp.
+- Đề xuất evidence theo ca: 100 MiB tổng, 50 phiên bản, 10 MiB/tệp. **Không áp dụng vào PS-41**.
+- Còn phải chốt: ai xác nhận thanh toán/cấp gói, chứng từ/giao dịch nào được tin cậy,
+  idempotency và rollback, nâng gói trả chênh lệch hay cách khác; có cho mô phỏng miễn phí không.
+  Owner yêu cầu nâng gói không đồng nghĩa đã thanh toán hoặc được cấp entitlement.
+- Nhóm cần bổ sung biên bản, người duyệt, ngày duyệt và tham chiếu tài liệu nguồn trước khi
+  kích hoạt quota; cần triển khai quy trình thanh toán/xác nhận đã duyệt trước khi cho cấp gói.
+
+Hành vi hiện tại: `POST /subscriptions/me/upgrade` luôn 409
+`SUBSCRIPTION_UPGRADE_UNAVAILABLE`, không ghi entitlement/audit nâng gói; không có cờ bật cấp miễn phí.
+`legacyvault.subscription.quota-enforcement-enabled=false` mặc định: không áp các giới hạn Owner
+đề xuất, GET catalog/gói trả 409 `SUBSCRIPTION_POLICY_PENDING`. Cờ chỉ dành cho thử nghiệm cô lập
+cho đến khi có phê duyệt bằng văn bản; bật cờ không mở khóa cấp gói trả phí.
+Intake PS-41 không phụ thuộc subscription và không chặn theo tổng byte/số phiên bản đề xuất.
+Giới hạn upload và authorization/route/hold đã có của PS-41 được giữ nguyên.
+Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.

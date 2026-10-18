@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -30,6 +32,8 @@ import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.service.VaultService;
+import com.legacyvault.subscription.service.OwnerQuotaService;
+import com.legacyvault.subscription.service.QuotaPolicy.Delta;
 
 /**
  * Tạo, liệt kê, xem và cập nhật Asset của Vault (PS-15, PS-16, ST-02). Ownership qua {@link VaultService};
@@ -45,19 +49,26 @@ public class AssetService {
 	private final EncryptionService encryptionService;
 	private final AuditService auditService;
 	private final PasswordReauthService reauthService;
+	private final OwnerQuotaService quotas;
+	private final EntityManager entities;
 
 	public AssetService(AssetRepository assetRepository, VaultService vaultService,
-			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService) {
+			EncryptionService encryptionService, AuditService auditService, PasswordReauthService reauthService,
+			OwnerQuotaService quotas, EntityManager entities) {
 		this.assetRepository = assetRepository;
 		this.vaultService = vaultService;
 		this.encryptionService = encryptionService;
 		this.auditService = auditService;
 		this.reauthService = reauthService;
+		this.quotas = quotas;
+		this.entities = entities;
 	}
 
 	@Transactional
 	public AssetResponse createAsset(UUID vaultId, Long ownerUserId, CreateAssetRequest request) {
-		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		quotas.lockOwner(ownerUserId);
+		Vault vault = vaultService.requireEditableVaultForUpdate(vaultId, ownerUserId);
+		quotas.requireGrowth(ownerUserId, new Delta(1, request.payload().getBytes(StandardCharsets.UTF_8).length));
 
 		// DTO đã chặn giá trị khác TEXT/CREDENTIAL nên valueOf không thể lỗi ở đây.
 		AssetType type = AssetType.valueOf(request.assetType());
@@ -91,8 +102,15 @@ public class AssetService {
 	 */
 	@Transactional
 	public AssetResponse updateAsset(UUID vaultId, UUID assetId, Long ownerUserId, UpdateAssetRequest request) {
-		Vault vault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		quotas.lockOwner(ownerUserId);
+		Vault vault = vaultService.requireEditableVaultForUpdate(vaultId, ownerUserId);
 		Asset asset = requireAsset(vault, assetId);
+		// Delta must use committed current payload bytes, not an entity cached before acquiring Owner/Vault locks.
+		entities.refresh(asset, LockModeType.PESSIMISTIC_WRITE);
+		if (request.payload() != null) {
+			long deltaBytes = request.payload().getBytes(StandardCharsets.UTF_8).length - asset.getPayloadSizeBytes();
+			quotas.requireGrowth(ownerUserId, new Delta(0, deltaBytes));
+		}
 
 		List<String> changedFields = new ArrayList<>();
 		if (request.name() != null && !request.name().trim().equals(asset.getName())) {
