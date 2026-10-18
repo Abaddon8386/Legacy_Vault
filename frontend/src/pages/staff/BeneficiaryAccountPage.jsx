@@ -259,7 +259,10 @@ function CounterHandoverContent({
               <button
                 type="button"
                 className={`lv-handover-header-btn ${isRefreshing ? 'is-spinning' : ''}`}
-                onClick={onRefresh}
+                onClick={() => {
+                  onResetScenario();
+                  onRefresh?.();
+                }}
                 disabled={isRefreshing}
                 title={t.refreshBtn}
               >
