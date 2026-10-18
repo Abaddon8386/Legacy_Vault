@@ -1,5 +1,10 @@
 # PS-72 — Archive Vault và Close Case: chờ tích hợp
 
+> Superseded: POST .../handover-sessions/{sessionId}/archive đã có service/controller,
+> kiểm tra current approval + dual gate + PS-71 proof và receipt coverage đầy đủ.
+> V30 thêm read-only guards ở DB; audit INSERT/lịch sử đọc được giữ.
+> SQL integration chưa được chứng nhận: V25 từ PS-61 vẫn lỗi batch, giữ nguyên theo yêu cầu.
+
 Trạng thái **QUEUED / DRAFT**, nhánh riêng từ develop `d612b5d`.
 Nguồn: [PS-72](https://thaithai9785.atlassian.net/browse/PS-72), LV-CLOSE-001:
 sau hoàn tất Vault ARCHIVED, case CLOSED; atomic, read-only, giữ audit/legal history.

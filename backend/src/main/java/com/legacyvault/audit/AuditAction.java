@@ -1,6 +1,7 @@
 package com.legacyvault.audit;
 
 public enum AuditAction {
+    VAULT_HANDOVER_ARCHIVED,
     BENEFICIARY_HANDOVER_CONFIRMED,
     AUTH_REGISTERED,
     AUTH_LOGIN_SUCCEEDED,

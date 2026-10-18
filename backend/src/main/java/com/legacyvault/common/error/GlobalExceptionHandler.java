@@ -97,6 +97,16 @@ public class GlobalExceptionHandler {
 		return respond(factory.create(request, ErrorCode.UNAUTHENTICATED, List.of()));
 	}
 
+	/** SQL Server archive trigger errors are classified by numeric code, never message text. */
+	@ExceptionHandler(org.springframework.dao.DataAccessException.class)
+	ResponseEntity<ApiError> handleDatabaseWrite(org.springframework.dao.DataAccessException ex, HttpServletRequest request) {
+		for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+			if (cause instanceof java.sql.SQLException sql && sql.getErrorCode() == 51300)
+				return respond(factory.create(request, ErrorCode.VAULT_NOT_EDITABLE, List.of()));
+		}
+		return handleUnexpected(ex, request);
+	}
+
 	/** Lưới an toàn cuối cùng: client chỉ thấy thông điệp chung, chi tiết nằm trong log theo traceId. */
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {

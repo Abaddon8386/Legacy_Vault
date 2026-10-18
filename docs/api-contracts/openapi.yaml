@@ -1927,6 +1927,24 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/archive:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: PS-72 Archive Vault and close case atomically after completion and receipt coverage
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverArchiveResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -2063,6 +2081,15 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    HandoverArchiveResponse:
+      type: object
+      properties:
+        vaultId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        vaultStatus: { type: string, enum: [ARCHIVED] }
+        caseStatus: { type: string, enum: [CLOSED] }
+        archivedAt: { type: string, format: date-time }
     HandoverCloseResponse:
       type: object
       properties:
@@ -2511,7 +2538,7 @@ components:
       properties:
         deathDocumentPublicId: { type: string, format: uuid }
         verificationCasePublicId: { type: string, format: uuid }
-        verificationCaseStatus: { type: string, enum: [OPEN, CANCELLED] }
+        verificationCaseStatus: { type: string, enum: [OPEN, CANCELLED, CLOSED] }
         vaultStatus: { type: string }
         document:
           type: object

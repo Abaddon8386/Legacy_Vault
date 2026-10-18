@@ -1,5 +1,10 @@
 # PS-67–72 — Hàng chờ dependency
 
+> Cập nhật: dependency backend PS-57–66 đã có trên develop e9ea7f0.
+> Phần triển khai tiếp theo và giới hạn kiểm chứng ở
+> [PS-67-72-integration-2026-10-18.md](PS-67-72-integration-2026-10-18.md).
+> Snapshot bên dưới là lịch sử trước lần tích hợp; không dùng để kết luận code hiện tại.
+
 Ngày: 2026-10-18, Asia/Saigon. Theo yêu cầu người dùng: làm phần độc lập, chờ
 PS-56–66 hoàn thành, hỏi lại trước khi triển khai phần còn lại. PS-80 tạm chờ.
 
