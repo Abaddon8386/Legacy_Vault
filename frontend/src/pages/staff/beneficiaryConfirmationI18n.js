@@ -34,6 +34,7 @@ export const beneficiaryConfirmationI18n = {
     btnRecordConfirmation: 'Ghi nhận xác nhận',
     btnResetForm: 'Đặt lại',
     unavailableNotice: 'Chức năng hiện chưa khả dụng',
+    informationUnavailable: 'Chưa có thông tin',
     emptyBeneficiaries: 'Chưa có thông tin người thụ hưởng trong hồ sơ này.',
     // Error keys
     beneficiaryRequired: 'Vui lòng chọn người thụ hưởng.',
@@ -71,6 +72,7 @@ export const beneficiaryConfirmationI18n = {
     btnRecordConfirmation: 'Record Confirmation',
     btnResetForm: 'Reset',
     unavailableNotice: 'This function is currently unavailable.',
+    informationUnavailable: 'Information unavailable',
     emptyBeneficiaries: 'No beneficiaries found for this case.',
     // Error keys
     beneficiaryRequired: 'Please select a beneficiary.',

@@ -120,40 +120,46 @@ export default function BeneficiaryConfirmationPage({
           </h2>
         </div>
 
-        {beneficiaries.length === 0 ? (
-          <p style={{ color: 'var(--lv-text-muted)', fontSize: 14 }}>{t.emptyBeneficiaries}</p>
-        ) : (
-          <div className="lv-confirm-table-wrapper">
-            <table className="lv-confirm-table">
-              <thead>
+        <div className="lv-confirm-table-wrapper">
+          <table className="lv-confirm-table">
+            <thead>
+              <tr>
+                <th>{t.tableColBeneficiary}</th>
+                <th>{t.tableColRelationship}</th>
+                <th>{t.tableColDeliveryStatus}</th>
+                <th>{t.tableColConfirmStatus}</th>
+                <th>{t.tableColReceipt}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!Array.isArray(beneficiaries) || beneficiaries.length === 0 ? (
                 <tr>
-                  <th>{t.tableColBeneficiary}</th>
-                  <th>{t.tableColRelationship}</th>
-                  <th>{t.tableColDeliveryStatus}</th>
-                  <th>{t.tableColConfirmStatus}</th>
-                  <th>{t.tableColReceipt}</th>
+                  <td colSpan="5">
+                    <div className="lv-confirm-empty" role="status">
+                      <p>{t.emptyBeneficiaries || t.informationUnavailable}</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {beneficiaries.map((b) => {
+              ) : (
+                beneficiaries.map((b) => {
                   const isConfirmed = b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED;
                   const isPending = b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.PENDING;
                   const isDelivered = b.deliveryStatus === 'DELIVERED';
                   const isDeliveryPending = b.deliveryStatus === 'PENDING';
 
                   return (
-                    <tr key={b.id}>
+                    <tr key={b.id || b.beneficiaryId}>
                       <td>
-                        <strong>{b.fullName || b.name || b.id}</strong>
+                        <strong>{b.fullName || b.name || t.informationUnavailable}</strong>
                       </td>
-                      <td>{b.relationship || '—'}</td>
+                      <td>{b.relationship || t.informationUnavailable}</td>
                       <td>
                         <span className="lv-confirm-delivery-tag">
                           {isDelivered
                             ? t.deliveryDelivered
                             : isDeliveryPending
                               ? t.deliveryPending
-                              : t.deliveryUnknown}
+                              : t.informationUnavailable}
                         </span>
                       </td>
                       <td>
@@ -170,20 +176,20 @@ export default function BeneficiaryConfirmationPage({
                         ) : (
                           <span className="lv-confirm-status-pill lv-confirm-status-pill--unknown">
                             <HelpCircle size={12} aria-hidden="true" />
-                            <span>{t.statusUnknown}</span>
+                            <span>{t.informationUnavailable}</span>
                           </span>
                         )}
                       </td>
                       <td>
-                        <code>{b.receiptReference || '—'}</code>
+                        <code>{b.receiptReference || t.informationUnavailable}</code>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Staff Record Confirmation Form */}
@@ -268,15 +274,6 @@ export default function BeneficiaryConfirmationPage({
               disabled={true} // Mutation disabled pending server endpoint
               title={t.unavailableNotice}
               aria-label={t.btnRecordConfirmation}
-              onClick={() => {
-                const selectedBen = beneficiaries.find((b) => b.id === selectedBeneficiaryId);
-                const res = validateBeneficiaryConfirmationForm({
-                  beneficiaryId: selectedBeneficiaryId,
-                  receiptReference,
-                  currentStatus: selectedBen?.confirmationStatus,
-                });
-                setErrors(res.errors);
-              }}
             >
               <FileCheck size={16} aria-hidden="true" />
               <span>{t.btnRecordConfirmation}</span>

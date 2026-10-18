@@ -215,6 +215,23 @@
   background-color: #faf8f5;
 }
 
+.lv-beneficiary-confirmation-view .lv-confirm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+  background-color: #fdfbf8;
+  border-radius: var(--lv-radius-md, 10px);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-empty p {
+  font-size: 13.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 0;
+}
+
 /* Status Pills */
 .lv-beneficiary-confirmation-view .lv-confirm-status-pill {
   display: inline-flex;
