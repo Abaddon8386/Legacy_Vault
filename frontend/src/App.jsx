@@ -920,7 +920,8 @@ export default function App() {
           currentTab="beneficiary-confirmation"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -938,6 +939,10 @@ export default function App() {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
             } else if (tab === 'beneficiary-confirmation') {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -965,7 +970,8 @@ export default function App() {
           currentTab="completion-progress"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -983,6 +989,10 @@ export default function App() {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -1010,7 +1020,8 @@ export default function App() {
           currentTab="close-and-archive"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -1028,6 +1039,10 @@ export default function App() {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             } else if (tab === 'close-and-archive') {
               navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
