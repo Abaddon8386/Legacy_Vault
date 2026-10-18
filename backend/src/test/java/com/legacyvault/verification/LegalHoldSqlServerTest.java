@@ -25,6 +25,13 @@ class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
         context.getBean(CourtDecisionService.class).record(f.publicCaseId(), f.legal(),
                 new CourtDecisionRequest(version, CourtDecisionRequest.Result.VALID, "Legal assessed valid court evidence"));
     }
+    private void approve(Fixture f) {
+        var review = context.getBean(LegalBasisReviewService.class)
+                .recordCompletedReviewByCasePublicId(f.publicCaseId(), f.userId(), "Reviewed current dossier snapshot");
+        context.getBean(LegalApprovalService.class).decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, review.currentVersionNo(),
+                        review.currentSha256Hash(), review.currentAllocationHash(), "Reviewed current allocation"));
+    }
     private BasisDossierResponse hold(Fixture f) {
         return context.getBean(LegalBasisHoldService.class).hold(f.publicCaseId(), f.legal(),
                 new HoldBasisRequest(HoldBasisRequest.Cause.NEW_DISPUTE, "Private new dispute"));
@@ -45,6 +52,7 @@ class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
     void newDisputePreservesHistoryAndRequiresNewForwardedVersionAndNewAssessment() {
         var f = court(true);
         assess(f, 1);
+        approve(f);
         gate(f);
         var original = context.getBean(BasisDossierViewService.class).forLegal(f.publicCaseId()).versions().getFirst();
         var held = hold(f);
@@ -65,6 +73,7 @@ class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
         forward(f, 2);
         blocked(f); // The old VALID assessment remains history, never clears version 2.
         assess(f, 2);
+        approve(f);
         gate(f);
         assertEquals(2, context.getBean(CourtDecisionService.class).history(f.publicCaseId()).size());
         assertEquals(2, count("legal_basis_dossier_versions", "legal_basis_dossier_id = ?", dossierId(f)));
@@ -92,6 +101,7 @@ class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
     void auditFailureRollsBackHoldHistoryAndRequiredVersion() {
         var f = court(true);
         assess(f, 1);
+        approve(f);
         jdbc.execute("CREATE TRIGGER dbo.TR_test_hold_audit_failure ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS (SELECT 1 FROM inserted WHERE action = 'LEGAL_BASIS_HELD') THROW 51000, 'Injected hold audit failure', 1; END");
         try {
             assertThrows(RuntimeException.class, () -> hold(f));
@@ -107,6 +117,7 @@ class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
     void cachedClearanceCannotBypassACommittedHold() {
         var f = court(true);
         assess(f, 1);
+        approve(f);
         tx.executeWithoutResult(status -> {
             var cached = context.getBean(LegalBasisDossierRepository.class).findByVerificationCaseId(f.caseId()).orElseThrow();
             assertEquals(LegalBasisDossier.ROUTE_COURT, cached.getRoute());

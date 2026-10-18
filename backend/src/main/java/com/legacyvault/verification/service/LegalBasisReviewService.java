@@ -14,17 +14,12 @@ import com.legacyvault.verification.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class LegalBasisReviewService {
@@ -621,10 +616,7 @@ public class LegalBasisReviewService {
      * Tạo hash ổn định cho các dòng phân bổ.
      */
     public static String allocationHashFromCanonicalValues(List<String> values) {
-        return sha256Static(
-                values.stream()
-                        .sorted()
-                        .collect(Collectors.joining("\n")));
+        return AllocationScopeHash.hashCanonicalValues(values);
     }
 
     private String allocationHash(Long dossierId, int versionNo) {
@@ -636,21 +628,8 @@ public class LegalBasisReviewService {
         return allocationHashFromCanonicalValues(scope);
     }
 
-    private static String sha256Static(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8));
-
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 is not available.", ex);
-        }
-    }
-
     private String allocationCanonicalValue(AllocationRow row) {
-        return String.valueOf(row.assetId()) + "|"
-                + String.valueOf(row.beneficiaryId()) + "|"
-                + String.valueOf(row.description());
+        return AllocationScopeHash.canonicalValue(row.assetId(), row.beneficiaryId(), row.description());
     }
 }
 
