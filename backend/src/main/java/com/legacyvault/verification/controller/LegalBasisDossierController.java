@@ -5,11 +5,14 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.ClassifyBasisRequest;
 import com.legacyvault.verification.dto.LegalBasisReviewResponse;
+import com.legacyvault.verification.dto.LegalApprovalRequest;
+import com.legacyvault.verification.dto.LegalApprovalResponse;
 import com.legacyvault.verification.dto.RecordLegalBasisReviewRequest;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.LegalBasisReviewService;
+import com.legacyvault.verification.service.LegalApprovalService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,16 +40,28 @@ public class LegalBasisDossierController {
     private final BasisReclassificationService reclassification;
     private final BasisDossierViewService views;
     private final LegalBasisReviewService legalBasisReviewService;
+    private final LegalApprovalService legalApprovalService;
 
     public LegalBasisDossierController(
             BasisClassificationService classification,
             BasisReclassificationService reclassification,
             BasisDossierViewService views,
-            LegalBasisReviewService legalBasisReviewService) {
+            LegalBasisReviewService legalBasisReviewService,
+            LegalApprovalService legalApprovalService) {
         this.classification = classification;
         this.reclassification = reclassification;
         this.views = views;
         this.legalBasisReviewService = legalBasisReviewService;
+        this.legalApprovalService = legalApprovalService;
+    }
+
+    /** ST-21: phê duyệt/từ chối đúng snapshot đã được Legal xem xét. */
+    @PostMapping("/decision")
+    public ResponseEntity<LegalApprovalResponse> decide(
+            @PathVariable UUID caseId,
+            @Valid @RequestBody LegalApprovalRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        return ResponseEntity.ok(legalApprovalService.decide(caseId, principal, request));
     }
 
     @PostMapping

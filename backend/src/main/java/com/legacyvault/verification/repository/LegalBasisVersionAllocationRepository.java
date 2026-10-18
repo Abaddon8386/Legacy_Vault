@@ -2,6 +2,7 @@ package com.legacyvault.verification.repository;
 
 import com.legacyvault.verification.entity.LegalBasisVersionAllocation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -9,6 +10,10 @@ import java.util.List;
 
 /** Chỉ thêm mới và đọc: phân bổ của một phiên bản là chứng cứ, phiên bản mới có bộ phân bổ riêng. */
 public interface LegalBasisVersionAllocationRepository extends JpaRepository<LegalBasisVersionAllocation, Long> {
+
+    @Modifying
+    @Query("update LegalBasisVersionAllocation a set a.status = :status where a.dossierVersionId = :versionId")
+    int updateStatusForVersion(@Param("versionId") Long versionId, @Param("status") String status);
 
     @Query("""
         select new com.legacyvault.verification.repository.AllocationRow(

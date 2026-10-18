@@ -10,10 +10,12 @@ import com.legacyvault.user.repository.UserRoleRepository;
 import com.legacyvault.verification.controller.LegalBasisDossierController;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.LegalBasisReviewResponse;
+import com.legacyvault.verification.dto.LegalApprovalResponse;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.LegalBasisReviewService;
+import com.legacyvault.verification.service.LegalApprovalService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -109,6 +111,9 @@ class LegalBasisDossierControllerTest {
     @MockitoBean
     private LegalBasisReviewService legalBasisReviewService;
 
+    @MockitoBean
+    private LegalApprovalService legalApprovalService;
+
     private static RequestPostProcessor as(String role) {
         return authentication(
                 new UsernamePasswordAuthenticationToken(
@@ -159,6 +164,35 @@ class LegalBasisDossierControllerTest {
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.createdAt")
                         .value("2026-10-04T10:00:00Z"));
+    }
+
+    @Test
+    void decision_isLegalOnlyAndUsesAuthenticatedPrincipal() throws Exception {
+        String body = "{\"decision\":\"APPROVE\",\"versionNo\":1,\"sha256Hash\":\""
+                + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"}";
+        when(legalApprovalService.decide(eq(CASE_ID), any(), any())).thenReturn(
+                new LegalApprovalResponse(DOSSIER_ID, "LEGAL_APPROVED", 1, "a".repeat(64),
+                        "b".repeat(64), LEGAL.publicId(), LocalDateTime.parse("2026-10-18T10:00:00")));
+
+        review("/decision", body, legal())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision").value("LEGAL_APPROVED"));
+        review("/decision", body, as("STAFF_EXECUTOR"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(URL + "/decision", CASE_ID)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        verify(legalApprovalService).decide(eq(CASE_ID), any(), any());
+    }
+
+    @Test
+    void decision_requiresRejectionReasonAndValidSnapshotFields() throws Exception {
+        String prefix = "{\"decision\":\"REJECT\",\"versionNo\":1,\"sha256Hash\":\""
+                + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"}";
+        review("/decision", prefix, legal()).andExpect(status().isBadRequest());
+        review("/decision", "{\"decision\":\"APPROVE\",\"versionNo\":0}", legal())
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(legalApprovalService);
     }
 
     @Test

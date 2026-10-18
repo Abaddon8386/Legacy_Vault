@@ -22,6 +22,8 @@ import java.util.UUID;
 public class LegalBasisVersionAllocation {
 
     public static final String STATUS_DRAFT = "DRAFT";
+    public static final String STATUS_APPROVED = "APPROVED";
+    public static final String STATUS_REJECTED = "REJECTED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
