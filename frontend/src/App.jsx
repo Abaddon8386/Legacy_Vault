@@ -20,6 +20,8 @@ import BeneficiaryAccountPage from './pages/staff/BeneficiaryAccountPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
 import ScopedAssetHandoverPage from './pages/staff/ScopedAssetHandoverPage.jsx';
 import { canAccessScopedAssetHandover } from './utils/scopedAssetHandoverValidation.js';
+import BeneficiaryConfirmationPage from './pages/staff/BeneficiaryConfirmationPage.jsx';
+import { canAccessBeneficiaryConfirmation } from './utils/beneficiaryConfirmationValidation.js';
 import CompletionProgressPage from './pages/staff/CompletionProgressPage.jsx';
 import { canAccessCompletionProgress } from './utils/completionProgressValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
@@ -457,6 +459,7 @@ export default function App() {
           onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
           onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
           onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
         >
           <StaffCaseDashboard
             key={session?.user.id || 'preview'}
@@ -535,6 +538,7 @@ export default function App() {
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isSubscriptionRoute = path === '/subscription' || path === '/subscriptions';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isStaffBeneficiaryConfirmationRoute = path === '/staff/beneficiary-confirmation';
   const isStaffCompletionProgressRoute = path === '/staff/completion-progress';
   const isStaffAssetHandoverRoute = path === '/staff/asset-handover';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
@@ -570,6 +574,8 @@ export default function App() {
               navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
             } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             } else if (tab === 'asset-handover') {
@@ -609,11 +615,14 @@ export default function App() {
           onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
           onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
           onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
           onNavigateTab={tab => {
             if (tab === 'cases') {
               navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
             } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             } else if (tab === 'asset-handover') {
@@ -627,6 +636,49 @@ export default function App() {
             session={session}
           />
         </StaffShell>
+      </div>
+    );
+  }
+
+  if (isStaffBeneficiaryConfirmationRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessBeneficiaryConfirmation(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="beneficiary-confirmation"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            }
+          }}
+        >
+          <BeneficiaryConfirmationPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </AppShell>
       </div>
     );
   }
@@ -657,6 +709,8 @@ export default function App() {
               navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
             } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             }
