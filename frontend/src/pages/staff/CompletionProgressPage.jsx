@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useRef, useEffect } from 'react';
 import {
   ShieldAlert,
   CheckCircle2,
@@ -17,33 +17,182 @@ import './CompletionProgressPage.css';
 
 export default function CompletionProgressPage({
   lang = 'vi',
+  caseId: propCaseId,
+  caseReference: propCaseReference,
+  initialCaseId = '',
+  initialCaseReference = '',
   initialAssetData = null,
   initialBeneficiaryData = null,
+  assetData: propAssetData,
+  beneficiaryData: propBeneficiaryData,
+  onFetchProgress,
+  loadProgress,
+  onCaseChange,
 }) {
   const t = completionProgressI18n[lang] || completionProgressI18n.vi;
   const caseInputId = useId();
 
-  // State
-  const [caseReference, setCaseReference] = useState('');
-  const [assetData, setAssetData] = useState(initialAssetData);
-  const [beneficiaryData, setBeneficiaryData] = useState(initialBeneficiaryData);
+  const initialEffectiveCase =
+    propCaseId !== undefined
+      ? (propCaseId || '')
+      : propCaseReference !== undefined
+        ? (propCaseReference || '')
+        : (initialCaseId || initialCaseReference || '');
 
-  // Switching case resets data to avoid cross-context overwrite
-  const handleCaseChange = (newRef) => {
-    setCaseReference(newRef);
-    if (!newRef.trim()) {
+  const initialEffectiveTrimmed = initialEffectiveCase.trim();
+  const hasInitialData =
+    Boolean(initialEffectiveTrimmed) &&
+    (initialAssetData !== null ||
+      initialBeneficiaryData !== null ||
+      propAssetData !== undefined ||
+      propBeneficiaryData !== undefined);
+
+  // State
+  const [caseReference, setCaseReference] = useState(initialEffectiveCase);
+  const [loadedCaseId, setLoadedCaseId] = useState(
+    hasInitialData ? initialEffectiveTrimmed : ''
+  );
+  const [assetData, setAssetData] = useState(
+    propAssetData !== undefined ? propAssetData : initialAssetData
+  );
+  const [beneficiaryData, setBeneficiaryData] = useState(
+    propBeneficiaryData !== undefined ? propBeneficiaryData : initialBeneficiaryData
+  );
+
+  // Stale response guard
+  const activeCaseRef = useRef(initialEffectiveTrimmed);
+
+  // Sync state during render when props change (React 19 recommended pattern)
+  const effectivePropCase =
+    propCaseId !== undefined
+      ? propCaseId
+      : propCaseReference !== undefined
+        ? propCaseReference
+        : null;
+
+  const [prevPropCase, setPrevPropCase] = useState(effectivePropCase);
+  if (effectivePropCase !== null && effectivePropCase !== prevPropCase) {
+    setPrevPropCase(effectivePropCase);
+    const trimmed = (effectivePropCase || '').trim();
+    setCaseReference(effectivePropCase || '');
+    if (
+      trimmed &&
+      (propAssetData !== undefined || propBeneficiaryData !== undefined)
+    ) {
+      setLoadedCaseId(trimmed);
+      setAssetData(propAssetData ?? null);
+      setBeneficiaryData(propBeneficiaryData ?? null);
+    } else {
+      setLoadedCaseId('');
       setAssetData(null);
       setBeneficiaryData(null);
+    }
+  }
+
+  const [prevPropAssetData, setPrevPropAssetData] = useState(propAssetData);
+  const [prevPropBeneficiaryData, setPrevPropBeneficiaryData] = useState(propBeneficiaryData);
+  if (
+    propAssetData !== prevPropAssetData ||
+    propBeneficiaryData !== prevPropBeneficiaryData
+  ) {
+    setPrevPropAssetData(propAssetData);
+    setPrevPropBeneficiaryData(propBeneficiaryData);
+    if (propAssetData !== undefined) setAssetData(propAssetData ?? null);
+    if (propBeneficiaryData !== undefined) setBeneficiaryData(propBeneficiaryData ?? null);
+    if (effectivePropCase && (propAssetData !== undefined || propBeneficiaryData !== undefined)) {
+      setLoadedCaseId((effectivePropCase || '').trim());
+    }
+  }
+
+  // Update activeCaseRef in effect
+  useEffect(() => {
+    activeCaseRef.current = caseReference.trim();
+  }, [caseReference]);
+
+  // Handle case change via input or UI
+  const handleCaseChange = (newRef) => {
+    const trimmed = (newRef || '').trim();
+    setCaseReference(newRef);
+    activeCaseRef.current = trimmed;
+
+    // Immediately isolate state: clear prior case data to prevent stale display
+    setAssetData(null);
+    setBeneficiaryData(null);
+    setLoadedCaseId('');
+
+    if (typeof onCaseChange === 'function') {
+      onCaseChange(newRef);
+    }
+
+    const fetcher = onFetchProgress || loadProgress;
+    if (typeof fetcher === 'function' && trimmed) {
+      Promise.resolve(fetcher(trimmed))
+        .then((res) => {
+          if (activeCaseRef.current !== trimmed) return;
+          if (res) {
+            setAssetData(res.assetData ?? null);
+            setBeneficiaryData(res.beneficiaryData ?? null);
+            setLoadedCaseId(trimmed);
+          } else {
+            setAssetData(null);
+            setBeneficiaryData(null);
+            setLoadedCaseId(trimmed);
+          }
+        })
+        .catch(() => {
+          if (activeCaseRef.current !== trimmed) return;
+          setAssetData(null);
+          setBeneficiaryData(null);
+          setLoadedCaseId(trimmed);
+        });
     }
   };
 
   const handleReset = () => {
     setCaseReference('');
-    setAssetData(initialAssetData);
-    setBeneficiaryData(initialBeneficiaryData);
+    activeCaseRef.current = '';
+    setLoadedCaseId('');
+    setAssetData(null);
+    setBeneficiaryData(null);
   };
 
-  const evaluation = evaluateCompletionProgress(assetData || {}, beneficiaryData || {});
+  // Asynchronously fetch progress if fetcher is provided and case is not yet loaded
+  useEffect(() => {
+    const trimmed = caseReference.trim();
+    const fetcher = onFetchProgress || loadProgress;
+    if (typeof fetcher === 'function' && trimmed && loadedCaseId !== trimmed) {
+      Promise.resolve(fetcher(trimmed))
+        .then((res) => {
+          if (activeCaseRef.current !== trimmed) return;
+          if (res) {
+            setAssetData(res.assetData ?? null);
+            setBeneficiaryData(res.beneficiaryData ?? null);
+            setLoadedCaseId(trimmed);
+          } else {
+            setAssetData(null);
+            setBeneficiaryData(null);
+            setLoadedCaseId(trimmed);
+          }
+        })
+        .catch(() => {
+          if (activeCaseRef.current !== trimmed) return;
+          setAssetData(null);
+          setBeneficiaryData(null);
+          setLoadedCaseId(trimmed);
+        });
+    }
+  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress]);
+
+  // Evaluate metrics strictly for the active case
+  const activeTrimmed = caseReference.trim();
+  const hasValidCaseData = Boolean(activeTrimmed && loadedCaseId === activeTrimmed);
+  const effectiveAssetData = hasValidCaseData ? assetData : null;
+  const effectiveBeneficiaryData = hasValidCaseData ? beneficiaryData : null;
+
+  const evaluation = evaluateCompletionProgress(
+    effectiveAssetData,
+    effectiveBeneficiaryData
+  );
   const { overallStatus, assetMetric, beneficiaryMetric, missingConditions } = evaluation;
 
   return (

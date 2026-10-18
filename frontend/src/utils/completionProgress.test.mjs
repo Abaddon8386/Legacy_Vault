@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { JSDOM } from 'jsdom';
+import { build } from 'vite';
+import react from '@vitejs/plugin-react';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +20,93 @@ import {
   COMPLETION_MISSING_CONDITIONS,
 } from './completionProgressValidation.js';
 import { completionProgressI18n } from '../pages/staff/completionProgressI18n.js';
+
+// Setup JSDOM
+const dom = new JSDOM('<!doctype html><html><body></body></html>', {
+  url: 'http://localhost:5195/staff/completion-progress?preview=true',
+  pretendToBeVisual: true,
+});
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+globalThis.HTMLElement = dom.window.HTMLElement;
+globalThis.Element = dom.window.Element;
+globalThis.Event = dom.window.Event;
+globalThis.MouseEvent = dom.window.MouseEvent;
+globalThis.KeyboardEvent = dom.window.KeyboardEvent;
+if (!dom.window.Element.prototype.scrollIntoView) {
+  dom.window.Element.prototype.scrollIntoView = () => {};
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+// Helper to update input for React in JSDOM
+function changeInput(element, value) {
+  if (!element) return;
+  const prototype = dom.window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+  if (setter) {
+    setter.call(element, value);
+  } else {
+    element.value = value;
+  }
+  const propsKey = Object.keys(element).find((k) => k.startsWith('__reactProps$'));
+  if (propsKey && typeof element[propsKey]?.onChange === 'function') {
+    element[propsKey].onChange({ target: element });
+  } else {
+    element.dispatchEvent(new dom.window.Event('input', { bubbles: true, cancelable: true }));
+    element.dispatchEvent(new dom.window.Event('change', { bubbles: true, cancelable: true }));
+  }
+}
+
+async function loadComponentModule(entry, production = false) {
+  const result = await build({
+    configFile: false,
+    plugins: [react()],
+    logLevel: 'silent',
+    define: {
+      'import.meta.env.DEV': String(!production),
+      'import.meta.env.PROD': String(production),
+    },
+    build: {
+      write: false,
+      minify: false,
+      lib: { entry, formats: ['es'] },
+      rollupOptions: { external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'] },
+    },
+  });
+  let code = (Array.isArray(result) ? result[0] : result).output.find(
+    (item) => item.type === 'chunk' && item.isEntry
+  ).code;
+  for (const name of ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime']) {
+    code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
+  }
+  return await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+}
+
+const componentMod = await loadComponentModule('src/pages/staff/CompletionProgressPage.jsx');
+const CompletionProgressPage = componentMod.default;
+
+async function mount(Component, props) {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  await act(async () => {
+    root.render(React.createElement(Component, props));
+  });
+  return {
+    host,
+    render: async (nextProps) => {
+      await act(async () => {
+        root.render(React.createElement(Component, nextProps));
+      });
+    },
+    close: async () => {
+      await act(async () => {
+        root.unmount();
+      });
+      host.remove();
+    },
+  };
+}
 
 test('PS-55 Strict Safe Integer Counter Validation (normalizeSafeIntegerCount)', async (t) => {
   await t.test('accepts valid non-negative safe integers', () => {
@@ -283,4 +375,155 @@ test('PS-55 CSS Scoping Verification - No Leakage', () => {
       }
     }
   }
+});
+
+test('PS-55 Component Regression: Case Switching Isolation & Stale Response Discard', async (t) => {
+  await t.test('switching case via input wipes case A data, resets metrics to indeterminate, and avoids retaining A progress', async () => {
+    const wrapper = await mount(CompletionProgressPage, {
+      caseReference: 'CASE-A',
+      initialAssetData: { delivered: 4, total: 4 },
+      initialBeneficiaryData: { confirmed: 2, total: 2 },
+    });
+
+    try {
+      // 1. Case A renders as completed (4/4, 2/2, 100%, overall complete)
+      assert.ok(wrapper.host.textContent.includes('4 / 4'), 'Should show 4 / 4 for Case A assets');
+      assert.ok(wrapper.host.textContent.includes('2 / 2'), 'Should show 2 / 2 for Case A beneficiaries');
+      assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), 'Case A should be eligible for completion');
+
+      const caseInput = wrapper.host.querySelector('.lv-progress-input');
+      assert.ok(caseInput, 'Case input must exist');
+      assert.equal(caseInput.value, 'CASE-A');
+
+      // 2. Switch case A -> B directly via input without clearing to blank first
+      await act(async () => {
+        changeInput(caseInput, 'CASE-B');
+      });
+
+      // VERIFY: Case A data must be wiped immediately!
+      assert.equal(wrapper.host.textContent.includes('4 / 4'), false, 'Case A asset ratio must NOT remain');
+      assert.equal(wrapper.host.textContent.includes('2 / 2'), false, 'Case A beneficiary ratio must NOT remain');
+      assert.equal(wrapper.host.textContent.includes('Đạt 100%'), false, 'Đạt 100% badge must NOT remain');
+      assert.equal(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), false, 'Case A completion verdict must NOT remain');
+
+      // VERIFY: B must show INDETERMINATE ("Chưa có thông tin", "— / —", "—")
+      assert.ok(wrapper.host.textContent.includes('— / —'), 'Should show indeterminate ratio — / —');
+      assert.ok(wrapper.host.textContent.includes('Chưa có thông tin'), 'Should show "Chưa có thông tin" banner/badges');
+
+      // Verify trackbar is indeterminate without aria-valuenow="0"
+      const progressTracks = wrapper.host.querySelectorAll('.lv-progress-track--indeterminate');
+      assert.equal(progressTracks.length, 2, 'Both tracks should be indeterminate');
+      for (const track of progressTracks) {
+        assert.equal(track.getAttribute('aria-valuenow'), null, 'Indeterminate track must NOT have aria-valuenow=0');
+        assert.equal(track.getAttribute('aria-valuetext'), 'Chưa có thông tin');
+      }
+    } finally {
+      await wrapper.close();
+    }
+  });
+
+  await t.test('switching case via props wipes case A and correctly displays valid case B data', async () => {
+    const wrapper = await mount(CompletionProgressPage, {
+      caseId: 'CASE-A',
+      assetData: { delivered: 4, total: 4 },
+      beneficiaryData: { confirmed: 2, total: 2 },
+    });
+
+    try {
+      assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'));
+      assert.ok(wrapper.host.textContent.includes('4 / 4'));
+
+      // Switch to B without data yet
+      await wrapper.render({
+        caseId: 'CASE-B',
+        assetData: null,
+        beneficiaryData: null,
+      });
+
+      assert.equal(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), false);
+      assert.equal(wrapper.host.textContent.includes('4 / 4'), false);
+      assert.ok(wrapper.host.textContent.includes('Chưa có thông tin'));
+      assert.ok(wrapper.host.textContent.includes('— / —'));
+
+      // Now valid Case B data arrives (partially complete: 2/4 assets, 1/2 beneficiaries)
+      await wrapper.render({
+        caseId: 'CASE-B',
+        assetData: { delivered: 2, total: 4 },
+        beneficiaryData: { confirmed: 1, total: 2 },
+      });
+
+      assert.ok(wrapper.host.textContent.includes('2 / 4'), 'Should show Case B asset ratio');
+      assert.ok(wrapper.host.textContent.includes('1 / 2'), 'Should show Case B beneficiary ratio');
+      assert.ok(wrapper.host.textContent.includes('50%'), 'Should show Case B percentage');
+      assert.ok(wrapper.host.textContent.includes('Chưa đủ điều kiện hoàn tất'), 'Should show incomplete banner');
+      assert.equal(wrapper.host.textContent.includes('4 / 4'), false, 'Case A data must not linger');
+    } finally {
+      await wrapper.close();
+    }
+  });
+
+  await t.test('stale response of case A arriving after switching to case B is completely discarded', async () => {
+    let resolveCaseA;
+    let resolveCaseB;
+
+    const fakeFetcher = (caseId) => {
+      if (caseId === 'CASE-A') {
+        return new Promise((resolve) => {
+          resolveCaseA = (val) => resolve(val);
+        });
+      }
+      if (caseId === 'CASE-B') {
+        return new Promise((resolve) => {
+          resolveCaseB = (val) => resolve(val);
+        });
+      }
+      return Promise.resolve(null);
+    };
+
+    const wrapper = await mount(CompletionProgressPage, {
+      onFetchProgress: fakeFetcher,
+    });
+
+    try {
+      const caseInput = wrapper.host.querySelector('.lv-progress-input');
+
+      // 1. Trigger fetch for CASE-A
+      await act(async () => {
+        changeInput(caseInput, 'CASE-A');
+      });
+
+      // 2. Before A resolves, user switches to CASE-B!
+      await act(async () => {
+        changeInput(caseInput, 'CASE-B');
+      });
+
+      // 3. Late response for CASE-A returns now!
+      await act(async () => {
+        resolveCaseA({
+          assetData: { delivered: 4, total: 4 },
+          beneficiaryData: { confirmed: 2, total: 2 },
+        });
+      });
+
+      // VERIFY: Case A data must be completely discarded
+      assert.equal(wrapper.host.textContent.includes('4 / 4'), false, 'Stale Case A asset data must NOT be accepted');
+      assert.equal(wrapper.host.textContent.includes('2 / 2'), false, 'Stale Case A beneficiary data must NOT be accepted');
+      assert.equal(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), false, 'Stale Case A verdict must NOT be accepted');
+      assert.ok(wrapper.host.textContent.includes('Chưa có thông tin'), 'Should still show indeterminate for Case B');
+
+      // 4. Case B resolves with 3/3 and 3/3
+      await act(async () => {
+        resolveCaseB({
+          assetData: { delivered: 3, total: 3 },
+          beneficiaryData: { confirmed: 3, total: 3 },
+        });
+      });
+
+      // VERIFY: Case B renders accurately
+      assert.ok(wrapper.host.textContent.includes('3 / 3'), 'Case B asset data should render');
+      assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), 'Case B complete verdict should render');
+    } finally {
+      await wrapper.close();
+    }
+  });
 });
