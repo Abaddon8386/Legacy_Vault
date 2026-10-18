@@ -26,6 +26,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [dms.md](dms.md) | Cấu hình/check-in DMS, scheduler TRIGGERED + Grace | PS-22, PS-23 |
 | [staff-verification.md](staff-verification.md) | Ca xác minh của Staff: hàng đợi, nhận ca, ghi nhận giấy tờ khai tử và di chúc gốc | PS-34, PS-35, PS-38, PS-39 |
 | [handover-sessions.md](handover-sessions.md) | Staff mở, xem và đóng handover session cho Vault đã mở khóa | PS-60 |
+| [handover-receipts.md](handover-receipts.md) | Staff xác nhận bàn giao và truy xuất receipt bất biến | PS-61 |
 | [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
 | [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [legal-basis-dossier.md](legal-basis-dossier.md) | Hồ sơ căn cứ phân chia: Legal phân loại nhánh, Staff tiếp nhận và chuyển văn bản | PS-41, PS-42, PS-43 |

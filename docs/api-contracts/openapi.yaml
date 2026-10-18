@@ -1164,6 +1164,86 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Staff xác nhận và tạo receipt cho handover đã hoàn tất (PS-61)
+      description: |
+        Chỉ STAFF_EXECUTOR được assign. Session phải COMPLETED; Vault và legal approval phải còn hợp lệ,
+        người nhận phải VERIFIED_AT_COUNTER và assets phải nằm trong allocation đã được duyệt hiện hành.
+        Server ghi Staff và thời điểm xác nhận. Đây là Staff attestation, không phải chữ ký điện tử.
+        Mỗi lần tạo là bản ghi immutable; có thể liên kết receipt cũ bằng supersedesReceiptId.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateHandoverReceiptRequest' }
+      responses:
+        '201':
+          description: Receipt metadata và allocation snapshot được lưu cùng audit trong transaction
+          headers:
+            Location: { schema: { type: string }, description: URL receipt vừa tạo }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Staff truy xuất receipt theo handover session (PS-61)
+      x-status: implemented
+      responses:
+        '200':
+          description: Danh sách lịch sử receipt mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts/{receiptId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: receiptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff truy xuất chi tiết receipt của handover session (PS-61)
+      x-status: implemented
+      responses:
+        '200':
+          description: Receipt immutable cùng danh sách asset công khai
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/verification-cases/{caseId}/basis-dossier:
     get:
       tags: [Staff]
@@ -1804,6 +1884,36 @@ components:
         status: { type: string, enum: [OPEN, COMPLETED, CANCELLED] }
         openedAt: { type: string, format: date-time }
         closedAt: { type: string, format: date-time, nullable: true }
+    CreateHandoverReceiptRequest:
+      type: object
+      required: [recipientId, assetIds]
+      additionalProperties: false
+      properties:
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        supersedesReceiptId: { type: string, format: uuid, nullable: true }
+    HandoverReceiptResponse:
+      type: object
+      required: [receiptId, sessionId, recipientId, assetIds, staffId, dossierVersionNo, sha256Hash, allocationHash, confirmationType, confirmedAt]
+      properties:
+        receiptId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          items: { type: string, format: uuid }
+        staffId: { type: string, format: uuid }
+        dossierVersionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, minLength: 64, maxLength: 64 }
+        allocationHash: { type: string, minLength: 64, maxLength: 64 }
+        confirmationType: { type: string, enum: [STAFF_ATTESTATION] }
+        confirmedAt: { type: string, format: date-time }
+        supersedesReceiptId: { type: string, format: uuid, nullable: true }
     ApiError:
       type: object
       required: [timestamp, status, code, messageKey, message, path, traceId, errors]
@@ -1855,6 +1965,10 @@ components:
             - VERIFICATION_CASE_NOT_OPEN
             - HANDOVER_SESSION_ALREADY_OPEN
             - HANDOVER_SESSION_INVALID_STATE
+            - HANDOVER_RECEIPT_INVALID_STATE
+            - HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED
+            - HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED
+            - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
         message:
