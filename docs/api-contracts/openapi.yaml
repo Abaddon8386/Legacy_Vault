@@ -1394,6 +1394,38 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/decision:
+    post:
+      tags: [Legal]
+      summary: Legal phê duyệt hoặc từ chối đúng snapshot hồ sơ (PS-57, ST-21)
+      description: |
+        Chỉ `LEGAL_VERIFIER`, ca OPEN, Vault LEGAL_BASIS_VERIFICATION và dossier đã forward, không hold.
+        Request phải khớp version, SHA-256, allocationHash và snapshot review mới nhất. Từ chối bắt buộc có reason.
+        Quyết định append-only, cập nhật trạng thái allocation của đúng version và audit được lưu trong cùng transaction;
+        không trả hoặc audit nội dung file.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LegalApprovalRequest' }
+      responses:
+        '200':
+          description: Quyết định đã lưu cùng audit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalApprovalResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
     post:
       tags: [Legal]
@@ -1556,6 +1588,27 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    LegalApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, versionNo, sha256Hash, allocationHash]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT] }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        reason: { type: string, maxLength: 1000, description: Bắt buộc khi decision là REJECT }
+    LegalApprovalResponse:
+      type: object
+      required: [dossierId, decision, versionNo, sha256Hash, allocationHash, decidedBy, decidedAt]
+      properties:
+        dossierId: { type: string, format: uuid }
+        decision: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+        versionNo: { type: integer }
+        sha256Hash: { type: string, minLength: 64, maxLength: 64 }
+        allocationHash: { type: string, minLength: 64, maxLength: 64 }
+        decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
+        decidedAt: { type: string, format: date-time }
     RecordLegalBasisReviewRequest:
       type: object
       required: [reason]
@@ -1623,6 +1676,7 @@ components:
             - WILL_NOT_VERIFIED
             - BASIS_DOSSIER_ALREADY_EXISTS
             - BASIS_VERSION_STALE
+            - LEGAL_DECISION_STALE
             - COURT_EVIDENCE_REQUIRED
             - COURT_DECISION_REQUIRED
             - LEGAL_WORKFLOW_ON_HOLD

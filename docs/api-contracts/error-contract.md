@@ -132,3 +132,5 @@ PS-77 blocker fix: 409 `SUBSCRIPTION_POLICY_PENDING` (`error.subscription.policy
 for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
 (`error.subscription.upgradeUnavailable`) for any valid self-upgrade request. No entitlement is granted.
 `CASE_EVIDENCE_QUOTA_EXCEEDED` is reserved/inactive: PS-41 no longer emits this proposal-only error.
+
+PS-57: `LEGAL_DECISION_STALE` (409, `error.legalApproval.snapshotStale`) when version, hash, allocation scope, or review snapshot no longer matches.
