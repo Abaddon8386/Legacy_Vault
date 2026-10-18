@@ -51,7 +51,8 @@ public class HandoverSessionService {
         HandoverSessionCaseAccess.LockedCase locked = access.lockByPublicCaseId(casePublicId, staffId);
         var verificationCase = locked.verificationCase();
         Vault vault = locked.vault();
-        if (!verificationCase.isOpen() || !Vault.STATUS_UNLOCKED.equals(vault.getStatus())) {
+        if (!verificationCase.isOpen() || !(Vault.STATUS_UNLOCKED.equals(vault.getStatus())
+                || Vault.STATUS_HANDOVER_IN_PROGRESS.equals(vault.getStatus()))) {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         }
         workflow.requireProtectedTransition(casePublicId, LegalWorkflowGuard.ProtectedTransition.HANDOVER);
