@@ -46,6 +46,7 @@ class LegalWorkflowGuardTest {
         when(verificationCase.isOpen()).thenReturn(true);
         when(vault.getStatus()).thenReturn(Vault.STATUS_LEGAL_BASIS_VERIFICATION);
         when(dossier.acceptsIntake()).thenReturn(true);
+        when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
         when(dossier.getRequiredVersionNo()).thenReturn(1);
         when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
         when(versions.findMaxVersionNo(DOSSIER_ID)).thenReturn(VERSION);
@@ -73,5 +74,27 @@ class LegalWorkflowGuardTest {
                     .extracting(ex -> ((BusinessException) ex).getErrorCode())
                     .isEqualTo(ErrorCode.LEGAL_DECISION_STALE);
         }
+    }
+
+    @Test
+    void holdBlocksBeforeApprovalLookup() {
+        when(vault.getStatus()).thenReturn(Vault.STATUS_ON_HOLD);
+
+        assertThatThrownBy(() -> guard.requireProtectedTransition(CASE_ID, LegalWorkflowGuard.ProtectedTransition.UNLOCK))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
+        org.mockito.Mockito.verifyNoInteractions(approvals);
+    }
+
+    @Test
+    void nonLegalWorkflowStateCannotUnlockEvenWithAnApprovalRecord() {
+        when(vault.getStatus()).thenReturn(Vault.STATUS_DOCUMENT_VERIFICATION);
+
+        assertThatThrownBy(() -> guard.requireProtectedTransition(CASE_ID, LegalWorkflowGuard.ProtectedTransition.UNLOCK))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        org.mockito.Mockito.verifyNoInteractions(approvals);
     }
 }

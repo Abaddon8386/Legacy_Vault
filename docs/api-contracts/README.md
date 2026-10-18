@@ -28,6 +28,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
 | [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [legal-basis-dossier.md](legal-basis-dossier.md) | Hồ sơ căn cứ phân chia: Legal phân loại nhánh, Staff tiếp nhận và chuyển văn bản | PS-41, PS-42, PS-43 |
+| [legal-vault-unlock.md](legal-vault-unlock.md) | Legal mở khóa Vault sau khi xác minh approval hiện hành | PS-59 |
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
 | [subscriptions.md](subscriptions.md) | PS-77 prototype chờ duyệt; self-grant bị chặn, quota mặc định tắt, một Vault/Owner | PS-77 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
