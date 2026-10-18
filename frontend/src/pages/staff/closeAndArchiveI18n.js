@@ -9,7 +9,7 @@ export const closeAndArchiveI18n = {
     pageSubtitle: 'Tóm tắt biên nhận, thẩm định điều kiện hoàn tất và lưu trữ hồ sơ di sản.',
 
     // Server status section
-    serverStatusHeading: 'Trạng thái hệ thống (từ Server)',
+    serverStatusHeading: 'Trạng thái hệ thống',
     sessionStatusLabel: 'Phiên bàn giao',
     vaultStatusLabel: 'Kho di sản',
     caseStatusLabel: 'Hồ sơ pháp lý',
@@ -40,14 +40,14 @@ export const closeAndArchiveI18n = {
     statusEligibleDesc: 'Cả hai điều kiện bàn giao tài sản và xác nhận thụ hưởng đều đã hoàn thành.',
     statusIneligibleTitle: 'Chưa đủ điều kiện đóng',
     statusIneligibleDesc: 'Hồ sơ chưa đạt đầy đủ điều kiện để thực hiện đóng:',
-    statusIndeterminateTitle: 'Chưa đủ thông tin',
-    statusIndeterminateDesc: 'Chưa có đủ số liệu hợp lệ để xác định điều kiện đóng hồ sơ.',
+    statusIndeterminateTitle: 'Chưa có thông tin',
+    statusIndeterminateDesc: 'Chưa có thông tin để xác định điều kiện đóng hồ sơ.',
 
     // Unmet condition labels
     assetDeliveryIncomplete: 'Tài sản chưa được bàn giao đủ 100%.',
     beneficiaryConfirmationIncomplete: 'Người thụ hưởng chưa xác nhận đủ 100%.',
-    assetDataUnavailable: 'Chưa đủ thông tin hợp lệ về tài sản.',
-    beneficiaryDataUnavailable: 'Chưa đủ thông tin hợp lệ về người thụ hưởng.',
+    assetDataUnavailable: 'Chưa có thông tin về tài sản.',
+    beneficiaryDataUnavailable: 'Chưa có thông tin về người thụ hưởng.',
 
     // Receipt summary section
     receiptSummaryHeading: 'Tóm tắt biên nhận',
@@ -78,7 +78,7 @@ export const closeAndArchiveI18n = {
     pageSubtitle: 'Review receipt summary, verify completion criteria, and archive heritage dossier.',
 
     // Server status section
-    serverStatusHeading: 'System Status (from Server)',
+    serverStatusHeading: 'System Status',
     sessionStatusLabel: 'Handover Session',
     vaultStatusLabel: 'Heritage Vault',
     caseStatusLabel: 'Legal Dossier',
@@ -110,13 +110,13 @@ export const closeAndArchiveI18n = {
     statusIneligibleTitle: 'Not Eligible for Closure',
     statusIneligibleDesc: 'This case cannot be closed due to unsatisfied criteria:',
     statusIndeterminateTitle: 'Information unavailable',
-    statusIndeterminateDesc: 'Valid data is unavailable to evaluate closure preconditions.',
+    statusIndeterminateDesc: 'Information is unavailable to evaluate closure preconditions.',
 
     // Unmet condition labels
     assetDeliveryIncomplete: 'Asset deliveries are not 100% complete.',
     beneficiaryConfirmationIncomplete: 'Beneficiary confirmations are not 100% complete.',
-    assetDataUnavailable: 'Valid asset information is unavailable.',
-    beneficiaryDataUnavailable: 'Valid beneficiary information is unavailable.',
+    assetDataUnavailable: 'Asset information is unavailable.',
+    beneficiaryDataUnavailable: 'Beneficiary information is unavailable.',
 
     // Receipt summary section
     receiptSummaryHeading: 'Receipt Summary',

@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import path, { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import {
   canAccessCloseArchive,
@@ -245,7 +249,7 @@ test('PS-56 Terminology & Status Accuracy', async (t) => {
 });
 
 test('PS-56 CSS Scoping Verification - No Leakage', () => {
-  const cssPath = resolve('src/pages/staff/CloseAndArchivePage.css');
+  const cssPath = path.resolve(__dirname, '../pages/staff/CloseAndArchivePage.css');
   const css = readFileSync(cssPath, 'utf8');
 
   // Strip comments
