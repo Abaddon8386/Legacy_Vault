@@ -85,6 +85,7 @@ public class HandoverReceiptService {
                         sessionPublicId, verificationCase.getVerificationCaseId(), staffId)
                 .orElseThrow(HandoverReceiptService::notFound);
         if (session.getStatus() != HandoverSessionStatus.COMPLETED) throw invalidState();
+        requireCompletionEvidence();
 
         int currentVersionNo = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         var currentVersion = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), currentVersionNo)
@@ -123,10 +124,7 @@ public class HandoverReceiptService {
             supersedesReceiptDbId = prior.getId();
         }
 
-        String currentAllocationHash = LegalBasisReviewService.allocationHashFromCanonicalValues(currentRows.stream()
-                .map(row -> row.assetPublicId() + "|" + row.beneficiaryPublicId() + "|"
-                        + String.valueOf(row.description()))
-                .toList());
+        String currentAllocationHash = AllocationScopeHash.hashReceiptRows(currentRows);
         LocalDateTime confirmedAt = LocalDateTime.now(ZoneOffset.UTC);
         HandoverReceipt receipt = receipts.saveAndFlush(new HandoverReceipt(
                 session.getId(), beneficiaryDbId, staffId, currentVersion.id(), currentVersionNo,
@@ -188,6 +186,15 @@ public class HandoverReceiptService {
 
     private static BusinessException invalidState() {
         return new BusinessException(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
+    }
+
+    /**
+     * PS-64/65/66/67/68/69/70/71 evidence is not available on this branch.
+     * A terminal session status alone is not proof that every approved asset was delivered and every
+     * beneficiary confirmed. Keep receipt issuance closed until those authoritative gates are integrated.
+     */
+    private static void requireCompletionEvidence() {
+        throw invalidState();
     }
 
     private static BusinessException notFound() {

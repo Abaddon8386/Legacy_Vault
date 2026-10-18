@@ -122,16 +122,10 @@ public class LegalApprovalService {
     }
 
     private String allocationHash(Long dossierId, int versionNo) {
-        List<String> canonical = allocations.findRowsByDossier(dossierId).stream()
+        List<AllocationRow> rows = allocations.findRowsByDossier(dossierId).stream()
                 .filter(row -> row.versionNo() == versionNo)
-                .map(LegalApprovalService::canonicalValue)
                 .toList();
-        return LegalBasisReviewService.allocationHashFromCanonicalValues(canonical);
-    }
-
-    private static String canonicalValue(AllocationRow row) {
-        return String.valueOf(row.assetId()) + "|" + String.valueOf(row.beneficiaryId()) + "|"
-                + String.valueOf(row.description());
+        return AllocationScopeHash.hashApprovalRows(rows);
     }
 
     private static boolean sameHash(String first, String second) {

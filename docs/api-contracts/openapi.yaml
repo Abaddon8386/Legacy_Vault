@@ -1135,6 +1135,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status:
+    description: Staff may cancel an open session only. COMPLETED is reserved for the PS-71 dual-completion close use case.
     parameters:
       - name: caseId
         in: path
@@ -1146,7 +1147,7 @@ paths:
         schema: { type: string, format: uuid }
     patch:
       tags: [Staff]
-      summary: Staff đóng handover session bằng COMPLETED hoặc CANCELLED (PS-60)
+      summary: Staff may cancel an open handover session only (PS-60).
       requestBody:
         required: true
         content:
@@ -1165,6 +1166,7 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts:
+    description: Receipt issuance is fail-closed until authoritative per-asset delivery and beneficiary confirmation evidence is integrated (PS-64 through PS-71).
     parameters:
       - name: caseId
         in: path
@@ -1176,12 +1178,8 @@ paths:
         schema: { type: string, format: uuid }
     post:
       tags: [Staff]
-      summary: Staff xác nhận và tạo receipt cho handover đã hoàn tất (PS-61)
-      description: |
-        Chỉ STAFF_EXECUTOR được assign. Session phải COMPLETED; Vault và legal approval phải còn hợp lệ,
-        người nhận phải VERIFIED_AT_COUNTER và assets phải nằm trong allocation đã được duyệt hiện hành.
-        Server ghi Staff và thời điểm xác nhận. Đây là Staff attestation, không phải chữ ký điện tử.
-        Mỗi lần tạo là bản ghi immutable; có thể liên kết receipt cũ bằng supersedesReceiptId.
+      summary: Staff confirmation receipt; issuance waits for integrated delivery and beneficiary completion evidence (PS-61).
+      description: POST currently returns 409 until PS-65 delivery, PS-67 beneficiary confirmation, PS-68/69/70 dual completion, and PS-71 valid close can be checked against the approved scope. STAFF_ATTESTATION records Staff confirmation only; it is not an electronic signature or Beneficiary attestation.
       x-status: implemented
       requestBody:
         required: true
@@ -1872,7 +1870,7 @@ components:
       required: [status]
       additionalProperties: false
       properties:
-        status: { type: string, enum: [COMPLETED, CANCELLED] }
+        status: { type: string, enum: [CANCELLED] }
     HandoverSessionResponse:
       type: object
       required: [sessionId, caseId, vaultId, staffId, status, openedAt, closedAt]

@@ -2,11 +2,11 @@
 
 Tất cả endpoint yêu cầu `STAFF_EXECUTOR`; thao tác chỉ áp dụng cho ca đang được gán cho Staff trong principal. Session liên kết trực tiếp với verification case và Staff; Vault được xác định qua `verification_cases.vault_id` để tránh lưu lặp quan hệ.
 
-- `POST /api/v1/staff/verification-cases/{caseId}/handover-sessions` mở session mới khi case `OPEN`, đang gán cho Staff gọi API và Vault `UNLOCKED`.
+- `POST /api/v1/staff/verification-cases/{caseId}/handover-sessions` requires an OPEN assigned case, an UNLOCKED Vault, no hold, and a current Legal approval for the authoritative dossier/version/hash/allocation scope.
 - `GET /api/v1/staff/verification-cases/{caseId}/handover-sessions?status=OPEN|COMPLETED|CANCELLED` truy vấn lịch sử session, tùy chọn lọc status.
 - `GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}` xem chi tiết.
-- `PATCH /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status` nhận `{"status":"COMPLETED"}` hoặc `{"status":"CANCELLED"}`.
+- `PATCH /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status` accepts only `{"status":"CANCELLED"}` from Staff. COMPLETED is reserved for PS-71 after the dual completion gate.
 
-Lifecycle là `OPEN → COMPLETED | CANCELLED`; status đã đóng không thể đổi tiếp. Mỗi case chỉ có tối đa một session `OPEN` cùng lúc; sau khi đóng, có thể tạo session mới và giữ lịch sử cũ. Duplicate session trả `409 HANDOVER_SESSION_ALREADY_OPEN`; trạng thái case/Vault/session sai trả `409 HANDOVER_SESSION_INVALID_STATE`. Case hoặc session không được gán cho caller trả 404.
+Staff status lifecycle is OPEN -> CANCELLED only. The PS-71 use case must require all in-scope assets delivered AND all related beneficiaries confirmed before COMPLETED.
 
-Mở session và cập nhật status dùng transaction, khóa theo thứ tự Vault → case → session; SQL Server filtered unique index là rào chắn cuối cho duplicate `OPEN`. Audit `HANDOVER_SESSION_OPENED`, `HANDOVER_SESSION_COMPLETED` hoặc `HANDOVER_SESSION_CANCELLED` cùng transaction, không chứa nội dung tài liệu hay secret.
+Open and status-update operations use transactions and lock Vault -> case -> session. Opening reuses LegalWorkflowGuard to check hold and current approval. The SQL Server filtered unique index prevents duplicate OPEN sessions. Audit HANDOVER_SESSION_OPENED and HANDOVER_SESSION_CANCELLED commits atomically and excludes document contents and secrets.

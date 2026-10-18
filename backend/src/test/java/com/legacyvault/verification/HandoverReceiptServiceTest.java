@@ -102,21 +102,11 @@ class HandoverReceiptServiceTest {
     }
 
     @Test
-    void createsStaffAttestationForApprovedRecipientAndAssetAfterCompletedSession() {
-        var response = service.create(CASE_PUBLIC_ID, SESSION_PUBLIC_ID,
-                new CreateHandoverReceiptRequest(RECIPIENT_PUBLIC_ID, List.of(ASSET_PUBLIC_ID), null), STAFF);
-
-        assertThat(response.receiptId()).isEqualTo(RECEIPT_PUBLIC_ID);
-        assertThat(response.recipientId()).isEqualTo(RECIPIENT_PUBLIC_ID);
-        assertThat(response.assetIds()).containsExactly(ASSET_PUBLIC_ID);
-        assertThat(response.staffId()).isEqualTo(STAFF_PUBLIC_ID);
-        assertThat(response.confirmationType()).isEqualTo(HandoverReceipt.STAFF_ATTESTATION);
-        verify(receipts).saveAndFlush(any(HandoverReceipt.class));
-        verify(receiptAssets).saveAllAndFlush(any());
-        org.mockito.ArgumentCaptor<AuditEvent> event = org.mockito.ArgumentCaptor.forClass(AuditEvent.class);
-        verify(audit).record(event.capture());
-        assertThat(event.getValue().action()).isEqualTo(AuditAction.HANDOVER_RECEIPT_STAFF_CONFIRMED);
-        assertThat(event.getValue().context()).doesNotContainKey("documentContent");
+    void completedSessionAloneCannotIssueReceiptWithoutCompletionEvidence() {
+        assertThatThrownBy(() -> create()).isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
+        verifyNoInteractions(receipts, receiptAssets, audit);
     }
 
     @Test
@@ -134,7 +124,7 @@ class HandoverReceiptServiceTest {
                 new CreateHandoverReceiptRequest(RECIPIENT_PUBLIC_ID, List.of(UUID.randomUUID()), null), STAFF))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED);
+                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
         verifyNoInteractions(receipts, receiptAssets, audit);
     }
 
@@ -145,12 +135,12 @@ class HandoverReceiptServiceTest {
                         "NOT_VERIFIED", "APPROVED", "approved scope")));
         assertThatThrownBy(() -> create()).isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED);
+                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
         verifyNoInteractions(receipts, receiptAssets, audit);
     }
 
     @Test
-    void replacementCreatesNewReceiptLinkedToOldReceipt() {
+    void replacementCannotBeIssuedUntilCompletionEvidenceIsAvailable() {
         UUID oldPublicId = UUID.randomUUID();
         HandoverReceipt old = mock(HandoverReceipt.class);
         when(old.getId()).thenReturn(802L);
@@ -160,14 +150,12 @@ class HandoverReceiptServiceTest {
         when(receipt.getSupersedesReceiptId()).thenReturn(802L);
         when(receipts.findById(802L)).thenReturn(Optional.of(old));
 
-        var response = service.create(CASE_PUBLIC_ID, SESSION_PUBLIC_ID,
-                new CreateHandoverReceiptRequest(RECIPIENT_PUBLIC_ID, List.of(ASSET_PUBLIC_ID), oldPublicId), STAFF);
-
-        assertThat(response.receiptId()).isEqualTo(RECEIPT_PUBLIC_ID);
-        assertThat(response.supersedesReceiptId()).isEqualTo(oldPublicId);
-        org.mockito.ArgumentCaptor<HandoverReceipt> saved = org.mockito.ArgumentCaptor.forClass(HandoverReceipt.class);
-        verify(receipts).saveAndFlush(saved.capture());
-        assertThat(saved.getValue().getSupersedesReceiptId()).isEqualTo(802L);
+        assertThatThrownBy(() -> service.create(CASE_PUBLIC_ID, SESSION_PUBLIC_ID,
+                new CreateHandoverReceiptRequest(RECIPIENT_PUBLIC_ID, List.of(ASSET_PUBLIC_ID), oldPublicId), STAFF))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
+        verify(receipts, never()).saveAndFlush(any());
         verify(receipts, never()).delete(any());
     }
 
@@ -193,12 +181,11 @@ class HandoverReceiptServiceTest {
     }
 
     @Test
-    void auditFailurePropagatesAndReceiptWritesRemainInOneServiceTransaction() {
-        doThrow(new IllegalStateException("audit unavailable")).when(audit).record(any(AuditEvent.class));
-        assertThatThrownBy(() -> create()).isInstanceOf(IllegalStateException.class)
-                .hasMessage("audit unavailable");
-        verify(receipts).saveAndFlush(any(HandoverReceipt.class));
-        verify(receiptAssets).saveAllAndFlush(any());
+    void auditIsNotWrittenForUnverifiedCompletion() {
+        assertThatThrownBy(() -> create()).isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
+        verifyNoInteractions(receipts, receiptAssets, audit);
     }
 
     @Test

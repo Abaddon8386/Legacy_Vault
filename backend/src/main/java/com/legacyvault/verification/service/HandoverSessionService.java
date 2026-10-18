@@ -32,14 +32,17 @@ public class HandoverSessionService {
     private final HandoverSessionRepository sessions;
     private final VaultRepository vaults;
     private final AuditService audit;
+    private final LegalWorkflowGuard workflow;
 
     public HandoverSessionService(HandoverSessionCaseAccess access, VerificationCaseRepository cases,
-            HandoverSessionRepository sessions, VaultRepository vaults, AuditService audit) {
+            HandoverSessionRepository sessions, VaultRepository vaults, AuditService audit,
+            LegalWorkflowGuard workflow) {
         this.access = access;
         this.cases = cases;
         this.sessions = sessions;
         this.vaults = vaults;
         this.audit = audit;
+        this.workflow = workflow;
     }
 
     @Transactional
@@ -51,6 +54,7 @@ public class HandoverSessionService {
         if (!verificationCase.isOpen() || !Vault.STATUS_UNLOCKED.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         }
+        workflow.requireProtectedTransition(casePublicId, LegalWorkflowGuard.ProtectedTransition.HANDOVER);
         if (sessions.existsByVerificationCaseIdAndStatus(
                 verificationCase.getVerificationCaseId(), HandoverSessionStatus.OPEN)) {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_ALREADY_OPEN);
@@ -120,14 +124,13 @@ public class HandoverSessionService {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         }
 
-        HandoverSessionStatus target = HandoverSessionStatus.valueOf(request.status().name());
+        HandoverSessionStatus target = HandoverSessionStatus.CANCELLED;
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         session.close(target, now);
         session = sessions.saveAndFlush(session);
-        AuditAction action = target == HandoverSessionStatus.COMPLETED
-                ? AuditAction.HANDOVER_SESSION_COMPLETED : AuditAction.HANDOVER_SESSION_CANCELLED;
-        audit.record(new AuditEvent(action, AuditActorType.USER, staffId, locked.vault().getVaultId(),
-                "HANDOVER_SESSION", session.getId(), HandoverSessionStatus.OPEN.name(), target.name(), null,
+        audit.record(new AuditEvent(AuditAction.HANDOVER_SESSION_CANCELLED, AuditActorType.USER, staffId,
+                locked.vault().getVaultId(), "HANDOVER_SESSION", session.getId(),
+                HandoverSessionStatus.OPEN.name(), target.name(), null,
                 Map.of("sessionPublicId", session.getPublicId().toString(),
                         "casePublicId", verificationCase.getPublicId().toString()),
                 "ST-23", "LV-HANDOVER-001"));
