@@ -1891,6 +1891,24 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/completion-progress:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: PS-70 Atomic dual gate from one locked snapshot
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverCompletionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -2027,6 +2045,14 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    HandoverCompletionResponse:
+      type: object
+      required: [assets, beneficiaries, ready, reason]
+      properties:
+        assets: { $ref: '#/components/schemas/CompletionProgressResponse' }
+        beneficiaries: { $ref: '#/components/schemas/CompletionProgressResponse' }
+        ready: { type: boolean }
+        reason: { type: string, enum: [READY, ASSETS_PENDING, BENEFICIARIES_PENDING, BOTH_PENDING, EMPTY_SCOPE] }
     CompletionProgressResponse:
       type: object
       required: [completed, total, pending, complete]
@@ -2256,6 +2282,7 @@ components:
             - HANDOVER_RECIPIENT_NOT_ELIGIBLE
             - HANDOVER_ASSET_NOT_ELIGIBLE
             - HANDOVER_ASSET_ALREADY_DELIVERED
+            - HANDOVER_COMPLETION_PENDING
             - HANDOVER_CONFIRMATION_PENDING_DELIVERY
             - HANDOVER_CONFIRMATION_CONFLICT
             - BENEFICIARY_IDENTITY_NOT_VERIFIED

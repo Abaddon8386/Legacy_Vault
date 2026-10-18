@@ -1,5 +1,9 @@
 # PS-70 — Dual Completion Gate: phần chuẩn bị
 
+> Superseded: GET .../handover-sessions/{sessionId}/completion-progress và requireReady
+> dùng cùng một snapshot có khóa Vault → case → dossier → session trong transaction.
+> SQL integration chưa chạy được vì V25 trên develop lỗi batch; giữ nguyên V25 theo yêu cầu.
+
 Trạng thái **QUEUED / chưa tích hợp**, nhánh riêng từ develop `d612b5d`.
 Nguồn: [PS-70](https://thaithai9785.atlassian.net/browse/PS-70), LV-CLOSE-001:
 complete chỉ khi assetsDelivered=100% AND beneficiariesConfirmed=100%.
