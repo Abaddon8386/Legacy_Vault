@@ -88,6 +88,39 @@ async function loadComponentModule(entry, production = false, metadataPatch = ''
 const pageMod = await loadComponentModule('src/pages/legal/LegalApprovalReviewPage.jsx');
 const LegalApprovalReviewPage = pageMod.default;
 
+test('PS-49 dossier prop changes load the new dossier and discard the old response', async () => {
+  const requests = [];
+  const loadDossier = (id, { signal }) => new Promise(resolve => requests.push({ id, signal, resolve }));
+  const props = { dossierId: 'CASE-A', isDevPreview: true, lang: 'en', loadDossier };
+  const view = await mount(LegalApprovalReviewPage, props);
+  try {
+    await view.render({ ...props, dossierId: 'CASE-B' });
+    assert.deepEqual(requests.map(r => r.id), ['CASE-A', 'CASE-B']);
+    assert.equal(requests[0].signal.aborted, true);
+    await act(async () => requests[1].resolve({ dossier: { ...SYNTHETIC_APPROVAL_DOSSIERS['dossier-001'], caseCode: 'CASE-B' } }));
+    const text = view.host.textContent;
+    await act(async () => requests[0].resolve({ dossier: { ...SYNTHETIC_APPROVAL_DOSSIERS['dossier-001'], caseCode: 'CASE-A' } }));
+    assert.equal(view.host.textContent, text);
+  } finally { await view.close(); }
+});
+
+test('PS-49 refresh reloads the selected dossier and clears the prior decision', async () => {
+  const ids = [];
+  let refreshes = 0;
+  const loadDossier = async id => {
+    ids.push(id);
+    return { dossier: structuredClone(SYNTHETIC_APPROVAL_DOSSIERS['dossier-001']) };
+  };
+  const view = await mount(LegalApprovalReviewPage, { dossierId: 'CASE-B', isDevPreview: true, lang: 'en', loadDossier, onRefresh: () => { refreshes++; } });
+  try {
+    await act(async () => changeInput(view.host.querySelector('#legal-approval-reason'), 'Old decision'));
+    await act(async () => view.host.querySelector('button[aria-label="Refresh Data"]').click());
+    assert.deepEqual(ids, ['CASE-B', 'CASE-B']);
+    assert.equal(refreshes, 1);
+    assert.equal(view.host.querySelector('#legal-approval-reason').value, '');
+  } finally { await view.close(); }
+});
+
 async function mount(Component, props) {
   const host = document.createElement('div');
   document.body.append(host);

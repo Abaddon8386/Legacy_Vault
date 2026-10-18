@@ -49,9 +49,10 @@ export default function LegalApprovalReviewPage(props) {
     }
   };
 
+  const effectiveScenario = props.dossierId ?? selectedScenario;
   const scope = JSON.stringify([
     props.dossierId,
-    selectedScenario,
+    effectiveScenario,
     props.accessToken,
     Boolean(props.isDevPreview),
   ]);
@@ -59,7 +60,7 @@ export default function LegalApprovalReviewPage(props) {
     <ApprovalReviewContent
       key={scope}
       {...props}
-      selectedScenario={selectedScenario}
+      selectedScenario={effectiveScenario}
       onSelectScenario={handleSelectScenario}
     />
   );
@@ -344,7 +345,10 @@ function ApprovalReviewContent({
               <button
                 type="button"
                 className={`lv-legal-approval-btn ${isRefreshing ? 'lv-legal-approval-btn--spinning' : ''}`}
-                onClick={onRefresh}
+                onClick={() => {
+                  handleResetScenario();
+                  onRefresh?.();
+                }}
                 disabled={isRefreshing}
                 aria-label={isRefreshing ? t.refreshingBtn : t.refreshBtn}
                 title={t.refreshBtn}
