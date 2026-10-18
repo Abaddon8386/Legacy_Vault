@@ -31,8 +31,14 @@ export default function AccountProfilePage({
   const t = accountProfileI18n[lang] || accountProfileI18n.vi;
 
   const sessionRef = useRef(session);
+  const refreshRequestRef = useRef(null);
   useEffect(() => {
     sessionRef.current = session;
+    return () => {
+      sessionRef.current = null;
+      refreshRequestRef.current?.abort();
+      refreshRequestRef.current = null;
+    };
   }, [session]);
 
   const [refreshedData, setRefreshedData] = useState(null);
@@ -52,14 +58,19 @@ export default function AccountProfilePage({
       return;
     }
 
+    refreshRequestRef.current?.abort();
+    const controller = new AbortController();
+    refreshRequestRef.current = controller;
     setIsRefreshing(true);
     setFeedback(null);
 
     try {
       const raw = await request('/auth/me', {
         accessToken: currentToken,
+        signal: controller.signal,
         lang,
       });
+      if (controller.signal.aborted || refreshRequestRef.current !== controller) return;
       const validatedUser = readUser(raw);
 
       const latestSession = sessionRef.current;
@@ -80,9 +91,10 @@ export default function AccountProfilePage({
       });
 
       if (typeof onRefreshSession === 'function') {
-        onRefreshSession(validatedUser);
+        onRefreshSession(validatedUser, { accessToken: currentToken, userId: currentUserId });
       }
     } catch {
+      if (controller.signal.aborted || refreshRequestRef.current !== controller) return;
       const latestSession = sessionRef.current;
       if (
         latestSession?.accessToken === currentToken &&
@@ -95,7 +107,10 @@ export default function AccountProfilePage({
         });
       }
     } finally {
-      setIsRefreshing(false);
+      if (refreshRequestRef.current === controller) {
+        refreshRequestRef.current = null;
+        setIsRefreshing(false);
+      }
     }
   };
 

@@ -708,10 +708,14 @@ export default function App() {
             lang={lang}
             preview={preview}
             onNavigateEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
-            onRefreshSession={updatedUser => {
-              if (session) {
-                setSession({ ...session, user: updatedUser });
-              }
+            onRefreshSession={(updatedUser, requestedSession) => {
+              setSession(currentSession => {
+                if (!isSessionActive(currentSession) ||
+                    currentSession.accessToken !== requestedSession?.accessToken ||
+                    currentSession.user?.id !== requestedSession?.userId ||
+                    updatedUser.id !== currentSession.user?.id) return currentSession;
+                return { ...currentSession, user: updatedUser };
+              });
             }}
           />
         </AppShell>
