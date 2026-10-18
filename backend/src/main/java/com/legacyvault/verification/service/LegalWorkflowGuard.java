@@ -17,10 +17,13 @@ public class LegalWorkflowGuard {
     private final LegalBasisCaseAccess access;
     private final CourtRouteGuard court;
     private final LegalBasisDossierVersionRepository versions;
-    public LegalWorkflowGuard(LegalBasisCaseAccess access, CourtRouteGuard court, LegalBasisDossierVersionRepository versions) {
+    private final LegalApprovalGuard approvals;
+    public LegalWorkflowGuard(LegalBasisCaseAccess access, CourtRouteGuard court,
+            LegalBasisDossierVersionRepository versions, LegalApprovalGuard approvals) {
         this.access = access;
         this.court = court;
         this.versions = versions;
+        this.approvals = approvals;
     }
 
     public static void requireNotOnHold(Vault vault, LegalBasisDossier dossier) {
@@ -43,5 +46,6 @@ public class LegalWorkflowGuard {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
         if (!"FORWARDED".equals(version.forwardStatus())) throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         court.requireValidDecision(dossier);
+        approvals.requireCurrentApproval(dossier, version);
     }
 }

@@ -30,6 +30,7 @@ public enum ErrorCode {
 	BASIS_DOSSIER_INVALID_STATE(409, "error.legalBasis.invalidState"),
 	BASIS_VERSION_STALE(409, "error.legalBasis.versionStale"),
 	LEGAL_DECISION_STALE(409, "error.legalApproval.snapshotStale"),
+	LEGAL_APPROVAL_REQUIRED(409, "error.legalApproval.required"),
 	COURT_EVIDENCE_REQUIRED(409, "error.legalBasis.courtEvidenceRequired"),
 	COURT_DECISION_REQUIRED(409, "error.legalBasis.courtDecisionRequired"),
 	LEGAL_WORKFLOW_ON_HOLD(409, "error.legalBasis.onHold"),
