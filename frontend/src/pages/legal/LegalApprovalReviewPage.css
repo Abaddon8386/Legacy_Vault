@@ -1,0 +1,853 @@
+/* ==========================================================================
+   LegacyVault — LegalApprovalReviewPage Styles (PS-49)
+   Chuyên biệt cho Thẩm định Phê duyệt Pháp lý (Legal Approval Review).
+   Bảng màu xanh rừng (#164639) - kem (#f7f5f0) - vàng tiết chế (#c5a059).
+   ========================================================================== */
+
+.lv-legal-approval-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lv-bg-canvas, #f7f5f0);
+  color: var(--lv-text-ink, #1f2421);
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
+}
+
+/* Header */
+.lv-legal-approval-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  box-shadow: 0 1px 3px rgba(22, 70, 57, 0.04);
+}
+
+.lv-legal-approval-header__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lv-legal-approval-header__brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lv-legal-approval-header__logo-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--lv-brand-forest, #164639) 0%, #0c2b22 100%);
+  color: var(--lv-accent-gold, #c5a059);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(22, 70, 57, 0.15);
+  flex-shrink: 0;
+}
+
+.lv-legal-approval-header__titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lv-legal-approval-header__brand-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  line-height: 1.2;
+}
+
+.lv-legal-approval-header__portal-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lv-text-muted, #6b726b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-legal-approval-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-legal-approval-header__role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background-color: rgba(22, 70, 57, 0.08);
+  border: 1px solid rgba(22, 70, 57, 0.2);
+  border-radius: 999px;
+  color: var(--lv-brand-forest, #164639);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lv-legal-approval-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background-color: rgba(197, 160, 89, 0.15);
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  border-radius: 999px;
+  font-family: var(--lv-font-sans, system-ui, sans-serif);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #8c6820;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lv-legal-approval-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  background-color: #ffffff;
+  color: var(--lv-text-ink, #1f2421);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-legal-approval-btn:hover:not(:disabled) {
+  background-color: #f7f5f0;
+  border-color: #ded9ce;
+}
+
+.lv-legal-approval-btn:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+  outline-offset: 2px;
+}
+
+.lv-legal-approval-btn--spinning svg {
+  animation: lv-legal-approval-spin 1s linear infinite;
+}
+
+@keyframes lv-legal-approval-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.lv-legal-approval-btn--logout {
+  color: #a83232;
+  border-color: rgba(168, 50, 50, 0.2);
+}
+
+.lv-legal-approval-btn--logout:hover:not(:disabled) {
+  background-color: #fdf2f2;
+  border-color: #a83232;
+}
+
+/* Main Container */
+.lv-legal-approval-main {
+  flex: 1;
+  padding: 24px 0 48px;
+}
+
+.lv-legal-approval-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Page Title & Subtitle */
+.lv-legal-approval-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-legal-approval-title {
+  margin: 0;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  line-height: 1.25;
+}
+
+.lv-legal-approval-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.5;
+}
+
+/* DEV Preview Scenario Bar */
+.lv-legal-approval-scenario-bar {
+  background-color: #ffffff;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  border-left: 4px solid var(--lv-accent-gold, #c5a059);
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lv-legal-approval-scenario-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8c6820;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lv-legal-approval-scenario-select {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  background-color: #fdfbf7;
+  font-family: var(--lv-font-sans, system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: #594511;
+  cursor: pointer;
+}
+
+/* Legal Boundary Notice */
+
+/* Collapsible Legal Boundary Guidance */
+.lv-legal-approval-boundary--collapsible {
+  display: block;
+  padding: 12px 18px;
+}
+
+.lv-legal-approval-boundary--collapsible summary {
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.lv-legal-approval-boundary--collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.lv-legal-approval-boundary {
+  background: linear-gradient(135deg, rgba(22, 70, 57, 0.04) 0%, rgba(197, 160, 89, 0.08) 100%);
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  border-left: 4px solid var(--lv-brand-forest, #164639);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  gap: 14px;
+}
+
+.lv-legal-approval-boundary__icon {
+  color: var(--lv-brand-forest, #164639);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-legal-approval-boundary__body {
+  flex: 1;
+}
+
+.lv-legal-approval-boundary__title {
+  margin: 0 0 6px;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-legal-approval-boundary__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #3b423e;
+}
+
+/* Cards & Sections */
+.lv-legal-approval-card {
+  background-color: #ffffff;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(22, 70, 57, 0.03);
+}
+
+.lv-legal-approval-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  flex-wrap: wrap;
+}
+
+.lv-legal-approval-card__title {
+  margin: 0;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-legal-approval-card__title-icon {
+  color: var(--lv-accent-gold, #c5a059);
+}
+
+/* Metadata Grid */
+.lv-legal-approval-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.lv-legal-approval-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lv-legal-approval-meta-item__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-legal-approval-meta-item__val {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--lv-text-ink, #1f2421);
+}
+
+.lv-legal-approval-meta-item__sub {
+  font-size: 12px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-legal-approval-meta-item__hash {
+  font-family: 'JetBrains Mono', monospace, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  background-color: #f7f5f0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  word-break: break-all;
+}
+
+/* Badges */
+.lv-legal-approval-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lv-legal-approval-badge--fresh {
+  background-color: rgba(22, 70, 57, 0.1);
+  color: #164639;
+  border: 1px solid rgba(22, 70, 57, 0.25);
+}
+
+.lv-legal-approval-badge--stale {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.lv-legal-approval-badge--disputed {
+  background-color: rgba(168, 50, 50, 0.12);
+  color: #a83232;
+  border: 1px solid rgba(168, 50, 50, 0.3);
+}
+
+.lv-legal-approval-badge--warning {
+  background-color: rgba(197, 160, 89, 0.15);
+  color: #8c6820;
+  border: 1px solid rgba(197, 160, 89, 0.35);
+}
+
+/* Callouts / Banners */
+.lv-legal-approval-callout {
+  padding: 16px;
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-top: 14px;
+}
+
+.lv-legal-approval-callout--fresh {
+  background-color: rgba(22, 70, 57, 0.05);
+  border: 1px solid rgba(22, 70, 57, 0.2);
+  color: #164639;
+}
+
+.lv-legal-approval-callout--stale {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  color: #92400e;
+}
+
+.lv-legal-approval-callout--disputed {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  color: #991b1b;
+}
+
+.lv-legal-approval-callout--warning {
+  background-color: #fbfaf8;
+  border: 1px dashed var(--lv-border-subtle, #eae5dc);
+  color: #594511;
+}
+
+/* Table */
+.lv-legal-approval-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 10px;
+}
+
+.lv-legal-approval-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+}
+
+.lv-legal-approval-table th {
+  background-color: #fcfbf9;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lv-text-muted, #6b726b);
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  white-space: nowrap;
+}
+
+.lv-legal-approval-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  color: var(--lv-text-ink, #1f2421);
+  vertical-align: middle;
+}
+
+.lv-legal-approval-table tr:last-child td {
+  border-bottom: none;
+}
+
+.lv-legal-approval-table tr:hover td {
+  background-color: #faf9f7;
+}
+
+/* Decision Radio Cards */
+.lv-legal-approval-prompt {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--lv-text-ink, #1f2421);
+  margin-bottom: 12px;
+}
+
+.lv-legal-approval-decision-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.lv-legal-approval-decision-card {
+  position: relative;
+  border: 2px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-legal-approval-decision-card:hover {
+  border-color: #ded9ce;
+  background-color: #fcfbf9;
+}
+
+.lv-legal-approval-decision-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lv-legal-approval-decision-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-legal-approval-decision-card__indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.lv-legal-approval-decision-card__indicator-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.lv-legal-approval-decision-card__title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--lv-text-ink, #1f2421);
+}
+
+.lv-legal-approval-decision-card__desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.45;
+  padding-left: 28px;
+}
+
+.lv-legal-approval-decision-card--approve.lv-legal-approval-decision-card--selected {
+  border-color: var(--lv-brand-forest, #164639);
+  background-color: rgba(22, 70, 57, 0.04);
+}
+
+.lv-legal-approval-decision-card--approve.lv-legal-approval-decision-card--selected .lv-legal-approval-decision-card__indicator {
+  border-color: var(--lv-brand-forest, #164639);
+}
+
+.lv-legal-approval-decision-card--approve.lv-legal-approval-decision-card--selected .lv-legal-approval-decision-card__indicator-inner {
+  background-color: var(--lv-brand-forest, #164639);
+}
+
+.lv-legal-approval-decision-card--reject.lv-legal-approval-decision-card--selected {
+  border-color: #a83232;
+  background-color: rgba(168, 50, 50, 0.04);
+}
+
+.lv-legal-approval-decision-card--reject.lv-legal-approval-decision-card--selected .lv-legal-approval-decision-card__indicator {
+  border-color: #a83232;
+}
+
+.lv-legal-approval-decision-card--reject.lv-legal-approval-decision-card--selected .lv-legal-approval-decision-card__indicator-inner {
+  background-color: #a83232;
+}
+
+/* Reason Field */
+.lv-legal-approval-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.lv-legal-approval-label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--lv-text-ink, #1f2421);
+}
+
+.lv-legal-approval-required {
+  color: #a83232;
+  margin-left: 2px;
+}
+
+.lv-legal-approval-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 110px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  font-family: var(--lv-font-sans, system-ui, sans-serif);
+  font-size: 14px;
+  color: var(--lv-text-ink, #1f2421);
+  background-color: #ffffff;
+  resize: vertical;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+}
+
+.lv-legal-approval-textarea:focus {
+  outline: none;
+  border-color: var(--lv-brand-forest, #164639);
+  box-shadow: 0 0 0 3px rgba(22, 70, 57, 0.1);
+}
+
+.lv-legal-approval-textarea--error {
+  border-color: #a83232;
+  background-color: #fffaf9;
+}
+
+.lv-legal-approval-hint {
+  font-size: 12px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-legal-approval-field-error {
+  font-size: 12.5px;
+  color: #a83232;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Action Area */
+.lv-legal-approval-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* Confirmation Modal */
+.lv-legal-approval-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: lv-legal-approval-fade 0.2s ease;
+}
+
+@keyframes lv-legal-approval-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lv-legal-approval-modal {
+  max-width: 560px;
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lv-legal-approval-modal__header {
+  padding: 20px 24px;
+  background-color: #fcfbf9;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-legal-approval-modal__title {
+  margin: 0 0 6px;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-legal-approval-modal__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.45;
+}
+
+.lv-legal-approval-modal__body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lv-legal-approval-modal__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+}
+
+.lv-legal-approval-modal__label {
+  color: var(--lv-text-muted, #6b726b);
+  font-weight: 500;
+}
+
+.lv-legal-approval-modal__val {
+  color: var(--lv-text-ink, #1f2421);
+  font-weight: 700;
+  text-align: right;
+}
+
+.lv-legal-approval-modal__reason-box {
+  background-color: #f7f5f0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #2e3430;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.lv-legal-approval-modal__footer {
+  padding: 16px 24px;
+  background-color: #fcfbf9;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Success Receipt */
+.lv-legal-approval-receipt {
+  background: #ffffff;
+  border: 2px solid var(--lv-brand-forest, #164639);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(22, 70, 57, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: lv-legal-approval-fade 0.3s ease;
+}
+
+.lv-legal-approval-receipt__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lv-legal-approval-receipt__title {
+  margin: 0;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lv-legal-approval-receipt__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  padding: 16px;
+  background-color: #f7f5f0;
+  border-radius: 10px;
+}
+
+/* Footer */
+.lv-legal-approval-footer {
+  margin-top: auto;
+  background-color: #ffffff;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  padding: 20px 0;
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-legal-approval-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .lv-legal-approval-header__inner {
+    padding: 0 16px;
+  }
+  .lv-legal-approval-header__portal-title {
+    display: none;
+  }
+  .lv-legal-approval-header__role-pill span {
+    display: none;
+  }
+  .lv-legal-approval-container {
+    padding: 0 16px;
+  }
+  .lv-legal-approval-decision-grid {
+    grid-template-columns: 1fr;
+  }
+  .lv-legal-approval-form-actions {
+    flex-direction: column-reverse;
+  }
+  .lv-legal-approval-form-actions button {
+    width: 100%;
+  }
+  .lv-legal-approval-modal__footer {
+    flex-direction: column-reverse;
+  }
+  .lv-legal-approval-modal__footer button {
+    width: 100%;
+  }
+}
