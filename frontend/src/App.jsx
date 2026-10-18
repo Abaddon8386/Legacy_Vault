@@ -20,6 +20,7 @@ import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/sta
 import AppShell from './components/layout/AppShell.jsx';
 import StaffShell from './components/layout/StaffShell.jsx';
 import StaffCaseDashboard from './pages/staff/StaffCaseDashboard.jsx';
+import CounterHandoverPage from './pages/staff/CounterHandoverPage.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
 import ControlledUnlockPage from './pages/legal/ControlledUnlockPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
@@ -404,6 +405,11 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  if (path === '/staff/handover') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><CounterHandoverPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   const isStaffRoute = path === '/staff/cases';
   if (isStaffRoute) {
     if (!isSessionActive(session) && !preview) {
