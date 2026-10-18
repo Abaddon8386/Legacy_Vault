@@ -16,6 +16,7 @@ import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
 import LegalApprovalReviewPage from './pages/legal/LegalApprovalReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
+import BeneficiaryAccountPage from './pages/staff/BeneficiaryAccountPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
 import ScopedAssetHandoverPage from './pages/staff/ScopedAssetHandoverPage.jsx';
 import { canAccessScopedAssetHandover } from './utils/scopedAssetHandoverValidation.js';
@@ -536,6 +537,11 @@ export default function App() {
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
+  if (path === '/staff/beneficiary-accounts') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
