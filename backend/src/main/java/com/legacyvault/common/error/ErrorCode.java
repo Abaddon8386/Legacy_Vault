@@ -25,6 +25,8 @@ public enum ErrorCode {
 	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
 	VERIFICATION_CASE_NOT_CLAIMABLE(409, "error.verificationCase.notClaimable"),
 	VERIFICATION_CASE_NOT_OPEN(409, "error.verificationCase.notOpen"),
+	HANDOVER_SESSION_ALREADY_OPEN(409, "error.handoverSession.alreadyOpen"),
+	HANDOVER_SESSION_INVALID_STATE(409, "error.handoverSession.invalidState"),
 	WILL_NOT_VERIFIED(409, "error.legalBasis.willNotVerified"),
 	BASIS_DOSSIER_ALREADY_EXISTS(409, "error.legalBasis.dossierExists"),
 	BASIS_DOSSIER_INVALID_STATE(409, "error.legalBasis.invalidState"),
