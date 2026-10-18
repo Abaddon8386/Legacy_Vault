@@ -1,5 +1,10 @@
 # PS-71 — Close Handover Session: chờ nền tảng tích hợp
 
+> Superseded: POST .../handover-sessions/{sessionId}/close đã có service, controller,
+> immutable V29 completion evidence, dual gate trong transaction và audit rollback.
+> COMPLETED không còn đủ để cấp receipt: receipt yêu cầu proof khớp version/hash/scope.
+> SQL integration vẫn bị chặn bởi V25; V25 được giữ nguyên theo yêu cầu người dùng.
+
 Trạng thái **QUEUED / DRAFT**, chưa có endpoint hoặc state transition được triển khai.
 Nhánh riêng từ develop `d612b5d`, không chứa code của PS-57–66 hoặc PS-67–70.
 Nguồn: [PS-71](https://thaithai9785.atlassian.net/browse/PS-71), LV-CLOSE-001:
