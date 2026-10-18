@@ -1,5 +1,9 @@
 # PS-67–72 — Integration evidence, 18/10/2026
 
+> Review follow-up: V30 đã bỏ 26 INSERT trigger events, giữ UPDATE/DELETE và bổ sung
+> service locking/refresh. Xem [PS-72-V30-insert-output-review.md](PS-72-V30-insert-output-review.md)
+> để lấy kết quả kiểm thử mới. Các số liệu bên dưới là snapshot lượt tích hợp trước.
+
 ## Phạm vi
 
 Theo yêu cầu người dùng: kiểm tra các nhánh PS-56–66, dùng dependency đã có để triển khai

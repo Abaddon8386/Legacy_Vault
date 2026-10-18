@@ -38,7 +38,7 @@ public class TrusteeService {
 	@Transactional
 	public TrusteeDtos.Response create(TrusteeDtos.CreateRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireEditableVault(request.vaultId(), owner.getUserId());
+		Vault vault = ownerVaults.requireEditableVaultForUpdate(request.vaultId(), owner.getUserId());
 		if (trustees.existsByVault_VaultIdAndStatus(vault.getVaultId(), "APPOINTED")) {
 			throw new BusinessException(ErrorCode.TRUSTEE_ALREADY_EXISTS);
 		}
@@ -71,7 +71,7 @@ public class TrusteeService {
 		if (!"APPOINTED".equals(trustee.getStatus())) {
 			throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
 		}
-		ownerVaults.requireEditableVault(trustee.getVault().getPublicId(), owner.getUserId());
+		ownerVaults.requireEditableVaultForUpdate(trustee.getVault().getPublicId(), owner.getUserId());
 		trustee.update(clean(request.fullName()), clean(request.phone()), cleanEmail(request.email()),
 				clean(request.relationship()), clean(request.note()));
 		trustee = trustees.saveAndFlush(trustee);
@@ -86,7 +86,7 @@ public class TrusteeService {
 		Trustee trustee = trustees.findByPublicIdAndVault_OwnerUserId(trusteeId, owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		if ("APPOINTED".equals(trustee.getStatus())) {
-			ownerVaults.requireEditableVault(trustee.getVault().getPublicId(), owner.getUserId());
+			ownerVaults.requireEditableVaultForUpdate(trustee.getVault().getPublicId(), owner.getUserId());
 			trustee.revoke(LocalDateTime.now(ZoneOffset.UTC));
 			trustees.saveAndFlush(trustee);
 			audit.record(owner.getUserId(), trustee.getVault().getVaultId(), "TRUSTEE_REVOKED", "TRUSTEE", trustee.getId(), "USER",

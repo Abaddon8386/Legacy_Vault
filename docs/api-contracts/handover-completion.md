@@ -65,8 +65,12 @@ giữ mọi bằng chứng cũ khi scope thay đổi.
   cùng transaction và audit VAULT_HANDOVER_ARCHIVED. Audit lỗi rollback cả hai.
 - Retry archive xác minh đúng Staff/case/session và completion proof rồi trả state/time
   đã lưu, không thêm audit. Không mở lại hoặc xóa dữ liệu.
-- V30 chặn INSERT/UPDATE/DELETE của nội dung thuộc Vault ARCHIVED, kể cả request
-  bắt đầu trước archive; trigger error 51300 map theo numeric code thành VAULT_NOT_EDITABLE.
+- V30 chỉ chặn UPDATE/DELETE của nội dung thuộc Vault ARCHIVED. Không có INSERT
+  trigger vì Hibernate lấy identity bằng OUTPUT INSERTED. INSERT phải qua service:
+  giữ khóa Vault/case trong transaction, refresh state rồi kiểm tra ACTIVE/case OPEN
+  trước khi lưu, kể cả request bắt đầu trước archive. Direct SQL INSERT không có
+  bảo vệ archive của service và không phải write API được hỗ trợ.
+  Trigger error 51300 map theo numeric code thành VAULT_NOT_EDITABLE.
   Giữ audit INSERT và account-level operations; giữ rule một Vault/Owner trọn đời.
 - Staff listCases nhận filter CLOSED; session và receipt history GET tiếp tục kiểm tra
   quyền và đọc được sau archive. Progress/confirmation endpoints yêu cầu workflow
