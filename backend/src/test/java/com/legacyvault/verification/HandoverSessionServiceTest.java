@@ -126,6 +126,7 @@ class HandoverSessionServiceTest {
     void legalHoldOrStaleApprovalBlocksSessionOpen() {
         doThrow(new BusinessException(ErrorCode.LEGAL_WORKFLOW_ON_HOLD))
                 .when(workflow).requireProtectedTransition(CASE_ID, LegalWorkflowGuard.ProtectedTransition.HANDOVER);
+
         assertThatThrownBy(() -> service.open(CASE_ID, STAFF))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())

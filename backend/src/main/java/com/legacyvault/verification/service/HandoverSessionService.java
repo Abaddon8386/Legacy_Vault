@@ -128,9 +128,8 @@ public class HandoverSessionService {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         session.close(target, now);
         session = sessions.saveAndFlush(session);
-        audit.record(new AuditEvent(AuditAction.HANDOVER_SESSION_CANCELLED, AuditActorType.USER, staffId,
-                locked.vault().getVaultId(), "HANDOVER_SESSION", session.getId(),
-                HandoverSessionStatus.OPEN.name(), target.name(), null,
+        audit.record(new AuditEvent(AuditAction.HANDOVER_SESSION_CANCELLED, AuditActorType.USER, staffId, locked.vault().getVaultId(),
+                "HANDOVER_SESSION", session.getId(), HandoverSessionStatus.OPEN.name(), target.name(), null,
                 Map.of("sessionPublicId", session.getPublicId().toString(),
                         "casePublicId", verificationCase.getPublicId().toString()),
                 "ST-23", "LV-HANDOVER-001"));
