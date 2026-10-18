@@ -72,6 +72,7 @@ public class Vault {
     public static final String STATUS_ON_HOLD = "ON_HOLD";
     public static final String STATUS_LEGAL_BASIS_VERIFICATION = "LEGAL_BASIS_VERIFICATION";
     public static final String STATUS_UNLOCKED = "UNLOCKED";
+    public static final String STATUS_HANDOVER_IN_PROGRESS = "HANDOVER_IN_PROGRESS";
 
     /** PS-59: only a protected Legal workflow may move a Vault to UNLOCKED. */
     public void unlockAfterLegalApproval() {
@@ -79,6 +80,18 @@ public class Vault {
             throw new IllegalStateException("Vault is not in legal-basis verification");
         }
         status = STATUS_UNLOCKED;
+        updatedAt = Instant.now();
+    }
+
+    /** PS-65 / ST-25: the first delivery at the counter moves UNLOCKED -> HANDOVER_IN_PROGRESS; later deliveries keep it. */
+    public void markHandoverInProgress() {
+        if (STATUS_HANDOVER_IN_PROGRESS.equals(status)) {
+            return;
+        }
+        if (!STATUS_UNLOCKED.equals(status)) {
+            throw new IllegalStateException("Vault must be UNLOCKED to start handover");
+        }
+        status = STATUS_HANDOVER_IN_PROGRESS;
         updatedAt = Instant.now();
     }
 
