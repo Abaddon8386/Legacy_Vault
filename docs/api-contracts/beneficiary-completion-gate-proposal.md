@@ -1,5 +1,9 @@
 # PS-69 — Beneficiary Completion Gate: phần chuẩn bị
 
+> Superseded: GET .../handover-sessions/{sessionId}/beneficiary-completion đã có service/JPA.
+> Đếm confirmation cùng session/version/scope hash; toàn approved recipient set là mẫu số.
+> Người chưa verified vẫn ở mẫu số, không được tính complete. Delivery không tự confirm.
+
 Trạng thái **QUEUED / chưa tích hợp**, nhánh riêng từ develop `d612b5d`.
 Nguồn: [PS-69](https://thaithai9785.atlassian.net/browse/PS-69), LV-CLOSE-001:
 100% Beneficiary liên quan phải Confirmed, pending thì gate fail.
