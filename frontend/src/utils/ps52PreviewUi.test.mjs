@@ -10,7 +10,7 @@ globalThis.window=dom.window; globalThis.document=dom.window.document; globalThi
 dom.window.HTMLElement.prototype.attachEvent = () => {};
 dom.window.HTMLElement.prototype.detachEvent = () => {};
 async function compile(production=false) {
- const result=await build({configFile:false,plugins:[react()],logLevel:'silent',define:{'import.meta.env.DEV':String(!production),'import.meta.env.PROD':String(production)},build:{write:false,minify:false,lib:{entry:'src/pages/staff/BeneficiaryAccountPage.jsx',formats:['es']},rollupOptions:{external:['react','react-dom','react-dom/client','react/jsx-runtime']}}});
+ const result=await build({configFile:false,plugins:[react(),{name:'trace-load',transform(code,id){if(id.endsWith('Page.jsx')) return code.replace('await fetchHandoverCase(scenario,','await (globalThis.__refreshLoads?.push(scenario), fetchHandoverCase)(scenario,');}}],logLevel:'silent',define:{'import.meta.env.DEV':String(!production),'import.meta.env.PROD':String(production)},build:{write:false,minify:false,lib:{entry:'src/pages/staff/BeneficiaryAccountPage.jsx',formats:['es']},rollupOptions:{external:['react','react-dom','react-dom/client','react/jsx-runtime']}}});
  let code=(Array.isArray(result)?result[0]:result).output.find(x=>x.type==='chunk'&&x.isEntry).code;
  for(const name of ['react','react-dom','react-dom/client','react/jsx-runtime']) code=code.replaceAll('from "'+name+'"','from "'+import.meta.resolve(name)+'"');
  return (await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))).default;
@@ -40,4 +40,20 @@ test('Create/link validation shows specific localized errors and re-translates o
   await act(async()=>view.host.querySelector('[role=dialog] form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   assert.match(view.host.querySelector('[role=dialog]').textContent,/Enter the beneficiary email/);
  } finally { await view.close(); }
+});
+
+test('Refresh fetches the selected case again without changing the scenario', async () => {
+ globalThis.__refreshLoads = [];
+ let refreshes = 0;
+ const view = await mount(Preview, {isDevPreview:true,lang:'en',onRefresh:()=>{refreshes++;}});
+ try {
+  const select = view.host.querySelector('select');
+  await act(async()=>{select.value='case-out-of-scope';select.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  const before = globalThis.__refreshLoads.length;
+  await act(async()=>view.host.querySelector('button[title="Refresh Data"]').click());
+  assert.equal(globalThis.__refreshLoads.length,before+1);
+  assert.equal(globalThis.__refreshLoads.at(-1),'case-out-of-scope');
+  assert.equal(view.host.querySelector('select').value,'case-out-of-scope');
+  assert.equal(refreshes,1);
+ } finally {await view.close();delete globalThis.__refreshLoads;}
 });
