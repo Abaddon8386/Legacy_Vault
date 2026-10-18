@@ -223,6 +223,9 @@ export function AssetManagementPage({
       {/* Page Header */}
       <div className="lv-page-header">
         <div className="lv-page-header__left">
+          <span className="lv-page-eyebrow">
+            {lang === 'en' ? 'DIGITAL HERITAGE INVENTORY' : 'DANH MỤC DI SẢN SỐ'}
+          </span>
           <div className="lv-page-title-row">
             <h1 className="lv-page-title">{t.assets.title}</h1>
             {isLegalDismissed && (
@@ -233,7 +236,8 @@ export function AssetManagementPage({
                 title={t.assets.noticeInfoTooltip}
                 aria-label={t.assets.noticeInfoTooltip}
               >
-                <Info size={16} />
+                <Info size={15} />
+                <span className="lv-info-pill-text">{lang === 'en' ? 'Notice' : 'Lưu ý pháp lý'}</span>
               </button>
             )}
           </div>
@@ -247,25 +251,26 @@ export function AssetManagementPage({
           aria-label={t.assets.addNewBtn}
           disabled={isLoading || Boolean(error)}
         >
-          <Plus size={18} />
+          <Plus size={16} />
           <span className="lv-add-btn__text">{t.assets.addNewBtn}</span>
         </Button>
       </div>
 
       {/* Collapsible Legal Notice */}
       {!isLegalDismissed && (
-        <div className="lv-legal-notice-banner">
+        <div className="lv-legal-notice-banner" role="note">
           <div className="lv-legal-notice-banner__content">
-            <Info size={18} className="lv-notice-icon" />
+            <Info size={18} className="lv-notice-icon" aria-hidden="true" />
             <p>{t.assets.notice}</p>
           </div>
           <button
             type="button"
             className="lv-legal-dismiss-btn"
             onClick={handleDismissLegalNotice}
+            aria-label={t.assets.noticeDismiss}
           >
             <span>{t.assets.noticeDismiss}</span>
-            <X size={14} />
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -275,12 +280,10 @@ export function AssetManagementPage({
         <AssetSummaryCards assets={filteredAssets} t={t} lang={lang} />
       )}
 
-      {/* Filters apply to the current server page; no global search contract exists. */}
-      {!isLoading && !error && hasAnyAssets && <p className="lv-filter-scope">{t.assets.pageScope}</p>}
       {/* Filter and Search Bar */}
       <div className="lv-filter-bar">
         <div className="lv-search-box">
-          <Search size={16} className="lv-search-icon" />
+          <Search size={16} className="lv-search-icon" aria-hidden="true" />
           <input
             type="text"
             className="lv-search-input"
@@ -292,7 +295,7 @@ export function AssetManagementPage({
         </div>
 
         <div className="lv-category-filter">
-          <Filter size={15} className="lv-filter-icon" />
+          <Filter size={15} className="lv-filter-icon" aria-hidden="true" />
           <select
             className="lv-category-select"
             value={selectedAssetType}
@@ -305,12 +308,66 @@ export function AssetManagementPage({
           </select>
         </div>
       </div>
+      {/* Filters apply to the current server page; no global search contract exists. */}
+      {!isLoading && !error && hasAnyAssets && (
+        <p className="lv-filter-scope">{t.assets.pageScope}</p>
+      )}
 
       {/* Main Content Area */}
       {isLoading ? (
-        <div className="lv-loading-card" role="status" aria-live="polite">
-          <div className="lv-skeleton-spinner" />
-          <p>{t.assets.loadingText}</p>
+        <div className="lv-asset-skeleton" role="status" aria-live="polite">
+          <div className="lv-asset-skeleton__summary">
+            <div className="lv-asset-skeleton__stat">
+              <div className="lv-asset-skeleton__stat-icon lv-skeleton-pulse" />
+              <div className="lv-asset-skeleton__stat-text">
+                <div className="lv-asset-skeleton__stat-label lv-skeleton-pulse" />
+                <div className="lv-asset-skeleton__stat-val lv-skeleton-pulse" />
+              </div>
+            </div>
+            <div className="lv-asset-skeleton__stat">
+              <div className="lv-asset-skeleton__stat-icon lv-skeleton-pulse" />
+              <div className="lv-asset-skeleton__stat-text">
+                <div className="lv-asset-skeleton__stat-label lv-skeleton-pulse" />
+                <div className="lv-asset-skeleton__stat-val lv-skeleton-pulse" />
+              </div>
+            </div>
+            <div className="lv-asset-skeleton__stat">
+              <div className="lv-asset-skeleton__stat-icon lv-skeleton-pulse" />
+              <div className="lv-asset-skeleton__stat-text">
+                <div className="lv-asset-skeleton__stat-label lv-skeleton-pulse" />
+                <div className="lv-asset-skeleton__stat-pills">
+                  <div className="lv-asset-skeleton__stat-pill lv-skeleton-pulse" />
+                  <div className="lv-asset-skeleton__stat-pill lv-skeleton-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="lv-asset-skeleton__toolbar lv-skeleton-pulse" />
+          <div className="lv-asset-skeleton__table">
+            <div className="lv-asset-skeleton__header lv-skeleton-pulse" />
+            {[1, 2, 3, 4].map((idx) => (
+              <div key={idx} className="lv-asset-skeleton__row">
+                <div className="lv-asset-skeleton__cell lv-asset-skeleton__cell--name">
+                  <div className="lv-asset-skeleton__line lv-asset-skeleton__line--title lv-skeleton-pulse" />
+                  <div className="lv-asset-skeleton__line lv-asset-skeleton__line--sub lv-skeleton-pulse" />
+                </div>
+                <div className="lv-asset-skeleton__cell lv-asset-skeleton__cell--badge">
+                  <div className="lv-asset-skeleton__badge lv-skeleton-pulse" />
+                </div>
+                <div className="lv-asset-skeleton__cell lv-asset-skeleton__cell--status">
+                  <div className="lv-asset-skeleton__badge lv-skeleton-pulse" />
+                </div>
+                <div className="lv-asset-skeleton__cell lv-asset-skeleton__cell--date">
+                  <div className="lv-asset-skeleton__line lv-asset-skeleton__line--date lv-skeleton-pulse" />
+                </div>
+                <div className="lv-asset-skeleton__cell lv-asset-skeleton__cell--actions">
+                  <div className="lv-asset-skeleton__btn lv-skeleton-pulse" />
+                  <div className="lv-asset-skeleton__btn lv-skeleton-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="sr-only">{t.assets.loadingText}</p>
         </div>
       ) : error ? (
         <div className="lv-error-card" role="alert">

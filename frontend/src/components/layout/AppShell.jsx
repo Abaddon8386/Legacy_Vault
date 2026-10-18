@@ -52,9 +52,17 @@ const NAVIGATION_REGISTRY = [
     labelEn: 'Beneficiaries & Trustees',
     status: 'ACTIVE',
   },
+  {
+    id: 'subscription',
+    jiraTicket: 'CR-01',
+    labelVi: 'Gói sử dụng',
+    labelEn: 'Subscription Plans',
+    status: 'ACTIVE',
+  },
 ];
 
 const STAFF_NAVIGATION_REGISTRY = [
+  { id: 'cases', labelVi: 'Hồ sơ xác minh', labelEn: 'Verification Cases', status: 'ACTIVE' },
   {
     id: 'legal-documents',
     jiraTicket: 'PS-31',
@@ -62,6 +70,16 @@ const STAFF_NAVIGATION_REGISTRY = [
     labelEn: 'Legal Basis Documents',
     status: 'ACTIVE',
   },
+  {
+    id: 'asset-handover',
+    jiraTicket: 'PS-53',
+    labelVi: 'Bàn giao tài sản',
+    labelEn: 'Asset Handover',
+    status: 'ACTIVE',
+  },
+  { id: 'beneficiary-confirmation', jiraTicket: 'PS-54', labelVi: 'Xác nhận người thụ hưởng', labelEn: 'Beneficiary Confirmation', status: 'ACTIVE' },
+  { id: 'completion-progress', jiraTicket: 'PS-55', labelVi: 'Tiến độ hoàn tất', labelEn: 'Completion Progress', status: 'ACTIVE' },
+  { id: 'close-and-archive', jiraTicket: 'PS-56', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive', status: 'ACTIVE' },
 ];
 
 const LEGAL_NAVIGATION_REGISTRY = [
@@ -202,7 +220,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? 'Hồ sơ căn cứ pháp lý'
+        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận người thụ hưởng' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -236,7 +254,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? 'Legal Basis Documents'
+        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Beneficiary Confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
@@ -344,13 +362,36 @@ export default function AppShell({
                 >
                   <span className="lv-nav-spotlight" aria-hidden="true" />
                   <span className="lv-nav-icon" aria-hidden="true">
-                    {item.id === 'legal-documents' ? (
+                    {item.id === 'subscription' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                      </svg>
+                    ) : item.id === 'legal-documents' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
                         <line x1="16" y1="13" x2="8" y2="13" />
                         <line x1="16" y1="17" x2="8" y2="17" />
                         <line x1="10" y1="9" x2="8" y2="9" />
+                      </svg>
+                    ) : item.id === 'beneficiary-confirmation' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <polyline points="16 11 18 13 22 9" />
+                      </svg>
+                    ) : item.id === 'completion-progress' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 20V10" />
+                        <path d="M18 20V4" />
+                        <path d="M6 20v-4" />
+                      </svg>
+                    ) : item.id === 'close-and-archive' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="21 8 21 21 3 21 3 8" />
+                        <rect x="1" y="3" width="22" height="5" />
+                        <line x1="10" y1="12" x2="14" y2="12" />
                       </svg>
                     ) : item.id === 'death-verification' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -383,6 +424,18 @@ export default function AppShell({
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    ) : item.id === 'cases' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                        <path d="m9 14 2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'asset-handover' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
                       </svg>
                     ) : (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -659,7 +712,7 @@ export default function AppShell({
                           : currentTab === 'death-verification'
                             ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
                             : t.breadcrumbCurrent
-                  : currentTab === 'beneficiaries'
+                  : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')

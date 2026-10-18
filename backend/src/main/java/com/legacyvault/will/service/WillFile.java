@@ -18,7 +18,7 @@ import com.legacyvault.common.error.ErrorCode;
  *
  * <p>SHA-256 chỉ để phát hiện file bị thay đổi, không chứng minh giá trị pháp lý của di chúc (LV-WILL-001).
  */
-record WillFile(byte[] content, String fileName, String contentType, String sha256) {
+public record WillFile(byte[] content, String fileName, String contentType, String sha256) {
 
 	static final String PDF = "application/pdf";
 	static final String JPEG = "image/jpeg";
@@ -27,7 +27,7 @@ record WillFile(byte[] content, String fileName, String contentType, String sha2
 	private static final Set<String> GENERIC_DECLARED_TYPES = Set.of("application/octet-stream");
 	private static final int MAX_FILE_NAME_LENGTH = 255;
 
-	static WillFile inspect(MultipartFile file, long maxBytes) {
+	public static WillFile inspect(MultipartFile file, long maxBytes) {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessException(ErrorCode.VALIDATION_FAILED);
 		}
@@ -48,7 +48,7 @@ record WillFile(byte[] content, String fileName, String contentType, String sha2
 		return new WillFile(content, sanitizeFileName(file.getOriginalFilename()), detected, sha256Hex(content));
 	}
 
-	long size() {
+	public long size() {
 		return content.length;
 	}
 

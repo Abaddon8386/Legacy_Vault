@@ -1,6 +1,7 @@
 import { previewRoute } from './utils/previewState.js';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
+import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
@@ -10,12 +11,27 @@ import { createSession, isSessionActive } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
+import SubscriptionPage from './pages/subscription/SubscriptionPage.jsx';
 import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
+import LegalApprovalReviewPage from './pages/legal/LegalApprovalReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
+import BeneficiaryAccountPage from './pages/staff/BeneficiaryAccountPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
+import ScopedAssetHandoverPage from './pages/staff/ScopedAssetHandoverPage.jsx';
+import { canAccessScopedAssetHandover } from './utils/scopedAssetHandoverValidation.js';
+import BeneficiaryConfirmationPage from './pages/staff/BeneficiaryConfirmationPage.jsx';
+import { canAccessBeneficiaryConfirmation } from './utils/beneficiaryConfirmationValidation.js';
+import CompletionProgressPage from './pages/staff/CompletionProgressPage.jsx';
+import { canAccessCompletionProgress } from './utils/completionProgressValidation.js';
+import CloseAndArchivePage from './pages/staff/CloseAndArchivePage.jsx';
+import { canAccessCloseArchive } from './utils/closeAndArchiveValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
+import StaffShell from './components/layout/StaffShell.jsx';
+import StaffCaseDashboard from './pages/staff/StaffCaseDashboard.jsx';
+import CounterHandoverPage from './pages/staff/CounterHandoverPage.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
+import ControlledUnlockPage from './pages/legal/ControlledUnlockPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
 import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
 import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
@@ -455,7 +471,7 @@ export default function App() {
     if (options.signal?.aborted) return;
     if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
     setSession({ ...candidate, user }); setLang(options.lang || 'vi');
-    navigateTo(resolvePostLoginRoute(user));
+    navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
     setIsRefreshing(true); setRefreshTrigger(value => value + 1);
@@ -463,7 +479,6 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
-
   const resolveAccountRoute = (basePath) => {
     const params = new URLSearchParams();
     if (preview) params.set('preview', 'true');
@@ -472,7 +487,72 @@ export default function App() {
     return `${basePath}${qs ? `?${qs}` : ''}`;
   };
 
+  if (path === '/staff/handover') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><CounterHandoverPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
+  const isStaffRoute = path === '/staff/cases';
+  if (isStaffRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !session.user.roles.includes('STAFF_EXECUTOR')) {
+      return (
+        <main role="alert" style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", backgroundColor: '#f7f5f0' }}>
+          <p style={{ fontSize: '16px', color: '#164639', fontWeight: 600, marginBottom: '16px' }}>
+            {lang === 'en' ? 'This portal requires a Staff Executor account.' : 'Cổng này chỉ dành cho tài khoản Nhân viên xử lý (STAFF_EXECUTOR).'}
+          </p>
+          <button
+            type="button"
+            onClick={logout}
+            style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: '#164639', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+          >
+            {lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}
+          </button>
+        </main>
+      );
+    }
+    const staffContext = {
+      accessToken: session?.accessToken,
+      onUnauthorized: logout,
+      lang,
+      onNavigateToLogin: logout,
+      onRefreshTrigger: refreshTrigger,
+    };
+    return (
+      <div className="lv-app-root">
+        <StaffShell
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={logout}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          isPreview={preview}
+          currentTab="cases"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
+          onNavigateCloseAndArchive={() => navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive')}
+          onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
+        >
+          <StaffCaseDashboard
+            key={session?.user.id || 'preview'}
+            {...staffContext}
+            isDevPreview={preview}
+          />
+        </StaffShell>
+      </div>
+    );
+  }
+
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
+  if (path === '/legal/approval-review') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'This portal requires a Legal Verifier account.' : 'Cổng này chỉ dành cho tài khoản Thẩm định Pháp lý (LEGAL_VERIFIER).'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><LegalApprovalReviewPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   if (isLegalDossierReviewRoute) {
     if (!isSessionActive(session) && !preview) {
       return (
@@ -536,9 +616,14 @@ export default function App() {
   const isAssetsRoute = path === '/assets';
   const isWillsRoute = path === '/wills';
   const isBeneficiariesRoute = path === '/beneficiaries';
+  const isSubscriptionRoute = path === '/subscription' || path === '/subscriptions';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
   const isAccountProfileRoute = path === '/account/profile';
   const isAccountEditRoute = path === '/account/edit';
+  const isStaffBeneficiaryConfirmationRoute = path === '/staff/beneficiary-confirmation';
+  const isStaffCompletionProgressRoute = path === '/staff/completion-progress';
+  const isStaffCloseArchiveRoute = path === '/staff/close-and-archive';
+  const isStaffAssetHandoverRoute = path === '/staff/asset-handover';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
@@ -548,8 +633,18 @@ export default function App() {
       navigateTo(resolveAccountRoute('/account/profile'));
     } else if (targetTab === 'account-edit') {
       navigateTo(resolveAccountRoute('/account/edit'));
+    } else if (targetTab === 'cases') {
+      navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
     } else if (targetTab === 'legal-documents') {
       navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+    } else if (targetTab === 'asset-handover') {
+      navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+    } else if (targetTab === 'beneficiary-confirmation') {
+      navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+    } else if (targetTab === 'completion-progress') {
+      navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+    } else if (targetTab === 'close-and-archive') {
+      navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
     } else if (targetTab === 'death-verification') {
       navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
     } else if (targetTab === 'will-document-verification') {
@@ -558,6 +653,12 @@ export default function App() {
       navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
     } else if (targetTab === 'dossier-review') {
       navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+    } else if (targetTab === 'approval-review') {
+      navigateTo(preview ? '/legal/approval-review?preview=true' : '/legal/approval-review');
+    } else if (targetTab === 'controlled-unlock') {
+      navigateTo(preview ? '/legal/controlled-unlock?preview=true' : '/legal/controlled-unlock');
+    } else if (targetTab === 'subscription') {
+      navigateTo(preview ? '/subscription?preview=true' : '/subscription');
     } else if (targetTab === 'vault' || targetTab === 'dms' || targetTab === 'assets' || targetTab === 'wills' || targetTab === 'beneficiaries') {
       navigateTo(preview ? previewRoute(targetTab, window.location.search, lang) : `/${targetTab}`);
     }
@@ -700,6 +801,11 @@ export default function App() {
     );
   }
 
+  if (path === '/staff/beneficiary-accounts') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
@@ -721,12 +827,22 @@ export default function App() {
           session={session}
           user={session?.user || null}
           onNavigateTab={tab => {
-            if (tab === 'legal-documents') {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
               navigateTo(resolveAccountRoute('/account/edit'));
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
             }
           }}
         >
@@ -741,6 +857,193 @@ export default function App() {
     );
   }
 
+  if (isStaffAssetHandoverRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessScopedAssetHandover(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <StaffShell
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          isPreview={preview}
+          currentTab="asset-handover"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
+          onNavigateCloseAndArchive={() => navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive')}
+          onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
+          onNavigateTab={tab => {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            }
+          }}
+        >
+          <ScopedAssetHandoverPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </StaffShell>
+      </div>
+    );
+  }
+
+  if (isStaffBeneficiaryConfirmationRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessBeneficiaryConfirmation(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="beneficiary-confirmation"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            }
+          }}
+        >
+          <BeneficiaryConfirmationPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isStaffCompletionProgressRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessCompletionProgress(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="completion-progress"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            }
+          }}
+        >
+          <CompletionProgressPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isStaffCloseArchiveRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessCloseArchive(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="STAFF"
+          currentTab="close-and-archive"
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-confirmation') {
+              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'completion-progress') {
+              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'close-and-archive') {
+              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            }
+          }}
+        >
+          <CloseAndArchivePage
+            lang={lang}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (path === '/legal/controlled-unlock') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><ControlledUnlockPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   if (isLegalDeathRoute) {
     if (!isSessionActive(session) && !preview) {
       return (
@@ -914,7 +1217,7 @@ export default function App() {
       </div>
     );
   }
-  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute) {
+  if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute || isSubscriptionRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
@@ -926,15 +1229,15 @@ export default function App() {
       accessToken: session?.accessToken, ownerId: session?.user.id,
       onUnauthorized: logout, lang, onNavigateToLogin: logout, onRefreshTrigger: refreshTrigger
     };
-    return <div className="lv-app-root"><AppShell currentTab={isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
+    return <div className="lv-app-root"><AppShell currentTab={isSubscriptionRoute ? 'subscription' : isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       role="OWNER" isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onRefresh={handleRefresh} isRefreshing={isRefreshing} session={session} user={session?.user || null}
       onNavigateTab={tab => {
         if (tab === 'account-profile') {
           navigateTo(resolveAccountRoute('/account/profile'));
         } else if (tab === 'account-edit') {
           navigateTo(resolveAccountRoute('/account/edit'));
-        } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries') {
-          navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`);
+        } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries' || tab === 'subscription') {
+          navigateTo(preview ? previewRoute(tab, window.location.search, lang) : (tab === 'subscription' ? (preview ? '/subscription?preview=true' : '/subscription') : `/${tab}`));
         }
       }}>
       {preview && (isBeneficiariesRoute || isWillsRoute) ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
@@ -942,14 +1245,16 @@ export default function App() {
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--primary" onClick={() => navigateTo(previewRoute('vault', window.location.search, lang))}>{lang === 'en' ? 'Back to preview' : 'Quay lại tổng quan'}</button>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--gold" onClick={() => navigateTo('/login')}>{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</button>
-      </section> : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
+      </section> : isSubscriptionRoute ? <SubscriptionPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
+        : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
             : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
               : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
-  return <div className="lv-app-root">{path === '/' || path === '/register'
+  if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
+  return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
     : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
       : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;

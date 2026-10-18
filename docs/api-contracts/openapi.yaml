@@ -23,11 +23,79 @@ tags:
   - name: Legal
   - name: Beneficiaries
   - name: DMS
+  - name: Subscriptions
 
 security:
   - bearerAuth: []
 
 paths:
+  /api/v1/subscription-plans:
+    get:
+      tags: [Subscriptions]
+      summary: Prototype catalog — chờ phê duyệt PS-77
+      description: ROLE_VAULT_OWNER. Mặc định 409 SUBSCRIPTION_POLICY_PENDING; catalog chỉ có khi bật prototype cho test.
+      x-status: implemented
+      responses:
+        '200':
+          description: Ba gói theo giới hạn tài sản tăng dần. Byte nhị phân; giá VND một lần, trọn đời.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubscriptionPlan' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: SUBSCRIPTION_POLICY_PENDING — prototype chưa được nhóm duyệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+  /api/v1/subscriptions/me:
+    get:
+      tags: [Subscriptions]
+      summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
+      description: |
+        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Prototype bật trong test: chưa có Vault trả usage 0.
+        Mặc định 409 SUBSCRIPTION_POLICY_PENDING. Quota prototype chưa được nhóm duyệt.
+        Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
+        Không áp quota subscription vào evidence pháp lý.
+      x-status: implemented
+      responses:
+        '200':
+          description: Snapshot gói/usage dưới cùng khóa Owner.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentSubscription' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: SUBSCRIPTION_POLICY_PENDING — prototype chưa được nhóm duyệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+  /api/v1/subscriptions/me/upgrade:
+    post:
+      tags: [Subscriptions]
+      summary: Nâng gói tạm khóa chờ quy trình xác nhận (PS-77)
+      description: |
+        ROLE_VAULT_OWNER. Request không phải bằng chứng thanh toán hoặc xác nhận cấp gói.
+        Luôn 409 SUBSCRIPTION_UPGRADE_UNAVAILABLE cho request hợp lệ, không cấp entitlement.
+        Chờ nhóm duyệt và triển khai quy trình thanh toán/xác nhận tin cậy; cờ quota không mở self-grant.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionUpgradeRequest' }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: SUBSCRIPTION_UPGRADE_UNAVAILABLE — chưa có quy trình cấp gói/thanh toán được duyệt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/system/ping:
     get:
       tags: [System]
@@ -138,7 +206,10 @@ paths:
     post:
       tags: [Vaults]
       summary: Tạo Vault (PS-12, ST-02)
-      description: Chủ sở hữu lấy từ Security Context. Mọi trường `ownerId`/`status` trong body bị bỏ qua.
+      description: |
+        Chủ sở hữu lấy từ Security Context. Mọi trường `ownerId`/`status` trong body bị bỏ qua.
+        Mỗi Owner chỉ từng tạo thành công một Vault trong suốt vòng đời, bất kể trạng thái/gói.
+        Request đồng thời được serialize; lần tạo thứ hai trả 409 VAULT_ALREADY_EXISTS.
       x-status: designed
       requestBody:
         required: true
@@ -220,7 +291,9 @@ paths:
     post:
       tags: [Assets]
       summary: Tạo Asset (PS-15, ST-02)
-      description: '`payload` chỉ ghi, mã hóa phía server, không bao giờ có trong response.'
+      description: |
+        `payload` chỉ ghi, mã hóa phía server, không có trong response tạo Asset.
+        PS-77 quota prototype mặc định tắt, chờ duyệt tại open-decisions.md §G. Chỉ khi bật prototype: count mọi Asset kể cả DOCUMENT; vượt quota trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -281,7 +354,9 @@ paths:
     patch:
       tags: [Assets]
       summary: Cập nhật một phần Asset (PS-16, D-API-24)
-      description: Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+      description: |
+        Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+        Chỉ khi bật quota prototype PS-77: payload tính chênh lệch byte UTF-8; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED. Mặc định không áp quota đề xuất.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -339,7 +414,9 @@ paths:
       summary: Upload bản số hóa di chúc (PS-17, ST-03)
       description: |
         Trạng thái chỉ `UPLOADED`; không bao giờ `LEGAL_APPROVED`. SHA-256 chỉ phát hiện thay đổi,
-        không chứng minh giá trị pháp lý. Loại file: PDF/JPEG/PNG, ≤ 10 MB, cấu hình được (D-API-14).
+        không chứng minh giá trị pháp lý. Loại file: PDF/JPEG/PNG, tối đa 10485760 byte.
+        Một Will mới chiếm một Asset; mọi file version còn lưu đều tính storage (PS-77).
+        Chỉ khi bật quota prototype PS-77 mới trả 409 ASSET_QUOTA_EXCEEDED hoặc STORAGE_QUOTA_EXCEEDED; mặc định tắt, chờ nhóm duyệt.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -406,6 +483,7 @@ paths:
     post:
       tags: [Wills]
       summary: Tải phiên bản mới, giữ phiên bản cũ (PS-18)
+      description: Quota PS-77 mặc định tắt. Khi bật prototype thì tính mọi version; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED; chờ phê duyệt tại open-decisions.md §G.
       x-status: designed
       parameters:
         - $ref: '#/components/parameters/VaultId'
@@ -889,7 +967,7 @@ paths:
       summary: Ghi kết quả đối chiếu di chúc gốc với bản scan (PS-40, ST-15)
       description: |
         Chỉ `LEGAL_VERIFIER`. Hash của phiên bản do server lấy từ dữ liệu đã lưu. MISMATCH và INCONCLUSIVE bắt buộc có `reason`.
-        Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION`. Không đổi trạng thái Vault.
+        Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION`. `MATCH` đầu tiên chuyển Vault sang `WILL_VERIFICATION` (ST-15).
       x-status: implemented
       parameters:
         - name: caseId
@@ -913,11 +991,507 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier:
+    post:
+      tags: [Legal]
+      summary: Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ (PS-41, ST-16)
+      description: |
+        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `WILL_VERIFICATION` và kết quả đối chiếu di chúc mới
+        nhất là MATCH. Mỗi ca một hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClassifyBasisRequest' }
+      responses:
+        '201':
+          description: Đã tạo hồ sơ
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Legal]
+      summary: Xem hồ sơ căn cứ kèm lý do phân loại (PS-41)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/reclassification:
+    post:
+      tags: [Legal]
+      summary: Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (PS-43, ST-16, LV-HOLD-001)
+      description: |
+        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `NOTARIAL` hoặc `COURT`; Vault
+        `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. `NOTARIAL` và `COURT` không đổi lẫn nhau. Phân loại cũ được lưu vào lịch sử.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClassifyBasisRequest' }
+      responses:
+        '200':
+          description: Đã phân loại lại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Staff mở handover session cho ca đã nhận (PS-60)
+      description: Chỉ STAFF_EXECUTOR được assign; ca phải OPEN, Vault UNLOCKED và chưa có session OPEN.
+      x-status: implemented
+      responses:
+        '201':
+          description: Session mới đã được mở và audit cùng transaction
+          headers:
+            Location: { schema: { type: string }, description: URL session vừa tạo }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Staff truy vấn lịch sử handover session của ca (PS-60)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [OPEN, COMPLETED, CANCELLED] }
+      responses:
+        '200':
+          description: Session mới nhất trước; có thể lọc theo status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem chi tiết handover session của ca đã nhận (PS-60)
+      responses:
+        '200':
+          description: Chi tiết session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status:
+    description: Staff may cancel an open session only. COMPLETED is reserved for the PS-71 dual-completion close use case.
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Staff]
+      summary: Staff may cancel an open handover session only (PS-60).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandoverSessionStatusRequest' }
+      responses:
+        '200':
+          description: Status đã cập nhật cùng audit trong transaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/eligible-assets:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Tài sản được phép bàn giao theo phê duyệt hiện hành (PS-64, ST-25)
+      description: |
+        Passes the central handover gate (PS-66) first, then lists only the Legal-approved allocation lines of the
+        current dossier version whose recipient passed the in-person check (VERIFIED_AT_COUNTER). The Owner configured
+        Beneficiary list is never used. Optional recipientId narrows the list; a recipient outside the approved scope or
+        not verified returns 409 HANDOVER_RECIPIENT_NOT_ELIGIBLE. deliveryStatus is ELIGIBLE or DELIVERED.
+      x-status: implemented
+      parameters:
+        - name: recipientId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Eligible and already delivered assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EligibleHandoverAssetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/deliveries:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Ghi nhận bàn giao tài sản tại quầy (PS-65, ST-25)
+      description: |
+        Passes the central handover gate (PS-66): Staff owns an OPEN case, the Vault is UNLOCKED or
+        HANDOVER_IN_PROGRESS, no hold, the Legal approval still matches the current version/hash/scope, and the
+        session is OPEN. Every requested asset must be an approved line for the recipient and not yet delivered;
+        the whole request is all or nothing. The first delivery moves the Vault UNLOCKED -> HANDOVER_IN_PROGRESS.
+        Audit HANDOVER_ASSET_DELIVERED (ST-25, LV-HANDOVER-001). No asset content is returned.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandoverDeliveryRequest' }
+      responses:
+        '201':
+          description: Deliveries recorded
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Lịch sử bàn giao của phiên (PS-65)
+      description: Staff must own the case and the session; otherwise 404. Read only, oldest first.
+      x-status: implemented
+      responses:
+        '200':
+          description: Deliveries of the session
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverItemResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts:
+    description: Receipt issuance is fail-closed until authoritative per-asset delivery and beneficiary confirmation evidence is integrated (PS-64 through PS-71).
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Staff confirmation receipt; issuance waits for integrated delivery and beneficiary completion evidence (PS-61).
+      description: POST currently returns 409 until PS-65 delivery, PS-67 beneficiary confirmation, PS-68/69/70 dual completion, and PS-71 valid close can be checked against the approved scope. STAFF_ATTESTATION records Staff confirmation only; it is not an electronic signature or Beneficiary attestation.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateHandoverReceiptRequest' }
+      responses:
+        '201':
+          description: Receipt metadata và allocation snapshot được lưu cùng audit trong transaction
+          headers:
+            Location: { schema: { type: string }, description: URL receipt vừa tạo }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Staff truy xuất receipt theo handover session (PS-61)
+      x-status: implemented
+      responses:
+        '200':
+          description: Danh sách lịch sử receipt mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts/{receiptId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: receiptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff truy xuất chi tiết receipt của handover session (PS-61)
+      x-status: implemented
+      responses:
+        '200':
+          description: Receipt immutable cùng danh sách asset công khai
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier:
+    get:
+      tags: [Staff]
+      summary: Staff xem hồ sơ căn cứ của ca mình đã nhận (PS-41)
+      description: Không có `routeReason`. Ca không thuộc Staff trả 404.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions:
+    post:
+      tags: [Staff]
+      summary: Staff tiếp nhận văn bản căn cứ đã số hóa (PS-41, ST-18)
+      description: |
+        `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
+        và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
+        có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+        Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [metadata, file]
+              properties:
+                metadata: { $ref: '#/components/schemas/BasisIntakeMetadata' }
+                file: { type: string, format: binary }
+            encoding:
+              metadata: { contentType: application/json }
+      responses:
+        '201':
+          description: Đã tiếp nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{version}/forward:
+    post:
+      tags: [Staff]
+      summary: Staff chuyển văn bản căn cứ cho Legal (PS-42, ST-19)
+      description: |
+        Chỉ phiên bản mới nhất (`current = true`) được chuyển; phiên bản cũ trả `409 BASIS_VERSION_STALE` và vẫn được giữ làm
+        chứng cứ. Hồ sơ chuyển `LEGAL_BASIS_FORWARDED`, Vault chuyển `LEGAL_BASIS_VERIFICATION`. Chuyển không đồng nghĩa đã duyệt.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Đã chuyển cho Legal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
+    post:
+      tags: [Staff]
+      summary: Staff liên kết tài khoản có sẵn với hồ sơ Beneficiary (PS-62, ST-24)
+      description: |
+        Requires ROLE_STAFF_EXECUTOR, an OPEN verification case of the Beneficiary Vault assigned to the actor, and
+        id_verification_status = VERIFIED_AT_COUNTER (PS-45). The account is identified by its login email. Sets
+        beneficiaries.linked_user_id and account_status = ACCOUNT_CREATED, grants ROLE_BENEFICIARY if absent, audits
+        BENEFICIARY_ACCOUNT_LINKED (ST-24). The Beneficiary record stays independent of the account. Rejected with
+        409 BENEFICIARY_ACCOUNT_INELIGIBLE when the account is inactive/deleted, is the Vault Owner, holds
+        Staff/Legal/Admin authority, or is already linked to another Beneficiary of the same Vault. No Guest Portal,
+        claim link or email OTP.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/BeneficiaryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryAccountLinkRequest' }
+      responses:
+        '200':
+          description: Account linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/beneficiaries/{beneficiaryId}/account:
+    post:
+      tags: [Staff]
+      summary: Staff tạo và kích hoạt tài khoản Beneficiary tại quầy (PS-63, ST-24)
+      description: |
+        Same authorization and preconditions as account-link. Creates an ACTIVE account (BCrypt password chosen by
+        the Beneficiary at the counter, never stored or logged in clear) holding only ROLE_BENEFICIARY, with the
+        full name taken from the Beneficiary record, then links it and audits BENEFICIARY_ACCOUNT_CREATED (ST-24).
+        409 EMAIL_ALREADY_EXISTS when the email is taken (use account-link for an existing account).
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/BeneficiaryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryAccountCreateRequest' }
+      responses:
+        '201':
+          description: Account created, activated and linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
       summary: Ghi nhận xác minh danh tính trực tiếp (PS-45, ST-14)
-      description: Chỉ đối chiếu CCCD/passport bản cứng và khuôn mặt trực tiếp. Không gọi VNeID, camera hay eKYC. Chỉ lưu metadata; số giấy tờ tối đa là 4 ký tự cuối.
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. MATCH sets VERIFIED_AT_COUNTER; NOT_MATCH sets NOT_VERIFIED even from VERIFIED_AT_COUNTER. Both append their unchanged result to history and commit current state and audit atomically. Concurrent decisions are serialized; current state follows the last processed result. Hard-copy CCCD/passport and in-person face comparison only; no eKYC. Optional documentSuffix is exactly four alphanumeric characters. Staff target discovery remains a FE dependency. OPEN is not legal clearance.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -928,7 +1502,7 @@ paths:
             schema: { $ref: '#/components/schemas/IdentityVerificationRequest' }
       responses:
         '201':
-          description: Đã lưu kết quả xác minh và cập nhật trạng thái Beneficiary
+          description: History appended; current status is VERIFIED_AT_COUNTER for MATCH or NOT_VERIFIED for NOT_MATCH
           content:
             application/json:
               schema: { $ref: '#/components/schemas/IdentityVerificationResponse' }
@@ -939,6 +1513,7 @@ paths:
     get:
       tags: [Staff]
       summary: Lịch sử xác minh danh tính trực tiếp (PS-45)
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN verification case for the Beneficiary Vault assigned to the actor, even for empty history. Missing target or inaccessible case returns 404 RESOURCE_NOT_FOUND; anonymous 401; other roles 403. Existing MATCH and NOT_MATCH history remains unchanged.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -953,7 +1528,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
@@ -1033,6 +1607,207 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DmsResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/court-decisions:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Legal]
+      summary: Legal thẩm định phiên bản quyết định tòa đã chuyển (PS-47)
+      description: Chỉ LEGAL_VERIFIER. Ca OPEN, dossier COURT, Vault LEGAL_BASIS_VERIFICATION; chỉ phiên bản mới nhất đã FORWARDED. Không unlock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CourtDecisionRequest' }
+      responses:
+        '201':
+          description: Kết luận được lưu cùng audit, lịch sử append-only
+          headers:
+            Location:
+              schema: { type: string }
+              description: URL collection court-decisions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourtDecisionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Legal]
+      summary: Lịch sử thẩm định quyết định tòa, chỉ Legal (PS-47)
+      responses:
+        '200':
+          description: Mới nhất trước, không trả nội dung file
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CourtDecisionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review:
+    post:
+      tags: [Legal]
+      summary: Legal ghi nhận hoàn thành review hồ sơ căn cứ (PS-37, ST-20)
+      description: |
+        Chỉ LEGAL_VERIFIER. reviewerUserId lấy từ principal phía server.
+        Chỉ review khi ca OPEN, Vault/dossier ở trạng thái cho phép và không bị hold.
+        Ghi audit LEGAL_BASIS_REVIEW_RECORDED cùng transaction, kèm vaultId.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            example: { reason: "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan." }
+      responses:
+        '200':
+          description: Review đã được ghi nhận
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalBasisReviewResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/request-supplementation:
+    post:
+      tags: [Legal]
+      summary: Legal yêu cầu bổ sung hồ sơ căn cứ (PS-37, ST-20)
+      description: |
+        Chỉ LEGAL_VERIFIER. reviewerUserId lấy từ principal phía server.
+        Ghi nhận yêu cầu bổ sung với reasonCode LEGAL_REQUESTED_SUPPLEMENTATION,
+        audit LEGAL_BASIS_REVIEW_REQUIRED cùng transaction, kèm vaultId.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            example: { reason: "Đề nghị Staff bổ sung bản sao chứng thực còn thiếu." }
+      responses:
+        '200':
+          description: Đã ghi nhận yêu cầu bổ sung
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalBasisReviewResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/decision:
+    post:
+      tags: [Legal]
+      summary: Legal phê duyệt hoặc từ chối đúng snapshot hồ sơ (PS-57, ST-21)
+      description: |
+        Chỉ `LEGAL_VERIFIER`, ca OPEN, Vault LEGAL_BASIS_VERIFICATION và dossier đã forward, không hold.
+        Request phải khớp version, SHA-256, allocationHash và snapshot review mới nhất. Từ chối bắt buộc có reason.
+        Quyết định append-only, cập nhật trạng thái allocation của đúng version và audit được lưu trong cùng transaction;
+        không trả hoặc audit nội dung file.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LegalApprovalRequest' }
+      responses:
+        '200':
+          description: Quyết định đã lưu cùng audit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalApprovalResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/unlock:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Legal]
+      summary: Legal mở khóa Vault sau khi duyệt hồ sơ hiện hành (PS-59)
+      description: |
+        Chỉ LEGAL_VERIFIER. Ca phải OPEN; Vault phải ở LEGAL_BASIS_VERIFICATION; dossier phải được forward,
+        không hold hoặc chờ re-review; approval phải hợp lệ và khớp version/hash/allocation scope hiện hành.
+        Cập nhật Vault sang UNLOCKED và audit cùng transaction. DMS timeout hoặc giấy tử vong riêng lẻ không đủ điều kiện.
+      x-status: implemented
+      responses:
+        '200':
+          description: Vault đã được mở khóa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [caseId, vaultId, status, unlockedBy, unlockedAt]
+                properties:
+                  caseId: { type: string, format: uuid }
+                  vaultId: { type: string, format: uuid }
+                  status: { type: string, enum: [UNLOCKED] }
+                  unlockedBy: { type: string, format: uuid }
+                  unlockedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
+    post:
+      tags: [Legal]
+      summary: Legal đưa hồ sơ về ON_HOLD để xét lại bằng phiên bản mới (PS-48)
+      description: Chỉ LEGAL_VERIFIER; giữ nguyên lịch sử và phiên bản. Không unlock/handover.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HoldBasisRequest' }
+      responses:
+        '200':
+          description: Hồ sơ ON_HOLD cùng requiredVersion để nộp lại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BasisDossierResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1147,7 +1922,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
     Conflict:
-      description: Xung đột trạng thái/dữ liệu (ví dụ VAULT_NOT_EDITABLE, TRUSTEE_ALREADY_EXISTS, DMS_NOT_MONITORING)
+      description: Xung đột trạng thái/dữ liệu (VAULT_NOT_EDITABLE, TRUSTEE_ALREADY_EXISTS, DMS_NOT_MONITORING, ASSET_QUOTA_EXCEEDED, STORAGE_QUOTA_EXCEEDED)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
@@ -1173,6 +1948,154 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    LegalApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, versionNo, sha256Hash, allocationHash]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT] }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        reason: { type: string, maxLength: 1000, description: Bắt buộc khi decision là REJECT }
+    LegalApprovalResponse:
+      type: object
+      required: [dossierId, decision, versionNo, sha256Hash, allocationHash, decidedBy, decidedAt]
+      properties:
+        dossierId: { type: string, format: uuid }
+        decision: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+        versionNo: { type: integer }
+        sha256Hash: { type: string, minLength: 64, maxLength: 64 }
+        allocationHash: { type: string, minLength: 64, maxLength: 64 }
+        decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
+        decidedAt: { type: string, format: date-time }
+    RecordLegalBasisReviewRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Lý do review hoặc yêu cầu bổ sung; không rỗng sau khi trim.
+    LegalBasisReviewResponse:
+      type: object
+      required: [dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt]
+      description: 'D-API-08: chỉ trả public UUID, không trả khóa chính tuần tự trong database.'
+      properties:
+        dossierId: { type: string, format: uuid, description: Public ID của dossier }
+        reviewStatus: { type: string, nullable: true }
+        reviewRequired: { type: boolean }
+        reasonCode: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+        currentVersionNo: { type: integer, nullable: true }
+        currentSha256Hash: { type: string, nullable: true }
+        currentDisputeStatus: { type: string, nullable: true }
+        currentAllocationHash: { type: string, nullable: true }
+        checkedAt: { type: string, format: date-time, nullable: true }
+    HoldBasisRequest:
+      type: object
+      required: [cause, reason]
+      properties:
+        cause: { type: string, enum: [NEW_DISPUTE, INSUFFICIENT_EVIDENCE] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    CourtDecisionRequest:
+      type: object
+      required: [version, result, reason]
+      properties:
+        version: { type: integer, minimum: 1 }
+        result: { type: string, enum: [VALID, INVALID, INCONCLUSIVE] }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    CourtDecisionResponse:
+      type: object
+      required: [id, caseId, version, sha256, result, reason, reviewedBy, reviewedAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        sha256: { type: string, minLength: 64, maxLength: 64 }
+        result: { type: string, enum: [VALID, INVALID, INCONCLUSIVE] }
+        reason: { type: string, maxLength: 1000 }
+        reviewedBy: { type: string, format: uuid }
+        reviewedAt: { type: string, format: date-time }
+    HandoverSessionStatusRequest:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [CANCELLED] }
+    HandoverSessionResponse:
+      type: object
+      required: [sessionId, caseId, vaultId, staffId, status, openedAt, closedAt]
+      properties:
+        sessionId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        staffId: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, COMPLETED, CANCELLED] }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+    CreateHandoverReceiptRequest:
+      type: object
+      required: [recipientId, assetIds]
+      additionalProperties: false
+      properties:
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        supersedesReceiptId: { type: string, format: uuid, nullable: true }
+    EligibleHandoverAssetResponse:
+      type: object
+      required: [assetId, recipientId, deliveryStatus]
+      properties:
+        assetId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        description: { type: string, nullable: true, description: Mô tả dòng phân bổ theo văn bản căn cứ }
+        deliveryStatus: { type: string, enum: [ELIGIBLE, DELIVERED] }
+    HandoverDeliveryRequest:
+      type: object
+      required: [recipientId, assetIds]
+      properties:
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    HandoverItemResponse:
+      type: object
+      required: [itemId, sessionId, assetId, recipientId, status, deliveredAt, staffId]
+      properties:
+        itemId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        assetId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        status: { type: string, enum: [DELIVERED, VERIFIED_BY_BENEFICIARY] }
+        deliveredAt: { type: string, format: date-time }
+        staffId: { type: string, format: uuid }
+    HandoverReceiptResponse:
+      type: object
+      required: [receiptId, sessionId, recipientId, assetIds, staffId, dossierVersionNo, sha256Hash, allocationHash, confirmationType, confirmedAt]
+      properties:
+        receiptId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          items: { type: string, format: uuid }
+        staffId: { type: string, format: uuid }
+        dossierVersionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, minLength: 64, maxLength: 64 }
+        allocationHash: { type: string, minLength: 64, maxLength: 64 }
+        confirmationType: { type: string, enum: [STAFF_ATTESTATION] }
+        confirmedAt: { type: string, format: date-time }
+        supersedesReceiptId: { type: string, format: uuid, nullable: true }
     ApiError:
       type: object
       required: [timestamp, status, code, messageKey, message, path, traceId, errors]
@@ -1183,6 +2106,28 @@ components:
           type: string
           description: Mã ổn định để FE phân loại. Xem error-contract.md
           enum:
+            - REAUTH_FAILED
+            - TRUSTEE_REVOKED
+            - ALERT_NOT_CANCELLABLE
+            - VERIFICATION_CASE_NOT_CLAIMABLE
+            - WILL_NOT_VERIFIED
+            - BASIS_DOSSIER_ALREADY_EXISTS
+            - BASIS_VERSION_STALE
+            - LEGAL_DECISION_STALE
+            - LEGAL_APPROVAL_REQUIRED
+            - COURT_EVIDENCE_REQUIRED
+            - COURT_DECISION_REQUIRED
+            - LEGAL_WORKFLOW_ON_HOLD
+            - LEGAL_VERIFICATION_INVALID_STATE
+            - LEGAL_VERIFICATION_ALREADY_DECIDED
+            - SUBSCRIPTION_POLICY_PENDING
+            - SUBSCRIPTION_UPGRADE_UNAVAILABLE
+            - SUBSCRIPTION_CATALOG_STALE
+            - SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED
+            - CASE_EVIDENCE_QUOTA_EXCEEDED
+            - ASSET_QUOTA_EXCEEDED
+            - STORAGE_QUOTA_EXCEEDED
+            - TOO_MANY_ATTEMPTS
             - VALIDATION_FAILED
             - MALFORMED_REQUEST
             - UNAUTHENTICATED
@@ -1199,6 +2144,21 @@ components:
             - TRUSTEE_ALREADY_EXISTS
             - VAULT_NOT_EDITABLE
             - DMS_NOT_MONITORING
+            - VERIFICATION_CASE_NOT_OPEN
+            - HANDOVER_SESSION_ALREADY_OPEN
+            - HANDOVER_SESSION_INVALID_STATE
+            - HANDOVER_RECEIPT_INVALID_STATE
+            - HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED
+            - HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED
+            - HANDOVER_VAULT_NOT_UNLOCKED
+            - HANDOVER_RECIPIENT_NOT_ELIGIBLE
+            - HANDOVER_ASSET_NOT_ELIGIBLE
+            - HANDOVER_ASSET_ALREADY_DELIVERED
+            - BENEFICIARY_IDENTITY_NOT_VERIFIED
+            - BENEFICIARY_ACCOUNT_ALREADY_LINKED
+            - BENEFICIARY_ACCOUNT_INELIGIBLE
+            - HANDOVER_RECEIPT_REISSUE_INVALID
+            - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
         message:
           type: string
@@ -1482,6 +2442,84 @@ components:
           type: array
           description: Mới nhất trước
           items: { $ref: '#/components/schemas/WillComparisonResponse' }
+    ClassifyBasisRequest:
+      type: object
+      required: [route, routeReason]
+      properties:
+        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
+    BasisIntakeMetadata:
+      type: object
+      required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
+      properties:
+        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
+        issuingAuthority: { type: string, maxLength: 255 }
+        documentNumber: { type: string, maxLength: 100 }
+        issueDate: { type: string, format: date }
+        notaryAuthority: { type: string, maxLength: 255, nullable: true }
+        notarialDocumentNumber: { type: string, maxLength: 100, nullable: true }
+        notarizedAt: { type: string, format: date, nullable: true }
+        evidenceReference: { type: string, maxLength: 500, nullable: true }
+        notes: { type: string, maxLength: 1000, nullable: true }
+        allocations:
+          type: array
+          description: Kế hoạch phân bổ theo văn bản (bắt buộc, không trùng tài sản - người nhận, thuộc Vault của ca)
+          items: { $ref: '#/components/schemas/AllocationInput' }
+    BasisVersionResponse:
+      type: object
+      properties:
+        version: { type: integer }
+        legalBasisType: { type: string }
+        issuingAuthority: { type: string }
+        documentNumber: { type: string }
+        issueDate: { type: string, format: date }
+        notaryAuthority: { type: string, nullable: true }
+        notarialDocumentNumber: { type: string, nullable: true }
+        notarizedAt: { type: string, format: date, nullable: true }
+        evidenceReference: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        contentType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: Hash nội dung gốc; không chứng minh giá trị pháp lý }
+        forwardStatus: { type: string, enum: [NOT_FORWARDED, FORWARDED] }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        forwardedAt: { type: string, format: date-time, nullable: true }
+        current: { type: boolean, description: Phiên bản mới nhất; chỉ phiên bản này được chuyển Legal (PS-42) }
+        allocations:
+          type: array
+          description: Kế hoạch phân bổ theo văn bản (tài sản - người nhận)
+          items: { $ref: '#/components/schemas/AllocationResponse' }
+    AllocationInput:
+      type: object
+      required: [assetId, beneficiaryId]
+      properties:
+        assetId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        description: { type: string, maxLength: 2000, nullable: true }
+    AllocationResponse:
+      type: object
+      properties:
+        assetId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        description: { type: string, nullable: true }
+    BasisDossierResponse:
+      type: object
+      properties:
+        requiredVersion: { type: integer, minimum: 1, description: Minimum new version required after a hold }
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        status: { type: string, enum: [DRAFT, LEGAL_BASIS_PROVIDED, LEGAL_BASIS_FORWARDED] }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
+        routeReason: { type: string, nullable: true, description: Chỉ Legal thấy }
+        classifiedBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        versions:
+          type: array
+          description: Mới nhất trước
+          items: { $ref: '#/components/schemas/BasisVersionResponse' }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -1594,6 +2632,26 @@ components:
         phone: { type: string }
         email: { type: string, format: email }
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    BeneficiaryAccountLinkRequest:
+      type: object
+      required: [accountEmail]
+      properties:
+        accountEmail: { type: string, format: email, maxLength: 254, description: Email đăng nhập của tài khoản có sẵn }
+    BeneficiaryAccountCreateRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 72, writeOnly: true, description: Do Beneficiary tự chọn tại quầy; không lưu hay log dạng rõ }
+        phone: { type: string, pattern: '^$|^\+?[0-9]{8,15}$', nullable: true }
+    BeneficiaryAccountResponse:
+      type: object
+      required: [beneficiaryId, accountId, accountStatus, identityVerificationStatus]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid, description: ID công khai của tài khoản }
+        accountStatus: { type: string, enum: [ACCOUNT_CREATED] }
+        identityVerificationStatus: { type: string, enum: [VERIFIED_AT_COUNTER] }
     IdentityVerificationRequest:
       type: object
       required: [documentType, result]
@@ -1604,7 +2662,7 @@ components:
         result: { type: string, enum: [MATCH, NOT_MATCH] }
     IdentityVerificationResponse:
       type: object
-      required: [id, beneficiaryId, documentType, result, verifiedAt]
+      required: [id, beneficiaryId, documentType, result, verifiedBy, verifiedAt]
       properties:
         id: { type: string, format: uuid }
         beneficiaryId: { type: string, format: uuid }
@@ -1612,6 +2670,12 @@ components:
         issuingAuthority: { type: string, nullable: true }
         documentSuffix: { type: string, nullable: true }
         result: { type: string, enum: [MATCH, NOT_MATCH] }
+        verifiedBy:
+          type: object
+          required: [id, fullName]
+          properties:
+            id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
+            fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
         verifiedAt: { type: string, format: date-time }
     BeneficiaryResponse:
       type: object
@@ -1684,3 +2748,53 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+
+    SubscriptionUpgradeRequest:
+      type: object
+      required: [planCode, catalogVersion]
+      properties:
+        planCode: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        catalogVersion: { type: integer, minimum: 1, example: 2 }
+    SubscriptionUpgradeResponse:
+      type: object
+      required: [subscription, priceDifferenceVnd, changed]
+      properties:
+        subscription: { $ref: '#/components/schemas/CurrentSubscription' }
+        priceDifferenceVnd: { type: integer, format: int64, minimum: 0 }
+        changed: { type: boolean }
+    SubscriptionLimits:
+      type: object
+      required: [assetCount, storageBytes, fileBytes]
+      properties:
+        assetCount: { type: integer, format: int64, minimum: 1 }
+        storageBytes: { type: integer, format: int64, minimum: 1, description: Byte nội dung theo đơn vị nhị phân }
+        fileBytes: { type: integer, format: int64, minimum: 1 }
+    SubscriptionPlan:
+      type: object
+      required: [code, version, priceVnd, billingModel, limits]
+      properties:
+        code: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        version: { type: integer, minimum: 1 }
+        priceVnd: { type: integer, format: int64, minimum: 0, description: One-time purchase price in VND }
+        billingModel: { type: string, enum: [LIFETIME] }
+        limits: { $ref: '#/components/schemas/SubscriptionLimits' }
+    CurrentSubscription:
+      type: object
+      required: [effectivePlan, effectiveUntil, usage, overQuota, vaultCreated, evaluatedAt]
+      properties:
+        effectivePlan: { $ref: '#/components/schemas/SubscriptionPlan' }
+        effectiveUntil: { type: string, format: date-time, nullable: true, description: Luôn null vì mọi gói đều trọn đời }
+        usage:
+          type: object
+          required: [assetCount, storageBytes]
+          properties:
+            assetCount: { type: integer, format: int64, minimum: 0 }
+            storageBytes: { type: integer, format: int64, minimum: 0 }
+        overQuota:
+          type: object
+          required: [assets, storage]
+          properties:
+            assets: { type: boolean }
+            storage: { type: boolean }
+        vaultCreated: { type: boolean }
+        evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }

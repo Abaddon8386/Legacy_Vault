@@ -63,12 +63,17 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Trustee | `TRUSTEE_APPOINTED`, `TRUSTEE_UPDATED`, `TRUSTEE_REVOKED`, `TRUSTEE_CONTACT_RECORDED` | PS-19, PS-44 |
 | Beneficiary | `BENEFICIARY_ADDED`, `BENEFICIARY_UPDATED` | PS-20 |
 | Identity verification | `BENEFICIARY_IDENTITY_VERIFIED` | PS-45 |
+| Tài khoản Beneficiary | `BENEFICIARY_ACCOUNT_LINKED`, `BENEFICIARY_ACCOUNT_CREATED` (ID công khai của Beneficiary và tài khoản, trạng thái trước/sau; không email, mật khẩu hay số giấy tờ) | PS-62, PS-63 (ST-24) |
 | DMS | `DMS_CONFIGURED`, `DMS_CHECKED_IN`, `DMS_TRIGGERED`, `DMS_GRACE_PERIOD_EXCEEDED` | PS-22, PS-23 |
 | Verification case | `VERIFICATION_CASE_CREATED`, `VERIFICATION_CASE_CLAIMED` | ST-09 |
 | Giấy tờ khai tử | `DEATH_DOCUMENT_RECORDED` (loại + ID công khai; không số giấy tờ) | PS-38 (ST-11) |
 | Di chúc giấy gốc | `ORIGINAL_WILL_RECEIVED` (chỉ ID công khai; không tên người giao) | PS-39 (ST-13) |
 | Thẩm định giấy tờ khai tử | `LEGAL_DEATH_DOCUMENT_DECIDED` (kết quả + ID công khai; không ghi lý do) | PS-36 (ST-12) |
 | Đối chiếu di chúc gốc | `WILL_COMPARISON_RECORDED` (kết quả, ID công khai, phiên bản, hash; không ghi lý do) | PS-40 (ST-15) |
+| Hồ sơ căn cứ phân chia | `LEGAL_BASIS_CLASSIFIED` (nhánh, ID công khai; không ghi lý do), `LEGAL_BASIS_RECEIVED` (loại, phiên bản, hash; không ghi số văn bản) | PS-41 (ST-16, ST-18) |
+| Hồ sơ căn cứ phân chia (chuyển) | `LEGAL_BASIS_FORWARDED` (phiên bản, ID công khai; Vault `AWAITING_LEGAL_BASIS` → `LEGAL_BASIS_VERIFICATION`) | PS-42 (ST-19) |
+| Bàn giao tài sản | `HANDOVER_ASSET_DELIVERED` (ID công khai của phiên, hồ sơ, người nhận, các hạng mục; trạng thái Vault trước/sau; không nội dung tài sản) | PS-65 (ST-25) |
+| Hồ sơ căn cứ phân chia (phân loại lại) | `LEGAL_BASIS_RECLASSIFIED` (nhánh trước/sau, tranh chấp; không ghi lý do; Vault `ON_HOLD` → `AWAITING_LEGAL_BASIS`) | PS-43 (ST-16, LV-HOLD-001) |
 
 ## Giao diện nội bộ
 

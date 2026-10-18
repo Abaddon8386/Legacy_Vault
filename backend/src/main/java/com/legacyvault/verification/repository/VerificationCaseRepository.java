@@ -81,4 +81,6 @@ public interface VerificationCaseRepository extends JpaRepository<VerificationCa
             @Param("caseId") Long caseId
     );
 
+    Optional<VerificationCase> findByPublicId(UUID publicId);
+
 }

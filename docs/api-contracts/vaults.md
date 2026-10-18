@@ -25,6 +25,13 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. Ownership do **
   ≥ 1 Beneficiary kiểm ở PS-21.
 - **Audit:** `VAULT_CREATED`.
 
+### PS-77 — một kho trong suốt vòng đời
+
+Một Owner chỉ từng tạo thành công một Vault. Giữ hàng Vault và unique Owner bất kể status;
+không hard-delete hoặc chuyển Owner để tạo lại. Tạo và audit thất bại được rollback, không tiêu hao quyền tạo.
+Hai request tạo đầu tiên đồng thời: một 201, một 409 `VAULT_ALREADY_EXISTS`. Đổi/hết hạn gói không cấp lại quyền tạo.
+Không bổ sung API đóng/archive/soft-delete trong thay đổi này. Xem [subscriptions.md](subscriptions.md).
+
 ## GET /api/v1/vaults/{vaultId} — PS-14
 
 - **Ownership:** chỉ chủ Vault. **Response 200:** `VaultResponse` như trên.

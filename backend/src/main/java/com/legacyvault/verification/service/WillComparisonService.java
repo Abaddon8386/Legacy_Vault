@@ -39,12 +39,12 @@ import java.util.UUID;
  * PS-40 (ST-15, LV-WILL-001): Legal đối chiếu bản di chúc giấy gốc với một phiên bản bản scan đã lưu và ghi kết quả
  * cùng phiên bản/hash đã so. Hash chỉ xác định đúng phiên bản bản scan; nó không chứng minh giá trị pháp lý.
  *
- * <p>Chỉ ghi nhận kết quả: không đổi trạng thái Vault, không xác nhận di chúc hợp lệ, không mở khóa. Cổng chặn luồng duyệt
+ * <p>Chỉ ghi nhận kết quả, không xác nhận di chúc hợp lệ hay mở khóa. Riêng MATCH đầu tiên chuyển Vault sang
+ * WILL_VERIFICATION đúng ST-15 (Main Flow v4.2); các kết quả khác không đổi trạng thái. Cổng chặn luồng duyệt
  * thông thường là {@link #isApprovalBlocked(Long)}: chỉ qua khi kết quả đối chiếu mới nhất của ca là MATCH.
  *
  * <p>Thứ tự khóa dòng: Vault -> ca xác minh (như Cancel Alert và quyết định chứng tử) để không deadlock.
  *
- * <p>TODO(open-question): chưa chuyển Vault sang WILL_VERIFICATION khi MATCH; chờ nhóm chốt thời điểm chuyển trạng thái.
  */
 @Service
 public class WillComparisonService {
@@ -104,8 +104,11 @@ public class WillComparisonService {
         if (!Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
             throw new BusinessException(ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
-        // ST-15 đi sau ST-12: ca còn mở và giấy tờ khai tử đã được Legal chấp thuận (Vault DOCUMENT_VERIFICATION).
-        if (!verificationCase.isOpen() || !Vault.STATUS_DOCUMENT_VERIFICATION.equals(vault.getStatus())) {
+        // ST-15 đi sau ST-12: ca còn mở và giấy tờ khai tử đã được Legal chấp thuận. Sau MATCH đầu tiên Vault đã ở
+        // WILL_VERIFICATION; vẫn cho đối chiếu lại ở trạng thái này.
+        boolean statusAllowsComparison = Vault.STATUS_DOCUMENT_VERIFICATION.equals(vault.getStatus())
+                || Vault.STATUS_WILL_VERIFICATION.equals(vault.getStatus());
+        if (!verificationCase.isOpen() || !statusAllowsComparison) {
             throw new BusinessException(ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
 
@@ -119,6 +122,11 @@ public class WillComparisonService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         String result = request.result().name();
+        String vaultStatusBefore = vault.getStatus();
+        if (request.result() == RecordWillComparisonRequest.Result.MATCH
+                && Vault.STATUS_DOCUMENT_VERIFICATION.equals(vaultStatusBefore)) {
+            vault.markWillVerification();
+        }
         WillComparison saved = comparisonRepository.saveAndFlush(new WillComparison(
                 verificationCase.getVerificationCaseId(),
                 intake.getOriginalWillIntakeId(),
@@ -146,7 +154,9 @@ public class WillComparisonService {
                         "originalWillIntakeId", intake.getPublicId().toString(),
                         "willId", will.getPublicId().toString(),
                         "version", version.versionNo(),
-                        "sha256", version.sha256Hash()
+                        "sha256", version.sha256Hash(),
+                        "vaultStatusBefore", vaultStatusBefore,
+                        "vaultStatusAfter", vault.getStatus()
                 ),
                 STEP_ID,
                 RULE_ID

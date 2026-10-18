@@ -41,6 +41,9 @@ server:
     include-exception: false
 
 legacyvault:
+  subscription:
+    # Pending group approval in open-decisions.md. Never enables paid self-grants.
+    quota-enforcement-enabled: false
   cors:
     # Danh sách origin được phép, phân cách bằng dấu phẩy. Mặc định rỗng (dev dùng Vite proxy nên không cần).
     # Ví dụ khi muốn gọi thẳng không qua proxy: CORS_ALLOWED_ORIGINS=http://localhost:5173
