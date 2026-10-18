@@ -1,0 +1,437 @@
+/**
+ * Account Profile Editing — EX-02
+ * Henedo Style: Forest Green (#164639), Sand Gold (#c5a059), Warm Parchment (#f7f5f0)
+ * All selectors strictly scoped under .lv-account-edit-view.
+ */
+
+.lv-account-edit-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 8px 4px 40px;
+  color: #1f2421;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
+}
+
+.lv-account-edit-view .lv-edit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lv-account-edit-view .lv-edit-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-account-edit-view .lv-edit-title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 26px;
+  font-weight: 600;
+  color: #164639;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.lv-account-edit-view .lv-edit-subtitle {
+  font-size: 14.5px;
+  color: #626a64;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.lv-account-edit-view .lv-unsaved-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background-color: rgba(197, 160, 89, 0.15);
+  color: #8c7036;
+  border: 1px solid rgba(197, 160, 89, 0.35);
+}
+
+/* Callout Notice */
+.lv-account-edit-view .lv-notice-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background-color: #fff9ed;
+  border: 1px solid #f0dfb7;
+  color: #7d5b1e;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.lv-account-edit-view .lv-notice-callout__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #c5a059;
+}
+
+.lv-account-edit-view .lv-notice-callout__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lv-account-edit-view .lv-notice-callout__title {
+  font-weight: 600;
+  color: #634714;
+}
+
+/* Edit Card */
+.lv-account-edit-view .lv-edit-card {
+  background-color: #ffffff;
+  border: 1px solid #eae5dc;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(22, 70, 57, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.lv-account-edit-view .lv-edit-card__title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 19px;
+  font-weight: 600;
+  color: #164639;
+  margin: 0;
+}
+
+.lv-account-edit-view .lv-edit-card__desc {
+  font-size: 13.5px;
+  color: #6b726b;
+  margin: -14px 0 0;
+  line-height: 1.5;
+}
+
+.lv-account-edit-view .lv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lv-account-edit-view .lv-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lv-account-edit-view .lv-form-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #2b332d;
+}
+
+.lv-account-edit-view .lv-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background-color: #f1f3f0;
+  color: #5c665e;
+  border: 1px solid #e1e5df;
+}
+
+.lv-account-edit-view .lv-input-text {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: #1f2421;
+  background-color: #ffffff;
+  border: 1.5px solid #dcd7ce;
+  border-radius: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.lv-account-edit-view .lv-input-text:focus {
+  outline: none;
+  border-color: #164639;
+  box-shadow: 0 0 0 3px rgba(22, 70, 57, 0.12);
+}
+
+.lv-account-edit-view .lv-input-text.has-error {
+  border-color: #c94a3d;
+  background-color: #fff9f9;
+}
+
+.lv-account-edit-view .lv-input-text.has-error:focus {
+  border-color: #c94a3d;
+  box-shadow: 0 0 0 3px rgba(201, 74, 61, 0.12);
+}
+
+.lv-account-edit-view .lv-input-text:disabled {
+  background-color: #f7f6f3;
+  color: #737c75;
+  border-color: #e5e1d8;
+  cursor: not-allowed;
+}
+
+.lv-account-edit-view .lv-form-help {
+  font-size: 12.5px;
+  color: #737c75;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.lv-account-edit-view .lv-form-error {
+  font-size: 12.5px;
+  color: #c94a3d;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Roles Display */
+.lv-account-edit-view .lv-role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.lv-account-edit-view .lv-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background-color: rgba(22, 70, 57, 0.08);
+  color: #164639;
+  border: 1px solid rgba(22, 70, 57, 0.15);
+}
+
+/* Action Button Bar */
+.lv-account-edit-view .lv-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 20px;
+  border-top: 1px solid #f0ece3;
+  flex-wrap: wrap;
+}
+
+.lv-account-edit-view .lv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.lv-account-edit-view .lv-btn:focus-visible {
+  outline: 2px solid #c5a059;
+  outline-offset: 2px;
+}
+
+.lv-account-edit-view .lv-btn-primary {
+  background-color: #164639;
+  color: #ffffff;
+}
+
+.lv-account-edit-view .lv-btn-primary:hover:not(:disabled) {
+  background-color: #0f352b;
+}
+
+.lv-account-edit-view .lv-btn-primary:disabled {
+  background-color: #c8d0ca;
+  color: #636e65;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.lv-account-edit-view .lv-btn-secondary {
+  background-color: #ffffff;
+  color: #3b443e;
+  border: 1.5px solid #dcd7ce;
+}
+
+.lv-account-edit-view .lv-btn-secondary:hover:not(:disabled) {
+  background-color: #f7f5f0;
+  border-color: #c4beaf;
+}
+
+.lv-account-edit-view .lv-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Truthful Empty State */
+.lv-account-edit-view .lv-empty-state {
+  background-color: #ffffff;
+  border: 1px solid #eae5dc;
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.lv-account-edit-view .lv-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: rgba(197, 160, 89, 0.12);
+  color: #c5a059;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-account-edit-view .lv-empty-title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: #164639;
+  margin: 0;
+}
+
+.lv-account-edit-view .lv-empty-desc {
+  font-size: 14px;
+  color: #6b726b;
+  max-width: 440px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* In-App Unsaved Confirmation Modal */
+.lv-account-edit-view .lv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 34, 28, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+}
+
+.lv-account-edit-view .lv-modal-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  border: 1px solid #eae5dc;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lv-account-edit-view .lv-modal-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lv-account-edit-view .lv-modal-card__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #fef3e2;
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lv-account-edit-view .lv-modal-card__title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 19px;
+  font-weight: 600;
+  color: #164639;
+  margin: 0;
+}
+
+.lv-account-edit-view .lv-modal-card__desc {
+  font-size: 14px;
+  color: #5c665e;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.lv-account-edit-view .lv-modal-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.lv-account-edit-view .lv-modal-btn-stay {
+  background-color: #f1f3f0;
+  color: #2b332d;
+  border: 1px solid #dcd7ce;
+}
+
+.lv-account-edit-view .lv-modal-btn-discard {
+  background-color: #c94a3d;
+  color: #ffffff;
+  border: none;
+}
+
+.lv-account-edit-view .lv-modal-btn-discard:hover {
+  background-color: #af3e32;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .lv-account-edit-view {
+    padding: 4px 2px 24px;
+  }
+
+  .lv-account-edit-view .lv-edit-card {
+    padding: 20px 16px;
+  }
+
+  .lv-account-edit-view .lv-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .lv-account-edit-view .lv-btn {
+    width: 100%;
+  }
+
+  .lv-account-edit-view .lv-modal-card__actions {
+    flex-direction: column;
+  }
+
+  .lv-account-edit-view .lv-modal-card__actions button {
+    width: 100%;
+  }
+}

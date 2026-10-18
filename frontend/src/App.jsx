@@ -1,5 +1,5 @@
 import { previewRoute } from './utils/previewState.js';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
@@ -37,6 +37,10 @@ import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVe
 import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
 import LegalBasisRouteSelectionPage from './pages/legal/LegalBasisRouteSelectionPage.jsx';
 import { canAccessLegalBasisRoute } from './utils/legalBasisRouteValidation.js';
+import AccountProfilePage from './pages/account/AccountProfilePage.jsx';
+import { canAccessAccountProfile } from './utils/accountProfileValidation.js';
+import AccountEditPage from './pages/account/AccountEditPage.jsx';
+import { canAccessAccountEdit } from './utils/accountEditValidation.js';
 
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -380,14 +384,75 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const navigateTo = useCallback(path => {
-    window.history.pushState({}, '', path); setLocation(path);
-  }, []);
-  const logout = useCallback(() => { setSession(null); navigateTo('/login'); }, [navigateTo]);
+  const [isEditFormDirty, setIsEditFormDirty] = useState(false);
+  const [pendingNavigationTarget, setPendingNavigationTarget] = useState(null);
+  const isEditFormDirtyRef = useRef(false);
+  const locationRef = useRef(location);
+  const historyIndexRef = useRef(0);
+  const isRevertingPopStateRef = useRef(false);
+
   useEffect(() => {
-    const sync = () => setLocation(window.location.pathname + window.location.search);
-    window.addEventListener('popstate', sync);
-    return () => window.removeEventListener('popstate', sync);
+    isEditFormDirtyRef.current = isEditFormDirty;
+  }, [isEditFormDirty]);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
+  useEffect(() => {
+    const state = window.history.state;
+    if (!state || typeof state.lvIdx !== 'number') {
+      window.history.replaceState({ ...(state || {}), lvIdx: 0 }, '');
+      historyIndexRef.current = 0;
+    } else {
+      historyIndexRef.current = state.lvIdx;
+    }
+  }, []);
+
+  const navigateTo = useCallback(path => {
+    const nextIdx = (historyIndexRef.current || 0) + 1;
+    historyIndexRef.current = nextIdx;
+    window.history.pushState({ lvIdx: nextIdx }, '', path);
+    setLocation(path);
+  }, []);
+
+  const logout = useCallback(() => {
+    isEditFormDirtyRef.current = false;
+    setIsEditFormDirty(false);
+    setPendingNavigationTarget(null);
+    setSession(null);
+    navigateTo('/login');
+  }, [navigateTo]);
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (isRevertingPopStateRef.current) {
+        isRevertingPopStateRef.current = false;
+        return;
+      }
+
+      const targetIdx = event.state?.lvIdx;
+      const currentIdx = historyIndexRef.current;
+      const delta = typeof targetIdx === 'number' ? targetIdx - currentIdx : -1;
+      const targetPath = window.location.pathname + window.location.search;
+
+      if (isEditFormDirtyRef.current) {
+        // Revert history pointer without pushing new entry to preserve forward/back stacks
+        isRevertingPopStateRef.current = true;
+        if (delta !== 0) {
+          window.history.go(-delta);
+        }
+        setPendingNavigationTarget({ type: 'POPSTATE', delta, targetPath });
+        return;
+      }
+
+      if (typeof targetIdx === 'number') {
+        historyIndexRef.current = targetIdx;
+      }
+      setLocation(targetPath);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
   useEffect(() => {
     if (!session) return;
@@ -414,6 +479,14 @@ export default function App() {
   };
   const path = location.split('?')[0];
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const resolveAccountRoute = (basePath) => {
+    const params = new URLSearchParams();
+    if (preview) params.set('preview', 'true');
+    if (lang === 'en') params.set('lang', 'en');
+    const qs = params.toString();
+    return `${basePath}${qs ? `?${qs}` : ''}`;
+  };
+
   if (path === '/staff/handover') {
     if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
@@ -474,7 +547,6 @@ export default function App() {
     );
   }
 
-
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (path === '/legal/approval-review') {
     if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
@@ -508,11 +580,12 @@ export default function App() {
           currentTab="dossier-review"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={logout}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
-          user={session?.user}
+          user={session?.user || null}
           onNavigateTab={tab => {
             if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
@@ -522,6 +595,10 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -541,6 +618,8 @@ export default function App() {
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isSubscriptionRoute = path === '/subscription' || path === '/subscriptions';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isAccountProfileRoute = path === '/account/profile';
+  const isAccountEditRoute = path === '/account/edit';
   const isStaffBeneficiaryConfirmationRoute = path === '/staff/beneficiary-confirmation';
   const isStaffCompletionProgressRoute = path === '/staff/completion-progress';
   const isStaffCloseArchiveRoute = path === '/staff/close-and-archive';
@@ -548,6 +627,183 @@ export default function App() {
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
+
+  const handleExecuteNavigation = (targetTab) => {
+    if (targetTab === 'account-profile') {
+      navigateTo(resolveAccountRoute('/account/profile'));
+    } else if (targetTab === 'account-edit') {
+      navigateTo(resolveAccountRoute('/account/edit'));
+    } else if (targetTab === 'cases') {
+      navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+    } else if (targetTab === 'legal-documents') {
+      navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+    } else if (targetTab === 'asset-handover') {
+      navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+    } else if (targetTab === 'beneficiary-confirmation') {
+      navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+    } else if (targetTab === 'completion-progress') {
+      navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+    } else if (targetTab === 'close-and-archive') {
+      navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+    } else if (targetTab === 'death-verification') {
+      navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
+    } else if (targetTab === 'will-document-verification') {
+      navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
+    } else if (targetTab === 'basis-route-selection') {
+      navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+    } else if (targetTab === 'dossier-review') {
+      navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+    } else if (targetTab === 'approval-review') {
+      navigateTo(preview ? '/legal/approval-review?preview=true' : '/legal/approval-review');
+    } else if (targetTab === 'controlled-unlock') {
+      navigateTo(preview ? '/legal/controlled-unlock?preview=true' : '/legal/controlled-unlock');
+    } else if (targetTab === 'subscription') {
+      navigateTo(preview ? '/subscription?preview=true' : '/subscription');
+    } else if (targetTab === 'vault' || targetTab === 'dms' || targetTab === 'assets' || targetTab === 'wills' || targetTab === 'beneficiaries') {
+      navigateTo(preview ? previewRoute(targetTab, window.location.search, lang) : `/${targetTab}`);
+    }
+  };
+
+  if (isAccountProfileRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return (
+        <div className="lv-app-root">
+          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+        </div>
+      );
+    }
+    if (!preview && !canAccessAccountProfile(session)) {
+      return (
+        <div className="lv-app-root">
+          <main role="alert" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p>{lang === 'en' ? 'Access restricted' : 'Từ chối quyền truy cập'}</p>
+            <button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button>
+          </main>
+        </div>
+      );
+    }
+    const shellRole = session?.user?.roles?.includes('STAFF_EXECUTOR')
+      ? 'STAFF'
+      : session?.user?.roles?.includes('LEGAL_VERIFIER')
+      ? 'LEGAL'
+      : 'OWNER';
+
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role={shellRole}
+          currentTab="account-profile"
+          lang={lang}
+          onToggleLang={setLang}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={handleExecuteNavigation}
+        >
+          <AccountProfilePage
+            session={session}
+            lang={lang}
+            preview={preview}
+            onNavigateEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
+            onRefreshSession={(updatedUser, requestedSession) => {
+              setSession(currentSession => {
+                if (!isSessionActive(currentSession) ||
+                    currentSession.accessToken !== requestedSession?.accessToken ||
+                    currentSession.user?.id !== requestedSession?.userId ||
+                    updatedUser.id !== currentSession.user?.id) return currentSession;
+                return { ...currentSession, user: updatedUser };
+              });
+            }}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
+  if (isAccountEditRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return (
+        <div className="lv-app-root">
+          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+        </div>
+      );
+    }
+    if (!preview && !canAccessAccountEdit(session)) {
+      return (
+        <div className="lv-app-root">
+          <main role="alert" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p>{lang === 'en' ? 'Access restricted' : 'Từ chối quyền truy cập'}</p>
+            <button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button>
+          </main>
+        </div>
+      );
+    }
+    const shellRole = session?.user?.roles?.includes('STAFF_EXECUTOR')
+      ? 'STAFF'
+      : session?.user?.roles?.includes('LEGAL_VERIFIER')
+      ? 'LEGAL'
+      : 'OWNER';
+
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role={shellRole}
+          currentTab="account-edit"
+          lang={lang}
+          onToggleLang={setLang}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={tab => {
+            if (isEditFormDirty) {
+              setPendingNavigationTarget({ type: 'TAB', tab });
+            } else {
+              handleExecuteNavigation(tab);
+            }
+          }}
+        >
+          <AccountEditPage
+            session={session}
+            preview={preview}
+            lang={lang}
+            onDirtyChange={setIsEditFormDirty}
+            pendingNavigation={pendingNavigationTarget}
+            onConfirmNavigation={() => {
+              const target = pendingNavigationTarget;
+              isEditFormDirtyRef.current = false;
+              setIsEditFormDirty(false);
+              setPendingNavigationTarget(null);
+              if (target?.type === 'POPSTATE') {
+                if (typeof target.delta === 'number' && target.delta !== 0) {
+                  historyIndexRef.current = historyIndexRef.current + target.delta;
+                  window.history.go(target.delta);
+                } else if (target.targetPath) {
+                  setLocation(target.targetPath);
+                }
+              } else if (target?.type === 'TAB') {
+                handleExecuteNavigation(target.tab);
+              } else if (typeof target === 'string') {
+                handleExecuteNavigation(target);
+              }
+            }}
+            onCancelNavigation={() => setPendingNavigationTarget(null)}
+            onCancel={() => {
+              isEditFormDirtyRef.current = false;
+              setIsEditFormDirty(false);
+              setPendingNavigationTarget(null);
+              navigateTo(preview ? '/account/profile?preview=true' : '/account/profile');
+            }}
+          />
+        </AppShell>
+      </div>
+    );
+  }
 
   if (path === '/staff/beneficiary-accounts') {
     if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
@@ -568,7 +824,8 @@ export default function App() {
           currentTab="legal-documents"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -578,6 +835,10 @@ export default function App() {
               navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
             } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             } else if (tab === 'beneficiary-confirmation') {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
@@ -663,7 +924,8 @@ export default function App() {
           currentTab="beneficiary-confirmation"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -681,6 +943,10 @@ export default function App() {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
             } else if (tab === 'beneficiary-confirmation') {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -708,7 +974,8 @@ export default function App() {
           currentTab="completion-progress"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -726,6 +993,10 @@ export default function App() {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -753,7 +1024,8 @@ export default function App() {
           currentTab="close-and-archive"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           session={session}
@@ -771,6 +1043,10 @@ export default function App() {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             } else if (tab === 'close-and-archive') {
               navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -812,10 +1088,14 @@ export default function App() {
         <AppShell
           role="LEGAL"
           currentTab="death-verification"
+          isAuthenticated={isSessionActive(session)}
+          session={session}
           user={session?.user || null}
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
           onNavigateTab={(tab) => {
             if (tab === 'death-verification') {
               navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
@@ -825,6 +1105,10 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -862,10 +1146,14 @@ export default function App() {
         <AppShell
           role="LEGAL"
           currentTab="will-document-verification"
+          isAuthenticated={isSessionActive(session)}
+          session={session}
           user={session?.user || null}
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
           onNavigateTab={(tab) => {
             if (tab === 'will-document-verification') {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
@@ -875,6 +1163,10 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -912,10 +1204,14 @@ export default function App() {
         <AppShell
           role="LEGAL"
           currentTab="basis-route-selection"
+          isAuthenticated={isSessionActive(session)}
+          session={session}
           user={session?.user || null}
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
           onNavigateTab={(tab) => {
             if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
@@ -925,6 +1221,10 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'account-profile') {
+              navigateTo(resolveAccountRoute('/account/profile'));
+            } else if (tab === 'account-edit') {
+              navigateTo(resolveAccountRoute('/account/edit'));
             }
           }}
         >
@@ -949,8 +1249,16 @@ export default function App() {
       onUnauthorized: logout, lang, onNavigateToLogin: logout, onRefreshTrigger: refreshTrigger
     };
     return <div className="lv-app-root"><AppShell currentTab={isSubscriptionRoute ? 'subscription' : isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
-      onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} isRefreshing={isRefreshing}
-      onNavigateTab={tab => { if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries' || tab === 'subscription') navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`); }}>
+      role="OWNER" isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onRefresh={handleRefresh} isRefreshing={isRefreshing} session={session} user={session?.user || null}
+      onNavigateTab={tab => {
+        if (tab === 'account-profile') {
+          navigateTo(resolveAccountRoute('/account/profile'));
+        } else if (tab === 'account-edit') {
+          navigateTo(resolveAccountRoute('/account/edit'));
+        } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries' || tab === 'subscription') {
+          navigateTo(preview ? previewRoute(tab, window.location.search, lang) : (tab === 'subscription' ? (preview ? '/subscription?preview=true' : '/subscription') : `/${tab}`));
+        }
+      }}>
       {preview && (isBeneficiariesRoute || isWillsRoute) ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
         <h2>{isWillsRoute ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng và người giám hộ')}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>

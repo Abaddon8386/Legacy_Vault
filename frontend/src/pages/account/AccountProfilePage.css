@@ -1,0 +1,291 @@
+/**
+ * Scoped Stylesheet for EX-01 Account Profile View
+ * Strictly scoped under .lv-account-profile-view
+ * Adheres to Henedo art direction: Forest Green, Sand Gold, warm backgrounds.
+ */
+
+.lv-account-profile-view {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
+  color: var(--lv-color-text-main, #1f2421);
+}
+
+/* Header */
+.lv-account-profile-view .lv-profile-header {
+  margin-bottom: 28px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lv-account-profile-view .lv-profile-title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--lv-color-primary, #164639);
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+
+.lv-account-profile-view .lv-profile-subtitle {
+  font-size: 15px;
+  color: var(--lv-color-text-muted, #606863);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.lv-account-profile-view .lv-profile-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: var(--lv-color-primary, #164639);
+  border: 1px solid var(--lv-color-border, #e6ded1);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lv-account-profile-view .lv-profile-refresh-btn:hover:not(:disabled) {
+  background: #faf8f5;
+  border-color: #c5a059;
+}
+
+.lv-account-profile-view .lv-profile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-account-profile-view .lv-profile-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--lv-color-primary, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-color-primary, #164639);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lv-account-profile-view .lv-profile-edit-btn:hover {
+  background: #11382d;
+  border-color: #11382d;
+}
+
+.lv-account-profile-view .lv-profile-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Cards */
+.lv-account-profile-view .lv-profile-card {
+  background: #ffffff;
+  border: 1px solid var(--lv-color-border, #e6ded1);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 10px rgba(22, 70, 57, 0.04);
+}
+
+.lv-account-profile-view .lv-profile-card__title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--lv-color-primary, #164639);
+  margin: 0 0 6px;
+}
+
+.lv-account-profile-view .lv-profile-card__desc {
+  font-size: 13.5px;
+  color: var(--lv-color-text-muted, #606863);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+/* Field Grid */
+.lv-account-profile-view .lv-profile-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.lv-account-profile-view .lv-profile-field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-account-profile-view .lv-profile-field-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lv-color-text-muted, #606863);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lv-account-profile-view .lv-profile-field-value {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--lv-color-text-main, #1f2421);
+  background: #faf8f5;
+  border: 1px solid var(--lv-color-border, #e6ded1);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lv-account-profile-view .lv-profile-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a5e3a;
+  background: #e8f3ed;
+  border: 1px solid #b7dcc8;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* Roles List */
+.lv-account-profile-view .lv-profile-roles-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lv-account-profile-view .lv-profile-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f4efe6;
+  color: var(--lv-color-primary, #164639);
+  border: 1px solid #d8cdba;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lv-account-profile-view .lv-profile-role-chip__icon {
+  color: #c5a059;
+}
+
+.lv-account-profile-view .lv-profile-role-chip--empty {
+  background: #faf8f5;
+  color: var(--lv-color-text-muted, #606863);
+  border-color: var(--lv-color-border, #e6ded1);
+  font-weight: 500;
+}
+
+/* Session Info */
+.lv-account-profile-view .lv-profile-session-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.lv-account-profile-view .lv-profile-session-box {
+  background: #faf8f5;
+  border: 1px solid var(--lv-color-border, #e6ded1);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-account-profile-view .lv-profile-session-box__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lv-color-text-muted, #606863);
+}
+
+.lv-account-profile-view .lv-profile-session-box__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a5e3a;
+}
+
+/* Notifications */
+.lv-account-profile-view .lv-profile-feedback {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-account-profile-view .lv-profile-feedback--success {
+  background: #edf6f0;
+  color: #1a5e3a;
+  border: 1px solid #b7dcc8;
+}
+
+.lv-account-profile-view .lv-profile-feedback--error {
+  background: #fdf7ec;
+  color: #8c6721;
+  border: 1px solid #f2dab2;
+}
+
+/* Empty / No Data Box */
+.lv-account-profile-view .lv-profile-empty-card {
+  background: #ffffff;
+  border: 1px dashed var(--lv-color-border, #e6ded1);
+  border-radius: 14px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--lv-color-text-muted, #606863);
+}
+
+.lv-account-profile-view .lv-profile-empty-card__title {
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lv-color-primary, #164639);
+  margin: 12px 0 6px;
+}
+
+.lv-account-profile-view .lv-profile-empty-card__desc {
+  font-size: 14px;
+  margin: 0;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .lv-account-profile-view {
+    padding: 20px 16px 48px;
+  }
+  .lv-account-profile-view .lv-profile-field-grid {
+    grid-template-columns: 1fr;
+  }
+  .lv-account-profile-view .lv-profile-session-grid {
+    grid-template-columns: 1fr;
+  }
+}
