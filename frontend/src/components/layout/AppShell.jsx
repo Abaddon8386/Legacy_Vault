@@ -73,6 +73,7 @@ const STAFF_NAVIGATION_REGISTRY = [
   },
   { id: 'beneficiary-confirmation', jiraTicket: 'PS-54', labelVi: 'Xác nhận người thụ hưởng', labelEn: 'Beneficiary Confirmation', status: 'ACTIVE' },
   { id: 'completion-progress', jiraTicket: 'PS-55', labelVi: 'Tiến độ hoàn tất', labelEn: 'Completion Progress', status: 'ACTIVE' },
+  { id: 'close-and-archive', jiraTicket: 'PS-56', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive', status: 'ACTIVE' },
 ];
 
 const LEGAL_NAVIGATION_REGISTRY = [
@@ -169,7 +170,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận người thụ hưởng' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
+        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận người thụ hưởng' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -208,7 +209,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Beneficiary Confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
+        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Beneficiary Confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
@@ -323,6 +324,12 @@ export default function AppShell({
                         <path d="M12 20V10" />
                         <path d="M18 20V4" />
                         <path d="M6 20v-4" />
+                      </svg>
+                    ) : item.id === 'close-and-archive' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="21 8 21 21 3 21 3 8" />
+                        <rect x="1" y="3" width="22" height="5" />
+                        <line x1="10" y1="12" x2="14" y2="12" />
                       </svg>
                     ) : item.id === 'death-verification' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

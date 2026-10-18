@@ -19,6 +19,7 @@ export default function StaffShell({
   onNavigateCases,
   onNavigateLegalDocuments,
   onNavigateAssetHandover,
+  onNavigateCloseAndArchive,
   onNavigateCompletionProgress,
   onNavigateBeneficiaryConfirmation,
 }) {
@@ -149,6 +150,12 @@ export default function StaffShell({
             <button type="button" className={`lv-staff-btn ${currentTab === 'completion-progress' ? 'lv-staff-btn--active' : ''}`}
               onClick={onNavigateCompletionProgress} aria-current={currentTab === 'completion-progress' ? 'page' : undefined}>
               {lang === 'en' ? 'Completion Progress' : 'Tiến độ hoàn tất'}
+            </button>
+          )}
+          {onNavigateCloseAndArchive && (
+            <button type="button" className={`lv-staff-btn ${currentTab === 'close-and-archive' ? 'lv-staff-btn--active' : ''}`}
+              onClick={onNavigateCloseAndArchive} aria-current={currentTab === 'close-and-archive' ? 'page' : undefined}>
+              {lang === 'en' ? 'Close & Archive' : 'Đóng và lưu trữ hồ sơ'}
             </button>
           )}
         </nav>
