@@ -12,3 +12,9 @@ test('Account link/create preserve beneficiary identity; require valid active se
 test('Live/production cannot create synthetic accounts', async () => {
  for (const options of [{},{isTest:true,accessToken:'real'},{isTest:true,testEnv:{PROD:true}}]) await assert.rejects(linkExistingBeneficiaryAccount('ben-002','user@example.test',options),{code:'BACKEND_NOT_READY'});
 });
+
+test('Validation errors use language-neutral keys', async()=>{
+ const {validateCreateBeneficiaryAccountForm}=await import('./beneficiaryAccountValidation.js');
+ assert.deepEqual(validateCreateBeneficiaryAccountForm({fullName:' ',email:'bad',phone:'x'}).errors,{fullName:'fullNameRequired',email:'emailInvalid',phone:'phoneInvalid'});
+ assert.equal(validateCreateBeneficiaryAccountForm({fullName:'a'.repeat(151),email:'ok@example.test'}).errors.fullName,'fullNameTooLong');
+});

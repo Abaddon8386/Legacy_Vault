@@ -432,6 +432,7 @@ export async function linkExistingBeneficiaryAccount(beneficiaryId, email, optio
   if (!validation.isValid) {
     const err = new Error(validation.messageVi);
     err.code = 'VALIDATION_FAILED';
+    err.fieldErrors = { email: validation.errorKey };
     throw err;
   }
 

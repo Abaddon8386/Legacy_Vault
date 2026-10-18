@@ -7,6 +7,7 @@
 
 export const COUNTER_HANDOVER_TRANSLATIONS = {
   vi: {
+    validation: {fullNameRequired: 'Vui lòng nhập họ và tên người thụ hưởng.', fullNameTooLong: 'Họ và tên không được vượt quá 150 ký tự.', emailRequired: 'Vui lòng nhập email người thụ hưởng.', emailInvalid: 'Định dạng email không hợp lệ.', phoneRequired: 'Vui lòng nhập số điện thoại người thụ hưởng.', phoneInvalid: 'Số điện thoại không đúng định dạng.'},
     portalTitle: 'Cổng bàn giao di sản tại quầy',
     roleBadge: 'Nhân viên tiếp nhận & bàn giao',
     previewTag: 'Xem trước DEV (Mô phỏng)',
@@ -216,6 +217,7 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
   },
 
   en: {
+    validation: {fullNameRequired: 'Enter the beneficiary full name.', fullNameTooLong: 'Full name must not exceed 150 characters.', emailRequired: 'Enter the beneficiary email.', emailInvalid: 'Enter a valid email address.', phoneRequired: 'Enter the beneficiary phone number.', phoneInvalid: 'Enter a valid phone number.'},
     portalTitle: 'Counter Handover Portal',
     roleBadge: 'Handover Officer',
     previewTag: 'DEV Preview (Synthetic)',

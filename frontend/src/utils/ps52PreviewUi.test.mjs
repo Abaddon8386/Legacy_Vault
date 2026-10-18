@@ -15,7 +15,7 @@ async function compile(production=false) {
  for(const name of ['react','react-dom','react-dom/client','react/jsx-runtime']) code=code.replaceAll('from "'+name+'"','from "'+import.meta.resolve(name)+'"');
  return (await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))).default;
 }
-async function mount(Component,props={}) { const host=document.createElement('div');document.body.append(host);const root=createRoot(host);await act(async()=>root.render(React.createElement(Component,props)));return {host,close:async()=>{await act(async()=>root.unmount());host.remove();}}; }
+async function mount(Component,props={}) { const host=document.createElement('div');document.body.append(host);const root=createRoot(host);await act(async()=>root.render(React.createElement(Component,props)));return {host,render:async(props)=>{await act(async()=>root.render(React.createElement(Component,props)));},close:async()=>{await act(async()=>root.unmount());host.remove();}}; }
 const Preview=await compile();
 test('Rendered preview permits only ticket-specific actions', async()=>{
  const view=await mount(Preview,{isDevPreview:true,lang:'vi'}); const {host}=view;
@@ -24,4 +24,20 @@ test('Rendered preview permits only ticket-specific actions', async()=>{
 test('Real production build rejects preview override without synthetic success', async()=>{
  const Production=await compile(true);const view=await mount(Production,{isDevPreview:true,lang:'vi'});
  try { assert.match(view.host.textContent,/chưa sẵn sàng|BACKEND_NOT_READY/i); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();}
+});
+
+test('Create/link validation shows specific localized errors and re-translates on VI/EN switch', async()=>{
+ const props={isDevPreview:true,lang:'en'};const view=await mount(Preview,props);
+ try {
+  const create=[...view.host.querySelectorAll('button')].find(b=>/Activate at Counter/.test(b.textContent));assert.ok(create);await act(async()=>create.click());
+  await act(async()=>view.host.querySelector('[role=dialog] form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.match(view.host.querySelector('[role=dialog]').textContent,/Enter the beneficiary email/);
+  assert.doesNotMatch(view.host.querySelector('[role=dialog]').textContent,/Operation failed|Thông tin tạo/);
+  await view.render({...props,lang:'vi'});assert.match(view.host.querySelector('[role=dialog]').textContent,/Vui lòng nhập email người thụ hưởng/);
+  await act(async()=>document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+  await view.render(props);
+  const link=[...view.host.querySelectorAll('button')].find(b=>/Link/.test(b.textContent));assert.ok(link);await act(async()=>link.click());
+  await act(async()=>view.host.querySelector('[role=dialog] form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.match(view.host.querySelector('[role=dialog]').textContent,/Enter the beneficiary email/);
+ } finally { await view.close(); }
 });

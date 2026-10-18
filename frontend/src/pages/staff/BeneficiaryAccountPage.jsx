@@ -72,6 +72,7 @@ function CounterHandoverContent({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const actionErrorText = actionError ? (Object.values(actionError.fieldErrors || {}).map(key => t.validation[key] || t.errors.actionFailed).join(' ') || t.errors.actionFailed) : '';
 
   // Modals state
   const [linkModalBeneficiary, setLinkModalBeneficiary] = useState(null);
@@ -179,7 +180,7 @@ function CounterHandoverContent({
       }));
       setLinkModalBeneficiary(null);
     } catch (err) {
-      setActionError(lang === 'en' ? t.errors.actionFailed : (err.message || t.errors.actionFailed));
+      setActionError({ code: err.code, fieldErrors: err.fieldErrors });
     } finally {
       actionLock.current = false;
       setIsSubmitting(false);
@@ -209,7 +210,7 @@ function CounterHandoverContent({
       }));
       setCreateModalBeneficiary(null);
     } catch (err) {
-      setActionError(lang === 'en' ? t.errors.actionFailed : (err.message || t.errors.actionFailed));
+      setActionError({ code: err.code, fieldErrors: err.fieldErrors });
     } finally {
       actionLock.current = false;
       setIsSubmitting(false);
@@ -354,7 +355,7 @@ function CounterHandoverContent({
           <div className="lv-counter-handover-callout" style={{ borderLeftColor: '#c25149', margin: '14px 0' }} role="alert">
             <h3 className="lv-counter-handover-callout__title" style={{ color: '#c25149' }}>
               <AlertTriangle size={18} />
-              <span>{actionError}</span>
+              <span>{actionErrorText}</span>
             </h3>
           </div>
         )}
@@ -454,12 +455,12 @@ function CounterHandoverContent({
       {linkModalBeneficiary && (
         <div className="lv-handover-modal-overlay">
           <div ref={linkDialogRef} className="lv-handover-modal-dialog" role="dialog" aria-modal="true" aria-label={t.beneficiarySection.modalLinkTitle}>
-            {actionError && <p role="alert">{actionError}</p>}
+            {actionError && <p role="alert">{actionErrorText}</p>}
             <h3 className="lv-handover-modal-dialog__title">{t.beneficiarySection.modalLinkTitle}</h3>
             <p style={{ fontSize: '13.5px', color: '#4b554b' }}>
               {linkModalBeneficiary.fullName} ({linkModalBeneficiary.relationship})
             </p>
-            <form onSubmit={handleLinkExisting}>
+            <form onSubmit={handleLinkExisting} noValidate>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
                   {t.beneficiarySection.searchEmailPrompt}
@@ -494,9 +495,9 @@ function CounterHandoverContent({
       {createModalBeneficiary && (
         <div className="lv-handover-modal-overlay">
           <div ref={createDialogRef} className="lv-handover-modal-dialog" role="dialog" aria-modal="true" aria-label={t.beneficiarySection.modalCreateTitle}>
-            {actionError && <p role="alert">{actionError}</p>}
+            {actionError && <p role="alert">{actionErrorText}</p>}
             <h3 className="lv-handover-modal-dialog__title">{t.beneficiarySection.modalCreateTitle}</h3>
-            <form onSubmit={handleCreateAccount}>
+            <form onSubmit={handleCreateAccount} noValidate>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
                   {t.beneficiarySection.createFullNamePrompt}

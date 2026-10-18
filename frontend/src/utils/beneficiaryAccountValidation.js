@@ -27,24 +27,26 @@ export function validateCreateBeneficiaryAccountForm(data = {}) {
 
   const fullName = String(data.fullName || '').trim();
   if (!fullName) {
-    errors.fullName = 'Vui lòng nhập họ và tên người thụ hưởng.';
+    errors.fullName = 'fullNameRequired';
   } else if (fullName.length > 150) {
-    errors.fullName = 'Họ và tên không được vượt quá 150 ký tự.';
+    errors.fullName = 'fullNameTooLong';
   }
 
   const email = String(data.email || '').trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email) {
-    errors.email = 'Vui lòng nhập email người thụ hưởng.';
+    errors.email = 'emailRequired';
   } else if (!emailRegex.test(email)) {
-    errors.email = 'Định dạng email không hợp lệ.';
+    errors.email = 'emailInvalid';
   }
 
   const phone = String(data.phone || '').trim();
-  if (phone) {
+  if (!phone) {
+    errors.phone = 'phoneRequired';
+  } else {
     const phoneRegex = /^[0-9+() -]{8,20}$/;
     if (!phoneRegex.test(phone)) {
-      errors.phone = 'Số điện thoại không đúng định dạng.';
+      errors.phone = 'phoneInvalid';
     }
   }
 
