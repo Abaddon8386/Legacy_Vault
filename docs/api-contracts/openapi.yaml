@@ -1426,6 +1426,39 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/unlock:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Legal]
+      summary: Legal mở khóa Vault sau khi duyệt hồ sơ hiện hành (PS-59)
+      description: |
+        Chỉ LEGAL_VERIFIER. Ca phải OPEN; Vault phải ở LEGAL_BASIS_VERIFICATION; dossier phải được forward,
+        không hold hoặc chờ re-review; approval phải hợp lệ và khớp version/hash/allocation scope hiện hành.
+        Cập nhật Vault sang UNLOCKED và audit cùng transaction. DMS timeout hoặc giấy tử vong riêng lẻ không đủ điều kiện.
+      x-status: implemented
+      responses:
+        '200':
+          description: Vault đã được mở khóa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [caseId, vaultId, status, unlockedBy, unlockedAt]
+                properties:
+                  caseId: { type: string, format: uuid }
+                  vaultId: { type: string, format: uuid }
+                  status: { type: string, enum: [UNLOCKED] }
+                  unlockedBy: { type: string, format: uuid }
+                  unlockedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
     post:
       tags: [Legal]
