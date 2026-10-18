@@ -1,0 +1,344 @@
+/* ==========================================================================
+   Beneficiary Confirmation Page Styles — PS-54 / ST-26
+   Strict CSS Scoping under .lv-beneficiary-confirmation-view
+   Art Direction: Editorial Sanctuary / Henedo Theme
+   ========================================================================== */
+
+.lv-beneficiary-confirmation-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Header & Subtitle Area */
+.lv-beneficiary-confirmation-view .lv-confirm-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-subtitle {
+  font-size: 14.5px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Notice & Rule Banner */
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background-color: #fbf9f4;
+  border: 1px solid var(--lv-accent-gold-border, rgba(197, 160, 89, 0.28));
+  border-left: 4px solid var(--lv-accent-gold, #c5a059);
+  border-radius: var(--lv-radius-md, 10px);
+  padding: 16px 20px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner__icon {
+  color: var(--lv-accent-gold, #c5a059);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner__body p {
+  font-size: 13.5px;
+  color: var(--lv-text-body, #2b302c);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Card Container */
+.lv-beneficiary-confirmation-view .lv-confirm-card {
+  background-color: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(22, 70, 57, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  padding-bottom: 14px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-card__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+}
+
+/* Case Selection Bar */
+.lv-beneficiary-confirmation-view .lv-confirm-case-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-body, #2b302c);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-label--required::after {
+  content: ' *';
+  color: #b3261e;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-hint {
+  font-size: 12px;
+  color: var(--lv-text-light, #8c918b);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-input,
+.lv-beneficiary-confirmation-view .lv-confirm-select {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 14px;
+  color: var(--lv-text-ink, #1f2421);
+  background-color: #faf9f6;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-input:focus,
+.lv-beneficiary-confirmation-view .lv-confirm-select:focus {
+  outline: none;
+  border-color: var(--lv-border-focus, #c5a059);
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.18);
+  background-color: #ffffff;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-btn-reset {
+  height: 42px;
+  padding: 0 18px;
+  background-color: var(--lv-bg-muted, #efece6);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--lv-text-body, #2b302c);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-btn-reset:hover {
+  background-color: #e4dfd7;
+}
+
+/* Table Design */
+.lv-beneficiary-confirmation-view .lv-confirm-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-table th {
+  background-color: #f6f3ed;
+  color: var(--lv-brand-forest, #164639);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  white-space: nowrap;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1ede4;
+  color: var(--lv-text-ink, #1f2421);
+  vertical-align: middle;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-table tr:last-child td {
+  border-bottom: none;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-table tr:hover td {
+  background-color: #faf8f5;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+  background-color: #fdfbf8;
+  border-radius: var(--lv-radius-md, 10px);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-empty p {
+  font-size: 13.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 0;
+}
+
+/* Status Pills */
+.lv-beneficiary-confirmation-view .lv-confirm-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-status-pill--pending {
+  background-color: var(--lv-status-pending-bg, #f7f9fc);
+  color: var(--lv-status-pending-text, #2b5788);
+  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-status-pill--confirmed {
+  background-color: var(--lv-status-success-bg, #f4fbf7);
+  color: var(--lv-status-success-text, #1d724f);
+  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-status-pill--unknown {
+  background-color: var(--lv-bg-muted, #efece6);
+  color: var(--lv-text-muted, #6b726b);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-delivery-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background-color: #f1ede4;
+  color: var(--lv-text-body, #2b302c);
+}
+
+/* Form Actions and Buttons */
+.lv-beneficiary-confirmation-view .lv-confirm-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.lv-beneficiary-confirmation-view .lv-btn-record-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.lv-beneficiary-confirmation-view .lv-btn-record-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: #8c918b;
+}
+
+.lv-beneficiary-confirmation-view .lv-confirm-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #b3261e;
+  margin-top: 4px;
+}
+
+/* Unavailable Notice Banner */
+.lv-beneficiary-confirmation-view .lv-api-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background-color: #f7f6f2;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 13.5px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-beneficiary-confirmation-view .lv-api-status-banner__icon {
+  color: var(--lv-accent-gold, #c5a059);
+  flex-shrink: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lv-beneficiary-confirmation-view .lv-confirm-case-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lv-beneficiary-confirmation-view .lv-confirm-btn-reset {
+    width: 100%;
+    justify-content: center;
+  }
+}

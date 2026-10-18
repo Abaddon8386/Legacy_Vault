@@ -19,6 +19,7 @@ export default function StaffShell({
   onNavigateCases,
   onNavigateLegalDocuments,
   onNavigateAssetHandover,
+  onNavigateBeneficiaryConfirmation,
 }) {
   const t = getStaffCaseTranslations(lang);
 
@@ -135,6 +136,12 @@ export default function StaffShell({
               aria-current={currentTab === 'asset-handover' ? 'page' : undefined}
             >
               {lang === 'en' ? 'Asset Handover' : 'Bàn giao tài sản'}
+            </button>
+          )}
+          {onNavigateBeneficiaryConfirmation && (
+            <button type="button" className={`lv-staff-btn ${currentTab === 'beneficiary-confirmation' ? 'lv-staff-btn--active' : ''}`}
+              onClick={onNavigateBeneficiaryConfirmation} aria-current={currentTab === 'beneficiary-confirmation' ? 'page' : undefined}>
+              {lang === 'en' ? 'Beneficiary Confirmation' : 'Xác nhận người thụ hưởng'}
             </button>
           )}
         </nav>
