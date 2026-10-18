@@ -13,6 +13,7 @@ import com.legacyvault.verification.repository.HandoverSessionRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.HandoverSessionCaseAccess;
 import com.legacyvault.verification.service.HandoverSessionService;
+import com.legacyvault.verification.service.LegalWorkflowGuard;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.entity.VerificationCase;
@@ -43,7 +44,8 @@ class HandoverSessionServiceTest {
     private final HandoverSessionRepository sessions = mock(HandoverSessionRepository.class);
     private final VaultRepository vaults = mock(VaultRepository.class);
     private final AuditService audit = mock(AuditService.class);
-    private final HandoverSessionService service = new HandoverSessionService(access, cases, sessions, vaults, audit);
+    private final LegalWorkflowGuard workflow = mock(LegalWorkflowGuard.class);
+    private final HandoverSessionService service = new HandoverSessionService(access, cases, sessions, vaults, audit, workflow);
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final Vault vault = mock(Vault.class);
     private final HandoverSession session = mock(HandoverSession.class);
@@ -65,7 +67,7 @@ class HandoverSessionServiceTest {
         when(session.getPublicId()).thenReturn(SESSION_ID);
         when(session.getVerificationCaseId()).thenReturn(91L);
         when(session.getStaffUserId()).thenReturn(STAFF.userId());
-        when(session.getStatus()).thenReturn(HandoverSessionStatus.OPEN, HandoverSessionStatus.COMPLETED);
+        when(session.getStatus()).thenReturn(HandoverSessionStatus.OPEN, HandoverSessionStatus.CANCELLED);
         when(session.getOpenedAt()).thenReturn(LocalDateTime.parse("2026-10-18T10:00:00"));
         when(session.getClosedAt()).thenReturn(null, LocalDateTime.parse("2026-10-18T11:00:00"));
         when(sessions.saveAndFlush(any(HandoverSession.class))).thenReturn(session);
@@ -80,6 +82,7 @@ class HandoverSessionServiceTest {
         assertThat(response.staffId()).isEqualTo(STAFF_PUBLIC_ID);
         assertThat(response.status()).isEqualTo(HandoverSessionStatus.OPEN);
         verify(sessions).saveAndFlush(any(HandoverSession.class));
+        verify(workflow).requireProtectedTransition(CASE_ID, LegalWorkflowGuard.ProtectedTransition.HANDOVER);
         ArgumentCaptor<AuditEvent> event = ArgumentCaptor.forClass(AuditEvent.class);
         verify(audit).record(event.capture());
         assertThat(event.getValue().action()).isEqualTo(AuditAction.HANDOVER_SESSION_OPENED);
@@ -120,7 +123,19 @@ class HandoverSessionServiceTest {
     }
 
     @Test
-    void statusUpdateCompletesAnOpenSessionAndAudits() {
+    void legalHoldOrStaleApprovalBlocksSessionOpen() {
+        doThrow(new BusinessException(ErrorCode.LEGAL_WORKFLOW_ON_HOLD))
+                .when(workflow).requireProtectedTransition(CASE_ID, LegalWorkflowGuard.ProtectedTransition.HANDOVER);
+
+        assertThatThrownBy(() -> service.open(CASE_ID, STAFF))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
+        verifyNoInteractions(sessions, audit);
+    }
+
+    @Test
+    void statusUpdateCancelsAnOpenSessionAndAudits() {
         when(cases.findByPublicIdAndAssignedStaffUserId(CASE_ID, STAFF.userId())).thenReturn(Optional.of(verificationCase));
         when(sessions.findByPublicIdAndVerificationCaseIdAndStaffUserId(SESSION_ID, 91L, STAFF.userId()))
                 .thenReturn(Optional.of(session));
@@ -128,15 +143,15 @@ class HandoverSessionServiceTest {
                 .thenReturn(Optional.of(session));
 
         var result = service.updateStatus(CASE_ID, SESSION_ID,
-                new HandoverSessionStatusRequest(HandoverSessionStatusRequest.TerminalStatus.COMPLETED), STAFF);
+                new HandoverSessionStatusRequest(HandoverSessionStatusRequest.TerminalStatus.CANCELLED), STAFF);
 
-        assertThat(result.status()).isEqualTo(HandoverSessionStatus.COMPLETED);
-        verify(session).close(eq(HandoverSessionStatus.COMPLETED), any(LocalDateTime.class));
+        assertThat(result.status()).isEqualTo(HandoverSessionStatus.CANCELLED);
+        verify(session).close(eq(HandoverSessionStatus.CANCELLED), any(LocalDateTime.class));
         ArgumentCaptor<AuditEvent> event = ArgumentCaptor.forClass(AuditEvent.class);
         verify(audit).record(event.capture());
-        assertThat(event.getValue().action()).isEqualTo(AuditAction.HANDOVER_SESSION_COMPLETED);
+        assertThat(event.getValue().action()).isEqualTo(AuditAction.HANDOVER_SESSION_CANCELLED);
         assertThat(event.getValue().stateBefore()).isEqualTo("OPEN");
-        assertThat(event.getValue().stateAfter()).isEqualTo("COMPLETED");
+        assertThat(event.getValue().stateAfter()).isEqualTo("CANCELLED");
     }
 
     @Test
@@ -149,7 +164,7 @@ class HandoverSessionServiceTest {
         doThrow(new IllegalStateException("audit unavailable")).when(audit).record(any(AuditEvent.class));
 
         assertThatThrownBy(() -> service.updateStatus(CASE_ID, SESSION_ID,
-                new HandoverSessionStatusRequest(HandoverSessionStatusRequest.TerminalStatus.COMPLETED), STAFF))
+                new HandoverSessionStatusRequest(HandoverSessionStatusRequest.TerminalStatus.CANCELLED), STAFF))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("audit unavailable");
         verify(sessions).saveAndFlush(session);

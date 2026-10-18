@@ -4,6 +4,14 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.verification.dto.HandoverSessionStatusRequest;
 import com.legacyvault.verification.entity.HandoverSessionStatus;
 import com.legacyvault.verification.service.HandoverSessionService;
+import com.legacyvault.verification.service.BasisClassificationService;
+import com.legacyvault.verification.service.BasisForwardService;
+import com.legacyvault.verification.service.CourtDecisionService;
+import com.legacyvault.verification.service.LegalApprovalService;
+import com.legacyvault.verification.service.LegalBasisReviewService;
+import com.legacyvault.verification.dto.ClassifyBasisRequest;
+import com.legacyvault.verification.dto.CourtDecisionRequest;
+import com.legacyvault.verification.dto.LegalApprovalRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
@@ -15,9 +23,25 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class HandoverSessionSqlServerTest extends LegalBasisSqlServerSupport {
+    private Fixture approvedFixture() {
+        var f = fixture(true);
+        context.getBean(BasisClassificationService.class).classify(f.publicCaseId(), f.legal(),
+                new ClassifyBasisRequest(ClassifyBasisRequest.Route.COURT, "Dispute assessed by Legal"));
+        intakeVersion(f, "COURT_JUDGMENT");
+        context.getBean(BasisForwardService.class).forward(f.publicCaseId(), 1, f.legal());
+        context.getBean(CourtDecisionService.class).record(f.publicCaseId(), f.legal(),
+                new CourtDecisionRequest(1, CourtDecisionRequest.Result.VALID, "Legal assessed current evidence"));
+        var review = context.getBean(LegalBasisReviewService.class)
+                .recordCompletedReviewByCasePublicId(f.publicCaseId(), f.userId(), "Reviewed current dossier snapshot");
+        context.getBean(LegalApprovalService.class).decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, review.currentVersionNo(),
+                        review.currentSha256Hash(), review.currentAllocationHash(), "Approved current scope"));
+        return f;
+    }
+
     @Test
-    void openCompleteAndReopenKeepsHistoryAndAuditsEachTransition() {
-        var f = fixture(false);
+    void openCancelAndReopenKeepsHistoryAndAuditsEachTransition() {
+        var f = approvedFixture();
         jdbc.update("UPDATE dbo.vaults SET status='UNLOCKED' WHERE vault_id=?", f.vaultId());
         var service = context.getBean(HandoverSessionService.class);
 
@@ -25,22 +49,22 @@ class HandoverSessionSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals(HandoverSessionStatus.OPEN, first.status());
         assertThrows(BusinessException.class, () -> service.open(f.publicCaseId(), f.legal()));
 
-        var completed = service.updateStatus(f.publicCaseId(), first.sessionId(),
-                new HandoverSessionStatusRequest(HandoverSessionStatusRequest.TerminalStatus.COMPLETED), f.legal());
-        assertEquals(HandoverSessionStatus.COMPLETED, completed.status());
-        assertNotNull(completed.closedAt());
+        var cancelled = service.updateStatus(f.publicCaseId(), first.sessionId(),
+                new HandoverSessionStatusRequest(HandoverSessionStatusRequest.TerminalStatus.CANCELLED), f.legal());
+        assertEquals(HandoverSessionStatus.CANCELLED, cancelled.status());
+        assertNotNull(cancelled.closedAt());
 
         var reopened = service.open(f.publicCaseId(), f.legal());
         assertNotEquals(first.sessionId(), reopened.sessionId());
         assertEquals(2, count("handover_sessions", "verification_case_id = ?", f.caseId()));
         assertEquals(1, count("handover_sessions", "verification_case_id = ? AND status = 'OPEN'", f.caseId()));
         assertEquals(2, count("audit_logs", "vault_id = ? AND action = 'HANDOVER_SESSION_OPENED'", f.vaultId()));
-        assertEquals(1, count("audit_logs", "vault_id = ? AND action = 'HANDOVER_SESSION_COMPLETED'", f.vaultId()));
+        assertEquals(1, count("audit_logs", "vault_id = ? AND action = 'HANDOVER_SESSION_CANCELLED'", f.vaultId()));
     }
 
     @Test
     void concurrentOpenRequestsCreateExactlyOneOpenSession() throws Exception {
-        var f = fixture(false);
+        var f = approvedFixture();
         jdbc.update("UPDATE dbo.vaults SET status='UNLOCKED' WHERE vault_id=?", f.vaultId());
         var service = context.getBean(HandoverSessionService.class);
         var barrier = new CyclicBarrier(2);
@@ -60,7 +84,7 @@ class HandoverSessionSqlServerTest extends LegalBasisSqlServerSupport {
 
     @Test
     void unlockedVaultIsRequiredEvenForAssignedOpenCase() {
-        var f = fixture(false);
+        var f = approvedFixture();
         assertThrows(BusinessException.class, () -> context.getBean(HandoverSessionService.class)
                 .open(f.publicCaseId(), f.legal()));
         assertEquals(0, count("handover_sessions", "verification_case_id = ?", f.caseId()));
@@ -68,7 +92,7 @@ class HandoverSessionSqlServerTest extends LegalBasisSqlServerSupport {
 
     @Test
     void failedAuditRollsBackSessionInsert() {
-        var f = fixture(false);
+        var f = approvedFixture();
         jdbc.update("UPDATE dbo.vaults SET status='UNLOCKED' WHERE vault_id=?", f.vaultId());
         jdbc.execute("""
                 CREATE TRIGGER dbo.TR_TestFailHandoverAudit ON dbo.audit_logs AFTER INSERT AS
@@ -89,7 +113,7 @@ class HandoverSessionSqlServerTest extends LegalBasisSqlServerSupport {
 
     @Test
     void staffCannotOpenForCancelledCase() {
-        var f = fixture(false);
+        var f = approvedFixture();
         jdbc.update("UPDATE dbo.vaults SET status='UNLOCKED' WHERE vault_id=?", f.vaultId());
         jdbc.update("UPDATE dbo.verification_cases SET status='CANCELLED', closed_at=SYSUTCDATETIME() WHERE verification_case_id=?", f.caseId());
         assertThrows(BusinessException.class, () -> context.getBean(HandoverSessionService.class)

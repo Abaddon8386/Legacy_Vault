@@ -73,13 +73,18 @@ class HandoverSessionControllerTest {
                 .andExpect(jsonPath("$[0].status").value("OPEN"));
 
         when(service.updateStatus(eq(CASE_ID), eq(SESSION_ID), any(HandoverSessionStatusRequest.class), any()))
-                .thenReturn(response(HandoverSessionStatus.COMPLETED));
+                .thenReturn(response(HandoverSessionStatus.CANCELLED));
+        mvc.perform(patch(URL + "/{sessionId}/status", CASE_ID, SESSION_ID)
+                        .with(as("STAFF_EXECUTOR")).contentType("application/json")
+                        .content("{\"status\":\"CANCELLED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+        verify(service).updateStatus(eq(CASE_ID), eq(SESSION_ID), any(HandoverSessionStatusRequest.class), any());
+
         mvc.perform(patch(URL + "/{sessionId}/status", CASE_ID, SESSION_ID)
                         .with(as("STAFF_EXECUTOR")).contentType("application/json")
                         .content("{\"status\":\"COMPLETED\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("COMPLETED"));
-        verify(service).updateStatus(eq(CASE_ID), eq(SESSION_ID), any(HandoverSessionStatusRequest.class), any());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -1135,6 +1135,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status:
+    description: Staff may cancel an open session only. COMPLETED is reserved for the PS-71 dual-completion close use case.
     parameters:
       - name: caseId
         in: path
@@ -1146,7 +1147,7 @@ paths:
         schema: { type: string, format: uuid }
     patch:
       tags: [Staff]
-      summary: Staff đóng handover session bằng COMPLETED hoặc CANCELLED (PS-60)
+      summary: Staff may cancel an open handover session only (PS-60).
       requestBody:
         required: true
         content:
@@ -1792,7 +1793,7 @@ components:
       required: [status]
       additionalProperties: false
       properties:
-        status: { type: string, enum: [COMPLETED, CANCELLED] }
+        status: { type: string, enum: [CANCELLED] }
     HandoverSessionResponse:
       type: object
       required: [sessionId, caseId, vaultId, staffId, status, openedAt, closedAt]
