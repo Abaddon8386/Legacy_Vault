@@ -64,6 +64,12 @@ Lỗi validation:
 | `VAULT_NOT_EDITABLE` | 409 | Vault hiện không cho phép Owner chỉnh sửa |
 | `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
+| `HANDOVER_SESSION_ALREADY_OPEN` | 409 | Ca đã có một handover session đang mở (PS-60) |
+| `HANDOVER_SESSION_INVALID_STATE` | 409 | Case, Vault hoặc session không thỏa lifecycle PS-60 |
+| `HANDOVER_RECEIPT_INVALID_STATE` | 409 | Session/Vault/legal workflow không cho phép lập receipt (PS-61) |
+| `HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED` | 409 | Recipient hoặc asset ngoài allocation Legal đã duyệt hiện hành (PS-61) |
+| `HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED` | 409 | Beneficiary chưa được xác minh trực tiếp tại quầy (PS-61) |
+| `HANDOVER_RECEIPT_REISSUE_INVALID` | 409 | Receipt thay thế không cùng session/recipient hoặc đã có bản thay thế (PS-61) |
 | `LEGAL_VERIFICATION_INVALID_STATE` | 409 | Legal quyết định khi ca không còn `OPEN` hoặc Vault không ở `AWAITING_VERIFICATION` (PS-36) |
 | `LEGAL_VERIFICATION_ALREADY_DECIDED` | 409 | Giấy tờ khai tử đã có quyết định thẩm định (PS-36) |
 | `WILL_NOT_VERIFIED` | 409 | Phân loại căn cứ khi chưa có kết quả đối chiếu di chúc khớp (PS-41) |
@@ -134,3 +140,5 @@ for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
 `CASE_EVIDENCE_QUOTA_EXCEEDED` is reserved/inactive: PS-41 no longer emits this proposal-only error.
 
 PS-57: `LEGAL_DECISION_STALE` (409, `error.legalApproval.snapshotStale`) when version, hash, allocation scope, or review snapshot no longer matches.
+
+PS-58: `LEGAL_APPROVAL_REQUIRED` (409, `error.legalApproval.required`) when a protected transition has no matching current-version Legal approval. `LEGAL_DECISION_STALE` indicates that an existing review/approval snapshot no longer matches the current version, hash, dispute state, or allocation scope.

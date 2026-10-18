@@ -71,6 +71,16 @@ public class Vault {
     public static final String STATUS_AWAITING_LEGAL_BASIS = "AWAITING_LEGAL_BASIS";
     public static final String STATUS_ON_HOLD = "ON_HOLD";
     public static final String STATUS_LEGAL_BASIS_VERIFICATION = "LEGAL_BASIS_VERIFICATION";
+    public static final String STATUS_UNLOCKED = "UNLOCKED";
+
+    /** PS-59: only a protected Legal workflow may move a Vault to UNLOCKED. */
+    public void unlockAfterLegalApproval() {
+        if (!STATUS_LEGAL_BASIS_VERIFICATION.equals(status)) {
+            throw new IllegalStateException("Vault is not in legal-basis verification");
+        }
+        status = STATUS_UNLOCKED;
+        updatedAt = Instant.now();
+    }
 
     public void restoreActive() {
         this.status = STATUS_ACTIVE;

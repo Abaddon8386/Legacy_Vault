@@ -1069,6 +1069,179 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Staff mở handover session cho ca đã nhận (PS-60)
+      description: Chỉ STAFF_EXECUTOR được assign; ca phải OPEN, Vault UNLOCKED và chưa có session OPEN.
+      x-status: implemented
+      responses:
+        '201':
+          description: Session mới đã được mở và audit cùng transaction
+          headers:
+            Location: { schema: { type: string }, description: URL session vừa tạo }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Staff truy vấn lịch sử handover session của ca (PS-60)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [OPEN, COMPLETED, CANCELLED] }
+      responses:
+        '200':
+          description: Session mới nhất trước; có thể lọc theo status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem chi tiết handover session của ca đã nhận (PS-60)
+      responses:
+        '200':
+          description: Chi tiết session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/status:
+    description: Staff may cancel an open session only. COMPLETED is reserved for the PS-71 dual-completion close use case.
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Staff]
+      summary: Staff may cancel an open handover session only (PS-60).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandoverSessionStatusRequest' }
+      responses:
+        '200':
+          description: Status đã cập nhật cùng audit trong transaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverSessionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts:
+    description: Receipt issuance is fail-closed until authoritative per-asset delivery and beneficiary confirmation evidence is integrated (PS-64 through PS-71).
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Staff]
+      summary: Staff confirmation receipt; issuance waits for integrated delivery and beneficiary completion evidence (PS-61).
+      description: POST currently returns 409 until PS-65 delivery, PS-67 beneficiary confirmation, PS-68/69/70 dual completion, and PS-71 valid close can be checked against the approved scope. STAFF_ATTESTATION records Staff confirmation only; it is not an electronic signature or Beneficiary attestation.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateHandoverReceiptRequest' }
+      responses:
+        '201':
+          description: Receipt metadata và allocation snapshot được lưu cùng audit trong transaction
+          headers:
+            Location: { schema: { type: string }, description: URL receipt vừa tạo }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Staff]
+      summary: Staff truy xuất receipt theo handover session (PS-61)
+      x-status: implemented
+      responses:
+        '200':
+          description: Danh sách lịch sử receipt mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/receipts/{receiptId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: receiptId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff truy xuất chi tiết receipt của handover session (PS-61)
+      x-status: implemented
+      responses:
+        '200':
+          description: Receipt immutable cùng danh sách asset công khai
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverReceiptResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/verification-cases/{caseId}/basis-dossier:
     get:
       tags: [Staff]
@@ -1426,6 +1599,39 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/legal-verifications/verification-cases/{caseId}/unlock:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Legal]
+      summary: Legal mở khóa Vault sau khi duyệt hồ sơ hiện hành (PS-59)
+      description: |
+        Chỉ LEGAL_VERIFIER. Ca phải OPEN; Vault phải ở LEGAL_BASIS_VERIFICATION; dossier phải được forward,
+        không hold hoặc chờ re-review; approval phải hợp lệ và khớp version/hash/allocation scope hiện hành.
+        Cập nhật Vault sang UNLOCKED và audit cùng transaction. DMS timeout hoặc giấy tử vong riêng lẻ không đủ điều kiện.
+      x-status: implemented
+      responses:
+        '200':
+          description: Vault đã được mở khóa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [caseId, vaultId, status, unlockedBy, unlockedAt]
+                properties:
+                  caseId: { type: string, format: uuid }
+                  vaultId: { type: string, format: uuid }
+                  status: { type: string, enum: [UNLOCKED] }
+                  unlockedBy: { type: string, format: uuid }
+                  unlockedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/hold:
     post:
       tags: [Legal]
@@ -1659,6 +1865,53 @@ components:
         reason: { type: string, maxLength: 1000 }
         reviewedBy: { type: string, format: uuid }
         reviewedAt: { type: string, format: date-time }
+    HandoverSessionStatusRequest:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [CANCELLED] }
+    HandoverSessionResponse:
+      type: object
+      required: [sessionId, caseId, vaultId, staffId, status, openedAt, closedAt]
+      properties:
+        sessionId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid }
+        staffId: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, COMPLETED, CANCELLED] }
+        openedAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+    CreateHandoverReceiptRequest:
+      type: object
+      required: [recipientId, assetIds]
+      additionalProperties: false
+      properties:
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        supersedesReceiptId: { type: string, format: uuid, nullable: true }
+    HandoverReceiptResponse:
+      type: object
+      required: [receiptId, sessionId, recipientId, assetIds, staffId, dossierVersionNo, sha256Hash, allocationHash, confirmationType, confirmedAt]
+      properties:
+        receiptId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        assetIds:
+          type: array
+          items: { type: string, format: uuid }
+        staffId: { type: string, format: uuid }
+        dossierVersionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, minLength: 64, maxLength: 64 }
+        allocationHash: { type: string, minLength: 64, maxLength: 64 }
+        confirmationType: { type: string, enum: [STAFF_ATTESTATION] }
+        confirmedAt: { type: string, format: date-time }
+        supersedesReceiptId: { type: string, format: uuid, nullable: true }
     ApiError:
       type: object
       required: [timestamp, status, code, messageKey, message, path, traceId, errors]
@@ -1677,6 +1930,7 @@ components:
             - BASIS_DOSSIER_ALREADY_EXISTS
             - BASIS_VERSION_STALE
             - LEGAL_DECISION_STALE
+            - LEGAL_APPROVAL_REQUIRED
             - COURT_EVIDENCE_REQUIRED
             - COURT_DECISION_REQUIRED
             - LEGAL_WORKFLOW_ON_HOLD
@@ -1707,6 +1961,12 @@ components:
             - VAULT_NOT_EDITABLE
             - DMS_NOT_MONITORING
             - VERIFICATION_CASE_NOT_OPEN
+            - HANDOVER_SESSION_ALREADY_OPEN
+            - HANDOVER_SESSION_INVALID_STATE
+            - HANDOVER_RECEIPT_INVALID_STATE
+            - HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED
+            - HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED
+            - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
         message:
