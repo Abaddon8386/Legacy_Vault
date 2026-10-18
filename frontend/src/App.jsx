@@ -21,6 +21,7 @@ import AppShell from './components/layout/AppShell.jsx';
 import StaffShell from './components/layout/StaffShell.jsx';
 import StaffCaseDashboard from './pages/staff/StaffCaseDashboard.jsx';
 import LegalDeathVerificationPage from './pages/legal/LegalDeathVerificationPage.jsx';
+import ControlledUnlockPage from './pages/legal/ControlledUnlockPage.jsx';
 import { canAccessLegalDeathVerification } from './utils/legalDeathVerificationValidation.js';
 import LegalWillDocumentVerificationPage from './pages/legal/LegalWillDocumentVerificationPage.jsx';
 import { canAccessLegalWillVerification } from './utils/legalWillVerificationValidation.js';
@@ -561,6 +562,11 @@ export default function App() {
     );
   }
 
+  if (path === '/legal/controlled-unlock') {
+    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    return <div className="lv-app-root"><ControlledUnlockPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+  }
   if (isLegalDeathRoute) {
     if (!isSessionActive(session) && !preview) {
       return (
