@@ -17,10 +17,13 @@ public class LegalWorkflowGuard {
     private final LegalBasisCaseAccess access;
     private final CourtRouteGuard court;
     private final LegalBasisDossierVersionRepository versions;
-    public LegalWorkflowGuard(LegalBasisCaseAccess access, CourtRouteGuard court, LegalBasisDossierVersionRepository versions) {
+    private final LegalApprovalGuard approvals;
+    public LegalWorkflowGuard(LegalBasisCaseAccess access, CourtRouteGuard court,
+            LegalBasisDossierVersionRepository versions, LegalApprovalGuard approvals) {
         this.access = access;
         this.court = court;
         this.versions = versions;
+        this.approvals = approvals;
     }
 
     public static void requireNotOnHold(Vault vault, LegalBasisDossier dossier) {
@@ -28,14 +31,18 @@ public class LegalWorkflowGuard {
             throw new BusinessException(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
     }
 
-    /** Future protected use cases invoke this inside their own authorized transaction and retain locks until commit. */
+    /** Protected use cases invoke this inside their authorized transaction and retain locks until commit. */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void requireProtectedTransition(UUID caseId, ProtectedTransition transition) {
+    public LegalBasisCaseAccess.LockedCase requireProtectedTransition(UUID caseId, ProtectedTransition transition) {
         if (transition == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         var locked = access.lock(caseId);
         locked.requireOpen();
         requireNotOnHold(locked.vault(), locked.dossier());
         var dossier = locked.dossier();
+        if ((transition == ProtectedTransition.UNLOCK
+                && !Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(locked.vault().getStatus()))
+                || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus()))
+            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         int latest = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         if (!dossier.acceptsIntake() || latest < dossier.getRequiredVersionNo())
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -43,5 +50,7 @@ public class LegalWorkflowGuard {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
         if (!"FORWARDED".equals(version.forwardStatus())) throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         court.requireValidDecision(dossier);
+        approvals.requireCurrentApproval(dossier, version);
+        return locked;
     }
 }

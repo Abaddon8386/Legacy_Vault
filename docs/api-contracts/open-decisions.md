@@ -132,3 +132,10 @@ cho đến khi có phê duyệt bằng văn bản; bật cờ không mở khóa 
 Intake PS-41 không phụ thuộc subscription và không chặn theo tổng byte/số phiên bản đề xuất.
 Giới hạn upload và authorization/route/hold đã có của PS-41 được giữ nguyên.
 Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
+
+## PS-57–PS-72 integration questions (pending group decision)
+
+- Main Flow ST-21 names `LEGAL_APPROVED` as a Vault state. PS-57 code records the decision in dossier review history; the approval service does not transition the Vault to `LEGAL_APPROVED`, and PS-59 unlock proceeds from the forwarded dossier/current approval guard. Confirm whether this intermediate Vault state is mandatory before changing workflow transitions.
+- PS-58 derives stale approval by comparing the current dossier snapshot in `LegalApprovalGuard`; it does not append a separate invalidation event. Confirm whether an explicit invalidation record is required for audit/reporting. Do not treat the derived guard as a persisted invalidation event.
+- Main Flow ST-28 requires a completed handover record signed by Staff and every Beneficiary. PS-61 `STAFF_ATTESTATION` represents Staff confirmation only. The group must decide the evidence/signature model and whether the receipt is issued before or after PS-71 closes the session. No electronic signature or Beneficiary signature is claimed by the current schema.
+- Main Flow ST-23 lists `IN_PERSON_PRESENT`, while PS-60 V24/runtime session states are `OPEN`, `COMPLETED`, and `CANCELLED`. Confirm whether this is a workflow milestone or a required persisted session status before changing the enum or migration.

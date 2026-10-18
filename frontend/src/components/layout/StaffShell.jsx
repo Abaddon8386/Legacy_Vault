@@ -14,7 +14,12 @@ export default function StaffShell({
   onRefresh,
   isRefreshing = false,
   isPreview = false,
+  currentTab = null,
+  onNavigateTab,
+  onNavigateCases,
   onNavigateLegalDocuments,
+  onNavigateAssetHandover,
+  onNavigateCompletionProgress,
 }) {
   const t = getStaffCaseTranslations(lang);
 
@@ -103,7 +108,42 @@ export default function StaffShell({
           </div>
         </div>
         <nav className="lv-staff-header__navigation" aria-label={lang === 'en' ? 'Staff navigation' : 'Điều hướng Staff'}>
-          {onNavigateLegalDocuments && <button type="button" className="lv-staff-btn" onClick={onNavigateLegalDocuments}>{lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý'}</button>}
+          {(onNavigateCases || onNavigateTab) && (
+            <button
+              type="button"
+              className={`lv-staff-btn ${currentTab === 'cases' ? 'lv-staff-btn--active' : ''}`}
+              onClick={() => (onNavigateCases ? onNavigateCases() : onNavigateTab('cases'))}
+              aria-current={currentTab === 'cases' ? 'page' : undefined}
+            >
+              {lang === 'en' ? 'Verification Cases' : 'Hồ sơ xác minh'}
+            </button>
+          )}
+          {(onNavigateLegalDocuments || onNavigateTab) && (
+            <button
+              type="button"
+              className={`lv-staff-btn ${currentTab === 'legal-documents' ? 'lv-staff-btn--active' : ''}`}
+              onClick={() => (onNavigateLegalDocuments ? onNavigateLegalDocuments() : onNavigateTab('legal-documents'))}
+              aria-current={currentTab === 'legal-documents' ? 'page' : undefined}
+            >
+              {lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý'}
+            </button>
+          )}
+          {(onNavigateAssetHandover || onNavigateTab) && (
+            <button
+              type="button"
+              className={`lv-staff-btn ${currentTab === 'asset-handover' ? 'lv-staff-btn--active' : ''}`}
+              onClick={() => (onNavigateAssetHandover ? onNavigateAssetHandover() : onNavigateTab('asset-handover'))}
+              aria-current={currentTab === 'asset-handover' ? 'page' : undefined}
+            >
+              {lang === 'en' ? 'Asset Handover' : 'Bàn giao tài sản'}
+            </button>
+          )}
+          {onNavigateCompletionProgress && (
+            <button type="button" className={`lv-staff-btn ${currentTab === 'completion-progress' ? 'lv-staff-btn--active' : ''}`}
+              onClick={onNavigateCompletionProgress} aria-current={currentTab === 'completion-progress' ? 'page' : undefined}>
+              {lang === 'en' ? 'Completion Progress' : 'Tiến độ hoàn tất'}
+            </button>
+          )}
         </nav>
       </header>
 
