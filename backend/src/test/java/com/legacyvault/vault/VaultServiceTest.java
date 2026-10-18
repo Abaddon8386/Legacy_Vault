@@ -3,10 +3,13 @@ package com.legacyvault.vault;
 
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
+import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.vault.dto.CreateVaultRequest;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
+import com.legacyvault.user.repository.OwnerWriteLockRepository;
+import com.legacyvault.user.entity.User;
 import com.legacyvault.vault.service.VaultService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +36,9 @@ class VaultServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private OwnerWriteLockRepository creationLockRepository;
+
     @InjectMocks
     private VaultService vaultService;
 
@@ -44,6 +51,7 @@ class VaultServiceTest {
                 UUID.randomUUID(),
                 "owner@example.com"
         );
+        lenient().when(creationLockRepository.findActiveOwnerForUpdate(10L)).thenReturn(Optional.of(new User()));
     }
 
     @Test
@@ -85,6 +93,26 @@ class VaultServiceTest {
         );
 
         verify(vaultRepository, never()).saveAndFlush(any(Vault.class));
+    }
+
+    @Test
+    void createVault_rejectsMissingOrInactiveAccountBeforeCheckingVault() {
+        when(creationLockRepository.findActiveOwnerForUpdate(10L)).thenReturn(Optional.empty());
+        var error = assertThrows(BusinessException.class,
+                () -> vaultService.createVault(new CreateVaultRequest("Vault", null), principal));
+        assertEquals(ErrorCode.UNAUTHENTICATED, error.getErrorCode());
+        verifyNoInteractions(vaultRepository, auditService);
+    }
+
+    @Test
+    void createVault_doesNotReadAgainAfterDatabaseWriteFailure() {
+        when(vaultRepository.existsByOwnerUserId(10L)).thenReturn(false);
+        var failure = new org.springframework.dao.DataIntegrityViolationException("unrelated integrity failure");
+        when(vaultRepository.saveAndFlush(any(Vault.class))).thenThrow(failure);
+        assertSame(failure, assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+                () -> vaultService.createVault(new CreateVaultRequest("Vault", null), principal)));
+        verify(vaultRepository, times(1)).existsByOwnerUserId(10L);
+        verifyNoInteractions(auditService);
     }
 
     @Test

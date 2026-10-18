@@ -30,4 +30,6 @@ public interface DeathDocumentRecordRepository extends JpaRepository<DeathDocume
         where d.publicId = :publicId
         """)
     Optional<DeathDocumentRecord> findByPublicIdForUpdate(@Param("publicId") UUID publicId);
+
+    Optional<DeathDocumentRecord> findByPublicId(UUID publicId);
 }
