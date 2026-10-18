@@ -19,6 +19,7 @@ export default function StaffShell({
   onNavigateCases,
   onNavigateLegalDocuments,
   onNavigateAssetHandover,
+  onNavigateCompletionProgress,
   onNavigateBeneficiaryConfirmation,
 }) {
   const t = getStaffCaseTranslations(lang);
@@ -142,6 +143,12 @@ export default function StaffShell({
             <button type="button" className={`lv-staff-btn ${currentTab === 'beneficiary-confirmation' ? 'lv-staff-btn--active' : ''}`}
               onClick={onNavigateBeneficiaryConfirmation} aria-current={currentTab === 'beneficiary-confirmation' ? 'page' : undefined}>
               {lang === 'en' ? 'Beneficiary Confirmation' : 'Xác nhận người thụ hưởng'}
+            </button>
+          )}
+          {onNavigateCompletionProgress && (
+            <button type="button" className={`lv-staff-btn ${currentTab === 'completion-progress' ? 'lv-staff-btn--active' : ''}`}
+              onClick={onNavigateCompletionProgress} aria-current={currentTab === 'completion-progress' ? 'page' : undefined}>
+              {lang === 'en' ? 'Completion Progress' : 'Tiến độ hoàn tất'}
             </button>
           )}
         </nav>
