@@ -67,6 +67,9 @@ Lỗi validation:
 | `HANDOVER_SESSION_ALREADY_OPEN` | 409 | Ca đã có một handover session đang mở (PS-60) |
 | `HANDOVER_SESSION_INVALID_STATE` | 409 | Case, Vault hoặc session không thỏa lifecycle PS-60 |
 | `HANDOVER_RECEIPT_INVALID_STATE` | 409 | Session/Vault/legal workflow không cho phép lập receipt (PS-61) |
+| `BENEFICIARY_IDENTITY_NOT_VERIFIED` | 409 | Beneficiary chưa `VERIFIED_AT_COUNTER` nên chưa liên kết/tạo tài khoản (PS-62, PS-63) |
+| `BENEFICIARY_ACCOUNT_ALREADY_LINKED` | 409 | Hồ sơ Beneficiary đã có tài khoản liên kết (PS-62, PS-63) |
+| `BENEFICIARY_ACCOUNT_INELIGIBLE` | 409 | Tài khoản không hoạt động/đã xóa, là Owner của kho, có quyền Staff/Legal/Admin hoặc đã liên kết Beneficiary khác của cùng kho (PS-62) |
 | `HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED` | 409 | Recipient hoặc asset ngoài allocation Legal đã duyệt hiện hành (PS-61) |
 | `HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED` | 409 | Beneficiary chưa được xác minh trực tiếp tại quầy (PS-61) |
 | `HANDOVER_RECEIPT_REISSUE_INVALID` | 409 | Receipt thay thế không cùng session/recipient hoặc đã có bản thay thế (PS-61) |
