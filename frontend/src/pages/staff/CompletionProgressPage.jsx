@@ -182,10 +182,28 @@ export default function CompletionProgressPage({
               </div>
             </>
           ) : (
-            <div className="lv-unverified-notice" role="status">
-              <HelpCircle size={16} aria-hidden="true" />
-              <span>{t.unverifiedNotice}</span>
-            </div>
+            <>
+              <div className="lv-metric-numbers">
+                <span className="lv-metric-ratio lv-metric-ratio--unverified">
+                  — / —
+                </span>
+                <span className="lv-metric-percentage lv-metric-percentage--unverified">
+                  —
+                </span>
+              </div>
+              <div
+                className="lv-progress-track lv-progress-track--indeterminate"
+                role="progressbar"
+                aria-label={t.unverifiedNotice}
+                aria-valuetext={t.unverifiedNotice}
+              >
+                <div className="lv-progress-fill lv-progress-fill--indeterminate" style={{ width: '0%' }} />
+              </div>
+              <div className="lv-unverified-notice" role="status">
+                <HelpCircle size={15} aria-hidden="true" />
+                <span>{t.unverifiedNotice}</span>
+              </div>
+            </>
           )}
         </section>
 
@@ -232,10 +250,28 @@ export default function CompletionProgressPage({
               </div>
             </>
           ) : (
-            <div className="lv-unverified-notice" role="status">
-              <HelpCircle size={16} aria-hidden="true" />
-              <span>{t.unverifiedNotice}</span>
-            </div>
+            <>
+              <div className="lv-metric-numbers">
+                <span className="lv-metric-ratio lv-metric-ratio--unverified">
+                  — / —
+                </span>
+                <span className="lv-metric-percentage lv-metric-percentage--unverified">
+                  —
+                </span>
+              </div>
+              <div
+                className="lv-progress-track lv-progress-track--indeterminate"
+                role="progressbar"
+                aria-label={t.unverifiedNotice}
+                aria-valuetext={t.unverifiedNotice}
+              >
+                <div className="lv-progress-fill lv-progress-fill--indeterminate" style={{ width: '0%' }} />
+              </div>
+              <div className="lv-unverified-notice" role="status">
+                <HelpCircle size={15} aria-hidden="true" />
+                <span>{t.unverifiedNotice}</span>
+              </div>
+            </>
           )}
         </section>
       </div>

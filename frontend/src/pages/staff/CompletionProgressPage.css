@@ -339,6 +339,25 @@
   border: 1px solid #fae6c6;
 }
 
+.lv-completion-progress-view .lv-metric-ratio--unverified {
+  color: var(--lv-text-muted, #6b726b);
+  letter-spacing: 0.05em;
+}
+
+.lv-completion-progress-view .lv-metric-percentage--unverified {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-completion-progress-view .lv-progress-track--indeterminate {
+  background-color: #f0ece3;
+}
+
+.lv-completion-progress-view .lv-progress-fill--indeterminate {
+  background: transparent;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .lv-completion-progress-view .lv-dual-metrics-grid {
