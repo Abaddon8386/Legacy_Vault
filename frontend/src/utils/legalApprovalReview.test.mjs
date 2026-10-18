@@ -31,11 +31,14 @@ globalThis.document = dom.window.document;
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-async function loadComponentModule(entry, production = false) {
+async function loadComponentModule(entry, production = false, metadataPatch = '') {
   const result = await build({
     configFile: false,
     plugins: [
       react(),
+      {name: 'ps49-invalid-metadata', transform(code, id) {
+        if (metadataPatch && id.replaceAll('\\', '/').endsWith('/legalApprovalService.js')) return code + '\n' + metadataPatch;
+      }},
       ...(entry === 'src/App.jsx'
         ? [
             {
@@ -212,6 +215,7 @@ test('PS-49 Service: assessApprovalFreshness enforces version, hash, scope, and 
   // 5. Initial approval pending (no prior approval) -> can approve
   const initial = assessApprovalFreshness({
     documentVersion: 1,
+    scopeFingerprint: 'scope-initial',
     documentHash: 'hash123',
     hasActiveDispute: false,
     allocationScope: [{ id: '1' }],
@@ -915,4 +919,30 @@ test('PS-49 Preview: Reset scenario restores original dossier state, clears deci
   } finally {
     await view.close();
   }
+});
+
+test('PS-49 rejects invalid metadata even when both approval bindings are identical', () => {
+ const base={documentVersion:2,documentHash:'hash-ok',scopeFingerprint:'scope-ok',allocationScope:[{id:'a'}],previousApproval:{approvedVersion:2,approvedHash:'hash-ok',scopeFingerprint:'scope-ok',decision:'APPROVE'}};
+ for(const value of [' ', '', '2', -1, 0, 1.5, Infinity, NaN, true, null, undefined, Number.MAX_SAFE_INTEGER+1]) {
+  const result=assessApprovalFreshness({...base,documentVersion:value,previousApproval:{...base.previousApproval,approvedVersion:value}});
+  assert.equal(result.isFresh,false);assert.equal(result.canApprove,false);
+ }
+ for(const field of ['documentHash','scopeFingerprint']) for(const value of [undefined,null,'',' ',false,{}]) {
+  const prior=field==='documentHash'?'approvedHash':'scopeFingerprint';
+  const result=assessApprovalFreshness({...base,[field]:value,previousApproval:{...base.previousApproval,[prior]:value}});
+  assert.equal(result.isFresh,false);assert.equal(result.canApprove,false);
+ }
+ for(const patch of [{approvedVersion:-1},{approvedHash:' '},{scopeFingerprint:undefined}]) assert.equal(assessApprovalFreshness({...base,previousApproval:{...base.previousApproval,...patch}}).canApprove,false);
+ assert.equal(assessApprovalFreshness(base).isFresh,true);
+ assert.equal(assessApprovalFreshness({...base,previousApproval:null}).canApprove,true);
+ assert.equal(assessApprovalFreshness({...base,scopeFingerprint:undefined,previousApproval:null}).canApprove,false);
+});
+
+test('PS-49 UI blocks invalid version and missing scope binding without a ready notice', async()=>{
+ for (const patch of ["SYNTHETIC_APPROVAL_DOSSIERS['dossier-001'].documentVersion = -1;", "delete SYNTHETIC_APPROVAL_DOSSIERS['dossier-001'].scopeFingerprint;"]) {
+  const Component=(await loadComponentModule('src/pages/legal/LegalApprovalReviewPage.jsx',false,patch)).default;
+  const view=await mount(Component,{isDevPreview:true,lang:'en'});
+  try { assert.match(view.host.textContent,/Approval is blocked/);assert.doesNotMatch(view.host.textContent,/Dossier Ready for Legal Determination/);const review=view.host.querySelector('button[type=submit]');assert.ok(review);assert.equal(review.disabled,true); }
+  finally {await view.close();}
+ }
 });

@@ -714,7 +714,14 @@ function ApprovalReviewContent({
                   </span>
                 </div>
 
-                {freshness?.status === 'DISPUTED' ? (
+                {freshness?.status === 'INCOMPLETE_METADATA' || freshness?.status === 'MISSING_SCOPE' ? (
+                  <div className="lv-legal-approval-callout lv-legal-approval-callout--stale" role="alert">
+                    <AlertTriangle size={22} aria-hidden="true" />
+                    <p>{lang === 'en'
+                      ? 'Approval is blocked: document version, hash or allocation scope binding is missing or invalid.'
+                      : 'Chưa thể phê duyệt: phiên bản, mã băm hoặc thông tin ràng buộc phạm vi phân bổ bị thiếu hoặc không hợp lệ.'}</p>
+                  </div>
+                ) : freshness?.status === 'DISPUTED' ? (
                   <div className="lv-legal-approval-callout lv-legal-approval-callout--disputed" role="alert">
                     <AlertTriangle size={22} aria-hidden="true" style={{ flexShrink: 0 }} />
                     <div>

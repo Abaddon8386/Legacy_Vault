@@ -169,6 +169,8 @@ export const SYNTHETIC_APPROVAL_DOSSIERS = {
  * Đánh giá tính tươi mới (Freshness) và điều kiện hợp lệ của phê duyệt pháp lý
  */
 export function assessApprovalFreshness(dossier) {
+  const validVersion = value => Number.isSafeInteger(value) && value > 0;
+  const nonBlank = value => typeof value === 'string' && value.trim().length > 0;
   if (!dossier) {
     return {
       status: 'UNAVAILABLE',
@@ -179,7 +181,7 @@ export function assessApprovalFreshness(dossier) {
   }
 
   // 1. Kiểm tra thiếu metadata cốt lõi
-  if (!dossier.documentVersion || !dossier.documentHash) {
+  if (!validVersion(dossier.documentVersion) || !nonBlank(dossier.documentHash)) {
     return {
       status: 'INCOMPLETE_METADATA',
       isFresh: false,
@@ -211,6 +213,17 @@ export function assessApprovalFreshness(dossier) {
 
   // 4. Kiểm tra lịch sử phê duyệt trước đó
   const prev = dossier.previousApproval;
+  // Missing bindings cannot establish scope identity, even when both sides are undefined.
+  if (!nonBlank(dossier.scopeFingerprint) || (prev && (
+    !validVersion(prev.approvedVersion) || !nonBlank(prev.approvedHash) || !nonBlank(prev.scopeFingerprint)
+  ))) {
+    return {
+      status: 'INCOMPLETE_METADATA',
+      isFresh: false,
+      canApprove: false,
+      reasonCode: 'INCOMPLETE_APPROVAL_BINDING',
+    };
+  }
   if (!prev) {
     return {
       status: 'PENDING_INITIAL_APPROVAL',

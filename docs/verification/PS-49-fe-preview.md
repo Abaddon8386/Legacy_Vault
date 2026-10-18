@@ -11,7 +11,13 @@
 
 ## Kiểm chứng ngày 18/10/2026
 
-- Full FE suite: 428/428 pass; 0 fail/skipped/cancelled.
+- Full FE suite: 430/430 pass; 0 fail/skipped/cancelled.
 - ESLint: đạt. Production build: đạt; cảnh báo bundle lớn hơn 500 kB.
 - Có kiểm thử UI và kiểm tra production không trả thành công mô phỏng.
 - Cảnh báo React `flexShrink` xuất phát từ các màn hình có sẵn trong develop. Chưa kiểm thử live API/SQL Server hoặc E2E toàn quy trình.
+
+## Sửa sau review ngày 18/10/2026
+
+Chặn version không phải số nguyên dương an toàn; hash/fingerprint phải là chuỗi không rỗng. Thiếu binding ở hồ sơ hoặc approval cũ không thể FRESH/canApprove. UI hiện cảnh báo metadata và khóa nút duyệt. Thêm hồi quy version khoảng trắng, Infinity, số âm, số thực, kiểu sai, metadata thiếu/rỗng và kiểm thử render cảnh báo.
+
+Full FE suite 430/430 pass; lint/build đạt. Guard production/live vẫn được kiểm thử.
