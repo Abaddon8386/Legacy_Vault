@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useEffect, useRef } from 'react';
 import {
   FileCheck,
   CheckCircle2,
@@ -18,25 +18,127 @@ import './BeneficiaryConfirmationPage.css';
 export default function BeneficiaryConfirmationPage({
   lang = 'vi',
   initialBeneficiaries = [],
+  caseId = '',
+  caseReference: propCaseReference = '',
+  beneficiaries: propBeneficiaries,
+  onFetchBeneficiaries,
+  loadBeneficiaries,
 }) {
   const t = beneficiaryConfirmationI18n[lang] || beneficiaryConfirmationI18n.vi;
   const caseInputId = useId();
   const benSelectId = useId();
   const receiptInputId = useId();
 
-  // State
-  const [caseReference, setCaseReference] = useState('');
-  const [beneficiaries, setBeneficiaries] = useState(initialBeneficiaries);
+  const initialCase = propCaseReference || caseId || '';
+  const [caseReference, setCaseReference] = useState(initialCase);
+  const [loadedCaseId, setLoadedCaseId] = useState(() => {
+    if (initialCase && (propBeneficiaries || initialBeneficiaries.length > 0)) {
+      return initialCase;
+    }
+    return '';
+  });
+  const [beneficiaries, setBeneficiaries] = useState(() => {
+    if (propBeneficiaries) return Array.isArray(propBeneficiaries) ? propBeneficiaries : [];
+    if (initialCase && initialBeneficiaries.length > 0) return initialBeneficiaries;
+    return [];
+  });
   const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState('');
   const [receiptReference, setReceiptReference] = useState('');
   const [errors, setErrors] = useState({});
 
-  // Switch case resets all form inputs and previous errors
-  const handleCaseChange = (newCase) => {
-    setCaseReference(newCase);
+  const activeCaseRef = useRef(initialCase);
+
+  const effectivePropCase = propCaseReference || caseId || '';
+  const [prevPropCase, setPrevPropCase] = useState(effectivePropCase);
+  const [prevPropBeneficiaries, setPrevPropBeneficiaries] = useState(propBeneficiaries);
+
+  // Synchronize with external prop updates during render
+  if (effectivePropCase !== prevPropCase) {
+    setPrevPropCase(effectivePropCase);
+    setPrevPropBeneficiaries(propBeneficiaries);
+    setCaseReference(effectivePropCase);
+    // Immediately reset all state from previous case A
     setSelectedBeneficiaryId('');
     setReceiptReference('');
     setErrors({});
+
+    if (propBeneficiaries) {
+      setBeneficiaries(Array.isArray(propBeneficiaries) ? propBeneficiaries : []);
+      setLoadedCaseId(effectivePropCase);
+    } else if (initialBeneficiaries && initialBeneficiaries.length > 0 && effectivePropCase) {
+      setBeneficiaries(initialBeneficiaries);
+      setLoadedCaseId(effectivePropCase);
+    } else {
+      setBeneficiaries([]);
+      setLoadedCaseId('');
+    }
+  } else if (propBeneficiaries !== prevPropBeneficiaries) {
+    setPrevPropBeneficiaries(propBeneficiaries);
+    if (propBeneficiaries && effectivePropCase) {
+      setBeneficiaries(Array.isArray(propBeneficiaries) ? propBeneficiaries : []);
+      setLoadedCaseId(effectivePropCase);
+    } else if (!propBeneficiaries) {
+      setBeneficiaries([]);
+      setLoadedCaseId('');
+    }
+  }
+
+  // Handle async fetching when prop case changes
+  useEffect(() => {
+    activeCaseRef.current = effectivePropCase;
+    const fetcher = onFetchBeneficiaries || loadBeneficiaries;
+    if (fetcher && effectivePropCase.trim()) {
+      fetcher(effectivePropCase.trim())
+        .then((res) => {
+          if (activeCaseRef.current !== effectivePropCase) return; // Discard stale response
+          const list = Array.isArray(res) ? res : (res?.beneficiaries || []);
+          setBeneficiaries(list);
+          setLoadedCaseId(effectivePropCase);
+        })
+        .catch((err) => {
+          if (activeCaseRef.current !== effectivePropCase) return;
+          setBeneficiaries([]);
+          setLoadedCaseId('');
+          setErrors({ fetch: err.message || t.informationUnavailable });
+        });
+    }
+  }, [effectivePropCase, onFetchBeneficiaries, loadBeneficiaries, t.informationUnavailable]);
+
+  // Switch case resets all form inputs, previous errors, and beneficiary list
+  const handleCaseChange = (newCase) => {
+    activeCaseRef.current = newCase;
+    setCaseReference(newCase);
+    // CRITICAL: Immediately clear everything belonging to previous case
+    setBeneficiaries([]);
+    setLoadedCaseId('');
+    setSelectedBeneficiaryId('');
+    setReceiptReference('');
+    setErrors({});
+
+    const trimmed = newCase.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const fetcher = onFetchBeneficiaries || loadBeneficiaries;
+    if (fetcher) {
+      fetcher(trimmed)
+        .then((res) => {
+          // Response cũ của A về sau khi chuyển B phải bị bỏ qua
+          if (activeCaseRef.current !== newCase) {
+            return;
+          }
+          const list = Array.isArray(res) ? res : (res?.beneficiaries || []);
+          setBeneficiaries(list);
+          setLoadedCaseId(newCase);
+        })
+        .catch((err) => {
+          if (activeCaseRef.current !== newCase) return;
+          setBeneficiaries([]);
+          setLoadedCaseId('');
+          setErrors({ fetch: err.message || t.informationUnavailable });
+        });
+    }
   };
 
   // Switch beneficiary resets receipt input and validation feedback
@@ -58,12 +160,20 @@ export default function BeneficiaryConfirmationPage({
   };
 
   const handleReset = () => {
+    activeCaseRef.current = '';
     setCaseReference('');
-    setBeneficiaries(initialBeneficiaries);
+    setBeneficiaries([]);
+    setLoadedCaseId('');
     setSelectedBeneficiaryId('');
     setReceiptReference('');
     setErrors({});
   };
+
+  const hasValidData =
+    Boolean(caseReference) &&
+    loadedCaseId === caseReference &&
+    Array.isArray(beneficiaries) &&
+    beneficiaries.length > 0;
 
   return (
     <div className="lv-beneficiary-confirmation-view">
@@ -131,11 +241,11 @@ export default function BeneficiaryConfirmationPage({
               </tr>
             </thead>
             <tbody>
-              {!Array.isArray(beneficiaries) || beneficiaries.length === 0 ? (
+              {!hasValidData ? (
                 <tr>
                   <td colSpan="5">
                     <div className="lv-confirm-empty" role="status">
-                      <p>{t.emptyBeneficiaries || t.informationUnavailable}</p>
+                      <p>{t.informationUnavailable}</p>
                     </div>
                   </td>
                 </tr>
@@ -202,7 +312,7 @@ export default function BeneficiaryConfirmationPage({
         {/* Unavailable Notice */}
         <div className="lv-api-status-banner" role="status">
           <Info size={16} className="lv-api-status-banner__icon" aria-hidden="true" />
-          <span>{t.unavailableNotice}</span>
+          <span>{!hasValidData ? t.informationUnavailable : t.unavailableNotice}</span>
         </div>
 
         <form onSubmit={(e) => e.preventDefault()} noValidate>
@@ -215,21 +325,23 @@ export default function BeneficiaryConfirmationPage({
               className="lv-confirm-select"
               value={selectedBeneficiaryId}
               onChange={(e) => handleBeneficiarySelect(e.target.value)}
+              disabled={!hasValidData}
             >
               <option value="">{t.beneficiarySelectPlaceholder}</option>
-              {beneficiaries.map((b) => {
-                const statusLabel =
-                  b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED
-                    ? t.statusConfirmed
-                    : b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.PENDING
-                      ? t.statusPending
-                      : t.statusUnknown;
-                return (
-                  <option key={b.id} value={b.id}>
-                    {b.fullName || b.name} ({statusLabel})
-                  </option>
-                );
-              })}
+              {hasValidData &&
+                beneficiaries.map((b) => {
+                  const statusLabel =
+                    b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED
+                      ? t.statusConfirmed
+                      : b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.PENDING
+                        ? t.statusPending
+                        : t.statusUnknown;
+                  return (
+                    <option key={b.id || b.beneficiaryId} value={b.id || b.beneficiaryId}>
+                      {b.fullName || b.name} ({statusLabel})
+                    </option>
+                  );
+                })}
             </select>
             {errors.beneficiaryId && (
               <div className="lv-confirm-error-msg" role="alert">
@@ -251,6 +363,7 @@ export default function BeneficiaryConfirmationPage({
               placeholder={t.receiptInputPlaceholder}
               value={receiptReference}
               onChange={(e) => handleReceiptChange(e.target.value)}
+              disabled={!hasValidData}
             />
             {errors.receiptReference && (
               <div className="lv-confirm-error-msg" role="alert">
@@ -264,14 +377,20 @@ export default function BeneficiaryConfirmationPage({
                 <span>{t[errors.currentStatus] || errors.currentStatus}</span>
               </div>
             )}
+            {errors.fetch && (
+              <div className="lv-confirm-error-msg" role="alert">
+                <AlertTriangle size={13} aria-hidden="true" />
+                <span>{errors.fetch}</span>
+              </div>
+            )}
           </div>
 
           <div className="lv-confirm-form-actions">
             <button
               type="button"
               className="lv-btn-record-submit"
-              disabled={true} // Mutation disabled pending server endpoint
-              title={t.unavailableNotice}
+              disabled={true} // Mutation disabled pending server endpoint; locked when no data
+              title={!hasValidData ? t.informationUnavailable : t.unavailableNotice}
               aria-label={t.btnRecordConfirmation}
             >
               <FileCheck size={16} aria-hidden="true" />
