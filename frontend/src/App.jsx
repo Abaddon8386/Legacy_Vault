@@ -18,6 +18,8 @@ import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidatio
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
 import BeneficiaryAccountPage from './pages/staff/BeneficiaryAccountPage.jsx';
 import { canAccessStaffLegalDocuments, resolvePostLoginRoute } from './utils/staffLegalDocumentsValidation.js';
+import ScopedAssetHandoverPage from './pages/staff/ScopedAssetHandoverPage.jsx';
+import { canAccessScopedAssetHandover } from './utils/scopedAssetHandoverValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 import StaffShell from './components/layout/StaffShell.jsx';
 import StaffCaseDashboard from './pages/staff/StaffCaseDashboard.jsx';
@@ -448,7 +450,10 @@ export default function App() {
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           isPreview={preview}
+          currentTab="cases"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
         >
           <StaffCaseDashboard
             key={session?.user.id || 'preview'}
@@ -527,6 +532,7 @@ export default function App() {
   const isBeneficiariesRoute = path === '/beneficiaries';
   const isSubscriptionRoute = path === '/subscription' || path === '/subscriptions';
   const isStaffLegalDocsRoute = path === '/staff/legal-documents';
+  const isStaffAssetHandoverRoute = path === '/staff/asset-handover';
   const isLegalDeathRoute = path === '/legal' || path === '/legal/death-verification';
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
@@ -560,6 +566,8 @@ export default function App() {
               navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
             } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
             }
           }}
         >
@@ -570,6 +578,46 @@ export default function App() {
             onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
           />
         </AppShell>
+      </div>
+    );
+  }
+
+  if (isStaffAssetHandoverRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    }
+    if (!preview && !canAccessScopedAssetHandover(session)) {
+      return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
+    }
+    return (
+      <div className="lv-app-root">
+        <StaffShell
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={session ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          isPreview={preview}
+          currentTab="asset-handover"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
+          onNavigateTab={tab => {
+            if (tab === 'cases') {
+              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+            } else if (tab === 'legal-documents') {
+              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'asset-handover') {
+              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+            }
+          }}
+        >
+          <ScopedAssetHandoverPage
+            lang={lang}
+            preview={preview}
+            session={session}
+          />
+        </StaffShell>
       </div>
     );
   }
