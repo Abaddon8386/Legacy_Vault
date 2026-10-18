@@ -26,4 +26,17 @@ public interface LegalBasisVersionAllocationRepository extends JpaRepository<Leg
         order by v.versionNo desc, al.allocationId asc
         """)
     List<AllocationRow> findRowsByDossier(@Param("dossierId") Long dossierId);
+
+    @Query("""
+        select new com.legacyvault.verification.repository.ReceiptAllocationRow(
+            v.versionNo, al.allocationId, a.assetId, a.publicId, b.id, b.publicId, b.identityVerificationStatus,
+            al.status, al.allocationDescription)
+        from LegalBasisVersionAllocation al, LegalBasisDossierVersion v, Asset a, Beneficiary b
+        where v.legalBasisDossierId = :dossierId
+          and al.dossierVersionId = v.dossierVersionId
+          and a.assetId = al.assetId
+          and b.id = al.beneficiaryId
+        order by al.allocationId asc
+        """)
+    List<ReceiptAllocationRow> findReceiptRowsByDossier(@Param("dossierId") Long dossierId);
 }

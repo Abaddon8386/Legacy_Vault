@@ -2,7 +2,15 @@ package com.legacyvault.verification;
 
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.verification.dto.HandoverSessionStatusRequest;
+import com.legacyvault.verification.dto.ClassifyBasisRequest;
+import com.legacyvault.verification.dto.CourtDecisionRequest;
+import com.legacyvault.verification.dto.LegalApprovalRequest;
 import com.legacyvault.verification.entity.HandoverSessionStatus;
+import com.legacyvault.verification.service.BasisClassificationService;
+import com.legacyvault.verification.service.BasisForwardService;
+import com.legacyvault.verification.service.CourtDecisionService;
+import com.legacyvault.verification.service.LegalApprovalService;
+import com.legacyvault.verification.service.LegalBasisReviewService;
 import com.legacyvault.verification.service.HandoverSessionService;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisForwardService;
