@@ -1333,6 +1333,67 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
+    post:
+      tags: [Staff]
+      summary: Staff liên kết tài khoản có sẵn với hồ sơ Beneficiary (PS-62, ST-24)
+      description: |
+        Requires ROLE_STAFF_EXECUTOR, an OPEN verification case of the Beneficiary Vault assigned to the actor, and
+        id_verification_status = VERIFIED_AT_COUNTER (PS-45). The account is identified by its login email. Sets
+        beneficiaries.linked_user_id and account_status = ACCOUNT_CREATED, grants ROLE_BENEFICIARY if absent, audits
+        BENEFICIARY_ACCOUNT_LINKED (ST-24). The Beneficiary record stays independent of the account. Rejected with
+        409 BENEFICIARY_ACCOUNT_INELIGIBLE when the account is inactive/deleted, is the Vault Owner, holds
+        Staff/Legal/Admin authority, or is already linked to another Beneficiary of the same Vault. No Guest Portal,
+        claim link or email OTP.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/BeneficiaryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryAccountLinkRequest' }
+      responses:
+        '200':
+          description: Account linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/beneficiaries/{beneficiaryId}/account:
+    post:
+      tags: [Staff]
+      summary: Staff tạo và kích hoạt tài khoản Beneficiary tại quầy (PS-63, ST-24)
+      description: |
+        Same authorization and preconditions as account-link. Creates an ACTIVE account (BCrypt password chosen by
+        the Beneficiary at the counter, never stored or logged in clear) holding only ROLE_BENEFICIARY, with the
+        full name taken from the Beneficiary record, then links it and audits BENEFICIARY_ACCOUNT_CREATED (ST-24).
+        409 EMAIL_ALREADY_EXISTS when the email is taken (use account-link for an existing account).
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/BeneficiaryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryAccountCreateRequest' }
+      responses:
+        '201':
+          description: Account created, activated and linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
       tags: [Staff]
@@ -1966,6 +2027,9 @@ components:
             - HANDOVER_RECEIPT_INVALID_STATE
             - HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED
             - HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED
+            - BENEFICIARY_IDENTITY_NOT_VERIFIED
+            - BENEFICIARY_ACCOUNT_ALREADY_LINKED
+            - BENEFICIARY_ACCOUNT_INELIGIBLE
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
@@ -2441,6 +2505,26 @@ components:
         phone: { type: string }
         email: { type: string, format: email }
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    BeneficiaryAccountLinkRequest:
+      type: object
+      required: [accountEmail]
+      properties:
+        accountEmail: { type: string, format: email, maxLength: 254, description: Email đăng nhập của tài khoản có sẵn }
+    BeneficiaryAccountCreateRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 72, writeOnly: true, description: Do Beneficiary tự chọn tại quầy; không lưu hay log dạng rõ }
+        phone: { type: string, pattern: '^$|^\+?[0-9]{8,15}$', nullable: true }
+    BeneficiaryAccountResponse:
+      type: object
+      required: [beneficiaryId, accountId, accountStatus, identityVerificationStatus]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid, description: ID công khai của tài khoản }
+        accountStatus: { type: string, enum: [ACCOUNT_CREATED] }
+        identityVerificationStatus: { type: string, enum: [VERIFIED_AT_COUNTER] }
     IdentityVerificationRequest:
       type: object
       required: [documentType, result]
