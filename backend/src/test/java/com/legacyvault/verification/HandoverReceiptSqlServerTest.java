@@ -97,7 +97,7 @@ class HandoverReceiptSqlServerTest extends LegalBasisSqlServerSupport {
                 new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, review.currentVersionNo(),
                         review.currentSha256Hash(), review.currentAllocationHash(), "Fixture approval"));
         context.getBean(LegalVaultUnlockService.class).unlock(f.publicCaseId(), f.legal());
-        jdbc.update("UPDATE dbo.beneficiaries SET identity_verification_status = 'VERIFIED_AT_COUNTER' WHERE public_id = ?",
+        jdbc.update("UPDATE dbo.beneficiaries SET id_verification_status = 'VERIFIED_AT_COUNTER' WHERE public_id = ?",
                 allocation.beneficiaryId().toString());
         var sessions = context.getBean(HandoverSessionService.class);
         var session = sessions.open(f.publicCaseId(), f.legal());
