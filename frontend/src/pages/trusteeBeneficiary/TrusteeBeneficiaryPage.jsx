@@ -8,6 +8,7 @@ import {
 } from '../../utils/trusteeBeneficiaryService.js';
 import { validateTrustee } from '../../utils/trusteeValidation.js';
 import { validateBeneficiary } from '../../utils/beneficiaryValidation.js';
+import { beneficiaryAge } from '../../utils/beneficiaryAge.js';
 import './TrusteeBeneficiaryPage.css';
 
 const i18n = {
@@ -175,6 +176,11 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  const [alert,setAlert]=useState(null),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(null);
  const [retry,setRetry]=useState(0),[pageIndex,setPageIndex]=useState(0),[pages,setPages]=useState(0);
  const [trusteeForm,setTrusteeForm]=useState(emptyTrustee),[beneficiaryForm,setBeneficiaryForm]=useState(emptyBeneficiary);
+ const age = beneficiaryAge(beneficiaryForm.dateOfBirth);
+ const needsGuardian = age !== null && age < 18;
+ const guardianNotice = lang === 'en'
+  ? 'This beneficiary is under 18 and needs a guardian. Guardian registration is not available yet.'
+  : 'Người thụ hưởng chưa đủ 18 tuổi, cần bổ sung người giám hộ. Hiện chưa thể đăng ký thông tin người giám hộ.';
  const [trusteeErrors,setTrusteeErrors]=useState({}),[beneficiaryErrors,setBeneficiaryErrors]=useState({});
  const [isSubmittingTrustee,setIsSubmittingTrustee]=useState(false),[isSubmittingBeneficiary,setIsSubmittingBeneficiary]=useState(false);
  const pending=useRef(false),alive=useRef(true),mutation=useRef(null),loadRequest=useRef(null);
@@ -200,6 +206,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
   const isTrustee=kind==='trustee',data=isTrustee?trusteeForm:beneficiaryForm;
   const errors=isTrustee?validateTrustee(data,lang):validateBeneficiary(data,lang);
   (isTrustee?setTrusteeErrors:setBeneficiaryErrors)(errors);if(Object.keys(errors).length)return;
+  if (!isTrustee && needsGuardian) return;
   pending.current=true;const controller=new AbortController();mutation.current=controller;
   (isTrustee?setIsSubmittingTrustee:setIsSubmittingBeneficiary)(true);
   try{
@@ -580,6 +587,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                     max={todayStr}
                     className={`lv-tb-input ${beneficiaryErrors.dateOfBirth ? 'has-error' : ''}`}
                     value={beneficiaryForm.dateOfBirth}
+                    aria-describedby={needsGuardian ? 'ben-guardian-notice' : undefined}
                     onChange={(e) =>
                       setBeneficiaryForm({ ...beneficiaryForm, dateOfBirth: e.target.value })
                     }
@@ -587,6 +595,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   {beneficiaryErrors.dateOfBirth && (
                     <span className="lv-tb-error-text">{localizedBeneficiaryErrors.dateOfBirth}</span>
                   )}
+                  {needsGuardian && <p id="ben-guardian-notice" className="lv-tb-age-warning" role="status">{guardianNotice}</p>}
                 </div>
 
                 {/* Phone */}
@@ -634,7 +643,8 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                 <button
                   type="submit"
                   className="lv-tb-btn-primary"
-                  disabled={isSubmittingTrustee || isSubmittingBeneficiary}
+                  disabled={isSubmittingTrustee || isSubmittingBeneficiary || needsGuardian}
+                  title={needsGuardian ? guardianNotice : undefined}
                 >
                   {isSubmittingBeneficiary ? t.submitting : t.addBeneficiaryBtn}
                 </button>

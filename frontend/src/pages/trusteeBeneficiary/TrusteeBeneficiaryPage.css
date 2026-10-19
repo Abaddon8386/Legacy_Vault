@@ -81,3 +81,5 @@
 .lv-tb-dialog .lv-tb-form{margin:0;border:0;padding:0}
 .lv-tb-section-header>.lv-tb-btn-primary{order:1;flex-shrink:0}
 @media(max-width:540px){.lv-tb-dialog{padding:20px}.lv-tb-section-header>.lv-tb-btn-primary{width:100%}}
+
+.lv-tb-page .lv-tb-age-warning { margin: 8px 0 0; padding: 12px; border: 1px solid var(--lv-status-error-border); border-radius: 8px; color: var(--lv-status-error-text); background: var(--lv-status-error-bg); line-height: 1.5; }
