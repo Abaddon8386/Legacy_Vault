@@ -64,3 +64,18 @@ for (const scenario of ['unmount', 'logout', 'switch', 'success']) {
     }
   });
 }
+
+for (const lang of ['vi', 'en']) {
+  test(`Bug 15: ${lang} profile keeps personal information without session internals`, async () => {
+    const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+    try {
+      await act(async()=>root.render(React.createElement(Profile,{session,lang})));
+      assert.match(host.textContent,/Test User/);assert.match(host.textContent,/test@example.test/);
+      assert.equal(host.querySelector('#session-info-heading'),null);
+      assert.equal(host.querySelector('.lv-profile-session-grid'),null);
+      assert.doesNotMatch(host.textContent,/test-token/);
+      assert.ok(host.querySelector('.lv-profile-edit-btn'));
+      assert.ok(host.querySelector('.lv-profile-refresh-btn'));
+    } finally {await act(async()=>root.unmount());host.remove();}
+  });
+}

@@ -3,7 +3,6 @@ import {
   User,
   Mail,
   Shield,
-  Clock,
   RotateCw,
   CheckCircle2,
   AlertCircle,
@@ -117,22 +116,6 @@ export default function AccountProfilePage({
   const hasValidProfile = isValidUserProfile(profileUser);
   const isDevPreviewActive = Boolean(typeof import.meta !== 'undefined' && import.meta.env?.DEV && preview);
   const shouldRenderLayout = hasValidProfile || isDevPreviewActive;
-
-  // Format expiration timestamp
-  const formatExpiresAt = (expiresAt) => {
-    if (!expiresAt || typeof expiresAt !== 'number') {
-      return '-';
-    }
-    const d = new Date(expiresAt);
-    return d.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
 
   return (
     <div className="lv-account-profile-view">
@@ -248,54 +231,7 @@ export default function AccountProfilePage({
             </ul>
           </section>
 
-          {/* 3. Session Status */}
-          {session ? (
-            <section className="lv-profile-card" aria-labelledby="session-info-heading">
-              <h2 id="session-info-heading" className="lv-profile-card__title">
-                {t.sessionStatusSection}
-              </h2>
 
-              <div className="lv-profile-session-grid">
-                <div className="lv-profile-session-box">
-                  <span className="lv-profile-session-box__label">{t.sessionActiveLabel}</span>
-                  <span className="lv-profile-session-box__value">
-                    <CheckCircle2 size={14} aria-hidden="true" />
-                    <span>{lang === 'en' ? 'Active' : 'Đang hoạt động'}</span>
-                  </span>
-                </div>
-
-                <div className="lv-profile-session-box">
-                  <span className="lv-profile-session-box__label">{t.sessionExpiresLabel}</span>
-                  <span className="lv-profile-session-box__value" style={{ color: '#555555' }}>
-                    <Clock size={14} aria-hidden="true" />
-                    <span>{formatExpiresAt(session.expiresAt)}</span>
-                  </span>
-                </div>
-              </div>
-            </section>
-          ) : isDevPreviewActive ? (
-            <section className="lv-profile-card" aria-labelledby="session-info-heading">
-              <h2 id="session-info-heading" className="lv-profile-card__title">
-                {t.sessionStatusSection}
-              </h2>
-
-              <div className="lv-profile-session-grid">
-                <div className="lv-profile-session-box">
-                  <span className="lv-profile-session-box__label">{t.sessionActiveLabel}</span>
-                  <span className="lv-profile-session-box__value" style={{ color: '#606863' }}>
-                    <span>{t.noInformation}</span>
-                  </span>
-                </div>
-
-                <div className="lv-profile-session-box">
-                  <span className="lv-profile-session-box__label">{t.sessionExpiresLabel}</span>
-                  <span className="lv-profile-session-box__value" style={{ color: '#606863' }}>
-                    <span>{t.noInformation}</span>
-                  </span>
-                </div>
-              </div>
-            </section>
-          ) : null}
         </>
       ) : (
         /* Empty / Unavailable State (Truthful presentation when no real user data is present) */
