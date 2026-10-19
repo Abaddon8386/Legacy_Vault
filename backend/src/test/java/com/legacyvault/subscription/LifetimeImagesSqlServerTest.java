@@ -9,6 +9,7 @@ import com.legacyvault.subscription.service.SubscriptionUpgradeService;
 import com.legacyvault.subscription.dto.SubscriptionDtos.*;
 import com.legacyvault.vault.dto.CreateVaultRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** Uses the existing guarded, disposable SQL Server harness. Run only lifetime* methods. */
+@EnabledIfEnvironmentVariable(named = "PS77_SQLSERVER_TEST_DATABASE", matches = "LegacyVault_PS77_[A-Za-z0-9_]+")
 class LifetimeImagesSqlServerTest extends SubscriptionSqlServerTest {
     private MockMultipartFile photo() throws Exception {
         var bytes=new ByteArrayOutputStream();ImageIO.write(new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB),"png",bytes);
@@ -96,6 +98,9 @@ class LifetimeImagesSqlServerTest extends SubscriptionSqlServerTest {
     }
     @Test void lifetimeFullPriceQuoteNeverGrantsPaidAccess() {
         var target=quotas.catalog().stream().filter(p->p.code().equals("EXTENDED")).findFirst().orElseThrow();
+        assertTrue(target.version()>2, "New pricing must invalidate the previous version-2 catalog quotes");
+        assertEquals(ErrorCode.SUBSCRIPTION_CATALOG_STALE,assertThrows(BusinessException.class,()->context.getBean(SubscriptionUpgradeService.class)
+            .quote(owner.id(),new UpgradeRequest(PlanCode.EXTENDED,2))).getErrorCode());
         var quote=context.getBean(SubscriptionUpgradeService.class).quote(owner.id(),new UpgradeRequest(PlanCode.EXTENDED,target.version()));
         assertEquals(999000,quote.amountVnd());assertEquals(0,quote.previousPurchaseCreditVnd());
         assertFalse(quote.paymentAvailable());assertEquals("BASIC",quotas.current(owner.id()).effectivePlan().code());

@@ -17,7 +17,8 @@ INSERT INTO dbo.subscription_plan_versions
     (plan_code,version,status,name_vi,name_en,description_vi,description_en,
      monthly_price_vnd,purchase_price_vnd,billing_model,asset_limit,storage_limit_bytes,file_limit_bytes,
      concurrency_token,published_at,change_note)
-SELECT p.plan_code, COALESCE((SELECT MAX(v.version) FROM dbo.subscription_plan_versions v WHERE v.plan_code=p.plan_code),0)+1,
+SELECT p.plan_code,
+    CASE WHEN p.catalog_version > history.latest_version THEN p.catalog_version ELSE history.latest_version END + 1,
     N'PUBLISHED',
     CASE p.plan_code WHEN N'BASIC' THEN N'Cơ bản' WHEN N'STANDARD' THEN N'Tiêu chuẩn' ELSE N'Mở rộng' END,
     CASE p.plan_code WHEN N'BASIC' THEN N'Basic' WHEN N'STANDARD' THEN N'Standard' ELSE N'Extended' END,
@@ -25,7 +26,10 @@ SELECT p.plan_code, COALESCE((SELECT MAX(v.version) FROM dbo.subscription_plan_v
     N'One-time purchase, lifetime use. Upgrades pay the full target price.',
     0,CASE p.plan_code WHEN N'BASIC' THEN 0 WHEN N'STANDARD' THEN 499000 ELSE 999000 END,N'LIFETIME',
     p.asset_limit,p.storage_limit_bytes,10485760,0,SYSUTCDATETIME(),N'User-approved lifetime pricing, 2026-10-19'
-FROM dbo.subscription_plans p WHERE p.plan_code IN (N'BASIC',N'STANDARD',N'EXTENDED');
+FROM dbo.subscription_plans p
+CROSS APPLY (SELECT COALESCE(MAX(v.version),0) AS latest_version
+             FROM dbo.subscription_plan_versions v WHERE v.plan_code=p.plan_code) history
+WHERE p.plan_code IN (N'BASIC',N'STANDARD',N'EXTENDED');
 
 UPDATE p SET p.purchase_price_vnd=v.purchase_price_vnd,p.billing_model=N'LIFETIME',
     p.catalog_version=v.version,p.is_available=1

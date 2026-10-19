@@ -1,6 +1,6 @@
 # Bàn giao local — gói trọn đời và ảnh tài sản
 
-Repo `Abaddon8386/Legacy_Vault`, checkout `C:\Users\hai\Downloads\FALL26\SWP\Legacy_Vault`, nhánh `codex/fix-session-reload-staff-sidebar`. Thay đổi chưa commit, cùng workspace chứa các sửa auth/Staff/Beneficiary trước đó. Không cập nhật Jira theo yêu cầu người dùng; không commit/push/PR/merge.
+Đây là báo cáo trước khi tạo PR, trên repo `Abaddon8386/Legacy_Vault`, checkout `C:\Users\hai\Downloads\FALL26\SWP\Legacy_Vault`. Người dùng sau đó yêu cầu tổng hợp, commit/push và tạo PR. Xem [bàn giao PR tổng hợp](2026-10-19-consolidated-pr.md) cho nhánh và kiểm chứng sau khi tích hợp develop mới nhất. Không cập nhật Jira.
 
 ## Quyết định và thay đổi
 
@@ -18,7 +18,7 @@ Repo `Abaddon8386/Legacy_Vault`, checkout `C:\Users\hai\Downloads\FALL26\SWP\Leg
 1. Toàn suite FE cuối: **668 pass, 33 suites**, không fail/skip/cancel, 172,6 giây; lưu tại `frontend/lifetime-fe-final.log`. Bao gồm hai component test ảnh VI/EN và ba test service/adapter ảnh. Sau chỉnh nhãn tiền VI/EN cuối, tám test Admin liên quan cũng chạy lại đạt.
 2. Lượt FE tập trung cuối: **13 pass**, gồm Admin service/component và ảnh service/component. `npm run lint`, `npm run build` đạt; build còn cảnh báo chunk >500 kB như nền.
 3. BE unit/controller/contract liên quan: **64 pass**, không fail/error/skip, lưu tại `backend/lifetime-unit-final.log`.
-4. SQL Server 16 thật tại database thử **LegacyVault_PS77_Review20261019_1625**: Flyway chạy V1–V33 và validate. Suite subscription nền **23 pass**; suite mới `LifetimeImagesSqlServerTest#lifetime*` lượt cuối **5 pass**, không fail/error/skip. Log `backend/lifetime-complete-verification.log`, `backend/lifetime-sql-final.log`; XML trong `backend/target/surefire-reports`.
+4. SQL Server 16 thật tại database thử **LegacyVault_PS77_Review20261019_1625**, trước khi tích hợp develop mới: Flyway chạy đến V30 theo số migration local lúc đó và validate. Suite subscription nền **23 pass**; suite mới `LifetimeImagesSqlServerTest#lifetime*` lượt cuối **5 pass**, không fail/error/skip. Log `backend/lifetime-complete-verification.log`, `backend/lifetime-sql-final.log`. Ba migration local sau đó được đổi tên V31–V33 để tránh số đã phát hành trên develop; không sửa Flyway history của database thử cũ. Bằng chứng thử lại trên nền mới được ghi trong báo cáo PR tổng hợp.
 5. SQL mới kiểm tra HTTP multipart → Spring/JPA → SQL, ciphertext khác byte gốc, download trả byte gốc sau reauthentication, 401/403/404, usage trước/sau xóa, rollback upload hỏng, tranh chấp số ảnh, update stale, publish/retire/history, hai Admin tạo draft chỉ một thành công và báo giá không cấp quyền.
 6. `SubscriptionContractTest` parse OpenAPI và kiểm tra enum lỗi, bao gồm `ASSET_IMAGE_LIMIT_EXCEEDED`. `git diff --check` đạt.
 
@@ -31,7 +31,7 @@ Lệnh chạy lại BE unit (PowerShell trong backend):
 SQL test cần database thử riêng đã tạo, đúng prefix được guard, cùng JDBC native DLL cài trên máy; không dùng DB làm việc. Chỉ thiết lập biến cho process thử:
 
 ```powershell
-$env:PS77_SQLSERVER_TEST_DATABASE='LegacyVault_PS77_Review20261019_1625'
+$env:PS77_SQLSERVER_TEST_DATABASE='LegacyVault_PS77_PR20261019_1640'
 $env:PS77_SQLSERVER_TEST_SERVER='localhost:1433'
 .\mvnw.cmd test "-Dtest=LifetimeImagesSqlServerTest#lifetime*,SubscriptionSqlServerTest" "-DargLine=-Djava.library.path=C:/Users/hai/Downloads/sqljdbc_13.6/enu/auth/x64 -javaagent:C:/Users/hai/.m2/repository/org/mockito/mockito-core/5.23.0/mockito-core-5.23.0.jar"
 ```
