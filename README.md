@@ -97,7 +97,7 @@ $env:API_PROXY_TARGET = 'http://127.0.0.1:18178'
 npm.cmd run dev
 ```
 
-Mở URL Vite, đăng nhập bằng tài khoản **chỉ dành cho fixture**: `demo@example.test` / `SyntheticPass123`. Khởi tạo kho, rồi thêm dữ liệu minh họa qua các màn hình. Fixture lưu trong bộ nhớ; khởi động lại sẽ mất dữ liệu. Tải lại trang cần đăng nhập lại vì phiên FE giữ trong bộ nhớ. Bộ dữ liệu ảnh được chuẩn bị riêng nên fixture mới khởi động chưa có sẵn các bản ghi trong ảnh. Dừng cả hai terminal bằng Ctrl+C.
+Mở URL Vite, đăng nhập bằng tài khoản **chỉ dành cho fixture**: `demo@example.test` / `SyntheticPass123`. Khởi tạo kho, rồi thêm dữ liệu minh họa qua các màn hình. Fixture lưu trong bộ nhớ; khởi động lại sẽ mất dữ liệu. Phiên FE được giữ trong sessionStorage của tab khi tải lại trang và xác minh lại với API; phiên hết hạn hoặc đăng xuất sẽ yêu cầu đăng nhập lại. Bộ dữ liệu ảnh được chuẩn bị riêng nên fixture mới khởi động chưa có sẵn các bản ghi trong ảnh. Dừng cả hai terminal bằng Ctrl+C.
 
 Fixture chỉ phục vụ kiểm thử FE, không phải backend nghiệp vụ và không kết nối SQL Server.
 

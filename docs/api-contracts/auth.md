@@ -46,6 +46,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 - **Quyền:** đã đăng nhập. **Response 200:** như `user` ở trên. **Lỗi:** `401 UNAUTHENTICATED`.
 - Để FE khởi tạo trạng thái đăng nhập mà không giải mã JWT phía client.
+- D-API-04 cập nhật 2026-10-19: FE khôi phục phiên từ `sessionStorage` của tab sau reload và xác minh qua endpoint này trước khi hiển thị trang bảo vệ. Không gia hạn token; lỗi mạng cho phép thử lại, 401 xóa phiên. API request/response không đổi.
 
 ## Bảo mật & RBAC — PS-11
 

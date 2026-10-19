@@ -7,7 +7,7 @@ import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import { request, ApiError } from './api/http.js';
 import { readUser } from './api/contracts.js';
-import { createSession, isSessionActive } from './utils/session.js';
+import { createSession, isSessionActive, readStoredSession, storeSession } from './utils/session.js';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
@@ -381,7 +381,9 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
 export default function App() {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(readStoredSession);
+  const [restoreStatus, setRestoreStatus] = useState(() => readStoredSession() ? 'loading' : 'ready');
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditFormDirty, setIsEditFormDirty] = useState(false);
@@ -390,6 +392,7 @@ export default function App() {
   const locationRef = useRef(location);
   const historyIndexRef = useRef(0);
   const isRevertingPopStateRef = useRef(false);
+  const restoreControllerRef = useRef(null);
 
   useEffect(() => {
     isEditFormDirtyRef.current = isEditFormDirty;
@@ -416,12 +419,38 @@ export default function App() {
   }, []);
 
   const logout = useCallback(() => {
+    restoreControllerRef.current?.abort();
+    storeSession(null);
+    setRestoreStatus('ready');
     isEditFormDirtyRef.current = false;
     setIsEditFormDirty(false);
     setPendingNavigationTarget(null);
     setSession(null);
     navigateTo('/login');
   }, [navigateTo]);
+
+  useEffect(() => {
+    const candidate = readStoredSession();
+    if (!candidate) return;
+    const controller = new AbortController();
+    restoreControllerRef.current = controller;
+    request('/auth/me', { accessToken: candidate.accessToken, signal: controller.signal })
+      .then(result => {
+        if (controller.signal.aborted) return;
+        const user = readUser(result);
+        if (!isSessionActive(candidate) || user.id !== candidate.user.id) { logout(); return; }
+        setSession({ ...candidate, user });
+        setRestoreStatus('ready');
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        if (error.status === 401 || error.code === 'INVALID_AUTH_RESPONSE') logout();
+        else setRestoreStatus('error');
+      });
+    return () => controller.abort();
+  }, [logout, restoreAttempt]);
+
+  useEffect(() => { storeSession(session); }, [session]);
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -478,6 +507,17 @@ export default function App() {
     setIsRefreshing(false);
   };
   const path = location.split('?')[0];
+  if (restoreStatus !== 'ready') return (
+    <main role={restoreStatus === 'error' ? 'alert' : 'status'}>
+      <p>{restoreStatus === 'error'
+        ? (lang === 'en' ? 'Unable to verify your session. Please retry.' : 'Chưa thể xác minh phiên đăng nhập. Vui lòng thử lại.')
+        : (lang === 'en' ? 'Restoring your session…' : 'Đang khôi phục phiên đăng nhập…')}</p>
+      {restoreStatus === 'error' && <>
+        <button onClick={() => { if (!readStoredSession()) { logout(); return; } setRestoreStatus('loading'); setRestoreAttempt(value => value + 1); }}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button>
+        <button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button>
+      </>}
+    </main>
+  );
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
   const resolveAccountRoute = (basePath) => {
     const params = new URLSearchParams();

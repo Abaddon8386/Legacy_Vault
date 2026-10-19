@@ -13,7 +13,7 @@
 | D-API-01 | Base path | `/api/v1` | URL toàn hệ thống |
 | D-API-02 | Port local | Backend `8080`, Frontend `5173` | Proxy/CORS |
 | D-API-03 | FE gọi BE khi dev | **Vite proxy** là cách chính; CORS whitelist `http://localhost:5173` là phương án phụ, mặc định **tắt** (`CORS_ALLOWED_ORIGINS`) | `vite.config.js`, `SecurityConfig` |
-| D-API-04 | Nơi lưu access token ở FE | Trong bộ nhớ JS (in-memory); tải lại trang phải đăng nhập lại. **Không** dùng `localStorage`/`sessionStorage` | FE guard |
+| D-API-04 | Nơi lưu access token ở FE | Cập nhật được người dùng phê duyệt ngày 2026-10-19: giữ phiên trong `sessionStorage` của tab để hỗ trợ reload; xác minh lại bằng `/auth/me`, giữ nguyên thời điểm hết hạn, xóa khi đăng xuất/hết hạn/401. Không dùng `localStorage` | FE guard |
 | D-API-05 | Refresh token | **Không có** ở Sprint 1 (không có `/auth/refresh`). Nếu sau này thêm: cookie `HttpOnly; Secure; SameSite` + bật chống CSRF cho endpoint đó | PS-10 |
 | D-API-06 | Phân trang | `page` (từ 0), `size` (mặc định 20, tối đa 100), `sort`; envelope `content/page/size/totalElements/totalPages` | Mọi endpoint danh sách |
 | D-API-07 | Truy cập tài nguyên của người khác | `404 RESOURCE_NOT_FOUND` (không lộ sự tồn tại); thiếu role → `403 ACCESS_DENIED` | Test ownership |

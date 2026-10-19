@@ -109,6 +109,9 @@ export default function StaffShell({
             )}
           </div>
         </div>
+      </header>
+      <aside className="lv-staff-sidebar" aria-label={lang === 'en' ? 'Staff workspace' : 'Không gian làm việc Staff'}>
+        <div className="lv-staff-sidebar__title">{lang === 'en' ? 'STAFF WORKSPACE' : 'QUẢN TRỊ NGHIỆP VỤ'}</div>
         <nav className="lv-staff-header__navigation" aria-label={lang === 'en' ? 'Staff navigation' : 'Điều hướng Staff'}>
           {(onNavigateCases || onNavigateTab) && (
             <button
@@ -159,7 +162,7 @@ export default function StaffShell({
             </button>
           )}
         </nav>
-      </header>
+      </aside>
 
       {/* Main Workspace Container */}
       <main className="lv-staff-main" id="staff-main-content">
