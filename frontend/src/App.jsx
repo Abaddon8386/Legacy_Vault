@@ -1314,7 +1314,7 @@ export default function App() {
   }
   if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
   return <div className="lv-app-root">{path === '/register'
-    ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} />
+    ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} onAuthenticated={establishSession} />
     : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
       : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;
 }
