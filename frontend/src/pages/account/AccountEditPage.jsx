@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { readUser } from '../../api/contracts.js';
+import { useState, useEffect, useRef } from 'react';
 import {
   User,
   Shield,
@@ -25,6 +26,8 @@ export default function AccountEditPage({
   onCancelNavigation,
   onCancel,
   preview = false,
+  saveProfile,
+  onProfileSaved,
 }) {
   const t = accountEditI18n[lang] || accountEditI18n.vi;
 
@@ -41,6 +44,14 @@ export default function AccountEditPage({
   const [fullName, setFullName] = useState(initialData?.fullName || '');
   const [validationError, setValidationError] = useState(null);
   const [localPendingCancel, setLocalPendingCancel] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState(null);
+  const requestRef = useRef(null);
+  const pendingRef = useRef(false);
+  const saveScope = `${session?.accessToken || ''}:${initialData?.id || ''}`;
+  useEffect(() => () => { requestRef.current?.abort(); pendingRef.current = false; }, [saveScope]);
+  const [previousScope, setPreviousScope] = useState(saveScope);
+  if (previousScope !== saveScope) { setPreviousScope(saveScope); setIsSaving(false); setSaveFeedback(null); }
 
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
@@ -74,10 +85,11 @@ export default function AccountEditPage({
   const handleNameChange = (e) => {
     const val = e.target.value;
     setFullName(val);
+    setSaveFeedback(null);
 
     const validation = validateProfileEditForm({ fullName: val });
     if (!validation.isValid && validation.errors.fullName) {
-      setValidationError(t.errorFullNameRequired);
+      setValidationError('REQUIRED');
     } else {
       setValidationError(null);
     }
@@ -117,10 +129,25 @@ export default function AccountEditPage({
     }
   };
 
-  // Intercept form submit (disabled API)
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Save is strictly unavailable per contract; do nothing
+  const canSave = typeof saveProfile === 'function' && Boolean(initialData?.id);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!canSave || !dirty || pendingRef.current) return;
+    if (!validateProfileEditForm({ fullName }).isValid) { setValidationError('REQUIRED'); return; }
+    pendingRef.current = true; setIsSaving(true); setSaveFeedback(null);
+    const controller = new AbortController(); requestRef.current = controller;
+    const requestedId = initialData.id;
+    try {
+      const user = readUser(await saveProfile({ fullName: fullName.trim() }, { signal: controller.signal }));
+      if (controller.signal.aborted || requestRef.current !== controller) return;
+      if (user.id !== requestedId) throw new Error('MISMATCHED_PROFILE');
+      setFullName(user.fullName); setSaveFeedback('success');
+      onProfileSaved?.(user);
+    } catch {
+      if (!controller.signal.aborted) setSaveFeedback('error');
+    } finally {
+      if (requestRef.current === controller) { pendingRef.current = false; requestRef.current = null; if (!controller.signal.aborted) setIsSaving(false); }
+    }
   };
 
   const isModalOpen = Boolean(pendingNavigation || localPendingCancel);
@@ -143,13 +170,16 @@ export default function AccountEditPage({
       </header>
 
       {/* Contract Notice Callout */}
-      <div className="lv-notice-callout" role="note">
+      {!canSave && <div className="lv-notice-callout" role="note">
         <Info size={18} className="lv-notice-callout__icon" aria-hidden="true" />
         <div className="lv-notice-callout__text">
           <span className="lv-notice-callout__title">{t.unavailableNotice}</span>
           <span>{t.unavailableExplanation}</span>
         </div>
       </div>
+
+      }
+      {saveFeedback && <p role={saveFeedback === 'error' ? 'alert' : 'status'}>{saveFeedback === 'success' ? t.saveSuccess : t.saveError}</p>}
 
       {/* Main Form Content */}
       {initialData ? (
@@ -172,13 +202,14 @@ export default function AccountEditPage({
                 value={fullName}
                 onChange={handleNameChange}
                 placeholder={t.fullNamePlaceholder}
+                disabled={isSaving}
                 autoComplete="name"
                 aria-invalid={Boolean(validationError)}
                 aria-describedby={validationError ? 'lv-fullname-error' : undefined}
               />
               {validationError && (
                 <p id="lv-fullname-error" className="lv-form-error" role="alert">
-                  {validationError}
+                  {t.errorFullNameRequired}
                 </p>
               )}
             </div>
@@ -236,6 +267,7 @@ export default function AccountEditPage({
               <button
                 type="button"
                 className="lv-btn lv-btn-secondary"
+                disabled={isSaving}
                 onClick={handleCancelClick}
                 aria-label={t.btnCancel}
               >
@@ -246,7 +278,7 @@ export default function AccountEditPage({
                 type="button"
                 className="lv-btn lv-btn-secondary"
                 onClick={handleReset}
-                disabled={!dirty}
+                disabled={!dirty || isSaving}
                 aria-label={t.btnReset}
               >
                 <RotateCcw size={15} aria-hidden="true" />
@@ -256,11 +288,11 @@ export default function AccountEditPage({
               <button
                 type="submit"
                 className="lv-btn lv-btn-primary"
-                disabled
-                title={t.unavailableNotice}
-                aria-label={t.unavailableNotice}
+                disabled={!canSave || !dirty || isSaving}
+                title={!canSave ? t.unavailableNotice : undefined}
+                aria-label={canSave ? t.btnSave : t.unavailableNotice}
               >
-                <span>{t.btnSave}</span>
+                <span>{isSaving ? t.btnSaving : t.btnSave}</span>
               </button>
             </div>
           </form>
