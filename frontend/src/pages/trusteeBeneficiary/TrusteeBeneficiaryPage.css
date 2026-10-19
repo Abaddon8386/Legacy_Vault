@@ -81,3 +81,6 @@
 .lv-tb-dialog .lv-tb-form{margin:0;border:0;padding:0}
 .lv-tb-section-header>.lv-tb-btn-primary{order:1;flex-shrink:0}
 @media(max-width:540px){.lv-tb-dialog{padding:20px}.lv-tb-section-header>.lv-tb-btn-primary{width:100%}}
+
+.lv-tb-page .lv-tb-edit-backdrop{position:fixed;inset:0;z-index:1000;background:#0c2b2277;display:flex;align-items:center;justify-content:center;padding:16px}
+.lv-tb-page .lv-tb-edit-backdrop>.lv-tb-dialog{position:relative;inset:auto;margin:0}
