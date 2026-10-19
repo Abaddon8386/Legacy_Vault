@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
 import { AlertCircle, Lock, KeyRound, FileText } from 'lucide-react'
@@ -23,11 +23,18 @@ export function AssetEditModal({
   t,
   isSubmitting = false,
   errorKey,
+  verifyPassword,
 }) {
   const [name, setName] = useState(asset?.name || '')
   const [description, setDescription] = useState(asset?.description || '')
   const [payload, setPayload] = useState('')
   const [errors, setErrors] = useState({})
+  const [password, setPassword] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const verification = useRef(null), pending = useRef(false)
+  useEffect(() => () => { verification.current?.abort() }, [asset?.id, isOpen])
+  const busy = isSubmitting || verifying
+  const canVerify = typeof verifyPassword === 'function'
 
   function validate() {
     const errs = {}
@@ -47,9 +54,9 @@ export function AssetEditModal({
     return Object.keys(errs).length === 0
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (isSubmitting || !validate()) return
+    if (busy || pending.current || !validate()) return
 
     const patchData = {}
     if (name.trim() !== asset.name) patchData.name = name.trim()
@@ -60,17 +67,33 @@ export function AssetEditModal({
       return
     }
 
-    onSubmit(asset.id, patchData)
+    if (!canVerify) return
+    if (!password) { setErrors({ password: 'required' }); return }
+    pending.current = true; setVerifying(true)
+    const controller = new AbortController(); verification.current = controller
+    try {
+      const confirmed = await verifyPassword(password, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      if (confirmed !== true) throw new Error('REAUTH_FAILED')
+      setPassword('')
+      await onSubmit(asset.id, patchData)
+    } catch {
+      if (!controller.signal.aborted) { setErrors({ password: 'failed' }); setPassword('') }
+    } finally {
+      pending.current = false
+      if (!controller.signal.aborted) setVerifying(false)
+    }
   }
 
   function handleResetAndClose() {
-    if (isSubmitting) return
+    if (busy) return
     setPayload('')
+    setPassword('')
     setErrors({})
     onClose()
   }
 
-  const dialogRef = useModalFocus(isOpen, handleResetAndClose, isSubmitting)
+  const dialogRef = useModalFocus(isOpen, handleResetAndClose, busy)
 
   if (!isOpen || !asset) return null
 
@@ -101,7 +124,7 @@ export function AssetEditModal({
             className="lv-modal__close-btn"
             onClick={handleResetAndClose}
             aria-label={t.assets.closeBtn}
-            disabled={isSubmitting}
+            disabled={busy}
           >
             ✕
           </button>
@@ -152,7 +175,7 @@ export function AssetEditModal({
                 setName(e.target.value)
                 if (errors.name || errors.noChanges) setErrors((prev) => ({ ...prev, name: undefined, noChanges: false }))
               }}
-              disabled={isSubmitting}
+              disabled={busy}
             />
             {errors.name && (
               <p className="lv-form-error" role="alert">
@@ -173,7 +196,7 @@ export function AssetEditModal({
               placeholder={t.assets.editModal.payloadPlaceholder}
               value={payload}
               onChange={(e) => { setPayload(e.target.value); if (errors.noChanges) setErrors(prev => ({ ...prev, noChanges: false })) }}
-              disabled={isSubmitting}
+              disabled={busy}
             />
             <span className="lv-form-hint">
               <Lock size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
@@ -197,7 +220,7 @@ export function AssetEditModal({
                 setDescription(e.target.value)
                 if (errors.description || errors.noChanges) setErrors((prev) => ({ ...prev, description: undefined, noChanges: false }))
               }}
-              disabled={isSubmitting}
+              disabled={busy}
             />
             {errors.description && (
               <p className="lv-form-error" role="alert">
@@ -206,18 +229,26 @@ export function AssetEditModal({
             )}
           </div>
 
+          <div className="lv-form-group">
+            <label htmlFor="edit-confirm-password" className="lv-form-label">{t.assets.editModal.confirmPasswordLabel}</label>
+            <input id="edit-confirm-password" className="lv-form-input" type="password" autoComplete="current-password" maxLength={72}
+              disabled={busy} value={password} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'edit-password-error' : undefined}
+              onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: undefined })) }} />
+            {errors.password && <p id="edit-password-error" className="lv-form-error" role="alert">{errors.password === 'required' ? t.assets.editModal.passwordRequired : t.assets.editModal.passwordFailed}</p>}
+            {!canVerify && <p className="lv-form-hint" role="status">{t.assets.editModal.passwordUnavailable}</p>}
+          </div>
           {/* Actions */}
           <div className="lv-form-actions">
             <Button
               variant="secondary"
               type="button"
               onClick={handleResetAndClose}
-              disabled={isSubmitting}
+              disabled={busy}
             >
               {t.assets.editModal.cancelBtn}
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmitting}>
-              {isSubmitting ? t.assets.editModal.submittingBtn : t.assets.editModal.submitBtn}
+            <Button variant="primary" type="submit" isLoading={busy} disabled={!canVerify}>
+              {busy ? t.assets.editModal.submittingBtn : t.assets.editModal.submitBtn}
             </Button>
           </div>
         </form>
