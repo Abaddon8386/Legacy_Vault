@@ -122,6 +122,8 @@ test('PS-49 refresh reloads the selected dossier and clears the prior decision',
 });
 
 async function mount(Component, props) {
+  // Each mount in this suite represents an independent browser session.
+  window.sessionStorage.clear();
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);

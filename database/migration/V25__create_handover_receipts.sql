@@ -52,6 +52,7 @@ CREATE TABLE dbo.handover_receipt_assets (
 );
 
 CREATE INDEX IX_handover_receipt_assets_receipt ON dbo.handover_receipt_assets(handover_receipt_id);
+GO
 
 /* Receipts and their asset snapshots are historical evidence; updates/deletes are forbidden. */
 CREATE TRIGGER dbo.TR_handover_receipts_immutable

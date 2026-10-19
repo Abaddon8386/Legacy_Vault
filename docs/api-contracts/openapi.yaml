@@ -1819,6 +1819,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: 'D-API-04 (2026-10-19): FE keeps the tab session in sessionStorage and revalidates with /auth/me after reload; logout, expiry or HTTP 401 clears the session. No token refresh.'
 
   parameters:
     VaultId:

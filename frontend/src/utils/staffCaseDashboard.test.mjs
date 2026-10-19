@@ -74,6 +74,8 @@ const modalMod = await loadComponentModule('src/pages/staff/StaffCaseDetailModal
 const StaffCaseDetailModal = modalMod.default;
 
 async function mount(Component, props) {
+  // Each mount in this suite represents an independent browser session.
+  window.sessionStorage.clear();
   const host = document.createElement('div');
   document.body.append(host);
   const root = createRoot(host);
