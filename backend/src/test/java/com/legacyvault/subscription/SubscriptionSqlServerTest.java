@@ -315,11 +315,14 @@ class SubscriptionSqlServerTest {
     void retainedVaultCannotBeRecreatedRegardlessOfStatusOrSoftDeletedOwner() throws Exception {
         createVault(owner);
         for (String state : List.of("CLOSED", "ARCHIVED", "DELETED")) {
-            // Raw states exercise status-independent uniqueness, not new application workflows.
-            jdbc.update("UPDATE dbo.vaults SET status = ? WHERE owner_user_id = ?", state, owner.id());
-            mvc.perform(post("/api/v1/vaults").with(as(owner, "VAULT_OWNER"))
+            // Each retained Vault is independent: V30 correctly forbids changing ARCHIVED back to another state.
+            Owner retained = newOwner();
+            createVault(retained);
+            jdbc.update("UPDATE dbo.vaults SET status = ? WHERE owner_user_id = ?", state, retained.id());
+            mvc.perform(post("/api/v1/vaults").with(as(retained, "VAULT_OWNER"))
                     .contentType("application/json").content("{\"name\":\"Again\"}"))
                     .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("VAULT_ALREADY_EXISTS"));
+            assertEquals(1, vaultCount(retained));
         }
         jdbc.update("UPDATE dbo.users SET deleted_at = SYSUTCDATETIME() WHERE user_id = ?", owner.id());
         mvc.perform(post("/api/v1/vaults").with(as(owner, "VAULT_OWNER"))

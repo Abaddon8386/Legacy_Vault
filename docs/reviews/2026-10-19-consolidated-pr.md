@@ -35,7 +35,13 @@ Không sửa các migration V1–V30 đã có trên develop; không repair/reset
 
 FE trước bước tích hợp backend: 668 test pass, 33 suites; lint/build đạt. Sau nhãn tiền VI/EN cuối, tám test Admin được chạy lại đạt. Bước merge develop không thay source FE. Build còn cảnh báo chunk >500 kB.
 
-BE và SQL Server sau tích hợp develop: kết quả ghi bổ sung sau lượt chạy cuối.
+BE sau tích hợp develop: `mvnw.cmd clean test` đạt **649 tổng, 511 chạy pass, 138 skip theo điều kiện môi trường; 0 failure/error**. Smoke context được cấu hình bằng DB/khóa test ngoài source. Log local `backend/pr-clean-tests-final.log`.
+
+SQL Server 16 thật trong database mới `LegacyVault_PS77_PRSql20261019`: **28/28 pass**, 0 skip/failure/error, gồm 23 regression subscription và 5 test mới về ảnh/Admin/báo giá. Flyway validate 34 migration files (V1–V33 gồm V5_1). Đã xác minh version giá mới vượt version-2 catalog cũ, báo giá cũ bị stale. Log local `backend/pr-sql-verified.log`; XML trong `backend/target/surefire-reports`.
+
+Fixture kiểm tra một kho trọn đời dùng kho độc lập cho từng trạng thái CLOSED/ARCHIVED/DELETED, không sửa kho ARCHIVED trở lại trạng thái khác. Không vô hiệu hóa trigger hoặc nới quyền để làm test đạt. Lớp SQL mới có guard môi trường riêng để không tự kết nối DB khi thiếu cấu hình.
+
+Khi đổi số migration cần `mvnw.cmd clean` để xóa các bản copy số cũ trong `target/classes/db/migration`; không repair history database. Hai database thử mới dùng cho smoke và SQL được tách khỏi database cũ có số local V28–V30 trước tích hợp.
 
 Browser tool không kết nối được localhost nên không có screenshot/browser E2E. Test component là JSDOM; HTTP → BE → SQL Server là MockMvc với service/JPA/database thật, không mô tả chúng là browser E2E.
 
