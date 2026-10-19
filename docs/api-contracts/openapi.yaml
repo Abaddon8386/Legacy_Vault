@@ -1813,6 +1813,138 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiary-confirmations:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: PS-67 Staff reads explicit recipient confirmations
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/BeneficiaryConfirmationResponse' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiaries/{beneficiaryId}/confirmation:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: PS-67 Staff records separate confirmation after all recipient allocations delivered
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmBeneficiaryRequest' }
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryConfirmationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/asset-completion:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: PS-68 Whole approved asset scope completion
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompletionProgressResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/beneficiary-completion:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: PS-69 Explicit confirmation completion
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompletionProgressResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/completion-progress:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: PS-70 Atomic dual gate from one locked snapshot
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverCompletionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/close:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: PS-71 Close after atomic dual completion gate
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverCloseResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/archive:
+    parameters:
+      - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      summary: PS-72 Archive Vault and close case atomically after completion and receipt coverage
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Success; ownership and current approval checked on server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandoverArchiveResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 components:
   securitySchemes:
     bearerAuth:
@@ -1949,6 +2081,52 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    HandoverArchiveResponse:
+      type: object
+      properties:
+        vaultId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        vaultStatus: { type: string, enum: [ARCHIVED] }
+        caseStatus: { type: string, enum: [CLOSED] }
+        archivedAt: { type: string, format: date-time }
+    HandoverCloseResponse:
+      type: object
+      properties:
+        sessionId: { type: string, format: uuid }
+        status: { type: string, enum: [COMPLETED] }
+        closedAt: { type: string, format: date-time }
+    HandoverCompletionResponse:
+      type: object
+      required: [assets, beneficiaries, ready, reason]
+      properties:
+        assets: { $ref: '#/components/schemas/CompletionProgressResponse' }
+        beneficiaries: { $ref: '#/components/schemas/CompletionProgressResponse' }
+        ready: { type: boolean }
+        reason: { type: string, enum: [READY, ASSETS_PENDING, BENEFICIARIES_PENDING, BOTH_PENDING, EMPTY_SCOPE] }
+    CompletionProgressResponse:
+      type: object
+      required: [completed, total, pending, complete]
+      properties:
+        completed: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        complete: { type: boolean }
+    ConfirmBeneficiaryRequest:
+      type: object
+      required: [receiptReference]
+      properties:
+        receiptReference: { type: string, minLength: 1, maxLength: 200 }
+    BeneficiaryConfirmationResponse:
+      type: object
+      properties:
+        confirmationId: { type: string, format: uuid, nullable: true }
+        sessionId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, CONFIRMED] }
+        confirmedBy: { type: string, format: uuid, nullable: true }
+        confirmedAt: { type: string, format: date-time, nullable: true }
+        receiptReference: { type: string, nullable: true }
     LegalApprovalRequest:
       type: object
       additionalProperties: false
@@ -2155,6 +2333,9 @@ components:
             - HANDOVER_RECIPIENT_NOT_ELIGIBLE
             - HANDOVER_ASSET_NOT_ELIGIBLE
             - HANDOVER_ASSET_ALREADY_DELIVERED
+            - HANDOVER_COMPLETION_PENDING
+            - HANDOVER_CONFIRMATION_PENDING_DELIVERY
+            - HANDOVER_CONFIRMATION_CONFLICT
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE
@@ -2357,7 +2538,7 @@ components:
       properties:
         deathDocumentPublicId: { type: string, format: uuid }
         verificationCasePublicId: { type: string, format: uuid }
-        verificationCaseStatus: { type: string, enum: [OPEN, CANCELLED] }
+        verificationCaseStatus: { type: string, enum: [OPEN, CANCELLED, CLOSED] }
         vaultStatus: { type: string }
         document:
           type: object

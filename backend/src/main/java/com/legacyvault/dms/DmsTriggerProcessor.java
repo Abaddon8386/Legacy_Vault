@@ -3,7 +3,6 @@ package com.legacyvault.dms;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,17 +19,20 @@ public class DmsTriggerProcessor {
 	private final VaultRepository vaults;
 	private final VerificationCaseRepository verificationCases;
 	private final AuditService audit;
+	private final com.legacyvault.verification.service.LegalBasisLockedState state;
 
 	public DmsTriggerProcessor(
 			DmsConfigRepository configs,
 			VaultRepository vaults,
 			VerificationCaseRepository verificationCases,
-			AuditService audit
+			AuditService audit,
+			com.legacyvault.verification.service.LegalBasisLockedState state
 	) {
 		this.configs = configs;
 		this.vaults = vaults;
 		this.verificationCases = verificationCases;
 		this.audit = audit;
+		this.state = state;
 	}
 
 	/**
@@ -48,19 +50,18 @@ public class DmsTriggerProcessor {
 			return;
 		}
 
+		// Same Vault -> DMS order as archive/cancel; check fresh state before business writes or log INSERTs.
+		Vault vault = vaults.findByOwnerUserIdForUpdate(config.getOwnerUserId()).orElse(null);
+		if (vault != null) {
+			state.refresh(vault);
+			if (Vault.STATUS_ARCHIVED.equals(vault.getStatus())) return;
+		}
 		LocalDateTime deadline = now.plusDays(config.getGracePeriodDays());
 
 		int updated = configs.triggerIfExpired(configId, now, deadline);
 		if (updated != 1) {
 			return;
 		}
-
-		Vault vault = vaults
-				.findByOwnerUserId(config.getOwnerUserId(), PageRequest.of(0, 1))
-				.getContent()
-				.stream()
-				.findFirst()
-				.orElse(null);
 
 		audit.record(null,
 				vault == null ? null : vault.getVaultId(),
@@ -105,8 +106,10 @@ public class DmsTriggerProcessor {
 		if (vault == null) {
 			return;
 		}
+		state.refresh(vault);
 
 		DmsConfig config = configs.findByIdForUpdate(configId).orElse(null);
+		if (config != null) state.refresh(config);
 
 		if (config == null || !config.isGracePeriodExpired(now)) {
 			return;

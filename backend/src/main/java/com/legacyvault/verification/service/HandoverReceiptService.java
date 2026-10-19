@@ -46,11 +46,13 @@ public class HandoverReceiptService {
     private final LegalBasisDossierVersionRepository versions;
     private final LegalBasisVersionAllocationRepository allocations;
     private final AuditService audit;
+    private final com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository evidence;
 
     public HandoverReceiptService(VerificationCaseRepository cases, HandoverSessionRepository sessions,
             HandoverReceiptRepository receipts, HandoverReceiptAssetRepository receiptAssets,
             LegalWorkflowGuard workflow, LegalBasisDossierVersionRepository versions,
-            LegalBasisVersionAllocationRepository allocations, AuditService audit) {
+            LegalBasisVersionAllocationRepository allocations, AuditService audit,
+            com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository evidence) {
         this.cases = cases;
         this.sessions = sessions;
         this.receipts = receipts;
@@ -59,6 +61,7 @@ public class HandoverReceiptService {
         this.versions = versions;
         this.allocations = allocations;
         this.audit = audit;
+        this.evidence = evidence;
     }
 
     @Transactional
@@ -86,11 +89,15 @@ public class HandoverReceiptService {
                         sessionPublicId, verificationCase.getVerificationCaseId(), staffId)
                 .orElseThrow(HandoverReceiptService::notFound);
         if (session.getStatus() != HandoverSessionStatus.COMPLETED) throw invalidState();
-        requireCompletionEvidence();
+        var proof = evidence.findBySessionId(session.getId()).orElseThrow(HandoverReceiptService::invalidState);
 
         int currentVersionNo = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         var currentVersion = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), currentVersionNo)
                 .orElseThrow(HandoverReceiptService::invalidState);
+        if (!java.util.Objects.equals(proof.getVersionId(), currentVersion.id())
+                || !java.util.Objects.equals(proof.getSha256(), currentVersion.sha256())
+                || !java.util.Objects.equals(proof.getScopeHash(), dossier.getLastReviewedAllocationHash()))
+            throw invalidState();
         List<ReceiptAllocationRow> currentRows = allocations.findReceiptRowsByDossier(dossier.getLegalBasisDossierId())
                 .stream().filter(row -> row.versionNo() == currentVersionNo).toList();
         if (currentRows.isEmpty()) throw new BusinessException(ErrorCode.HANDOVER_RECEIPT_ASSET_NOT_ALLOCATED);
@@ -189,14 +196,6 @@ public class HandoverReceiptService {
         return new BusinessException(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
     }
 
-    /**
-     * PS-64/65/66/67/68/69/70/71 evidence is not available on this branch.
-     * A terminal session status alone is not proof that every approved asset was delivered and every
-     * beneficiary confirmed. Keep receipt issuance closed until those authoritative gates are integrated.
-     */
-    private static void requireCompletionEvidence() {
-        throw invalidState();
-    }
 
     private static BusinessException notFound() {
         return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);

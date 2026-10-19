@@ -8,6 +8,9 @@ package com.legacyvault.common.error;
  * docs/api-contracts/error-contract.md trong cùng PR.
  */
 public enum ErrorCode {
+	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
+	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),
+	HANDOVER_CONFIRMATION_CONFLICT(409, "error.handoverConfirmation.conflict"),
 	VALIDATION_FAILED(400, "error.validation.failed"),
 	MALFORMED_REQUEST(400, "error.request.malformed"),
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),

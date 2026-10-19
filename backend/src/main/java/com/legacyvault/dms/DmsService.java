@@ -46,7 +46,7 @@ public class DmsService {
 	public DmsDtos.Response configure(DmsDtos.ConfigureRequest request) {
 		User owner = owners.requireOwner();
 		Vault vault = ownerVault(owner.getUserId());
-		vaultService.requireEditableVault(vault.getPublicId(), owner.getUserId());
+		vaultService.requireEditableVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		if (beneficiaries.countByVault_VaultId(vault.getVaultId()) < 1) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_REQUIRED);
 		}
@@ -88,6 +88,8 @@ public class DmsService {
 	@Transactional
 	public DmsDtos.Response checkIn() {
 		User owner = owners.requireOwner();
+		Vault vault = ownerVault(owner.getUserId());
+		vaultService.requireNotArchivedVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		if (!"MONITORING".equals(config.getStatus())) {
@@ -96,7 +98,7 @@ public class DmsService {
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 		config.checkIn(now);
 		config = configs.saveAndFlush(config);
-		Long vaultId = ownerVault(owner.getUserId()).getVaultId();
+		Long vaultId = vault.getVaultId();
 		audit.record(owner.getUserId(), vaultId, "DMS_CHECKED_IN", "DMS_CONFIG", config.getId(), "USER",
 				Map.of("stateBefore", "MONITORING", "stateAfter", "MONITORING", "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
 		return DmsDtos.Response.from(owner.getPublicId(), config);

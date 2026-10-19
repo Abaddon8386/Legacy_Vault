@@ -31,7 +31,8 @@ class DmsGracePeriodProcessorTest {
         audit = mock(AuditService.class);
 
         processor = new DmsTriggerProcessor(
-                configs, vaults, verificationCases, audit
+                configs, vaults, verificationCases, audit,
+                mock(com.legacyvault.verification.service.LegalBasisLockedState.class)
         );
     }
 

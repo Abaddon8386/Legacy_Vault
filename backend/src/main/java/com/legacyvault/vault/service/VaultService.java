@@ -144,13 +144,23 @@ public class VaultService {
      * Re-read status after locking: a cached ACTIVE entity cannot bypass a committed freeze/hold. */
     @Transactional(propagation = Propagation.MANDATORY)
     public Vault requireEditableVaultForUpdate(UUID vaultId, Long ownerUserId) {
+        Vault vault = requireNotArchivedVaultForUpdate(vaultId, ownerUserId);
+        if (!EDITABLE_STATUS.equals(vault.getStatus())) {
+            throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
+        }
+        return vault;
+    }
+
+    /** DMS check-in retains its existing MONITORING policy, but cannot append logs after archive. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Vault requireNotArchivedVaultForUpdate(UUID vaultId, Long ownerUserId) {
         Vault vault = vaultRepository.findOwnedVaultForUpdate(vaultId, ownerUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         entities.refresh(vault);
         if (!ownerUserId.equals(vault.getOwnerUserId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
-        if (!EDITABLE_STATUS.equals(vault.getStatus())) {
+        if (Vault.STATUS_ARCHIVED.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.VAULT_NOT_EDITABLE);
         }
         return vault;

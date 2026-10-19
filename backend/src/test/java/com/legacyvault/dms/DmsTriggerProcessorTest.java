@@ -33,14 +33,14 @@ class DmsTriggerProcessorTest {
 		when(config.getGracePeriodDays()).thenReturn(1);
 		when(config.getOwnerUserId()).thenReturn(6L);
 		when(configs.triggerIfExpired(81L, now, now.plusDays(1))).thenReturn(1);
-		when(vaults.findByOwnerUserId(eq(6L), org.mockito.ArgumentMatchers.any()))
-				.thenReturn(new PageImpl<>(List.of(vault)));
+		when(vaults.findByOwnerUserIdForUpdate(6L)).thenReturn(Optional.of(vault));
 		when(vault.getVaultId()).thenReturn(19L);
 		VerificationCaseRepository verificationCases =
 				mock(VerificationCaseRepository.class);
 
 		DmsTriggerProcessor processor =
-				new DmsTriggerProcessor(configs, vaults, verificationCases, audit);
+				new DmsTriggerProcessor(configs, vaults, verificationCases, audit,
+				        mock(com.legacyvault.verification.service.LegalBasisLockedState.class));
 
 		processor.triggerIfExpired(81L, now);
 
