@@ -27,6 +27,10 @@ public class SubscriptionPlan {
     @Column(name = "file_limit_bytes")
     private long fileLimitBytes;
 
+    @Column(name="is_available")
+    private boolean available = true;
+    public boolean isAvailable() { return available; }
+
     protected SubscriptionPlan() {}
 
     public String getCode() { return code; }

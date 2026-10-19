@@ -30,6 +30,24 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class StaffVerificationCaseServiceTest {
 
+    @Test
+    void detailReturnsHumanReferenceAlongsideOriginalUuid() {
+        var item = mock(VerificationCase.class);
+        var vault = mock(com.legacyvault.vault.entity.Vault.class);
+        var owner = mock(com.legacyvault.user.entity.User.class);
+        UUID caseId = UUID.randomUUID();
+        when(caseRepository.findViewableCaseByPublicId(caseId, 10L)).thenReturn(Optional.of(item));
+        when(item.getVaultId()).thenReturn(20L);
+        when(item.getPublicId()).thenReturn(caseId);
+        when(item.getCaseNumber()).thenReturn("HS-2026-000123");
+        when(vaultRepository.findById(20L)).thenReturn(Optional.of(vault));
+        when(vault.getOwnerUserId()).thenReturn(30L);
+        when(userRepository.findById(30L)).thenReturn(Optional.of(owner));
+        var result = service.getCase(caseId, staff);
+        assertEquals(caseId, result.caseId());
+        assertEquals("HS-2026-000123", result.caseNumber());
+    }
+
     @Mock
     private VerificationCaseRepository caseRepository;
 

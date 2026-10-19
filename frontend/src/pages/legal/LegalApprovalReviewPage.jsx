@@ -1,5 +1,6 @@
+import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
-import { Scale, ShieldCheck, Globe, RefreshCw, LogOut, Sparkles, FileText, Hash, AlertTriangle, CheckCircle2, AlertCircle, Eye, Layers, Info } from 'lucide-react';
+import { Scale, ShieldCheck, RefreshCw, LogOut, Sparkles, FileText, Hash, AlertTriangle, CheckCircle2, AlertCircle, Eye, Layers, Info } from 'lucide-react';
 import { Button } from '../../components/common/Button.jsx';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { getLegalApprovalTranslations } from './legalApprovalI18n.js';
@@ -330,16 +331,7 @@ function ApprovalReviewContent({
               <span>{t.roleBadge}</span>
             </div>
 
-            <button
-              type="button"
-              className="lv-legal-approval-btn"
-              onClick={() => onToggleLang?.(lang === 'vi' ? 'en' : 'vi')}
-              aria-label={lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
-              title={lang === 'vi' ? 'English' : 'Tiếng Việt'}
-            >
-              <Globe size={15} aria-hidden="true" />
-              <span>{lang.toUpperCase()}</span>
-            </button>
+            <LanguageToggle lang={lang} onToggleLang={onToggleLang} />
 
             {onRefresh && (
               <button

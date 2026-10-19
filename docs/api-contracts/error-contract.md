@@ -85,6 +85,7 @@ Lỗi validation:
 | `BASIS_VERSION_STALE` | 409 | Phiên bản được chuyển không phải phiên bản mới nhất của hồ sơ (PS-42) |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
+| `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
 | `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
 | `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
 | `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |

@@ -1,3 +1,4 @@
+import LanguageToggle from '../common/LanguageToggle.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MagneticButton from '../common/MagneticButton.jsx';
 import {
@@ -48,7 +49,7 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'beneficiaries',
     jiraTicket: 'PS-8',
-    labelVi: 'Người thụ hưởng & Người giám hộ',
+    labelVi: 'Người thụ hưởng & Người thi hành bên ngoài',
     labelEn: 'Beneficiaries & Trustees',
     status: 'ACTIVE',
   },
@@ -201,6 +202,8 @@ export default function AppShell({
 
   const isStaff = role === 'STAFF';
   const isLegal = role === 'LEGAL';
+  const isBeneficiary = role === 'BENEFICIARY';
+  const isAdmin = role === 'ADMIN';
 
   const content = {
     vi: {
@@ -274,7 +277,28 @@ export default function AppShell({
   };
 
   const t = content[lang] || content.vi;
-  const navList = isStaff
+  if (isAdmin) {
+    t.brandTag = lang === 'en' ? 'Administrator account' : 'Tài khoản quản trị';
+    t.navSectionTitle = lang === 'en' ? 'ADMINISTRATION' : 'QUẢN TRỊ';
+    t.breadcrumbHome = lang === 'en' ? 'Administration' : 'Quản trị';
+    t.breadcrumbCurrent = currentTab === 'admin-subscriptions' ? (lang === 'en' ? 'Subscription management' : 'Quản lý gói sử dụng') : (lang === 'en' ? 'Overview' : 'Tổng quan');
+    t.roleBadge = lang === 'en' ? 'Administrator' : 'Quản trị viên';
+  }
+  if (isBeneficiary) {
+    t.brandTag = lang === 'en' ? 'Beneficiary account' : 'Tài khoản người thụ hưởng';
+    t.navSectionTitle = lang === 'en' ? 'BENEFICIARY' : 'NGƯỜI THỤ HƯỞNG';
+    t.breadcrumbHome = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
+    t.breadcrumbCurrent = lang === 'en' ? 'Account information' : 'Thông tin tài khoản';
+    t.roleBadge = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
+  }
+  const navList = isAdmin
+    ? [
+        { id: 'admin-home', labelVi: 'Tổng quan quản trị', labelEn: 'Administration overview', status: 'ACTIVE' },
+        { id: 'admin-subscriptions', labelVi: 'Quản lý gói sử dụng', labelEn: 'Subscription management', status: 'ACTIVE' },
+      ]
+    : isBeneficiary
+    ? [{ id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary information', status: 'ACTIVE' }]
+    : isStaff
     ? STAFF_NAVIGATION_REGISTRY
     : isLegal
       ? LEGAL_NAVIGATION_REGISTRY
@@ -713,7 +737,7 @@ export default function AppShell({
                             ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
                             : t.breadcrumbCurrent
                   : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
-                    ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
+                    ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người thi hành bên ngoài')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')
                       : currentTab === 'assets'
@@ -746,24 +770,7 @@ export default function AppShell({
             )}
 
             {/* Language Toggle Pill */}
-            <div className="lv-shell-lang-toggle" role="group" aria-label="Ngôn ngữ / Language">
-              <button
-                type="button"
-                className={`lv-lang-btn ${lang === 'vi' ? 'is-active' : ''}`}
-                onClick={() => onToggleLang && onToggleLang('vi')}
-                aria-pressed={lang === 'vi'}
-              >
-                VI
-              </button>
-              <button
-                type="button"
-                className={`lv-lang-btn ${lang === 'en' ? 'is-active' : ''}`}
-                onClick={() => onToggleLang && onToggleLang('en')}
-                aria-pressed={lang === 'en'}
-              >
-                EN
-              </button>
-            </div>
+            <LanguageToggle lang={lang} onToggleLang={onToggleLang} />
           </div>
         </header>
 

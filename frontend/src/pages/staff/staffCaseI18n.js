@@ -68,7 +68,7 @@ export const STAFF_CASE_I18N = {
         relationship: 'Mối quan hệ với chủ sở hữu (Đề xuất)',
         relationshipOptions: {
           select: '-- Chọn mối quan hệ --',
-          TRUSTEE: 'Người giám hộ / Trustee chỉ định',
+          TRUSTEE: 'Người thi hành bên ngoài / Trustee chỉ định',
           FAMILY_MEMBER: 'Thân nhân / Thành viên gia đình',
           LEGAL_REPRESENTATIVE: 'Đại diện theo pháp luật',
           OTHER: 'Mối quan hệ khác',

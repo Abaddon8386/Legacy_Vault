@@ -57,6 +57,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/vaults/**").hasRole("VAULT_OWNER")
 						.requestMatchers("/api/v1/trustees/**").hasRole("VAULT_OWNER")
 						.requestMatchers("/api/v1/dms/**").hasRole("VAULT_OWNER")
+						.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated())
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(entryPoint)

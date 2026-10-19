@@ -24,7 +24,7 @@ async function mount(Component, props) {
   await act(async () => root.render(React.createElement(Component, props)));
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
-test('Landing renders six 3D faces, supports pause and language, and navigates through callbacks', async () => {
+test('Landing renders six decorative 3D faces without playback controls, supports language and navigation', async () => {
   const Landing = await component(false, 'src/pages/landing/LandingPage.jsx');
   let login = 0; let register = 0;
   const view = await mount(Landing, { onLogin: () => login++, onRegister: () => register++ });
@@ -34,11 +34,7 @@ test('Landing renders six 3D faces, supports pause and language, and navigates t
     await act(async () => view.host.querySelector('.lv-landing-login').click());
     await act(async () => view.host.querySelector('.lv-landing-primary').click());
     assert.equal(login, 1); assert.equal(register, 1);
-    const pause = view.host.querySelector('.lv-landing-art-footer button');
-    await act(async () => pause.click());
-    assert.ok(view.host.querySelector('.lv-landing-float.is-paused'));
-    await act(async () => pause.click());
-    assert.equal(view.host.querySelector('.lv-landing-float.is-paused'), null);
+    assert.equal(view.host.querySelector('.lv-landing-art-footer button'), null);
     await act(async () => view.host.querySelector('.lv-landing-language').click());
     assert.match(view.host.querySelector('h1').textContent, /A lifetime of stories/);
     assert.match(view.host.querySelector('#plans').textContent, /Proposed plans for reference/);

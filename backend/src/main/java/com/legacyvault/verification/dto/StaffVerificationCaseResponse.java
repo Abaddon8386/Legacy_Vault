@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record StaffVerificationCaseResponse(
         UUID caseId,
+        String caseNumber,
         String status,
         LocalDateTime triggeredAt,
         LocalDateTime closedAt,

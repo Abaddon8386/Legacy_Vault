@@ -372,10 +372,14 @@ test('PS-25 Shell: StaffShell renders header, role badge, language toggle, and l
   let toggledLang = null;
   let loggedOut = false;
   let refreshed = false;
+  let profileOpened = false;
 
   const view = await mount(StaffShell, {
     lang: 'vi',
     isPreview: true,
+    session: { accessToken: 'synthetic-staff-menu', expiresAt: Date.now() + 60000,
+      user: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Staff User', email: 'staff@example.test', roles: ['STAFF_EXECUTOR'] } },
+    onNavigateProfile: () => { profileOpened = true; },
     onToggleLang: (l) => {
       toggledLang = l;
     },
@@ -390,20 +394,24 @@ test('PS-25 Shell: StaffShell renders header, role badge, language toggle, and l
 
   try {
     // Role badge
-    assert.match(view.host.textContent, /STAFF_EXECUTOR/);
-    assert.match(view.host.textContent, /Cổng Xác Minh Hồ Sơ/);
-    assert.match(view.host.textContent, /Preview/);
+    assert.match(view.host.textContent, /Staff User/);
+    assert.match(view.host.textContent, /Cổng Nhân viên/);
     assert.ok(view.host.querySelector('#test-child'));
 
     // Language toggle
-    const langBtn = view.host.querySelector('.lv-staff-btn--icon');
+    const langBtn = view.host.querySelector('.lv-shell-lang-toggle button:nth-child(2)');
     await act(async () => {
       langBtn.click();
     });
     assert.equal(toggledLang, 'en');
 
     // Logout
-    const logoutBtn = view.host.querySelector('.lv-staff-btn--logout');
+    await act(async () => view.host.querySelector('.lv-user-badge-card').click());
+    const profileBtn = [...view.host.querySelectorAll('[role="menuitem"]')].find(button => button.textContent.includes('Hồ sơ tài khoản'));
+    await act(async () => profileBtn.click());
+    assert.equal(profileOpened, true);
+    await act(async () => view.host.querySelector('.lv-user-badge-card').click());
+    const logoutBtn = view.host.querySelector('.lv-account-menu-item--logout');
     await act(async () => {
       logoutBtn.click();
     });
@@ -531,7 +539,7 @@ test('PS-25 App route: anonymous login, Staff access, Owner/Admin/Legal denial a
         assert.match(view.host.textContent, /Test sign in/);
         assert.equal(view.host.querySelector('.lv-staff-table'), null);
         await act(async () => view.host.querySelector('button').click());
-        assert.equal(window.location.pathname, role === 'STAFF_EXECUTOR' ? '/staff/cases' : role === 'LEGAL_VERIFIER' ? '/legal/death-verification' : '/vault');
+        assert.equal(window.location.pathname, role === 'STAFF_EXECUTOR' ? '/staff/cases' : role === 'LEGAL_VERIFIER' ? '/legal/death-verification' : role === 'ADMIN' ? '/admin' : '/vault');
         if (role === 'VAULT_OWNER') assert.match(view.host.textContent, /Owner dashboard marker/);
         await setRoute('/staff/cases?preview=true');
         if (role === 'STAFF_EXECUTOR') {

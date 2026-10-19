@@ -29,6 +29,208 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/vaults/{vaultId}/assets/with-images:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    post:
+      tags: [Assets]
+      summary: "Owner asset photos; see lifetime-plans-and-asset-images.md"
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [asset, images]
+              properties:
+                asset: { $ref: "#/components/schemas/CreateAssetRequest" }
+                images:
+                  type: array
+                  minItems: 1
+                  maxItems: 5
+                  items: { type: string, format: binary }
+            encoding:
+              asset: { contentType: application/json }
+      responses:
+        "201":
+          description: "Success; JPEG/PNG 5 MiB per image, max 5 per asset. Download requires reauthentication."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssetResponse" }
+        "400": { description: "Shared ApiError; see image contract" }
+        "401": { description: "Shared ApiError; see image contract" }
+        "403": { description: "Shared ApiError; see image contract" }
+        "404": { description: "Shared ApiError; see image contract" }
+        "409": { description: "Shared ApiError; see image contract" }
+        "413": { description: "Shared ApiError; see image contract" }
+        "415": { description: "Shared ApiError; see image contract" }
+        "429": { description: "Shared ApiError; see image contract" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/images:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+    get:
+      tags: [Assets]
+      summary: "Owner asset photos; see lifetime-plans-and-asset-images.md"
+      x-status: implemented
+      responses:
+        "200":
+          description: "Success; JPEG/PNG 5 MiB per image, max 5 per asset. Download requires reauthentication."
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  type: object
+                  required: [id, fileName, contentType, sizeBytes, createdAt]
+                  properties:
+                    id: { type: string, format: uuid }
+                    fileName: { type: string }
+                    contentType: { type: string, enum: [image/jpeg, image/png] }
+                    sizeBytes: { type: integer, format: int64, minimum: 1, maximum: 5242880 }
+                    createdAt: { type: string, format: date-time }
+        "400": { description: "Shared ApiError; see image contract" }
+        "401": { description: "Shared ApiError; see image contract" }
+        "403": { description: "Shared ApiError; see image contract" }
+        "404": { description: "Shared ApiError; see image contract" }
+        "409": { description: "Shared ApiError; see image contract" }
+        "413": { description: "Shared ApiError; see image contract" }
+        "415": { description: "Shared ApiError; see image contract" }
+        "429": { description: "Shared ApiError; see image contract" }
+    post:
+      tags: [Assets]
+      summary: "Owner asset photos; see lifetime-plans-and-asset-images.md"
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [images]
+              properties:
+                images:
+                  type: array
+                  minItems: 1
+                  maxItems: 5
+                  items: { type: string, format: binary }
+      responses:
+        "201":
+          description: "Success; JPEG/PNG 5 MiB per image, max 5 per asset. Download requires reauthentication."
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 5
+                items:
+                  type: object
+                  required: [id, fileName, contentType, sizeBytes, createdAt]
+                  properties:
+                    id: { type: string, format: uuid }
+                    fileName: { type: string }
+                    contentType: { type: string, enum: [image/jpeg, image/png] }
+                    sizeBytes: { type: integer, format: int64, minimum: 1, maximum: 5242880 }
+                    createdAt: { type: string, format: date-time }
+        "400": { description: "Shared ApiError; see image contract" }
+        "401": { description: "Shared ApiError; see image contract" }
+        "403": { description: "Shared ApiError; see image contract" }
+        "404": { description: "Shared ApiError; see image contract" }
+        "409": { description: "Shared ApiError; see image contract" }
+        "413": { description: "Shared ApiError; see image contract" }
+        "415": { description: "Shared ApiError; see image contract" }
+        "429": { description: "Shared ApiError; see image contract" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/images/{imageId}/download:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+      - name: imageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Assets]
+      summary: "Owner asset photos; see lifetime-plans-and-asset-images.md"
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: "Success; JPEG/PNG 5 MiB per image, max 5 per asset. Download requires reauthentication."
+          headers:
+            Cache-Control:
+              schema: { type: string, example: no-store }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "400": { description: "Shared ApiError; see image contract" }
+        "401": { description: "Shared ApiError; see image contract" }
+        "403": { description: "Shared ApiError; see image contract" }
+        "404": { description: "Shared ApiError; see image contract" }
+        "409": { description: "Shared ApiError; see image contract" }
+        "413": { description: "Shared ApiError; see image contract" }
+        "415": { description: "Shared ApiError; see image contract" }
+        "429": { description: "Shared ApiError; see image contract" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/images/{imageId}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+      - name: imageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Assets]
+      summary: "Owner asset photos; see lifetime-plans-and-asset-images.md"
+      x-status: implemented
+      responses:
+        "204":
+          description: "Success; JPEG/PNG 5 MiB per image, max 5 per asset. Download requires reauthentication."
+        "400": { description: "Shared ApiError; see image contract" }
+        "401": { description: "Shared ApiError; see image contract" }
+        "403": { description: "Shared ApiError; see image contract" }
+        "404": { description: "Shared ApiError; see image contract" }
+        "409": { description: "Shared ApiError; see image contract" }
+        "413": { description: "Shared ApiError; see image contract" }
+        "415": { description: "Shared ApiError; see image contract" }
+        "429": { description: "Shared ApiError; see image contract" }
+  /api/v1/subscriptions/me/upgrade-quote:
+    post:
+      tags: [Subscriptions]
+      summary: Full target lifetime price, no previous purchase credit; does not activate a plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planCode, catalogVersion]
+              properties:
+                planCode: { type: string, enum: [STANDARD, EXTENDED] }
+                catalogVersion: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Informational server quote; payment is not integrated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [planCode, catalogVersion, amountVnd, currency, billingModel, previousPurchaseCreditVnd, paymentAvailable]
+                properties:
+                  planCode: { type: string }
+                  catalogVersion: { type: integer }
+                  amountVnd: { type: integer, format: int64 }
+                  currency: { type: string, enum: [VND] }
+                  billingModel: { type: string, enum: [LIFETIME] }
+                  previousPurchaseCreditVnd: { type: integer, enum: [0] }
+                  paymentAvailable: { type: boolean, enum: [false] }
+        '401': { description: Unauthenticated }
+        '403': { description: Owner role required }
+        '409': { description: Stale catalog or non-upgrade }
   /api/v1/subscription-plans:
     get:
       tags: [Subscriptions]
@@ -50,6 +252,171 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+  /api/v1/admin/subscriptions/plans:
+    get:
+      tags: [Admin, Subscriptions]
+      summary: Danh sách tóm tắt các gói sử dụng (PS-82)
+      description: Yêu cầu quyền ROLE_ADMIN. Trả về thông tin tóm tắt 3 gói BASIC, STANDARD, EXTENDED.
+      responses:
+        '200':
+          description: Danh sách gói và trạng thái phiên bản active/draft.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/admin/subscriptions/plans/{planCode}:
+    get:
+      tags: [Admin, Subscriptions]
+      summary: Chi tiết gói và toàn bộ lịch sử phiên bản (PS-82)
+      parameters:
+        - name: planCode
+          in: path
+          required: true
+          schema: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+      responses:
+        '200':
+          description: Chi tiết cấu hình và mảng các phiên bản.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/admin/subscriptions/plans/{planCode}/versions:
+    post:
+      tags: [Admin, Subscriptions]
+      summary: Tạo bản nháp mới cho gói (PS-82)
+      parameters:
+        - name: planCode
+          in: path
+          required: true
+          schema: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceVersionId]
+              properties:
+                sourceVersionId: { type: integer, format: int64 }
+                changeNotes: { type: string, maxLength: 500 }
+      responses:
+        '201':
+          description: Bản nháp mới được tạo thành công.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Đã tồn tại bản nháp chưa công bố hoặc xung đột phiên bản.
+
+  /api/v1/admin/subscriptions/plans/{planCode}/versions/{version}:
+    put:
+      tags: [Admin, Subscriptions]
+      summary: Cập nhật bản nháp phiên bản (PS-82)
+      parameters:
+        - name: planCode
+          in: path
+          required: true
+          schema: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nameVi, nameEn, purchasePriceVnd, billingModel, assetLimit, storageBytesLimit, fileBytesLimit, concurrencyToken]
+              properties:
+                nameVi: { type: string, minLength: 1, maxLength: 100 }
+                nameEn: { type: string, minLength: 1, maxLength: 100 }
+                descriptionVi: { type: string, maxLength: 500 }
+                descriptionEn: { type: string, maxLength: 500 }
+                purchasePriceVnd: { type: integer, format: int64, minimum: 0 }
+                billingModel: { type: string, enum: [LIFETIME] }
+                assetLimit: { type: integer, format: int64, minimum: 1 }
+                storageBytesLimit: { type: integer, format: int64, minimum: 10485760 }
+                fileBytesLimit: { type: integer, format: int64, minimum: 10485760, maximum: 10485760 }
+                concurrencyToken: { type: integer, format: int64 }
+                changeNotes: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Bản nháp được cập nhật thành công.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Phiên bản không ở trạng thái DRAFT hoặc concurrency token không khớp.
+
+  /api/v1/admin/subscriptions/plans/{planCode}/versions/{version}/publish:
+    post:
+      tags: [Admin, Subscriptions]
+      summary: Công bố phiên bản cấu hình chính thức (PS-82)
+      parameters:
+        - name: planCode
+          in: path
+          required: true
+          schema: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Phiên bản chuyển sang PUBLISHED, bản cũ chuyển DEPRECATED.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Chỉ bản nháp DRAFT mới được phép công bố.
+
+  /api/v1/admin/subscriptions/plans/{planCode}/versions/{version}/deprecate:
+    post:
+      tags: [Admin, Subscriptions]
+      summary: Ngừng áp dụng phiên bản (PS-82)
+      parameters:
+        - name: planCode
+          in: path
+          required: true
+          schema: { type: string, enum: [BASIC, STANDARD, EXTENDED] }
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Phiên bản chuyển sang DEPRECATED.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Không thể ngừng phiên bản đang là DRAFT hoặc đã DEPRECATED.
+
+  /api/v1/admin/subscriptions/accounts:
+    get:
+      tags: [Admin, Subscriptions]
+      summary: Tra cứu mức dùng thật và gói hiệu lực của tài khoản (PS-82)
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Thông tin gói hiệu lực, entitlement status và usage thật.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/admin/subscriptions/transactions:
+    get:
+      tags: [Admin, Subscriptions]
+      summary: Tra cứu giao dịch thanh toán (PS-82)
+      description: Phụ thuộc phân hệ PS-80. Trả 409 khi nguồn thanh toán chưa sẵn sàng.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
+
   /api/v1/subscriptions/me:
     get:
       tags: [Subscriptions]
@@ -2303,6 +2670,12 @@ components:
             - SUBSCRIPTION_UPGRADE_UNAVAILABLE
             - SUBSCRIPTION_CATALOG_STALE
             - SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED
+            - PLAN_VERSION_NOT_FOUND
+            - PLAN_VERSION_NOT_EDITABLE
+            - PLAN_VERSION_ALREADY_EXISTS
+            - PLAN_VERSION_CONFLICT
+            - ASSET_IMAGE_LIMIT_EXCEEDED
+            - PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
             - CASE_EVIDENCE_QUOTA_EXCEEDED
             - ASSET_QUOTA_EXCEEDED
             - STORAGE_QUOTA_EXCEEDED

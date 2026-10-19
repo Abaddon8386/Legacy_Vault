@@ -94,6 +94,7 @@ public class StaffVerificationCaseService {
 
         return new StaffVerificationCaseResponse(
                 verificationCase.getPublicId(),
+                verificationCase.getCaseNumber(),
                 verificationCase.getStatus(),
                 verificationCase.getTriggeredAt(),
                 verificationCase.getClosedAt(),

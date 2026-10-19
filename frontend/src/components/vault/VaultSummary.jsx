@@ -99,6 +99,7 @@ export default function VaultSummary({
   const requestKey = [vaultId, ownerId, accessToken, lang, refreshKey].join('|');
   const subRequestKey = `${requestKey}|${Boolean(isSimulation)}`;
   const subData = subState?.key === subRequestKey ? subState.data : null;
+  const subPolicyPending = subState?.key === subRequestKey && subState.error === 'SUBSCRIPTION_POLICY_PENDING';
   const subLoading = subState?.key !== subRequestKey;
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export default function VaultSummary({
         if (active) setSubState({ key: subRequestKey, data });
       })
       .catch((error) => {
-        if (active) setSubState({ key: subRequestKey, data: null });
+        if (active) setSubState({ key: subRequestKey, data: null, error: error.code });
         if (active && !isDevPreviewActive && error.status === 401) onUnauthorized?.();
       });
 
@@ -393,7 +394,9 @@ export default function VaultSummary({
         <div className="lv-summary-sub-left">
           {!subData ? <p role="status">{subLoading
             ? (en ? 'Loading subscription details…' : 'Đang tải thông tin gói…')
-            : (en ? 'Subscription details unavailable. Open plans to retry.' : 'Chưa tải được thông tin gói. Mở trang gói để thử lại.')}</p> : <>
+            : subPolicyPending
+              ? (en ? 'Subscription plans are not available yet. Your account has not been assigned the proposed plan limits.' : 'Gói sử dụng hiện chưa được mở. Tài khoản chưa được áp dụng các hạn mức gói đề xuất.')
+              : (en ? 'Subscription details unavailable. Open plans to retry.' : 'Chưa tải được thông tin gói. Mở trang gói để thử lại.')}</p> : <>
 
           <div className="lv-summary-sub-badge-row">
             <span className="lv-summary-sub-plan-badge">

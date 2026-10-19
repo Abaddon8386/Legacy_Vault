@@ -10,6 +10,8 @@ public final class SubscriptionDtos {
     public record UpgradeRequest(@jakarta.validation.constraints.NotNull PlanCode planCode,
         @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Min(1) Integer catalogVersion) {}
     public record UpgradeResponse(Current subscription, long priceDifferenceVnd, boolean changed) {}
+    public record UpgradeQuote(String planCode, int catalogVersion, long amountVnd, String currency,
+                               String billingModel, long previousPurchaseCreditVnd, boolean paymentAvailable) {}
     public record Limits(long assetCount, long storageBytes, long fileBytes) {}
     public record Plan(String code, int version, long priceVnd, String billingModel, Limits limits) {
         public static Plan from(SubscriptionPlan plan) {

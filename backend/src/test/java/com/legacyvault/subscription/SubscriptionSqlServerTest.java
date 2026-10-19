@@ -159,10 +159,10 @@ class SubscriptionSqlServerTest {
                 .andExpect(jsonPath("$.usage.storageBytes").value(0))
                 .andExpect(jsonPath("$.vaultCreated").value(false));
         mvc.perform(get("/api/v1/subscription-plans").with(as(owner, "VAULT_OWNER")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[1].priceVnd").value(199000))
-                .andExpect(jsonPath("$[2].priceVnd").value(499000))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[1].priceVnd").value(499000))
+                .andExpect(jsonPath("$[2].priceVnd").value(999000))
                 .andExpect(jsonPath("$[1].billingModel").value("LIFETIME"))
-                .andExpect(jsonPath("$[1].version").value(2))
+                .andExpect(jsonPath("$[1].version").isNumber())
                 .andExpect(jsonPath("$[1].monthlyPriceVnd").doesNotExist())
                 .andExpect(jsonPath("$[2].limits.storageBytes").value(5_368_709_120L));
         assertEquals(0, vaultCount(owner));
@@ -315,11 +315,14 @@ class SubscriptionSqlServerTest {
     void retainedVaultCannotBeRecreatedRegardlessOfStatusOrSoftDeletedOwner() throws Exception {
         createVault(owner);
         for (String state : List.of("CLOSED", "ARCHIVED", "DELETED")) {
-            // Raw states exercise status-independent uniqueness, not new application workflows.
-            jdbc.update("UPDATE dbo.vaults SET status = ? WHERE owner_user_id = ?", state, owner.id());
-            mvc.perform(post("/api/v1/vaults").with(as(owner, "VAULT_OWNER"))
+            // Each retained Vault is independent: V30 correctly forbids changing ARCHIVED back to another state.
+            Owner retained = newOwner();
+            createVault(retained);
+            jdbc.update("UPDATE dbo.vaults SET status = ? WHERE owner_user_id = ?", state, retained.id());
+            mvc.perform(post("/api/v1/vaults").with(as(retained, "VAULT_OWNER"))
                     .contentType("application/json").content("{\"name\":\"Again\"}"))
                     .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("VAULT_ALREADY_EXISTS"));
+            assertEquals(1, vaultCount(retained));
         }
         jdbc.update("UPDATE dbo.users SET deleted_at = SYSUTCDATETIME() WHERE user_id = ?", owner.id());
         mvc.perform(post("/api/v1/vaults").with(as(owner, "VAULT_OWNER"))
@@ -515,16 +518,16 @@ class SubscriptionSqlServerTest {
     }
 
     @Test
-    void pendingPolicyDoesNotEnforceProposedOwnerLimitsOrExposeCatalog() throws Exception {
+    void disabledEnforcementStillAllowsReadOnlyApprovedCatalog() throws Exception {
         org.springframework.test.util.ReflectionTestUtils.setField(quotas,"enforcementEnabled",false);
         try {
             UUID vault=createVault(owner).id();
             for(int i=0;i<6;i++) assets.createAsset(vault,owner.id(),asset());
             assertEquals(6,quotas.current(owner.id()).usage().assetCount());
             mvc.perform(get("/api/v1/subscription-plans").with(as(owner,"VAULT_OWNER")))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_POLICY_PENDING"));
+                .andExpect(status().isOk());
             mvc.perform(get("/api/v1/subscriptions/me").with(as(owner,"VAULT_OWNER")))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SUBSCRIPTION_POLICY_PENDING"));
+                .andExpect(status().isOk());
         } finally {org.springframework.test.util.ReflectionTestUtils.setField(quotas,"enforcementEnabled",true);}
     }
 

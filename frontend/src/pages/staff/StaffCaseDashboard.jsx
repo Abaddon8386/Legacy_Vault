@@ -1,4 +1,5 @@
 import { staffAuthFeedback, useStaffSessionExpiry } from './staffFeedback.js';
+import { formatCaseReference } from '../../utils/caseReference.js';
 import { useState, useEffect } from 'react';
 import {
   FileText,
@@ -444,7 +445,7 @@ export default function StaffCaseDashboard({
                     {/* Case Ref */}
                     <td className="lv-staff-td-ref">
                       <div className="lv-staff-ref-box">
-                        <span className="lv-staff-ref-code">{c.caseNumber}</span>
+                        <span className="lv-staff-ref-code" title={c.caseNumber}>{formatCaseReference(c.caseNumber)}</span>
                       </div>
                     </td>
 
@@ -544,7 +545,7 @@ export default function StaffCaseDashboard({
             {cases.map((c) => (
               <div key={c.id} className="lv-staff-card">
                 <div className="lv-staff-card__header">
-                  <span className="lv-staff-card__code">{c.caseNumber}</span>
+                  <span className="lv-staff-card__code" title={c.caseNumber}>{formatCaseReference(c.caseNumber)}</span>
                   {renderStatusBadge(c.status)}
                 </div>
 

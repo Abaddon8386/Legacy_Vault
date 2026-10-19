@@ -68,7 +68,8 @@ export async function fetchStaffCases(options = {}) {
       || !['vaultName', 'ownerName'].every(key => typeof item[key] === 'string')
       || typeof item.triggeredAt !== 'string' || !Number.isFinite(Date.parse(item.triggeredAt))
       || (item.closedAt !== null && (typeof item.closedAt !== 'string' || !Number.isFinite(Date.parse(item.closedAt))))) invalid();
-    return { ...item, id: item.caseId, caseNumber: item.caseId, gracePeriodEndedAt: item.triggeredAt, isSimulation: false };
+    if (item.caseNumber != null && !/^HS-\d{4}-\d{6,19}$/.test(item.caseNumber)) invalid();
+    return { ...item, id: item.caseId, caseNumber: item.caseNumber || item.caseId, gracePeriodEndedAt: item.triggeredAt, isSimulation: false };
   });
   return { ...raw, content, totalPages: Math.max(1, raw.totalPages), isSimulation: false };
 }

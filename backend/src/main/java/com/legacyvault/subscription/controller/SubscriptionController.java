@@ -28,11 +28,16 @@ public class SubscriptionController {
     }
 
     @GetMapping("/api/v1/subscription-plans")
-    public List<Plan> catalog() { quotas.requirePrototypeEnabled(); return quotas.catalog(); }
+    public List<Plan> catalog() { return quotas.catalog(); }
+
+    @PostMapping("/api/v1/subscriptions/me/upgrade-quote")
+    public UpgradeQuote quote(@AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody UpgradeRequest request) {
+        return upgrades.quote(CustomUserPrincipal.requireUserId(principal), request);
+    }
 
     @GetMapping("/api/v1/subscriptions/me")
     public Current current(@AuthenticationPrincipal CustomUserPrincipal principal) {
-        quotas.requirePrototypeEnabled();
         return quotas.current(CustomUserPrincipal.requireUserId(principal));
     }
 }

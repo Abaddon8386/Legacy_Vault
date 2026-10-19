@@ -10,8 +10,8 @@ import { request, ApiError } from '../api/http.js';
  *   permission to create a new vault.
  * - 3 Defined Plans:
  *   1. BASIC (Cơ bản): Free, 1 vault, 5 assets, 100 MB storage, 10 MB/file.
- *   2. STANDARD (Tiêu chuẩn): 29,000 VND/mo, 1 vault, 50 assets, 1 GB storage, 10 MB/file.
- *   3. EXTENDED (Mở rộng): 59,000 VND/mo, 1 vault, 200 assets, 5 GB storage, 10 MB/file.
+ *   2. STANDARD (Tiêu chuẩn): 499,000 VND once, 1 vault, 50 assets, 1 GB storage, 10 MB/file.
+ *   3. EXTENDED (Mở rộng): 999,000 VND once, 1 vault, 200 assets, 5 GB storage, 10 MB/file.
  * - Production builds (import.meta.env.PROD === true) strictly lock out all simulation adapters.
  * - Live mode calls proposed endpoint /api/v1/subscriptions/me.
  * - If backend endpoint is not yet ready, falls back safely to BACKEND_NOT_READY without fabricating live data.
@@ -291,6 +291,15 @@ export const liveSubscriptionAdapter = {
       expectedStatus: 200,
     });
     if (data?.isSimulation === true) throw new ApiError('INVALID_RESPONSE');
+    // Backend Current DTO; keep the flat adapter accepted for existing integrations.
+    if (data?.effectivePlan) {
+      const plan = data.effectivePlan;
+      if (typeof data.vaultCreated !== 'boolean' || !plan.limits || !data.usage) throw new ApiError('INVALID_RESPONSE');
+      return readSubscription({ planCode: plan.code, status: 'ACTIVE', expiresAt: data.effectiveUntil,
+        assetsUsed: data.usage.assetCount, storageUsedBytes: data.usage.storageBytes,
+        maxAssets: plan.limits.assetCount, maxStorageBytes: plan.limits.storageBytes,
+        vaultsCreatedLifetime: data.vaultCreated ? 1 : 0, maxVaultsLifetime: 1, isSimulation: false });
+    }
     return readSubscription(data);
   },
 };

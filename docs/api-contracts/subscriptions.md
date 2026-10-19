@@ -1,5 +1,7 @@
 # PS-77 — chính sách đang chờ phê duyệt
 
+> **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
+
 Nguồn trạng thái hiện hành: [open-decisions.md §G](open-decisions.md#g-ps-77--đề-xuất-chờ-phê-duyệt-của-nhóm-2026-10-17).
 Các trao đổi chat trước đây chỉ là đầu vào đề xuất; chưa có biên bản nhóm chốt giá, hạn mức,
 trọn đời hoặc tác động lên evidence pháp lý trong ba tài liệu nguồn.
