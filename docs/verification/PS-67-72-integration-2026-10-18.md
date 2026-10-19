@@ -1,5 +1,9 @@
 # PS-67–72 — Integration evidence, 18/10/2026
 
+> SQL follow-up 19/10: V25 fixed on develop; local integrated SQL/regression now passes.
+> See [PS-67-72-sql-integration-2026-10-19.md](PS-67-72-sql-integration-2026-10-19.md).
+> The blocker and results below are the historical 18/10 snapshot.
+
 > Review follow-up: V30 đã bỏ 26 INSERT trigger events, giữ UPDATE/DELETE và bổ sung
 > service locking/refresh. Xem [PS-72-V30-insert-output-review.md](PS-72-V30-insert-output-review.md)
 > để lấy kết quả kiểm thử mới. Các số liệu bên dưới là snapshot lượt tích hợp trước.

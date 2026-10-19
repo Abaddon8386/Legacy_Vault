@@ -67,8 +67,10 @@ Supported application writes must enforce archive protection in their transactio
 Logs are ignored: backend/ps72-review-output-sql.log,
 backend/ps72-v30-review-regression.log and backend/ps72-review-services.log.
 
-Full PS-67–72 SQL/Flyway/JPA integration remains pending the PS-61/V25 fix by Long,
-as requested by the user. The targeted test is not a replacement for those suites.
+At the time of this review, full PS-67–72 SQL/Flyway/JPA integration was pending V25.
+It has now passed locally after the develop fix; see
+[19/10 SQL evidence](PS-67-72-sql-integration-2026-10-19.md).
+The earlier targeted test alone was not a replacement for those suites.
 No existing database was reset, repaired or had its schema history/checksum edited.
 
 ## Delivery
