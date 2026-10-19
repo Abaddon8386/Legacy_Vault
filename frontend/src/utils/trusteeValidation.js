@@ -18,7 +18,7 @@ export const PHONE_REGEX = /^(?:\+?\d{1,4}[ -]?)?\(?\d{2,4}\)?[ -]?\d{3,4}[ -]?\
 
 export const trusteeValidationMessages = {
   vi: {
-    fullNameRequired: 'Vui lòng nhập họ và tên Người giám hộ.',
+    fullNameRequired: 'Vui lòng nhập họ và tên Người thi hành bên ngoài.',
     fullNameTooLong: 'Họ và tên không được vượt quá 150 ký tự.',
     contactRequired: 'Cần cung cấp ít nhất một phương thức liên hệ: Số điện thoại hoặc Email.',
     emailInvalid: 'Địa chỉ email chưa đúng định dạng.',

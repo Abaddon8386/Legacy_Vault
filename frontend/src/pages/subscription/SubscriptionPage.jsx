@@ -199,6 +199,7 @@ export default function SubscriptionPage({
         <p className="lv-sub-subtitle">{lang === 'en' ? 'Your plan, usage and storage limits in one place.' : 'Theo dõi gói hiện tại và dung lượng bạn đã sử dụng.'}</p>
       </header>
 
+      <p>{lang === 'en' ? 'One payment for lifetime use. Upgrades cost the full target plan price; previous purchases are not credited. Online checkout is not available yet.' : 'Mua một lần, sử dụng trọn đời. Nâng cấp trả toàn bộ giá gói đích, không trừ tiền gói đã mua. Thanh toán trực tuyến hiện chưa khả dụng.'}</p>
       {/* Hero Card: Current Subscription & Quota Gauges */}
       <section className="lv-sub-current-card" aria-label={lang === 'en' ? 'Current subscription' : 'Thông tin gói hiện tại'}>
         <div className="lv-sub-current-top">
@@ -228,7 +229,7 @@ export default function SubscriptionPage({
                     month: 'long',
                     day: 'numeric',
                   })
-                : data.planCode === 'BASIC' ? t.lifetimeExpiry : (lang === 'en' ? 'Not provided' : 'Chưa có thông tin')}
+                : t.lifetimeExpiry}
             </span>
             <span className="lv-sub-vault-count">{lang === 'en' ? 'Vaults created' : 'Số kho đã tạo'} <strong>{data.vaultsCreatedLifetime} / {data.maxVaultsLifetime}</strong></span>
           </div>

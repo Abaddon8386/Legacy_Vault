@@ -473,12 +473,12 @@ test('EX-01 AppShell Dashboard & Navigation Auth State Regression Verification',
     'AppShell must resolve user from session?.user when user prop is omitted and clear when no session'
   );
 
-  // Verify that all 11 AppShell render sites in App.jsx pass isAuthenticated and onLogout correctly
+  // Verify every AppShell, including the Beneficiary destination, has explicit auth context.
   const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
   assert.equal(
     appShellMatches.length,
-    11,
-    'Expected exactly 11 AppShell render sites across all routes in App.jsx'
+    13,
+    'Expected 13 AppShell render sites including Beneficiary and Admin destinations'
   );
 
   for (let i = 0; i < appShellMatches.length; i++) {

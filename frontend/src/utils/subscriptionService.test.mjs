@@ -36,19 +36,19 @@ test('Subscription Constants - 3 Plans with Clean User-Facing Descriptions', () 
   const basic = SUBSCRIPTION_PLANS.find((p) => p.code === 'BASIC');
   assert.equal(basic.maxAssets, 5);
   assert.equal(basic.maxStorageBytes, 100 * 1024 * 1024);
-  assert.equal(basic.priceMonthlyVND, 0);
+  assert.equal(basic.purchasePriceVND, 0);
 
   // Standard plan checks
   const standard = SUBSCRIPTION_PLANS.find((p) => p.code === 'STANDARD');
   assert.equal(standard.maxAssets, 50);
   assert.equal(standard.maxStorageBytes, 1024 * 1024 * 1024);
-  assert.equal(standard.priceMonthlyVND, 29000);
+  assert.equal(standard.purchasePriceVND, 499000);
 
   // Extended plan checks
   const extended = SUBSCRIPTION_PLANS.find((p) => p.code === 'EXTENDED');
   assert.equal(extended.maxAssets, 200);
   assert.equal(extended.maxStorageBytes, 5 * 1024 * 1024 * 1024);
-  assert.equal(extended.priceMonthlyVND, 59000);
+  assert.equal(extended.purchasePriceVND, 999000);
 });
 
 test('Subscription Scenarios - All required testing states are defined', () => {

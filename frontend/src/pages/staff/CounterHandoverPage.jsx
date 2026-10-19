@@ -1,5 +1,6 @@
+import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
-import { Clock, ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut, Globe } from 'lucide-react';
+import { Clock, ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut } from 'lucide-react';
 
 import { getCounterHandoverTranslations } from './handoverSessionI18n.js';
 import {
@@ -188,15 +189,7 @@ function CounterHandoverContent({
             )}
 
             {onToggleLang && (
-              <button
-                type="button"
-                className="lv-handover-header-btn"
-                onClick={() => onToggleLang(lang === 'vi' ? 'en' : 'vi')}
-                title={lang === 'vi' ? 'English' : 'Tiếng Việt'}
-              >
-                <Globe size={14} aria-hidden="true" />
-                <span>{lang.toUpperCase()}</span>
-              </button>
+              <LanguageToggle lang={lang} onToggleLang={onToggleLang} />
             )}
 
             {onRefresh && (

@@ -14,7 +14,7 @@ const i18n = {
   vi: {
     brandName: 'LegacyVault',
     eyebrow: 'THIẾT LẬP BẢO VỆ & DI SẢN',
-    pageTitle: 'Chỉ định Người giám hộ & Người thụ hưởng',
+    pageTitle: 'Chỉ định Người thi hành bên ngoài & Người thụ hưởng',
     pageDesc:
       'Cấu hình phân quyền bàn giao di sản số bảo mật, rõ ràng và tuân thủ chặt chẽ pháp lý.',
     navBack: '← Quay lại',
@@ -28,27 +28,27 @@ const i18n = {
     readyMsg: 'Đã đủ điều kiện: Có ít nhất 1 Người thụ hưởng trong hệ thống.',
     pendingMsg: 'Cần có ít nhất 1 Người thụ hưởng để hoàn tất cấu hình kho.',
     beneficiaryCountLabel: 'Người thụ hưởng:',
-    trusteeStatusLabel: 'Người giám hộ:',
+    trusteeStatusLabel: 'Người thi hành bên ngoài:',
     trusteeConfigured: 'Đã chỉ định',
     trusteeSkipped: 'Đã bỏ qua (Tùy chọn)',
     trusteeUnconfigured: 'Chưa thiết lập (Tùy chọn)',
 
     // Section A: Trustee
     trusteeTag: 'TÙY CHỌN',
-    trusteeTitle: '1. Người giám hộ (Trustee)',
+    trusteeTitle: '1. Người thi hành bên ngoài (Trustee)',
     trusteeSubtitle:
       'Người hỗ trợ kích hoạt quy trình chuyển giao di sản số khi xảy ra biến cố.',
     trusteeNotice:
-      'Người giám hộ là tùy chọn. Bạn có thể bỏ qua bước này. Người giám hộ KHÔNG cần tài khoản, KHÔNG có quyền mở khóa, giải mã hay xem bí mật, và KHÔNG mặc nhiên là Người thụ hưởng. Mỗi két chỉ có tối đa 1 Người giám hộ được chỉ định.',
-    trusteeSkippedBadge: 'Đã bỏ qua Người giám hộ',
+      'Người thi hành bên ngoài là tùy chọn. Bạn có thể bỏ qua bước này. Người thi hành bên ngoài KHÔNG cần tài khoản, KHÔNG có quyền mở khóa, giải mã hay xem bí mật, và KHÔNG mặc nhiên là Người thụ hưởng. Mỗi két chỉ có tối đa 1 Người thi hành bên ngoài được chỉ định.',
+    trusteeSkippedBadge: 'Đã bỏ qua Người thi hành bên ngoài',
     trusteeSkippedDesc:
-      'Bạn đã chọn không chỉ định Người giám hộ cho két này. Bạn có thể thiết lập bất cứ lúc nào nếu đổi ý.',
-    unskipTrusteeBtn: 'Thiết lập Người giám hộ',
-    skipTrusteeBtn: 'Bỏ qua Người giám hộ',
+      'Bạn đã chọn không chỉ định Người thi hành bên ngoài cho két này. Bạn có thể thiết lập bất cứ lúc nào nếu đổi ý.',
+    unskipTrusteeBtn: 'Thiết lập Người thi hành bên ngoài',
+    skipTrusteeBtn: 'Bỏ qua Người thi hành bên ngoài',
     maxTrusteeReachedNotice:
-      'Két đã có 1 Người giám hộ được chỉ định (Đã đạt giới hạn tối đa 1 Người giám hộ trên mỗi két).',
+      'Két đã có 1 Người thi hành bên ngoài được chỉ định (Đã đạt giới hạn tối đa 1 Người thi hành bên ngoài trên mỗi két).',
     duplicateTrusteeError:
-      'Két đã có Người giám hộ được chỉ định. Mỗi két chỉ có tối đa 1 Người giám hộ hiện tại.',
+      'Két đã có Người thi hành bên ngoài được chỉ định. Mỗi két chỉ có tối đa 1 Người thi hành bên ngoài hiện tại.',
     vaultNotEditableError:
       'Két đang ở trạng thái không thể chỉnh sửa.',
 
@@ -78,12 +78,12 @@ const i18n = {
     contactNotice: '* Yêu cầu ít nhất một phương thức liên lạc: Số điện thoại hoặc Email.',
 
     // Buttons & alerts
-    saveTrusteeBtn: 'Lưu Người giám hộ',
+    saveTrusteeBtn: 'Lưu Người thi hành bên ngoài',
     addBeneficiaryBtn: 'Thêm Người thụ hưởng',
     submitting: 'Đang xử lý...',
     appointedStatus: 'Đã chỉ định (APPOINTED)',
-    addedSuccessTrustee: 'Đã thêm Người giám hộ thành công.',
-    skippedSuccessTrustee: 'Đã đánh dấu bỏ qua Người giám hộ (Cục bộ).',
+    addedSuccessTrustee: 'Đã thêm Người thi hành bên ngoài thành công.',
+    skippedSuccessTrustee: 'Đã đánh dấu bỏ qua Người thi hành bên ngoài (Cục bộ).',
     addedSuccessBeneficiary: 'Đã thêm Người thụ hưởng thành công.',
   },
   en: {
@@ -163,11 +163,11 @@ const i18n = {
   },
 };
 
-Object.assign(i18n.vi,{pageDesc:'Khai báo người giám hộ tùy chọn và người thụ hưởng cho kho di sản.',trusteeSubtitle:'Người liên hệ hỗ trợ gia đình theo quy trình được xác minh.',trusteeNotice:'Bạn có thể bỏ qua hoặc chỉ định một người giám hộ. Người này không cần tài khoản và không được mở khóa hay xem nội dung bí mật. Chỉ định người giám hộ không tự thêm họ vào danh sách người thụ hưởng.',beneficiarySubtitle:'Người được ghi nhận trong kế hoạch di sản; việc bàn giao theo quy trình được duyệt.',beneficiaryNotice:'Cần ít nhất một người thụ hưởng để hoàn tất cấu hình kho. Bạn có thể khai báo mà không cần tạo tài khoản cho họ. Phần chia tài sản được xác định theo căn cứ pháp lý được duyệt.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Bạn đã chọn bỏ qua người giám hộ.'});
+Object.assign(i18n.vi,{pageDesc:'Khai báo người thi hành bên ngoài tùy chọn và người thụ hưởng cho kho di sản.',trusteeSubtitle:'Người liên hệ hỗ trợ gia đình theo quy trình được xác minh.',trusteeNotice:'Bạn có thể bỏ qua hoặc chỉ định một người thi hành bên ngoài. Người này không cần tài khoản và không được mở khóa hay xem nội dung bí mật. Chỉ định người thi hành bên ngoài không tự thêm họ vào danh sách người thụ hưởng.',beneficiarySubtitle:'Người được ghi nhận trong kế hoạch di sản; việc bàn giao theo quy trình được duyệt.',beneficiaryNotice:'Cần ít nhất một người thụ hưởng để hoàn tất cấu hình kho. Bạn có thể khai báo mà không cần tạo tài khoản cho họ. Phần chia tài sản được xác định theo căn cứ pháp lý được duyệt.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Bạn đã chọn bỏ qua người thi hành bên ngoài.'});
 Object.assign(i18n.en,{pageDesc:'Record optional trustees and beneficiaries for your heritage vault.',trusteeSubtitle:'A contact who can help your family through a verified process.',trusteeNotice:'You may skip this step or appoint one trustee. They do not need an account and cannot unlock or view secret content. Appointing a trustee does not add them as a beneficiary.',beneficiarySubtitle:'A person recorded in your heritage plan; transfer follows the approved process.',beneficiaryNotice:'At least one beneficiary is needed to complete vault configuration. You can record them without creating an account. Asset shares follow approved legal documents.',appointedStatus:'Appointed',skippedSuccessTrustee:'You chose to skip the trustee.'});
 const emptyTrustee={fullName:'',phone:'',email:'',relationship:''};
 const emptyBeneficiary={fullName:'',relationship:'',dateOfBirth:'',phone:'',email:''};
-const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người giám hộ.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
+const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người thi hành bên ngoài.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
 export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',onUnauthorized,onRefreshTrigger=0}) {
  const t=i18n[lang]||i18n.vi;
  const [trustees,setTrustees]=useState([]),[beneficiaries,setBeneficiaries]=useState([]);
@@ -178,6 +178,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  const [trusteeErrors,setTrusteeErrors]=useState({}),[beneficiaryErrors,setBeneficiaryErrors]=useState({});
  const [isSubmittingTrustee,setIsSubmittingTrustee]=useState(false),[isSubmittingBeneficiary,setIsSubmittingBeneficiary]=useState(false);
  const pending=useRef(false),alive=useRef(true),mutation=useRef(null),loadRequest=useRef(null);
+ const trusteeDialog=useRef(null),beneficiaryDialog=useRef(null);
  const locale=useRef(lang);useEffect(()=>{locale.current=lang},[lang]);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;mutation.current?.abort()}},[]);
  useEffect(()=>{
@@ -204,6 +205,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
   try{
    await (isTrustee?createTrustee:createBeneficiary)(vaultId,data,{accessToken,lang,signal:controller.signal});
    if(!alive.current||controller.signal.aborted)return;
+   (isTrustee?trusteeDialog:beneficiaryDialog).current?.close();
    (isTrustee?setTrusteeForm:setBeneficiaryForm)(isTrustee?emptyTrustee:emptyBeneficiary);
    (isTrustee?setTrusteeErrors:setBeneficiaryErrors)({});setAlert({type:'success',key:isTrustee?'addedSuccessTrustee':'addedSuccessBeneficiary'});if(isTrustee)setIsSkipped(false);setPageIndex(0);setRetry(value=>value+1);
   }catch(error){
@@ -225,7 +227,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
       <div className="lv-tb-container">
         {/* Hero Title */}
         <div className="lv-tb-title-block">
-          <h1 className="lv-tb-title">{lang === 'en' ? 'Beneficiaries & trustees' : 'Người thụ hưởng & Người giám hộ'}</h1>
+          <h1 className="lv-tb-title">{lang === 'en' ? 'Beneficiaries & trustees' : 'Người thụ hưởng & Người thi hành bên ngoài'}</h1>
           <p className="lv-tb-desc">{t.pageDesc}</p>
         </div>
 
@@ -347,8 +349,12 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                 </button>
               </div>
             ) : (
-              /* Add Trustee Form */
+              <>
+              <button type="button" className="lv-tb-btn-primary" onClick={()=>trusteeDialog.current?.showModal()}>{t.unskipTrusteeBtn}</button>
+              <dialog ref={trusteeDialog} className="lv-tb-dialog" aria-labelledby="trustee-form-title" onCancel={event=>{if(pending.current)event.preventDefault()}}>
+              <div className="lv-tb-dialog-header"><h3 id="trustee-form-title">{t.unskipTrusteeBtn}</h3><button type="button" className="lv-tb-btn-secondary" disabled={isSubmittingTrustee} onClick={()=>trusteeDialog.current?.close()}>{lang==='en'?'Close':'Đóng'}</button></div>
               <form className="lv-tb-form" onSubmit={handleTrusteeSubmit} noValidate>
+                {alert?.type==='error' && <p role="alert">{safeError(alert.code,lang)}</p>}
                 <div className="lv-tb-form-grid">
                   {/* Full Name */}
                   <div className="lv-tb-field-group full-width">
@@ -449,12 +455,15 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   </button>
                 </div>
               </form>
+              </dialog>
+              </>
             )}
           </section>
 
           {/* SECTION B: BENEFICIARY (ST-05) */}
           <section className="lv-tb-section-card" aria-labelledby="beneficiary-heading">
             <div className="lv-tb-section-header">
+              <button type="button" className="lv-tb-btn-primary" onClick={()=>beneficiaryDialog.current?.showModal()}>+ {t.addBeneficiaryBtn}</button>
               <div className="lv-tb-section-title-wrap">
                 <span className="lv-tb-section-tag">{t.beneficiaryTag}</span>
                 <h2 id="beneficiary-heading" className="lv-tb-section-title">
@@ -513,17 +522,10 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
 
             {pages>1 && <nav aria-label={lang==='en'?'Beneficiary pages':'Trang người thụ hưởng'}><button disabled={pageIndex===0 || isSubmittingTrustee || isSubmittingBeneficiary} onClick={()=>setPageIndex(value=>value-1)}>{lang==='en'?'Previous':'Trước'}</button><span>{pageIndex+1}/{pages}</span><button disabled={pageIndex+1>=pages || isSubmittingTrustee || isSubmittingBeneficiary} onClick={()=>setPageIndex(value=>value+1)}>{lang==='en'?'Next':'Sau'}</button></nav>}
             {/* Add Beneficiary Form */}
+            <dialog ref={beneficiaryDialog} className="lv-tb-dialog" aria-labelledby="beneficiary-form-title" onCancel={event=>{if(pending.current)event.preventDefault()}}>
+            <div className="lv-tb-dialog-header"><h3 id="beneficiary-form-title">{t.addBeneficiaryBtn}</h3><button type="button" className="lv-tb-btn-secondary" disabled={isSubmittingBeneficiary} onClick={()=>beneficiaryDialog.current?.close()}>{lang==='en'?'Close':'Đóng'}</button></div>
             <form className="lv-tb-form" onSubmit={handleBeneficiarySubmit} noValidate>
-              <h3
-                style={{
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: 'var(--lv-brand-forest, #164639)',
-                  marginBottom: '16px',
-                }}
-              >
-                + {t.addBeneficiaryBtn}
-              </h3>
+              {alert?.type==='error' && <p role="alert">{safeError(alert.code,lang)}</p>}
               <div className="lv-tb-form-grid">
                 {/* Full Name */}
                 <div className="lv-tb-field-group full-width">
@@ -638,6 +640,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                 </button>
               </div>
             </form>
+            </dialog>
           </section>
         </div>
       </div>

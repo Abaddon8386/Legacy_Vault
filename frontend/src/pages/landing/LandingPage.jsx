@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDown, Shield, LockKeyhole, FileText, Users, Pause, Play } from 'lucide-react';
+import { ArrowUpRight, ArrowDown, Shield, LockKeyhole, FileText, Users } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../utils/subscriptionPlans.js';
 import './LandingPage.css';
 
 export default function LandingPage({ onLogin, onRegister }) {
   const [lang, setLang] = useState('vi');
-  const [paused, setPaused] = useState(false);
   const en = lang === 'en';
   return <div className="lv-landing">
     <header className="lv-landing-nav">
@@ -34,7 +33,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           <div className="lv-landing-art">
             <div className="lv-landing-orbit" aria-hidden="true" />
             <div className="lv-landing-scene" aria-hidden="true">
-              <div className={'lv-landing-float' + (paused ? ' is-paused' : '')}>
+              <div className="lv-landing-float">
                 <div className="lv-landing-cube">
                   {['front', 'back', 'left', 'right', 'top', 'bottom'].map(face => <div key={face} className={'lv-landing-face lv-landing-face--' + face}>
                     <span className="lv-landing-corner c1" /><span className="lv-landing-corner c2" /><span className="lv-landing-corner c3" /><span className="lv-landing-corner c4" />
@@ -43,7 +42,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
               </div>
             </div>
-            <div className="lv-landing-art-footer"><span>{en ? 'YOUR PRIVATE LEGACY' : 'KHÔNG GIAN DI SẢN CỦA BẠN'}</span><button onClick={() => setPaused(!paused)} aria-pressed={paused} aria-label={paused ? (en ? 'Play animation' : 'Tiếp tục hoạt ảnh') : (en ? 'Pause animation' : 'Tạm dừng hoạt ảnh')}>{paused ? <Play size={14} /> : <Pause size={14} />}</button></div>
+            <div className="lv-landing-art-footer"><span>{en ? 'YOUR PRIVATE LEGACY' : 'KHÔNG GIAN DI SẢN CỦA BẠN'}</span></div>
           </div>
         </div>
         <a className="lv-landing-explore" href="#features"><ArrowDown size={15} />{en ? 'Explore your space' : 'Khám phá không gian của bạn'}</a>

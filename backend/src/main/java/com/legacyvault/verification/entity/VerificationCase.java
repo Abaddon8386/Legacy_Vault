@@ -97,6 +97,14 @@ public class VerificationCase {
         return publicId;
     }
 
+    /** Stable display reference from immutable persisted fields; UUID remains the API key. */
+    public String getCaseNumber() {
+        if (verificationCaseId == null || createdAt == null) {
+            throw new IllegalStateException("Case reference requires a persisted case");
+        }
+        return String.format(java.util.Locale.ROOT, "HS-%04d-%06d", createdAt.getYear(), verificationCaseId);
+    }
+
     public Long getVaultId() {
         return vaultId;
     }
