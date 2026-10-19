@@ -18,7 +18,7 @@ export default function TrusteeBeneficiaryRoute({ accessToken, lang, onUnauthori
   }, [accessToken, lang, onUnauthorized, onRefreshTrigger]);
   if (state.loading) return <LoadingState lang={lang} />;
   if (state.error) return <ErrorState error={state.error} lang={lang} onRetry={onNavigateToVault} onNavigateToLogin={onUnauthorized} />;
-  if (!state.vault) return <section><p>{lang === 'en' ? 'Create your heritage vault before adding trustees or beneficiaries.' : 'Hãy tạo kho di sản trước khi khai báo người giám hộ và người thụ hưởng.'}</p><button onClick={onNavigateToVault}>{lang === 'en' ? 'Go to Vault' : 'Đến kho di sản'}</button></section>;
+  if (!state.vault) return <section><p>{lang === 'en' ? 'Create your heritage vault before adding trustees or beneficiaries.' : 'Hãy tạo kho di sản trước khi khai báo người thi hành bên ngoài và người thụ hưởng.'}</p><button onClick={onNavigateToVault}>{lang === 'en' ? 'Go to Vault' : 'Đến kho di sản'}</button></section>;
   return <TrusteeBeneficiaryPage key={state.vault.id} vaultId={state.vault.id} accessToken={accessToken} lang={lang}
     onUnauthorized={onUnauthorized} onRefreshTrigger={onRefreshTrigger} />;
 }

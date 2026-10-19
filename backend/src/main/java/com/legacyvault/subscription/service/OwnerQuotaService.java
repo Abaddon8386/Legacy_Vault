@@ -65,7 +65,7 @@ public class OwnerQuotaService {
 
     @Transactional(readOnly = true)
     public List<Plan> catalog() {
-        return plans.findAllByOrderByAssetLimitAsc().stream().map(Plan::from).toList();
+        return plans.findAllByOrderByAssetLimitAsc().stream().filter(SubscriptionPlan::isAvailable).map(Plan::from).toList();
     }
 
     @Transactional

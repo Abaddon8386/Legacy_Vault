@@ -62,7 +62,8 @@ public class StaffVerificationCaseService {
 
         if (status != null
                 && !VerificationCase.STATUS_OPEN.equals(status)
-                && !VerificationCase.STATUS_CANCELLED.equals(status)) {
+                && !VerificationCase.STATUS_CANCELLED.equals(status)
+                && !VerificationCase.STATUS_CLOSED.equals(status)) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
@@ -93,6 +94,7 @@ public class StaffVerificationCaseService {
 
         return new StaffVerificationCaseResponse(
                 verificationCase.getPublicId(),
+                verificationCase.getCaseNumber(),
                 verificationCase.getStatus(),
                 verificationCase.getTriggeredAt(),
                 verificationCase.getClosedAt(),

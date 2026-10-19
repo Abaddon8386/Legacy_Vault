@@ -1,3 +1,4 @@
+import { AssetImageGallery } from './AssetImageGallery.jsx'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
@@ -219,6 +220,9 @@ export function AssetDetailModal({
             {asset.description || t.assets.noDescription}
           </p>
         </div>
+
+        <AssetImageGallery key={[vaultId, asset.id, accessToken, lang].join(':')} vaultId={vaultId} assetId={asset.id}
+          accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} />
 
         {/* Reveal / Secret Payload Section */}
         {asset.hasPayload && (

@@ -24,6 +24,11 @@ public class OwnerUsageRepository {
             JOIN dbo.vaults v ON v.vault_id = a.vault_id
             WHERE v.owner_user_id = ?
             """, Long.class, ownerUserId);
-        return new Usage(payloads.assets(), Math.addExact(payloads.bytes(), versions));
+        Long imageBytes = jdbc.queryForObject("""
+            SELECT COALESCE(SUM(i.file_size_bytes), 0) FROM dbo.asset_images i
+            JOIN dbo.assets a ON a.asset_id=i.asset_id JOIN dbo.vaults v ON v.vault_id=a.vault_id
+            WHERE v.owner_user_id=?
+            """, Long.class, ownerUserId);
+        return new Usage(payloads.assets(), Math.addExact(Math.addExact(payloads.bytes(), versions), imageBytes));
     }
 }

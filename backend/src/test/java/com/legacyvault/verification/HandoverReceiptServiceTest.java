@@ -55,8 +55,11 @@ class HandoverReceiptServiceTest {
     private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
     private final LegalBasisVersionAllocationRepository allocations = mock(LegalBasisVersionAllocationRepository.class);
     private final AuditService audit = mock(AuditService.class);
+    private final com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository evidence =
+            mock(com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository.class);
     private final HandoverReceiptService service = new HandoverReceiptService(cases, sessions, receipts,
-            receiptAssets, workflow, versions, allocations, audit);
+            receiptAssets, workflow, versions, allocations, audit,
+            evidence);
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
     private final Vault vault = mock(Vault.class);
@@ -107,6 +110,21 @@ class HandoverReceiptServiceTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.HANDOVER_RECEIPT_INVALID_STATE);
         verifyNoInteractions(receipts, receiptAssets, audit);
+    }
+
+    @Test
+    void matchingImmutableCompletionEvidenceEnablesStaffAttestation() {
+        var proof = mock(com.legacyvault.verification.entity.HandoverCompletionEvidence.class);
+        when(evidence.findBySessionId(101L)).thenReturn(Optional.of(proof));
+        when(proof.getVersionId()).thenReturn(701L);
+        when(proof.getSha256()).thenReturn("a".repeat(64));
+        when(proof.getScopeHash()).thenReturn("b".repeat(64));
+        when(dossier.getLastReviewedAllocationHash()).thenReturn("b".repeat(64));
+        var result = (com.legacyvault.verification.dto.HandoverReceiptResponse) create();
+        assertThat(result.confirmationType()).isEqualTo(HandoverReceipt.STAFF_ATTESTATION);
+        verify(receipts).saveAndFlush(any());
+        verify(receiptAssets).saveAllAndFlush(any());
+        verify(audit).record(any());
     }
 
     @Test

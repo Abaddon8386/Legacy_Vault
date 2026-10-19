@@ -2,6 +2,12 @@
 
 Repo nhóm: https://github.com/Abaddon8386/Legacy_Vault. Nhánh tích hợp: `develop`; nhánh nền: `main`.
 
+## Thay đổi local ngày 19/10/2026 — gói trọn đời và ảnh tài sản
+
+Theo quyết định mới của người dùng: BASIC miễn phí, STANDARD 499.000đ, EXTENDED 999.000đ, mua một lần dùng trọn đời. Nâng cấp trả đủ giá gói đích, không tính chênh lệch. Mỗi tài sản thêm tối đa 5 ảnh JPEG/PNG, 5 MiB/ảnh; ảnh mã hóa và tính vào dung lượng kho. Xem [contract và giới hạn triển khai](docs/api-contracts/lifetime-plans-and-asset-images.md).
+
+Khởi động lại backend theo cấu hình hiện có để Flyway chạy V31–V33; không chạy SQL thủ công, reset DB hoặc repair checksum. V32 giữ lịch sử giá cũ, không cấp gói trả phí cho tài khoản hiện hữu. API báo giá không phải thanh toán: payment vẫn chưa tích hợp, không có nút mua thành công giả. Quota enforcement vẫn tắt mặc định.
+
 ## Bộ khung
 
 React/Vite, Java 25, Spring Boot 4.1.1, Spring Data JPA, Spring Security và Microsoft SQL Server (JDBC 13.6.0.jre11). Phiên bản được giữ theo bản nền repo cũ; không nâng dependency trong lần khởi tạo này.

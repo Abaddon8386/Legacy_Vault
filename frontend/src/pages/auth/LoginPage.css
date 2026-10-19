@@ -801,3 +801,7 @@
     transform: none !important;
   }
 }
+/* Visible on desktop and mobile, including when login is rendered by a route guard. */
+.hn-login-back-home{display:inline-flex;align-items:center;min-height:44px;margin-bottom:20px;color:#164639;font-size:14px;text-decoration:none}
+.hn-login-back-home:hover{text-decoration:underline}
+.hn-login-back-home:focus-visible{outline:2px solid #c5a059;outline-offset:4px;border-radius:4px}

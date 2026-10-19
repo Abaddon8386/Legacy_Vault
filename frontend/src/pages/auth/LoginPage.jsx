@@ -346,6 +346,7 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
           ================================================================== */}
       <main className="hn-login-form-region" aria-label="Login Form">
         <div className="hn-login-form-container">
+          <a className="hn-login-back-home" href="/">{lang === 'en' ? '← Back to home' : '← Về trang chủ'}</a>
           {/* Top Form Header with Language Toggle (Entrance 1) */}
           <div className="hn-login-form-topbar hn-login-entrance-1">
             <span className="hn-login-form-badge">{t.formBadge}</span>

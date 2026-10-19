@@ -65,6 +65,11 @@ public class Vault {
     }
 
     public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_ARCHIVED = "ARCHIVED";
+
+    public void archiveAfterHandover() {
+        moveTo(STATUS_HANDOVER_IN_PROGRESS, STATUS_ARCHIVED);
+    }
     public static final String STATUS_AWAITING_VERIFICATION = "AWAITING_VERIFICATION";
     public static final String STATUS_DOCUMENT_VERIFICATION = "DOCUMENT_VERIFICATION";
     public static final String STATUS_WILL_VERIFICATION = "WILL_VERIFICATION";

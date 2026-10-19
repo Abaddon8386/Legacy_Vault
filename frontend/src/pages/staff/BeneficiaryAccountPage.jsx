@@ -1,6 +1,7 @@
+import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, UserCheck, UserPlus, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut, Globe } from 'lucide-react';
+import { ShieldCheck, UserCheck, UserPlus, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut } from 'lucide-react';
 
 import { getCounterHandoverTranslations } from './beneficiaryAccountI18n.js';
 import {
@@ -244,15 +245,7 @@ function CounterHandoverContent({
             )}
 
             {onToggleLang && (
-              <button
-                type="button"
-                className="lv-handover-header-btn"
-                onClick={() => onToggleLang(lang === 'vi' ? 'en' : 'vi')}
-                title={lang === 'vi' ? 'English' : 'Tiếng Việt'}
-              >
-                <Globe size={14} aria-hidden="true" />
-                <span>{lang.toUpperCase()}</span>
-              </button>
+              <LanguageToggle lang={lang} onToggleLang={onToggleLang} />
             )}
 
             {onRefresh && (

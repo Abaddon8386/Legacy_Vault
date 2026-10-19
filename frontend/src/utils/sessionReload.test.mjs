@@ -37,7 +37,7 @@ let code = (Array.isArray(output) ? output[0] : output).output.find(item => item
 for (const name of ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime']) code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
 const { default: App } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 
-for (const role of ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
+for (const role of ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'BENEFICIARY', 'ADMIN']) {
   test(`reload restores ${role} on current route using server roles and keeps original expiry`, async () => {
     const saved = { ...candidate(), user: { ...user, roles: [role] } };
     storeSession(saved);

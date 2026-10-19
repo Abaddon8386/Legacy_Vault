@@ -55,6 +55,12 @@ export function resolvePostLoginRoute(user) {
   if (roles.includes('STAFF_EXECUTOR') && !roles.includes('VAULT_OWNER')) {
     return '/staff/legal-documents';
   }
+  if (roles.includes('ADMIN') && !roles.includes('VAULT_OWNER')) {
+    return '/admin';
+  }
+  if (roles.includes('BENEFICIARY') && !roles.includes('VAULT_OWNER')) {
+    return '/beneficiary';
+  }
   return '/vault';
 }
 

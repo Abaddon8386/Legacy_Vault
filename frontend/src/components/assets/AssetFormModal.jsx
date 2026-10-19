@@ -1,3 +1,4 @@
+import { AssetImagePicker } from './AssetImagePicker.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
@@ -28,6 +29,7 @@ export function AssetFormModal({
 
   const [formData, setFormData] = useState(emptyForm)
   const [errors, setErrors] = useState({})
+  const [images, setImages] = useState([])
 
   function validate() {
     const errs = {}
@@ -71,12 +73,14 @@ export function AssetFormModal({
       assetType: formData.assetType,
       description: formData.description.trim(),
       payload: formData.payload,
+      images,
     })
   }
 
   function handleResetAndClose() {
     if (isSubmitting) return
     setFormData(emptyForm)
+    setImages([])
     setErrors({})
     onClose()
   }
@@ -115,7 +119,7 @@ export function AssetFormModal({
             aria-label={t.assets.closeBtn}
             disabled={isSubmitting}
           >
-            ✕
+            âœ•
           </button>
         </div>
 
@@ -235,6 +239,8 @@ export function AssetFormModal({
           >
             <span>{t.assets.addModal.beneficiaryHint}</span>
           </div>
+
+          <AssetImagePicker files={images} onChange={setImages} disabled={isSubmitting} lang={lang} />
 
           {/* Actions */}
           <div className="lv-form-actions">

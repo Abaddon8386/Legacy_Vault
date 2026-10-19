@@ -1,3 +1,6 @@
+import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
+import AdminHome from './pages/admin/AdminHome.jsx';
+import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
 import { previewRoute } from './utils/previewState.js';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
@@ -519,6 +522,26 @@ export default function App() {
     </main>
   );
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  if (path === '/admin' || path === '/admin/subscriptions') {
+    if (!isSessionActive(session)) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!session.user.roles.includes('ADMIN')) return <main role="alert"><p>{lang === 'en' ? 'This page requires an administrator account.' : 'Trang này dành cho tài khoản quản trị viên.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
+    const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions' : 'admin-home';
+    return <AppShell role="ADMIN" session={session} user={session.user} lang={lang} currentTab={currentTab}
+      isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null}
+      onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : tab === 'admin-subscriptions' ? '/admin/subscriptions' : '/admin')}>
+      {currentTab === 'admin-subscriptions'
+        ? <AdminSubscriptionPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onNavigateHome={() => navigateTo('/admin')} />
+        : <AdminHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} />}
+    </AppShell>;
+  }
+  if (path === '/beneficiary') {
+    if (!isSessionActive(session)) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!session.user.roles.includes('BENEFICIARY')) return <main role="alert"><p>{lang === 'en' ? 'This page requires a beneficiary account.' : 'Trang này dành cho tài khoản người thụ hưởng.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
+    return <AppShell role="BENEFICIARY" session={session} user={session.user} lang={lang} currentTab="beneficiary-home"
+      isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : '/beneficiary')}>
+      <BeneficiaryHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} />
+    </AppShell>;
+  }
   const resolveAccountRoute = (basePath) => {
     const params = new URLSearchParams();
     if (preview) params.set('preview', 'true');
@@ -562,7 +585,7 @@ export default function App() {
     };
     return (
       <div className="lv-app-root">
-        <StaffShell
+        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
           lang={lang}
           onToggleLang={setLang}
           onLogout={logout}
@@ -635,6 +658,7 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -669,7 +693,10 @@ export default function App() {
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
   const handleExecuteNavigation = (targetTab) => {
-    if (targetTab === 'account-profile') {
+    if (targetTab === 'admin-home') { navigateTo('/admin');
+    } else if (targetTab === 'admin-subscriptions') { navigateTo('/admin/subscriptions');
+    } else if (targetTab === 'beneficiary-home') { navigateTo('/beneficiary');
+    } else if (targetTab === 'account-profile') {
       navigateTo(resolveAccountRoute('/account/profile'));
     } else if (targetTab === 'account-edit') {
       navigateTo(resolveAccountRoute('/account/edit'));
@@ -726,7 +753,7 @@ export default function App() {
       ? 'STAFF'
       : session?.user?.roles?.includes('LEGAL_VERIFIER')
       ? 'LEGAL'
-      : 'OWNER';
+      : session?.user?.roles?.includes('ADMIN') && !session?.user?.roles?.includes('VAULT_OWNER') ? 'ADMIN' : session?.user?.roles?.includes('BENEFICIARY') && !session?.user?.roles?.includes('VAULT_OWNER') ? 'BENEFICIARY' : 'OWNER';
 
     return (
       <div className="lv-app-root">
@@ -785,7 +812,7 @@ export default function App() {
       ? 'STAFF'
       : session?.user?.roles?.includes('LEGAL_VERIFIER')
       ? 'LEGAL'
-      : 'OWNER';
+      : session?.user?.roles?.includes('ADMIN') && !session?.user?.roles?.includes('VAULT_OWNER') ? 'ADMIN' : session?.user?.roles?.includes('BENEFICIARY') && !session?.user?.roles?.includes('VAULT_OWNER') ? 'BENEFICIARY' : 'OWNER';
 
     return (
       <div className="lv-app-root">
@@ -875,6 +902,7 @@ export default function App() {
               navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
             } else if (tab === 'legal-documents') {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -910,7 +938,7 @@ export default function App() {
     }
     return (
       <div className="lv-app-root">
-        <StaffShell
+        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
           lang={lang}
           onToggleLang={setLang}
           onLogout={session ? logout : null}
@@ -983,6 +1011,7 @@ export default function App() {
               navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
             } else if (tab === 'beneficiary-confirmation') {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1033,6 +1062,7 @@ export default function App() {
               navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
             } else if (tab === 'completion-progress') {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1083,6 +1113,7 @@ export default function App() {
               navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
             } else if (tab === 'close-and-archive') {
               navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1145,6 +1176,7 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1203,6 +1235,7 @@ export default function App() {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1261,6 +1294,7 @@ export default function App() {
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
+            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1291,7 +1325,8 @@ export default function App() {
     return <div className="lv-app-root"><AppShell currentTab={isSubscriptionRoute ? 'subscription' : isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       role="OWNER" isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onRefresh={handleRefresh} isRefreshing={isRefreshing} session={session} user={session?.user || null}
       onNavigateTab={tab => {
-        if (tab === 'account-profile') {
+        if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
+            } else if (tab === 'account-profile') {
           navigateTo(resolveAccountRoute('/account/profile'));
         } else if (tab === 'account-edit') {
           navigateTo(resolveAccountRoute('/account/edit'));
@@ -1300,7 +1335,7 @@ export default function App() {
         }
       }}>
       {preview && (isBeneficiariesRoute || isWillsRoute) ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
-        <h2>{isWillsRoute ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng và người giám hộ')}</h2>
+        <h2>{isWillsRoute ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng và người thi hành bên ngoài')}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--primary" onClick={() => navigateTo(previewRoute('vault', window.location.search, lang))}>{lang === 'en' ? 'Back to preview' : 'Quay lại tổng quan'}</button>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--gold" onClick={() => navigateTo('/login')}>{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</button>

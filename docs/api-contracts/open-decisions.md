@@ -1,5 +1,7 @@
 # Quyết định API (Decision Log)
 
+> **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
+
 > **Cách đọc:** mục **ĐÃ CHỐT** là quyết định để FE/BE triển khai Sprint 1, do **Dương (điều phối PS-74) chốt ngày 2026-10-11**
 > trên cơ sở đề xuất trong contract. FE/BE vẫn có thể phản biện ở buổi review; mọi thay đổi sau đó phải ghi vào mục D và cập nhật
 > contract + `openapi.yaml` trong cùng PR.
