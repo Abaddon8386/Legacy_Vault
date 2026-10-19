@@ -111,6 +111,7 @@ export default function GoogleSignInButton({
             width: 360,
             locale: lang === 'vi' ? 'vi' : 'en',
           });
+          setHasError(false);
           setGisLoaded(true);
         }
       })

@@ -1,35 +1,43 @@
 let gisScriptPromise = null;
+const SDK_URL = 'https://accounts.google.com/gsi/client';
 
-/**
- * Loads the official Google Identity Services (GIS) script once.
- * Returns a promise that resolves when the SDK is available.
- */
+/** Share an in-flight load, but allow a fresh attempt after a failed load. */
 export function loadGoogleIdentityScript() {
   if (typeof window === 'undefined') return Promise.resolve(false);
   if (window.google?.accounts?.id) return Promise.resolve(true);
+  if (gisScriptPromise) return gisScriptPromise;
 
-  if (!gisScriptPromise) {
-    gisScriptPromise = new Promise((resolve, reject) => {
-      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-      if (existing) {
-        if (window.google?.accounts?.id) {
-          resolve(true);
-          return;
-        }
-        existing.addEventListener('load', () => resolve(true), { once: true });
-        existing.addEventListener('error', (err) => reject(err), { once: true });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => resolve(true);
-      script.onerror = (err) => reject(err);
-      document.head.appendChild(script);
-    });
+  let script = document.querySelector(`script[src="${SDK_URL}"]`);
+  const created = !script;
+  if (created) {
+    script = document.createElement('script');
+    script.src = SDK_URL;
+    script.async = true;
+    script.defer = true;
   }
-
+  const pending = new Promise((resolve, reject) => {
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+    };
+    const fail = () => {
+      cleanup();
+      script.remove();
+      reject(new Error('GOOGLE_SCRIPT_LOAD_ERROR'));
+    };
+    const onLoad = () => {
+      if (!window.google?.accounts?.id) { fail(); return; }
+      cleanup();
+      resolve(true);
+    };
+    const onError = () => fail();
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
+    if (created) document.head.appendChild(script);
+  });
+  gisScriptPromise = pending.catch(error => {
+    gisScriptPromise = null;
+    throw error;
+  });
   return gisScriptPromise;
 }
