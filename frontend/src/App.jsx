@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
+import PasswordRecoveryPage from './pages/auth/PasswordRecoveryPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import { request, ApiError } from './api/http.js';
@@ -522,8 +523,11 @@ export default function App() {
     </main>
   );
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  if (path === '/forgot-password' || path === '/reset-password') {
+    return <PasswordRecoveryPage mode={path === '/reset-password' ? 'reset' : 'request'} initialLang={new URLSearchParams(location.split('?')[1] || '').get('lang')} onNavigate={navigateTo} />;
+  }
   if (path === '/admin' || path === '/admin/subscriptions') {
-    if (!isSessionActive(session)) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session)) return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!session.user.roles.includes('ADMIN')) return <main role="alert"><p>{lang === 'en' ? 'This page requires an administrator account.' : 'Trang này dành cho tài khoản quản trị viên.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
     const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions' : 'admin-home';
     return <AppShell role="ADMIN" session={session} user={session.user} lang={lang} currentTab={currentTab}
@@ -535,7 +539,7 @@ export default function App() {
     </AppShell>;
   }
   if (path === '/beneficiary') {
-    if (!isSessionActive(session)) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session)) return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!session.user.roles.includes('BENEFICIARY')) return <main role="alert"><p>{lang === 'en' ? 'This page requires a beneficiary account.' : 'Trang này dành cho tài khoản người thụ hưởng.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
     return <AppShell role="BENEFICIARY" session={session} user={session.user} lang={lang} currentTab="beneficiary-home"
       isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : '/beneficiary')}>
@@ -551,14 +555,14 @@ export default function App() {
   };
 
   if (path === '/staff/handover') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><CounterHandoverPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   const isStaffRoute = path === '/staff/cases';
   if (isStaffRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !session.user.roles.includes('STAFF_EXECUTOR')) {
       return (
@@ -612,7 +616,7 @@ export default function App() {
 
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (path === '/legal/approval-review') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'This portal requires a Legal Verifier account.' : 'Cổng này chỉ dành cho tài khoản Thẩm định Pháp lý (LEGAL_VERIFIER).'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><LegalApprovalReviewPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
@@ -620,7 +624,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
         </div>
       );
     }
@@ -735,7 +739,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
         </div>
       );
     }
@@ -794,7 +798,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
         </div>
       );
     }
@@ -873,13 +877,13 @@ export default function App() {
   }
 
   if (path === '/staff/beneficiary-accounts') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !canAccessStaffLegalDocuments(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -931,7 +935,7 @@ export default function App() {
 
   if (isStaffAssetHandoverRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !canAccessScopedAssetHandover(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -980,7 +984,7 @@ export default function App() {
 
   if (isStaffBeneficiaryConfirmationRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !canAccessBeneficiaryConfirmation(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1031,7 +1035,7 @@ export default function App() {
 
   if (isStaffCompletionProgressRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !canAccessCompletionProgress(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1082,7 +1086,7 @@ export default function App() {
 
   if (isStaffCloseArchiveRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !canAccessCloseArchive(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1130,7 +1134,7 @@ export default function App() {
   }
 
   if (path === '/legal/controlled-unlock') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><ControlledUnlockPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
@@ -1138,7 +1142,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
         </div>
       );
     }
@@ -1197,7 +1201,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
         </div>
       );
     }
@@ -1256,7 +1260,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
         </div>
       );
     }
@@ -1312,7 +1316,7 @@ export default function App() {
   }
   if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute || isSubscriptionRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
     }
     if (!preview && !session.user.roles.includes('VAULT_OWNER')) {
       return <main role="alert"><p>{lang === 'en' ? 'This page requires a Vault Owner account.' : 'Trang này dành cho tài khoản chủ sở hữu kho.'}</p>
@@ -1350,6 +1354,6 @@ export default function App() {
   if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
   return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} onAuthenticated={establishSession} />
-    : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+    : path === '/login' ? <LoginPage onNavigateToForgotPassword={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
       : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;
 }
