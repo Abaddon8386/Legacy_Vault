@@ -1,0 +1,102 @@
+/* ==========================================================================
+   GoogleSignInButton Stylesheet — LegacyVault
+   Complies with Google Branding Guidelines & Henedo Warm Ivory Luxury Tokens
+   ========================================================================== */
+
+.lv-google-auth-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* Container where Google Identity Services renders its official iframe button */
+.lv-google-rendered-container {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.lv-google-rendered-container.is-disabled {
+  pointer-events: none;
+  opacity: 0.6;
+  filter: grayscale(15%);
+  cursor: wait;
+}
+
+/* Custom Google Button matching official brand guidelines & Henedo style */
+.lv-google-btn-custom {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 18px;
+  background-color: var(--lv-bg-surface, #ffffff);
+  color: var(--lv-text-ink, #1f2421);
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: var(--lv-radius-md, 10px);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(22, 70, 57, 0.04);
+  cursor: pointer;
+  box-sizing: border-box;
+  text-decoration: none;
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease,
+              transform 0.15s ease;
+}
+
+.lv-google-btn-custom:hover:not(:disabled) {
+  background-color: var(--lv-bg-surface-subtle, #fcfbf8);
+  border-color: var(--lv-accent-gold, #c5a059);
+  box-shadow: 0 3px 10px rgba(197, 160, 89, 0.16);
+  transform: translateY(-1px);
+}
+
+.lv-google-btn-custom:active:not(:disabled) {
+  transform: scale(0.99);
+  background-color: var(--lv-bg-canvas, #f7f5f0);
+}
+
+.lv-google-btn-custom:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+  outline-offset: 2px;
+}
+
+.lv-google-btn-custom:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background-color: #faf9f7;
+  border-color: #e6e1d8;
+  box-shadow: none;
+  transform: none;
+}
+
+.lv-google-btn-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.lv-google-btn-text {
+  letter-spacing: 0.15px;
+}
+
+.lv-google-unavailable-notice {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--lv-text-muted, #736e65);
+  text-align: center;
+  line-height: 1.4;
+  letter-spacing: 0.1px;
+}

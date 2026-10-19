@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+const dom = new JSDOM('<html><head></head></html>');
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+const { loadGoogleIdentityScript } = await import('./googleIdentity.js');
+const selector = 'script[src="https://accounts.google.com/gsi/client"]';
+test('PS-83 retries a failed SDK load without a page reload and shares concurrent requests', async () => {
+  const first = loadGoogleIdentityScript();
+  assert.equal(loadGoogleIdentityScript(), first);
+  const failed = document.querySelector(selector);
+  failed.dispatchEvent(new window.Event('error'));
+  await assert.rejects(first, /GOOGLE_SCRIPT_LOAD_ERROR/);
+  assert.equal(document.querySelector(selector), null);
+  const retry = loadGoogleIdentityScript();
+  const replacement = document.querySelector(selector);
+  assert.notEqual(replacement, failed);
+  assert.equal(loadGoogleIdentityScript(), retry);
+  window.google = { accounts: { id: {} } };
+  replacement.dispatchEvent(new window.Event('load'));
+  assert.equal(await retry, true);
+  assert.equal(await loadGoogleIdentityScript(), true);
+  assert.equal(document.querySelectorAll(selector).length, 1);
+});
+test('PS-83 load event without a usable SDK can also be retried', async () => {
+  delete window.google;
+  document.querySelector(selector)?.remove();
+  const { loadGoogleIdentityScript: load } = await import('./googleIdentity.js?missing-sdk');
+  const first = load();
+  document.querySelector(selector).dispatchEvent(new window.Event('load'));
+  await assert.rejects(first, /GOOGLE_SCRIPT_LOAD_ERROR/);
+  const retry = load();
+  window.google = { accounts: { id: {} } };
+  document.querySelector(selector).dispatchEvent(new window.Event('load'));
+  assert.equal(await retry, true);
+});

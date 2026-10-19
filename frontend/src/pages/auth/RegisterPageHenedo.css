@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    RegisterPageHenedo Stylesheet — LegacyVault
    Art Direction: Editorial Luxury + Private Sanctuary (Henedo Inspired)
    Palette: Warm Cream (#F7F5F0), Noble Forest (#143d32), Sand Gold (#C5A059)
@@ -635,6 +635,37 @@
 
 .henedo-cta-btn:hover:not(:disabled) .hn-arrow {
   transform: translateX(3.5px);
+}
+
+/* Divider: Hoặc / or */
+.henedo-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0 14px 0;
+  width: 100%;
+}
+
+.henedo-divider::before,
+.henedo-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--lv-border-subtle, #eae5dc);
+}
+
+.henedo-divider span {
+  padding: 0 14px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--lv-text-muted, #747871);
+  font-weight: 500;
+}
+
+/* Google Sign-in Section */
+.henedo-google-section {
+  width: 100%;
+  margin-bottom: 4px;
 }
 
 /* Status Notifications */
