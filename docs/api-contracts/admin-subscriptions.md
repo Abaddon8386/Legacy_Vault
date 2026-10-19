@@ -53,7 +53,7 @@ Nguồn đối chiếu và liên quan:
 
 ## 3. Kiểm soát Đồng thời & Toàn vẹn Dữ liệu (Concurrency Control)
 
-Bảng quản lý: `dbo.subscription_plan_versions` (migration Flyway `V28__admin_subscription_catalog_management.sql`).
+Bảng quản lý: `dbo.subscription_plan_versions` (migration Flyway `V31__admin_subscription_catalog_management.sql`).
 
 ### Cơ chế chống ghi đè:
 - Cột `concurrency_token BIGINT NOT NULL` được JPA quản lý thông qua `@Version`.

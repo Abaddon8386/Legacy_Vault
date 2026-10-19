@@ -43,17 +43,20 @@ public class DeathDocumentIntakeService {
     private final DeathDocumentRecordRepository recordRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final LegalBasisLockedState state;
 
     public DeathDocumentIntakeService(
             StaffCaseLockRepository caseRepository,
             DeathDocumentRecordRepository recordRepository,
             UserRepository userRepository,
-            AuditService auditService
+            AuditService auditService,
+            LegalBasisLockedState state
     ) {
         this.caseRepository = caseRepository;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.state = state;
     }
 
     @Transactional
@@ -67,6 +70,7 @@ public class DeathDocumentIntakeService {
         VerificationCase verificationCase = caseRepository.findOwnedByStaffForUpdate(caseId, staffUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        state.refresh(verificationCase);
         if (!verificationCase.isOpen()) {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }

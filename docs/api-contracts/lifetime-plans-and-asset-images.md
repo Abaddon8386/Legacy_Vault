@@ -37,7 +37,7 @@ Metadata: `{id,fileName,contentType,sizeBytes,createdAt}`. Shared errors 400/401
 
 ## Migration và giới hạn xác minh
 
-V28 được giữ nguyên; V29 thêm giá mua trọn đời và phiên bản catalog mới, giữ bản cũ dạng lịch sử, không đổi entitlement/giao dịch. V30 tạo bảng ảnh mã hóa. Không sửa checksum migration đã áp dụng, không reset database hiện có. Migration tăng catalog version có thể làm báo giá cũ stale đúng dự kiến.
+V31 được giữ nguyên; V32 thêm giá mua trọn đời và phiên bản catalog mới, giữ bản cũ dạng lịch sử, không đổi entitlement/giao dịch. V33 tạo bảng ảnh mã hóa. Không sửa checksum migration đã áp dụng, không reset database hiện có. Migration tăng catalog version có thể làm báo giá cũ stale đúng dự kiến.
 
 Version DTO có `legacyMonthlyPriceVnd` chỉ dành cho cấu hình MONTHLY cũ đã ngừng áp dụng; không hiển thị chúng là gói miễn phí/trọn đời và không bán lại qua catalog mới.
 

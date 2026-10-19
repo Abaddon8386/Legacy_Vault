@@ -9,6 +9,9 @@ package com.legacyvault.common.error;
  */
 public enum ErrorCode {
 	ASSET_IMAGE_LIMIT_EXCEEDED(409, "error.asset.imageLimitExceeded"),
+	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
+	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),
+	HANDOVER_CONFIRMATION_CONFLICT(409, "error.handoverConfirmation.conflict"),
 	VALIDATION_FAILED(400, "error.validation.failed"),
 	MALFORMED_REQUEST(400, "error.request.malformed"),
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),

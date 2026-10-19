@@ -44,7 +44,7 @@ public class BeneficiaryService {
 	@Transactional
 	public BeneficiaryDtos.Response create(UUID vaultId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
+		Vault vault = ownerVaults.requireEditableVaultForUpdate(vaultId, owner.getUserId());
 		UUID beneficiaryId = UUID.randomUUID();
 		byte[] encryptedId = encryptIfPresent(request.identityNumber(), beneficiaryId);
 		Beneficiary beneficiary = new Beneficiary(beneficiaryId, vault, clean(request.fullName()), clean(request.relationship()),
@@ -68,7 +68,7 @@ public class BeneficiaryService {
 	@Transactional
 	public BeneficiaryDtos.Response update(UUID vaultId, UUID beneficiaryId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
+		Vault vault = ownerVaults.requireEditableVaultForUpdate(vaultId, owner.getUserId());
 		Beneficiary beneficiary = beneficiaries.findByPublicIdAndVault_VaultId(beneficiaryId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		byte[] encryptedId = encryptIfPresent(request.identityNumber(), beneficiary.getPublicId());
