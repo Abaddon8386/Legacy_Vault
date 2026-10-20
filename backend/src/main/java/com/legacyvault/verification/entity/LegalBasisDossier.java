@@ -160,10 +160,9 @@ public class LegalBasisDossier {
 
         if (!ROUTE_ON_HOLD.equals(route)
                 || !STATUS_DRAFT.equals(status)
-                || !(ROUTE_NOTARIAL.equals(newRoute)
-                || ROUTE_COURT.equals(newRoute))) {
+                || !ROUTE_COURT.equals(newRoute)) {
             throw new IllegalStateException(
-                    "Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
+                    "Only an ON_HOLD draft dossier can be reclassified to COURT");
         }
 
         this.route = newRoute;
@@ -173,7 +172,7 @@ public class LegalBasisDossier {
     }
 
     public boolean acceptsIntake() {
-        return ROUTE_NOTARIAL.equals(route) || ROUTE_COURT.equals(route);
+        return ROUTE_COURT.equals(route);
     }
 
     /** A hold invalidates earlier clearance while preserving all versions and assessment history. */

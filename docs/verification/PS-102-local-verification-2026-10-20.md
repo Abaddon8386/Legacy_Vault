@@ -28,3 +28,13 @@ Lượt cuối `LegalReadSqlServerTest,SubscriptionContractTest`: **18 pass** (1
 [Contract](../api-contracts/legal-read-context.md) và OpenAPI cung cấp dữ liệu cho PS-99/100/101. FE vẫn cần nối HTTP adapter thay callback discovery, đọc context và giữ kiểm tra stale/abort/session trước mutation. PR không sửa frontend của Huy, không claim hoàn tất browser FE↔BE E2E hoặc bằng chứng gặp mặt tại quầy. Metadata will/dossier tiếp tục giới hạn và quyền của read DTO hiện hữu; không mở endpoint xem nội dung file mới.
 
 Không commit CONTEXT-HANDOFF, secret hoặc log; chưa merge. Test migration cũ được sửa bỏ số lượng hằng 3, giữ kiểm đủ V28/29/30 và bảo toàn kho; không đổi SQL migration.
+
+## COURT-only follow-up — 20 October 2026
+
+Supersedes the original read-only scope above after Jira requirements changed. New classification/reclassification and all dossier writes/protected transitions require COURT. Legacy NOTARIAL reads/history remain; no migration or automatic route conversion. Final approval now checks current VALID court evidence before changing allocations/history/audit. Optional will does not require synthetic MATCH; classification accepts the post-death DOCUMENT_VERIFICATION state. Reads invalidate hold/required-version snapshots. Review refreshes locked state to avoid cached-state bypass.
+
+User approved existing counter business records/guards and paper references; no identity UI/upload or invented verification. PS-88/93/106 own further counter/invitation contract changes.
+
+Final clean regression: 668 tests, 614 passed, 54 skipped, zero failures/errors. LEGAL_SQLSERVER_MASTER_URL and STAFF_SQLSERVER_MASTER_URL enabled on disposable SQL Server databases. Includes 326 Legal/Staff tests, two new COURT-only SQL tests, missing/invalid Court approval, legacy read/write denial, no-will route, existing concurrency, audit rollback, partial/completion/archive and auth checks. Skips remain subscription prototype 23, lifetime images 28, DMS concurrency 3 (covered separately in PS-91). No FE changes/browser E2E claimed. Earlier failed runs used obsolete NOTARIAL success expectations; these were updated with explicit rejection/history coverage, not disabled.
+
+OpenAPI and court-only.md contain the authoritative delta; earlier per-flow documents link to it. No secret/log/handoff files included. No merge or Jira mutation.

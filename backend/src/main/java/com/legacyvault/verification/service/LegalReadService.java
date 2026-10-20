@@ -65,6 +65,7 @@ public class LegalReadService {
             String courtResult=version==null?null:courtDecisions.findFirstByDossierVersionIdOrderByIdDesc(version.id()).map(CourtDecision::getResult).orElse(null);
             snapshot=new Snapshot(d.getPublicId(),latest,d.getRequiredVersionNo(),version==null?null:version.sha256(),hash,d.getDisputeStatus(),d.getReviewStatus(),fresh,current,decision,courtResult);
             ErrorCode base=baseBlocker(c,v,d,version);
+            if(base==null) base=court.blocker(d);
             approvalReason=base!=null?base:(fresh?null:ErrorCode.LEGAL_DECISION_STALE);
             unlockReason=base;
             if(unlockReason==null) unlockReason=court.blocker(d);

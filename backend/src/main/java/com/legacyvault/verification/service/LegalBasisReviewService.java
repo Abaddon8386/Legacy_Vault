@@ -35,6 +35,7 @@ public class LegalBasisReviewService {
     private final AuditService auditService;
     private final VerificationCaseRepository verificationCases;
     private final VaultRepository vaultRepository;
+    private final LegalBasisLockedState lockedState;
 
     public LegalBasisReviewService(
             LegalBasisDossierRepository dossiers,
@@ -43,7 +44,8 @@ public class LegalBasisReviewService {
             LegalBasisReviewHistoryRepository history,
             AuditService auditService,
             VerificationCaseRepository verificationCases,
-            VaultRepository vaultRepository
+            VaultRepository vaultRepository,
+            LegalBasisLockedState lockedState
     ) {
         this.dossiers = dossiers;
         this.versions = versions;
@@ -52,6 +54,7 @@ public class LegalBasisReviewService {
         this.auditService = auditService;
         this.verificationCases = verificationCases;
         this.vaultRepository = vaultRepository;
+        this.lockedState = lockedState;
     }
 
     /**
@@ -76,11 +79,13 @@ public class LegalBasisReviewService {
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
 
         VerificationCase verificationCase = verificationCases
                 .findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
         if (!Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -95,6 +100,7 @@ public class LegalBasisReviewService {
                         verificationCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         if (!Objects.equals(dossier.getLegalBasisDossierId(), dossierId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -125,11 +131,13 @@ public class LegalBasisReviewService {
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
 
         VerificationCase verificationCase = verificationCases
                 .findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
         if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
                 || !Objects.equals(verificationCase.getVaultId(), vault.getVaultId())) {
@@ -157,6 +165,7 @@ public class LegalBasisReviewService {
                         verificationCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         boolean validDossierState =
                 LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())
@@ -185,6 +194,7 @@ public class LegalBasisReviewService {
                 .findByDossierIdForUpdate(dossierId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         return evaluateLocked(dossier, vaultId);
     }
@@ -210,11 +220,13 @@ public class LegalBasisReviewService {
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
 
         VerificationCase verificationCase = verificationCases
                 .findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
         if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
                 || !Objects.equals(
@@ -231,9 +243,11 @@ public class LegalBasisReviewService {
                         verificationCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         // Kiểm tra hold trước khi kiểm tra trạng thái nghiệp vụ.
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
+        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -278,11 +292,13 @@ public class LegalBasisReviewService {
                 .findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
 
         VerificationCase verificationCase = verificationCases
                 .findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
 
         if (!Objects.equals(verificationCase.getPublicId(), casePublicId)
                 || !Objects.equals(
@@ -299,9 +315,11 @@ public class LegalBasisReviewService {
                         verificationCase.getVerificationCaseId())
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         // Phải chạy trước các kiểm tra trạng thái Vault và dossier.
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
+        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -371,6 +389,7 @@ public class LegalBasisReviewService {
             LegalBasisDossier dossier,
             Long vaultId
     ) {
+        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
@@ -526,6 +545,7 @@ public class LegalBasisReviewService {
             Long reviewerUserId,
             String reason
     ) {
+        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);

@@ -72,7 +72,9 @@ public class LegalApprovalGuard {
     }
 
     private static boolean reviewMatches(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion, String hash) {
-        return "FRESH".equals(dossier.getReviewStatus())
+        return LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())
+            && currentVersion.version() >= dossier.getRequiredVersionNo()
+            && "FRESH".equals(dossier.getReviewStatus())
             && Objects.equals(dossier.getLastReviewedVersionNo(), currentVersion.version())
             && sameHash(dossier.getLastReviewedSha256Hash(), currentVersion.sha256())
             && Objects.equals(dossier.getLastReviewedDisputeStatus(), dossier.getDisputeStatus())

@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # Tài khoản Beneficiary tại quầy — PS-62, PS-63 (ST-24, LV-ID-001)
 
 **Trạng thái:** đã triển khai. Các quyết định thiết kế ghi ở [D-API-37](open-decisions.md); đó là cách đọc Main Flow v4.2 và chờ nhóm xác nhận.

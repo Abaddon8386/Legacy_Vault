@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # PS-102 — Legal queue và read context
 
 Contract bổ sung cho PS-99/100/101, 20/10/2026. Chỉ BE; FE nối adapter theo contract này ở phần việc tích hợp của FE. Không biến callback/mock thành HTTP contract và không dùng API Staff/Owner.

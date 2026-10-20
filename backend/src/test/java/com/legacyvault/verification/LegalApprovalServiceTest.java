@@ -58,7 +58,7 @@ class LegalApprovalServiceTest {
     private final LegalBasisVersionAllocationRepository allocations = mock(LegalBasisVersionAllocationRepository.class);
     private final LegalBasisReviewHistoryRepository history = mock(LegalBasisReviewHistoryRepository.class);
     private final AuditService audit = mock(AuditService.class);
-    private final LegalApprovalService service = new LegalApprovalService(access, versions, allocations, history, audit);
+    private final LegalApprovalService service = new LegalApprovalService(access, versions, allocations, history, audit, org.mockito.Mockito.mock(com.legacyvault.verification.service.CourtRouteGuard.class));
     private final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final Vault vault = mock(Vault.class);
@@ -203,7 +203,7 @@ class LegalApprovalServiceTest {
     }
 
     private static BasisVersionRow row(int version, String hash, String forwardStatus) {
-        return new BasisVersionRow(version, "NOTARIAL_PARTITION", "Authority", "DOC-1", null, null,
+        return new BasisVersionRow(version, "COURT_JUDGMENT", "Authority", "DOC-1", null, null,
                 null, null, null, null, "application/pdf", 100L, hash, forwardStatus, USER_ID, null, null);
     }
 }

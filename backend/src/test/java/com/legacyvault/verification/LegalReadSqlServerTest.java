@@ -29,13 +29,14 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
         var f=fixture(true);
         context.getBean(BasisClassificationService.class).classify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(route,"Fixture basis"));
         if(route!=ClassifyBasisRequest.Route.ON_HOLD) {
-            intakeVersion(f,route==ClassifyBasisRequest.Route.COURT?"COURT_JUDGMENT":"NOTARIAL_PARTITION");
+            intakeVersion(f,route==ClassifyBasisRequest.Route.COURT?"COURT_JUDGMENT":"COURT_JUDGMENT");
             if(forwarded) context.getBean(BasisForwardService.class).forward(f.publicCaseId(),1,f.legal());
         }
         return f;
     }
-    private void review(Fixture f) {context.getBean(LegalBasisReviewService.class).recordCompletedReviewByCasePublicId(f.publicCaseId(),f.userId(),"Fixture current review");}
+    private void review(Fixture f) {context.getBean(CourtDecisionService.class).record(f.publicCaseId(),f.legal(),new CourtDecisionRequest(1,CourtDecisionRequest.Result.VALID,"Fixture court validation"));context.getBean(LegalBasisReviewService.class).recordCompletedReviewByCasePublicId(f.publicCaseId(),f.userId(),"Fixture current review");}
     private void decide(Fixture f,LegalApprovalRequest.Decision decision) {
+        context.getBean(CourtDecisionService.class).record(f.publicCaseId(),f.legal(),new CourtDecisionRequest(1,CourtDecisionRequest.Result.VALID,"Fixture court validation"));
         var snapshot=read(f).snapshot();
         context.getBean(LegalApprovalService.class).decide(f.publicCaseId(),f.legal(),new LegalApprovalRequest(decision,snapshot.currentVersion(),snapshot.sha256Hash(),snapshot.allocationHash(),"Fixture decision"));
     }
@@ -69,13 +70,13 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
         assertTrue(reads().queue(a.legal(),null,null,100000,20).content().isEmpty());
     }
     @Test void contextReusesWillAndDossierViewsAndExposesNoSecretOrInternalIdentifiers() throws Exception {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);var result=read(f);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);var result=read(f);
         assertEquals(context.getBean(WillComparisonService.class).overview(f.publicCaseId()),result.willComparison());
         assertEquals(context.getBean(BasisDossierViewService.class).forLegal(f.publicCaseId()),result.basisDossier());
         assertEquals(1,result.snapshot().currentVersion());assertFalse(result.snapshot().reviewFresh());
     }
     @Test void reviewApprovalAndUnlockAreSeparateAndReadNeverCreatesApproval() {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);
         assertFalse(read(f).capabilities().approval().allowed());review(f);
         var reviewed=read(f);assertTrue(reviewed.snapshot().reviewFresh());assertFalse(reviewed.snapshot().approvalCurrent());
         assertTrue(reviewed.capabilities().approval().allowed());assertFalse(reviewed.capabilities().unlock().allowed());
@@ -87,47 +88,47 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
         assertEquals("UNLOCKED",read(f).vaultStatus());assertFalse(read(f).capabilities().unlock().allowed());
     }
     @Test void rejectedApprovalNeverUnlocksButCurrentSnapshotCanBeReviewedAgain() {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);review(f);decide(f,LegalApprovalRequest.Decision.REJECT);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.REJECT);
         var r=read(f);assertFalse(r.snapshot().approvalCurrent());assertEquals("LEGAL_REJECTED",r.snapshot().latestDecision().result());
         assertFalse(r.capabilities().unlock().allowed());assertTrue(r.capabilities().approval().allowed());
     }
     @Test void courtRequiresCurrentValidDecisionForUnlock() {
-        var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
-        assertFalse(read(f).capabilities().unlock().allowed());assertEquals("COURT_DECISION_REQUIRED",read(f).capabilities().unlock().blockedReason());
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);assertFalse(read(f).capabilities().approval().allowed());assertEquals("COURT_DECISION_REQUIRED",read(f).capabilities().approval().blockedReason());
         context.getBean(CourtDecisionService.class).record(f.publicCaseId(),f.legal(),new CourtDecisionRequest(1,CourtDecisionRequest.Result.VALID,"Fixture assessed court"));
+        review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
         assertEquals("VALID",read(f).snapshot().courtResult());assertTrue(read(f).capabilities().unlock().allowed());
     }
     @Test void holdAndNewVersionInvalidateReadCapabilityAndOldMutationSnapshot() {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
         var old=read(f);hold(f);var held=read(f);
         assertEquals("LEGAL_WORKFLOW_ON_HOLD",held.capabilities().unlock().blockedReason());assertFalse(held.snapshot().approvalCurrent());
         assertEquals(2,held.snapshot().requiredVersion());assertNotNull(held.snapshot().latestDecision());
-        context.getBean(BasisReclassificationService.class).reclassify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(ClassifyBasisRequest.Route.NOTARIAL,"Fixture resumed"));
-        intakeVersion(f,"NOTARIAL_PARTITION");context.getBean(BasisForwardService.class).forward(f.publicCaseId(),2,f.legal());
+        context.getBean(BasisReclassificationService.class).reclassify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(ClassifyBasisRequest.Route.COURT,"Fixture resumed"));
+        intakeVersion(f,"COURT_JUDGMENT");context.getBean(BasisForwardService.class).forward(f.publicCaseId(),2,f.legal());
         assertEquals(2,read(f).snapshot().currentVersion());assertFalse(read(f).snapshot().approvalCurrent());
         assertThrows(BusinessException.class,()->context.getBean(LegalVaultUnlockService.class).unlock(f.publicCaseId(),f.legal()));
         assertThrows(BusinessException.class,()->context.getBean(LegalApprovalService.class).decide(f.publicCaseId(),f.legal(),new LegalApprovalRequest(
             LegalApprovalRequest.Decision.APPROVE,old.snapshot().currentVersion(),old.snapshot().sha256Hash(),old.snapshot().allocationHash(),"Stale fixture")));
     }
     @Test void cancelledCaseAndLegacyDossierWithoutReviewNeverAdvertiseApproval() {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,false);
+        var f=routed(ClassifyBasisRequest.Route.COURT,false);
         jdbc.update("UPDATE dbo.legal_basis_dossiers SET classified_by_user_id=NULL WHERE verification_case_id=?",f.caseId());
         assertNotNull(read(f).basisDossier());assertFalse(read(f).snapshot().approvalCurrent());
         jdbc.update("UPDATE dbo.verification_cases SET status='CANCELLED',closed_at=SYSUTCDATETIME() WHERE verification_case_id=?",f.caseId());
         var r=read(f);assertEquals("CANCELLED",r.caseStatus());assertFalse(r.capabilities().approval().allowed());assertFalse(r.capabilities().unlock().allowed());
     }
     @Test void contextRefreshesCachedStateAfterConcurrentHold() throws Exception {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
         tx.executeWithoutResult(status->{
             var cached=context.getBean(LegalBasisDossierRepository.class).findByVerificationCaseId(f.caseId()).orElseThrow();
-            assertEquals("NOTARIAL",cached.getRoute());
+            assertEquals("COURT",cached.getRoute());
             try(var pool=Executors.newSingleThreadExecutor()) {pool.submit(()->hold(f)).get(10,TimeUnit.SECONDS);}
             catch(Exception e) {throw new IllegalStateException(e);}
             assertEquals("ON_HOLD",read(f).basisDossier().route());assertFalse(read(f).capabilities().unlock().allowed());
         });
     }
     @Test void contextWaitsForConcurrentWriterAndThenReadsCommittedHold() throws Exception {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
         var written=new CountDownLatch(1);var release=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)) {
             var writer=pool.submit(()->tx.executeWithoutResult(s->{hold(f);written.countDown();try {assertTrue(release.await(10,TimeUnit.SECONDS));}catch(InterruptedException e){throw new IllegalStateException(e);}}));
@@ -156,7 +157,7 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
             .andExpect(header().string("Cache-Control","no-store")).andExpect(jsonPath("$.caseId").value(f.publicCaseId().toString()));
     }
     @Test void realHttpJwtUsesDatabaseRoleAndNeverReturnsSecretFields() throws Exception {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);
         jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_LEGAL_VERIFIER'",f.userId());
         String token=context.getBean(JwtService.class).generateAccessToken(f.legal().publicId(),"fixture@example.test",List.of("ROLE_LEGAL_VERIFIER"));
         int port=context.getEnvironment().getRequiredProperty("local.server.port",Integer.class);
@@ -184,13 +185,13 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
         assertTrue(reads().queue(f.legal(),"CLOSED","COURT",0,100).content().stream().anyMatch(x->x.caseId().equals(f.publicCaseId())));
     }
     @Test void legacyApprovalWithoutVersionOrReviewerIsEvidenceOnlyAndDoesNotGrant() {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);
         jdbc.update("INSERT dbo.legal_basis_review_history(public_id,legal_basis_dossier_id,review_status,reason_code,reason) SELECT ?,legal_basis_dossier_id,'LEGAL_APPROVED','APPROVE','Legacy fixture' FROM dbo.legal_basis_dossiers WHERE verification_case_id=?",UUID.randomUUID().toString(),f.caseId());
         var result=read(f);assertNotNull(result.snapshot().latestDecision());assertNull(result.snapshot().latestDecision().versionNo());
         assertNull(result.snapshot().latestDecision().reviewedBy());assertFalse(result.snapshot().approvalCurrent());assertFalse(result.capabilities().unlock().allowed());
     }
     @Test void contextReadKeepsLocksUntilCommitBeforeConcurrentHold() throws Exception {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
         var loaded=new CountDownLatch(1);var release=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)) {
             var reader=pool.submit(()->tx.execute(s->{var result=read(f);loaded.countDown();try {assertTrue(release.await(10,TimeUnit.SECONDS));}catch(InterruptedException e){throw new IllegalStateException(e);}return result;}));
@@ -202,8 +203,8 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
         } finally {release.countDown();}
     }
     @Test void changedSnapshotMetadataNeverPermitsUnlockDespiteFreshLabel() {
-        for(var change:Map.of("last_reviewed_sha256_hash","b".repeat(64),"last_reviewed_allocation_hash","c".repeat(64),"dispute_status","DISPUTED").entrySet()) {
-            var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
+        for(var change:Map.of("last_reviewed_sha256_hash","b".repeat(64),"last_reviewed_allocation_hash","c".repeat(64),"dispute_status","NONE").entrySet()) {
+            var f=routed(ClassifyBasisRequest.Route.COURT,true);review(f);decide(f,LegalApprovalRequest.Decision.APPROVE);
             var before=read(f);
             jdbc.update("UPDATE dbo.legal_basis_dossiers SET "+change.getKey()+"=? WHERE verification_case_id=?",change.getValue(),f.caseId());
             var result=read(f);assertEquals("FRESH",result.snapshot().reviewStatus());assertFalse(result.snapshot().reviewFresh());assertFalse(result.snapshot().approvalCurrent());
@@ -213,7 +214,7 @@ class LegalReadSqlServerTest extends HandoverCompletionSqlSupport {
         }
     }
     @Test void queueDoesNotInvertVaultCaseLockOrderAgainstWorkflowWriter() throws Exception {
-        var f=routed(ClassifyBasisRequest.Route.NOTARIAL,true);
+        var f=routed(ClassifyBasisRequest.Route.COURT,true);
         var vaultLocked=new CountDownLatch(1);var continueWriter=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)) {
             var writer=pool.submit(()->tx.executeWithoutResult(s->{

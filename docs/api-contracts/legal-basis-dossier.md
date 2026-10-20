@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # Hồ sơ căn cứ phân chia di sản — PS-41, PS-42, PS-43 (ST-16..19, LV-BASIS-001)
 
 **Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) PS-42 (Staff chuyển văn bản cho Legal) và PS-43 (Legal phân loại lại từ ON_HOLD, kiểm tra thông tin công chứng) đã triển khai. Các quyết định thiết kế được ghi ở

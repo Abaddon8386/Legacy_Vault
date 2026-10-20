@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # Staff Verification Case — PS-34, PS-35 (ST-09)
 
 Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integration runtime cần được xác nhận bằng kết quả test mới nhất**. Base path: `/api/v1/staff/verification-cases`. Controller yêu cầu role `STAFF_EXECUTOR` bằng `@PreAuthorize("hasRole('STAFF_EXECUTOR')")`.

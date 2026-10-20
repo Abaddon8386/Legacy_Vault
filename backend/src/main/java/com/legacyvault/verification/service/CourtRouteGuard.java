@@ -27,7 +27,7 @@ public class CourtRouteGuard {
 
     /** Side-effect-free inspection for context reads; does not mark a transaction rollback-only. */
     public ErrorCode blocker(LegalBasisDossier dossier) {
-        if (!LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())) return null;
+        if (!LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())) return ErrorCode.COURT_DECISION_REQUIRED;
         int current = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         var evidence = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), current)
                 .orElse(null);
