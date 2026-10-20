@@ -464,4 +464,309 @@
   .lv-staff-documents-view .lv-staff-warning-banner {
     padding: 14px 16px;
   }
+
+  .lv-staff-documents-view .lv-case-select-bar {
+    flex-direction: column;
+  }
+
+  .lv-staff-documents-view .lv-btn-load-case {
+    width: 100%;
+    justify-content: center;
+  }
 }
+
+/* --------------------------------------------------------------------------
+   PS-96 New UI Components
+   -------------------------------------------------------------------------- */
+
+.lv-staff-documents-view .lv-staff-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  color: #1e40af;
+}
+
+.lv-staff-documents-view .lv-staff-preview-banner__icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.lv-staff-documents-view .lv-staff-preview-banner__badge {
+  display: inline-block;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  margin-right: 8px;
+}
+
+.lv-staff-documents-view .lv-staff-preview-banner__text {
+  font-size: 13px;
+  color: #1e3a8a;
+}
+
+.lv-staff-documents-view .lv-case-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lv-staff-documents-view .lv-case-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.lv-staff-documents-view .lv-case-input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.lv-staff-documents-view .lv-case-input {
+  padding-left: 36px;
+}
+
+.lv-staff-documents-view .lv-btn-load-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.lv-staff-documents-view .lv-btn-load-case:hover:not(:disabled) {
+  background-color: #0f332a;
+}
+
+.lv-staff-documents-view .lv-btn-load-case:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--legal_basis_forwarded {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--legal_basis_provided {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--draft {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--on_hold {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.lv-staff-documents-view .lv-dossier-hold-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  color: #9f1239;
+  font-size: 13.5px;
+  margin-top: 12px;
+}
+
+.lv-staff-documents-view .lv-dossier-hold-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-staff-documents-view .lv-dossier-hold-banner p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #be123c;
+}
+
+.lv-staff-documents-view .lv-forward-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.lv-staff-documents-view .lv-btn-forward {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-forward--active {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: 1px solid #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.lv-staff-documents-view .lv-btn-forward--active:hover {
+  background-color: #1d4ed8;
+}
+
+.lv-staff-documents-view .lv-btn-forward--disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+  cursor: not-allowed;
+}
+
+.lv-staff-documents-view .lv-forward-helper-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.lv-staff-documents-view .lv-forward-completed-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #059669;
+}
+
+.lv-staff-documents-view .lv-forward-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.lv-staff-documents-view .lv-forward-badge--forwarded {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.lv-staff-documents-view .lv-forward-badge--pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.lv-staff-documents-view .lv-form-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  color: #065f46;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.lv-staff-documents-view .lv-form-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.lv-staff-documents-view .lv-notary-subform {
+  padding: 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.lv-staff-documents-view .lv-notary-subform__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lv-staff-documents-view .lv-btn-submit-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-submit-version:hover:not(:disabled) {
+  background-color: #0f332a;
+}
+
+.lv-staff-documents-view .lv-btn-submit-version:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lv-staff-documents-view .lv-spin {
+  animation: lv-spin 1s linear infinite;
+}
+
+@keyframes lv-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
