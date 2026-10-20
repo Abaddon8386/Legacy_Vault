@@ -73,18 +73,25 @@ function CounterHandoverContent({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
-  const actionErrorText = actionError ? (Object.values(actionError.fieldErrors || {}).map(key => t.validation[key] || t.errors.actionFailed).join(' ') || t.errors.actionFailed) : '';
+  const actionErrorText = actionError ? ((actionError.code && t.errors[actionError.code]) || Object.values(actionError.fieldErrors || {}).map(key => t.validation[key] || t.errors.actionFailed).join(' ') || t.errors.actionFailed) : '';
 
   // Modals state
   const [linkModalBeneficiary, setLinkModalBeneficiary] = useState(null);
   const [linkEmail, setLinkEmail] = useState('');
   const [createModalBeneficiary, setCreateModalBeneficiary] = useState(null);
-  const [createForm, setCreateForm] = useState({ fullName: '', email: '', phone: '' });
+  const [createForm, setCreateForm] = useState({ fullName: '', email: '', phone: '', password: '' });
+  const [showOfflineNotice, setShowOfflineNotice] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const closeCreateDialog = () => {
+    setCreateForm(prev => ({ ...prev, password: '' }));
+    setCreateModalBeneficiary(null);
+  };
+
   const linkDialogRef = useModalFocus(Boolean(linkModalBeneficiary), () => setLinkModalBeneficiary(null), isSubmitting);
-  const createDialogRef = useModalFocus(Boolean(createModalBeneficiary), () => setCreateModalBeneficiary(null), isSubmitting);
+  const createDialogRef = useModalFocus(Boolean(createModalBeneficiary), closeCreateDialog, isSubmitting);
+  const offlineDialogRef = useModalFocus(showOfflineNotice, () => setShowOfflineNotice(false));
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -198,7 +205,7 @@ function CounterHandoverContent({
       setIsSubmitting(true);
       const result = await createAndLinkBeneficiaryAccount(
         createModalBeneficiary.id,
-        createForm,
+        { ...createForm, fullName: createModalBeneficiary.fullName || createForm.fullName },
         { isDevPreview, accessToken, caseData, lang }
       );
       setCaseData((prev) => ({
@@ -209,6 +216,7 @@ function CounterHandoverContent({
             : b
         ),
       }));
+      setCreateForm({ fullName: '', email: '', phone: '', password: '' });
       setCreateModalBeneficiary(null);
     } catch (err) {
       setActionError({ code: err.code, fieldErrors: err.fieldErrors });
@@ -423,7 +431,7 @@ function CounterHandoverContent({
                                   disabled={!canMutate || !sessionActive || isSubmitting}
                                   onClick={() => {
                                     setCreateModalBeneficiary(b);
-                                    setCreateForm({ fullName: b.fullName, email: '', phone: '' });
+                                    setCreateForm({ fullName: b.fullName, email: '', phone: '', password: '' });
                                   }}
                                 >
                                   <UserPlus size={13} />
@@ -444,6 +452,17 @@ function CounterHandoverContent({
           <p style={{ margin: '14px 0 0', fontSize: '12.5px', color: '#6b726b', fontStyle: 'italic' }}>
             {t.beneficiarySection.boundaryNote}
           </p>
+          <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="lv-handover-btn-secondary lv-handover-btn-sm"
+              onClick={() => setShowOfflineNotice(true)}
+            >
+              <span>{lang === 'en' ? 'Offline Handover Protocol (No Online Account)' : 'Quy trình bàn giao ngoại tuyến (Không tạo tài khoản)'}</span>
+            </button>
+          </div>
+          {/* offline */}
+
         </section>
 
       </main>
@@ -496,11 +515,11 @@ function CounterHandoverContent({
             <form onSubmit={handleCreateAccount} noValidate>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {t.beneficiarySection.createFullNamePrompt}
+                  {t.beneficiarySection.createFullNamePrompt} {lang === 'en' ? '(from record, read-only)' : '(theo hồ sơ di sản, chỉ đọc)'}
                 </label>
                 <input
                   type="text"
-                  required
+                  readOnly={Boolean(createModalBeneficiary?.fullName)}
                   className="lv-handover-modal-dialog__input"
                   value={createForm.fullName}
                   onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
@@ -521,22 +540,36 @@ function CounterHandoverContent({
               </div>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {t.beneficiarySection.createPhonePrompt}
+                  {t.beneficiarySection.createPhonePrompt} {lang === 'en' ? '(optional, 8–15 digits)' : '(tùy chọn, 8–15 chữ số)'}
                 </label>
                 <input
                   type="tel"
-                  required
+                  autoComplete="tel"
                   className="lv-handover-modal-dialog__input"
                   value={createForm.phone}
                   onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  placeholder="0901234567"
+                  placeholder="0901234567 / +84901234567"
+                />
+              </div>
+              <div className="lv-handover-modal-dialog__form-group">
+                <label className="lv-handover-modal-dialog__label">
+                  {lang === 'en' ? 'Password (chosen by beneficiary at counter, 8–72 chars):' : 'Mật khẩu (người thụ hưởng tự nhập tại quầy, 8–72 ký tự):'}
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  className="lv-handover-modal-dialog__input"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                  placeholder="••••••••"
                 />
               </div>
               <div className="lv-handover-modal-dialog__actions">
                 <button
                   type="button"
                   className="lv-handover-btn-secondary"
-                  onClick={() => setCreateModalBeneficiary(null)}
+                  onClick={closeCreateDialog}
                 >
                   {t.beneficiarySection.cancelBtn}
                 </button>
@@ -545,6 +578,46 @@ function CounterHandoverContent({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Offline Handover Protocol Guidance */}
+      {showOfflineNotice && (
+        <div className="lv-handover-modal-overlay">
+          <div ref={offlineDialogRef} className="lv-handover-modal-dialog" role="dialog" aria-modal="true" aria-label={lang === 'en' ? 'Offline Handover Protocol' : 'Quy trình bàn giao ngoại tuyến'}>
+            <h3 className="lv-handover-modal-dialog__title">
+              {lang === 'en' ? 'Offline Handover Protocol (No Online Account)' : 'Quy trình bàn giao ngoại tuyến (Không tạo tài khoản)'}
+            </h3>
+            <div style={{ fontSize: '13.5px', color: '#4b554b', lineHeight: 1.6, margin: '14px 0' }}>
+              <p>
+                <strong>1. {lang === 'en' ? 'In-person verification: ' : 'Đối chiếu danh tính: '}</strong>
+                {lang === 'en'
+                  ? 'Verify the beneficiary face-to-face using their original citizen identity card or passport (status: VERIFIED_AT_COUNTER).'
+                  : 'Tiến hành đối chiếu danh tính trực tiếp tại quầy bằng CCCD/Hộ chiếu gốc của người thụ hưởng (trạng thái: VERIFIED_AT_COUNTER).'}
+              </p>
+              <p>
+                <strong>2. {lang === 'en' ? 'Paper protocol: ' : 'Lập biên bản giấy: '}</strong>
+                {lang === 'en'
+                  ? 'Execute physical paper handover receipts with signatures from the beneficiary and executing staff.'
+                  : 'Lập Biên bản giao nhận di sản bằng văn bản giấy có chữ ký xác nhận của Người thụ hưởng và Nhân viên thực thi.'}
+              </p>
+              <p>
+                <strong>3. {lang === 'en' ? 'Integrity constraint: ' : 'Quy chuẩn toàn vẹn: '}</strong>
+                {lang === 'en'
+                  ? 'Do NOT fabricate synthetic accounts or linked user IDs. Offline recipients must remain without an online account unless they choose to register.'
+                  : 'Tuyệt đối KHÔNG tạo tài khoản giả lập trên hệ thống, không tự cấp mã linkedUserId giả, và không đánh dấu hoàn tất trực tuyến khi chưa có xác nhận từ hệ thống máy chủ.'}
+              </p>
+            </div>
+            <div className="lv-handover-modal-dialog__actions">
+              <button
+                type="button"
+                className="lv-handover-btn-primary"
+                onClick={() => setShowOfflineNotice(false)}
+              >
+                {lang === 'en' ? 'Understood' : 'Đã hiểu quy trình'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -239,6 +239,16 @@ test('actual App uses only refreshed server roles and does not force a multi-rol
     assert.equal(reads, 2); assert.deepEqual(readStoredSession().user.roles, ['VAULT_OWNER', 'BENEFICIARY']);
     assert.equal(window.location.pathname, '/invitations'); assert.match(view.host.textContent, /access confirmed/);
     await click(view.host, 'Go to beneficiary page'); assert.equal(window.location.pathname, '/beneficiary');
+    assert.ok(view.host.querySelector('#beneficiary-home-title'), 'PS-90 landing remains available after PS-89 acceptance');
+    assert.match(view.host.textContent, /Test account/);
+    const expiry = readStoredSession().expiresAt;
+    const refresh = [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Refresh');
+    assert.ok(refresh, 'The beneficiary landing exposes account refresh');
+    await act(async () => refresh.click());
+    assert.equal(readStoredSession().expiresAt, expiry);
+    assert.deepEqual(readStoredSession().user.roles, ['VAULT_OWNER', 'BENEFICIARY']);
+    await act(async () => view.host.querySelector('.lv-user-badge-card').click());
+    assert.ok(view.host.querySelector('a[href="/invitations?lang=en"]'), 'PS-89 invitation entry survives the AppShell conflict resolution');
   } finally { await view.close(); globalThis.fetch = originalFetch; storeSession(null); }
 });
 
