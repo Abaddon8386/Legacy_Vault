@@ -1,3 +1,5 @@
+> **Stale-review fix:** POST `/basis-dossier/review` now requires `reason`, `versionNo`, `sha256Hash`, `allocationHash`, `disputeStatus` from the context snapshot displayed to Legal. Missing snapshot returns 400; any mismatch returns 409 LEGAL_DECISION_STALE before writes/audit, under Vault -> Case -> Dossier locks. Reason-only legacy clients must upgrade; no fallback to reviewing the newest version. Request-supplementation still takes only reason. FE captures the snapshot on load and sends it unchanged on review; it must not fetch a new hash at click time and silently attest that version.
+
 > **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
 
 # PS-102 — Legal queue và read context

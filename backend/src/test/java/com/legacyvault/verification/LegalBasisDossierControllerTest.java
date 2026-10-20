@@ -353,12 +353,12 @@ class LegalBasisDossierControllerTest {
     void review_returns200_andCallsServiceWithPrincipalUserId()
             throws Exception {
         when(legalBasisReviewService.recordCompletedReviewByCasePublicId(
-                eq(CASE_ID), eq(20L), eq("Đã kiểm tra hồ sơ")))
+                eq(CASE_ID), eq(20L), any(com.legacyvault.verification.dto.CompleteLegalBasisReviewRequest.class)))
                 .thenReturn(REVIEW_RESPONSE);
 
         review(
                 "/review",
-                "{\"reason\":\"Đã kiểm tra hồ sơ\"}",
+                reviewBody("Đã kiểm tra hồ sơ"),
                 legal())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dossierId").value(DOSSIER_ID.toString()))
@@ -367,7 +367,7 @@ class LegalBasisDossierControllerTest {
 
         verify(legalBasisReviewService)
                 .recordCompletedReviewByCasePublicId(
-                        CASE_ID, 20L, "Đã kiểm tra hồ sơ");
+                        eq(CASE_ID), eq(20L), any(com.legacyvault.verification.dto.CompleteLegalBasisReviewRequest.class));
     }
 
     @Test
@@ -390,7 +390,7 @@ class LegalBasisDossierControllerTest {
 
     @Test
     void review_enforcesRoleAndAuthentication() throws Exception {
-        String body = "{\"reason\":\"Đã kiểm tra hồ sơ\"}";
+        String body = reviewBody("Đã kiểm tra hồ sơ");
 
         review("/review", body, as("STAFF_EXECUTOR"))
                 .andExpect(status().isForbidden());
@@ -411,15 +411,15 @@ class LegalBasisDossierControllerTest {
     @Test
     void review_mapsNotFoundAndConflictErrors() throws Exception {
         when(legalBasisReviewService.recordCompletedReviewByCasePublicId(
-                eq(CASE_ID), eq(20L), eq("reason")))
+                eq(CASE_ID), eq(20L), any(com.legacyvault.verification.dto.CompleteLegalBasisReviewRequest.class)))
                 .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
                 .thenThrow(new BusinessException(
                         ErrorCode.BASIS_DOSSIER_INVALID_STATE));
 
-        review("/review", "{\"reason\":\"reason\"}", legal())
+        review("/review", reviewBody("reason"), legal())
                 .andExpect(status().isNotFound());
 
-        review("/review", "{\"reason\":\"reason\"}", legal())
+        review("/review", reviewBody("reason"), legal())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("BASIS_DOSSIER_INVALID_STATE"));
@@ -523,4 +523,8 @@ class LegalBasisDossierControllerTest {
                 .andExpect(jsonPath("$.code")
                         .value("BASIS_DOSSIER_INVALID_STATE"));
     }
+    private static String reviewBody(String reason) {
+        return "{\"reason\":\""+reason+"\",\"versionNo\":1,\"sha256Hash\":\""+"a".repeat(64)+"\",\"allocationHash\":\""+"b".repeat(64)+"\",\"disputeStatus\":\"DISPUTED\"}";
+    }
+
 }

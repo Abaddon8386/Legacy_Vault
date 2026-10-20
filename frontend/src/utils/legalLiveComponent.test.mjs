@@ -140,6 +140,7 @@ for (const action of ['review', 'request-supplementation', 'court', 'hold']) tes
       return json({ dossierId: a, reviewStatus: action === 'review' ? 'FRESH' : 'REVIEW_REQUIRED', reviewRequired: action !== 'review', checkedAt: now,
         currentVersionNo: 1, currentSha256Hash: digest, currentAllocationHash: digest, currentDisputeStatus: 'NONE' });
     }
+    if (url.endsWith('/context')) return json({ caseId: a, basisDossier: makeDossier('COURT'), snapshot: { dossierId: a, currentVersion: 1, sha256Hash: digest, allocationHash: digest, disputeStatus: 'NONE' } });
     if (url.endsWith('court-decisions')) return json([]);
     if (url.endsWith('will-comparisons')) return json({ caseId: a, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: false, originalWillIntakes: [], wills: [], comparisons: [] });
     return json(makeDossier('COURT'));
@@ -159,6 +160,7 @@ test('Dossier changed since display blocks POST and retains reason; ON_HOLD/not-
   globalThis.fetch = async (url, init) => {
     assert.notEqual(init.method, 'POST');
     if (url.endsWith('will-comparisons')) return json({ caseId: a, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: false, originalWillIntakes: [], wills: [], comparisons: [] });
+    if (url.endsWith('/context')) { const basisDossier = ++loads === 1 ? makeDossier() : { ...makeDossier(), route: 'ON_HOLD', status: 'DRAFT' }; return json({ caseId: a, basisDossier, snapshot: { dossierId: a, currentVersion: 1, sha256Hash: digest, allocationHash: digest, disputeStatus: 'NONE' } }); }
     return json(++loads === 1 ? makeDossier() : { ...makeDossier(), route: 'ON_HOLD', status: 'DRAFT' });
   };
   const view = await mount({ ...base, step: 'dossier-review' });

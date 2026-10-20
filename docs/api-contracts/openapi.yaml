@@ -2097,7 +2097,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            schema: { $ref: '#/components/schemas/CompleteLegalBasisReviewRequest' }
             example: { reason: "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan." }
       responses:
         '200':
@@ -3485,3 +3485,13 @@ components:
             storage: { type: boolean }
         vaultCreated: { type: boolean }
         evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
+
+    CompleteLegalBasisReviewRequest:
+      type: object
+      required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }

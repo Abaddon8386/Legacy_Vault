@@ -24,9 +24,9 @@ public class LegalQueueRepository {
         var rows=jdbc.query("SELECT c.public_id AS case_uuid,c.verification_case_id,c.created_at,c.opened_at,c.status AS case_status,v.public_id AS vault_uuid,v.status AS vault_status,d.route,d.status AS dossier_status,d.review_status"+from
             +" ORDER BY c.opened_at DESC,c.verification_case_id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY OPTION (FORCE ORDER)",
             (rs,n)->new QueueItem(UUID.fromString(rs.getString("case_uuid")),
-                String.format(Locale.ROOT,"HS-%04d-%06d",rs.getTimestamp("created_at").toLocalDateTime().getYear(),rs.getLong("verification_case_id")),
+                String.format(Locale.ROOT,"HS-%04d-%06d",rs.getObject("created_at",java.time.LocalDateTime.class).getYear(),rs.getLong("verification_case_id")),
                 UUID.fromString(rs.getString("vault_uuid")),rs.getString("case_status"),rs.getString("vault_status"),rs.getString("route"),
-                rs.getString("dossier_status"),rs.getString("review_status"),rs.getTimestamp("opened_at").toLocalDateTime().toInstant(ZoneOffset.UTC)),args.toArray());
+                rs.getString("dossier_status"),rs.getString("review_status"),rs.getObject("opened_at",java.time.LocalDateTime.class).toInstant(ZoneOffset.UTC)),args.toArray());
         return new PageResponse<>(rows,page,size,total,Math.toIntExact((total+size-1)/size));
     }
 }
