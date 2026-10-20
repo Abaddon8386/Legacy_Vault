@@ -45,6 +45,7 @@ import AccountProfilePage from './pages/account/AccountProfilePage.jsx';
 import { canAccessAccountProfile } from './utils/accountProfileValidation.js';
 import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
+import LegalLiveWorkflow from './pages/legal/LegalLiveWorkflow.jsx';
 
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -382,7 +383,7 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App({ invitationActions } = {}) {
+export default function App({ invitationActions, beneficiaryAssetActions, legalDiscovery } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const [session, setSession] = useState(readStoredSession);
@@ -684,6 +685,8 @@ export default function App({ invitationActions } = {}) {
           }}
         >
           <BeneficiaryHome
+            receivedAssetActions={beneficiaryAssetActions}
+            receivedRefreshKey={refreshTrigger}
             lang={lang}
             user={session.user}
             session={session}
@@ -758,6 +761,28 @@ export default function App({ invitationActions } = {}) {
         </StaffShell>
       </div>
     );
+  }
+
+  const legalLiveTabs = {
+    '/legal': 'death-verification', '/legal/death-verification': 'death-verification',
+    '/legal/will-document-verification': 'will-document-verification',
+    '/legal/basis-route-selection': 'basis-route-selection', '/legal/dossier-review': 'dossier-review',
+    '/legal/approval-review': 'approval-review', '/legal/controlled-unlock': 'controlled-unlock',
+  };
+  if (legalLiveTabs[path] && isSessionActive(session) && session.user.roles.includes('LEGAL_VERIFIER')) {
+    const selectedCaseId = new URLSearchParams(location.split('?')[1] || '').get('caseId') || '';
+    const navigateLegalTab = tab => {
+      if (tab === 'account-profile' || tab === 'account-edit') return navigateTo(resolveAccountRoute(tab === 'account-profile' ? '/account/profile' : '/account/edit'));
+      if (tab === 'beneficiary-home') return navigateTo('/beneficiary');
+      const target = Object.keys(legalLiveTabs).find(route => route !== '/legal' && legalLiveTabs[route] === tab);
+      if (target) { const params = new URLSearchParams({ lang }); if (selectedCaseId) params.set('caseId', selectedCaseId); navigateTo(`${target}?${params}`); }
+    };
+    return <div className="lv-app-root"><AppShell role="LEGAL" session={session} user={session.user} lang={lang}
+      currentTab={legalLiveTabs[path]} isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null}
+      onRefresh={handleRefresh} isRefreshing={isRefreshing} onNavigateTab={navigateLegalTab}>
+      <LegalLiveWorkflow key={`${session.user.id}:${session.accessToken}`} session={session} lang={lang}
+        step={legalLiveTabs[path]} caseId={selectedCaseId} discovery={legalDiscovery} onNavigate={navigateTo} onUnauthorized={logout} />
+    </AppShell></div>;
   }
 
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
@@ -1049,20 +1074,18 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
+        <AppShell
+          role="STAFF"
+          currentTab="legal-documents"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          isPreview={preview}
-          currentTab="legal-documents"
-          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
-          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={handleExecuteNavigation}
         >
           <StaffLegalDocumentsPage
             lang={lang}
@@ -1076,7 +1099,7 @@ export default function App({ invitationActions } = {}) {
             onNavigateHome={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
             onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </StaffShell>
+        </AppShell>
       </div>
     );
   }
@@ -1130,20 +1153,18 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
+        <AppShell
+          role="STAFF"
+          currentTab="beneficiary-confirmation"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          isPreview={preview}
-          currentTab="beneficiary-confirmation"
-          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
-          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={handleExecuteNavigation}
         >
           <BeneficiaryConfirmationPage
             lang={lang}
@@ -1157,7 +1178,7 @@ export default function App({ invitationActions } = {}) {
             sessionId={staffSessionId}
             onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </StaffShell>
+        </AppShell>
       </div>
     );
   }
@@ -1171,20 +1192,18 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
+        <AppShell
+          role="STAFF"
+          currentTab="completion-progress"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          isPreview={preview}
-          currentTab="completion-progress"
-          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
-          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={handleExecuteNavigation}
         >
           <CompletionProgressPage
             lang={lang}
@@ -1198,7 +1217,7 @@ export default function App({ invitationActions } = {}) {
             sessionId={staffSessionId}
             onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </StaffShell>
+        </AppShell>
       </div>
     );
   }
@@ -1212,20 +1231,18 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
+        <AppShell
+          role="STAFF"
+          currentTab="close-and-archive"
           lang={lang}
           onToggleLang={setLang}
-          onLogout={session ? logout : null}
+          isAuthenticated={isSessionActive(session)}
+          onLogout={isSessionActive(session) ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          isPreview={preview}
-          currentTab="close-and-archive"
-          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
-          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
-          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
+          session={session}
+          user={session?.user || null}
+          onNavigateTab={handleExecuteNavigation}
         >
           <CloseAndArchivePage
             lang={lang}
@@ -1238,7 +1255,7 @@ export default function App({ invitationActions } = {}) {
             sessionId={staffSessionId}
             onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </StaffShell>
+        </AppShell>
       </div>
     );
   }

@@ -16,12 +16,15 @@ import {
 } from '../../utils/closeAndArchiveValidation.js';
 import {
   fetchHandoverReceipts,
+  fetchCompletionProgress,
   createHandoverReceipt,
   closeHandoverSession,
   archiveHandoverCase,
 } from './handoverSessionService.js';
 import { closeAndArchiveI18n } from './closeAndArchiveI18n.js';
 import './CloseAndArchivePage.css';
+
+const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
 export default function CloseAndArchivePage({
   lang = 'vi',
@@ -33,6 +36,9 @@ export default function CloseAndArchivePage({
   assetData = null,
   beneficiaryData = null,
   receipts: propReceipts = null,
+  recipientId: propRecipientId = '',
+  recipient: propRecipient = '',
+  assetIds: propAssetIds = [],
   accessToken = null,
   session = null,
   preview = false,
@@ -48,10 +54,12 @@ export default function CloseAndArchivePage({
   const caseId = propCaseId || searchParams?.get('caseId') || (effectiveIsDevPreview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
   const sessionId = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
-  const [sessionStatus, setSessionStatus] = useState(propSessionStatus || 'ACTIVE');
-  const [vaultStatus, setVaultStatus] = useState(propVaultStatus || 'UNLOCKED');
-  const [caseStatus, setCaseStatus] = useState(propCaseStatus || 'OPEN');
+  const [sessionStatus, setSessionStatus] = useState(propSessionStatus || (effectiveIsDevPreview ? 'ACTIVE' : ''));
+  const [vaultStatus, setVaultStatus] = useState(propVaultStatus || (effectiveIsDevPreview ? 'UNLOCKED' : ''));
+  const [caseStatus, setCaseStatus] = useState(propCaseStatus || (effectiveIsDevPreview ? 'OPEN' : ''));
   const [fetchedReceipts, setFetchedReceipts] = useState([]);
+  const [serverAssetData, setServerAssetData] = useState(null);
+  const [serverBeneficiaryData, setServerBeneficiaryData] = useState(null);
 
   const receipts = propReceipts !== null ? propReceipts : fetchedReceipts;
 
@@ -63,11 +71,18 @@ export default function CloseAndArchivePage({
 
   const isArchived = isCaseArchived(vaultStatus, caseStatus);
 
-  // Evaluate pre-conditions
-  const effectiveAssetData = assetData || { totalCount: 3, deliveredCount: 3, isComplete: true };
-  const effectiveBeneficiaryData = beneficiaryData || { totalCount: 2, confirmedCount: 2, isComplete: true };
+  // Evaluate pre-conditions strictly from real data or server data
+  const effectiveAssetData = assetData !== null && assetData !== undefined
+    ? assetData
+    : serverAssetData;
+  const effectiveBeneficiaryData = beneficiaryData !== null && beneficiaryData !== undefined
+    ? beneficiaryData
+    : serverBeneficiaryData;
 
-  const evaluation = evaluateCloseArchivePreconditions(effectiveAssetData, effectiveBeneficiaryData);
+  const evaluation = evaluateCloseArchivePreconditions(
+    effectiveAssetData || {},
+    effectiveBeneficiaryData || {}
+  );
   const { isAssetComplete, isBeneficiaryComplete } = evaluation;
 
   // Tự động load receipts nếu chưa có từ props
@@ -99,12 +114,52 @@ export default function CloseAndArchivePage({
     };
   }, [caseId, sessionId, propReceipts, effectiveAccessToken, effectiveIsDevPreview, lang]);
 
+  // Tự động nạp tiến độ và session status từ BE nếu App chưa truyền gate
+  useEffect(() => {
+    if (assetData !== null && assetData !== undefined && beneficiaryData !== null && beneficiaryData !== undefined) {
+      return;
+    }
+    if (!caseId || !sessionId) return;
+
+    let active = true;
+    fetchCompletionProgress(caseId, sessionId, {
+      accessToken: effectiveAccessToken,
+      isDevPreview: effectiveIsDevPreview,
+      lang,
+    })
+      .then((res) => {
+        if (!active || !res) return;
+        if (res.assets) {
+          setServerAssetData({
+            delivered: res.assets.completed ?? res.assets.delivered ?? 0,
+            total: res.assets.total ?? 0,
+          });
+        }
+        if (res.beneficiaries) {
+          setServerBeneficiaryData({
+            confirmed: res.beneficiaries.completed ?? res.beneficiaries.confirmed ?? 0,
+            total: res.beneficiaries.total ?? 0,
+          });
+        }
+        if (res.sessionStatus || res.status) {
+          setSessionStatus(res.sessionStatus || res.status);
+        }
+      })
+      .catch(() => {
+        // Keep indeterminate when server fails or data unavailable
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [caseId, sessionId, assetData, beneficiaryData, effectiveAccessToken, effectiveIsDevPreview, lang]);
+
   // Resolve status label from server status code
   const resolveSessionLabel = (status) => {
     if (typeof status !== 'string') return t.statusUnavailable;
     const s = status.trim().toUpperCase();
     if (s === 'COMPLETED') return t.statusSessionCompleted;
-    if (s === 'ACTIVE') return t.statusSessionActive;
+    if (s === 'ACTIVE' || s === 'OPEN') return t.statusSessionActive;
     if (s === 'HANDOVER_IN_PROGRESS') return t.statusSessionInProgress;
     return t.statusUnavailable;
   };
@@ -127,16 +182,42 @@ export default function CloseAndArchivePage({
   };
 
   // 1. Tạo biên bản bàn giao của Staff (POST /receipts)
+  // BE yêu cầu: Chỉ được lập sau khi session COMPLETED và có completion proof!
   const handleCreateReceipt = async () => {
     if (isArchived || isCreatingReceipt || !caseId || !sessionId) return;
+    if (sessionStatus !== 'COMPLETED') {
+      setActionError(lang === 'en' ? 'Session must be closed (COMPLETED) before creating staff receipt.' : 'Phiên bàn giao phải được đóng hoàn tất trước khi lập biên bản của Nhân viên quầy.');
+      return;
+    }
+
+    let targetRecipientId = propRecipientId || propRecipient || '';
+    let targetAssetIds = Array.isArray(propAssetIds) && propAssetIds.length > 0 ? propAssetIds : [];
+
+    if (!targetRecipientId && isUuid(sessionId)) {
+      targetRecipientId = sessionId;
+    }
+    if (targetAssetIds.length === 0 && isUuid(caseId)) {
+      targetAssetIds = [caseId];
+    }
+
+    if (effectiveIsDevPreview) {
+      if (!targetRecipientId) targetRecipientId = '33333333-3333-4333-8333-333333333333';
+      if (targetAssetIds.length === 0) targetAssetIds = ['44444444-4444-4444-8444-444444444444'];
+    }
+
+    if (!targetRecipientId || targetAssetIds.length === 0 || !isUuid(targetRecipientId) || !targetAssetIds.every(isUuid)) {
+      setActionError(lang === 'en' ? 'Missing valid recipient or asset UUIDs for handover receipt.' : 'Thiếu mã người nhận hoặc tài sản hợp lệ (UUID) để lập biên bản.');
+      return;
+    }
+
     setIsCreatingReceipt(true);
     setActionSuccess(null);
     setActionError(null);
 
     try {
       const newReceipt = await createHandoverReceipt(caseId, sessionId, {
-        recipientId: 'ben-001',
-        assetIds: ['ast-001', 'ast-002', 'ast-003'],
+        recipientId: targetRecipientId,
+        assetIds: targetAssetIds,
       }, {
         accessToken: effectiveAccessToken,
         isDevPreview: effectiveIsDevPreview,
@@ -153,6 +234,7 @@ export default function CloseAndArchivePage({
   };
 
   // 2. Đóng phiên bàn giao (POST /close)
+  // BE yêu cầu: Đủ 2 cổng 100% -> đóng phiên -> tạo bằng chứng kiểm toán (không cần Staff receipt trước)
   const handleCloseSession = async () => {
     if (isArchived || isClosingSession || sessionStatus === 'COMPLETED' || !caseId || !sessionId) return;
     setIsClosingSession(true);
@@ -167,7 +249,7 @@ export default function CloseAndArchivePage({
       });
 
       setSessionStatus('COMPLETED');
-      setActionSuccess(lang === 'en' ? `Handover session ${closeRes.sessionId} closed successfully.` : `Phiên bàn giao ${closeRes.sessionId} đã được đóng thành công với bằng chứng kiểm toán.`);
+      setActionSuccess(lang === 'en' ? `Handover session ${closeRes.sessionId || sessionId} closed successfully.` : `Phiên bàn giao ${closeRes.sessionId || sessionId} đã được đóng thành công với bằng chứng kiểm toán.`);
     } catch (err) {
       setActionError(err.message || (lang === 'en' ? 'Failed to close handover session.' : 'Đóng phiên bàn giao thất bại.'));
     } finally {
@@ -176,6 +258,7 @@ export default function CloseAndArchivePage({
   };
 
   // 3. Lưu trữ kho di sản và đóng ca (POST /archive)
+  // BE yêu cầu: Phiên COMPLETED + Đủ bằng chứng kiểm toán + ĐÃ CÓ Staff receipts bao phủ
   const handleArchiveCase = async () => {
     if (isArchived || isArchiving || sessionStatus !== 'COMPLETED' || !caseId || !sessionId) return;
     setIsArchiving(true);
@@ -200,9 +283,11 @@ export default function CloseAndArchivePage({
   };
 
   const hasReceipts = Array.isArray(receipts) && receipts.length > 0;
-  const isDualGateReady = isAssetComplete && isBeneficiaryComplete;
-  const canCloseSession = !isArchived && sessionStatus !== 'COMPLETED' && isDualGateReady && hasReceipts;
-  const canArchive = !isArchived && sessionStatus === 'COMPLETED';
+  const isDualGateReady = Boolean(isAssetComplete && isBeneficiaryComplete);
+  // Thứ tự chuẩn: Đủ 2 gate -> Close -> Lập Staff receipt -> Archive
+  const canCloseSession = !isArchived && sessionStatus !== 'COMPLETED' && isDualGateReady;
+  const canCreateReceipt = !isArchived && sessionStatus === 'COMPLETED' && isDualGateReady;
+  const canArchive = !isArchived && sessionStatus === 'COMPLETED' && isDualGateReady && hasReceipts;
 
   return (
     <div className="lv-close-archive-view">
@@ -398,7 +483,7 @@ export default function CloseAndArchivePage({
               type="button"
               className="lv-ca-btn-receipt"
               onClick={handleCreateReceipt}
-              disabled={isCreatingReceipt || !isDualGateReady}
+              disabled={isCreatingReceipt || !canCreateReceipt}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -407,10 +492,10 @@ export default function CloseAndArchivePage({
                 borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: 600,
-                backgroundColor: isDualGateReady ? '#164639' : '#e2e8f0',
-                color: isDualGateReady ? '#ffffff' : '#94a3b8',
+                backgroundColor: canCreateReceipt ? '#164639' : '#e2e8f0',
+                color: canCreateReceipt ? '#ffffff' : '#94a3b8',
                 border: 'none',
-                cursor: isDualGateReady ? 'pointer' : 'not-allowed',
+                cursor: canCreateReceipt ? 'pointer' : 'not-allowed',
               }}
             >
               {isCreatingReceipt ? (

@@ -20,9 +20,41 @@ import {
 import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';
 import './BeneficiaryConfirmationPage.css';
 
+const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
+
+export function normalizeBeneficiaryItem(b, lang = 'vi') {
+  if (!b) return null;
+  const id = b.id || b.beneficiaryId || '';
+  const statusRaw = String(b.confirmationStatus || b.status || '').toUpperCase();
+  const isConfirmed = statusRaw === 'CONFIRMED';
+  const isPending = statusRaw === 'PENDING';
+  const confirmationStatus = isConfirmed
+    ? BENEFICIARY_CONFIRM_STATUS.CONFIRMED
+    : isPending
+      ? BENEFICIARY_CONFIRM_STATUS.PENDING
+      : (b.confirmationStatus || null);
+
+  const rawName = b.fullName || b.beneficiaryName || b.name || '';
+  const fallbackLabel = lang === 'en' ? 'Information not available' : 'Chưa có thông tin';
+  const displayName = rawName.trim() ? rawName.trim() : fallbackLabel;
+
+  return {
+    ...b,
+    id,
+    beneficiaryId: id,
+    fullName: displayName,
+    rawName: rawName.trim(),
+    confirmationStatus,
+    status: isConfirmed ? 'CONFIRMED' : isPending ? 'PENDING' : b.status,
+    deliveryStatus: b.deliveryStatus || (isConfirmed ? 'DELIVERED' : 'PENDING'),
+    receiptReference: b.receiptReference || b.confirmationReceipt || '',
+    confirmedAt: b.confirmedAt || null,
+  };
+}
+
 export default function BeneficiaryConfirmationPage({
   lang = 'vi',
-  initialBeneficiaries = [],
+  initialBeneficiaries = EMPTY_INITIAL_BENEFICIARIES,
   caseId: propCaseId = '',
   sessionId: propSessionId = '',
   caseReference: propCaseReference = '',
@@ -56,8 +88,8 @@ export default function BeneficiaryConfirmationPage({
     return '';
   });
   const [beneficiaries, setBeneficiaries] = useState(() => {
-    if (propBeneficiaries) return Array.isArray(propBeneficiaries) ? propBeneficiaries : [];
-    if (initialCase && initialBeneficiaries && initialBeneficiaries.length > 0) return initialBeneficiaries;
+    if (propBeneficiaries) return (Array.isArray(propBeneficiaries) ? propBeneficiaries : []).map(b => normalizeBeneficiaryItem(b, lang));
+    if (initialCase && initialBeneficiaries && initialBeneficiaries.length > 0) return initialBeneficiaries.map(b => normalizeBeneficiaryItem(b, lang));
     return [];
   });
   const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState('');
@@ -68,6 +100,7 @@ export default function BeneficiaryConfirmationPage({
   const [actionError, setActionError] = useState(null);
 
   const activeCaseRef = useRef(initialCase);
+  const lastFetchedKeyRef = useRef('');
 
   const effectivePropCase = propCaseReference || propCaseId || '';
   const [prevPropCase, setPrevPropCase] = useState(effectivePropCase);
@@ -78,6 +111,7 @@ export default function BeneficiaryConfirmationPage({
     setPrevPropCase(effectivePropCase);
     setPrevPropBeneficiaries(propBeneficiaries);
     setCaseReference(effectivePropCase);
+    lastFetchedKeyRef.current = '';
     // Immediately reset all state from previous case A
     setSelectedBeneficiaryId('');
     setReceiptReference('');
@@ -86,10 +120,10 @@ export default function BeneficiaryConfirmationPage({
     setActionError(null);
 
     if (propBeneficiaries) {
-      setBeneficiaries(Array.isArray(propBeneficiaries) ? propBeneficiaries : []);
+      setBeneficiaries((Array.isArray(propBeneficiaries) ? propBeneficiaries : []).map(b => normalizeBeneficiaryItem(b, lang)));
       setLoadedCaseId(effectivePropCase);
     } else if (initialBeneficiaries && initialBeneficiaries.length > 0 && effectivePropCase) {
-      setBeneficiaries(initialBeneficiaries);
+      setBeneficiaries(initialBeneficiaries.map(b => normalizeBeneficiaryItem(b, lang)));
       setLoadedCaseId(effectivePropCase);
     } else {
       setBeneficiaries([]);
@@ -97,8 +131,9 @@ export default function BeneficiaryConfirmationPage({
     }
   } else if (propBeneficiaries !== prevPropBeneficiaries) {
     setPrevPropBeneficiaries(propBeneficiaries);
+    lastFetchedKeyRef.current = '';
     if (propBeneficiaries && effectivePropCase) {
-      setBeneficiaries(Array.isArray(propBeneficiaries) ? propBeneficiaries : []);
+      setBeneficiaries((Array.isArray(propBeneficiaries) ? propBeneficiaries : []).map(b => normalizeBeneficiaryItem(b, lang)));
       setLoadedCaseId(effectivePropCase);
     } else if (!propBeneficiaries) {
       setBeneficiaries([]);
@@ -115,7 +150,7 @@ export default function BeneficiaryConfirmationPage({
         .then((res) => {
           if (activeCaseRef.current !== caseReference) return;
           const list = Array.isArray(res) ? res : (res?.beneficiaries || []);
-          setBeneficiaries(list);
+          setBeneficiaries(list.map((b) => normalizeBeneficiaryItem(b, lang)));
           setLoadedCaseId(caseReference);
         })
         .catch((err) => {
@@ -131,31 +166,41 @@ export default function BeneficiaryConfirmationPage({
       return;
     }
 
-    let active = true;
+    const currentKey = `${caseReference}::${sessionId}::${effectiveAccessToken || ''}`;
+    if (lastFetchedKeyRef.current === currentKey) {
+      return;
+    }
+
+    const controller = new AbortController();
     fetchBeneficiaryConfirmations(caseReference, sessionId, {
       accessToken: effectiveAccessToken,
       isDevPreview: effectiveIsDevPreview,
       lang,
+      signal: controller.signal,
     })
       .then((list) => {
-        if (active && activeCaseRef.current === caseReference) {
-          setBeneficiaries(list);
+        if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
+          lastFetchedKeyRef.current = currentKey;
+          const normalized = (Array.isArray(list) ? list : []).map((b) => normalizeBeneficiaryItem(b, lang));
+          setBeneficiaries(normalized);
           setLoadedCaseId(caseReference);
         }
       })
       .catch((err) => {
-        if (active && activeCaseRef.current === caseReference) {
+        if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
+          lastFetchedKeyRef.current = currentKey;
           setErrors({ fetch: err.message || t.informationUnavailable });
         }
       });
 
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, t.informationUnavailable]);
 
   const handleCaseChange = (newCase) => {
     activeCaseRef.current = newCase;
+    lastFetchedKeyRef.current = '';
     setCaseReference(newCase);
     setBeneficiaries([]);
     setLoadedCaseId('');
@@ -187,6 +232,7 @@ export default function BeneficiaryConfirmationPage({
 
   const handleReset = () => {
     activeCaseRef.current = '';
+    lastFetchedKeyRef.current = '';
     setCaseReference('');
     setSessionId('');
     setBeneficiaries([]);
@@ -216,7 +262,11 @@ export default function BeneficiaryConfirmationPage({
       (b) => (b.id || b.beneficiaryId) === selectedBeneficiaryId
     );
 
-    if (selectedBen && selectedBen.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED) {
+    if (
+      selectedBen &&
+      (selectedBen.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED ||
+        selectedBen.status === 'CONFIRMED')
+    ) {
       setErrors({ currentStatus: 'alreadyConfirmed' });
       return;
     }
@@ -239,6 +289,7 @@ export default function BeneficiaryConfirmationPage({
             return {
               ...b,
               confirmationStatus: BENEFICIARY_CONFIRM_STATUS.CONFIRMED,
+              status: 'CONFIRMED',
               receiptReference: confirmed.receiptReference || trimmedReceipt,
               confirmedAt: confirmed.confirmedAt || new Date().toISOString(),
             };
@@ -267,7 +318,9 @@ export default function BeneficiaryConfirmationPage({
   const selectedBenObj = beneficiaries.find(
     (b) => (b.id || b.beneficiaryId) === selectedBeneficiaryId
   );
-  const isSelectedAlreadyConfirmed = selectedBenObj?.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED;
+  const isSelectedAlreadyConfirmed =
+    selectedBenObj?.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED ||
+    selectedBenObj?.status === 'CONFIRMED';
   const canSubmit = hasValidData &&
     selectedBeneficiaryId &&
     receiptReference.trim().length > 0 &&
@@ -508,13 +561,18 @@ export default function BeneficiaryConfirmationPage({
               {hasValidData &&
                 beneficiaries.map((b) => {
                   const bId = b.id || b.beneficiaryId;
-                  const bName = b.fullName || b.beneficiaryName || b.name;
-                  const statusLabel =
-                    b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED
-                      ? t.statusConfirmed
-                      : b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.PENDING
-                        ? t.statusPending
-                        : t.statusUnknown;
+                  const bName = b.fullName || b.beneficiaryName || b.name || t.informationUnavailable;
+                  const isConfirmed =
+                    b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED ||
+                    b.status === 'CONFIRMED';
+                  const isPending =
+                    b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.PENDING ||
+                    b.status === 'PENDING';
+                  const statusLabel = isConfirmed
+                    ? (lang === 'vi' ? `${t.statusConfirmed} (Confirmed)` : t.statusConfirmed)
+                    : isPending
+                      ? t.statusPending
+                      : t.statusUnknown;
                   return (
                     <option key={bId} value={bId}>
                       {bName} ({statusLabel})
