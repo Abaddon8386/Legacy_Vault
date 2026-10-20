@@ -12,6 +12,7 @@ import {
   validateProfileEditForm,
   isFormDirty,
   resolveInitialProfileData,
+  canEditProfileEmail,
 } from '../../utils/accountEditValidation.js';
 import { accountEditI18n } from './accountEditI18n.js';
 import './AccountEditPage.css';
@@ -35,21 +36,31 @@ export default function AccountEditPage({
     ? { id: '', fullName: '', email: '', roles: [] }
     : null);
 
+  const emailPermission = canEditProfileEmail(session);
+
   // State adjustment during render if user account switched or logged out
   const currentUserId = session?.user?.id || (isDevPreviewActive ? 'dev-preview' : null);
   const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [fullName, setFullName] = useState(initialData?.fullName || '');
+  const [email, setEmail] = useState(initialData?.email || '');
   const [validationError, setValidationError] = useState(null);
+  const [emailValidationError, setEmailValidationError] = useState(null);
   const [localPendingCancel, setLocalPendingCancel] = useState(false);
 
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
     setFullName(initialData?.fullName || '');
+    setEmail(initialData?.email || '');
     setValidationError(null);
+    setEmailValidationError(null);
     setLocalPendingCancel(false);
   }
 
-  const dirty = isFormDirty(fullName, initialData?.fullName);
+  const dirty = isFormDirty(
+    { fullName, email },
+    { fullName: initialData?.fullName, email: initialData?.email },
+    { canEditEmail: emailPermission.canEdit }
+  );
 
   // Notify parent of dirty state changes for in-app navigation guard
   useEffect(() => {
@@ -75,7 +86,10 @@ export default function AccountEditPage({
     const val = e.target.value;
     setFullName(val);
 
-    const validation = validateProfileEditForm({ fullName: val });
+    const validation = validateProfileEditForm(
+      { fullName: val, email },
+      { canEditEmail: emailPermission.canEdit }
+    );
     if (!validation.isValid && validation.errors.fullName) {
       setValidationError(t.errorFullNameRequired);
     } else {
@@ -83,10 +97,31 @@ export default function AccountEditPage({
     }
   };
 
+  // Handle email input change for authorized roles (Vault Owner)
+  const handleEmailChange = (e) => {
+    if (!emailPermission.canEdit) return;
+    const val = e.target.value;
+    setEmail(val);
+
+    const validation = validateProfileEditForm(
+      { fullName, email: val },
+      { canEditEmail: true }
+    );
+    if (!validation.isValid && validation.errors.email) {
+      setEmailValidationError(
+        validation.errors.email === 'REQUIRED' ? t.errorEmailRequired : t.errorEmailInvalid
+      );
+    } else {
+      setEmailValidationError(null);
+    }
+  };
+
   // Reset form to initial session values (revert modifications, stay on page)
   const handleReset = () => {
     setFullName(initialData?.fullName || '');
+    setEmail(initialData?.email || '');
     setValidationError(null);
+    setEmailValidationError(null);
   };
 
   // Cancel action: leave the page, prompt if dirty
@@ -183,25 +218,43 @@ export default function AccountEditPage({
               )}
             </div>
 
-            {/* 2. Email Address (Read-only) */}
+            {/* 2. Email Address (Editable for Vault Owner, Read-only for Staff/Legal) */}
             <div className="lv-form-group">
               <div className="lv-form-label">
-                <span>{t.emailLabel}</span>
-                <span className="lv-readonly-badge">
-                  <Lock size={11} aria-hidden="true" />
-                  <span>{t.readOnlyBadge}</span>
-                </span>
+                <label htmlFor="lv-edit-email">{t.emailLabel}</label>
+                {!emailPermission.canEdit && (
+                  <span className="lv-readonly-badge">
+                    <Lock size={11} aria-hidden="true" />
+                    <span>{t.readOnlyBadge}</span>
+                  </span>
+                )}
               </div>
               <input
                 id="lv-edit-email"
-                type="text"
-                className="lv-input-text"
-                value={initialData.email || t.noInformation}
-                disabled
-                readOnly
-                aria-readonly="true"
+                type="email"
+                className={`lv-input-text ${emailValidationError ? 'has-error' : ''}`}
+                value={emailPermission.canEdit ? email : (initialData?.email || t.noInformation)}
+                onChange={handleEmailChange}
+                disabled={!emailPermission.canEdit}
+                readOnly={!emailPermission.canEdit}
+                aria-readonly={!emailPermission.canEdit}
+                placeholder={t.emailPlaceholder}
+                autoComplete="email"
+                aria-invalid={Boolean(emailValidationError)}
+                aria-describedby={emailValidationError ? 'lv-email-error' : undefined}
               />
-              <p className="lv-form-help">{t.emailHelp}</p>
+              {emailValidationError && (
+                <p id="lv-email-error" className="lv-form-error" role="alert">
+                  {emailValidationError}
+                </p>
+              )}
+              <p className="lv-form-help">
+                {emailPermission.canEdit
+                  ? t.emailOwnerHelp
+                  : (emailPermission.hasConflict
+                      ? t.emailConflictHelp
+                      : t.emailStaffLegalHelp)}
+              </p>
             </div>
 
             {/* 3. System Roles (Read-only chips) */}

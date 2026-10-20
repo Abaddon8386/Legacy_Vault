@@ -11,6 +11,8 @@ import {
   resolveInitialProfileData,
   shouldUpdateFormFromSession,
   APP_ROLES,
+  canEditProfileEmail,
+  isValidEmail,
 } from './accountEditValidation.js';
 import { resolvePostLoginRoute } from './staffLegalDocumentsValidation.js';
 import { accountEditI18n } from '../pages/account/accountEditI18n.js';
@@ -256,4 +258,100 @@ test('EX-02 AppShell & App.jsx Integrated Navigation Destination Verification', 
     appCode.includes("navigateTo(preview ? '/account/profile?preview=true' : '/account/profile')"),
     'App.jsx Cancel action must navigate to /account/profile'
   );
+});
+
+test('TASK #24: Role-Based Email Editability (canEditProfileEmail)', async (t) => {
+  await t.test('allows pure VAULT_OWNER to edit email', () => {
+    const session = { user: { id: 'u-1', roles: ['VAULT_OWNER'] } };
+    const res = canEditProfileEmail(session);
+    assert.equal(res.canEdit, true);
+    assert.equal(res.reason, 'OWNER_PERMITTED');
+    assert.equal(res.hasConflict, false);
+  });
+
+  await t.test('normalizes ROLE_ prefix and permits ROLE_VAULT_OWNER', () => {
+    const session = { user: { id: 'u-1', roles: ['ROLE_VAULT_OWNER'] } };
+    const res = canEditProfileEmail(session);
+    assert.equal(res.canEdit, true);
+    assert.equal(res.reason, 'OWNER_PERMITTED');
+  });
+
+  await t.test('keeps email read-only for STAFF_EXECUTOR', () => {
+    const session = { user: { id: 'u-2', roles: ['STAFF_EXECUTOR'] } };
+    const res = canEditProfileEmail(session);
+    assert.equal(res.canEdit, false);
+    assert.equal(res.reason, 'STAFF_LEGAL_READONLY');
+    assert.equal(res.hasConflict, false);
+  });
+
+  await t.test('keeps email read-only for LEGAL_VERIFIER', () => {
+    const session = { user: { id: 'u-3', roles: ['LEGAL_VERIFIER'] } };
+    const res = canEditProfileEmail(session);
+    assert.equal(res.canEdit, false);
+    assert.equal(res.reason, 'STAFF_LEGAL_READONLY');
+    assert.equal(res.hasConflict, false);
+  });
+
+  await t.test('detects multi-role conflict between Owner and Staff/Legal, defaulting to audit safety (read-only)', () => {
+    const sessionWithStaff = { user: { id: 'u-4', roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'] } };
+    const resStaff = canEditProfileEmail(sessionWithStaff);
+    assert.equal(resStaff.canEdit, false);
+    assert.equal(resStaff.reason, 'MULTI_ROLE_CONFLICT');
+    assert.equal(resStaff.hasConflict, true);
+
+    const sessionWithLegal = { user: { id: 'u-5', roles: ['VAULT_OWNER', 'LEGAL_VERIFIER'] } };
+    const resLegal = canEditProfileEmail(sessionWithLegal);
+    assert.equal(resLegal.canEdit, false);
+    assert.equal(resLegal.reason, 'MULTI_ROLE_CONFLICT');
+    assert.equal(resLegal.hasConflict, true);
+  });
+
+  await t.test('rejects unauthenticated or role-less sessions', () => {
+    assert.equal(canEditProfileEmail(null).canEdit, false);
+    assert.equal(canEditProfileEmail({ user: {} }).canEdit, false);
+    assert.equal(canEditProfileEmail({ user: { roles: [] } }).canEdit, false);
+  });
+});
+
+test('TASK #24: Email Format Validation (isValidEmail)', () => {
+  assert.equal(isValidEmail('owner@example.com'), true);
+  assert.equal(isValidEmail('user.name+tag@domain.co.uk'), true);
+  assert.equal(isValidEmail(''), false);
+  assert.equal(isValidEmail('plainaddress'), false);
+  assert.equal(isValidEmail('@missingusername.com'), false);
+  assert.equal(isValidEmail('missingdomain@.com'), false);
+  assert.equal(isValidEmail('spaces in@domain.com'), false);
+  assert.equal(isValidEmail(null), false);
+});
+
+test('TASK #24: Form Validation with Email Option (validateProfileEditForm)', () => {
+  // When canEditEmail is false, email is not validated
+  const resNoEmail = validateProfileEditForm({ fullName: 'John Doe', email: 'invalid' }, { canEditEmail: false });
+  assert.equal(resNoEmail.isValid, true);
+  assert.equal(resNoEmail.errors.email, undefined);
+
+  // When canEditEmail is true, validates required and format
+  const resEmptyEmail = validateProfileEditForm({ fullName: 'John Doe', email: '' }, { canEditEmail: true });
+  assert.equal(resEmptyEmail.isValid, false);
+  assert.equal(resEmptyEmail.errors.email, 'REQUIRED');
+
+  const resInvalidEmail = validateProfileEditForm({ fullName: 'John Doe', email: 'bad-email' }, { canEditEmail: true });
+  assert.equal(resInvalidEmail.isValid, false);
+  assert.equal(resInvalidEmail.errors.email, 'INVALID_FORMAT');
+
+  const resValid = validateProfileEditForm({ fullName: 'John Doe', email: 'valid@example.com' }, { canEditEmail: true });
+  assert.equal(resValid.isValid, true);
+  assert.deepEqual(resValid.errors, {});
+});
+
+test('TASK #24: Dirty Tracking with Email Option (isFormDirty)', () => {
+  const initial = { fullName: 'Nguyen Van A', email: 'a@example.com' };
+
+  // When canEditEmail is false, changes to email do not mark dirty
+  assert.equal(isFormDirty({ fullName: 'Nguyen Van A', email: 'different@example.com' }, initial, { canEditEmail: false }), false);
+
+  // When canEditEmail is true, changes to email mark dirty
+  assert.equal(isFormDirty({ fullName: 'Nguyen Van A', email: 'different@example.com' }, initial, { canEditEmail: true }), true);
+  assert.equal(isFormDirty({ fullName: 'Nguyen Van B', email: 'a@example.com' }, initial, { canEditEmail: true }), true);
+  assert.equal(isFormDirty({ fullName: 'Nguyen Van A', email: 'a@example.com' }, initial, { canEditEmail: true }), false);
 });
