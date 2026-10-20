@@ -1,3 +1,6 @@
+import ReceivedAssets from './pages/beneficiary/ReceivedAssets.jsx';
+import LanguageToggle from './components/common/LanguageToggle.jsx';
+import { handoverUrl, isHandoverId } from './pages/staff/liveHandoverService.js';
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
@@ -17,6 +20,7 @@ import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import SubscriptionPage from './pages/subscription/SubscriptionPage.jsx';
 import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
+import LegalLiveWorkflow from './pages/legal/LegalLiveWorkflow.jsx';
 import LegalApprovalReviewPage from './pages/legal/LegalApprovalReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
@@ -638,6 +642,11 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         : <AdminHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} />}
     </AppShell>;
   }
+  if (path === '/beneficiary' && preview) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
+    <LanguageToggle lang={lang} onToggleLang={setLang} />
+    <a href="/login">{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</a>
+    <ReceivedAssets lang={lang} isDevPreview scenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'} />
+  </main>;
   if (path === '/beneficiary') {
     if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];

@@ -1,0 +1,123 @@
+// HTTP contracts: verification/controller + verification/dto on develop 7b06ede.
+// No discovery/freshness endpoint is invented here; those belong to PS-102.
+import { ApiError, request } from '../../api/http.js';
+import { isUuid, isUtcDate } from '../../api/contracts.js';
+
+const root = '/legal-verifications';
+const hash = value => typeof value === 'string' && /^[a-f\d]{64}$/i.test(value);
+const text = value => typeof value === 'string' && Boolean(value.trim());
+const version = value => Number.isSafeInteger(value) && value > 0;
+const stamp = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value));
+function requireValue(ok, code = 'INVALID_RESPONSE') { if (!ok) throw new ApiError(code); }
+function context(caseId, options) {
+  requireValue(isUuid(caseId), 'VALIDATION_FAILED');
+  requireValue(options.accessToken && options.roles?.includes('LEGAL_VERIFIER'), 'ACCESS_DENIED');
+  return `${root}/verification-cases/${caseId}`;
+}
+function reason(value, required = true) {
+  requireValue((!required || text(value)) && (value == null || (typeof value === 'string' && value.trim().length <= 1000)), 'VALIDATION_FAILED');
+  return value?.trim() || '';
+}
+function actor(value, options) { return isUuid(value) && (!options.userId || options.userId === value); }
+function dossier(value, caseId) {
+  requireValue(value?.caseId === caseId && isUuid(value.id) && ['NOTARIAL', 'COURT', 'ON_HOLD'].includes(value.route)
+    && text(value.status) && text(value.disputeStatus) && version(value.requiredVersion) && Array.isArray(value.versions)
+    && value.versions.every(item => version(item.version) && hash(item.sha256) && ['NOT_FORWARDED', 'FORWARDED'].includes(item.forwardStatus)));
+  return value;
+}
+export async function loadLegalDossier(caseId, options = {}) {
+  return dossier(await request(`${context(caseId, options)}/basis-dossier`, { ...options, expectedStatus: 200 }), caseId);
+}
+export async function loadDeathDocument(caseId, documentId, options = {}) {
+  context(caseId, options); requireValue(isUuid(documentId), 'VALIDATION_FAILED');
+  const value = await request(`${root}/death-documents/${documentId}`, { ...options, expectedStatus: 200 });
+  requireValue(value?.deathDocumentPublicId === documentId && value.verificationCasePublicId === caseId
+    && text(value.verificationCaseStatus) && text(value.vaultStatus) && value.document && Array.isArray(value.decisions));
+  return value;
+}
+export async function decideDeathDocument(caseId, documentId, data, options = {}) {
+  context(caseId, options); requireValue(isUuid(documentId) && ['APPROVE', 'REJECT', 'REQUEST_MORE'].includes(data.decision), 'VALIDATION_FAILED');
+  const body = { decision: data.decision, reason: reason(data.reason) };
+  const value = await request(`${root}/death-documents/${documentId}/decision`, { ...options, method: 'POST', body, expectedStatus: 200 });
+  requireValue(value?.deathDocumentPublicId === documentId && value.verificationCasePublicId === caseId
+    && value.result === ({ APPROVE: 'APPROVED', REJECT: 'REJECTED', REQUEST_MORE: 'NEEDS_CORRECTION' })[body.decision]
+    && actor(value.verifierPublicId, options) && isUtcDate(value.decidedAt) && value.reason === body.reason
+    && value.verificationCaseStatus === 'OPEN' && value.vaultStatus === (body.decision === 'APPROVE' ? 'DOCUMENT_VERIFICATION' : 'AWAITING_VERIFICATION'));
+  return value;
+}
+export async function loadWillComparisons(caseId, options = {}) {
+  const value = await request(`${context(caseId, options)}/will-comparisons`, { ...options, expectedStatus: 200 });
+  requireValue(value?.caseId === caseId && text(value.vaultStatus) && typeof value.approvalBlocked === 'boolean'
+    && Array.isArray(value.originalWillIntakes) && value.originalWillIntakes.every(item => isUuid(item.id))
+    && Array.isArray(value.wills) && value.wills.every(will => isUuid(will.id) && Array.isArray(will.versions)
+      && will.versions.every(item => version(item.version) && hash(item.sha256))) && Array.isArray(value.comparisons));
+  return value;
+}
+export async function compareWill(caseId, data, options = {}) {
+  const url = context(caseId, options);
+  requireValue(isUuid(data.originalWillIntakeId) && isUuid(data.willId) && version(data.version)
+    && ['MATCH', 'MISMATCH', 'INCONCLUSIVE'].includes(data.result) && hash(options.expectedHash), 'VALIDATION_FAILED');
+  const body = { originalWillIntakeId: data.originalWillIntakeId, willId: data.willId, version: data.version,
+    result: data.result, reason: reason(data.reason, data.result !== 'MATCH') };
+  const value = await request(`${url}/will-comparisons`, { ...options, method: 'POST', body, expectedStatus: 201 });
+  requireValue(isUuid(value?.id) && value.caseId === caseId && value.originalWillIntakeId === body.originalWillIntakeId
+    && value.willId === body.willId && value.version === body.version && value.sha256?.toLowerCase() === options.expectedHash.toLowerCase()
+    && value.result === body.result && actor(value.checkedBy, options) && isUtcDate(value.comparedAt));
+  return value;
+}
+export async function classifyLegalDossier(caseId, data, options = {}) {
+  const url = context(caseId, options);
+  requireValue((options.reclassification ? ['NOTARIAL', 'COURT'] : ['NOTARIAL', 'COURT', 'ON_HOLD']).includes(data.route), 'VALIDATION_FAILED');
+  const value = await request(`${url}/basis-dossier${options.reclassification ? '/reclassification' : ''}`, {
+    ...options, method: 'POST', body: { route: data.route, routeReason: reason(data.routeReason) }, expectedStatus: options.reclassification ? 200 : 201,
+  });
+  const result = dossier(value, caseId); requireValue(result.route === data.route && actor(result.classifiedBy, options)); return result;
+}
+export async function holdLegalDossier(caseId, data, options = {}) {
+  const url = context(caseId, options);
+  requireValue(['NEW_DISPUTE', 'INSUFFICIENT_EVIDENCE'].includes(data.cause), 'VALIDATION_FAILED');
+  const value = dossier(await request(`${url}/basis-dossier/hold`, { ...options, method: 'POST',
+    body: { cause: data.cause, reason: reason(data.reason) }, expectedStatus: 200 }), caseId);
+  requireValue(value.route === 'ON_HOLD' && value.status === 'DRAFT'); return value;
+}
+export async function reviewLegalDossier(caseId, data, options = {}) {
+  const url = context(caseId, options);
+  requireValue(isUuid(options.dossierId) && ['review', 'request-supplementation'].includes(data.action), 'VALIDATION_FAILED');
+  const value = await request(`${url}/basis-dossier/${data.action}`, { ...options, method: 'POST', body: { reason: reason(data.reason) }, expectedStatus: 200 });
+  requireValue(value?.dossierId === options.dossierId && text(value.reviewStatus) && typeof value.reviewRequired === 'boolean' && stamp(value.checkedAt)
+    && (data.action !== 'review' || (value.reviewStatus === 'FRESH' && value.reviewRequired === false && version(value.currentVersionNo)
+      && hash(value.currentSha256Hash) && hash(value.currentAllocationHash) && text(value.currentDisputeStatus))));
+  return value;
+}
+export async function loadCourtDecisions(caseId, options = {}) {
+  const value = await request(`${context(caseId, options)}/basis-dossier/court-decisions`, { ...options, expectedStatus: 200 });
+  requireValue(Array.isArray(value) && value.every(item => isUuid(item.id) && item.caseId === caseId && version(item.version)
+    && hash(item.sha256) && ['VALID', 'INVALID', 'INCONCLUSIVE'].includes(item.result) && isUuid(item.reviewedBy) && isUtcDate(item.reviewedAt)));
+  return value;
+}
+export async function decideCourt(caseId, data, options = {}) {
+  const url = context(caseId, options);
+  requireValue(version(data.version) && hash(options.expectedHash) && ['VALID', 'INVALID', 'INCONCLUSIVE'].includes(data.result), 'VALIDATION_FAILED');
+  const value = await request(`${url}/basis-dossier/court-decisions`, { ...options, method: 'POST',
+    body: { version: data.version, result: data.result, reason: reason(data.reason) }, expectedStatus: 201 });
+  requireValue(isUuid(value?.id) && value.caseId === caseId && value.version === data.version && value.sha256?.toLowerCase() === options.expectedHash.toLowerCase()
+    && value.result === data.result && actor(value.reviewedBy, options) && isUtcDate(value.reviewedAt)); return value;
+}
+export async function decideLegalApproval(caseId, data, options = {}) {
+  const url = context(caseId, options);
+  requireValue(isUuid(options.dossierId) && ['APPROVE', 'REJECT'].includes(data.decision) && version(data.versionNo)
+    && hash(data.sha256Hash) && hash(data.allocationHash), 'VALIDATION_FAILED');
+  const body = { decision: data.decision, versionNo: data.versionNo, sha256Hash: data.sha256Hash, allocationHash: data.allocationHash,
+    reason: reason(data.reason, data.decision === 'REJECT') };
+  const value = await request(`${url}/basis-dossier/decision`, { ...options, method: 'POST', body, expectedStatus: 200 });
+  requireValue(value?.dossierId === options.dossierId && value.decision === `LEGAL_${body.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED'}`
+    && value.versionNo === body.versionNo && value.sha256Hash?.toLowerCase() === body.sha256Hash.toLowerCase()
+    && value.allocationHash?.toLowerCase() === body.allocationHash.toLowerCase() && actor(value.decidedBy, options) && stamp(value.decidedAt));
+  return value;
+}
+export async function unlockLegalVault(caseId, options = {}) {
+  requireValue(isUuid(options.vaultId), 'VALIDATION_FAILED');
+  const value = await request(`${context(caseId, options)}/unlock`, { ...options, method: 'POST', expectedStatus: 200 });
+  requireValue(isUuid(options.vaultId) && value?.caseId === caseId && value.vaultId === options.vaultId
+    && value.status === 'UNLOCKED' && actor(value.unlockedBy, options) && isUtcDate(value.unlockedAt)); return value;
+}
