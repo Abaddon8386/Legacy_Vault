@@ -84,6 +84,17 @@ class AdminAuditSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals(403,http("GET","",token).statusCode());
         jdbc.update("UPDATE dbo.users SET status='LOCKED' WHERE user_id=?",f.userId());assertEquals(401,http("GET","/"+id,token).statusCode());
     }
+    @Test void utcFiltersAndDetailAreIndependentOfJvmDstGap() {
+        var original=java.util.TimeZone.getDefault();
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/New_York"));
+            UUID id=event(null,"SYSTEM","AUTH_LOGIN_FAILED","2026-03-08T02:30:00");
+            var detail=admin(()->service().detail(id));
+            assertEquals(java.time.Instant.parse("2026-03-08T02:30:00Z"),detail.event().occurredAt());
+            var page=admin(()->service().list("2026-03-08T02:00:00Z","2026-03-08T03:00:00Z","AUTH_LOGIN_FAILED",null,"SYSTEM",0,20));
+            assertTrue(page.content().stream().anyMatch(x->x.id().equals(id)));
+        } finally {java.util.TimeZone.setDefault(original);}
+    }
     private HttpResponse<String> http(String method,String suffix,String token) throws Exception {
         var request=HttpRequest.newBuilder(URI.create("http://localhost:"+context.getEnvironment().getProperty("local.server.port")+"/api/v1/admin/audit-logs"+suffix)).method(method,HttpRequest.BodyPublishers.noBody());
         if(token!=null) request.header("Authorization","Bearer "+token);

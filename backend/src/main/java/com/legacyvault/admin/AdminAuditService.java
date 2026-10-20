@@ -30,8 +30,8 @@ public class AdminAuditService {
         Instant start=parse(from),end=parse(to);
         if(start!=null && end!=null && !start.isBefore(end)) throw invalid();
         var params=new MapSqlParameterSource();var where=new StringBuilder(" WHERE 1=1");
-        if(start!=null) {where.append(" AND a.occurred_at>=:start");params.addValue("start",Timestamp.valueOf(LocalDateTime.ofInstant(start,ZoneOffset.UTC)));}
-        if(end!=null) {where.append(" AND a.occurred_at<:end");params.addValue("end",Timestamp.valueOf(LocalDateTime.ofInstant(end,ZoneOffset.UTC)));}
+        if(start!=null) {where.append(" AND a.occurred_at>=:start");params.addValue("start",LocalDateTime.ofInstant(start,ZoneOffset.UTC));}
+        if(end!=null) {where.append(" AND a.occurred_at<:end");params.addValue("end",LocalDateTime.ofInstant(end,ZoneOffset.UTC));}
         if(action!=null) {
             if("LEGACY_EVENT".equals(action)) {where.append(" AND a.action NOT IN (:actions)");params.addValue("actions",ACTIONS);}
             else {if(!ACTIONS.contains(action)) throw invalid();where.append(" AND a.action=:action");params.addValue("action",action);}
@@ -54,7 +54,7 @@ public class AdminAuditService {
     }
     private Event event(ResultSet rs) throws SQLException {
         String kind=rs.getString("actor_kind"),action=rs.getString("action"),type=rs.getString("entity_type");
-        return new Event(uuid(rs,"public_id"),rs.getTimestamp("occurred_at").toLocalDateTime().toInstant(ZoneOffset.UTC),
+        return new Event(uuid(rs,"public_id"),rs.getObject("occurred_at",LocalDateTime.class).toInstant(ZoneOffset.UTC),
             new Actor(kind,"SYSTEM".equals(kind)?null:uuid(rs,"actor_public_id")),ACTIONS.contains(action)?action:"LEGACY_EVENT",ENTITY_TYPES.contains(type)?type:"OTHER",uuid(rs,"vault_public_id"));
     }
     private static UUID uuid(ResultSet rs,String column) throws SQLException {String s=rs.getString(column);return s==null?null:UUID.fromString(s);}

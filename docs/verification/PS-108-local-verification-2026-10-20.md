@@ -21,3 +21,7 @@ Java 25, Spring Boot 4.1.1, disposable SQL Server databases only. LEGAL_SQLSERVE
 ## Boundaries
 
 PS-109 writes/user policy and FE PS-110 remain their owners' scope. Shared admin.md is identical to PS-107's contract. Existing migration-upgrade test derives pending count while retaining V28/29/30 and data/idempotency checks; no applied migration modified. No merge/Jira changes. Handoff, logs and secrets excluded.
+
+## Review follow-up — 20 October 2026
+
+Reproduced a UTC portability bug under America/New_York: SQL DATETIME2 2026-03-08 02:30 was returned as 03:30Z during the JVM DST gap, and Timestamp-based filter bounds could move as well. Replaced Timestamp conversions with JDBC 4.2 LocalDateTime bindings/reads, then UTC conversion explicitly. New SQL regression changes/restores the JVM zone and checks both detail and half-open search for the exact event. Targeted API/migration/OpenAPI suite: 8 passed, zero failures (6 API, 1 migration, 1 contract). Four-PR combined verification is recorded separately.
