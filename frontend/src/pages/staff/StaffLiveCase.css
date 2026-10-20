@@ -1,0 +1,8 @@
+.lv-staff-live { max-width: 960px; margin: auto; padding: 24px; }
+.lv-staff-live button, .lv-staff-live input, .lv-staff-live select { font: inherit; padding: 10px; border: 1px solid #b7c1b9; border-radius: 8px; }
+.lv-staff-live button { margin: 8px 8px 8px 0; cursor: pointer; }
+.lv-staff-live button:disabled { cursor: default; opacity: .55; }
+.lv-staff-live label { display: grid; gap: 6px; margin: 12px 0; }
+.lv-staff-live fieldset { border: 1px solid #b7c1b9; border-radius: 12px; padding: 20px; }
+.lv-staff-live input, .lv-staff-live select { width: 100%; box-sizing: border-box; }
+.lv-staff-live h1, .lv-staff-live li { overflow-wrap: anywhere; }
