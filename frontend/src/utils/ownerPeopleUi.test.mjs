@@ -488,3 +488,60 @@ test('vault widget explains subscription policy pending without inventing plan o
     globalThis.fetch = originalFetch;
   }
 });
+
+test('TASK #22: vault widget renders Upgrade plan / Nâng cấp gói button and navigates to subscription', async () => {
+  const originalFetch = globalThis.fetch;
+  const subPayload = {
+    planCode: 'BASIC',
+    planNameVi: 'Gói Cơ bản',
+    planNameEn: 'Basic Plan',
+    status: 'ACTIVE',
+    isTrialGrant: false,
+    assetsUsed: 2,
+    maxAssets: 5,
+    storageUsedBytes: 10485760,
+    maxStorageBytes: 104857600,
+    expiresAt: null,
+    vaultsCreatedLifetime: 1,
+    maxVaultsLifetime: 1,
+  };
+  globalThis.fetch = async (url) =>
+    url.includes('/subscriptions/me') ? json(subPayload, 200) : json({});
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  let navigatedTab = null;
+  const onNavigate = (tab) => { navigatedTab = tab; };
+
+  try {
+    // Test Vietnamese
+    await act(async () => root.render(React.createElement(Summary, {
+      vaultId,
+      ownerId: vaultId,
+      accessToken: 'synthetic',
+      lang: 'vi',
+      onNavigate,
+    })));
+    const btnVi = host.querySelector('.lv-summary-sub-right button');
+    assert.ok(btnVi, 'Upgrade plan button must exist in VI');
+    assert.match(btnVi.textContent, /Nâng cấp gói/);
+    await act(async () => btnVi.click());
+    assert.equal(navigatedTab, 'subscription', 'Clicking Upgrade plan must navigate to subscription tab');
+
+    // Test English
+    await act(async () => root.render(React.createElement(Summary, {
+      vaultId,
+      ownerId: vaultId,
+      accessToken: 'synthetic',
+      lang: 'en',
+      onNavigate,
+    })));
+    const btnEn = host.querySelector('.lv-summary-sub-right button');
+    assert.ok(btnEn, 'Upgrade plan button must exist in EN');
+    assert.match(btnEn.textContent, /Upgrade plan/);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
