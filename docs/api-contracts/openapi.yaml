@@ -1105,6 +1105,32 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/work-context:
+    get:
+      tags: [Staff]
+      summary: Staff read-only case work context (PS-93)
+      description: >
+        Staff can read an OPEN unassigned case visible in the claim queue or a case assigned to them.
+        Other Staff cases are hidden as 404. An assigned Staff member may read a cancelled/closed case state. Returns metadata only; no identity document,
+        identity number, document contents, automatic identity verification, mutation, or unlock. Approval readiness
+        is checked against the current dossier version/hash/allocation scope.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current Staff work context and unmet workflow conditions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffCaseWorkContext' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/verification-cases/{caseId}/death-documents:
     post:
       tags: [Staff]
@@ -2448,6 +2474,54 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    StaffCaseWorkContext:
+      type: object
+      required: [caseId, caseNumber, caseStatus, assignment, vaultId, vaultStatus, workflowStep, onHold, trustees, beneficiaries, readReferences, unmetConditions]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        caseStatus: { type: string, enum: [OPEN, CANCELLED, CLOSED] }
+        assignment: { type: string, enum: [UNASSIGNED_CLAIMABLE, ASSIGNED] }
+        assignedStaffId: { type: string, format: uuid, nullable: true }
+        vaultId: { type: string, format: uuid }
+        vaultStatus: { type: string }
+        workflowStep: { type: string }
+        legalRoute: { type: string, nullable: true, enum: [COURT, NOTARIAL, ON_HOLD] }
+        dossierStatus: { type: string, nullable: true }
+        reviewStatus: { type: string, nullable: true }
+        onHold: { type: boolean }
+        trustees:
+          type: array
+          items: { $ref: '#/components/schemas/StaffCaseTrusteeContact' }
+        beneficiaries:
+          type: array
+          items: { $ref: '#/components/schemas/StaffCaseBeneficiaryItem' }
+        readReferences: { type: array, items: { type: string } }
+        unmetConditions: { type: array, items: { type: string } }
+    StaffCaseTrusteeContact:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string }
+    StaffCaseBeneficiaryItem:
+      type: object
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        name: { type: string }
+        relationship: { type: string, nullable: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/StaffCaseAssetItem' }
+    StaffCaseAssetItem:
+      type: object
+      properties:
+        assetId: { type: string, format: uuid }
+        title: { type: string, nullable: true }
+        allocationDescription: { type: string, nullable: true }
+
     HandoverArchiveResponse:
       type: object
       properties:

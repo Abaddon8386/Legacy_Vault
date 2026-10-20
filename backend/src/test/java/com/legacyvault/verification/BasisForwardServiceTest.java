@@ -115,7 +115,7 @@ class BasisForwardServiceTest {
     private static LegalBasisDossier dossier(String status) {
         LegalBasisDossier dossier = new LegalBasisDossier(
                 CASE_DB_ID,
-                "NOTARIAL",
+                "COURT",
                 "lý do",
                 "NONE",
                 20L
@@ -217,7 +217,7 @@ class BasisForwardServiceTest {
                 .isEqualTo("LEGAL_BASIS_VERIFICATION");
         assertThat(event.context())
                 .containsEntry("version", 2)
-                .containsEntry("route", "NOTARIAL");
+                .containsEntry("route", "COURT");
     }
 
     @Test

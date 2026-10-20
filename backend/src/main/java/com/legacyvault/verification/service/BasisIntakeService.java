@@ -171,9 +171,8 @@ public class BasisIntakeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         lockedState.refresh(dossier);
 
-        if (!dossier.acceptsIntake()) {
-            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
-        }
+        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
+        LegalWorkflowGuard.requireCourtRoute(dossier);
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
 
         /*

@@ -73,7 +73,7 @@ class LegalApprovalServiceTest {
         when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
         when(dossier.getPublicId()).thenReturn(DOSSIER_PUBLIC_ID);
         when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
-        when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_NOTARIAL);
+        when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_COURT);
         when(dossier.acceptsIntake()).thenReturn(true);
         when(dossier.getRequiredVersionNo()).thenReturn(1);
         when(dossier.getReviewStatus()).thenReturn("FRESH");

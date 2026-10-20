@@ -67,6 +67,7 @@ public class LegalApprovalService {
         LegalBasisDossier dossier = locked.dossier();
         Vault vault = locked.vault();
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
+        LegalWorkflowGuard.requireCourtRoute(dossier);
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())
                 || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())
                 || !dossier.acceptsIntake()) {

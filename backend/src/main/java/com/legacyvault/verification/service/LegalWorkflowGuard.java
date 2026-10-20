@@ -31,6 +31,12 @@ public class LegalWorkflowGuard {
             throw new BusinessException(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
     }
 
+    /** New evidence, approval and protected handover writes are restricted to the approved COURT route. */
+    public static void requireCourtRoute(LegalBasisDossier dossier) {
+        if (dossier == null || !LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute()))
+            throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+    }
+
     /** Protected use cases invoke this inside their authorized transaction and retain locks until commit. */
     @Transactional(propagation = Propagation.MANDATORY)
     public LegalBasisCaseAccess.LockedCase requireProtectedTransition(UUID caseId, ProtectedTransition transition) {
@@ -39,6 +45,7 @@ public class LegalWorkflowGuard {
         locked.requireOpen();
         requireNotOnHold(locked.vault(), locked.dossier());
         var dossier = locked.dossier();
+        requireCourtRoute(dossier);
         if ((transition == ProtectedTransition.UNLOCK
                 && !Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(locked.vault().getStatus()))
                 || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus()))

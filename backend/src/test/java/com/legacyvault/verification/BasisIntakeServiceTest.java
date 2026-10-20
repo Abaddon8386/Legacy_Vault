@@ -201,7 +201,7 @@ class BasisIntakeServiceTest {
     private static BasisIntakeMetadata metadataWith(
             List<AllocationInput> allocations
     ) {
-        BasisIntakeMetadata base = metadata("NOTARIAL_PARTITION");
+        BasisIntakeMetadata base = metadata("COURT_JUDGMENT");
 
         return new BasisIntakeMetadata(
                 base.legalBasisType(),
@@ -277,14 +277,14 @@ class BasisIntakeServiceTest {
     }
 
     @Test
-    void notarialIntake_storesHashAndEncryptedContent_setsStatusProvided_andAuditsWithoutDocumentData() {
-        happyPath("NOTARIAL");
+    void courtIntake_storesHashAndEncryptedContent_setsStatusProvided_andAuditsWithoutDocumentData() {
+        happyPath("COURT");
 
-        LegalBasisDossier dossier = dossier("NOTARIAL");
+        LegalBasisDossier dossier = dossier("COURT");
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID))
                 .thenReturn(Optional.of(dossier));
 
-        service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf());
+        service.intake(CASE_ID, staff, metadata("COURT_JUDGMENT"), pdf());
 
         ArgumentCaptor<LegalBasisDossierVersion> saved =
                 ArgumentCaptor.forClass(LegalBasisDossierVersion.class);
@@ -341,7 +341,7 @@ class BasisIntakeServiceTest {
         assertThat(event.stepId()).isEqualTo("ST-18");
         assertThat(event.ruleId()).isEqualTo("LV-BASIS-001");
         assertThat(event.context())
-                .containsEntry("legalBasisType", "NOTARIAL_PARTITION")
+                .containsEntry("legalBasisType", "COURT_JUDGMENT")
                 .containsEntry("sha256", version.getSha256Hash())
                 .containsEntry("version", 1);
         assertThat(event.context().toString())
@@ -355,12 +355,12 @@ class BasisIntakeServiceTest {
 
     @Test
     void intakeLocksVaultThenCaseThenDossier() {
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
         service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         );
 
@@ -401,65 +401,16 @@ class BasisIntakeServiceTest {
                 pdf()
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
-                        .isEqualTo(ErrorCode.VALIDATION_FAILED));
+                        .isEqualTo(ErrorCode.COURT_DECISION_REQUIRED));
     }
 
     @Test
-    void notarialIntake_requiresNotaryAuthorityNumberAndDate() {
-        BasisIntakeMetadata base = metadata("NOTARIAL_PARTITION");
-
-        BasisIntakeMetadata[] incomplete = {
-                new BasisIntakeMetadata(
-                        base.legalBasisType(),
-                        base.issuingAuthority(),
-                        base.documentNumber(),
-                        base.issueDate(),
-                        null,
-                        base.notarialDocumentNumber(),
-                        base.notarizedAt(),
-                        null,
-                        null,
-                        base.allocations()
-                ),
-                new BasisIntakeMetadata(
-                        base.legalBasisType(),
-                        base.issuingAuthority(),
-                        base.documentNumber(),
-                        base.issueDate(),
-                        base.notaryAuthority(),
-                        "  ",
-                        base.notarizedAt(),
-                        null,
-                        null,
-                        base.allocations()
-                ),
-                new BasisIntakeMetadata(
-                        base.legalBasisType(),
-                        base.issuingAuthority(),
-                        base.documentNumber(),
-                        base.issueDate(),
-                        base.notaryAuthority(),
-                        base.notarialDocumentNumber(),
-                        null,
-                        null,
-                        null,
-                        base.allocations()
-                )
-        };
-
-        for (BasisIntakeMetadata metadata : incomplete) {
-            happyPath("NOTARIAL");
-
-            assertThatThrownBy(() -> service.intake(
-                    CASE_ID,
-                    staff,
-                    metadata,
-                    pdf()
-            )).satisfies(exception ->
-                    assertThat(codeOf(exception))
-                            .isEqualTo(ErrorCode.VALIDATION_FAILED));
-        }
-
+    void notarialDossierIsReadOnlyForNewIntake() {
+        happyPath("NOTARIAL");
+        LegalBasisDossier dossier = dossier("NOTARIAL");
+        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(dossier));
+        assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
+                .satisfies(exception -> assertThat(codeOf(exception)).isEqualTo(ErrorCode.COURT_DECISION_REQUIRED));
         verify(versions, never()).saveAndFlush(any());
     }
 
@@ -471,20 +422,20 @@ class BasisIntakeServiceTest {
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
                         .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
 
-        happyPath("NOTARIAL");
+        happyPath("COURT");
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
@@ -497,7 +448,7 @@ class BasisIntakeServiceTest {
     @Test
     void wrongStates_areConflict() {
         // Case đã hủy phải trả về lỗi trạng thái.
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
         VerificationCase cancelled = openCase();
         cancelled.cancel(LocalDateTime.of(2026, 10, 2, 8, 0));
@@ -508,7 +459,7 @@ class BasisIntakeServiceTest {
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
@@ -520,7 +471,7 @@ class BasisIntakeServiceTest {
                 "WILL_VERIFICATION",
                 "LEGAL_BASIS_VERIFICATION"
         }) {
-            happyPath("NOTARIAL");
+            happyPath("COURT");
 
             when(vaultRepository.findByIdForUpdate(VAULT_ID))
                     .thenReturn(Optional.of(vault(status)));
@@ -528,7 +479,7 @@ class BasisIntakeServiceTest {
             assertThatThrownBy(() -> service.intake(
                     CASE_ID,
                     staff,
-                    metadata("NOTARIAL_PARTITION"),
+                    metadata("COURT_JUDGMENT"),
                     pdf()
             )).satisfies(exception ->
                     assertThat(codeOf(exception))
@@ -541,7 +492,7 @@ class BasisIntakeServiceTest {
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
@@ -552,12 +503,12 @@ class BasisIntakeServiceTest {
 
     @Test
     void badFile_isRejected_beforeAnythingIsSaved() {
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 null
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
@@ -573,7 +524,7 @@ class BasisIntakeServiceTest {
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 exe
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
@@ -609,7 +560,7 @@ class BasisIntakeServiceTest {
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
                 null,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
@@ -627,9 +578,9 @@ class BasisIntakeServiceTest {
 
     @Test
     void secondVersion_isNewRecord_withNextNumber_andOwnScope_oldVersionsUntouched() {
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
-        LegalBasisDossier dossier = dossier("NOTARIAL");
+        LegalBasisDossier dossier = dossier("COURT");
         dossier.markProvided();
 
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID))
@@ -640,7 +591,7 @@ class BasisIntakeServiceTest {
         service.intake(
                 CASE_ID,
                 staff,
-                metadata("NOTARIAL_PARTITION"),
+                metadata("COURT_JUDGMENT"),
                 pdf()
         );
 
@@ -671,7 +622,7 @@ class BasisIntakeServiceTest {
 
     @Test
     void scope_mustBePresent_unique_andInsideTheCasesVault() {
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
@@ -721,7 +672,7 @@ class BasisIntakeServiceTest {
                 assertThat(codeOf(exception))
                         .isEqualTo(ErrorCode.VALIDATION_FAILED));
 
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
         when(beneficiaries.findByPublicIdAndVault_VaultId(
                 BENEFICIARY_ID,
@@ -744,19 +695,19 @@ class BasisIntakeServiceTest {
 
     @Test
     void successfulIntake_rechecksLegalBasisSnapshot() {
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
-        service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf());
+        service.intake(CASE_ID, staff, metadata("COURT_JUDGMENT"), pdf());
 
         verify(reviewService).evaluateAfterChange(CASE_ID);
     }
 
     @Test
     void failedIntake_doesNotRecheckLegalBasisSnapshot() {
-        happyPath("NOTARIAL");
+        happyPath("COURT");
 
         assertThatThrownBy(() -> service.intake(
-                CASE_ID, staff, metadata("NOTARIAL_PARTITION"), null
+                CASE_ID, staff, metadata("COURT_JUDGMENT"), null
         )).satisfies(exception ->
                 assertThat(codeOf(exception)).isEqualTo(ErrorCode.VALIDATION_FAILED));
 

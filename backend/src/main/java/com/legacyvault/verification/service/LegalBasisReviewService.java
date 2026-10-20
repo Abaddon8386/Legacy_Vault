@@ -371,6 +371,7 @@ public class LegalBasisReviewService {
             LegalBasisDossier dossier,
             Long vaultId
     ) {
+        LegalWorkflowGuard.requireCourtRoute(dossier);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);

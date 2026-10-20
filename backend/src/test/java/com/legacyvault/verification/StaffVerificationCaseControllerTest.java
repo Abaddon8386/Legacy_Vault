@@ -3,6 +3,7 @@ package com.legacyvault.verification;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.controller.StaffVerificationCaseController;
 import com.legacyvault.verification.service.StaffVerificationCaseService;
+import com.legacyvault.verification.service.StaffCaseWorkContextService;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -126,13 +127,19 @@ class StaffVerificationCaseControllerTest {
 
         @Bean
         StaffVerificationCaseController staffVerificationCaseController(
-                StaffVerificationCaseService service) {
-            return new StaffVerificationCaseController(service);
+                StaffVerificationCaseService service,
+                StaffCaseWorkContextService workContext) {
+            return new StaffVerificationCaseController(service, workContext);
         }
 
         @Bean
         StaffVerificationCaseService staffVerificationCaseService() {
             return mock(StaffVerificationCaseService.class);
+        }
+
+        @Bean
+        StaffCaseWorkContextService staffCaseWorkContextService() {
+            return mock(StaffCaseWorkContextService.class);
         }
     }
 }

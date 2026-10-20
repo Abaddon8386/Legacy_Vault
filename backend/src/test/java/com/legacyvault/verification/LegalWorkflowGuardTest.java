@@ -38,7 +38,7 @@ class LegalWorkflowGuardTest {
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final Vault vault = mock(Vault.class);
     private final CourtEvidenceVersion current = new CourtEvidenceVersion(VERSION_ID, VERSION, "a".repeat(64),
-            "NOTARIAL_PARTITION", "Authority", "DOC", null, "FORWARDED", true);
+            "COURT_JUDGMENT", "Authority", "DOC", null, "FORWARDED", true);
 
     @BeforeEach
     void setUp() {
@@ -46,6 +46,7 @@ class LegalWorkflowGuardTest {
         when(verificationCase.isOpen()).thenReturn(true);
         when(vault.getStatus()).thenReturn(Vault.STATUS_LEGAL_BASIS_VERIFICATION);
         when(dossier.acceptsIntake()).thenReturn(true);
+        when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_COURT);
         when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
         when(dossier.getRequiredVersionNo()).thenReturn(1);
         when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
@@ -96,5 +97,18 @@ class LegalWorkflowGuardTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         org.mockito.Mockito.verifyNoInteractions(approvals);
+    }
+
+    @Test
+    void notarialHistoryCannotEnterNewProtectedApprovalUnlockOrHandoverFlow() {
+        when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_NOTARIAL);
+        for (LegalWorkflowGuard.ProtectedTransition transition : LegalWorkflowGuard.ProtectedTransition.values()) {
+            assertThatThrownBy(() -> guard.requireProtectedTransition(CASE_ID, transition))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                    .isEqualTo(ErrorCode.COURT_DECISION_REQUIRED);
+        }
+        org.mockito.Mockito.verifyNoInteractions(approvals);
+        org.mockito.Mockito.verifyNoInteractions(court);
     }
 }

@@ -69,7 +69,7 @@ class LegalBasisReviewServiceTest {
             when(dossier.getPublicId()).thenReturn(DOSSIER_PUBLIC_ID);
             when(dossier.getVerificationCaseId()).thenReturn(CASE_DB_ID);
             when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
-            when(dossier.getRoute()).thenReturn("NOTARIAL");
+            when(dossier.getRoute()).thenReturn("COURT");
             when(dossier.getDisputeStatus()).thenReturn("NONE");
             when(dossier.getReviewStatus()).thenReturn("FRESH");
             when(dossier.getLastReviewedVersionNo()).thenReturn(1);

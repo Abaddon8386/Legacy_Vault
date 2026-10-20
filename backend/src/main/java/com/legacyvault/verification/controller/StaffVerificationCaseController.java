@@ -5,6 +5,8 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.verification.dto.StaffVerificationCaseResponse;
 import com.legacyvault.verification.service.StaffVerificationCaseService;
+import com.legacyvault.verification.service.StaffCaseWorkContextService;
+import com.legacyvault.verification.dto.StaffCaseWorkContextResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,11 +23,14 @@ import java.util.UUID;
 public class StaffVerificationCaseController {
 
     private final StaffVerificationCaseService caseService;
+    private final StaffCaseWorkContextService workContextService;
 
     public StaffVerificationCaseController(
-            StaffVerificationCaseService caseService
+            StaffVerificationCaseService caseService,
+            StaffCaseWorkContextService workContextService
     ) {
         this.caseService = caseService;
+        this.workContextService = workContextService;
     }
 
     @GetMapping
@@ -44,6 +49,15 @@ public class StaffVerificationCaseController {
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
         return caseService.getCase(caseId, principal);
+    }
+
+    /** PS-93 read context for assigned cases and OPEN cases currently visible in the claim queue. */
+    @GetMapping("/{caseId}/work-context")
+    public StaffCaseWorkContextResponse getWorkContext(
+            @PathVariable UUID caseId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return workContextService.get(caseId, principal);
     }
 
     @PostMapping("/{caseId}/claim")
