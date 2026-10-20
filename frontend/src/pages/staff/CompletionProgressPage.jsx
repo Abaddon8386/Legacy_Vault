@@ -12,6 +12,9 @@ import {
   evaluateCompletionProgress,
   COMPLETION_PROGRESS_STATUS,
 } from '../../utils/completionProgressValidation.js';
+import {
+  fetchCompletionProgress,
+} from './handoverSessionService.js';
 import { completionProgressI18n } from './completionProgressI18n.js';
 import './CompletionProgressPage.css';
 
@@ -160,28 +163,47 @@ export default function CompletionProgressPage({
   useEffect(() => {
     const trimmed = caseReference.trim();
     const fetcher = onFetchProgress || loadProgress;
-    if (typeof fetcher === 'function' && trimmed && loadedCaseId !== trimmed) {
-      Promise.resolve(fetcher(trimmed))
-        .then((res) => {
-          if (activeCaseRef.current !== trimmed) return;
-          if (res) {
-            setAssetData(res.assetData ?? null);
-            setBeneficiaryData(res.beneficiaryData ?? null);
-            setLoadedCaseId(trimmed);
-          } else {
+    if (trimmed && loadedCaseId !== trimmed) {
+      if (typeof fetcher === 'function') {
+        Promise.resolve(fetcher(trimmed))
+          .then((res) => {
+            if (activeCaseRef.current !== trimmed) return;
+            if (res) {
+              setAssetData(res.assetData ?? null);
+              setBeneficiaryData(res.beneficiaryData ?? null);
+              setLoadedCaseId(trimmed);
+            } else {
+              setAssetData(null);
+              setBeneficiaryData(null);
+              setLoadedCaseId(trimmed);
+            }
+          })
+          .catch(() => {
+            if (activeCaseRef.current !== trimmed) return;
             setAssetData(null);
             setBeneficiaryData(null);
             setLoadedCaseId(trimmed);
-          }
-        })
-        .catch(() => {
-          if (activeCaseRef.current !== trimmed) return;
-          setAssetData(null);
-          setBeneficiaryData(null);
-          setLoadedCaseId(trimmed);
-        });
+          });
+      } else {
+        // Fallback calling real backend / simulated completion progress API
+        fetchCompletionProgress(trimmed, 'HDS-2026-001', { lang, isDevPreview: true })
+          .then((res) => {
+            if (activeCaseRef.current !== trimmed) return;
+            if (res) {
+              setAssetData(res.assetCompletion ?? null);
+              setBeneficiaryData(res.beneficiaryCompletion ?? null);
+              setLoadedCaseId(trimmed);
+            }
+          })
+          .catch(() => {
+            if (activeCaseRef.current !== trimmed) return;
+            setAssetData(null);
+            setBeneficiaryData(null);
+            setLoadedCaseId(trimmed);
+          });
+      }
     }
-  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress]);
+  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress, lang]);
 
   // Evaluate metrics strictly for the active case
   const activeTrimmed = caseReference.trim();

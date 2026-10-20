@@ -452,3 +452,437 @@ export async function openHandoverSession(currentCaseData, options = {}) {
   notReadyError.status = 503;
   throw notReadyError;
 }
+
+/**
+ * PS-64 / PS-97: Lấy danh sách tài sản đủ điều kiện bàn giao trong phiên
+ */
+export async function fetchEligibleAssets(caseId, sessionId, options = {}) {
+  const { accessToken, recipientId, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 80));
+    const items = SYNTHETIC_HANDOVER_CASES['case-standard'].assets.map((a) => ({
+      assetId: a.id,
+      assetName: a.name,
+      category: a.category,
+      recipientId: a.beneficiaryId,
+      recipientName: a.beneficiaryName,
+      status: a.handoverStatus === 'DELIVERED' ? 'DELIVERED' : 'ELIGIBLE',
+      allocatedShare: a.allocatedShare,
+    }));
+    return recipientId ? items.filter((i) => i.recipientId === recipientId) : items;
+  }
+
+  const query = recipientId ? `?recipientId=${encodeURIComponent(recipientId)}` : '';
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/eligible-assets${query}`, {
+    method: 'GET',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to fetch eligible assets.' : 'Không thể tải danh sách tài sản đủ điều kiện bàn giao.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'FETCH_ELIGIBLE_ASSETS_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-65 / PS-97: Ghi nhận bàn giao tài sản cho người nhận
+ */
+export async function deliverAssets(caseId, sessionId, { recipientId, assetIds }, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (!recipientId || !Array.isArray(assetIds) || assetIds.length === 0) {
+    const valErr = new Error(lang === 'en' ? 'Recipient and at least one asset are required.' : 'Cần chọn người nhận và ít nhất một tài sản.');
+    valErr.code = 'VALIDATION_FAILED';
+    throw valErr;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 120));
+    return assetIds.map((aid) => ({
+      itemId: `item-${aid}`,
+      sessionId,
+      assetId: aid,
+      recipientId,
+      status: 'DELIVERED',
+      deliveredAt: new Date().toISOString(),
+      staffId: 'staff-8888-4888-8888-888888888888',
+    }));
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/deliveries`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    body: JSON.stringify({ recipientId, assetIds }),
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to record asset delivery.' : 'Ghi nhận bàn giao tài sản thất bại.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'DELIVERY_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-67 / PS-97: Lấy danh sách xác nhận của người thụ hưởng
+ */
+export async function fetchBeneficiaryConfirmations(caseId, sessionId, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 80));
+    return SYNTHETIC_HANDOVER_CASES['case-standard'].beneficiaries.map((b) => ({
+      beneficiaryId: b.id,
+      beneficiaryName: b.fullName,
+      identityNumberMasked: b.identityNumberMasked,
+      confirmationStatus: b.confirmationStatus,
+      receiptReference: b.confirmationReceipt,
+      confirmedAt: b.confirmedAt,
+    }));
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/beneficiary-confirmations`, {
+    method: 'GET',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to fetch beneficiary confirmations.' : 'Không thể tải danh sách xác nhận người thụ hưởng.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'FETCH_CONFIRMATIONS_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-67 / PS-97: Xác nhận bàn giao của người thụ hưởng
+ */
+export async function confirmBeneficiary(caseId, sessionId, beneficiaryId, { receiptReference }, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (!receiptReference || !receiptReference.trim()) {
+    const valErr = new Error(lang === 'en' ? 'Receipt reference is required.' : 'Mã biên nhận xác nhận là bắt buộc.');
+    valErr.code = 'RECEIPT_REFERENCE_REQUIRED';
+    throw valErr;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 120));
+    return {
+      beneficiaryId,
+      confirmationStatus: 'CONFIRMED',
+      receiptReference: receiptReference.trim(),
+      confirmedAt: new Date().toISOString(),
+    };
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/beneficiaries/${beneficiaryId}/confirmation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    body: JSON.stringify({ receiptReference: receiptReference.trim() }),
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to confirm beneficiary.' : 'Xác nhận người thụ hưởng thất bại.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'CONFIRMATION_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-68-70 / PS-97: Lấy tiến độ cổng nghiệm thu kép (Dual Completion Gates)
+ */
+export async function fetchCompletionProgress(caseId, sessionId, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 80));
+    return {
+      assetCompletion: { completed: 3, total: 3, pending: 0, ready: true },
+      beneficiaryCompletion: { completed: 2, total: 2, pending: 0, ready: true },
+      readyForClose: true,
+      readyForArchive: true,
+    };
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/completion-progress`, {
+    method: 'GET',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to fetch completion progress.' : 'Không thể tải tiến độ hoàn tất bàn giao.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'FETCH_PROGRESS_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-61 / PS-97: Lấy danh sách biên bản bàn giao (Receipts)
+ */
+export async function fetchHandoverReceipts(caseId, sessionId, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 80));
+    return [
+      {
+        receiptId: 'rec-001',
+        sessionId,
+        recipientId: 'ben-001',
+        assetIds: ['ast-001', 'ast-002'],
+        attestationType: 'STAFF_ATTESTATION',
+        createdAt: '2026-10-18T10:00:00Z',
+        staffId: 'staff-8888-4888-8888-888888888888',
+      },
+    ];
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/receipts`, {
+    method: 'GET',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to fetch handover receipts.' : 'Không thể tải biên bản bàn giao.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'FETCH_RECEIPTS_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-61 / PS-97: Tạo biên bản bàn giao có chữ ký xác nhận của Staff
+ */
+export async function createHandoverReceipt(caseId, sessionId, { recipientId, assetIds, supersedesReceiptId }, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 120));
+    return {
+      receiptId: `rec-${Date.now().toString(16)}`,
+      sessionId,
+      recipientId,
+      assetIds,
+      attestationType: 'STAFF_ATTESTATION',
+      createdAt: new Date().toISOString(),
+      staffId: 'staff-8888-4888-8888-888888888888',
+    };
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/receipts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    body: JSON.stringify({ recipientId, assetIds, supersedesReceiptId: supersedesReceiptId || null }),
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to create handover receipt.' : 'Lập biên bản bàn giao thất bại.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'CREATE_RECEIPT_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-71 / PS-97: Đóng phiên bàn giao sau khi đạt cổng nghiệm thu kép và có biên bản
+ */
+export async function closeHandoverSession(caseId, sessionId, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 150));
+    return {
+      sessionId,
+      status: 'COMPLETED',
+      closedAt: new Date().toISOString(),
+      proofHash: 'simulated-proof-' + Math.random().toString(16).slice(2, 10),
+    };
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/close`, {
+    method: 'POST',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to close handover session.' : 'Đóng phiên bàn giao thất bại.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'CLOSE_SESSION_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
+/**
+ * PS-72 / PS-97: Lưu trữ kho di sản và hoàn tất đóng ca (Atomic Archive & Case Close)
+ */
+export async function archiveHandoverCase(caseId, sessionId, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const err = new Error('Request aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
+
+  if (isCounterHandoverSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) await new Promise((r) => setTimeout(r, 150));
+    return {
+      caseId,
+      vaultId: '9c1f0b6e-0000-4000-8000-000000000001',
+      caseStatus: 'CLOSED',
+      vaultStatus: 'ARCHIVED',
+      archivedAt: new Date().toISOString(),
+    };
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/archive`, {
+    method: 'POST',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const err = new Error(errBody?.message || (lang === 'en' ? 'Failed to archive vault and close case.' : 'Lưu trữ kho di sản và đóng ca thất bại.'));
+    err.status = res.status;
+    err.code = errBody?.code || 'ARCHIVE_FAILED';
+    throw err;
+  }
+
+  return res.json();
+}
+
