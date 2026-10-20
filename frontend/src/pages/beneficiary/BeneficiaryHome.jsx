@@ -1,3 +1,4 @@
+import ReceivedAssets from './ReceivedAssets.jsx';
 import { useState } from 'react';
 import {
   ShieldCheck,
@@ -26,6 +27,8 @@ import './BeneficiaryHome.css';
  */
 export default function BeneficiaryHome({
   lang = 'vi',
+  receivedAssetActions,
+  receivedRefreshKey = 0,
   user = null,
   session = null,
   onOpenProfile,
@@ -250,6 +253,9 @@ export default function BeneficiaryHome({
         </div>
       </section>
 
+      <a href={`/invitations?lang=${en ? 'en' : 'vi'}`}>{en ? 'Link an invitation code' : 'Liên kết bằng mã mời'}</a>
+      <ReceivedAssets actions={receivedAssetActions} userId={currentUser?.id} accessToken={session?.accessToken} lang={lang} onUnauthorized={onLogout} refreshKey={receivedRefreshKey} />
+
       {/* Mandatory Regulatory & Legal Notice (PS-90 Boundary Rule) */}
       <section className="lv-ben-notice lv-ben-notice--alert" aria-label={en ? 'Important regulatory guidance' : 'Quy định pháp lý quan trọng'}>
         <h2 className="lv-ben-notice__heading">
@@ -265,8 +271,8 @@ export default function BeneficiaryHome({
         <p className="lv-ben-notice__desc">
           <strong>{en ? 'No unauthorized access: ' : 'Không tự ý truy cập kho: '}</strong>
           {en
-            ? 'Signing in does not grant access to an Owner’s vault or permission to decrypt assets. Handover is contingent upon an approved, valid legal scope and required counter verification checks. Asset details and handover progress are not available on this self-service page.'
-            : 'Đăng nhập không cấp quyền truy cập kho của Chủ sở hữu hoặc giải mã tài sản. Việc bàn giao phụ thuộc phạm vi pháp lý được duyệt và các bước kiểm tra bắt buộc tại quầy. Trang này chưa cung cấp chi tiết tài sản hay trạng thái bàn giao tự phục vụ.'}
+            ? 'Signing in does not grant access to an Owner’s vault or permission to decrypt assets. Handover is contingent upon an approved, valid legal scope and required counter verification checks. Only assets actually handed over to you can be viewed through the received-assets service, including after closing or archiving.'
+            : 'Đăng nhập không cấp quyền truy cập kho của Chủ sở hữu hoặc giải mã tài sản. Việc bàn giao phụ thuộc phạm vi pháp lý được duyệt và các bước kiểm tra bắt buộc tại quầy. Chỉ các tài sản thực sự đã bàn giao cho bạn mới được xem qua dịch vụ tài sản đã nhận, kể cả sau đóng hoặc lưu trữ.'}
         </p>
         <p className="lv-ben-notice__desc">
           <strong>{en ? 'Strict protocol: ' : 'Quy chuẩn an toàn: '}</strong>
