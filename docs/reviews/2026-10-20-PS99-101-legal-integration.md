@@ -47,3 +47,13 @@ UI giữ token/component shell hiện có, Forest Green/Sand Gold, card, typogra
 ## Cần làm tiếp khi PS-102 sẵn sàng
 
 Nối discovery/read context thật; bật các thao tác dựa trên capability và snapshot được duyệt; bổ sung luồng approval/unlock/Staff continuation đúng role; chạy browser/BE/SQL trên dữ liệu được phép, gồm quyền, version cũ, hold, COURT, response muộn, concurrency và receipts. PS-99/100/101 vẫn chưa đủ DoD tới khi hoàn thành các bước này.
+
+## Sửa lỗi review PR #155: tải lại danh sách thất bại vẫn giữ quyền cũ
+
+- Lỗi được sửa: queue đã tải thành công còn lưu sau khi discovery đổi/session thay đổi và lần tải mới trả 403. Form cũ vẫn xuất hiện và nút mutation còn bật.
+- Kết quả discovery giờ gắn với đúng session, callback và lượt retry. Render chỉ dùng queue khi kết quả thuộc lượt hiện hành và thành công. Khi bắt đầu kiểm tra quyền mới, form cũ unmount ngay, request đọc/ghi bị abort, metadata/draft/receipt cũ bị dọn; khi 403 hoặc bất kỳ lỗi/response sai thì không khôi phục queue cũ.
+- Retry cũng giữ khóa cho tới khi discovery thành công. Sau thành công cần chọn lại giấy tờ/nạp dữ liệu, không phục hồi quyết định đang nhập từ lần quyền chưa xác minh.
+- 7 test hồi quy mới: pending→403/404/500/network/invalid response; retry; đổi token khi mutation pending rồi 403/receipt muộn; gỡ discovery đang có hồ sơ. Bộ component 24/24; toàn FE **870/870 đạt**, 33 suites; lint/build/diff check đạt. Không thay contract/BE hoặc mở thêm thao tác ngoài phạm vi lỗi.
+- Đã kiểm tra browser **harness fixture riêng ngoài repo** import component thật, không tạo session tài khoản hay dữ liệu DB: form sẵn sàng → tải lại quyền (form=0) → 403 (form=0, nút submit=0, select disabled). Desktop VI và mobile EN 390×844; mobile body scrollWidth 359 < viewport 390, không tràn ngang. Có nhãn fixture rõ ràng trong mọi ảnh; không gửi POST trong harness.
+- Ảnh: [đang xác minh lại](../screenshots/ps155-revalidating.png), [403 desktop](../screenshots/ps155-denied.png), [403 mobile EN](../screenshots/ps155-denied-mobile-en.png).
+- Đây là bằng chứng UI hồi quy bằng fixture, không thay thế browser/BE/SQL E2E còn chờ PS-102. Harness không được thêm vào ứng dụng hoặc commit.

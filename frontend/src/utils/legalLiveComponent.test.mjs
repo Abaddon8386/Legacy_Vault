@@ -169,3 +169,54 @@ test('Dossier changed since display blocks POST and retains reason; ON_HOLD/not-
     await click(view.host, 'Reload record'); assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
   } finally { await view.close(); }
 });
+
+for (const failure of [403, 404, 500, 'network', 'invalid']) test(`Discovery revalidation ${failure}: removes old case before completion and stays locked on failure`, async () => {
+  let writes = 0, finish, reads = 0;
+  globalThis.fetch = async (_url, init) => { if (init.method === 'POST') writes++; return json(detail()); };
+  const view = await mount();
+  try {
+    await change(getSelect(view.host, 'Death document'), a);
+    await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Old case draft');
+    assert.equal(view.host.querySelector('button[type=submit]').disabled, false);
+    const discovery = () => { reads++; return new Promise((resolve, reject) => { finish = { resolve, reject }; }); };
+    await view.render({ ...base, discovery });
+    assert.match(view.host.textContent, /Loading cases/);
+    assert.equal(view.host.querySelector('form'), null, 'Pending permission verification must unmount the old form');
+    assert.equal(view.host.querySelector('select').disabled, true); assert.doesNotMatch(view.host.textContent, /Authority A/);
+    await act(async () => {
+      if (failure === 'invalid') finish.resolve([{ caseId: 'invalid' }]);
+      else finish.reject(failure === 'network' ? new Error('network') : Object.assign(new Error('failed'), { status: failure }));
+    });
+    assert.ok(view.host.querySelector('[role=alert]')); assert.equal(view.host.querySelector('form'), null);
+    assert.equal(view.host.querySelector('select').disabled, true); assert.equal(writes, 0);
+    await click(view.host, 'Retry');
+    assert.equal(view.host.querySelector('form'), null, 'Retry must stay locked until successful authorization');
+    assert.equal(view.host.querySelector('select').disabled, true);
+    await act(async () => finish.resolve(queue));
+    assert.equal(reads, 2); assert.ok(view.host.querySelector('form'));
+    assert.equal(view.host.querySelector('textarea').value, '', 'Old draft must not survive revoked/unknown authorization');
+    assert.equal(getSelect(view.host, 'Death document').value, ''); assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
+  } finally { await view.close(); }
+});
+test('Session revalidation aborts pending decision and late success cannot restore private case after 403', async () => {
+  let finishWrite, signal, finishQueue;
+  globalThis.fetch = async (_url, init) => init.method === 'POST' ? new Promise(resolve => { finishWrite = resolve; signal = init.signal; }) : json(detail());
+  const discovery = async ({ accessToken }) => accessToken === session.accessToken ? queue : new Promise((_resolve, reject) => { finishQueue = reject; });
+  const view = await mount({ ...base, discovery });
+  try {
+    await change(getSelect(view.host, 'Death document'), a); await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
+    await submit(view.host); assert.ok(signal); assert.equal(signal.aborted, false);
+    await view.render({ ...base, discovery, session: { ...session, accessToken: 'new-token' } });
+    assert.equal(signal.aborted, true); assert.equal(view.host.querySelector('form'), null);
+    await act(async () => finishQueue(Object.assign(new Error('denied'), { status: 403 })));
+    await act(async () => finishWrite(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })));
+    assert.ok(view.host.querySelector('[role=alert]')); assert.equal(view.host.querySelector('form'), null); assert.doesNotMatch(view.host.textContent, /server confirmed|Authority A/);
+  } finally { await view.close(); }
+});
+test('Removing discovery while case is open clears the old case and disables selection immediately', async () => {
+  globalThis.fetch = async () => json(detail());
+  const view = await mount();
+  try { await change(getSelect(view.host, 'Death document'), a); await view.render({ ...base, discovery: undefined });
+    assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('select').disabled, true); assert.doesNotMatch(view.host.textContent, /Authority A/); }
+  finally { await view.close(); }
+});

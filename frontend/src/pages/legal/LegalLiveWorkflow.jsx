@@ -37,25 +37,33 @@ const label = (key, en) => choices[key]?.[en ? 1 : 0] || key || '—';
 // Default is unavailable until PS-102 supplies a reviewed Legal queue endpoint.
 export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-verification', caseId = '', discovery, onNavigate, onUnauthorized }) {
   const en = lang === 'en';
-  const [queue, setQueue] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [discoveryResult, setDiscoveryResult] = useState(null);
   const [attempt, setAttempt] = useState(0);
   const auth = useRef(onUnauthorized);
   useEffect(() => { auth.current = onUnauthorized; }, [onUnauthorized]);
   useEffect(() => {
     if (typeof discovery !== 'function' || !isSessionActive(session) || !session.user.roles.includes('LEGAL_VERIFIER')) return;
     const c = new AbortController();
-    discovery({ accessToken: session.accessToken, signal: c.signal }).then(value => {
+    Promise.resolve().then(() => discovery({ accessToken: session.accessToken, signal: c.signal })).then(value => {
       if (c.signal.aborted) return;
       if (!Array.isArray(value) || !value.every(item => isUuid(item.caseId) && typeof item.label === 'string'
         && Array.isArray(item.deathDocumentIds) && item.deathDocumentIds.every(isUuid))) throw Error('INVALID_RESPONSE');
-      setQueue(value); setError(null);
-    }).catch(err => { if (!c.signal.aborted) { setError(err); if (err.status === 401) auth.current?.(); } })
-      .finally(() => { if (!c.signal.aborted) setBusy(false); });
+      setDiscoveryResult({ session, discovery, attempt, queue: value, error: null });
+    }).catch(err => { if (!c.signal.aborted) {
+      setDiscoveryResult({ session, discovery, attempt, queue: null, error: err });
+      if (err.status === 401) auth.current?.();
+    } });
     return () => c.abort();
   }, [session, discovery, attempt]);
-  const selected = queue?.find(item => item.caseId === caseId);
+  // A previously authorized queue is not evidence for a new authorization read.
+  // Gate synchronously in render, before effects run, and unmount the old case
+  // (aborting reads/writes) while permissions are revalidated or after any error.
+  const currentResult = discoveryResult?.session === session && discoveryResult?.discovery === discovery
+    && discoveryResult?.attempt === attempt ? discoveryResult : null;
+  const queue = currentResult?.error ? null : currentResult?.queue;
+  const error = currentResult?.error;
+  const busy = typeof discovery === 'function' && !currentResult;
+  const selected = !busy && !error && typeof discovery === 'function' ? queue?.find(item => item.caseId === caseId) : null;
   const go = (next, id = caseId) => {
     const params = new URLSearchParams({ lang }); if (id) params.set('caseId', id);
     onNavigate?.(`${paths[next]}?${params}`);
@@ -67,14 +75,14 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
     <section className="lv-legal-live__card">
       <h2>{en ? 'Verification cases' : 'Hồ sơ xác minh'}</h2>
       {typeof discovery !== 'function' && <p role="status">{en ? 'The case list is not available yet. Actions will be available after an authorized case can be selected.' : 'Danh sách hồ sơ hiện chưa khả dụng. Bạn có thể thao tác sau khi chọn được hồ sơ thuộc quyền xử lý.'}</p>}
-      {typeof discovery === 'function' && queue === null && !error && <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p>}
+      {busy && <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p>}
       {error && <p role="alert">{knownErrors[error.status]?.[en ? 1 : 0] || (en ? 'Unable to load cases.' : 'Không thể tải danh sách hồ sơ.')}</p>}
       {queue?.length === 0 && <p>{en ? 'No cases are available.' : 'Chưa có hồ sơ để xử lý.'}</p>}
       <label>{en ? 'Case' : 'Hồ sơ'}<select value={selected?.caseId || ''} disabled={!queue?.length || busy} onChange={e => go(step, e.target.value)}>
         <option value="">{en ? 'Select a case' : 'Chọn hồ sơ'}</option>
         {queue?.map(item => <option key={item.caseId} value={item.caseId}>{item.label}</option>)}
       </select></label>
-      {error && <button type="button" disabled={busy} onClick={() => { setBusy(true); setError(null); setAttempt(value => value + 1); }}>{en ? 'Retry' : 'Thử lại'}</button>}
+      {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
     {selected && <>
       <nav aria-label={en ? 'Legal workflow steps' : 'Các bước pháp lý'}>{Object.keys(paths).map(key => <button key={key} type="button" aria-current={step === key ? 'step' : undefined} onClick={() => go(key)}>{titles[key][en ? 1 : 0]}</button>)}</nav>
