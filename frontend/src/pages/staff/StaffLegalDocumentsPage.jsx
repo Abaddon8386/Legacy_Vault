@@ -11,6 +11,7 @@ import {
   Hash,
   Scale,
   Sparkles,
+  ArrowLeft,
 } from 'lucide-react';
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import {
@@ -27,12 +28,20 @@ import './StaffLegalDocumentsPage.css';
 export default function StaffLegalDocumentsPage({
   lang = 'vi',
   accessToken = null,
+  session = null,
+  preview = false,
   isDevPreview = false,
   caseId: propCaseId = '',
+  sessionId: propSessionId = '',
   initialDossier = null,
   onCaseChange,
+  onNavigateCases,
+  onNavigateHome,
 }) {
   const t = staffLegalDocumentsI18n[lang] || staffLegalDocumentsI18n.vi;
+
+  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
+  const effectiveAccessToken = accessToken || session?.accessToken || null;
 
   const caseInputId = useId();
   const issuerId = useId();
@@ -46,8 +55,9 @@ export default function StaffLegalDocumentsPage({
   const notesId = useId();
 
   // Case Selection
-  const [selectedCaseId, setSelectedCaseId] = useState(propCaseId || '6f1a4c2d-0000-4000-8000-000000000001');
-  const [inputCaseId, setInputCaseId] = useState(propCaseId || '6f1a4c2d-0000-4000-8000-000000000001');
+  const initialCase = propCaseId || (effectiveIsDevPreview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
+  const [selectedCaseId, setSelectedCaseId] = useState(initialCase);
+  const [inputCaseId, setInputCaseId] = useState(initialCase);
 
   // Dossier State
   const [dossier, setDossier] = useState(initialDossier);
@@ -104,8 +114,8 @@ export default function StaffLegalDocumentsPage({
 
       try {
         const result = await fetchBasisDossier(selectedCaseId, {
-          accessToken,
-          isDevPreview,
+          accessToken: effectiveAccessToken,
+          isDevPreview: effectiveIsDevPreview,
           lang,
           signal: controller.signal,
         });
@@ -143,7 +153,7 @@ export default function StaffLegalDocumentsPage({
       active = false;
       controller.abort();
     };
-  }, [selectedCaseId, accessToken, isDevPreview, lang]);
+  }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang]);
 
   const handleCaseSubmit = (e) => {
     e.preventDefault();
@@ -215,8 +225,8 @@ export default function StaffLegalDocumentsPage({
         metadata,
         file: evidenceFile,
       }, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
         onProgress: setUploadProgress,
       });
@@ -245,8 +255,8 @@ export default function StaffLegalDocumentsPage({
 
     try {
       const updatedDossier = await forwardBasisVersion(selectedCaseId, latestVersion.version, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
       });
       setDossier(updatedDossier);
@@ -276,8 +286,69 @@ export default function StaffLegalDocumentsPage({
 
   return (
     <div className="lv-staff-documents-view">
+      {/* Context navigation back */}
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {selectedCaseId && propSessionId && (
+          <a
+            href={`/staff/handover?caseId=${encodeURIComponent(selectedCaseId)}&sessionId=${encodeURIComponent(propSessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#164639',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
+          </a>
+        )}
+        {onNavigateCases && (
+          <button
+            type="button"
+            onClick={onNavigateCases}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#6b7280',
+              padding: 0,
+            }}
+          >
+            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
+          </button>
+        )}
+        {onNavigateHome && (
+          <button
+            type="button"
+            onClick={onNavigateHome}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#6b7280',
+              padding: 0,
+            }}
+          >
+            <span>{lang === 'en' ? 'Home' : 'Trang chủ'}</span>
+          </button>
+        )}
+      </div>
+
       {/* Dev preview banner */}
-      {isDevPreview && !accessToken && (
+      {effectiveIsDevPreview && !effectiveAccessToken && (
         <div className="lv-staff-preview-banner" role="status">
           <Sparkles size={18} className="lv-staff-preview-banner__icon" aria-hidden="true" />
           <div>
@@ -345,97 +416,154 @@ export default function StaffLegalDocumentsPage({
         </form>
       </section>
 
-      {/* Dossier Status & Stored Versions */}
-      <section className="lv-dossier-card" aria-labelledby="dossier-heading">
-        <div className="lv-dossier-card__header">
-          <h2 id="dossier-heading">{t.dossierSectionTitle}</h2>
-          {dossier && (
-            <span className={`lv-dossier-status-pill lv-dossier-status-pill--${dossier.status.toLowerCase()}`}>
-              {dossier.status === 'LEGAL_BASIS_FORWARDED' ? t.statusForwarded :
-                dossier.status === 'LEGAL_BASIS_PROVIDED' ? t.statusProvided :
-                dossier.status === 'DRAFT' ? t.statusDraft : t.statusOnHold}
-            </span>
+      {/* Chưa chọn ca trong phiên thật */}
+      {!selectedCaseId && !isDossierLoading && (
+        <section className="lv-dossier-card" style={{ textAlign: 'center', padding: '40px 24px' }}>
+          <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', backgroundColor: '#faf5eb', marginBottom: '16px', color: '#c5a059' }}>
+            <Search size={32} aria-hidden="true" />
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#164639', margin: '0 0 8px' }}>
+            {lang === 'en' ? 'No Verification Case Selected' : 'Chưa chọn hồ sơ xác minh'}
+          </h2>
+          <p style={{ fontSize: '14px', color: '#6b726b', margin: '0 auto 24px', maxWidth: '520px', lineHeight: 1.6 }}>
+            {lang === 'en'
+              ? 'Please select a verification case from the Cases Dashboard or enter a case ID above to view and process its legal basis dossier.'
+              : 'Vui lòng chọn một hồ sơ xác minh từ Danh sách ca hoặc nhập mã ca hợp lệ phía trên để tiếp nhận căn cứ pháp lý.'}
+          </p>
+          {onNavigateCases && (
+            <button
+              type="button"
+              onClick={onNavigateCases}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 24px',
+                backgroundColor: '#164639',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <span>{lang === 'en' ? 'Go to Cases Dashboard' : 'Về danh sách ca xác minh'}</span>
+            </button>
           )}
-        </div>
+        </section>
+      )}
 
-        {dossierNotFound && (
-          <div className="lv-dossier-unconnected-box" role="status">
-            <Scale size={32} className="lv-dossier-unconnected-icon" aria-hidden="true" />
-            <h3>{t.awaitingLegalDossierTitle}</h3>
-            <p>{t.awaitingLegalDossierDesc}</p>
-          </div>
-        )}
-
-        {dossierError && (
-          <div className="lv-form-error-banner" role="alert">
-            <AlertTriangle size={18} aria-hidden="true" />
-            <span>{dossierError}</span>
-          </div>
-        )}
-
-        {isRouteOnHold && (
-          <div className="lv-dossier-hold-banner" role="alert">
-            <Clock size={20} className="lv-dossier-hold-icon" aria-hidden="true" />
-            <div>
-              <strong>{t.dossierOnHoldTitle}</strong>
-              <p>{t.dossierOnHoldDesc}</p>
-            </div>
-          </div>
-        )}
-
-        {dossier && (
-          <div className="lv-dossier-specs-grid">
-            <div className="lv-dossier-row">
-              <span className="lv-dossier-label">{t.routeLabel}</span>
-              <span className="lv-dossier-value-badge lv-dossier-value-badge--route">
-                {isRouteNotarial ? t.routeNotarial : isRouteCourt ? t.routeCourt : t.routeOnHold}
+      {/* Dossier Status & Stored Versions */}
+      {selectedCaseId && (
+        <section className="lv-dossier-card" aria-labelledby="dossier-heading">
+          <div className="lv-dossier-card__header">
+            <h2 id="dossier-heading">{t.dossierSectionTitle}</h2>
+            {dossier && (
+              <span className={`lv-dossier-status-pill lv-dossier-status-pill--${dossier.status.toLowerCase()}`}>
+                {dossier.status === 'LEGAL_BASIS_FORWARDED' ? t.statusForwarded :
+                  dossier.status === 'LEGAL_BASIS_PROVIDED' ? t.statusProvided :
+                  dossier.status === 'DRAFT' ? t.statusDraft : t.statusOnHold}
               </span>
-            </div>
-
-            <div className="lv-dossier-row">
-              <span className="lv-dossier-label">{t.dossierVersionLabel}</span>
-              {latestVersion ? (
-                <span className="lv-dossier-value-badge">
-                  Phiên bản {latestVersion.version}
-                </span>
-              ) : (
-                <span className="lv-dossier-value-unloaded">{t.dossierVersionUnloaded}</span>
-              )}
-            </div>
-
-            <div className="lv-dossier-row">
-              <span className="lv-dossier-label">{t.dossierHashLabel}</span>
-              <div className={`lv-hash-box ${!latestVersion?.sha256 ? 'lv-hash-box--empty' : ''}`}>
-                <Hash size={13} aria-hidden="true" />
-                <span>{latestVersion?.sha256 || t.dossierHashUnloaded}</span>
-              </div>
-            </div>
-
-            <div className="lv-dossier-row">
-              <span className="lv-dossier-label">{t.forwardStatusLabel}</span>
-              {latestVersion?.forwardStatus === 'FORWARDED' ? (
-                <span className="lv-forward-badge lv-forward-badge--forwarded">
-                  <CheckCircle2 size={13} aria-hidden="true" />
-                  <span>{t.forwardStatusForwarded}</span>
-                </span>
-              ) : (
-                <span className="lv-forward-badge lv-forward-badge--pending">
-                  <Clock size={13} aria-hidden="true" />
-                  <span>{t.forwardStatusNotForwarded}</span>
-                </span>
-              )}
-            </div>
-
-            {latestVersion?.forwardedAt && (
-              <div className="lv-dossier-row">
-                <span className="lv-dossier-label">{t.forwardedAtLabel}</span>
-                <span className="lv-dossier-date">
-                  {new Date(latestVersion.forwardedAt).toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN')}
-                </span>
-              </div>
             )}
           </div>
-        )}
+
+          {dossierNotFound && (
+            <div className="lv-dossier-unconnected-box" role="status">
+              <Scale size={32} className="lv-dossier-unconnected-icon" aria-hidden="true" />
+              <h3>{t.awaitingLegalDossierTitle}</h3>
+              <p>{t.awaitingLegalDossierDesc}</p>
+            </div>
+          )}
+
+          {dossierError && (
+            <div className="lv-form-error-banner" role="alert">
+              <AlertTriangle size={18} aria-hidden="true" />
+              <span>{dossierError}</span>
+            </div>
+          )}
+
+          {isRouteOnHold && (
+            <div className="lv-dossier-hold-banner" role="alert">
+              <Clock size={20} className="lv-dossier-hold-icon" aria-hidden="true" />
+              <div>
+                <strong>{t.dossierOnHoldTitle}</strong>
+                <p>{t.dossierOnHoldDesc}</p>
+              </div>
+            </div>
+          )}
+
+          {dossier && (
+            <div className="lv-dossier-specs-grid">
+              <div className="lv-dossier-row">
+                <span className="lv-dossier-label">{t.routeLabel}</span>
+                <span className="lv-dossier-value-badge lv-dossier-value-badge--route">
+                  {isRouteNotarial ? t.routeNotarial : isRouteCourt ? t.routeCourt : t.routeOnHold}
+                </span>
+              </div>
+
+              <div className="lv-dossier-row">
+                <span className="lv-dossier-label">{t.dossierVersionLabel}</span>
+                {latestVersion ? (
+                  <span className="lv-dossier-value-badge">
+                    Phiên bản {latestVersion.version}
+                  </span>
+                ) : (
+                  <span className="lv-dossier-value-unloaded">{t.dossierVersionUnloaded}</span>
+                )}
+              </div>
+
+              <div className="lv-dossier-row">
+                <span className="lv-dossier-label">{t.dossierHashLabel}</span>
+                <div className={`lv-hash-box ${!latestVersion?.sha256 ? 'lv-hash-box--empty' : ''}`} title={latestVersion?.sha256 || undefined}>
+                  <Hash size={13} aria-hidden="true" />
+                  <span>{latestVersion?.sha256 || t.dossierHashUnloaded}</span>
+                </div>
+              </div>
+
+              {latestVersion?.evidenceReference && (
+                <div className="lv-dossier-row">
+                  <span className="lv-dossier-label">{lang === 'en' ? 'Evidence Reference / Receipt' : 'Số tham chiếu / Biên nhận'}</span>
+                  <span className="lv-dossier-value-badge" style={{ fontFamily: 'monospace' }}>
+                    {latestVersion.evidenceReference}
+                  </span>
+                </div>
+              )}
+
+              {latestVersion?.sizeBytes && (
+                <div className="lv-dossier-row">
+                  <span className="lv-dossier-label">{lang === 'en' ? 'Attachment Size' : 'Dung lượng tệp'}</span>
+                  <span className="lv-dossier-value-badge">
+                    {latestVersion.contentType || 'application/pdf'} • {Math.round(latestVersion.sizeBytes / 1024)} KB
+                  </span>
+                </div>
+              )}
+
+              <div className="lv-dossier-row">
+                <span className="lv-dossier-label">{t.forwardStatusLabel}</span>
+                {latestVersion?.forwardStatus === 'FORWARDED' ? (
+                  <span className="lv-forward-badge lv-forward-badge--forwarded">
+                    <CheckCircle2 size={13} aria-hidden="true" />
+                    <span>{t.forwardStatusForwarded}</span>
+                  </span>
+                ) : (
+                  <span className="lv-forward-badge lv-forward-badge--pending">
+                    <Clock size={13} aria-hidden="true" />
+                    <span>{t.forwardStatusNotForwarded}</span>
+                  </span>
+                )}
+              </div>
+
+              {latestVersion?.forwardedAt && (
+                <div className="lv-dossier-row">
+                  <span className="lv-dossier-label">{t.forwardedAtLabel}</span>
+                  <span className="lv-dossier-date">
+                    {new Date(latestVersion.forwardedAt).toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN')}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
         {/* Forward to Legal Action Bar */}
         {dossier && !dossierNotFound && !isRouteOnHold && (
@@ -475,6 +603,7 @@ export default function StaffLegalDocumentsPage({
           </div>
         )}
       </section>
+      )}
 
       {/* Action Feedback Banner */}
       {actionSuccess && (

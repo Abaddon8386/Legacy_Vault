@@ -1,4 +1,3 @@
-import { handoverUrl, isHandoverId } from './pages/staff/liveHandoverService.js';
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
@@ -843,6 +842,19 @@ export default function App({ invitationActions } = {}) {
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
+  const staffParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const staffCaseId = staffParams?.get('caseId') || '';
+  const staffSessionId = staffParams?.get('sessionId') || '';
+
+  const buildStaffRoute = (basePath) => {
+    const params = new URLSearchParams();
+    if (preview) params.set('preview', 'true');
+    if (staffCaseId) params.set('caseId', staffCaseId);
+    if (staffSessionId) params.set('sessionId', staffSessionId);
+    const qs = params.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  };
+
   const handleExecuteNavigation = (targetTab) => {
     if (targetTab === 'admin-home') { navigateTo('/admin');
     } else if (targetTab === 'admin-subscriptions') { navigateTo('/admin/subscriptions');
@@ -854,15 +866,15 @@ export default function App({ invitationActions } = {}) {
     } else if (targetTab === 'cases') {
       navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
     } else if (targetTab === 'legal-documents') {
-      navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+      navigateTo(buildStaffRoute('/staff/legal-documents'));
     } else if (targetTab === 'asset-handover') {
-      navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+      navigateTo(buildStaffRoute('/staff/asset-handover'));
     } else if (targetTab === 'beneficiary-confirmation') {
-      navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+      navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'));
     } else if (targetTab === 'completion-progress') {
-      navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+      navigateTo(buildStaffRoute('/staff/completion-progress'));
     } else if (targetTab === 'close-and-archive') {
-      navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+      navigateTo(buildStaffRoute('/staff/close-and-archive'));
     } else if (targetTab === 'death-verification') {
       navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
     } else if (targetTab === 'will-document-verification') {
@@ -1037,45 +1049,34 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <AppShell
-          role="STAFF"
-          currentTab="legal-documents"
+        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
           lang={lang}
           onToggleLang={setLang}
-          isAuthenticated={isSessionActive(session)}
-          onLogout={isSessionActive(session) ? logout : null}
+          onLogout={session ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          session={session}
-          user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            }
-          }}
+          isPreview={preview}
+          currentTab="legal-documents"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <StaffLegalDocumentsPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
-            onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            onNavigateHome={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+            onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </AppShell>
+        </StaffShell>
       </div>
     );
   }
@@ -1098,32 +1099,22 @@ export default function App({ invitationActions } = {}) {
           isPreview={preview}
           currentTab="asset-handover"
           onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
-          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
-          onNavigateCloseAndArchive={() => navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive')}
-          onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            }
-          }}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
-          {isHandoverId(new URLSearchParams(window.location.search).get('caseId')) && <a href={handoverUrl('/staff/handover', new URLSearchParams(window.location.search).get('caseId'), new URLSearchParams(window.location.search).get('sessionId'))}>{lang === 'en' ? 'Back to handover session' : 'Về phiên bàn giao'}</a>}
           <ScopedAssetHandoverPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
         </StaffShell>
       </div>
@@ -1139,44 +1130,34 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <AppShell
-          role="STAFF"
-          currentTab="beneficiary-confirmation"
+        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
           lang={lang}
           onToggleLang={setLang}
-          isAuthenticated={isSessionActive(session)}
-          onLogout={isSessionActive(session) ? logout : null}
+          onLogout={session ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          session={session}
-          user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            }
-          }}
+          isPreview={preview}
+          currentTab="beneficiary-confirmation"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <BeneficiaryConfirmationPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            caseReference={staffCaseId}
+            sessionId={staffSessionId}
+            onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </AppShell>
+        </StaffShell>
       </div>
     );
   }
@@ -1190,44 +1171,34 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <AppShell
-          role="STAFF"
-          currentTab="completion-progress"
+        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
           lang={lang}
           onToggleLang={setLang}
-          isAuthenticated={isSessionActive(session)}
-          onLogout={isSessionActive(session) ? logout : null}
+          onLogout={session ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          session={session}
-          user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            }
-          }}
+          isPreview={preview}
+          currentTab="completion-progress"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <CompletionProgressPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            caseReference={staffCaseId}
+            sessionId={staffSessionId}
+            onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </AppShell>
+        </StaffShell>
       </div>
     );
   }
@@ -1241,42 +1212,33 @@ export default function App({ invitationActions } = {}) {
     }
     return (
       <div className="lv-app-root">
-        <AppShell
-          role="STAFF"
-          currentTab="close-and-archive"
+        <StaffShell session={session} user={session?.user || null} onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))} onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
           lang={lang}
           onToggleLang={setLang}
-          isAuthenticated={isSessionActive(session)}
-          onLogout={isSessionActive(session) ? logout : null}
+          onLogout={session ? logout : null}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          session={session}
-          user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            }
-          }}
+          isPreview={preview}
+          currentTab="close-and-archive"
+          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <CloseAndArchivePage
             lang={lang}
+            preview={preview}
+            isDevPreview={preview}
+            session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
           />
-        </AppShell>
+        </StaffShell>
       </div>
     );
   }

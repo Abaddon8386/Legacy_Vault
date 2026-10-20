@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   HelpCircle,
   Award,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   evaluateCompletionProgress,
@@ -31,16 +32,28 @@ export default function CompletionProgressPage({
   onFetchProgress,
   loadProgress,
   onCaseChange,
+  accessToken = null,
+  session = null,
+  preview = false,
+  isDevPreview = false,
+  sessionId: propSessionId = '',
+  onNavigateCases = null,
 }) {
   const t = completionProgressI18n[lang] || completionProgressI18n.vi;
   const caseInputId = useId();
+
+  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
+  const effectiveAccessToken = accessToken || session?.accessToken || null;
+
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const effectiveSessionId = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
   const initialEffectiveCase =
     propCaseId !== undefined
       ? (propCaseId || '')
       : propCaseReference !== undefined
         ? (propCaseReference || '')
-        : (initialCaseId || initialCaseReference || '');
+        : (initialCaseId || initialCaseReference || searchParams?.get('caseId') || (effectiveIsDevPreview ? 'CASE-2026-0001' : ''));
 
   const initialEffectiveTrimmed = initialEffectiveCase.trim();
   const hasInitialData =
@@ -184,14 +197,24 @@ export default function CompletionProgressPage({
             setBeneficiaryData(null);
             setLoadedCaseId(trimmed);
           });
-      } else {
-        // Fallback calling real backend / simulated completion progress API
-        fetchCompletionProgress(trimmed, 'HDS-2026-001', { lang, isDevPreview: true })
+      } else if (effectiveSessionId) {
+        // Calling real backend / simulated completion progress API
+        fetchCompletionProgress(trimmed, effectiveSessionId, {
+          accessToken: effectiveAccessToken,
+          isDevPreview: effectiveIsDevPreview,
+          lang,
+        })
           .then((res) => {
             if (activeCaseRef.current !== trimmed) return;
             if (res) {
-              setAssetData(res.assetCompletion ?? null);
-              setBeneficiaryData(res.beneficiaryCompletion ?? null);
+              const mappedAsset = res.assets
+                ? { totalCount: res.assets.total, deliveredCount: res.assets.completed, isComplete: res.assets.complete }
+                : (res.assetCompletion ?? null);
+              const mappedBeneficiary = res.beneficiaries
+                ? { totalCount: res.beneficiaries.total, confirmedCount: res.beneficiaries.completed, isComplete: res.beneficiaries.complete }
+                : (res.beneficiaryCompletion ?? null);
+              setAssetData(mappedAsset);
+              setBeneficiaryData(mappedBeneficiary);
               setLoadedCaseId(trimmed);
             }
           })
@@ -203,7 +226,7 @@ export default function CompletionProgressPage({
           });
       }
     }
-  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress, lang]);
+  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress, lang, effectiveSessionId, effectiveAccessToken, effectiveIsDevPreview]);
 
   // Evaluate metrics strictly for the active case
   const activeTrimmed = caseReference.trim();
@@ -219,6 +242,76 @@ export default function CompletionProgressPage({
 
   return (
     <div className="lv-completion-progress-view">
+      {/* Context navigation back */}
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {activeTrimmed && effectiveSessionId && (
+          <a
+            href={`/staff/handover?caseId=${encodeURIComponent(activeTrimmed)}&sessionId=${encodeURIComponent(effectiveSessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#164639',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
+          </a>
+        )}
+        {onNavigateCases && (
+          <button
+            type="button"
+            onClick={onNavigateCases}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#6b7280',
+              padding: 0,
+            }}
+          >
+            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Warning when context is missing in real mode */}
+      {!activeTrimmed && !effectiveIsDevPreview && (
+        <section className="lv-progress-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} aria-hidden="true" />
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
+                {lang === 'en' ? 'No Handover Case Selected' : 'Chưa chọn ca bàn giao'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+                {lang === 'en'
+                  ? 'Please select a verification case and open a counter handover session to track completion progress.'
+                  : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy để theo dõi tiến độ hai cổng hoàn tất.'}
+              </p>
+              {onNavigateCases && (
+                <button
+                  type="button"
+                  className="lv-btn lv-btn-primary"
+                  onClick={onNavigateCases}
+                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                >
+                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Header */}
       <div className="lv-progress-header">
         <h1 className="lv-progress-title">{t.pageTitle}</h1>

@@ -207,6 +207,7 @@
 
 .lv-asset-handover-view .lv-handover-table {
   width: 100%;
+  min-width: 600px;
   border-collapse: collapse;
   text-align: left;
   font-size: 14px;

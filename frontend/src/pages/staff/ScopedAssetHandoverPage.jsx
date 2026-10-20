@@ -27,17 +27,23 @@ export default function ScopedAssetHandoverPage({
   initialScope = null,
   initialCandidates = null,
   accessToken = null,
+  session = null,
+  preview = false,
   isDevPreview = false,
   caseId: propCaseId = '',
   sessionId: propSessionId = '',
+  onNavigateCases = null,
 }) {
   const t = scopedAssetHandoverI18n[lang] || scopedAssetHandoverI18n.vi;
   const caseInputId = useId();
 
+  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
+  const effectiveAccessToken = accessToken || session?.accessToken || null;
+
   // Đọc params từ URL nếu props không truyền
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const initialCase = propCaseId || searchParams?.get('caseId') || '6f1a4c2d-0000-4000-8000-000000000001';
-  const initialSession = propSessionId || searchParams?.get('sessionId') || 'HDS-2026-001';
+  const initialCase = propCaseId || searchParams?.get('caseId') || (effectiveIsDevPreview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
+  const initialSession = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
   const [caseReference, setCaseReference] = useState(initialCase);
   const [sessionId, setSessionId] = useState(initialSession);
@@ -78,26 +84,29 @@ export default function ScopedAssetHandoverPage({
 
       try {
         const assets = await fetchEligibleAssets(caseReference, sessionId, {
-          accessToken,
-          isDevPreview,
+          accessToken: effectiveAccessToken,
+          isDevPreview: effectiveIsDevPreview,
           lang,
           signal: controller.signal,
         });
 
         if (active) {
-          // Normalize thành candidates format
-          const formattedCandidates = assets.map((a) => ({
-            assetId: a.assetId,
-            assetName: a.assetName,
-            beneficiaryId: a.recipientId,
-            beneficiaryName: a.recipientName,
-            handoverStatus: a.status === 'DELIVERED' ? HANDOVER_STATUS.DELIVERED : HANDOVER_STATUS.PENDING,
-          }));
+          // Normalize thành candidates format từ BE EligibleHandoverAssetResponse
+          const formattedCandidates = (Array.isArray(assets) ? assets : []).map((a) => {
+            const isDelivered = a.deliveryStatus === 'DELIVERED' || a.status === 'DELIVERED';
+            return {
+              assetId: a.assetId,
+              assetName: a.assetName || a.description || a.name || 'Tài sản',
+              beneficiaryId: a.recipientId,
+              beneficiaryName: a.recipientName || (a.recipientId ? `Người nhận (${a.recipientId.substring(0, 8)})` : 'Chưa chỉ định'),
+              handoverStatus: isDelivered ? HANDOVER_STATUS.DELIVERED : HANDOVER_STATUS.PENDING,
+            };
+          });
 
           // Mock scope data tương ứng
           const generatedScope = {
             isApproved: true,
-            allocations: assets.map((a) => ({
+            allocations: (Array.isArray(assets) ? assets : []).map((a) => ({
               assetId: a.assetId,
               beneficiaryId: a.recipientId,
             })),
@@ -123,7 +132,7 @@ export default function ScopedAssetHandoverPage({
       active = false;
       controller.abort();
     };
-  }, [caseReference, sessionId, accessToken, isDevPreview, lang]);
+  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang]);
 
   const handleCaseChange = (newRef) => {
     setCaseReference(newRef);
@@ -155,8 +164,8 @@ export default function ScopedAssetHandoverPage({
         recipientId: item.beneficiaryId,
         assetIds: [item.assetId],
       }, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
       });
 
@@ -267,12 +276,34 @@ export default function ScopedAssetHandoverPage({
           </button>
         </div>
 
-        {/* If scope is missing or unapproved, show truthful blocker notification */}
         {!isLoading && !scopeValidation.isValid && (
           <div className="lv-handover-scope-empty" role="status">
             <Package size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
             <h3>{t.scopeMissingTitle}</h3>
             <p>{t.scopeMissingDesc}</p>
+            {onNavigateCases && (
+              <div style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={onNavigateCases}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    backgroundColor: '#164639',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>{lang === 'en' ? 'Back to Cases Dashboard' : 'Về danh sách ca xác minh'}</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>

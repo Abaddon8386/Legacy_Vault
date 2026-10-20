@@ -34,13 +34,19 @@ export default function CloseAndArchivePage({
   beneficiaryData = null,
   receipts: propReceipts = null,
   accessToken = null,
+  session = null,
+  preview = false,
   isDevPreview = false,
+  onNavigateCases = null,
 }) {
   const t = closeAndArchiveI18n[lang] || closeAndArchiveI18n.vi;
 
+  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
+  const effectiveAccessToken = accessToken || session?.accessToken || null;
+
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const caseId = propCaseId || searchParams?.get('caseId') || '6f1a4c2d-0000-4000-8000-000000000001';
-  const sessionId = propSessionId || searchParams?.get('sessionId') || 'HDS-2026-001';
+  const caseId = propCaseId || searchParams?.get('caseId') || (effectiveIsDevPreview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
+  const sessionId = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
   const [sessionStatus, setSessionStatus] = useState(propSessionStatus || 'ACTIVE');
   const [vaultStatus, setVaultStatus] = useState(propVaultStatus || 'UNLOCKED');
@@ -72,7 +78,11 @@ export default function CloseAndArchivePage({
     if (!caseId || !sessionId) return;
 
     let active = true;
-    fetchHandoverReceipts(caseId, sessionId, { accessToken, isDevPreview, lang })
+    fetchHandoverReceipts(caseId, sessionId, {
+      accessToken: effectiveAccessToken,
+      isDevPreview: effectiveIsDevPreview,
+      lang,
+    })
       .then((res) => {
         if (active) {
           setFetchedReceipts(Array.isArray(res) ? res : []);
@@ -87,7 +97,7 @@ export default function CloseAndArchivePage({
     return () => {
       active = false;
     };
-  }, [caseId, sessionId, propReceipts, accessToken, isDevPreview, lang]);
+  }, [caseId, sessionId, propReceipts, effectiveAccessToken, effectiveIsDevPreview, lang]);
 
   // Resolve status label from server status code
   const resolveSessionLabel = (status) => {
@@ -118,7 +128,7 @@ export default function CloseAndArchivePage({
 
   // 1. Tạo biên bản bàn giao của Staff (POST /receipts)
   const handleCreateReceipt = async () => {
-    if (isArchived || isCreatingReceipt) return;
+    if (isArchived || isCreatingReceipt || !caseId || !sessionId) return;
     setIsCreatingReceipt(true);
     setActionSuccess(null);
     setActionError(null);
@@ -128,8 +138,8 @@ export default function CloseAndArchivePage({
         recipientId: 'ben-001',
         assetIds: ['ast-001', 'ast-002', 'ast-003'],
       }, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
       });
 
@@ -144,15 +154,15 @@ export default function CloseAndArchivePage({
 
   // 2. Đóng phiên bàn giao (POST /close)
   const handleCloseSession = async () => {
-    if (isArchived || isClosingSession || sessionStatus === 'COMPLETED') return;
+    if (isArchived || isClosingSession || sessionStatus === 'COMPLETED' || !caseId || !sessionId) return;
     setIsClosingSession(true);
     setActionSuccess(null);
     setActionError(null);
 
     try {
       const closeRes = await closeHandoverSession(caseId, sessionId, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
       });
 
@@ -167,15 +177,15 @@ export default function CloseAndArchivePage({
 
   // 3. Lưu trữ kho di sản và đóng ca (POST /archive)
   const handleArchiveCase = async () => {
-    if (isArchived || isArchiving || sessionStatus !== 'COMPLETED') return;
+    if (isArchived || isArchiving || sessionStatus !== 'COMPLETED' || !caseId || !sessionId) return;
     setIsArchiving(true);
     setActionSuccess(null);
     setActionError(null);
 
     try {
       await archiveHandoverCase(caseId, sessionId, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
       });
 
@@ -197,10 +207,10 @@ export default function CloseAndArchivePage({
   return (
     <div className="lv-close-archive-view">
       {/* Context navigation back */}
-      {caseId && sessionId && (
-        <div style={{ marginBottom: '12px' }}>
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {caseId && sessionId && (
           <a
-            href={`/staff/handover?caseId=${encodeURIComponent(caseId)}&sessionId=${encodeURIComponent(sessionId)}`}
+            href={`/staff/handover?caseId=${encodeURIComponent(caseId)}&sessionId=${encodeURIComponent(sessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -214,7 +224,56 @@ export default function CloseAndArchivePage({
             <ArrowLeft size={16} aria-hidden="true" />
             <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
           </a>
-        </div>
+        )}
+        {onNavigateCases && (
+          <button
+            type="button"
+            onClick={onNavigateCases}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#6b7280',
+              padding: 0,
+            }}
+          >
+            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Warning when context is missing in real mode */}
+      {(!caseId || !sessionId) && !effectiveIsDevPreview && (
+        <section className="lv-ca-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} aria-hidden="true" />
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
+                {lang === 'en' ? 'No Handover Session Context' : 'Chưa có thông tin phiên bàn giao'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+                {lang === 'en'
+                  ? 'Please select a verification case and open a counter handover session from the Staff Dashboard to proceed.'
+                  : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy từ Bàn làm việc Nhân viên để thực hiện đóng và lưu trữ kho di sản.'}
+              </p>
+              {onNavigateCases && (
+                <button
+                  type="button"
+                  className="lv-btn lv-btn-primary"
+                  onClick={onNavigateCases}
+                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                >
+                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Header */}

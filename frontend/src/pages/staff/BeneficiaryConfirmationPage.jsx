@@ -30,16 +30,22 @@ export default function BeneficiaryConfirmationPage({
   onFetchBeneficiaries,
   loadBeneficiaries,
   accessToken = null,
+  session = null,
+  preview = false,
   isDevPreview = false,
+  onNavigateCases = null,
 }) {
   const t = beneficiaryConfirmationI18n[lang] || beneficiaryConfirmationI18n.vi;
   const caseInputId = useId();
   const benSelectId = useId();
   const receiptInputId = useId();
 
+  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
+  const effectiveAccessToken = accessToken || session?.accessToken || null;
+
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const initialCase = propCaseReference || propCaseId || searchParams?.get('caseId') || '';
-  const initialSession = propSessionId || searchParams?.get('sessionId') || '';
+  const initialCase = propCaseReference || propCaseId || searchParams?.get('caseId') || (effectiveIsDevPreview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
+  const initialSession = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
   const [caseReference, setCaseReference] = useState(initialCase);
   const [sessionId, setSessionId] = useState(initialSession);
@@ -127,8 +133,8 @@ export default function BeneficiaryConfirmationPage({
 
     let active = true;
     fetchBeneficiaryConfirmations(caseReference, sessionId, {
-      accessToken,
-      isDevPreview,
+      accessToken: effectiveAccessToken,
+      isDevPreview: effectiveIsDevPreview,
       lang,
     })
       .then((list) => {
@@ -146,7 +152,7 @@ export default function BeneficiaryConfirmationPage({
     return () => {
       active = false;
     };
-  }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, accessToken, isDevPreview, lang, t.informationUnavailable]);
+  }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, t.informationUnavailable]);
 
   const handleCaseChange = (newCase) => {
     activeCaseRef.current = newCase;
@@ -220,8 +226,8 @@ export default function BeneficiaryConfirmationPage({
       const confirmed = await confirmBeneficiary(caseReference, sessionId, selectedBeneficiaryId, {
         receiptReference: trimmedReceipt,
       }, {
-        accessToken,
-        isDevPreview,
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
         lang,
       });
 
@@ -271,10 +277,10 @@ export default function BeneficiaryConfirmationPage({
   return (
     <div className="lv-beneficiary-confirmation-view">
       {/* Context navigation back */}
-      {caseReference && sessionId && (
-        <div style={{ marginBottom: '12px' }}>
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {caseReference && sessionId && (
           <a
-            href={`/staff/handover?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}`}
+            href={`/staff/handover?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -288,7 +294,56 @@ export default function BeneficiaryConfirmationPage({
             <ArrowLeft size={16} aria-hidden="true" />
             <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
           </a>
-        </div>
+        )}
+        {onNavigateCases && (
+          <button
+            type="button"
+            onClick={onNavigateCases}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#6b7280',
+              padding: 0,
+            }}
+          >
+            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Warning when context is missing in real mode */}
+      {(!caseReference || !sessionId) && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} aria-hidden="true" />
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
+                {lang === 'en' ? 'No Handover Session Context' : 'Chưa có thông tin phiên bàn giao'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+                {lang === 'en'
+                  ? 'Please select a verification case and open a counter handover session to record beneficiary confirmations.'
+                  : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy từ Bàn làm việc Nhân viên để thực hiện xác nhận người thụ hưởng.'}
+              </p>
+              {onNavigateCases && (
+                <button
+                  type="button"
+                  className="lv-btn lv-btn-primary"
+                  onClick={onNavigateCases}
+                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                >
+                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Header */}
