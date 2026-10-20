@@ -6,6 +6,7 @@ import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createSession, storeSession, readStoredSession } from './session.js';
+import { readUser } from '../api/contracts.js';
 import {
   linkExistingBeneficiaryAccount,
   createAndLinkBeneficiaryAccount,
@@ -228,7 +229,7 @@ test('BeneficiaryHome - renders English translation cleanly without placeholders
     const text = view.host.textContent;
     assert.match(text, /Beneficiary Information/);
     assert.match(text, /Alice Vance/);
-    assert.match(text, /Not provided/);
+    assert.match(text, /Information unavailable/);
     assert.match(text, /Active/);
     assert.match(text, /Beneficiary Portal/);
     assert.doesNotMatch(text, /Verified Beneficiary/);
@@ -750,3 +751,36 @@ test('App integration - Refresh calls /auth/me, updates roles, keeps expiry, and
     storeSession(null);
   }
 });
+
+for (const lang of ['vi', 'en']) {
+  test(`Beneficiary phone ${lang}: auth projection without phone does not claim the profile is incomplete`, async () => {
+    const projected = readUser({ ...refreshUser, phoneNumber: '0901234567' });
+    assert.equal(Object.hasOwn(projected, 'phoneNumber'), false, 'The current auth contract does not expose profile phone');
+    const view = await mount(BeneficiaryHome, { user: projected, lang });
+    try {
+      const detail = [...view.host.querySelectorAll('.lv-ben-detail-item')].find(item => item.textContent.includes(lang === 'en' ? 'Phone Number' : 'Số điện thoại'));
+      assert.ok(detail);
+      assert.match(detail.textContent, lang === 'en' ? /Information unavailable/ : /Thông tin chưa khả dụng/);
+      assert.doesNotMatch(detail.textContent, /Not provided|Chưa cập nhật/);
+    } finally { await view.close(); }
+  });
+  for (const path of ['/admin', '/admin/subscriptions']) {
+    test(`Admin beneficiary menu ${lang} ${path}: multi-role account reaches beneficiary portal`, async () => {
+      const admin = { ...refreshUser, roles: ['ADMIN', 'BENEFICIARY'] };
+      window.history.replaceState({}, '', `${path}?lang=${lang}`);
+      storeSession(createSession({ accessToken: 'admin-beneficiary-test', tokenType: 'Bearer', expiresInSeconds: 3600, user: admin }));
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async url => url.includes('/auth/me') ? refreshJson(admin) : refreshJson({ code: 'BACKEND_NOT_READY' }, 503);
+      const view = await mount(App);
+      try {
+        await act(async () => view.host.querySelector('.lv-user-badge-card').click());
+        const entry = [...view.host.querySelectorAll('.lv-account-menu-item')].find(item => item.textContent.includes(lang === 'en' ? 'Beneficiary Portal' : 'Cổng Người thụ hưởng'));
+        assert.ok(entry);
+        await act(async () => entry.click());
+        assert.equal(window.location.pathname, '/beneficiary');
+        assert.ok(view.host.querySelector('#beneficiary-home-title'));
+        assert.deepEqual(readStoredSession().user.roles, ['ADMIN', 'BENEFICIARY']);
+      } finally { await view.close(); globalThis.fetch = originalFetch; }
+    });
+  }
+}

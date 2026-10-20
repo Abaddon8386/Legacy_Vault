@@ -204,7 +204,7 @@ export default function BeneficiaryHome({
 
           <div className="lv-ben-detail-item">
             <span className="lv-ben-detail-label">{en ? 'Phone Number' : 'Số điện thoại'}</span>
-            <span className="lv-ben-detail-val">{currentUser?.phoneNumber || (en ? 'Not provided' : 'Chưa cập nhật')}</span>
+            <span className="lv-ben-detail-val">{currentUser?.phoneNumber || (en ? 'Information unavailable' : 'Thông tin chưa khả dụng')}</span>
           </div>
 
           <div className="lv-ben-detail-item">
