@@ -1,3 +1,4 @@
+import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   willService,
@@ -5,7 +6,6 @@ import {
   formatFileSize,
   formatDateTime,
   downloadBlobFile,
-  openBlobPreview,
 } from '../../utils/willService.js';
 import {
   getWillUploadErrors,
@@ -467,6 +467,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
       {/* Modal: Download / Open Reauthentication */}
       {downloadTarget && (
         <DownloadReauthModal
+          key={`${vaultId}:${downloadTarget.willId}:${downloadTarget.version}:${accessToken}`}
           lang={language}
           t={t}
           vaultId={vaultId}
@@ -798,7 +799,7 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
 // -----------------------------------------------------------------------------
 // Sub-component: DownloadReauthModal (Binary Download via Password Reauth)
 // -----------------------------------------------------------------------------
-function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode = 'download', accessToken, onUnauthorized, onClose }) {
+export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode = 'download', accessToken, onUnauthorized, onClose }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -807,10 +808,15 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
   const abortRef = useRef(null);
   const pendingRef = useRef(false);
   const activeContextRef = useRef({ willId, version, vaultId, accessToken });
+  const previewUrlRef = useRef(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const dialogRef = useModalFocus(true, onClose);
 
   const cleanup = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
     pendingRef.current = false;
     setPassword('');
     setErrorKey(null);
@@ -858,11 +864,19 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
 
       if (isCurrent) {
         if (mode === 'view') {
-          openBlobPreview(result.blob);
+          if (!['image/png', 'image/jpeg', 'application/pdf'].includes(result.blob.type)) {
+            setErrorKey('DOWNLOAD_FAILED');
+            return;
+          }
+          if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+          const url = URL.createObjectURL(result.blob);
+          previewUrlRef.current = url;
+          setPassword('');
+          setPreviewFile({ url, type: result.blob.type, name: result.fileName || fileName });
         } else {
           downloadBlobFile(result.blob, result.fileName || fileName || `will-version-${version}`);
+          handleClose();
         }
-        handleClose();
       }
     } catch (err) {
       const isCurrent =
@@ -903,14 +917,21 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
 
   return (
     <div className="hn-will-modal-backdrop" onClick={handleClose} role="presentation">
-      <div className="hn-will-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '440px' }}>
+      <div ref={dialogRef} className={`hn-will-modal-card ${previewFile ? 'hn-will-preview-card' : ''}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={previewFile ? fileName : (isView ? t.reauthModalTitleView : t.reauthModalTitle)} style={{ maxWidth: previewFile ? '1000px' : '440px' }}>
         <div className="hn-will-modal-header">
-          <h2>{isView ? t.reauthModalTitleView : t.reauthModalTitle}</h2>
+          <h2>{previewFile ? previewFile.name : (isView ? t.reauthModalTitleView : t.reauthModalTitle)}</h2>
           <button type="button" className="hn-will-modal-close" onClick={handleClose} disabled={isSubmitting} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
 
+        {previewFile ? (
+          <div className="hn-will-inline-preview">
+            {previewFile.type === 'application/pdf'
+              ? <iframe src={previewFile.url} title={previewFile.name} />
+              : <img src={previewFile.url} alt={previewFile.name} />}
+          </div>
+        ) : (
         <form onSubmit={handleConfirm} noValidate>
           <p style={{ fontSize: '13.5px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6 }}>
             {isView ? t.reauthPromptView : t.reauthPrompt} <strong>v{version}</strong> ({fileName})
@@ -986,6 +1007,7 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
             {t.legalNoticeViewOnly}
           </p>
         </form>
+        )}
       </div>
     </div>
   );

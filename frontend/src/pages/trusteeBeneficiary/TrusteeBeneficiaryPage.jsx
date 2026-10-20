@@ -1,3 +1,4 @@
+import RelatedPersonEditDialog from './RelatedPersonEditDialog.jsx';
 import { useState, useEffect, useRef } from 'react';
 import {
   getTrustees,
@@ -163,8 +164,8 @@ const i18n = {
   },
 };
 
-Object.assign(i18n.vi,{pageDesc:'Khai báo người thi hành bên ngoài tùy chọn và người thụ hưởng cho kho di sản.',trusteeSubtitle:'Người liên hệ hỗ trợ gia đình theo quy trình được xác minh.',trusteeNotice:'Bạn có thể bỏ qua hoặc chỉ định một người thi hành bên ngoài. Người này không cần tài khoản và không được mở khóa hay xem nội dung bí mật. Chỉ định người thi hành bên ngoài không tự thêm họ vào danh sách người thụ hưởng.',beneficiarySubtitle:'Người được ghi nhận trong kế hoạch di sản; việc bàn giao theo quy trình được duyệt.',beneficiaryNotice:'Cần ít nhất một người thụ hưởng để hoàn tất cấu hình kho. Bạn có thể khai báo mà không cần tạo tài khoản cho họ. Phần chia tài sản được xác định theo căn cứ pháp lý được duyệt.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Bạn đã chọn bỏ qua người thi hành bên ngoài.'});
-Object.assign(i18n.en,{pageDesc:'Record optional trustees and beneficiaries for your heritage vault.',trusteeSubtitle:'A contact who can help your family through a verified process.',trusteeNotice:'You may skip this step or appoint one trustee. They do not need an account and cannot unlock or view secret content. Appointing a trustee does not add them as a beneficiary.',beneficiarySubtitle:'A person recorded in your heritage plan; transfer follows the approved process.',beneficiaryNotice:'At least one beneficiary is needed to complete vault configuration. You can record them without creating an account. Asset shares follow approved legal documents.',appointedStatus:'Appointed',skippedSuccessTrustee:'You chose to skip the trustee.'});
+Object.assign(i18n.vi,{updatedSuccess:'Cập nhật thông tin thành công.',pageDesc:'Khai báo người thi hành bên ngoài tùy chọn và người thụ hưởng cho kho di sản.',trusteeSubtitle:'Người liên hệ hỗ trợ gia đình theo quy trình được xác minh.',trusteeNotice:'Bạn có thể bỏ qua hoặc chỉ định một người thi hành bên ngoài. Người này không cần tài khoản và không được mở khóa hay xem nội dung bí mật. Chỉ định người thi hành bên ngoài không tự thêm họ vào danh sách người thụ hưởng.',beneficiarySubtitle:'Người được ghi nhận trong kế hoạch di sản; việc bàn giao theo quy trình được duyệt.',beneficiaryNotice:'Cần ít nhất một người thụ hưởng để hoàn tất cấu hình kho. Bạn có thể khai báo mà không cần tạo tài khoản cho họ. Phần chia tài sản được xác định theo căn cứ pháp lý được duyệt.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Bạn đã chọn bỏ qua người thi hành bên ngoài.'});
+Object.assign(i18n.en,{updatedSuccess:'Information updated successfully.',pageDesc:'Record optional trustees and beneficiaries for your heritage vault.',trusteeSubtitle:'A contact who can help your family through a verified process.',trusteeNotice:'You may skip this step or appoint one trustee. They do not need an account and cannot unlock or view secret content. Appointing a trustee does not add them as a beneficiary.',beneficiarySubtitle:'A person recorded in your heritage plan; transfer follows the approved process.',beneficiaryNotice:'At least one beneficiary is needed to complete vault configuration. You can record them without creating an account. Asset shares follow approved legal documents.',appointedStatus:'Appointed',skippedSuccessTrustee:'You chose to skip the trustee.'});
 const emptyTrustee={fullName:'',phone:'',email:'',relationship:''};
 const emptyBeneficiary={fullName:'',relationship:'',dateOfBirth:'',phone:'',email:''};
 const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người thi hành bên ngoài.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
@@ -173,6 +174,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  const [trustees,setTrustees]=useState([]),[beneficiaries,setBeneficiaries]=useState([]);
  const [isSkipped,setIsSkipped]=useState(false),[readiness,setReadiness]=useState(null);
   const [activeTab, setActiveTab] = useState('beneficiaries');
+ const [editTarget,setEditTarget]=useState(null);
  const [alert,setAlert]=useState(null),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(null);
  const [retry,setRetry]=useState(0),[pageIndex,setPageIndex]=useState(0),[pages,setPages]=useState(0);
  const [trusteeForm,setTrusteeForm]=useState(emptyTrustee),[beneficiaryForm,setBeneficiaryForm]=useState(emptyBeneficiary);
@@ -216,6 +218,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
   prevAuthRef.current = isAuthenticated;
 
   if (isTransitionToAuth) {
+    setEditTarget(null);
     trusteeDialog.current?.close();
     beneficiaryDialog.current?.close();
     setAlert(null);
@@ -543,6 +546,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   <div key={b.id} className="lv-tb-entity-card">
                     <div className="lv-tb-entity-header">
                       <span className="lv-tb-entity-name">{b.fullName}</span>
+                      {!isDevPreviewActive && <button type="button" className="lv-tb-btn-secondary" onClick={()=>setEditTarget({kind:'beneficiary',person:b})}>{lang==='en'?'Edit':'Chỉnh sửa'}</button>}
                       <span className="lv-tb-badge-appointed">
                         {b.relationship || (lang === 'vi' ? 'Người thụ hưởng' : 'Beneficiary')}
                       </span>
@@ -655,6 +659,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   </label>
                   <input
                     id="ben-phone"
+                    maxLength={20} onBlur={()=>setBeneficiaryErrors(prev=>({...prev,phone:validateBeneficiary(beneficiaryForm,lang).phone}))}
                     type="tel" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     className={`lv-tb-input ${beneficiaryErrors.phone ? 'has-error' : ''}`}
                     placeholder={t.phonePlaceholder}
@@ -675,6 +680,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   </label>
                   <input
                     id="ben-email"
+                    maxLength={254} onBlur={()=>setBeneficiaryErrors(prev=>({...prev,email:validateBeneficiary(beneficiaryForm,lang).email}))}
                     type="email" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     className={`lv-tb-input ${beneficiaryErrors.email ? 'has-error' : ''}`}
                     placeholder={t.emailPlaceholder}
@@ -737,6 +743,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                 <div className="lv-tb-entity-card">
                   <div className="lv-tb-entity-header">
                     <span className="lv-tb-entity-name">{appointedTrustee.fullName}</span>
+                    {!isDevPreviewActive && <button type="button" className="lv-tb-btn-secondary" onClick={()=>setEditTarget({kind:'trustee',person:appointedTrustee})}>{lang==='en'?'Edit':'Chỉnh sửa'}</button>}
                     <span className="lv-tb-badge-appointed">{t.appointedStatus}</span>
                   </div>
                   <div className="lv-tb-entity-grid">
@@ -820,6 +827,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                     </label>
                     <input
                       id="trustee-phone"
+                      maxLength={20} onBlur={()=>setTrusteeErrors(prev=>({...prev,phone:validateTrustee(trusteeForm,lang).phone}))}
                       type="tel" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                       className={`lv-tb-input ${trusteeErrors.phone ? 'has-error' : ''}`}
                       placeholder={t.phonePlaceholder}
@@ -840,6 +848,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                     </label>
                     <input
                       id="trustee-email"
+                      maxLength={254} onBlur={()=>setTrusteeErrors(prev=>({...prev,email:validateTrustee(trusteeForm,lang).email}))}
                       type="email" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                       className={`lv-tb-input ${trusteeErrors.email ? 'has-error' : ''}`}
                       placeholder={t.emailPlaceholder}
@@ -897,6 +906,10 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
           </section>
           </div>
         </div>
+        {editTarget&&<RelatedPersonEditDialog key={`${editTarget.kind}:${editTarget.person.id}:${vaultId}:${accessToken}`}
+          {...editTarget} vaultId={vaultId} accessToken={accessToken} lang={lang} labels={t}
+          onUnauthorized={onUnauthorized} onClose={()=>setEditTarget(null)}
+          onUpdated={person=>{if(editTarget.kind==='trustee')setTrustees(prev=>prev.map(item=>item.id===person.id?person:item));else setBeneficiaries(prev=>prev.map(item=>item.id===person.id?person:item));setEditTarget(null);setAlert({type:'success',key:'updatedSuccess'});}} />}
       </div>
     </div>
   );

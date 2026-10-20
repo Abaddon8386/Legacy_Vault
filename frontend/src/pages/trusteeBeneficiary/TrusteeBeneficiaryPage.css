@@ -159,3 +159,6 @@
     padding: 10px 12px;
   }
 }
+
+.lv-tb-page .lv-tb-edit-backdrop{position:fixed;inset:0;z-index:1000;background:#0c2b2277;display:flex;align-items:center;justify-content:center;padding:16px}
+.lv-tb-page .lv-tb-edit-backdrop>.lv-tb-dialog{position:relative;inset:auto;margin:0}

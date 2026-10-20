@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    LoginPage Stylesheet — LegacyVault (PS-2)
    Art Direction: Editorial Luxury + Private Sanctuary (Henedo-Inspired)
    Palette: Warm Cream (#F7F5F0), Noble Forest (#164639), Sand Gold (#C5A059)
@@ -432,8 +432,40 @@
   transform: translateX(4px);
 }
 
+/* Divider: Hoặc / or */
+.hn-login-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0 14px 0;
+  width: 100%;
+}
+
+.hn-login-divider::before,
+.hn-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--lv-border-subtle, #eae5dc);
+}
+
+.hn-login-divider span {
+  padding: 0 14px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--lv-text-muted, #747871);
+  font-weight: 500;
+}
+
+/* Google Sign-in Section */
+.hn-login-google-section {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
 /* Status Notifications Box */
 .hn-login-status-box {
+
   margin-top: 16px;
   padding: 12px 14px;
   border-radius: 10px;
