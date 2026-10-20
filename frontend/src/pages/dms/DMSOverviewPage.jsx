@@ -274,20 +274,6 @@ export default function DMSOverviewPage({
     }
   };
 
-  const handleResetForm = () => {
-    if (dmsData && dmsData.checkIntervalDays != null) {
-      setIntervalInput(dmsData.checkIntervalDays);
-      setHoursInput(String(dmsData.checkIntervalHours ?? 0));
-      setMinutesInput(String(dmsData.checkIntervalMinutes ?? 0));
-    } else {
-      setIntervalInput(DEFAULT_INTERVAL_DAYS);
-      setHoursInput('0');
-      setMinutesInput('0');
-    }
-    setFieldErrors({});
-    setSaveError('');
-  };
-
   // Localized field errors derived from current language and duration state
   const currentErrors = useMemo(() => {
     if (Object.keys(fieldErrors).length === 0) return {};
@@ -369,7 +355,6 @@ export default function DMSOverviewPage({
       inputHelper: 'Nhập ngày, giờ và phút nguyên; tổng lớn hơn 0 và tối đa 180 ngày. Giờ/phút chỉ mô phỏng khi máy chủ chưa hỗ trợ.',
       saveBtn: 'Lưu cấu hình chu kỳ',
       savingBtn: 'Đang lưu cấu hình…',
-      resetBtn: 'Đặt lại',
       emptyBadge: 'CHƯA CẤU HÌNH',
       emptyTitle: 'Chưa cấu hình chu kỳ kiểm tra',
       emptyDesc:
@@ -425,7 +410,6 @@ export default function DMSOverviewPage({
       inputHelper: 'Enter whole days, hours and minutes; total must exceed zero and not exceed 180 days. Sub-day intervals are demo-only pending server support.',
       saveBtn: 'Save Interval Settings',
       savingBtn: 'Saving Settings…',
-      resetBtn: 'Reset',
       emptyBadge: 'NOT CONFIGURED',
       emptyTitle: 'Check-in Interval Not Configured',
       emptyDesc:
@@ -923,14 +907,6 @@ export default function DMSOverviewPage({
                     {isSaving && <span className="lv-btn-spinner" aria-hidden="true" />}
                     <span>{isSaving ? t.savingBtn : t.saveBtn}</span>
                   </MagneticButton>
-                  <button
-                    type="button"
-                    className="lv-dms-reset-btn"
-                    onClick={handleResetForm}
-                    disabled={isSaving}
-                  >
-                    {t.resetBtn}
-                  </button>
                 </div>
               </div>
             </form>

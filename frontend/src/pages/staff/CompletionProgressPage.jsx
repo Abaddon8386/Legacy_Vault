@@ -3,7 +3,6 @@ import {
   ShieldAlert,
   CheckCircle2,
   Clock,
-  RotateCcw,
   AlertTriangle,
   HelpCircle,
   Award,
@@ -148,14 +147,6 @@ export default function CompletionProgressPage({
     }
   };
 
-  const handleReset = () => {
-    setCaseReference('');
-    activeCaseRef.current = '';
-    setLoadedCaseId('');
-    setAssetData(null);
-    setBeneficiaryData(null);
-  };
-
   // Asynchronously fetch progress if fetcher is provided and case is not yet loaded
   useEffect(() => {
     const trimmed = caseReference.trim();
@@ -230,14 +221,6 @@ export default function CompletionProgressPage({
               onChange={(e) => handleCaseChange(e.target.value)}
             />
           </div>
-          <button
-            type="button"
-            className="lv-progress-btn-reset"
-            onClick={handleReset}
-          >
-            <RotateCcw size={14} aria-hidden="true" />
-            <span>{t.btnReset}</span>
-          </button>
         </div>
       </section>
 

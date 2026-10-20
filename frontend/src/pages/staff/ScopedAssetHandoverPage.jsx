@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Package,
   Clock,
-  RotateCcw,
   Info,
 } from 'lucide-react';
 import {
@@ -40,12 +39,6 @@ export default function ScopedAssetHandoverPage({
       setScopeData(null);
       setCandidates(null);
     }
-  };
-
-  const handleReset = () => {
-    setCaseReference('');
-    setScopeData(null);
-    setCandidates(null);
   };
 
   return (
@@ -100,14 +93,6 @@ export default function ScopedAssetHandoverPage({
               onChange={(e) => handleCaseChange(e.target.value)}
             />
           </div>
-          <button
-            type="button"
-            className="lv-handover-btn-reset"
-            onClick={handleReset}
-          >
-            <RotateCcw size={14} aria-hidden="true" />
-            <span>{t.btnResetCase}</span>
-          </button>
         </div>
 
         {/* If scope is missing or unapproved, show truthful blocker notification */}

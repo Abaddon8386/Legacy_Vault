@@ -4,7 +4,6 @@ import {
   ShieldAlert,
   CheckCircle2,
   FileText,
-  RefreshCw,
   ArrowRightCircle,
 } from 'lucide-react';
 import {
@@ -26,10 +25,8 @@ export default function StaffLegalDocumentsPage({
   const [issuer, setIssuer] = useState('');
   const [documentNumber, setDocumentNumber] = useState('');
   const [issuanceDate, setIssuanceDate] = useState('');
+  const [selectedDossier] = useState(initialDossier);
 
-  // Selected dossier/version target state
-  // Explicitly reset or track target to prevent forwarding to wrong target
-  const [selectedDossier, setSelectedDossier] = useState(initialDossier);
 
   // Validation feedback
   const [errors, setErrors] = useState({});
@@ -84,17 +81,6 @@ export default function StaffLegalDocumentsPage({
     });
     setErrors(res.errors);
     setValidationStatus(res.isValid ? 'success' : 'error');
-  };
-
-  const handleReset = () => {
-    setIssuer('');
-    setDocumentNumber('');
-    setIssuanceDate('');
-    setErrors({});
-    setValidatedOnce(false);
-    setValidationStatus(null);
-    // Reset selected dossier target to prevent forwarding to previous target
-    setSelectedDossier(initialDossier);
   };
 
   return (
@@ -260,15 +246,6 @@ export default function StaffLegalDocumentsPage({
                 onClick={handleValidateLocal}
               >
                 <span>{t.btnValidateForm}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 

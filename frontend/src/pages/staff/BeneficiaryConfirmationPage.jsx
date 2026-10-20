@@ -3,7 +3,6 @@ import {
   FileCheck,
   CheckCircle2,
   Clock,
-  RotateCcw,
   Info,
   AlertTriangle,
   UserCheck,
@@ -159,16 +158,6 @@ export default function BeneficiaryConfirmationPage({
     }
   };
 
-  const handleReset = () => {
-    activeCaseRef.current = '';
-    setCaseReference('');
-    setBeneficiaries([]);
-    setLoadedCaseId('');
-    setSelectedBeneficiaryId('');
-    setReceiptReference('');
-    setErrors({});
-  };
-
   const hasValidData =
     Boolean(caseReference) &&
     loadedCaseId === caseReference &&
@@ -210,14 +199,6 @@ export default function BeneficiaryConfirmationPage({
               onChange={(e) => handleCaseChange(e.target.value)}
             />
           </div>
-          <button
-            type="button"
-            className="lv-confirm-btn-reset"
-            onClick={handleReset}
-          >
-            <RotateCcw size={14} aria-hidden="true" />
-            <span>{t.btnResetForm}</span>
-          </button>
         </div>
       </section>
 
@@ -395,19 +376,6 @@ export default function BeneficiaryConfirmationPage({
             >
               <FileCheck size={16} aria-hidden="true" />
               <span>{t.btnRecordConfirmation}</span>
-            </button>
-
-            <button
-              type="button"
-              className="lv-confirm-btn-reset"
-              onClick={() => {
-                setSelectedBeneficiaryId('');
-                setReceiptReference('');
-                setErrors({});
-              }}
-            >
-              <RotateCcw size={14} aria-hidden="true" />
-              <span>{t.btnResetForm}</span>
             </button>
           </div>
         </form>

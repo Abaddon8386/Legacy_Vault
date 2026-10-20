@@ -41,7 +41,6 @@ export const staffLegalDocumentsI18n = {
     btnForwardToLegal: 'Chuyển cho ban pháp lý',
     btnForwardHelper: 'Chức năng hiện chưa khả dụng (cần kết nối hồ sơ và phiên bản hợp lệ từ máy chủ)',
     btnValidateForm: 'Kiểm tra tính đầy đủ',
-    btnReset: 'Làm mới',
 
     // Phản hồi kiểm tra biểu mẫu
     validationSuccess: 'Thông tin văn bản đã được điền đầy đủ.',
@@ -96,7 +95,6 @@ export const staffLegalDocumentsI18n = {
     btnForwardToLegal: 'Send to Legal Department',
     btnForwardHelper: 'Function is currently unavailable (requires valid dossier and version from server)',
     btnValidateForm: 'Check Form Completeness',
-    btnReset: 'Reset Form',
 
     // Form completeness feedback
     validationSuccess: 'Document metadata is complete.',
