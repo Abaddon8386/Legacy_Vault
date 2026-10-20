@@ -20,8 +20,9 @@ test('Rendered preview permits only ticket-specific actions', async()=>{
  try { assert.match(host.textContent,/CASE-2026-0049/);const select=host.querySelector('select');await act(async()=>{select.value='case-ready-to-open';select.dispatchEvent(new window.Event('change',{bubbles:true}));});const open=[...host.querySelectorAll('button')].find(b=>/Mở phiên/.test(b.textContent));assert.ok(open);await act(async()=>open.click());assert.match(host.textContent,/HDS-/);assert.equal([...host.querySelectorAll('button')].some(b=>/Ký nhận|Lưu trữ|Giao tài sản/.test(b.textContent)),false); } finally { await view.close(); }
 });
 test('Real production build rejects preview override without synthetic success', async()=>{
+ const previous=globalThis.fetch;const calls=[];globalThis.fetch=async(url)=>{calls.push(url);return new Response(JSON.stringify({code:'BACKEND_NOT_READY'}),{status:503,headers:{'Content-Type':'application/json'}});};
  const Production=await compile(true);const view=await mount(Production,{isDevPreview:true,lang:'vi'});
- try { assert.match(view.host.textContent,/chưa sẵn sàng|BACKEND_NOT_READY/i); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();}
+ try { assert.ok(view.host.querySelector('[role=alert]')); assert.ok(calls.some(url=>url.includes('/staff/verification-cases'))); assert.doesNotMatch(view.host.textContent,/CASE-2026-0049|HDS-/); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();globalThis.fetch=previous;}
 });
 
 test('Refresh fetches the selected case again without changing the scenario', async () => {

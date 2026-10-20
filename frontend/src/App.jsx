@@ -1,3 +1,4 @@
+import { handoverUrl, isHandoverId } from './pages/staff/liveHandoverService.js';
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
@@ -1118,6 +1119,7 @@ export default function App({ invitationActions } = {}) {
             }
           }}
         >
+          {isHandoverId(new URLSearchParams(window.location.search).get('caseId')) && <a href={handoverUrl('/staff/handover', new URLSearchParams(window.location.search).get('caseId'), new URLSearchParams(window.location.search).get('sessionId'))}>{lang === 'en' ? 'Back to handover session' : 'Về phiên bàn giao'}</a>}
           <ScopedAssetHandoverPage
             lang={lang}
             preview={preview}

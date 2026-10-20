@@ -1,3 +1,5 @@
+import LiveHandoverPage from './LiveHandoverPage.jsx';
+import { isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useState, useEffect, useRef } from 'react';
@@ -14,6 +16,10 @@ import {
 import './BeneficiaryAccountPage.css';
 
 export default function BeneficiaryAccountPage(props) {
+  return isCounterHandoverSimulationPermitted(props) ? <BeneficiaryAccountPreview {...props} /> : <LiveHandoverPage {...props} mode="accounts" />;
+}
+
+function BeneficiaryAccountPreview(props) {
   const [scenario, setScenario] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
