@@ -10,6 +10,9 @@ const dom = new JSDOM('<body></body>', { url: 'http://localhost/beneficiaries' }
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+// React's legacy input-event fallback is used by this jsdom test environment.
+dom.window.HTMLElement.prototype.attachEvent = function () {};
+dom.window.HTMLElement.prototype.detachEvent = function () {};
 
 dom.window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
 dom.window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
@@ -38,6 +41,36 @@ async function component(entry) {
 const People = await component('src/pages/trusteeBeneficiary/TrusteeBeneficiaryPage.jsx');
 const Summary = await component('src/components/vault/VaultSummary.jsx');
 const vaultId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+for (const kind of ['beneficiary', 'trustee']) {
+  test(`people: language switch preserves ${kind} edit draft without reloading`, async () => {
+    const originalFetch = globalThis.fetch;
+    let reads = 0;
+    const person = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', vaultId, fullName: 'Original name', phone: '0901234567', status: 'APPOINTED', appointedAt: '2026-10-10T00:00:00Z', revokedAt: null };
+    globalThis.fetch = async (url) => {
+      reads++;
+      if (reads > 3) return new Promise(() => {}); // A reload would unmount the dialog while waiting.
+      if (url.includes('configuration-check')) return json({ vaultId, ready: true, beneficiaryCount: 1, issues: [] });
+      return json(page([url.includes('trustees') ? person : { ...person, status: 'DESIGNATED', hasAccount: false, hasIdentityNumber: false, createdAt: '2026-10-10T00:00:00Z' }]));
+    };
+    const host = document.createElement('div'); document.body.append(host);
+    const root = createRoot(host);
+    const render = (lang) => React.createElement(People, { vaultId, accessToken: 'synthetic', lang });
+    try {
+      await act(async () => root.render(render('vi')));
+      if (kind === 'trustee') await act(async () => host.querySelector('#tab-trustee').click());
+      const panel = host.querySelector(kind === 'trustee' ? '#panel-trustee' : '#panel-beneficiaries');
+      await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent === 'Chỉnh sửa').click());
+      await act(async () => setNativeInput(host.querySelector('#related-edit-fullName'), 'Unsaved draft'));
+      for (const lang of ['en', 'vi']) {
+        await act(async () => root.render(render(lang)));
+        assert.equal(host.querySelector('#related-edit-fullName')?.value, 'Unsaved draft');
+        assert.ok(host.querySelector('[role="dialog"]'));
+      }
+      assert.equal(reads, 3, 'Changing language must not reload person records');
+    } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = originalFetch; }
+  });
+}
 const page = (content) => ({
   content,
   page: 0,

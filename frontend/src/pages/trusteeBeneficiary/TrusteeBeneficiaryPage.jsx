@@ -250,8 +250,8 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
         setTrustees([{
           id: '11111111-1111-4111-8111-111111111111',
           vaultId,
-          fullName: lang === 'en' ? 'Binh Tran' : 'Trần Thị Bình',
-          relationship: lang === 'en' ? 'Legal Representative' : 'Luật sư đại diện',
+          fullName: locale.current === 'en' ? 'Binh Tran' : 'Trần Thị Bình',
+          relationship: locale.current === 'en' ? 'Legal Representative' : 'Luật sư đại diện',
           phone: '0912345678',
           email: 'binh.tran@example.com',
           status: 'APPOINTED',
@@ -261,8 +261,8 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
         setBeneficiaries([{
           id: '22222222-2222-4222-8222-222222222222',
           vaultId,
-          fullName: lang === 'en' ? 'An Nguyen' : 'Nguyễn Văn An',
-          relationship: lang === 'en' ? 'Son' : 'Con trai',
+          fullName: locale.current === 'en' ? 'An Nguyen' : 'Nguyễn Văn An',
+          relationship: locale.current === 'en' ? 'Son' : 'Con trai',
           dateOfBirth: '1995-05-20',
           phone: '0901234567',
           email: 'an.nguyen@example.com',
@@ -296,7 +296,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
     ignore = true;
     controller.abort();
   };
- },[vaultId,accessToken,pageIndex,retry,onRefreshTrigger,onUnauthorized,isDevPreviewActive,isAuthenticated,lang]);
+ },[vaultId,accessToken,pageIndex,retry,onRefreshTrigger,onUnauthorized,isDevPreviewActive,isAuthenticated]);
 
   const handleTabSwitch = (tab) => {
     if (activeTab === tab) return;
