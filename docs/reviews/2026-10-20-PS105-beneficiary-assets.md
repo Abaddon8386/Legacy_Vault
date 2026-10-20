@@ -44,6 +44,8 @@ Production và phiên có accessToken không dùng fixture kể cả query previ
 
 ## Tiếp tục khi PS-104 sẵn sàng
 
+Đồng bộ sau khi PR #155 được merge: tích hợp develop `e4c588f`, xử lý conflict duy nhất tại khai báo App bằng cách giữ đủ `invitationActions`, `beneficiaryAssetActions`, `legalDiscovery`. Không bỏ phần Legal vừa tích hợp hoặc cổng tài sản Beneficiary. Toàn bộ FE 885/885 đạt, 33 suites, 0 fail/skip; lint/build/diff-check đạt trên bản kết hợp. Log local `frontend/ps105-develop-sync-tests.log`. Phạm vi chờ PS-104 và giới hạn E2E/browser phía trên vẫn giữ nguyên.
+
 Bổ sung sau review PR #156: liên kết mã mời từ BeneficiaryHome truyền `lang=vi|en`, giữ ngôn ngữ khi trang đích tải lại. Hai test hồi quy kiểm tra URL cho VI/EN đã thêm vào beneficiaryLanding.test.mjs; chạy lại nhóm này 25/25 đạt, lint/build/diff-check đạt. Không chạy lại toàn bộ suite trong lần sửa liên kết; kết quả 820/820 phía trên thuộc bản bàn giao ban đầu. Chưa có kiểm chứng browser bổ sung.
 
 Đọc lại Jira/contract/PR BE. Viết mapper gọi các API beneficiary đã duyệt, lấy subject từ phiên đã xác minh, không nhận arbitrary recipient từ query. Xác minh các API image/content cũng kiểm tra item/recipient. Nối beneficiaryAssetActions tại composition root và kiểm tra flow: liên kết -> giao một phần -> xem đúng item -> close/archive -> vẫn xem lại. Kiểm tra account khác/role bị đổi/IDOR/ảnh sai item, phiên bản nội dung và ảnh theo lịch sử; không tự dùng Owner password hay mở toàn bộ Vault.
