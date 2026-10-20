@@ -301,6 +301,7 @@ export default function StaffCaseDashboard({
           <div className="lv-staff-dashboard__eyebrow">{t.eyebrow}</div>
           <h1 className="lv-staff-dashboard__title">{t.title}</h1>
           <p className="lv-staff-dashboard__subtitle">{t.subtitle}</p>
+          {!simulation && <a href="/staff/handover">{lang === 'en' ? 'Counter handover sessions' : 'Phiên bàn giao tại quầy'}</a>}
         </div>
       </div>
 
