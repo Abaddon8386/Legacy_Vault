@@ -17,7 +17,8 @@ export default function AdminHome({
   const [apiPending, setApiPending] = useState(!fetchOnMount);
   const [error, setError] = useState(null);
   const abortControllerRef = useRef(null);
-
+  const requestIdRef = useRef(0);
+  const activeTokenRef = useRef(accessToken);
   const t = adminI18n[lang] || adminI18n.vi;
 
   const handleReload = () => {
@@ -26,6 +27,8 @@ export default function AdminHome({
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
+    const requestToken = accessToken;
 
     setLoading(true);
     setError(null);
@@ -33,17 +36,34 @@ export default function AdminHome({
 
     fetchAdminOverview(accessToken, { signal: controller.signal })
       .then((overviewData) => {
+        if (reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
+          return; // Discard stale response
+        }
         setData(overviewData);
         setLoading(false);
       })
       .catch((err) => {
-        if (err.name === 'AbortError') return;
+        if (
+          reqId !== requestIdRef.current ||
+          requestToken !== activeTokenRef.current ||
+          err.name === 'AbortError'
+        ) {
+          return;
+        }
         if (err.status === 401 && typeof onUnauthorized === 'function') {
           onUnauthorized();
           return;
         }
+        if (err.status === 403) {
+          // Lỗi 1: Dọn sạch dữ liệu khi 403
+          setData(null);
+          setError(t.accessDenied || 'Access Denied (403)');
+          setLoading(false);
+          return;
+        }
         if (err.status === 404 || err.status === 501 || err.code === 'API_NOT_AVAILABLE' || err.code === 'BACKEND_NOT_READY') {
           setApiPending(true);
+          setData(null);
         } else {
           setError(err.message || String(err));
         }
@@ -52,28 +72,57 @@ export default function AdminHome({
   };
 
   useEffect(() => {
+    // Lỗi 2: Khi đổi accessToken / tài khoản, hủy request cũ và xóa dữ liệu phiên cũ ngay lập tức
+    if (activeTokenRef.current !== accessToken) {
+      activeTokenRef.current = accessToken;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      requestIdRef.current++;
+      setData(null);
+      setError(null);
+    }
+
     if (!fetchOnMount) return;
     let ignore = false;
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
+    const requestToken = accessToken;
 
     fetchAdminOverview(accessToken, { signal: controller.signal })
       .then((overviewData) => {
-        if (!ignore) {
-          setData(overviewData);
-          setError(null);
-          setApiPending(false);
-          setLoading(false);
+        if (ignore || reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
+          return; // Discard stale response
         }
+        setData(overviewData);
+        setError(null);
+        setApiPending(false);
+        setLoading(false);
       })
       .catch((err) => {
-        if (ignore || err.name === 'AbortError') return;
+        if (
+          ignore ||
+          reqId !== requestIdRef.current ||
+          requestToken !== activeTokenRef.current ||
+          err.name === 'AbortError'
+        ) {
+          return;
+        }
         if (err.status === 401 && typeof onUnauthorized === 'function') {
           onUnauthorized();
           return;
         }
+        if (err.status === 403) {
+          // Lỗi 1: Dọn sạch dữ liệu khi 403
+          setData(null);
+          setError(t.accessDenied || 'Access Denied (403)');
+          setLoading(false);
+          return;
+        }
         if (err.status === 404 || err.status === 501 || err.code === 'API_NOT_AVAILABLE' || err.code === 'BACKEND_NOT_READY') {
           setApiPending(true);
+          setData(null);
         } else {
           setError(err.message || String(err));
         }
@@ -84,7 +133,7 @@ export default function AdminHome({
       ignore = true;
       controller.abort();
     };
-  }, [accessToken, fetchOnMount, onUnauthorized]);
+  }, [accessToken, fetchOnMount, onUnauthorized, t.accessDenied]);
 
   const formatDate = (isoString) => {
     if (!isoString) return t.notAvailable;
@@ -160,27 +209,35 @@ export default function AdminHome({
           <div className="lv-admin-metric-card">
             <div className="lv-admin-metric-label">{t.totalUsers}</div>
             <div className="lv-admin-metric-value">
-              {loading ? '...' : apiPending ? '—' : data?.totalUsers ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.totalUsers !== null && data?.totalUsers !== undefined ? data.totalUsers : t.notAvailable}
             </div>
             <div className="lv-admin-metric-subtext">
-              {apiPending ? t.notAvailable : `${data?.activeUsers ?? 0} ${t.statusActive.toLowerCase()}`}
+              {apiPending
+                ? t.notAvailable
+                : data?.activeUsers !== null && data?.activeUsers !== undefined
+                ? `${data.activeUsers} ${t.statusActive.toLowerCase()}`
+                : t.notAvailable}
             </div>
           </div>
 
           <div className="lv-admin-metric-card">
             <div className="lv-admin-metric-label">{t.activeUsers}</div>
             <div className="lv-admin-metric-value" style={{ color: 'var(--lv-status-success-text)' }}>
-              {loading ? '...' : apiPending ? '—' : data?.activeUsers ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.activeUsers !== null && data?.activeUsers !== undefined ? data.activeUsers : t.notAvailable}
             </div>
             <div className="lv-admin-metric-subtext">
-              {apiPending ? t.notAvailable : `${data?.totalUsers ? Math.round(((data.activeUsers || 0) / data.totalUsers) * 100) : 0}%`}
+              {apiPending
+                ? t.notAvailable
+                : data?.totalUsers && data?.activeUsers !== null && data?.activeUsers !== undefined
+                ? `${Math.round((data.activeUsers / data.totalUsers) * 100)}%`
+                : t.notAvailable}
             </div>
           </div>
 
           <div className="lv-admin-metric-card">
             <div className="lv-admin-metric-label">{t.lockedUsers}</div>
             <div className="lv-admin-metric-value" style={{ color: 'var(--lv-status-error-text)' }}>
-              {loading ? '...' : apiPending ? '—' : data?.lockedUsers ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.lockedUsers !== null && data?.lockedUsers !== undefined ? data.lockedUsers : t.notAvailable}
             </div>
             <div className="lv-admin-metric-subtext">
               {apiPending ? t.notAvailable : t.statusLocked}
@@ -190,7 +247,7 @@ export default function AdminHome({
           <div className="lv-admin-metric-card">
             <div className="lv-admin-metric-label">{t.totalRolesAssigned}</div>
             <div className="lv-admin-metric-value" style={{ color: 'var(--lv-accent-gold)' }}>
-              {loading ? '...' : apiPending ? '—' : data?.totalRolesAssigned ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.totalRolesAssigned !== null && data?.totalRolesAssigned !== undefined ? data.totalRolesAssigned : t.notAvailable}
             </div>
             <div className="lv-admin-metric-subtext">
               {apiPending ? t.notAvailable : (lang === 'vi' ? 'Bao gồm tài khoản đa vai trò' : 'Includes multi-role users')}
@@ -210,31 +267,31 @@ export default function AdminHome({
           <div className="lv-admin-role-row">
             <span className="lv-admin-role-label">{t.roleOwner}</span>
             <span className="lv-admin-role-count">
-              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.VAULT_OWNER ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.VAULT_OWNER !== null && data?.roleDistribution?.VAULT_OWNER !== undefined ? data.roleDistribution.VAULT_OWNER : t.notAvailable}
             </span>
           </div>
           <div className="lv-admin-role-row">
             <span className="lv-admin-role-label">{t.roleBeneficiary}</span>
             <span className="lv-admin-role-count">
-              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.BENEFICIARY ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.BENEFICIARY !== null && data?.roleDistribution?.BENEFICIARY !== undefined ? data.roleDistribution.BENEFICIARY : t.notAvailable}
             </span>
           </div>
           <div className="lv-admin-role-row">
             <span className="lv-admin-role-label">{t.roleStaff}</span>
             <span className="lv-admin-role-count">
-              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.STAFF_EXECUTOR ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.STAFF_EXECUTOR !== null && data?.roleDistribution?.STAFF_EXECUTOR !== undefined ? data.roleDistribution.STAFF_EXECUTOR : t.notAvailable}
             </span>
           </div>
           <div className="lv-admin-role-row">
             <span className="lv-admin-role-label">{t.roleLegal}</span>
             <span className="lv-admin-role-count">
-              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.LEGAL_VERIFIER ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.LEGAL_VERIFIER !== null && data?.roleDistribution?.LEGAL_VERIFIER !== undefined ? data.roleDistribution.LEGAL_VERIFIER : t.notAvailable}
             </span>
           </div>
           <div className="lv-admin-role-row">
             <span className="lv-admin-role-label">{t.roleAdmin}</span>
             <span className="lv-admin-role-count">
-              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.ADMIN ?? 0}
+              {loading ? '...' : apiPending ? '—' : data?.roleDistribution?.ADMIN !== null && data?.roleDistribution?.ADMIN !== undefined ? data.roleDistribution.ADMIN : t.notAvailable}
             </span>
           </div>
         </div>

@@ -48,32 +48,48 @@ export function normalizeAdminRoles(roles) {
  * @returns {Object}
  */
 export function validateAdminOverview(raw) {
-  if (!raw || typeof raw !== 'object') {
-    throw new ApiError('INVALID_OVERVIEW_RESPONSE');
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ApiError('INVALID_OVERVIEW_RESPONSE', 500);
   }
 
   const totalUsers = Number(raw.totalUsers);
   if (!Number.isFinite(totalUsers) || totalUsers < 0) {
-    throw new ApiError('INVALID_TOTAL_USERS');
+    throw new ApiError('INVALID_TOTAL_USERS', 500);
   }
 
-  const activeUsers = Number(raw.activeUsers ?? totalUsers);
-  const lockedUsers = Number(raw.lockedUsers ?? 0);
+  // Do NOT default activeUsers to totalUsers or 0! If missing, keep null.
+  const activeUsers =
+    raw.activeUsers !== undefined && raw.activeUsers !== null && Number.isFinite(Number(raw.activeUsers))
+      ? Number(raw.activeUsers)
+      : null;
 
-  // Role distribution object: { VAULT_OWNER: count, BENEFICIARY: count, ... }
-  const rawDistribution = raw.roleDistribution || {};
+  // Do NOT default lockedUsers to 0! If missing, keep null.
+  const lockedUsers =
+    raw.lockedUsers !== undefined && raw.lockedUsers !== null && Number.isFinite(Number(raw.lockedUsers))
+      ? Number(raw.lockedUsers)
+      : null;
+
+  // Role distribution object: do NOT default missing counts to 0!
+  const rawDistribution = raw.roleDistribution && typeof raw.roleDistribution === 'object' ? raw.roleDistribution : {};
+  const parseCount = (v) =>
+    v !== undefined && v !== null && Number.isFinite(Number(v)) ? Number(v) : null;
+
   const roleDistribution = {
-    VAULT_OWNER: Number(rawDistribution.VAULT_OWNER || rawDistribution.ROLE_VAULT_OWNER || 0),
-    BENEFICIARY: Number(rawDistribution.BENEFICIARY || rawDistribution.ROLE_BENEFICIARY || 0),
-    STAFF_EXECUTOR: Number(rawDistribution.STAFF_EXECUTOR || rawDistribution.ROLE_STAFF_EXECUTOR || 0),
-    LEGAL_VERIFIER: Number(rawDistribution.LEGAL_VERIFIER || rawDistribution.ROLE_LEGAL_VERIFIER || 0),
-    ADMIN: Number(rawDistribution.ADMIN || rawDistribution.ROLE_ADMIN || 0),
+    VAULT_OWNER: parseCount(rawDistribution.VAULT_OWNER ?? rawDistribution.ROLE_VAULT_OWNER),
+    BENEFICIARY: parseCount(rawDistribution.BENEFICIARY ?? rawDistribution.ROLE_BENEFICIARY),
+    STAFF_EXECUTOR: parseCount(rawDistribution.STAFF_EXECUTOR ?? rawDistribution.ROLE_STAFF_EXECUTOR),
+    LEGAL_VERIFIER: parseCount(rawDistribution.LEGAL_VERIFIER ?? rawDistribution.ROLE_LEGAL_VERIFIER),
+    ADMIN: parseCount(rawDistribution.ADMIN ?? rawDistribution.ROLE_ADMIN),
   };
 
-  const totalRolesAssigned = Object.values(roleDistribution).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
+  const validCounts = Object.values(roleDistribution).filter((v) => v !== null);
+  const totalRolesAssigned = validCounts.length > 0 ? validCounts.reduce((sum, v) => sum + v, 0) : null;
+
+  // Do NOT default asOf to new Date().toISOString()!
+  const asOf = typeof raw.asOf === 'string' && raw.asOf.trim() ? raw.asOf.trim() : null;
 
   return {
-    asOf: typeof raw.asOf === 'string' ? raw.asOf : new Date().toISOString(),
+    asOf,
     totalUsers,
     activeUsers,
     lockedUsers,
@@ -90,19 +106,25 @@ export function validateAdminOverview(raw) {
  * @returns {Object}
  */
 export function validateAdminUser(raw) {
-  if (!raw || typeof raw !== 'object') {
-    throw new ApiError('INVALID_USER_RECORD');
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ApiError('INVALID_USER_RECORD', 500);
   }
 
   const id = String(raw.id || '').trim();
   if (!id) {
-    throw new ApiError('MISSING_USER_ID');
+    throw new ApiError('MISSING_USER_ID', 500);
   }
 
   const email = String(raw.email || '').trim();
   const fullName = String(raw.fullName || raw.name || '').trim();
   const roles = normalizeAdminRoles(raw.roles);
-  const status = String(raw.status || 'ACTIVE').toUpperCase();
+
+  // Do NOT default status to 'ACTIVE'!
+  const status =
+    raw.status && typeof raw.status === 'string' && raw.status.trim()
+      ? raw.status.trim().toUpperCase()
+      : null;
+
   const createdAt = raw.createdAt || raw.createdDate || null;
   const lastLoginAt = raw.lastLoginAt || raw.lastLogin || null;
 
@@ -124,28 +146,64 @@ export function validateAdminUser(raw) {
  * @returns {Object}
  */
 export function validateAdminAuditLog(raw) {
-  if (!raw || typeof raw !== 'object') {
-    throw new ApiError('INVALID_AUDIT_RECORD');
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ApiError('INVALID_AUDIT_RECORD', 500);
   }
 
   const id = String(raw.id || '').trim();
   if (!id) {
-    throw new ApiError('MISSING_AUDIT_ID');
+    throw new ApiError('MISSING_AUDIT_ID', 500);
   }
 
-  const occurredAt = raw.occurredAt || raw.timestamp || new Date().toISOString();
-  const actorType = String(raw.actorType || 'USER').toUpperCase();
-  const actorId = raw.actorId ? String(raw.actorId) : null;
-  const actorName = raw.actorName ? String(raw.actorName) : null;
+  // Do NOT default occurredAt to new Date().toISOString()!
+  const occurredAt =
+    typeof raw.occurredAt === 'string' && raw.occurredAt.trim()
+      ? raw.occurredAt.trim()
+      : typeof raw.timestamp === 'string' && raw.timestamp.trim()
+        ? raw.timestamp.trim()
+        : null;
+
+  // Do NOT default actorType to 'USER'!
+  const actorType =
+    raw.actorType && typeof raw.actorType === 'string' && raw.actorType.trim()
+      ? raw.actorType.trim().toUpperCase()
+      : null;
+
+  const actorId = raw.actorId ? String(raw.actorId).trim() : null;
+  const actorName = raw.actorName ? String(raw.actorName).trim() : null;
   const actorRoles = normalizeAdminRoles(raw.actorRoles || []);
   const action = String(raw.action || '').trim();
-  const entityType = raw.entityType ? String(raw.entityType) : null;
-  const entityId = raw.entityId ? String(raw.entityId) : null;
-  const traceId = raw.traceId ? String(raw.traceId) : null;
+  const entityType = raw.entityType ? String(raw.entityType).trim() : null;
+  const entityId = raw.entityId ? String(raw.entityId).trim() : null;
+  const traceId = raw.traceId ? String(raw.traceId).trim() : null;
   const ipAddress = raw.ipAddress || raw.ip || null;
-  const stateBefore = raw.stateBefore || null;
-  const stateAfter = raw.stateAfter || null;
-  const context = raw.context || null;
+  const stepId = raw.stepId ? String(raw.stepId).trim() : null;
+  const ruleId = raw.ruleId ? String(raw.ruleId).trim() : null;
+
+  // Whitelist check: filter out any secrets (password, token, jwt, secret, secretKey, privateKey)
+  const sanitizeAuditMeta = (data) => {
+    if (!data) return null;
+    if (typeof data !== 'object') return data;
+    const clean = Array.isArray(data) ? [] : {};
+    for (const [k, v] of Object.entries(data)) {
+      const lower = k.toLowerCase();
+      if (
+        lower.includes('password') ||
+        lower.includes('secret') ||
+        lower.includes('token') ||
+        lower.includes('jwt') ||
+        lower.includes('privatekey')
+      ) {
+        continue; // Strictly omit secret fields per PS-13
+      }
+      clean[k] = v;
+    }
+    return clean;
+  };
+
+  const stateBefore = sanitizeAuditMeta(raw.stateBefore);
+  const stateAfter = sanitizeAuditMeta(raw.stateAfter);
+  const context = sanitizeAuditMeta(raw.context);
 
   return {
     id,
@@ -159,6 +217,8 @@ export function validateAdminAuditLog(raw) {
     entityId,
     traceId,
     ipAddress,
+    stepId,
+    ruleId,
     stateBefore,
     stateAfter,
     context,
@@ -262,14 +322,23 @@ export async function fetchAdminUsers(
     signal,
   });
 
-  const items = Array.isArray(data?.items || data) ? (data.items || data).map(validateAdminUser) : [];
-  const total = Number(data?.total ?? items.length);
+  if (!data || typeof data !== 'object') {
+    throw new ApiError('INVALID_USERS_RESPONSE', 500);
+  }
+
+  const rawList = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : null);
+  if (!rawList) {
+    throw new ApiError('INVALID_USERS_RESPONSE', 500);
+  }
+
+  const items = rawList.map(validateAdminUser);
+  const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
 
   return {
     items,
     total,
-    page: Number(data?.page ?? page),
-    pageSize: Number(data?.pageSize ?? pageSize),
+    page: Number.isFinite(Number(data.page)) ? Number(data.page) : Number(page),
+    pageSize: Number.isFinite(Number(data.pageSize)) ? Number(data.pageSize) : Number(pageSize),
   };
 }
 
@@ -297,14 +366,23 @@ export async function fetchAdminAuditLogs(
     signal,
   });
 
-  const items = Array.isArray(data?.items || data) ? (data.items || data).map(validateAdminAuditLog) : [];
-  const total = Number(data?.total ?? items.length);
+  if (!data || typeof data !== 'object') {
+    throw new ApiError('INVALID_AUDIT_LOGS_RESPONSE', 500);
+  }
+
+  const rawList = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : null);
+  if (!rawList) {
+    throw new ApiError('INVALID_AUDIT_LOGS_RESPONSE', 500);
+  }
+
+  const items = rawList.map(validateAdminAuditLog);
+  const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
 
   return {
     items,
     total,
-    page: Number(data?.page ?? page),
-    pageSize: Number(data?.pageSize ?? pageSize),
+    page: Number.isFinite(Number(data.page)) ? Number(data.page) : Number(page),
+    pageSize: Number.isFinite(Number(data.pageSize)) ? Number(data.pageSize) : Number(pageSize),
   };
 }
 

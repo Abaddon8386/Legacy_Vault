@@ -46,6 +46,8 @@ export default function AdminLogsPage({
 
   const abortControllerRef = useRef(null);
   const isFirstMountRef = useRef(true);
+  const requestIdRef = useRef(0);
+  const activeTokenRef = useRef(accessToken);
   const t = adminI18n[lang] || adminI18n.vi;
 
   const handleReload = () => {
@@ -54,6 +56,8 @@ export default function AdminLogsPage({
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
+    const requestToken = accessToken;
 
     setLoading(true);
     setError(null);
@@ -69,14 +73,32 @@ export default function AdminLogsPage({
       signal: controller.signal,
     })
       .then((res) => {
+        if (reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
+          return; // Discard stale response
+        }
         setLogs(res.items);
         setTotal(res.total);
         setLoading(false);
       })
       .catch((err) => {
-        if (err.name === 'AbortError') return;
+        if (
+          reqId !== requestIdRef.current ||
+          requestToken !== activeTokenRef.current ||
+          err.name === 'AbortError'
+        ) {
+          return;
+        }
         if (err.status === 401 && typeof onUnauthorized === 'function') {
           onUnauthorized();
+          return;
+        }
+        if (err.status === 403) {
+          // Lỗi 1: Dọn sạch danh sách và chi tiết khi 403
+          setLogs([]);
+          setTotal(0);
+          setDetailLog(null);
+          setError(t.accessDenied || 'Access Denied (403)');
+          setLoading(false);
           return;
         }
         if (
@@ -88,6 +110,7 @@ export default function AdminLogsPage({
           setApiPending(true);
           setLogs([]);
           setTotal(0);
+          setDetailLog(null);
         } else {
           setError(err.message || String(err));
         }
@@ -96,15 +119,31 @@ export default function AdminLogsPage({
   };
 
   useEffect(() => {
+    // Lỗi 2: Khi đổi accessToken / tài khoản, hủy request cũ và xóa dữ liệu phiên cũ ngay lập tức
+    if (activeTokenRef.current !== accessToken) {
+      activeTokenRef.current = accessToken;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      requestIdRef.current++;
+      setLogs([]);
+      setTotal(0);
+      setDetailLog(null);
+      setError(null);
+    }
+
     if (isFirstMountRef.current) {
       isFirstMountRef.current = false;
       if (!fetchOnMount) {
         return;
       }
     }
+
     let ignore = false;
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
+    const requestToken = accessToken;
 
     fetchAdminAuditLogs(accessToken, {
       action: actionFilter,
@@ -116,18 +155,35 @@ export default function AdminLogsPage({
       signal: controller.signal,
     })
       .then((res) => {
-        if (!ignore) {
-          setLogs(res.items);
-          setTotal(res.total);
-          setError(null);
-          setApiPending(false);
-          setLoading(false);
+        if (ignore || reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
+          return; // Discard stale response
         }
+        setLogs(res.items);
+        setTotal(res.total);
+        setError(null);
+        setApiPending(false);
+        setLoading(false);
       })
       .catch((err) => {
-        if (ignore || err.name === 'AbortError') return;
+        if (
+          ignore ||
+          reqId !== requestIdRef.current ||
+          requestToken !== activeTokenRef.current ||
+          err.name === 'AbortError'
+        ) {
+          return;
+        }
         if (err.status === 401 && typeof onUnauthorized === 'function') {
           onUnauthorized();
+          return;
+        }
+        if (err.status === 403) {
+          // Lỗi 1: Dọn sạch danh sách và chi tiết khi 403
+          setLogs([]);
+          setTotal(0);
+          setDetailLog(null);
+          setError(t.accessDenied || 'Access Denied (403)');
+          setLoading(false);
           return;
         }
         if (
@@ -139,6 +195,7 @@ export default function AdminLogsPage({
           setApiPending(true);
           setLogs([]);
           setTotal(0);
+          setDetailLog(null);
         } else {
           setError(err.message || String(err));
         }
@@ -149,7 +206,7 @@ export default function AdminLogsPage({
       ignore = true;
       controller.abort();
     };
-  }, [accessToken, actionFilter, actorTypeFilter, fetchOnMount, fromDate, onUnauthorized, page, pageSize, toDate]);
+  }, [accessToken, actionFilter, actorTypeFilter, fetchOnMount, fromDate, onUnauthorized, page, pageSize, t.accessDenied, toDate]);
 
   const handleFilterSubmit = (e) => {
     e.preventDefault();

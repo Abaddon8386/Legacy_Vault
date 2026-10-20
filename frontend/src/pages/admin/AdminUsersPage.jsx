@@ -27,6 +27,8 @@ export default function AdminUsersPage({
 
   const abortControllerRef = useRef(null);
   const isFirstMountRef = useRef(true);
+  const requestIdRef = useRef(0);
+  const activeTokenRef = useRef(accessToken);
   const t = adminI18n[lang] || adminI18n.vi;
 
   const handleReload = () => {
@@ -35,6 +37,8 @@ export default function AdminUsersPage({
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
+    const requestToken = accessToken;
 
     setLoading(true);
     setError(null);
@@ -49,14 +53,34 @@ export default function AdminUsersPage({
       signal: controller.signal,
     })
       .then((res) => {
+        if (reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
+          return; // Discard stale response
+        }
         setUsers(res.items);
         setTotal(res.total);
         setLoading(false);
       })
       .catch((err) => {
-        if (err.name === 'AbortError') return;
+        if (
+          reqId !== requestIdRef.current ||
+          requestToken !== activeTokenRef.current ||
+          err.name === 'AbortError'
+        ) {
+          return;
+        }
         if (err.status === 401 && typeof onUnauthorized === 'function') {
           onUnauthorized();
+          return;
+        }
+        if (err.status === 403) {
+          // Lỗi 1: Dọn sạch danh sách, chi tiết/modal và target đang mở khi 403
+          setUsers([]);
+          setTotal(0);
+          setDetailUser(null);
+          setLockTargetUser(null);
+          setLockReason('');
+          setError(t.accessDenied || 'Access Denied (403)');
+          setLoading(false);
           return;
         }
         if (
@@ -68,6 +92,8 @@ export default function AdminUsersPage({
           setApiPending(true);
           setUsers([]);
           setTotal(0);
+          setDetailUser(null);
+          setLockTargetUser(null);
         } else {
           setError(err.message || String(err));
         }
@@ -76,15 +102,33 @@ export default function AdminUsersPage({
   };
 
   useEffect(() => {
+    // Lỗi 2: Khi đổi accessToken / tài khoản, hủy request cũ và xóa dữ liệu phiên cũ ngay lập tức
+    if (activeTokenRef.current !== accessToken) {
+      activeTokenRef.current = accessToken;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      requestIdRef.current++;
+      setUsers([]);
+      setTotal(0);
+      setDetailUser(null);
+      setLockTargetUser(null);
+      setLockReason('');
+      setError(null);
+    }
+
     if (isFirstMountRef.current) {
       isFirstMountRef.current = false;
       if (!fetchOnMount) {
         return;
       }
     }
+
     let ignore = false;
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
+    const requestToken = accessToken;
 
     fetchAdminUsers(accessToken, {
       query,
@@ -95,18 +139,37 @@ export default function AdminUsersPage({
       signal: controller.signal,
     })
       .then((res) => {
-        if (!ignore) {
-          setUsers(res.items);
-          setTotal(res.total);
-          setError(null);
-          setApiPending(false);
-          setLoading(false);
+        if (ignore || reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
+          return; // Discard stale response
         }
+        setUsers(res.items);
+        setTotal(res.total);
+        setError(null);
+        setApiPending(false);
+        setLoading(false);
       })
       .catch((err) => {
-        if (ignore || err.name === 'AbortError') return;
+        if (
+          ignore ||
+          reqId !== requestIdRef.current ||
+          requestToken !== activeTokenRef.current ||
+          err.name === 'AbortError'
+        ) {
+          return;
+        }
         if (err.status === 401 && typeof onUnauthorized === 'function') {
           onUnauthorized();
+          return;
+        }
+        if (err.status === 403) {
+          // Lỗi 1: Dọn sạch danh sách, chi tiết/modal và target đang mở khi 403
+          setUsers([]);
+          setTotal(0);
+          setDetailUser(null);
+          setLockTargetUser(null);
+          setLockReason('');
+          setError(t.accessDenied || 'Access Denied (403)');
+          setLoading(false);
           return;
         }
         if (
@@ -118,6 +181,8 @@ export default function AdminUsersPage({
           setApiPending(true);
           setUsers([]);
           setTotal(0);
+          setDetailUser(null);
+          setLockTargetUser(null);
         } else {
           setError(err.message || String(err));
         }
@@ -128,7 +193,7 @@ export default function AdminUsersPage({
       ignore = true;
       controller.abort();
     };
-  }, [accessToken, fetchOnMount, onUnauthorized, page, pageSize, query, roleFilter, statusFilter]);
+  }, [accessToken, fetchOnMount, onUnauthorized, page, pageSize, query, roleFilter, statusFilter, t.accessDenied]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -300,13 +365,15 @@ export default function AdminUsersPage({
                   <td>{formatDate(user.createdAt)}</td>
                   <td>
                     <span
-                      className={`lv-admin-status-badge lv-admin-status-${(user.status || 'ACTIVE').toLowerCase()}`}
+                      className={`lv-admin-status-badge lv-admin-status-${(user.status || 'neutral').toLowerCase()}`}
                     >
                       {user.status === 'LOCKED'
                         ? t.statusLocked
                         : user.status === 'PENDING'
                         ? t.statusPending
-                        : t.statusActive}
+                        : user.status === 'ACTIVE'
+                        ? t.statusActive
+                        : t.notAvailable}
                     </span>
                   </td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -410,8 +477,14 @@ export default function AdminUsersPage({
                 <div className="lv-admin-detail-item">
                   <span className="lv-admin-detail-key">{t.userStatus}</span>
                   <span className="lv-admin-detail-val">
-                    <span className={`lv-admin-status-badge lv-admin-status-${(detailUser.status || 'ACTIVE').toLowerCase()}`}>
-                      {detailUser.status}
+                    <span className={`lv-admin-status-badge lv-admin-status-${(detailUser.status || 'neutral').toLowerCase()}`}>
+                      {detailUser.status === 'LOCKED'
+                        ? t.statusLocked
+                        : detailUser.status === 'PENDING'
+                        ? t.statusPending
+                        : detailUser.status === 'ACTIVE'
+                        ? t.statusActive
+                        : t.notAvailable}
                     </span>
                   </span>
                 </div>
