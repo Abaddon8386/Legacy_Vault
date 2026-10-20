@@ -22,7 +22,7 @@ import './BeneficiaryConfirmationPage.css';
 
 const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
 
-export function normalizeBeneficiaryItem(b, lang = 'vi') {
+function normalizeBeneficiaryItem(b, lang = 'vi') {
   if (!b) return null;
   const id = b.id || b.beneficiaryId || '';
   const statusRaw = String(b.confirmationStatus || b.status || '').toUpperCase();
@@ -111,7 +111,6 @@ export default function BeneficiaryConfirmationPage({
     setPrevPropCase(effectivePropCase);
     setPrevPropBeneficiaries(propBeneficiaries);
     setCaseReference(effectivePropCase);
-    lastFetchedKeyRef.current = '';
     // Immediately reset all state from previous case A
     setSelectedBeneficiaryId('');
     setReceiptReference('');
@@ -131,7 +130,6 @@ export default function BeneficiaryConfirmationPage({
     }
   } else if (propBeneficiaries !== prevPropBeneficiaries) {
     setPrevPropBeneficiaries(propBeneficiaries);
-    lastFetchedKeyRef.current = '';
     if (propBeneficiaries && effectivePropCase) {
       setBeneficiaries((Array.isArray(propBeneficiaries) ? propBeneficiaries : []).map(b => normalizeBeneficiaryItem(b, lang)));
       setLoadedCaseId(effectivePropCase);
