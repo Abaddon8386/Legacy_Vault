@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { ArrowUpRight, ArrowDown, Shield, LockKeyhole, FileText, Users } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../utils/subscriptionPlans.js';
+import { isSessionActive } from '../../utils/session.js';
 import './LandingPage.css';
 
-export default function LandingPage({ onLogin, onRegister }) {
-  const [lang, setLang] = useState('vi');
+export default function LandingPage({ onLogin, onRegister, onDashboard, session, isRestoringSession = false }) {
+  const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const en = lang === 'en';
+
+  const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
+  const hasValidSession = !isRestoringSession && isSessionActive(session);
+  const isDashboardEligible = hasValidSession && (userRoles.includes('VAULT_OWNER') || userRoles.includes('BENEFICIARY'));
+
   return <div className="lv-landing">
     <header className="lv-landing-nav">
       <a className="lv-landing-brand" href="#top"><Shield size={28} strokeWidth={1.6} /><span>LegacyVault</span></a>
@@ -15,8 +21,17 @@ export default function LandingPage({ onLogin, onRegister }) {
         <a href="#plans">{en ? 'Plans' : 'Gói sử dụng'}</a>
       </nav>
       <div className="lv-landing-nav-actions">
-        <button className="lv-landing-language" onClick={() => setLang(en ? 'vi' : 'en')} aria-label={en ? 'Switch to Vietnamese' : 'Chuyển sang tiếng Anh'}>{en ? 'VI' : 'EN'}</button>
-        <button className="lv-landing-login" onClick={onLogin}>{en ? 'Sign in' : 'Đăng nhập'}<ArrowUpRight size={16} /></button>
+        <button type="button" className="lv-landing-language" onClick={() => setLang(en ? 'vi' : 'en')} aria-label={en ? 'Switch to Vietnamese' : 'Chuyển sang tiếng Anh'}>{en ? 'VI' : 'EN'}</button>
+        {isRestoringSession ? (
+          <span className="lv-landing-auth-loading" aria-live="polite" aria-busy="true">{en ? 'Checking…' : 'Đang kiểm tra…'}</span>
+        ) : isDashboardEligible ? (
+          <button type="button" className="lv-landing-dashboard" onClick={() => onDashboard?.(lang)}>{en ? 'Dashboard' : 'Bảng điều khiển'}<ArrowUpRight size={16} /></button>
+        ) : (
+          <>
+            <button type="button" className="lv-landing-register" onClick={() => onRegister?.(lang)}>{en ? 'Sign up' : 'Đăng ký'}</button>
+            <button type="button" className="lv-landing-login" onClick={() => onLogin?.(lang)}>{en ? 'Sign in' : 'Đăng nhập'}<ArrowUpRight size={16} /></button>
+          </>
+        )}
       </div>
     </header>
     <main>

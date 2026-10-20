@@ -591,7 +591,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     }
   };
   const path = location.split('?')[0];
-  if (restoreStatus !== 'ready') return (
+  if (restoreStatus !== 'ready' && path !== '/') return (
     <main role={restoreStatus === 'error' ? 'alert' : 'status'}>
       <p>{restoreStatus === 'error'
         ? (lang === 'en' ? 'Unable to verify your session. Please retry.' : 'Chưa thể xác minh phiên đăng nhập. Vui lòng thử lại.')
@@ -1530,7 +1530,40 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
               : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
-  if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
+  if (path === '/') {
+    const isRestoring = restoreStatus === 'loading';
+    const isOwnerOrBeneficiary = !isRestoring && isSessionActive(session) && Boolean(
+      session?.user?.roles?.includes('VAULT_OWNER') || session?.user?.roles?.includes('BENEFICIARY')
+    );
+    const targetDashboardRoute = isOwnerOrBeneficiary
+      ? (session.user.roles?.includes('STAFF_EXECUTOR') && !session.user.roles?.includes('VAULT_OWNER') && !session.user.roles?.includes('LEGAL_VERIFIER')
+          ? '/staff/cases'
+          : resolvePostLoginRoute(session.user))
+      : null;
+
+    return (
+      <LandingPage
+        session={session}
+        isRestoringSession={isRestoring}
+        onLogin={targetLang => {
+          const nextLang = targetLang || lang || 'vi';
+          const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
+          navigateTo(invitationIntent ? `/login${query}&invitation=true` : `/login${query}`);
+        }}
+        onRegister={targetLang => {
+          const nextLang = targetLang || lang || 'vi';
+          const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
+          navigateTo(invitationIntent ? `/register${query}&invitation=true` : `/register${query}`);
+        }}
+        onDashboard={targetLang => {
+          if (!targetDashboardRoute) return;
+          const nextLang = targetLang || lang || 'vi';
+          const separator = targetDashboardRoute.includes('?') ? '&' : '?';
+          navigateTo(`${targetDashboardRoute}${nextLang === 'en' ? `${separator}lang=en` : ''}`);
+        }}
+      />
+    );
+  }
   return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onRegisterWithInvitation={pendingInvitationCode.trim() && typeof invitationActions?.register === 'function' ? (values, options) => invitationActions.register({ ...values, code: pendingInvitationCode }, options) : undefined} onNavigateToLogin={() => navigateTo(authPath('/login'))} onAuthenticated={establishSession} />
     : path === '/login' ? <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
