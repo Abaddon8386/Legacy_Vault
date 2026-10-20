@@ -1530,7 +1530,22 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
               : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
-  if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
+  if (path === '/') {
+    return (
+      <LandingPage
+        onLogin={targetLang => {
+          const nextLang = targetLang || lang || 'vi';
+          const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
+          navigateTo(invitationIntent ? `/login${query}&invitation=true` : `/login${query}`);
+        }}
+        onRegister={targetLang => {
+          const nextLang = targetLang || lang || 'vi';
+          const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
+          navigateTo(invitationIntent ? `/register${query}&invitation=true` : `/register${query}`);
+        }}
+      />
+    );
+  }
   return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onRegisterWithInvitation={pendingInvitationCode.trim() && typeof invitationActions?.register === 'function' ? (values, options) => invitationActions.register({ ...values, code: pendingInvitationCode }, options) : undefined} onNavigateToLogin={() => navigateTo(authPath('/login'))} onAuthenticated={establishSession} />
     : path === '/login' ? <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
