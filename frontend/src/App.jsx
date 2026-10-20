@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
+import InvitationPage from './pages/beneficiary/InvitationPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import { request, ApiError } from './api/http.js';
@@ -381,10 +382,21 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App() {
+export default function App({ invitationActions } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const [session, setSession] = useState(readStoredSession);
+  // Invitation codes live only in this mounted application, never URLs or storage.
+  const [invitationIntent, setInvitationIntent] = useState(() => new URLSearchParams(window.location.search).get('invitation') === 'true');
+  const [pendingInvitationCode, setPendingInvitationCode] = useState('');
+  const invitationIntentRef = useRef(invitationIntent), invitationSessionRef = useRef(session);
+  useEffect(() => { invitationIntentRef.current = invitationIntent; }, [invitationIntent]);
+  useEffect(() => { invitationSessionRef.current = session; }, [session]);
+  const cancelInvitation = () => {
+    setInvitationIntent(false); setPendingInvitationCode('');
+    navigateTo(`${window.location.pathname}?lang=${lang}`);
+  };
+  const authPath = path => invitationIntent ? `${path}?lang=${lang}&invitation=true` : path;
   const [restoreStatus, setRestoreStatus] = useState(() => readStoredSession() ? 'loading' : 'ready');
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -429,8 +441,10 @@ export default function App() {
     setIsEditFormDirty(false);
     setPendingNavigationTarget(null);
     setSession(null);
+    setInvitationIntent(false);
+    setPendingInvitationCode('');
     navigateTo('/login');
-  }, [navigateTo]);
+  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode]);
 
   useEffect(() => {
     const candidate = readStoredSession();
@@ -503,6 +517,7 @@ export default function App() {
     if (options.signal?.aborted) return;
     if (user.id !== candidate.user.id) throw new ApiError('INVALID_AUTH_RESPONSE');
     setSession({ ...candidate, user }); setLang(options.lang || 'vi');
+    if (invitationIntentRef.current) { navigateTo('/invitations'); return; }
     navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
@@ -522,8 +537,27 @@ export default function App() {
     </main>
   );
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  if (path === '/invitations') {
+    const activeSession = isSessionActive(session) ? session : null;
+    return <InvitationPage key={`${activeSession?.user.id || 'anonymous'}:${activeSession?.accessToken || ''}`}
+      user={activeSession?.user || null} initialCode={pendingInvitationCode} lang={lang} onToggleLang={setLang}
+      onAuthenticate={(kind, code) => { setPendingInvitationCode(code); setInvitationIntent(true); navigateTo(`/${kind}?lang=${lang}&invitation=true`); }}
+      onClearCode={() => setPendingInvitationCode('')}
+      onAcceptInvitation={activeSession && typeof invitationActions?.accept === 'function'
+        ? (data, options) => invitationActions.accept(data, { ...options, accessToken: activeSession.accessToken }) : undefined}
+      onRefreshAccount={activeSession ? options => request('/auth/me', { ...options, accessToken: activeSession.accessToken }) : undefined}
+      onConfirmed={(user, options) => {
+        const current = invitationSessionRef.current;
+        if (options.signal.aborted || !isSessionActive(current) || current.accessToken !== activeSession?.accessToken || current.user.id !== user.id) throw Error('SESSION_CHANGED');
+        setSession(previous => previous?.accessToken === current.accessToken && previous.user.id === user.id ? { ...previous, user } : previous);
+        setInvitationIntent(false); setPendingInvitationCode('');
+        // Multi-role landing belongs to its separate FE task; do not choose an Owner role here.
+        if (user.roles.length === 1 && user.roles[0] === 'BENEFICIARY') navigateTo('/beneficiary');
+      }}
+      onContinue={() => navigateTo('/beneficiary')} />;
+  }
   if (path === '/admin' || path === '/admin/subscriptions') {
-    if (!isSessionActive(session)) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!session.user.roles.includes('ADMIN')) return <main role="alert"><p>{lang === 'en' ? 'This page requires an administrator account.' : 'Trang này dành cho tài khoản quản trị viên.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
     const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions' : 'admin-home';
     return <AppShell role="ADMIN" session={session} user={session.user} lang={lang} currentTab={currentTab}
@@ -535,7 +569,7 @@ export default function App() {
     </AppShell>;
   }
   if (path === '/beneficiary') {
-    if (!isSessionActive(session)) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!session.user.roles.includes('BENEFICIARY')) return <main role="alert"><p>{lang === 'en' ? 'This page requires a beneficiary account.' : 'Trang này dành cho tài khoản người thụ hưởng.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
     return <AppShell role="BENEFICIARY" session={session} user={session.user} lang={lang} currentTab="beneficiary-home"
       isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : '/beneficiary')}>
@@ -551,14 +585,14 @@ export default function App() {
   };
 
   if (path === '/staff/handover') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><CounterHandoverPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   const isStaffRoute = path === '/staff/cases';
   if (isStaffRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !session.user.roles.includes('STAFF_EXECUTOR')) {
       return (
@@ -612,7 +646,7 @@ export default function App() {
 
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (path === '/legal/approval-review') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'This portal requires a Legal Verifier account.' : 'Cổng này chỉ dành cho tài khoản Thẩm định Pháp lý (LEGAL_VERIFIER).'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><LegalApprovalReviewPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
@@ -620,7 +654,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -735,7 +769,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -794,7 +828,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -873,13 +907,13 @@ export default function App() {
   }
 
   if (path === '/staff/beneficiary-accounts') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !canAccessStaffLegalDocuments(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -931,7 +965,7 @@ export default function App() {
 
   if (isStaffAssetHandoverRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !canAccessScopedAssetHandover(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -980,7 +1014,7 @@ export default function App() {
 
   if (isStaffBeneficiaryConfirmationRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !canAccessBeneficiaryConfirmation(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1031,7 +1065,7 @@ export default function App() {
 
   if (isStaffCompletionProgressRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !canAccessCompletionProgress(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1082,7 +1116,7 @@ export default function App() {
 
   if (isStaffCloseArchiveRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !canAccessCloseArchive(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1130,7 +1164,7 @@ export default function App() {
   }
 
   if (path === '/legal/controlled-unlock') {
-    if (!isSessionActive(session) && !preview) return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><ControlledUnlockPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
@@ -1138,7 +1172,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1197,7 +1231,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1256,7 +1290,7 @@ export default function App() {
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
+          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1312,7 +1346,7 @@ export default function App() {
   }
   if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute || isSubscriptionRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />;
+      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !session.user.roles.includes('VAULT_OWNER')) {
       return <main role="alert"><p>{lang === 'en' ? 'This page requires a Vault Owner account.' : 'Trang này dành cho tài khoản chủ sở hữu kho.'}</p>
@@ -1340,7 +1374,7 @@ export default function App() {
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--primary" onClick={() => navigateTo(previewRoute('vault', window.location.search, lang))}>{lang === 'en' ? 'Back to preview' : 'Quay lại tổng quan'}</button>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--gold" onClick={() => navigateTo('/login')}>{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</button>
       </section> : isSubscriptionRoute ? <SubscriptionPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
-        : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} isDevPreview={preview} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
+        : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute onLoadInvitation={invitationActions?.loadForBeneficiary} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
             : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
@@ -1349,7 +1383,7 @@ export default function App() {
   }
   if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
   return <div className="lv-app-root">{path === '/register'
-    ? <RegisterPageHenedo onNavigateToLogin={() => navigateTo('/login')} onAuthenticated={establishSession} />
-    : path === '/login' ? <LoginPage onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo('/register')} />
-      : <NotFoundFallback onNavigateToRegister={() => navigateTo('/register')} onNavigateToLogin={() => navigateTo('/login')} />}</div>;
+    ? <RegisterPageHenedo invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onRegisterWithInvitation={pendingInvitationCode.trim() && typeof invitationActions?.register === 'function' ? (values, options) => invitationActions.register({ ...values, code: pendingInvitationCode }, options) : undefined} onNavigateToLogin={() => navigateTo(authPath('/login'))} onAuthenticated={establishSession} />
+    : path === '/login' ? <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+      : <NotFoundFallback onNavigateToRegister={() => navigateTo(authPath('/register'))} onNavigateToLogin={() => navigateTo(authPath('/login'))} />}</div>;
 }
