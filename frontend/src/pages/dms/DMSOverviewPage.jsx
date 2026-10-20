@@ -180,6 +180,9 @@ export default function DMSOverviewPage({
       );
       if (!active.current || controller.signal.aborted) return;
       ++fetchRequestId.current;
+      syncedContextRef.current = ownerId ?? '__default__';
+      syncedRefreshTriggerRef.current = onRefreshTrigger;
+      syncedRefreshKeyRef.current = refreshKey;
       setDmsData(updated ? { ...updated, snapshotTimestamp: Date.now() } : null);
       if (updated?.checkIntervalDays != null) setIntervalInput(updated.checkIntervalDays);
       setIsConfiguringNew(false);
@@ -217,6 +220,9 @@ export default function DMSOverviewPage({
       });
       if (!active.current || controller.signal.aborted) return;
       ++fetchRequestId.current;
+      syncedContextRef.current = ownerId ?? '__default__';
+      syncedRefreshTriggerRef.current = onRefreshTrigger;
+      syncedRefreshKeyRef.current = refreshKey;
       setDmsData(result ? { ...result, snapshotTimestamp: Date.now() } : null);
       if (result?.checkIntervalDays != null) setIntervalInput(result.checkIntervalDays);
       setCheckInNotice('CHECKED_IN');

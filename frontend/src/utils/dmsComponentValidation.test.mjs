@@ -47,12 +47,13 @@ for (const mutation of ['save', 'check-in']) {
       lastCheckInAt: '2026-10-15T00:00:00Z', nextCheckAt: '2026-12-14T00:00:00Z' });
     globalThis.fetch = async (_url, options = {}) => {
       if (options.method === 'PUT' || options.method === 'POST') return json(data(45));
-      return ++reads === 1 ? json(data(30)) : stale.promise;
+      ++reads;
+      return reads === 1 ? json(data(30)) : reads === 2 ? stale.promise : json(data(45));
     };
     const host = document.createElement('div'); document.body.append(host);
     const root = createRoot(host);
-    const render = (refresh) => React.createElement(DMSOverviewPage, {
-      accessToken: 'synthetic', lang: 'vi', onRefreshTrigger: refresh,
+    const render = (refresh, lang = 'vi') => React.createElement(DMSOverviewPage, {
+      accessToken: 'synthetic', lang, onRefreshTrigger: refresh,
     });
     try {
       await act(async () => root.render(render(0)));
@@ -70,6 +71,11 @@ for (const mutation of ['save', 'check-in']) {
       await act(async () => stale.resolve(json(data(30))));
       assert.match(host.textContent, /45/);
       assert.equal(host.querySelector('#dms-interval-input').value, '45');
+      await act(async () => setInputValue(host.querySelector('#dms-interval-input'), '60'));
+      for (const lang of ['en', 'vi']) {
+        await act(async () => root.render(render(1, lang)));
+        assert.equal(host.querySelector('#dms-interval-input').value, '60', 'Language changes must preserve the next unsaved draft');
+      }
     } finally {
       await act(async () => root.unmount()); host.remove(); globalThis.fetch = originalFetch;
     }
