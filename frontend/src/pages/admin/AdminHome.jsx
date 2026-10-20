@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
 import { fetchAdminOverview } from '../../utils/adminService.js';
 import './AdminPages.css';
@@ -12,128 +12,10 @@ export default function AdminHome({
   onOpenSubscriptions = null,
   onNavigate = null,
 }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(fetchOnMount);
-  const [apiPending, setApiPending] = useState(!fetchOnMount);
-  const [error, setError] = useState(null);
-  const abortControllerRef = useRef(null);
-  const requestIdRef = useRef(0);
-  const activeTokenRef = useRef(accessToken);
   const t = adminI18n[lang] || adminI18n.vi;
-
-  const handleReload = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const reqId = ++requestIdRef.current;
-    const requestToken = accessToken;
-
-    setLoading(true);
-    setError(null);
-    setApiPending(false);
-
-    fetchAdminOverview(accessToken, { signal: controller.signal })
-      .then((overviewData) => {
-        if (reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
-          return; // Discard stale response
-        }
-        setData(overviewData);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (
-          reqId !== requestIdRef.current ||
-          requestToken !== activeTokenRef.current ||
-          err.name === 'AbortError'
-        ) {
-          return;
-        }
-        if (err.status === 401 && typeof onUnauthorized === 'function') {
-          onUnauthorized();
-          return;
-        }
-        if (err.status === 403) {
-          // Lỗi 1: Dọn sạch dữ liệu khi 403
-          setData(null);
-          setError(t.accessDenied || 'Access Denied (403)');
-          setLoading(false);
-          return;
-        }
-        if (err.status === 404 || err.status === 501 || err.code === 'API_NOT_AVAILABLE' || err.code === 'BACKEND_NOT_READY') {
-          setApiPending(true);
-          setData(null);
-        } else {
-          setError(err.message || String(err));
-        }
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    // Lỗi 2: Khi đổi accessToken / tài khoản, hủy request cũ và xóa dữ liệu phiên cũ ngay lập tức
-    if (activeTokenRef.current !== accessToken) {
-      activeTokenRef.current = accessToken;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      requestIdRef.current++;
-      setData(null);
-      setError(null);
-    }
-
-    if (!fetchOnMount) return;
-    let ignore = false;
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const reqId = ++requestIdRef.current;
-    const requestToken = accessToken;
-
-    fetchAdminOverview(accessToken, { signal: controller.signal })
-      .then((overviewData) => {
-        if (ignore || reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
-          return; // Discard stale response
-        }
-        setData(overviewData);
-        setError(null);
-        setApiPending(false);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (
-          ignore ||
-          reqId !== requestIdRef.current ||
-          requestToken !== activeTokenRef.current ||
-          err.name === 'AbortError'
-        ) {
-          return;
-        }
-        if (err.status === 401 && typeof onUnauthorized === 'function') {
-          onUnauthorized();
-          return;
-        }
-        if (err.status === 403) {
-          // Lỗi 1: Dọn sạch dữ liệu khi 403
-          setData(null);
-          setError(t.accessDenied || 'Access Denied (403)');
-          setLoading(false);
-          return;
-        }
-        if (err.status === 404 || err.status === 501 || err.code === 'API_NOT_AVAILABLE' || err.code === 'BACKEND_NOT_READY') {
-          setApiPending(true);
-          setData(null);
-        } else {
-          setError(err.message || String(err));
-        }
-        setLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, [accessToken, fetchOnMount, onUnauthorized, t.accessDenied]);
+  const { data, loading, apiPending, error, reload: handleReload } = useAdminQuery(
+    fetchAdminOverview, accessToken, {}, fetchOnMount, onUnauthorized, t.accessDenied
+  );
 
   const formatDate = (isoString) => {
     if (!isoString) return t.notAvailable;

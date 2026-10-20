@@ -117,7 +117,7 @@ test('AdminHome renders live metrics and multi-role distribution correctly', asy
     });
 
   try {
-    const view = await mount(AdminHome, { lang: 'vi', fetchOnMount: true });
+    const view = await mount(AdminHome, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
       assert.ok(view.host.textContent.includes('50'));
@@ -142,7 +142,7 @@ test('AdminHome triggers onUnauthorized on 401', async () => {
   try {
     const view = await mount(AdminHome, {
       onUnauthorized: () => { unauthorizedCalled = true; },
-      fetchOnMount: true,
+      accessToken: 'test-token', fetchOnMount: true,
     });
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
@@ -187,7 +187,7 @@ test('AdminUsersPage renders user table, filters, and prevents creation/role edi
     });
 
   try {
-    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true });
+    const view = await mount(AdminUsersPage, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
@@ -242,7 +242,7 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
     });
 
   try {
-    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true });
+    const view = await mount(AdminUsersPage, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
@@ -291,7 +291,7 @@ test('AdminUsersPage lock confirmation dialog is guarded and disabled', async ()
     });
 
   try {
-    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true });
+    const view = await mount(AdminUsersPage, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
@@ -358,7 +358,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
     });
 
   try {
-    const view = await mount(AdminLogsPage, { lang: 'vi', fetchOnMount: true });
+    const view = await mount(AdminLogsPage, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 

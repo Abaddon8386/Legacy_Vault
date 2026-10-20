@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
 import { fetchAdminUsers } from '../../utils/adminService.js';
 import './AdminPages.css';
@@ -9,191 +10,24 @@ export default function AdminUsersPage({
   fetchOnMount = false,
   onUnauthorized = null,
 }) {
-  const [users, setUsers] = useState([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [loading, setLoading] = useState(fetchOnMount);
-  const [apiPending, setApiPending] = useState(!fetchOnMount);
-  const [error, setError] = useState(null);
-
-  // Modals
-  const [detailUser, setDetailUser] = useState(null);
-  const [lockTargetUser, setLockTargetUser] = useState(null);
-  const [lockReason, setLockReason] = useState('');
-
-  const abortControllerRef = useRef(null);
-  const isFirstMountRef = useRef(true);
-  const requestIdRef = useRef(0);
-  const activeTokenRef = useRef(accessToken);
   const t = adminI18n[lang] || adminI18n.vi;
-
-  const handleReload = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const reqId = ++requestIdRef.current;
-    const requestToken = accessToken;
-
-    setLoading(true);
-    setError(null);
-    setApiPending(false);
-
-    fetchAdminUsers(accessToken, {
-      query,
-      role: roleFilter,
-      status: statusFilter,
-      page,
-      pageSize,
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
-          return; // Discard stale response
-        }
-        setUsers(res.items);
-        setTotal(res.total);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (
-          reqId !== requestIdRef.current ||
-          requestToken !== activeTokenRef.current ||
-          err.name === 'AbortError'
-        ) {
-          return;
-        }
-        if (err.status === 401 && typeof onUnauthorized === 'function') {
-          onUnauthorized();
-          return;
-        }
-        if (err.status === 403) {
-          // Lỗi 1: Dọn sạch danh sách, chi tiết/modal và target đang mở khi 403
-          setUsers([]);
-          setTotal(0);
-          setDetailUser(null);
-          setLockTargetUser(null);
-          setLockReason('');
-          setError(t.accessDenied || 'Access Denied (403)');
-          setLoading(false);
-          return;
-        }
-        if (
-          err.status === 404 ||
-          err.status === 501 ||
-          err.code === 'API_NOT_AVAILABLE' ||
-          err.code === 'BACKEND_NOT_READY'
-        ) {
-          setApiPending(true);
-          setUsers([]);
-          setTotal(0);
-          setDetailUser(null);
-          setLockTargetUser(null);
-        } else {
-          setError(err.message || String(err));
-        }
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    // Lỗi 2: Khi đổi accessToken / tài khoản, hủy request cũ và xóa dữ liệu phiên cũ ngay lập tức
-    if (activeTokenRef.current !== accessToken) {
-      activeTokenRef.current = accessToken;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      requestIdRef.current++;
-      setUsers([]);
-      setTotal(0);
-      setDetailUser(null);
-      setLockTargetUser(null);
-      setLockReason('');
-      setError(null);
-    }
-
-    if (isFirstMountRef.current) {
-      isFirstMountRef.current = false;
-      if (!fetchOnMount) {
-        return;
-      }
-    }
-
-    let ignore = false;
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const reqId = ++requestIdRef.current;
-    const requestToken = accessToken;
-
-    fetchAdminUsers(accessToken, {
-      query,
-      role: roleFilter,
-      status: statusFilter,
-      page,
-      pageSize,
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (ignore || reqId !== requestIdRef.current || requestToken !== activeTokenRef.current) {
-          return; // Discard stale response
-        }
-        setUsers(res.items);
-        setTotal(res.total);
-        setError(null);
-        setApiPending(false);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (
-          ignore ||
-          reqId !== requestIdRef.current ||
-          requestToken !== activeTokenRef.current ||
-          err.name === 'AbortError'
-        ) {
-          return;
-        }
-        if (err.status === 401 && typeof onUnauthorized === 'function') {
-          onUnauthorized();
-          return;
-        }
-        if (err.status === 403) {
-          // Lỗi 1: Dọn sạch danh sách, chi tiết/modal và target đang mở khi 403
-          setUsers([]);
-          setTotal(0);
-          setDetailUser(null);
-          setLockTargetUser(null);
-          setLockReason('');
-          setError(t.accessDenied || 'Access Denied (403)');
-          setLoading(false);
-          return;
-        }
-        if (
-          err.status === 404 ||
-          err.status === 501 ||
-          err.code === 'API_NOT_AVAILABLE' ||
-          err.code === 'BACKEND_NOT_READY'
-        ) {
-          setApiPending(true);
-          setUsers([]);
-          setTotal(0);
-          setDetailUser(null);
-          setLockTargetUser(null);
-        } else {
-          setError(err.message || String(err));
-        }
-        setLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, [accessToken, fetchOnMount, onUnauthorized, page, pageSize, query, roleFilter, statusFilter, t.accessDenied]);
+  const { data, loading, apiPending, error, reload: handleReload } = useAdminQuery(
+    fetchAdminUsers, accessToken, { query, role: roleFilter, status: statusFilter, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
+  );
+  const users = data?.items || [];
+  const total = data?.total ?? null;
+  const [detailSelection, setDetailSelection] = useState(null);
+  const detailUser = detailSelection?.data === data ? detailSelection.record : null;
+  const setDetailUser = (record) => setDetailSelection(record ? { record, data } : null);
+  const [lockSelection, setLockSelection] = useState(null);
+  const lockTargetUser = lockSelection?.data === data ? lockSelection.record : null;
+  const setLockTargetUser = (record) => setLockSelection(record ? { record, data } : null);
+  const [lockReason, setLockReason] = useState('');
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();

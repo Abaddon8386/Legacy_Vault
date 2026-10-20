@@ -52,27 +52,20 @@ export function validateAdminOverview(raw) {
     throw new ApiError('INVALID_OVERVIEW_RESPONSE', 500);
   }
 
-  const totalUsers = Number(raw.totalUsers);
-  if (!Number.isFinite(totalUsers) || totalUsers < 0) {
+  // Missing and malformed counts are unknown, never a fabricated zero.
+  const parseCount = (value) => {
+    if (typeof value !== 'number' && typeof value !== 'string') return null;
+    if (typeof value === 'string' && !value.trim()) return null;
+    const count = Number(value);
+    return Number.isSafeInteger(count) && count >= 0 ? count : null;
+  };
+  const totalUsers = parseCount(raw.totalUsers);
+  if (raw.totalUsers != null && totalUsers === null && String(raw.totalUsers).trim()) {
     throw new ApiError('INVALID_TOTAL_USERS', 500);
   }
-
-  // Do NOT default activeUsers to totalUsers or 0! If missing, keep null.
-  const activeUsers =
-    raw.activeUsers !== undefined && raw.activeUsers !== null && Number.isFinite(Number(raw.activeUsers))
-      ? Number(raw.activeUsers)
-      : null;
-
-  // Do NOT default lockedUsers to 0! If missing, keep null.
-  const lockedUsers =
-    raw.lockedUsers !== undefined && raw.lockedUsers !== null && Number.isFinite(Number(raw.lockedUsers))
-      ? Number(raw.lockedUsers)
-      : null;
-
-  // Role distribution object: do NOT default missing counts to 0!
+  const activeUsers = parseCount(raw.activeUsers);
+  const lockedUsers = parseCount(raw.lockedUsers);
   const rawDistribution = raw.roleDistribution && typeof raw.roleDistribution === 'object' ? raw.roleDistribution : {};
-  const parseCount = (v) =>
-    v !== undefined && v !== null && Number.isFinite(Number(v)) ? Number(v) : null;
 
   const roleDistribution = {
     VAULT_OWNER: parseCount(rawDistribution.VAULT_OWNER ?? rawDistribution.ROLE_VAULT_OWNER),
@@ -83,7 +76,7 @@ export function validateAdminOverview(raw) {
   };
 
   const validCounts = Object.values(roleDistribution).filter((v) => v !== null);
-  const totalRolesAssigned = validCounts.length > 0 ? validCounts.reduce((sum, v) => sum + v, 0) : null;
+  const totalRolesAssigned = validCounts.length === Object.keys(roleDistribution).length ? validCounts.reduce((sum, v) => sum + v, 0) : null;
 
   // Do NOT default asOf to new Date().toISOString()!
   const asOf = typeof raw.asOf === 'string' && raw.asOf.trim() ? raw.asOf.trim() : null;
@@ -180,30 +173,11 @@ export function validateAdminAuditLog(raw) {
   const stepId = raw.stepId ? String(raw.stepId).trim() : null;
   const ruleId = raw.ruleId ? String(raw.ruleId).trim() : null;
 
-  // Whitelist check: filter out any secrets (password, token, jwt, secret, secretKey, privateKey)
-  const sanitizeAuditMeta = (data) => {
-    if (!data) return null;
-    if (typeof data !== 'object') return data;
-    const clean = Array.isArray(data) ? [] : {};
-    for (const [k, v] of Object.entries(data)) {
-      const lower = k.toLowerCase();
-      if (
-        lower.includes('password') ||
-        lower.includes('secret') ||
-        lower.includes('token') ||
-        lower.includes('jwt') ||
-        lower.includes('privatekey')
-      ) {
-        continue; // Strictly omit secret fields per PS-13
-      }
-      clean[k] = v;
-    }
-    return clean;
-  };
-
-  const stateBefore = sanitizeAuditMeta(raw.stateBefore);
-  const stateAfter = sanitizeAuditMeta(raw.stateAfter);
-  const context = sanitizeAuditMeta(raw.context);
+  // No metadata fields have an approved display contract yet. Do not expose
+  // arbitrary objects, nested values or free text from audit payloads.
+  const stateBefore = null;
+  const stateAfter = null;
+  const context = null;
 
   return {
     id,
@@ -332,7 +306,7 @@ export async function fetchAdminUsers(
   }
 
   const items = rawList.map(validateAdminUser);
-  const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
+  const total = typeof data.total === 'number' && Number.isSafeInteger(data.total) && data.total >= items.length ? data.total : null;
 
   return {
     items,
@@ -376,7 +350,7 @@ export async function fetchAdminAuditLogs(
   }
 
   const items = rawList.map(validateAdminAuditLog);
-  const total = Number.isFinite(Number(data.total)) ? Number(data.total) : items.length;
+  const total = typeof data.total === 'number' && Number.isSafeInteger(data.total) && data.total >= items.length ? data.total : null;
 
   return {
     items,

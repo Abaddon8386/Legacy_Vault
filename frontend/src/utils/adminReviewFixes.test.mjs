@@ -337,7 +337,7 @@ test('REPRO Lỗi 2: AdminUsersPage discards late response on rapid reload/retry
   };
 
   try {
-    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: false, accessToken: 'token-1' });
+    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true, accessToken: 'token-1' });
     try {
       // Trigger slow reload 1 by clicking search/reload
       const searchForm = view.host.querySelector('form');
@@ -378,3 +378,122 @@ test('REPRO Lỗi 2: AdminUsersPage discards late response on rapid reload/retry
   }
 });
 
+
+const AdminLogsPage = await loadComponent('src/pages/admin/AdminLogsPage.jsx');
+const AdminHome = await loadComponent('src/pages/admin/AdminHome.jsx');
+
+test('missing and malformed counts never become zero or a partial total', () => {
+  for (const value of [null, undefined, '', ' ', false, [], -1, 1.5]) {
+    const data = validateAdminOverview({ activeUsers: value, lockedUsers: value, roleDistribution: { ADMIN: value } });
+    assert.equal(data.totalUsers, null);
+    assert.equal(data.activeUsers, null);
+    assert.equal(data.lockedUsers, null);
+    assert.equal(data.roleDistribution.ADMIN, null);
+    assert.equal(data.totalRolesAssigned, null);
+  }
+  assert.equal(validateAdminOverview({ totalUsers: 0 }).totalUsers, 0);
+});
+
+test('audit metadata without an approved field contract is never exposed', () => {
+  for (const metadata of [{ payload: { password: 'SENSITIVE' } }, { note: 'SENSITIVE' }, 'SENSITIVE', [{ token: 'SENSITIVE' }]]) {
+    const log = validateAdminAuditLog({ id: 'audit', context: metadata, stateBefore: metadata, stateAfter: metadata });
+    assert.equal(log.context, null);
+    assert.equal(log.stateBefore, null);
+    assert.equal(log.stateAfter, null);
+  }
+});
+
+test('pending contract mode never fetches on mount, filter, submit or token change', async () => {
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('unexpected request'); };
+  try {
+    for (const Component of [AdminUsersPage, AdminLogsPage, AdminHome]) {
+      const view = await mount(Component, { accessToken: 'A', fetchOnMount: false });
+      try {
+        await act(async () => {
+          const select = view.host.querySelector('select');
+          if (select) {
+            select.value = select.options[1].value;
+            select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+          }
+          view.host.querySelector('form')?.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+        });
+        await view.rerender({ accessToken: 'B', fetchOnMount: false });
+      } finally { await view.close(); }
+    }
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = previous; }
+});
+
+for (const Component of [AdminUsersPage, AdminLogsPage]) {
+  test(Component.name + ' hides old details during reload and ignores response after unmount', async () => {
+    const previous = globalThis.fetch;
+    let resolveLate;
+    let lateSignal;
+    let calls = 0;
+    globalThis.fetch = async (_url, options) => {
+      if (++calls === 1) return new Response(JSON.stringify({ items: [{ id: 'item', fullName: 'OLD_RECORD', actorName: 'OLD_RECORD', action: 'VAULT_CREATED', status: 'ACTIVE' }], total: 1 }));
+      lateSignal = options.signal;
+      return new Promise((resolve) => { resolveLate = resolve; });
+    };
+    let view;
+    try {
+      view = await mount(Component, { accessToken: 'A', fetchOnMount: true });
+      const button = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Xem chi tiết'));
+      await act(async () => button.click());
+      assert.ok(view.host.querySelector('[role="dialog"]'));
+      await act(async () => view.host.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })));
+      assert.equal(view.host.querySelector('[role="dialog"]'), null);
+      assert.equal(view.host.textContent.includes('OLD_RECORD'), false);
+      await view.close(); view = null;
+      assert.equal(lateSignal.aborted, true);
+      await act(async () => resolveLate(new Response(JSON.stringify({ items: [], total: 0 }))));
+    } finally { if (view) await view.close(); globalThis.fetch = previous; }
+  });
+}
+
+for (const Component of [AdminUsersPage, AdminLogsPage]) {
+  test(Component.name + ' clears details on filter change and keeps data hidden after malformed response', async () => {
+    const previous = globalThis.fetch;
+    let resolveLate;
+    let calls = 0;
+    globalThis.fetch = async () => {
+      if (++calls === 1) return new Response(JSON.stringify({ items: [{ id: 'item', fullName: 'OLD_FILTER', actorName: 'OLD_FILTER', action: 'VAULT_CREATED' }], total: 1 }));
+      return new Promise((resolve) => { resolveLate = resolve; });
+    };
+    let view;
+    try {
+      view = await mount(Component, { accessToken: 'A', fetchOnMount: true });
+      await act(async () => [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Xem chi tiết')).click());
+      await act(async () => {
+        const select = view.host.querySelector('select');
+        select.value = select.options[1].value;
+        select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      });
+      assert.equal(view.host.querySelector('[role="dialog"]'), null);
+      assert.equal(view.host.textContent.includes('OLD_FILTER'), false);
+      await act(async () => resolveLate(new Response(JSON.stringify({ malformed: true }))));
+      assert.ok(view.host.querySelector('[role="alert"]'));
+      assert.equal(view.host.textContent.includes('OLD_FILTER'), false);
+      assert.equal(view.host.querySelector('[role="dialog"]'), null);
+    } finally { if (view) await view.close(); globalThis.fetch = previous; }
+  });
+}
+
+test('returning to a previous token never revives its previous successful result', async () => {
+  const previous = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    if (++calls === 1) return new Response(JSON.stringify({ items: [{ id: 'old', fullName: 'PREVIOUS_SESSION' }], total: 1 }));
+    return new Promise(() => {});
+  };
+  let view;
+  try {
+    view = await mount(AdminUsersPage, { accessToken: 'A', fetchOnMount: true });
+    assert.ok(view.host.textContent.includes('PREVIOUS_SESSION'));
+    await view.rerender({ accessToken: 'B', fetchOnMount: true });
+    await view.rerender({ accessToken: 'A', fetchOnMount: true });
+    assert.equal(view.host.textContent.includes('PREVIOUS_SESSION'), false);
+  } finally { if (view) await view.close(); globalThis.fetch = previous; }
+});
