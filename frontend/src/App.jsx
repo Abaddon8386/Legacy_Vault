@@ -18,6 +18,7 @@ import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
 import SubscriptionPage from './pages/subscription/SubscriptionPage.jsx';
 import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
+import LegalLiveWorkflow from './pages/legal/LegalLiveWorkflow.jsx';
 import LegalApprovalReviewPage from './pages/legal/LegalApprovalReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
@@ -383,7 +384,7 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App({ invitationActions } = {}) {
+export default function App({ invitationActions, legalDiscovery } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const [session, setSession] = useState(readStoredSession);
@@ -761,6 +762,27 @@ export default function App({ invitationActions } = {}) {
     );
   }
 
+  const legalLiveTabs = {
+    '/legal': 'death-verification', '/legal/death-verification': 'death-verification',
+    '/legal/will-document-verification': 'will-document-verification',
+    '/legal/basis-route-selection': 'basis-route-selection', '/legal/dossier-review': 'dossier-review',
+    '/legal/approval-review': 'approval-review', '/legal/controlled-unlock': 'controlled-unlock',
+  };
+  if (legalLiveTabs[path] && isSessionActive(session) && session.user.roles.includes('LEGAL_VERIFIER')) {
+    const selectedCaseId = new URLSearchParams(location.split('?')[1] || '').get('caseId') || '';
+    const navigateLegalTab = tab => {
+      if (tab === 'account-profile' || tab === 'account-edit') return navigateTo(resolveAccountRoute(tab === 'account-profile' ? '/account/profile' : '/account/edit'));
+      if (tab === 'beneficiary-home') return navigateTo('/beneficiary');
+      const target = Object.keys(legalLiveTabs).find(route => route !== '/legal' && legalLiveTabs[route] === tab);
+      if (target) { const params = new URLSearchParams({ lang }); if (selectedCaseId) params.set('caseId', selectedCaseId); navigateTo(`${target}?${params}`); }
+    };
+    return <div className="lv-app-root"><AppShell role="LEGAL" session={session} user={session.user} lang={lang}
+      currentTab={legalLiveTabs[path]} isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null}
+      onRefresh={handleRefresh} isRefreshing={isRefreshing} onNavigateTab={navigateLegalTab}>
+      <LegalLiveWorkflow key={`${session.user.id}:${session.accessToken}`} session={session} lang={lang}
+        step={legalLiveTabs[path]} caseId={selectedCaseId} discovery={legalDiscovery} onNavigate={navigateTo} onUnauthorized={logout} />
+    </AppShell></div>;
+  }
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (path === '/legal/approval-review') {
     if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
