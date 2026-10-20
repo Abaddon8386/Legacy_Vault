@@ -143,3 +143,10 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - PS-58 derives stale approval by comparing the current dossier snapshot in `LegalApprovalGuard`; it does not append a separate invalidation event. Confirm whether an explicit invalidation record is required for audit/reporting. Do not treat the derived guard as a persisted invalidation event.
 - Main Flow ST-28 requires a completed handover record signed by Staff and every Beneficiary. PS-61 `STAFF_ATTESTATION` represents Staff confirmation only. The group must decide the evidence/signature model and whether the receipt is issued before or after PS-71 closes the session. No electronic signature or Beneficiary signature is claimed by the current schema.
 - Main Flow ST-23 lists `IN_PERSON_PRESENT`, while PS-60 V24/runtime session states are `OPEN`, `COMPLETED`, and `CANCELLED`. Confirm whether this is a workflow milestone or a required persisted session status before changing the enum or migration.
+
+## PS-85 — Google account onboarding and linking (pending owner decision)
+
+- `POST /api/v1/auth/google` accepts only an ID token whose verified `sub` already maps to a LegacyVault account in `dbo.external_auth_identities`.
+- Unknown `sub` is rejected with generic `401 INVALID_CREDENTIALS`; no account is created and a matching email never links accounts.
+- No API or admin workflow currently creates/revokes these mappings. The migration creates an empty table; the project owner must approve first-time Google registration, account-linking authorization/proof, conflict handling, and revocation/audit policy before any provisioning path is implemented.
+- Until that decision and provisioning path exist, Google sign-in is intentionally unavailable to unlinked users. Do not treat mocked verifier tests or an empty migration as evidence of a real Google integration.

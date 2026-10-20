@@ -127,8 +127,16 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        List<String> securityRoles = userRoleRepository
-                .findByUser_UserId(user.getUserId())
+        return issueLoginResponseForActiveUser(user);
+    }
+
+    /** Shared JWT/session issuance for password and already-linked provider logins. */
+    LoginResponse issueLoginResponseForActiveUser(User user) {
+        if (user == null || !"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        List<String> securityRoles = userRoleRepository.findByUser_UserId(user.getUserId())
                 .stream()
                 .map(UserRole::getRole)
                 .filter(Objects::nonNull)

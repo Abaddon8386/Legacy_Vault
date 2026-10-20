@@ -42,6 +42,25 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 - **Nghiệp vụ:** chỉ user active được xác thực; `deleted_at != null` bị từ chối.
 - **Audit:** `AUTH_LOGIN_SUCCEEDED` / `AUTH_LOGIN_FAILED` (ghi email đã che hoặc userId nếu có; không ghi mật khẩu).
 
+## POST /api/v1/auth/google — PS-85
+
+- **Quyền:** công khai; nhận Google Identity Services (GIS) ID credential từ callback PS-83.
+- **Request:** `{ "credential": "<Google ID token>" }`. Backend xác minh chữ ký RS256 qua JWKS chính thức Google,
+  issuer (`accounts.google.com` hoặc `https://accounts.google.com`), audience bằng `GOOGLE_CLIENT_ID`, thời hạn,
+  `iat` và `sub`. Client không gửi profile/email/role để định danh tài khoản.
+- **Response 200:** cùng `LoginResponse` với đăng nhập mật khẩu; JWT, thời hạn và role đều lấy từ LegacyVault.
+- **Lỗi:** `400 VALIDATION_FAILED`; `401 INVALID_GOOGLE_CREDENTIAL` cho token không hợp lệ/hết hạn/dùng lại;
+  `401 INVALID_CREDENTIALS` cho subject chưa liên kết hoặc tài khoản không `ACTIVE`/đã xóa;
+  `503 GOOGLE_SIGNIN_UNAVAILABLE` khi thiếu cấu hình client ID hoặc không truy cập được Google JWKS.
+- Credential hợp lệ chỉ được đổi lấy phiên thành công một lần. Database lưu fingerprint SHA-256 (không lưu credential);
+  các fingerprint hết hạn được dọn ở lần đăng nhập Google tiếp theo. Endpoint stateless, nhận JSON và không dùng cookie;
+  CORS vẫn giới hạn browser origin theo cấu hình.
+- Bảng `dbo.external_auth_identities` ánh xạ chính xác `provider_code=GOOGLE` + Google `sub` sang tài khoản. PS-85
+  không đăng ký Google, không liên kết theo email, không tự tạo/liên kết tài khoản và không cấp role. Subject chưa có
+  mapping bị từ chối bằng lỗi chung `INVALID_CREDENTIALS`. Cách cấp/thu hồi liên kết và chính sách tài khoản Google
+  mới vẫn cần chủ dự án phê duyệt; xem `open-decisions.md`.
+- **Audit:** dùng `AUTH_LOGIN_SUCCEEDED`/`AUTH_LOGIN_FAILED` hiện có, không ghi credential, token, subject hoặc profile.
+
 ## GET /api/v1/auth/me — **[D-API-23]**
 
 - **Quyền:** đã đăng nhập. **Response 200:** như `user` ở trên. **Lỗi:** `401 UNAUTHENTICATED`.

@@ -556,6 +556,43 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/InvalidCredentials' }
 
+  /api/v1/auth/google:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng Google GIS ID credential (PS-85)
+      description: Backend xác minh OIDC/JWKS. Chỉ subject đã được liên kết tường minh với tài khoản LegacyVault mới đăng nhập được; không tạo tài khoản hoặc ghép theo email.
+      x-status: implemented
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+            example: { credential: '<Google ID token>' }
+      responses:
+        '200':
+          description: JWT LegacyVault với role lấy từ database; cùng cấu trúc với đăng nhập mật khẩu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Credential Google sai/hết hạn/đã dùng lại, hoặc danh tính chưa liên kết/tài khoản không đủ điều kiện.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                invalidGoogleCredential:
+                  value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_GOOGLE_CREDENTIAL, messageKey: error.auth.googleCredentialInvalid, message: 'Thông tin xác thực Google không hợp lệ, đã hết hạn hoặc đã được sử dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+                unlinkedIdentity:
+                  value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_CREDENTIALS, messageKey: error.auth.invalidCredentials, message: 'Email hoặc mật khẩu không đúng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '503':
+          description: Backend thiếu Google Client ID hoặc không truy cập được Google JWKS.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+
   /api/v1/auth/me:
     get:
       tags: [Auth]
@@ -2684,6 +2721,8 @@ components:
             - MALFORMED_REQUEST
             - UNAUTHENTICATED
             - INVALID_CREDENTIALS
+            - INVALID_GOOGLE_CREDENTIAL
+            - GOOGLE_SIGNIN_UNAVAILABLE
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
@@ -2759,6 +2798,12 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string, format: password, writeOnly: true }
+    GoogleLoginRequest:
+      type: object
+      required: [credential]
+      additionalProperties: false
+      properties:
+        credential: { type: string, minLength: 1, maxLength: 8192, writeOnly: true, description: GIS ID token; backend verifies the signature and claims. }
     UserResponse:
       type: object
       required: [id, fullName, email, roles]
