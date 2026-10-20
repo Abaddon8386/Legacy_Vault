@@ -2647,6 +2647,15 @@ components:
         allocationHash: { type: string, minLength: 64, maxLength: 64 }
         decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
         decidedAt: { type: string, format: date-time }
+    CompleteLegalBasisReviewRequest:
+      type: object
+      required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
     RecordLegalBasisReviewRequest:
       type: object
       required: [reason]
@@ -3485,13 +3494,3 @@ components:
             storage: { type: boolean }
         vaultCreated: { type: boolean }
         evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
-
-    CompleteLegalBasisReviewRequest:
-      type: object
-      required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
-      properties:
-        reason: { type: string, minLength: 1, maxLength: 1000 }
-        versionNo: { type: integer, minimum: 1 }
-        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
-        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
-        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
