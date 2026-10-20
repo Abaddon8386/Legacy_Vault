@@ -49,7 +49,6 @@ import AccountProfilePage from './pages/account/AccountProfilePage.jsx';
 import { canAccessAccountProfile } from './utils/accountProfileValidation.js';
 import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
-import LegalLiveWorkflow from './pages/legal/LegalLiveWorkflow.jsx';
 
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
