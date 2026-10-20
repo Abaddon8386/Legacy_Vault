@@ -22,3 +22,11 @@ Lượt bổ sung `DmsMinuteSqlServerTest,LegacyvaultBackendApplicationTests` tr
 Xem [contract DMS](../api-contracts/dms.md) và OpenAPI. FE mới phải đọc `checkIntervalMinutes`, không ép null days thành một ngày. Scheduler mặc định quét 60 giây, có thể trễ khi backlog; API không hứa exact-second delivery. Những dữ liệu cũ trên 180 ngày không bị rút ngắn; request cấu hình mới chịu max mới.
 
 V34 (PS-86) và V35 (PS-80) là PR đang mở; nếu triển khai cùng V36 thì áp dụng các version thấp trước, hoặc điều phối migration version mới, không bật out-of-order/repair. Rollback binary phải giữ reader phút/ngày nullable; không mất thời lượng đã cấu hình. Không commit handoff/secret/log, không merge hoặc đổi Jira.
+
+## Migration/concurrency review follow-up
+
+Added real SQL Server V36 failure-atomicity test: force a constraint-name collision after ALTER/add-column, verify the minute column and nullable-day ALTER both roll back, no failed V36 history remains, old values/deadline are unchanged, then remove only the fixture sentinel and retry successfully without repair. A legacy day-only UPDATE against a 90-minute row is rejected atomically by the consistency CHECK; duration/deadline stay unchanged.
+
+Rollback boundary is explicit: once non-whole-day rows exist, do not deploy a day-only binary, drop minutes, round durations, rewrite archived rows or repair Flyway. Roll back only to a minutes-aware binary; preserve additive schema and migration history. Preflight count of check_interval_days IS NULL identifies incompatible rows, not permission to rewrite them. V34/V35 must precede V36/V37 when deployed together.
+
+Targeted DMS policy/minute SQL/upgrade/failure-rollback suite: 12 passed, zero failures/skips. Four-PR integration also runs the existing scheduler concurrency opt-in separately. No existing SQL migration was edited.
