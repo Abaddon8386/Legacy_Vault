@@ -1,3 +1,4 @@
+import {staffFixture, deliveredItem} from './staffReviewFixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
@@ -21,18 +22,20 @@ const originalFetch=globalThis.fetch;
 test.afterEach(()=>{globalThis.fetch=originalFetch;});
 async function mount(Component,extra={}){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);await act(async()=>root.render(React.createElement(Component,{...props,...extra})));return{host,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 test('Review: OPEN session with server-complete gates can close before a Staff receipt exists',async()=>{
-  globalThis.fetch=async()=>json([]);
+  globalThis.fetch=staffFixture();
   const v=await mount(Close,{sessionStatus:'OPEN',assetData:{total:1,delivered:1},beneficiaryData:{total:1,confirmed:1}});
   try{const close=v.host.querySelector('.lv-ca-btn-primary');assert.ok(close);assert.equal(close.disabled,false,'BE requires close proof BEFORE receipt creation');}finally{await v.close();}
 });
 test('Review: missing server gate data must not mark completion or enable receipt creation',async()=>{
-  const urls=[];globalThis.fetch=async(url)=>{urls.push(url);return json([]);};const v=await mount(Close);
+  const urls=[];globalThis.fetch=async(url)=>{urls.push(url);return url.endsWith('/completion-progress') ? json([]) : staffFixture()(url);};const v=await mount(Close);
   try{const receipt=find(v.host,'Generate Staff Receipt');assert.ok(receipt);assert.equal(receipt.disabled,true);assert.ok(urls.some(url=>url.endsWith('/completion-progress')),'App does not supply gates, so the page must load current progress from BE');}finally{await v.close();}
 });
 test('Review: live receipt request must never contain synthetic recipient or asset IDs',async()=>{
-  let body;globalThis.fetch=async(_url,init)=>init.method==='POST'?(body=JSON.parse(init.body),json({message:'Invalid UUID'},400)):json([]);
-  const v=await mount(Close,{sessionStatus:'COMPLETED',assetData:{total:1,delivered:1},beneficiaryData:{total:1,confirmed:1}});
-  try{await act(async()=>find(v.host,'Generate Staff Receipt').click());assert.ok(body);assert.match(body.recipientId,/^[0-9a-f]{8}-[0-9a-f-]{27}$/i);assert.ok(body.assetIds.every(id=>/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)));}finally{await v.close();}
+  let body;globalThis.fetch=async(url,init)=>init?.method==='POST'?(body=JSON.parse(init.body),json({message:'Invalid UUID'},400)):staffFixture({status:'COMPLETED',deliveries:[{...deliveredItem,assetId:recipient}]})(url);
+  const vNoData=await mount(Close,{sessionStatus:'COMPLETED',assetData:{total:1,delivered:1},beneficiaryData:{total:1,confirmed:1}});
+  try{await act(async()=>find(vNoData.host,'Generate Staff Receipt')?.click());assert.equal(body,undefined,'Must not substitute sessionId/caseId as recipientId/assetId');}finally{await vNoData.close();}
+  const vWithData=await mount(Close,{sessionStatus:'COMPLETED',assetData:{total:1,delivered:1},beneficiaryData:{total:1,confirmed:1},recipientId:recipient,assetIds:[recipient]});
+  try{await act(async()=>find(vWithData.host,'Generate Staff Receipt')?.click());assert.ok(body);assert.equal(body.recipientId,recipient);assert.deepEqual(body.assetIds,[recipient]);assert.notEqual(body.recipientId,sessionId);assert.notEqual(body.assetIds[0],caseId);}finally{await vWithData.close();}
 });
 test('Review: BE-confirmed beneficiary must be displayed as confirmed',async()=>{
   globalThis.fetch=async()=>json([{confirmationId:caseId,sessionId,beneficiaryId:recipient,status:'CONFIRMED',confirmedBy:caseId,confirmedAt:'2026-10-20T08:00:00Z',receiptReference:'REVIEW'}]);

@@ -18,6 +18,8 @@ import {
   confirmBeneficiary,
 } from './handoverSessionService.js';
 import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';
+import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './BeneficiaryConfirmationPage.css';
 
 const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
@@ -46,18 +48,25 @@ function normalizeBeneficiaryItem(b, lang = 'vi') {
     rawName: rawName.trim(),
     confirmationStatus,
     status: isConfirmed ? 'CONFIRMED' : isPending ? 'PENDING' : b.status,
-    deliveryStatus: b.deliveryStatus || (isConfirmed ? 'DELIVERED' : 'PENDING'),
+    deliveryStatus: b.deliveryStatus || null,
     receiptReference: b.receiptReference || b.confirmationReceipt || '',
     confirmedAt: b.confirmedAt || null,
   };
 }
 
-export default function BeneficiaryConfirmationPage({
+export default function BeneficiaryConfirmationPage(props) {
+  const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const key = JSON.stringify([props.session?.user?.id, props.accessToken || props.session?.accessToken,
+    props.caseId || props.caseReference || query.get('caseId'), props.sessionId || query.get('sessionId')]);
+  return <BeneficiaryConfirmationPageContext key={key} {...props} />;
+}
+function BeneficiaryConfirmationPageContext({
   lang = 'vi',
   initialBeneficiaries = EMPTY_INITIAL_BENEFICIARIES,
   caseId: propCaseId = '',
   sessionId: propSessionId = '',
   caseReference: propCaseReference = '',
+  caseItem: propCaseItem = null,
   beneficiaries: propBeneficiaries,
   onFetchBeneficiaries,
   loadBeneficiaries,
@@ -65,6 +74,8 @@ export default function BeneficiaryConfirmationPage({
   session = null,
   preview = false,
   isDevPreview = false,
+  onCaseChange = null,
+  onUnauthorized = null,
   onNavigateCases = null,
 }) {
   const t = beneficiaryConfirmationI18n[lang] || beneficiaryConfirmationI18n.vi;
@@ -81,6 +92,7 @@ export default function BeneficiaryConfirmationPage({
 
   const [caseReference, setCaseReference] = useState(initialCase);
   const [sessionId, setSessionId] = useState(initialSession);
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [loadedCaseId, setLoadedCaseId] = useState(() => {
     if (initialCase && (propBeneficiaries || (initialBeneficiaries && initialBeneficiaries.length > 0))) {
       return initialCase;
@@ -101,6 +113,8 @@ export default function BeneficiaryConfirmationPage({
 
   const activeCaseRef = useRef(initialCase);
   const lastFetchedKeyRef = useRef('');
+  const confirmationController = useRef(null);
+  useEffect(() => () => confirmationController.current?.abort(), []);
 
   const effectivePropCase = propCaseReference || propCaseId || '';
   const [prevPropCase, setPrevPropCase] = useState(effectivePropCase);
@@ -197,6 +211,9 @@ export default function BeneficiaryConfirmationPage({
   }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, t.informationUnavailable]);
 
   const handleCaseChange = (newCase) => {
+    confirmationController.current?.abort();
+    confirmationController.current = null;
+    setIsSubmitting(false);
     activeCaseRef.current = newCase;
     lastFetchedKeyRef.current = '';
     setCaseReference(newCase);
@@ -229,6 +246,9 @@ export default function BeneficiaryConfirmationPage({
   };
 
   const handleReset = () => {
+    confirmationController.current?.abort();
+    confirmationController.current = null;
+    setIsSubmitting(false);
     activeCaseRef.current = '';
     lastFetchedKeyRef.current = '';
     setCaseReference('');
@@ -245,7 +265,7 @@ export default function BeneficiaryConfirmationPage({
   // Submit xác nhận người thụ hưởng
   const handleSubmitConfirmation = async (e) => {
     e.preventDefault();
-    if (isSubmitting || !selectedBeneficiaryId) return;
+    if (confirmationController.current || isSubmitting || !selectedBeneficiaryId) return;
 
     setActionSuccess(null);
     setActionError(null);
@@ -270,6 +290,8 @@ export default function BeneficiaryConfirmationPage({
     }
 
     setIsSubmitting(true);
+    const controller = new AbortController();
+    confirmationController.current = controller;
     try {
       const confirmed = await confirmBeneficiary(caseReference, sessionId, selectedBeneficiaryId, {
         receiptReference: trimmedReceipt,
@@ -277,7 +299,9 @@ export default function BeneficiaryConfirmationPage({
         accessToken: effectiveAccessToken,
         isDevPreview: effectiveIsDevPreview,
         lang,
+        signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
 
       // Cập nhật trạng thái người thụ hưởng sang CONFIRMED
       setBeneficiaries((prev) =>
@@ -301,9 +325,10 @@ export default function BeneficiaryConfirmationPage({
       setReceiptReference('');
       setErrors({});
     } catch (err) {
+      if (controller.signal.aborted) return;
       setActionError(err.message || (lang === 'en' ? 'Confirmation failed.' : 'Ghi nhận xác nhận thất bại.'));
     } finally {
-      setIsSubmitting(false);
+      if (!controller.signal.aborted) { confirmationController.current = null; setIsSubmitting(false); }
     }
   };
 
@@ -327,6 +352,7 @@ export default function BeneficiaryConfirmationPage({
 
   return (
     <div className="lv-beneficiary-confirmation-view">
+      <p role="note">{lang === 'en' ? 'Record the recipient’s in-person signature at the counter. Legal approval is completed beforehand.' : 'Ghi nhận người nhận ký trực tiếp tại quầy. Phân bổ phải được Legal duyệt trước.'}</p>
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         {caseReference && sessionId && (
@@ -367,6 +393,42 @@ export default function BeneficiaryConfirmationPage({
           </button>
         )}
       </div>
+
+      {/* Staff Case Context Bar */}
+      <StaffCaseContextBar
+        caseId={caseReference}
+        caseItem={propCaseItem}
+        sessionId={sessionId}
+        onOpenSelector={() => setIsSelectorOpen(true)}
+        onChangeCase={() => setIsSelectorOpen(true)}
+        lang={lang}
+      />
+
+      {/* Staff Case Selector Modal */}
+      <StaffCaseSelectorModal
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelectCase={(item) => {
+          const newId = item.caseId || item.id;
+          setCaseReference(newId);
+          setSessionId(''); // Đổi hồ sơ xóa sessionId cũ
+          setBeneficiaries([]);
+          setLoadedCaseId('');
+          setSelectedBeneficiaryId('');
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('caseId', newId);
+            url.searchParams.delete('sessionId');
+            window.history.replaceState({}, '', url.pathname + url.search);
+          }
+          onCaseChange?.(newId, item);
+        }}
+        accessToken={effectiveAccessToken}
+        isDevPreview={effectiveIsDevPreview}
+        lang={lang}
+        currentCaseId={caseReference}
+        onUnauthorized={onUnauthorized}
+      />
 
       {/* Warning when context is missing in real mode */}
       {(!caseReference || !sessionId) && !effectiveIsDevPreview && (
@@ -444,6 +506,24 @@ export default function BeneficiaryConfirmationPage({
               onChange={(e) => handleCaseChange(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="lv-confirm-btn-select-case"
+            onClick={() => setIsSelectorOpen(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid #164639',
+              backgroundColor: '#164639',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
+          </button>
           <button
             type="button"
             className="lv-confirm-btn-reset"
@@ -567,7 +647,7 @@ export default function BeneficiaryConfirmationPage({
                     b.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.PENDING ||
                     b.status === 'PENDING';
                   const statusLabel = isConfirmed
-                    ? (lang === 'vi' ? `${t.statusConfirmed} (Confirmed)` : t.statusConfirmed)
+                    ? t.statusConfirmed
                     : isPending
                       ? t.statusPending
                       : t.statusUnknown;

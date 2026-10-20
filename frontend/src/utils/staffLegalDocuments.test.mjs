@@ -111,13 +111,18 @@ test('PS-96: validateStaffLegalDocumentForm validates required fields, future da
 });
 
 test('PS-96: fetchBasisDossier loads dossier and detects not-found state in simulation', async () => {
-  // Existing notarial case
-  const notarialRes = await fetchBasisDossier('case-standard', { isDevPreview: true, isTest: true });
+  // Existing notarial case (dùng case-notarial đích danh)
+  const notarialRes = await fetchBasisDossier('case-notarial', { isDevPreview: true, isTest: true });
   assert.equal(notarialRes.notFound, false);
   assert.equal(notarialRes.dossier.route, 'NOTARIAL');
   assert.equal(notarialRes.dossier.status, 'LEGAL_BASIS_PROVIDED');
   assert.equal(notarialRes.dossier.versions.length, 1);
   assert.equal(notarialRes.dossier.versions[0].current, true);
+
+  // Default COURT simulation
+  const courtRes = await fetchBasisDossier('case-court', { isDevPreview: true, isTest: true });
+  assert.equal(courtRes.notFound, false);
+  assert.equal(courtRes.dossier.route, 'COURT');
 
   // Case with no dossier yet (Legal has not classified)
   const notFoundRes = await fetchBasisDossier('case-not-found', { isDevPreview: true, isTest: true });

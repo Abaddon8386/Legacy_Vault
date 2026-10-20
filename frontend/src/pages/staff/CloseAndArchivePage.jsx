@@ -1,293 +1,145 @@
-import { useState, useEffect } from 'react';
-import {
-  Archive,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  FileText,
-  Lock,
-  RefreshCw,
-  FileCheck,
-  ArrowLeft,
-} from 'lucide-react';
-import {
-  evaluateCloseArchivePreconditions,
-  isCaseArchived,
-} from '../../utils/closeAndArchiveValidation.js';
-import {
-  fetchHandoverReceipts,
-  fetchCompletionProgress,
-  createHandoverReceipt,
-  closeHandoverSession,
-  archiveHandoverCase,
-} from './handoverSessionService.js';
+import { useState, useEffect, useRef } from 'react';
+import { Archive, CheckCircle2, Clock, AlertTriangle, FileText, Lock, RefreshCw, FileCheck, ArrowLeft } from 'lucide-react';
+import { evaluateCloseArchivePreconditions, isCaseArchived } from '../../utils/closeAndArchiveValidation.js';
+import { fetchHandoverReceipts, fetchCompletionProgress, fetchHandoverSession, fetchHandoverDeliveries, createHandoverReceipt, closeHandoverSession, archiveHandoverCase, isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
+import { loadStaffCase } from './staffLiveService.js';
 import { closeAndArchiveI18n } from './closeAndArchiveI18n.js';
+import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CloseAndArchivePage.css';
 
-const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
-export default function CloseAndArchivePage({
-  lang = 'vi',
-  caseId: propCaseId = '',
-  sessionId: propSessionId = '',
-  sessionStatus: propSessionStatus = null,
-  vaultStatus: propVaultStatus = null,
-  caseStatus: propCaseStatus = null,
-  assetData = null,
-  beneficiaryData = null,
-  receipts: propReceipts = null,
-  recipientId: propRecipientId = '',
-  recipient: propRecipient = '',
-  assetIds: propAssetIds = [],
-  accessToken = null,
-  session = null,
-  preview = false,
-  isDevPreview = false,
+// Context owns the whole page lifetime, including pending mutations and private state.
+export default function CloseAndArchivePage(props) {
+  const token = props.accessToken || props.session?.accessToken || null;
+  const preview = isCounterHandoverSimulationPermitted({accessToken: token, isDevPreview: props.preview || props.isDevPreview});
+  const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const caseId = props.caseId || query.get('caseId') || (preview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
+  const sessionId = props.sessionId || query.get('sessionId') || (preview ? 'HDS-2026-001' : '');
+  return <CloseArchiveContext key={JSON.stringify([props.session?.user?.id, token, caseId, sessionId, preview])}
+    {...props} caseId={caseId} sessionId={sessionId} effectiveAccessToken={token} effectiveIsDevPreview={preview} />;
+}
+
+function CloseArchiveContext({
+  lang = 'vi', caseId, sessionId, effectiveAccessToken, effectiveIsDevPreview,
+  caseItem: propCaseItem = null,
+  sessionStatus: propSessionStatus = null, vaultStatus: propVaultStatus = null,
+  caseStatus: propCaseStatus = null, assetData = null, beneficiaryData = null,
+  receipts: propReceipts = null, recipientId: propRecipientId = '', assetIds: propAssetIds = [],
+  onCaseChange = null, onUnauthorized = null,
   onNavigateCases = null,
 }) {
   const t = closeAndArchiveI18n[lang] || closeAndArchiveI18n.vi;
-
-  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
-  const effectiveAccessToken = accessToken || session?.accessToken || null;
-
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const caseId = propCaseId || searchParams?.get('caseId') || (effectiveIsDevPreview ? '6f1a4c2d-0000-4000-8000-000000000001' : '');
-  const sessionId = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
-
-  const [sessionStatus, setSessionStatus] = useState(propSessionStatus || (effectiveIsDevPreview ? 'ACTIVE' : ''));
-  const [vaultStatus, setVaultStatus] = useState(propVaultStatus || (effectiveIsDevPreview ? 'UNLOCKED' : ''));
-  const [caseStatus, setCaseStatus] = useState(propCaseStatus || (effectiveIsDevPreview ? 'OPEN' : ''));
-  const [fetchedReceipts, setFetchedReceipts] = useState([]);
-  const [serverAssetData, setServerAssetData] = useState(null);
-  const [serverBeneficiaryData, setServerBeneficiaryData] = useState(null);
-
-  const receipts = propReceipts !== null ? propReceipts : fetchedReceipts;
-
-  const [isCreatingReceipt, setIsCreatingReceipt] = useState(false);
-  const [isClosingSession, setIsClosingSession] = useState(false);
-  const [isArchiving, setIsArchiving] = useState(false);
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [server, setServer] = useState(null);
+  const [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [busy, setBusy] = useState('');
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [selectedRecipient, setSelectedRecipient] = useState(propRecipientId);
+  const alive = useRef(false);
+  const mutation = useRef(null);
+  const options = {accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang};
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; mutation.current?.abort(); };
+  }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const opts = {accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang, signal: controller.signal};
+    async function load() {
+      try {
+        await Promise.resolve();
+        if (controller.signal.aborted) return;
+        setLoading(true);
+        setLoadError(null);
+        if (!caseId || !sessionId) throw new Error(t.contextRequired);
+        const [session, caseInfo, receipts, deliveries] = await Promise.all([
+          propSessionStatus ? Promise.resolve({status: propSessionStatus}) : fetchHandoverSession(caseId, sessionId, opts),
+          propCaseStatus ? Promise.resolve({status: propCaseStatus}) :
+            effectiveIsDevPreview ? Promise.resolve({status: 'OPEN'}) : loadStaffCase(caseId, opts),
+          propReceipts !== null ? Promise.resolve(propReceipts) : fetchHandoverReceipts(caseId, sessionId, opts),
+          fetchHandoverDeliveries(caseId, sessionId, opts),
+        ]);
+        // Progress requires a current workflow and can conflict after archival. History remains readable.
+        const closed = caseInfo.status === 'CLOSED' || propVaultStatus === 'ARCHIVED';
+        const progress = closed ? null : assetData && beneficiaryData
+          ? {assets: assetData, beneficiaries: beneficiaryData}
+          : await fetchCompletionProgress(caseId, sessionId, opts);
+        if (controller.signal.aborted) return;
+        setServer({revision, sessionStatus: session.status, caseStatus: caseInfo.status, receipts, deliveries, progress});
+      } catch (error) {
+        if (!controller.signal.aborted) { setServer(null); setLoadError(error.message || t.loadFailed); }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    load();
+    return () => controller.abort();
+  }, [caseId, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, revision,
+    propSessionStatus, propCaseStatus, propVaultStatus, propReceipts, assetData, beneficiaryData, t.contextRequired, t.loadFailed]);
+
+  const sessionStatus = server?.sessionStatus || propSessionStatus || '';
+  const caseStatus = server?.caseStatus || propCaseStatus || '';
+  const vaultStatus = propVaultStatus || '';
   const isArchived = isCaseArchived(vaultStatus, caseStatus);
-
-  // Evaluate pre-conditions strictly from real data or server data
-  const effectiveAssetData = assetData !== null && assetData !== undefined
-    ? assetData
-    : serverAssetData;
-  const effectiveBeneficiaryData = beneficiaryData !== null && beneficiaryData !== undefined
-    ? beneficiaryData
-    : serverBeneficiaryData;
-
-  const evaluation = evaluateCloseArchivePreconditions(
-    effectiveAssetData || {},
-    effectiveBeneficiaryData || {}
-  );
-  const { isAssetComplete, isBeneficiaryComplete } = evaluation;
-
-  // Tự động load receipts nếu chưa có từ props
-  useEffect(() => {
-    if (propReceipts !== null) {
-      return;
-    }
-    if (!caseId || !sessionId) return;
-
-    let active = true;
-    fetchHandoverReceipts(caseId, sessionId, {
-      accessToken: effectiveAccessToken,
-      isDevPreview: effectiveIsDevPreview,
-      lang,
-    })
-      .then((res) => {
-        if (active) {
-          setFetchedReceipts(Array.isArray(res) ? res : []);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setFetchedReceipts([]);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [caseId, sessionId, propReceipts, effectiveAccessToken, effectiveIsDevPreview, lang]);
-
-  // Tự động nạp tiến độ và session status từ BE nếu App chưa truyền gate
-  useEffect(() => {
-    if (assetData !== null && assetData !== undefined && beneficiaryData !== null && beneficiaryData !== undefined) {
-      return;
-    }
-    if (!caseId || !sessionId) return;
-
-    let active = true;
-    fetchCompletionProgress(caseId, sessionId, {
-      accessToken: effectiveAccessToken,
-      isDevPreview: effectiveIsDevPreview,
-      lang,
-    })
-      .then((res) => {
-        if (!active || !res) return;
-        if (res.assets) {
-          setServerAssetData({
-            delivered: res.assets.completed ?? res.assets.delivered ?? 0,
-            total: res.assets.total ?? 0,
-          });
-        }
-        if (res.beneficiaries) {
-          setServerBeneficiaryData({
-            confirmed: res.beneficiaries.completed ?? res.beneficiaries.confirmed ?? 0,
-            total: res.beneficiaries.total ?? 0,
-          });
-        }
-        if (res.sessionStatus || res.status) {
-          setSessionStatus(res.sessionStatus || res.status);
-        }
-      })
-      .catch(() => {
-        // Keep indeterminate when server fails or data unavailable
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [caseId, sessionId, assetData, beneficiaryData, effectiveAccessToken, effectiveIsDevPreview, lang]);
-
-  // Resolve status label from server status code
-  const resolveSessionLabel = (status) => {
-    if (typeof status !== 'string') return t.statusUnavailable;
-    const s = status.trim().toUpperCase();
-    if (s === 'COMPLETED') return t.statusSessionCompleted;
-    if (s === 'ACTIVE' || s === 'OPEN') return t.statusSessionActive;
-    if (s === 'HANDOVER_IN_PROGRESS') return t.statusSessionInProgress;
-    return t.statusUnavailable;
-  };
-
-  const resolveVaultLabel = (status) => {
-    if (typeof status !== 'string') return t.statusUnavailable;
-    const s = status.trim().toUpperCase();
-    if (s === 'ARCHIVED') return t.statusVaultArchived;
-    if (s === 'LOCKED') return t.statusVaultLocked;
-    if (s === 'OPEN' || s === 'UNLOCKED') return t.statusVaultOpen;
-    return t.statusUnavailable;
-  };
-
-  const resolveCaseLabel = (status) => {
-    if (typeof status !== 'string') return t.statusUnavailable;
-    const s = status.trim().toUpperCase();
-    if (s === 'CLOSED') return t.statusCaseClosed;
-    if (s === 'IN_PROGRESS' || s === 'OPEN') return t.statusCaseInProgress;
-    return t.statusUnavailable;
-  };
-
-  // 1. Tạo biên bản bàn giao của Staff (POST /receipts)
-  // BE yêu cầu: Chỉ được lập sau khi session COMPLETED và có completion proof!
-  const handleCreateReceipt = async () => {
-    if (isArchived || isCreatingReceipt || !caseId || !sessionId) return;
-    if (sessionStatus !== 'COMPLETED') {
-      setActionError(lang === 'en' ? 'Session must be closed (COMPLETED) before creating staff receipt.' : 'Phiên bàn giao phải được đóng hoàn tất trước khi lập biên bản của Nhân viên quầy.');
-      return;
-    }
-
-    let targetRecipientId = propRecipientId || propRecipient || '';
-    let targetAssetIds = Array.isArray(propAssetIds) && propAssetIds.length > 0 ? propAssetIds : [];
-
-    if (!targetRecipientId && isUuid(sessionId)) {
-      targetRecipientId = sessionId;
-    }
-    if (targetAssetIds.length === 0 && isUuid(caseId)) {
-      targetAssetIds = [caseId];
-    }
-
-    if (effectiveIsDevPreview) {
-      if (!targetRecipientId) targetRecipientId = '33333333-3333-4333-8333-333333333333';
-      if (targetAssetIds.length === 0) targetAssetIds = ['44444444-4444-4444-8444-444444444444'];
-    }
-
-    if (!targetRecipientId || targetAssetIds.length === 0 || !isUuid(targetRecipientId) || !targetAssetIds.every(isUuid)) {
-      setActionError(lang === 'en' ? 'Missing valid recipient or asset UUIDs for handover receipt.' : 'Thiếu mã người nhận hoặc tài sản hợp lệ (UUID) để lập biên bản.');
-      return;
-    }
-
-    setIsCreatingReceipt(true);
-    setActionSuccess(null);
-    setActionError(null);
-
-    try {
-      const newReceipt = await createHandoverReceipt(caseId, sessionId, {
-        recipientId: targetRecipientId,
-        assetIds: targetAssetIds,
-      }, {
-        accessToken: effectiveAccessToken,
-        isDevPreview: effectiveIsDevPreview,
-        lang,
-      });
-
-      setFetchedReceipts((prev) => [newReceipt, ...(prev || [])]);
-      setActionSuccess(lang === 'en' ? 'Handover attestation receipt created successfully.' : 'Đã lập biên bản xác nhận bàn giao của Nhân viên quầy thành công.');
-    } catch (err) {
-      setActionError(err.message || (lang === 'en' ? 'Failed to create receipt.' : 'Lập biên bản bàn giao thất bại.'));
-    } finally {
-      setIsCreatingReceipt(false);
-    }
-  };
-
-  // 2. Đóng phiên bàn giao (POST /close)
-  // BE yêu cầu: Đủ 2 cổng 100% -> đóng phiên -> tạo bằng chứng kiểm toán (không cần Staff receipt trước)
-  const handleCloseSession = async () => {
-    if (isArchived || isClosingSession || sessionStatus === 'COMPLETED' || !caseId || !sessionId) return;
-    setIsClosingSession(true);
-    setActionSuccess(null);
-    setActionError(null);
-
-    try {
-      const closeRes = await closeHandoverSession(caseId, sessionId, {
-        accessToken: effectiveAccessToken,
-        isDevPreview: effectiveIsDevPreview,
-        lang,
-      });
-
-      setSessionStatus('COMPLETED');
-      setActionSuccess(lang === 'en' ? `Handover session ${closeRes.sessionId || sessionId} closed successfully.` : `Phiên bàn giao ${closeRes.sessionId || sessionId} đã được đóng thành công với bằng chứng kiểm toán.`);
-    } catch (err) {
-      setActionError(err.message || (lang === 'en' ? 'Failed to close handover session.' : 'Đóng phiên bàn giao thất bại.'));
-    } finally {
-      setIsClosingSession(false);
-    }
-  };
-
-  // 3. Lưu trữ kho di sản và đóng ca (POST /archive)
-  // BE yêu cầu: Phiên COMPLETED + Đủ bằng chứng kiểm toán + ĐÃ CÓ Staff receipts bao phủ
-  const handleArchiveCase = async () => {
-    if (isArchived || isArchiving || sessionStatus !== 'COMPLETED' || !caseId || !sessionId) return;
-    setIsArchiving(true);
-    setActionSuccess(null);
-    setActionError(null);
-
-    try {
-      await archiveHandoverCase(caseId, sessionId, {
-        accessToken: effectiveAccessToken,
-        isDevPreview: effectiveIsDevPreview,
-        lang,
-      });
-
-      setVaultStatus('ARCHIVED');
-      setCaseStatus('CLOSED');
-      setActionSuccess(lang === 'en' ? 'Vault archived and verification case permanently closed.' : 'Đã lưu trữ kho di sản và hoàn tất đóng ca xác minh thành công. Hồ sơ chuyển sang chế độ Chỉ đọc.');
-    } catch (err) {
-      setActionError(err.message || (lang === 'en' ? 'Failed to archive vault.' : 'Lưu trữ kho di sản thất bại.'));
-    } finally {
-      setIsArchiving(false);
-    }
-  };
-
-  const hasReceipts = Array.isArray(receipts) && receipts.length > 0;
+  const receipts = server?.receipts || [];
+  const {isAssetComplete, isBeneficiaryComplete} = evaluateCloseArchivePreconditions(
+    server?.progress?.assets || {}, server?.progress?.beneficiaries || {});
+  const groups = new Map();
+  for (const item of server?.deliveries || []) {
+    if (item.status !== 'DELIVERED') continue;
+    const assets = groups.get(item.recipientId) || [];
+    if (!assets.includes(item.assetId)) assets.push(item.assetId);
+    groups.set(item.recipientId, assets);
+  }
+  // Explicit target props are only a selection, never authority to invent a relationship.
+  const targetRecipientId = selectedRecipient;
+  const targetAssetIds = (groups.get(targetRecipientId) || []).filter(id => !propAssetIds.length || propAssetIds.includes(id));
+  const superseded = new Set(receipts.map(r => r.supersedesReceiptId).filter(Boolean));
+  const covered = (recipient, asset) => receipts.some(r => !superseded.has(r.receiptId) && r.recipientId === recipient && r.assetIds?.includes(asset));
+  const uncoveredAssetIds = targetAssetIds.filter(id => !covered(targetRecipientId, id));
+  const hasValidReceiptTarget = isUuid(targetRecipientId) && uncoveredAssetIds.length > 0 && uncoveredAssetIds.every(isUuid);
+  const hasReceipts = receipts.length > 0;
+  const allDeliveredCovered = groups.size > 0 && [...groups].every(([recipient, assets]) => assets.every(asset => covered(recipient, asset)));
   const isDualGateReady = Boolean(isAssetComplete && isBeneficiaryComplete);
-  // Thứ tự chuẩn: Đủ 2 gate -> Close -> Lập Staff receipt -> Archive
-  const canCloseSession = !isArchived && sessionStatus !== 'COMPLETED' && isDualGateReady;
-  const canCreateReceipt = !isArchived && sessionStatus === 'COMPLETED' && isDualGateReady;
-  const canArchive = !isArchived && sessionStatus === 'COMPLETED' && isDualGateReady && hasReceipts;
+  const ready = !loading && !loadError && server?.revision === revision && !busy && !isArchived && caseStatus === 'OPEN';
+  const canCloseSession = ready && sessionStatus === 'OPEN' && isDualGateReady;
+  const canCreateReceipt = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasValidReceiptTarget;
+  // BE rechecks coverage against the current full allocation snapshot under lock.
+  const canArchive = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasReceipts && allDeliveredCovered;
+  const isCreatingReceipt = busy === 'receipt', isClosingSession = busy === 'close', isArchiving = busy === 'archive';
+  async function execute(kind, permitted, work) {
+    if (!permitted || mutation.current) return;
+    const controller = new AbortController();
+    mutation.current = controller;
+    setBusy(kind); setActionError(null); setActionSuccess(null);
+    try {
+      await work({...options, signal: controller.signal});
+      if (!alive.current || controller.signal.aborted) return;
+      setActionSuccess(t.saved);
+      setRevision(value => value + 1);
+    } catch (error) {
+      if (alive.current && !controller.signal.aborted) {
+        setActionError(error.message || t.loadFailed);
+        // A rejected mutation may mean the server scope/approval changed.
+        setRevision(value => value + 1);
+      }
+    } finally {
+      if (alive.current && !controller.signal.aborted) { mutation.current = null; setBusy(''); }
+    }
+  }
+  const handleCreateReceipt = () => execute('receipt', canCreateReceipt,
+    opts => createHandoverReceipt(caseId, sessionId, {recipientId: targetRecipientId, assetIds: uncoveredAssetIds}, opts));
+  const handleCloseSession = () => execute('close', canCloseSession, opts => closeHandoverSession(caseId, sessionId, opts));
+  const handleArchiveCase = () => execute('archive', canArchive, opts => archiveHandoverCase(caseId, sessionId, opts));
+  const resolveSessionLabel = status => ({OPEN:t.statusSessionActive, COMPLETED:t.statusSessionCompleted, CANCELLED:t.cancelled}[status] || t.statusUnavailable);
+  const resolveVaultLabel = status => ({ARCHIVED:t.statusVaultArchived, UNLOCKED:t.statusVaultOpen, HANDOVER_IN_PROGRESS:t.statusSessionInProgress, LOCKED:t.statusVaultLocked}[status] || t.statusUnavailable);
+  const resolveCaseLabel = status => ({OPEN:t.statusCaseInProgress, CLOSED:t.statusCaseClosed, CANCELLED:t.cancelled}[status] || t.statusUnavailable);
 
   return (
     <div className="lv-close-archive-view">
@@ -367,6 +219,40 @@ export default function CloseAndArchivePage({
         <p className="lv-ca-subtitle">{t.pageSubtitle}</p>
       </header>
 
+      {/* Staff Case Context Bar */}
+      <StaffCaseContextBar
+        caseId={caseId}
+        caseItem={propCaseItem}
+        sessionId={sessionId}
+        onOpenSelector={() => setIsSelectorOpen(true)}
+        onChangeCase={() => setIsSelectorOpen(true)}
+        lang={lang}
+      />
+
+      {/* Staff Case Selector Modal */}
+      <StaffCaseSelectorModal
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelectCase={(item) => {
+          const newId = item.caseId || item.id;
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('caseId', newId);
+            url.searchParams.delete('sessionId');
+            window.history.replaceState({}, '', url.pathname + url.search);
+          }
+          onCaseChange?.(newId, item);
+        }}
+        accessToken={effectiveAccessToken}
+        isDevPreview={effectiveIsDevPreview}
+        lang={lang}
+        currentCaseId={caseId}
+        onUnauthorized={onUnauthorized}
+      />
+      {effectiveIsDevPreview && <p role="status">{t.demo}</p>}
+      {loading && <p role="status">{t.loading}</p>}
+      {loadError && <div role="alert"><p>{t.loadFailed}</p><button type="button" onClick={() => setRevision(value => value + 1)}>{t.retry}</button></div>}
+
       {/* Read-Only Banner when Archived */}
       {isArchived && (
         <section className="lv-ca-archive-banner" role="status" aria-labelledby="archive-banner-heading">
@@ -424,7 +310,7 @@ export default function CloseAndArchivePage({
       </section>
 
       {/* 2. Pre-Conditions & Dual Gate Evaluation */}
-      <section className="lv-ca-card" aria-labelledby="preconditions-heading">
+      {!isArchived && <section className="lv-ca-card" aria-labelledby="preconditions-heading">
         <h2 id="preconditions-heading" className="lv-ca-card__title">
           {t.preconditionsHeading}
         </h2>
@@ -467,10 +353,18 @@ export default function CloseAndArchivePage({
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* 3. Receipt Summary Section */}
       <section className="lv-ca-card" aria-labelledby="receipt-summary-heading">
+        {!isArchived && <div style={{marginBottom: 16}}>
+          <label htmlFor="staff-receipt-recipient">{t.recipientLabel}</label>
+          <select id="staff-receipt-recipient" value={selectedRecipient} onChange={event => setSelectedRecipient(event.target.value)} disabled={loading || !!busy}>
+            <option value="">{t.selectRecipient}</option>
+            {[...groups.keys()].map(id => <option key={id} value={id}>{id}</option>)}
+          </select>
+          <p>{t.receiptScope}: {targetAssetIds.length}</p>
+        </div>}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
           <div>
             <h2 id="receipt-summary-heading" className="lv-ca-card__title" style={{ margin: 0 }}>
@@ -506,7 +400,7 @@ export default function CloseAndArchivePage({
               ) : (
                 <>
                   <FileCheck size={14} aria-hidden="true" />
-                  <span>{lang === 'en' ? 'Generate Staff Receipt' : 'Lập biên bản xác nhận'}</span>
+                    <span>{t.receiptBtnText}</span>
                 </>
               )}
             </button>
@@ -540,11 +434,11 @@ export default function CloseAndArchivePage({
                     <td>
                       {rc.attestationType || 'STAFF_ATTESTATION'}
                     </td>
-                    <td>{rc.recipientId || rc.recipient || 'ben-001'}</td>
-                    <td>{rc.createdAt ? new Date(rc.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
+                    <td>{rc.recipientId || t.statusUnavailable}</td>
+                    <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
                     <td>
                       <span className="lv-ca-tag">
-                        {lang === 'en' ? 'VERIFIED' : 'HỢP LỆ'}
+                        {t.receiptIssued}
                       </span>
                     </td>
                   </tr>
@@ -579,7 +473,7 @@ export default function CloseAndArchivePage({
                 <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
                   {sessionStatus === 'COMPLETED'
                     ? (lang === 'en' ? 'Session successfully closed with audit proof.' : 'Phiên đã được đóng thành công với bằng chứng kiểm toán.')
-                    : (lang === 'en' ? 'Requires dual completion gates and staff attestation receipt.' : 'Yêu cầu đủ 2 cổng nghiệm thu kép và biên bản xác nhận của Nhân viên quầy.')}
+                    : t.step1DescPending}
                 </p>
               </div>
 
@@ -627,10 +521,10 @@ export default function CloseAndArchivePage({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
-                  {lang === 'en' ? 'Step 2: Archive Vault & Close Case' : 'Bước 2: Lưu trữ kho di sản & Đóng ca'}
+                  {lang === 'en' ? 'Archive Vault & Close Case' : 'Lưu trữ kho di sản & Đóng ca'}
                 </strong>
                 <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-                  {lang === 'en' ? 'Permanently archives the vault and closes the case. Available after session completion.' : 'Lưu trữ vĩnh viễn kho di sản và hoàn tất đóng ca xác minh. Kích hoạt sau khi phiên đã đóng.'}
+                  {t.step2Desc}
                 </p>
               </div>
 

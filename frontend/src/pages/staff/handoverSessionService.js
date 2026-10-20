@@ -1,3 +1,5 @@
+import { getLiveSession } from './liveHandoverService.js';
+import { request, ApiError } from '../../api/http.js';
 import { evaluateSessionOpenPrerequisites } from '../../utils/handoverSessionValidation.js';
 export function assertHandoverWritable(data, options = {}, requireSession = true) {
   const fail = (code, vi, en) => { const error = new Error(options.lang === 'en' ? en : vi); error.code = code; throw error; };
@@ -451,6 +453,24 @@ export async function openHandoverSession(currentCaseData, options = {}) {
   notReadyError.code = 'BACKEND_NOT_READY';
   notReadyError.status = 503;
   throw notReadyError;
+}
+
+/**
+ * PS-63 / PS-97: Lấy chi tiết phiên bàn giao (GET /api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId})
+ */
+export async function fetchHandoverSession(caseId, sessionId, options = {}) {
+  if (isCounterHandoverSimulationPermitted(options)) return {caseId, sessionId, status: 'OPEN'};
+  return getLiveSession(caseId, sessionId, options);
+}
+
+// Delivery history is readable after completion/archive; eligible-assets requires OPEN.
+export async function fetchHandoverDeliveries(caseId, sessionId, options = {}) {
+  if (isCounterHandoverSimulationPermitted(options)) return [];
+  const value = await request(`/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/deliveries`, {...options, expectedStatus: 200});
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!Array.isArray(value) || value.some(item => item.sessionId !== sessionId || item.status !== 'DELIVERED'
+    || !['itemId','recipientId','assetId'].every(key => uuid.test(item[key] || '')))) throw new ApiError('INVALID_RESPONSE');
+  return value;
 }
 
 /**

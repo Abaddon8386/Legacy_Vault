@@ -105,14 +105,30 @@ export async function fetchBasisDossier(caseId, options = {}) {
       return { dossier: null, notFound: true, isSimulation: true };
     }
     if (caseId === 'case-court' || caseId === SYNTHETIC_DOSSIERS['case-court'].caseId) {
-      return { dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-court'])), isSimulation: true };
+      return {
+        dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-court'])),
+        notFound: false,
+        isSimulation: true,
+      };
     }
     if (caseId === 'case-hold' || caseId === SYNTHETIC_DOSSIERS['case-hold'].caseId) {
-      return { dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-hold'])), isSimulation: true };
+      return {
+        dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-hold'])),
+        notFound: false,
+        isSimulation: true,
+      };
+    }
+
+    if (caseId === 'case-notarial' || caseId === SYNTHETIC_DOSSIERS['case-notarial'].caseId) {
+      return {
+        dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-notarial'])),
+        notFound: false,
+        isSimulation: true,
+      };
     }
 
     return {
-      dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-notarial'])),
+      dossier: JSON.parse(JSON.stringify(SYNTHETIC_DOSSIERS['case-court'])),
       notFound: false,
       isSimulation: true,
     };
@@ -280,9 +296,9 @@ export async function forwardBasisVersion(caseId, version, options = {}) {
     return {
       id: 'dossier-simulated',
       caseId,
-      route: 'NOTARIAL',
+      route: 'COURT',
       status: 'LEGAL_BASIS_FORWARDED',
-      disputeStatus: 'NONE',
+      disputeStatus: 'DISPUTED',
       routeReason: null,
       updatedAt: new Date().toISOString(),
       versions: [

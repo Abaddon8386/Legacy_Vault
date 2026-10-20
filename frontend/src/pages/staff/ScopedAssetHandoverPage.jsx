@@ -5,10 +5,13 @@ import {
   CheckCircle2,
   Package,
   Clock,
-  RotateCcw,
   Send,
   RefreshCw,
   ArrowLeft,
+  User,
+  CheckSquare,
+  X,
+  FileCheck,
 } from 'lucide-react';
 import {
   filterScopedHandoverItems,
@@ -18,11 +21,26 @@ import {
 import {
   fetchEligibleAssets,
   deliverAssets,
+  isCounterHandoverSimulationPermitted,
 } from './handoverSessionService.js';
 import { scopedAssetHandoverI18n } from './scopedAssetHandoverI18n.js';
+import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './ScopedAssetHandoverPage.css';
+import { readDeliveryReceiptBatch } from '../../utils/deliveryReceiptValidation.js';
 
-export default function ScopedAssetHandoverPage({
+export default function ScopedAssetHandoverPage(props) {
+  const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const key = JSON.stringify([
+    props.session?.user?.id,
+    props.accessToken || props.session?.accessToken,
+    props.caseId || props.caseReference || query.get('caseId'),
+    props.sessionId || query.get('sessionId'),
+  ]);
+  return <ScopedAssetHandoverPageContext key={key} {...props} />;
+}
+
+function ScopedAssetHandoverPageContext({
   lang = 'vi',
   initialScope = null,
   initialCandidates = null,
@@ -32,10 +50,14 @@ export default function ScopedAssetHandoverPage({
   isDevPreview = false,
   caseId: propCaseId = '',
   sessionId: propSessionId = '',
+  caseItem: propCaseItem = null,
+  onCaseChange = null,
+  onUnauthorized = null,
   onNavigateCases = null,
 }) {
   const t = scopedAssetHandoverI18n[lang] || scopedAssetHandoverI18n.vi;
-  const caseInputId = useId();
+  const en = lang === 'en';
+  const recipientSelectId = useId();
 
   const effectiveIsDevPreview = Boolean(isDevPreview || preview);
   const effectiveAccessToken = accessToken || session?.accessToken || null;
@@ -49,14 +71,34 @@ export default function ScopedAssetHandoverPage({
   const [sessionId, setSessionId] = useState(initialSession);
   const [scopeData, setScopeData] = useState(initialScope);
   const [candidates, setCandidates] = useState(initialCandidates);
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  // Bước 1: Người nhận được chọn
+  const [selectedRecipientId, setSelectedRecipientId] = useState('');
+
+  // Bước 2: Danh sách tài sản được chọn trong lần bàn giao này
+  const [selectedAssetIds, setSelectedAssetIds] = useState(new Set());
+
+  // Bước 3: Modal kiểm tra và xác nhận bàn giao
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isDelivering, setIsDelivering] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
-  const [deliveringAssetId, setDeliveringAssetId] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const abortControllerRef = useRef(null);
+  const deliveryControllerRef = useRef(null);
+  const activeDeliveryMutationIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      deliveryControllerRef.current?.abort();
+    };
+  }, []);
 
   // Validate scope
   const scopeValidation = validateApprovedAllocationScope(scopeData);
@@ -80,7 +122,11 @@ export default function ScopedAssetHandoverPage({
       setIsLoading(true);
       setLoadError(null);
       setActionSuccess(null);
-      setActionError(null);
+      setScopeData(null);
+      setCandidates(null);
+      setSelectedRecipientId('');
+      setSelectedAssetIds(new Set());
+      setShowReviewModal(false);
 
       try {
         const assets = await fetchEligibleAssets(caseReference, sessionId, {
@@ -91,33 +137,41 @@ export default function ScopedAssetHandoverPage({
         });
 
         if (active) {
-          // Normalize thành candidates format từ BE EligibleHandoverAssetResponse
+          // Chuẩn hóa candidates format từ BE EligibleHandoverAssetResponse
           const formattedCandidates = (Array.isArray(assets) ? assets : []).map((a) => {
             const isDelivered = a.deliveryStatus === 'DELIVERED' || a.status === 'DELIVERED';
             return {
               assetId: a.assetId,
-              assetName: a.assetName || a.description || a.name || 'Tài sản',
-              beneficiaryId: a.recipientId,
-              beneficiaryName: a.recipientName || (a.recipientId ? `Người nhận (${a.recipientId.substring(0, 8)})` : 'Chưa chỉ định'),
+              assetName: a.assetName || a.name || null,
+              description: a.description || '',
+              beneficiaryId: a.recipientId || a.beneficiaryId,
+              beneficiaryName: a.recipientName || a.beneficiaryName || null,
               handoverStatus: isDelivered ? HANDOVER_STATUS.DELIVERED : HANDOVER_STATUS.PENDING,
             };
           });
 
-          // Mock scope data tương ứng
+          // Endpoint này chỉ trả các tài sản thuộc phạm vi Legal đã phê duyệt
           const generatedScope = {
             isApproved: true,
             allocations: (Array.isArray(assets) ? assets : []).map((a) => ({
               assetId: a.assetId,
-              beneficiaryId: a.recipientId,
+              beneficiaryId: a.recipientId || a.beneficiaryId,
             })),
           };
 
           setCandidates(formattedCandidates);
           setScopeData(generatedScope);
+
+          const recIds = Array.from(
+            new Set(formattedCandidates.map((c) => c.beneficiaryId).filter(Boolean))
+          );
+          if (recIds.length === 1) {
+            setSelectedRecipientId(recIds[0]);
+          }
         }
       } catch (err) {
         if (active && err.name !== 'AbortError') {
-          setLoadError(err.message || 'Không thể tải danh sách tài sản đủ điều kiện.');
+          setLoadError(err.message || (en ? 'Failed to load eligible assets.' : 'Không thể tải danh sách tài sản đủ điều kiện.'));
         }
       } finally {
         if (active) {
@@ -132,58 +186,219 @@ export default function ScopedAssetHandoverPage({
       active = false;
       controller.abort();
     };
-  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang]);
+  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, en, refreshTrigger]);
 
-  const handleCaseChange = (newRef) => {
-    setCaseReference(newRef);
-    if (newRef !== caseReference) {
-      setScopeData(null);
-      setCandidates(null);
-    }
-  };
+  // Gom danh sách người nhận duy nhất từ danh sách tài sản đã duyệt
+  const uniqueRecipients = Array.from(
+    new Map(
+      (eligible || [])
+        .filter((c) => c.beneficiaryId)
+        .map((c) => [
+          c.beneficiaryId,
+          {
+            id: c.beneficiaryId,
+            name: c.beneficiaryName || null,
+          },
+        ])
+    ).values()
+  );
 
-  const handleReset = () => {
-    setCaseReference('');
-    setSessionId('');
-    setScopeData(null);
-    setCandidates(null);
+  // Khi đổi người nhận: xóa selection tài sản, đóng modal review nếu đang mở
+  const handleSelectRecipient = (recipientId) => {
+    setSelectedRecipientId(recipientId);
+    setSelectedAssetIds(new Set());
+    setShowReviewModal(false);
     setActionSuccess(null);
     setActionError(null);
   };
 
-  // Thực hiện bàn giao tài sản thật qua API
-  const handleDeliverAsset = async (item) => {
-    if (deliveringAssetId || item.handoverStatus === HANDOVER_STATUS.DELIVERED) return;
+  // Lọc tài sản thuộc về người nhận đang chọn
+  const recipientAssets = (eligible || []).filter(
+    (c) => c.beneficiaryId === selectedRecipientId
+  );
 
-    setDeliveringAssetId(item.assetId);
+  // Danh sách tài sản chưa giao của người nhận đang chọn
+  const undeliveredAssets = recipientAssets.filter(
+    (c) => c.handoverStatus !== HANDOVER_STATUS.DELIVERED
+  );
+
+  const isAllSelected =
+    undeliveredAssets.length > 0 &&
+    undeliveredAssets.every((c) => selectedAssetIds.has(c.assetId));
+
+  // Toggle Chọn tất cả tài sản chưa giao
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedAssetIds(new Set());
+    } else {
+      setSelectedAssetIds(new Set(undeliveredAssets.map((c) => c.assetId)));
+    }
+  };
+
+  // Toggle từng tài sản
+  const handleToggleAsset = (assetId) => {
+    setSelectedAssetIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(assetId)) {
+        next.delete(assetId);
+      } else {
+        next.add(assetId);
+      }
+      return next;
+    });
+  };
+
+  // Mở modal kiểm tra bàn giao (ZERO POST)
+  const handleOpenReviewModal = () => {
+    if (selectedAssetIds.size === 0 || !selectedRecipientId || isDelivering) return;
+    setActionError(null);
+    setShowReviewModal(true);
+  };
+
+  // Đóng modal kiểm tra bàn giao
+  const handleCloseReviewModal = () => {
+    setShowReviewModal(false);
+  };
+
+  // Thực thi mutation ghi nhận bàn giao danh sách tài sản cho 1 người nhận
+  const executeDelivery = async (targetRecipientId, assetIdsToDeliver) => {
+    if (isDelivering || !targetRecipientId || !assetIdsToDeliver || assetIdsToDeliver.length === 0) return;
+
+    const currentMutationId = ++activeDeliveryMutationIdRef.current;
+    if (deliveryControllerRef.current) {
+      deliveryControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    deliveryControllerRef.current = controller;
+
+    setIsDelivering(true);
     setActionSuccess(null);
     setActionError(null);
 
     try {
-      await deliverAssets(caseReference, sessionId, {
-        recipientId: item.beneficiaryId,
-        assetIds: [item.assetId],
+      const deliveryResult = await deliverAssets(caseReference, sessionId, {
+        recipientId: targetRecipientId,
+        assetIds: assetIdsToDeliver,
       }, {
         accessToken: effectiveAccessToken,
         isDevPreview: effectiveIsDevPreview,
         lang,
+        signal: controller.signal,
       });
 
-      // Cập nhật trạng thái dòng tài sản thành DELIVERED
+      if (controller.signal.aborted || activeDeliveryMutationIdRef.current !== currentMutationId) {
+        return;
+      }
+
+      // Đọc và đối chiếu nghiêm ngặt theo DTO HandoverItemResponse của BE
+      // { itemId, sessionId, assetId, recipientId, status: 'DELIVERED', deliveredAt, staffId }
+      const confirmedDeliveredAssetIds = readDeliveryReceiptBatch(deliveryResult, {
+        sessionId, recipientId: targetRecipientId, assetIds: assetIdsToDeliver,
+      }, {
+        // Preserve the explicitly labelled anonymous DEV demo; authenticated/production paths stay strict.
+        allowSyntheticIds: isCounterHandoverSimulationPermitted({
+          accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview,
+        }),
+      });
+
+      // Nếu không có bất kỳ biên nhận DELIVERED hợp lệ nào được server xác nhận:
+      if (!confirmedDeliveredAssetIds) {
+        setShowReviewModal(false);
+        setActionError(
+          en
+            ? 'No valid delivery receipts confirmed by server. Please verify session status.'
+            : 'Máy chủ không trả về biên nhận bàn giao hợp lệ. Vui lòng đối soát lại trạng thái.'
+        );
+        // Tải lại dữ liệu chính thống từ server để đồng bộ
+        setRefreshTrigger((r) => r + 1);
+        return;
+      }
+
+      // Cập nhật trạng thái chỉ cho đúng các cặp (targetRecipientId, aid) được server xác nhận
       setCandidates((prev) =>
-        prev.map((c) => (c.assetId === item.assetId ? { ...c, handoverStatus: HANDOVER_STATUS.DELIVERED } : c))
+        (prev || []).map((c) =>
+          c.beneficiaryId === targetRecipientId && confirmedDeliveredAssetIds.has(c.assetId)
+            ? { ...c, handoverStatus: HANDOVER_STATUS.DELIVERED }
+            : c
+        )
       );
-      setActionSuccess(lang === 'en' ? `Asset "${item.assetName}" successfully delivered.` : `Tài sản "${item.assetName}" đã được ghi nhận bàn giao thành công.`);
+
+      setSelectedAssetIds((prev) => {
+        const next = new Set(prev);
+        confirmedDeliveredAssetIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      setShowReviewModal(false);
+
+      if (confirmedDeliveredAssetIds.size === assetIdsToDeliver.length) {
+        setActionSuccess(
+          (t.deliverySuccessBatch || 'Đã ghi nhận bàn giao thành công {count} tài sản cho người nhận.').replace(
+            '{count}',
+            String(confirmedDeliveredAssetIds.size)
+          )
+        );
+      } else {
+        setActionError(
+          en
+            ? `Server only confirmed ${confirmedDeliveredAssetIds.size}/${assetIdsToDeliver.length} items. Syncing latest state...`
+            : `Máy chủ chỉ xác nhận ${confirmedDeliveredAssetIds.size}/${assetIdsToDeliver.length} tài sản. Đang đồng bộ trạng thái mới nhất...`
+        );
+        setRefreshTrigger((r) => r + 1);
+      }
     } catch (err) {
-      setActionError(err.message || (lang === 'en' ? 'Asset delivery failed.' : 'Ghi nhận bàn giao tài sản thất bại.'));
+      if (controller.signal.aborted || activeDeliveryMutationIdRef.current !== currentMutationId) {
+        return;
+      }
+      setShowReviewModal(false);
+      const isConflict = err.status === 409 || err.code === 'CONFLICT' || String(err.message).includes('409');
+      if (isConflict) {
+        setActionError(
+          en
+            ? 'Handover session or approval scope has changed (409 Conflict). Reloading authoritative state...'
+            : 'Dữ liệu phiên bàn giao hoặc phạm vi đã thay đổi (409 Conflict). Đang tải lại dữ liệu mới nhất...'
+        );
+        setRefreshTrigger((r) => r + 1);
+      } else {
+        setActionError(
+          err.message || (en ? 'Asset delivery failed.' : 'Ghi nhận bàn giao tài sản thất bại.')
+        );
+      }
     } finally {
-      setDeliveringAssetId(null);
+      if (activeDeliveryMutationIdRef.current === currentMutationId) {
+        setIsDelivering(false);
+        deliveryControllerRef.current = null;
+      }
     }
   };
 
+  // Xác nhận ghi nhận bàn giao đợt tài sản đã chọn cho người nhận từ modal review
+  const handleConfirmDeliverBatch = () => {
+    if (!selectedRecipientId || selectedAssetIds.size === 0) return;
+    executeDelivery(selectedRecipientId, Array.from(selectedAssetIds));
+  };
+
+  // Mở modal kiểm tra bàn giao cho 1 tài sản trên dòng (ZERO POST)
+  const handleOpenReviewForSingleItem = (item) => {
+    if (isDelivering) return;
+    const targetRecipientId = item.beneficiaryId || selectedRecipientId;
+    if (targetRecipientId) {
+      setSelectedRecipientId(targetRecipientId);
+    }
+    setSelectedAssetIds(new Set([item.assetId]));
+    setActionError(null);
+    setShowReviewModal(true);
+  };
+
+  const selectedRecipientObj = uniqueRecipients.find((r) => r.id === selectedRecipientId);
+  const selectedRecipientDisplayName = selectedRecipientObj?.name
+    ? selectedRecipientObj.name
+    : selectedRecipientId
+    ? `${en ? 'Recipient' : 'Người nhận'} (${selectedRecipientId.substring(0, 8)}...)`
+    : '';
+
   return (
     <div className="lv-asset-handover-view">
-      {/* Context navigation bar */}
+      {/* Context navigation back link */}
       {caseReference && sessionId && (
         <div className="lv-handover-nav-back">
           <a
@@ -191,7 +406,7 @@ export default function ScopedAssetHandoverPage({
             className="lv-btn-back-link"
           >
             <ArrowLeft size={16} aria-hidden="true" />
-            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
+            <span>{en ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
           </a>
         </div>
       )}
@@ -201,6 +416,47 @@ export default function ScopedAssetHandoverPage({
         <h1 className="lv-handover-title">{t.pageTitle}</h1>
         <p className="lv-handover-subtitle">{t.pageSubtitle}</p>
       </div>
+
+      {/* Staff Case Context Bar (Nguồn chọn case duy nhất) */}
+      <StaffCaseContextBar
+        caseId={caseReference}
+        caseItem={propCaseItem}
+        sessionId={sessionId}
+        onOpenSelector={() => setIsSelectorOpen(true)}
+        onChangeCase={() => setIsSelectorOpen(true)}
+        lang={lang}
+      />
+
+      {/* Staff Case Selector Modal */}
+      <StaffCaseSelectorModal
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelectCase={(item) => {
+          const newId = item.caseId || item.id;
+          deliveryControllerRef.current?.abort();
+          deliveryControllerRef.current = null;
+          setIsDelivering(false);
+          setCaseReference(newId);
+          setSessionId('');
+          setScopeData(null);
+          setCandidates(null);
+          setSelectedRecipientId('');
+          setSelectedAssetIds(new Set());
+          setShowReviewModal(false);
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('caseId', newId);
+            url.searchParams.delete('sessionId');
+            window.history.replaceState({}, '', url.pathname + url.search);
+          }
+          onCaseChange?.(newId, item);
+        }}
+        accessToken={effectiveAccessToken}
+        isDevPreview={effectiveIsDevPreview}
+        lang={lang}
+        currentCaseId={caseReference}
+        onUnauthorized={onUnauthorized}
+      />
 
       {/* Critical Business Rule Banner */}
       <section className="lv-handover-notice-banner" role="alert" aria-labelledby="handover-rule-title">
@@ -233,12 +489,20 @@ export default function ScopedAssetHandoverPage({
         </div>
       )}
 
-      {/* Case Selection & Scope Status Card */}
-      <section className="lv-handover-card" aria-labelledby="scope-card-title">
+      {/* =========================================================================
+          BƯỚC 1: CHỌN NGƯỜI NHẬN TẠI QUẦY
+          ========================================================================= */}
+      <section className="lv-handover-card" aria-labelledby="step1-heading">
         <div className="lv-handover-card__header">
-          <h2 id="scope-card-title" className="lv-handover-card__title">
-            {t.scopeCardTitle}
-          </h2>
+          <div className="lv-handover-step-indicator">
+            <span className="lv-handover-step-badge">1</span>
+            <div>
+              <h2 id="step1-heading" className="lv-handover-card__title">
+                {t.step1Title}
+              </h2>
+              <p className="lv-handover-card__desc">{t.step1Desc}</p>
+            </div>
+          </div>
           {scopeValidation.isApproved ? (
             <span className="lv-scope-badge lv-scope-badge--approved">
               <CheckCircle2 size={13} aria-hidden="true" />
@@ -252,31 +516,7 @@ export default function ScopedAssetHandoverPage({
           )}
         </div>
 
-        <div className="lv-handover-case-bar">
-          <div className="lv-handover-input-group">
-            <label htmlFor={caseInputId} className="lv-handover-label">
-              {t.caseSelectLabel}
-            </label>
-            <input
-              id={caseInputId}
-              type="text"
-              className="lv-handover-input"
-              placeholder={t.caseSelectPlaceholder}
-              value={caseReference}
-              onChange={(e) => handleCaseChange(e.target.value)}
-            />
-          </div>
-          <button
-            type="button"
-            className="lv-handover-btn-reset"
-            onClick={handleReset}
-          >
-            <RotateCcw size={14} aria-hidden="true" />
-            <span>{t.btnResetCase}</span>
-          </button>
-        </div>
-
-        {!isLoading && !scopeValidation.isValid && (
+        {(!isLoading && !scopeValidation.isValid) ? (
           <div className="lv-handover-scope-empty" role="status">
             <Package size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
             <h3>{t.scopeMissingTitle}</h3>
@@ -286,74 +526,126 @@ export default function ScopedAssetHandoverPage({
                 <button
                   type="button"
                   onClick={onNavigateCases}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    backgroundColor: '#164639',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                  }}
+                  className="lv-btn-navigate-cases"
                 >
-                  <span>{lang === 'en' ? 'Back to Cases Dashboard' : 'Về danh sách ca xác minh'}</span>
+                  <span>{en ? 'Back to Cases Dashboard' : 'Về danh sách ca xác minh'}</span>
                 </button>
               </div>
             )}
           </div>
+        ) : (
+          <div className="lv-recipient-selector-wrap">
+            <label htmlFor={recipientSelectId} className="lv-handover-label">
+              <User size={15} aria-hidden="true" />
+              <span>{t.recipientLabel}</span>
+            </label>
+            <select
+              id={recipientSelectId}
+              className="lv-handover-recipient-select"
+              value={selectedRecipientId}
+              onChange={(e) => handleSelectRecipient(e.target.value)}
+              disabled={isLoading || isDelivering || uniqueRecipients.length === 0}
+            >
+              <option value="">{t.selectRecipientPlaceholder}</option>
+              {uniqueRecipients.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name
+                    ? `${r.name} (${r.id.substring(0, 8)}...)`
+                    : `${en ? 'Recipient' : 'Người nhận'} (${r.id.substring(0, 8)}...) ${t.recipientMetadataPending}`}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </section>
 
-      {/* Eligible Scoped Assets Table Section */}
-      <section className="lv-handover-card" aria-labelledby="table-heading">
+      {/* =========================================================================
+          BƯỚC 2: CHỌN TÀI SẢN GIAO TRONG LẦN NÀY
+          ========================================================================= */}
+      <section className="lv-handover-card" aria-labelledby="step2-heading">
         <div className="lv-handover-card__header">
-          <h2 id="table-heading" className="lv-handover-card__title">
-            {t.assetTableTitle}
-          </h2>
+          <div className="lv-handover-step-indicator">
+            <span className="lv-handover-step-badge">2</span>
+            <div>
+              <h2 id="step2-heading" className="lv-handover-card__title">
+                {t.step2Title}
+              </h2>
+              <p className="lv-handover-card__desc">{t.step2Desc}</p>
+            </div>
+          </div>
           {isLoading && (
             <span className="lv-loading-indicator">
               <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
-              <span>{lang === 'en' ? 'Loading assets...' : 'Đang tải danh sách tài sản...'}</span>
+              <span>{en ? 'Loading assets...' : 'Đang tải danh sách tài sản...'}</span>
             </span>
           )}
         </div>
 
-        <div className="lv-handover-table-wrapper">
-          <table className="lv-handover-table">
-            <thead>
-              <tr>
-                <th>{t.assetNameCol}</th>
-                <th>{t.beneficiaryCol}</th>
-                <th>{t.scopeStatusCol}</th>
-                <th>{t.handoverStatusCol}</th>
-                <th>{t.actionCol}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!scopeValidation.isValid || !Array.isArray(candidates) || eligible.length === 0 ? (
+        {!selectedRecipientId ? (
+          <div className="lv-handover-scope-empty" role="status">
+            <User size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
+            <p>{t.step2Prompt}</p>
+          </div>
+        ) : recipientAssets.length === 0 ? (
+          <div className="lv-handover-scope-empty" role="status">
+            <Package size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
+            <p>{t.emptyAssets}</p>
+          </div>
+        ) : (
+          <div className="lv-handover-table-wrapper">
+            <table className="lv-handover-table">
+              <thead>
                 <tr>
-                  <td colSpan="5">
-                    <div className="lv-handover-scope-empty" role="status">
-                      <p>{!scopeValidation.isValid || !Array.isArray(candidates) ? t.informationUnavailable : t.emptyAssets}</p>
-                      <button type="button" className="lv-btn-handover-action" disabled title={t.apiPendingNotice}>{t.btnRecordHandover}</button>
-                    </div>
-                  </td>
+                  <th style={{ width: 44, textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      className="lv-handover-table-checkbox"
+                      aria-label={t.selectAll}
+                      checked={isAllSelected}
+                      onChange={handleToggleSelectAll}
+                      disabled={undeliveredAssets.length === 0 || isDelivering}
+                    />
+                  </th>
+                  <th>{t.assetNameCol}</th>
+                  <th>{t.scopeStatusCol}</th>
+                  <th>{t.handoverStatusCol}</th>
+                  <th style={{ textAlign: 'right' }}>{en ? 'Action' : 'Thao tác'}</th>
                 </tr>
-              ) : (
-                eligible.map((item) => {
+              </thead>
+              <tbody>
+                {recipientAssets.map((item) => {
                   const isDelivered = item.handoverStatus === HANDOVER_STATUS.DELIVERED;
-                  const isDelivering = deliveringAssetId === item.assetId;
+                  const isChecked = selectedAssetIds.has(item.assetId);
 
                   return (
-                    <tr key={item.assetId}>
-                      <td>
-                        <strong>{item.assetName || t.informationUnavailable}</strong>
+                    <tr
+                      key={`${item.assetId}:${item.beneficiaryId}`}
+                      className={isChecked ? 'lv-handover-row--selected' : ''}
+                    >
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          className="lv-handover-table-checkbox"
+                          aria-label={`Chọn tài sản ${item.assetName || item.description || item.assetId}`}
+                          checked={isChecked}
+                          onChange={() => handleToggleAsset(item.assetId)}
+                          disabled={isDelivered || isDelivering}
+                        />
                       </td>
-                      <td>{item.beneficiaryName || t.informationUnavailable}</td>
+                      <td>
+                        <div className="lv-asset-item-info">
+                          <strong>
+                            {item.assetName
+                              ? item.assetName
+                              : item.description
+                              ? item.description
+                              : `${en ? 'Asset' : 'Tài sản'} (${item.assetId.substring(0, 8)}...)`}
+                          </strong>
+                          {item.assetName && item.description && (
+                            <span className="lv-asset-item-desc">{item.description}</span>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <span className="lv-scope-badge lv-scope-badge--approved">
                           {t.statusInScope}
@@ -372,40 +664,163 @@ export default function ScopedAssetHandoverPage({
                           </span>
                         )}
                       </td>
-                      <td>
-                        <button
-                          type="button"
-                          className={`lv-btn-handover-action ${isDelivered ? 'lv-btn-handover-action--delivered' : 'lv-btn-handover-action--eligible'}`}
-                          disabled={isDelivered || isDelivering || Boolean(deliveringAssetId)}
-                          onClick={() => handleDeliverAsset(item)}
-                          aria-label={`${t.btnRecordHandover}: ${item.assetName}`}
-                        >
-                          {isDelivering ? (
-                            <>
-                              <RefreshCw size={13} className="lv-spin" aria-hidden="true" />
-                              <span>{lang === 'en' ? 'Recording...' : 'Đang ghi nhận...'}</span>
-                            </>
-                          ) : isDelivered ? (
-                            <>
-                              <CheckCircle2 size={13} aria-hidden="true" />
-                              <span>{lang === 'en' ? 'Handed Over' : 'Đã giao'}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Send size={13} aria-hidden="true" />
-                              <span>{t.btnRecordHandover}</span>
-                            </>
-                          )}
-                        </button>
+                      <td style={{ textAlign: 'right' }}>
+                        {isDelivered ? (
+                          <button
+                            type="button"
+                            className="lv-btn-record-handover"
+                            disabled={true}
+                          >
+                            {t.btnDeliveredDisabled}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="lv-btn-record-handover"
+                            disabled={isDelivering}
+                            onClick={() => handleOpenReviewForSingleItem(item)}
+                          >
+                            <Send size={13} aria-hidden="true" />
+                            <span>{t.btnRecordHandover}</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Thanh đếm & nút chuyển sang Bước 3 */}
+        {selectedRecipientId && recipientAssets.length > 0 && (
+          <div className="lv-handover-action-bar">
+            <span className="lv-selected-count-text">
+              {undeliveredAssets.length === 0
+                ? t.noUndeliveredAssetsForRecipient
+                : (t.selectedCount || 'Đã chọn {count} tài sản').replace(
+                    '{count}',
+                    String(selectedAssetIds.size)
+                  )}
+            </span>
+            <button
+              type="button"
+              className="lv-btn-review-handover"
+              disabled={selectedAssetIds.size === 0 || isDelivering}
+              onClick={handleOpenReviewModal}
+            >
+              <FileCheck size={16} aria-hidden="true" />
+              <span>{t.btnReviewHandover}</span>
+            </button>
+          </div>
+        )}
       </section>
+
+      {/* =========================================================================
+          BƯỚC 3: DIALOG TÓM TẮT & XÁC NHẬN BÀN GIAO
+          ========================================================================= */}
+      {showReviewModal && (
+        <div
+          className="lv-handover-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="review-modal-title"
+        >
+          <div className="lv-handover-modal-dialog">
+            <div className="lv-handover-modal-header">
+              <h2 id="review-modal-title" className="lv-handover-modal-title">
+                {t.reviewModalTitle}
+              </h2>
+              <button
+                type="button"
+                className="lv-btn-modal-close"
+                onClick={handleCloseReviewModal}
+                disabled={isDelivering}
+                aria-label={en ? 'Close dialog' : 'Đóng hộp thoại'}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="lv-handover-modal-body">
+              {/* Tóm tắt phiên và người nhận */}
+              <div className="lv-review-meta-grid">
+                <div className="lv-review-meta-item">
+                  <span className="lv-review-meta-label">{t.reviewModalCase}</span>
+                  <span className="lv-review-meta-value">{caseReference}</span>
+                </div>
+                <div className="lv-review-meta-item">
+                  <span className="lv-review-meta-label">{t.reviewModalSession}</span>
+                  <span className="lv-review-meta-value">{sessionId}</span>
+                </div>
+                <div className="lv-review-meta-item lv-review-meta-item--full">
+                  <span className="lv-review-meta-label">{t.reviewModalRecipient}</span>
+                  <strong className="lv-review-meta-value">{selectedRecipientDisplayName}</strong>
+                </div>
+              </div>
+
+              {/* Danh sách tài sản sẽ bàn giao */}
+              <div className="lv-review-assets-section">
+                <h3 className="lv-review-section-heading">{t.reviewModalAssetsList}</h3>
+                <ul className="lv-review-assets-list">
+                  {Array.from(selectedAssetIds).map((aid) => {
+                    const item = recipientAssets.find((a) => a.assetId === aid);
+                    return (
+                      <li key={aid} className="lv-review-asset-item">
+                        <CheckSquare size={16} className="lv-review-check-icon" aria-hidden="true" />
+                        <div>
+                          <strong>
+                            {item?.assetName || item?.description || `${en ? 'Asset' : 'Tài sản'} (${aid.substring(0, 8)}...)`}
+                          </strong>
+                          {item?.assetName && item?.description && (
+                            <p className="lv-review-item-desc">{item.description}</p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              {/* Cảnh báo quy tắc nghiệp vụ */}
+              <div className="lv-review-warning-box" role="alert">
+                <ShieldAlert size={18} className="lv-review-warning-icon" aria-hidden="true" />
+                <p>{t.reviewModalNotice}</p>
+              </div>
+            </div>
+
+            <div className="lv-handover-modal-actions">
+              <button
+                type="button"
+                className="lv-btn-cancel-review"
+                onClick={handleCloseReviewModal}
+                disabled={isDelivering}
+              >
+                {t.btnCancelReview}
+              </button>
+              <button
+                type="button"
+                className="lv-btn-confirm-deliver"
+                onClick={handleConfirmDeliverBatch}
+                disabled={isDelivering}
+              >
+                {isDelivering ? (
+                  <>
+                    <RefreshCw size={15} className="lv-spin" aria-hidden="true" />
+                    <span>{t.delivering}</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={15} aria-hidden="true" />
+                    <span>{t.btnConfirmDelivery}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

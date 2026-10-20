@@ -9,11 +9,15 @@ export const staffLegalDocumentsI18n = {
       'Thông tin văn bản và hồ sơ phải được đối chiếu chính xác trước khi chuyển cho ban pháp lý. Việc tiếp nhận văn bản không đồng nghĩa hồ sơ đã được phê duyệt hoặc tài sản đã được mở khóa.',
 
     // Lựa chọn hồ sơ ca xác minh
-    caseSelectTitle: 'Chọn ca xác minh xử lý',
-    caseSelectLabel: 'Mã hồ sơ ca xác minh (UUID)',
-    caseSelectPlaceholder: 'Nhập mã ca xác minh...',
-    btnLoadDossier: 'Tải hồ sơ căn cứ',
+    caseSelectTitle: 'Hồ sơ xác minh xử lý',
+    caseSelectLabel: 'Mã hồ sơ xác minh',
+    caseSelectPlaceholder: 'Mã hồ sơ hoặc chọn từ danh sách...',
+    btnLoadDossier: 'Mở hồ sơ',
     loadingDossier: 'Đang tải thông tin hồ sơ...',
+    btnSelectCase: 'Chọn hồ sơ',
+    btnChangeCase: 'Đổi hồ sơ',
+    noCaseSelected: 'Chưa chọn hồ sơ xác minh. Vui lòng chọn hồ sơ từ danh sách để tiếp tục.',
+    activeCaseHeading: 'Hồ sơ đang xử lý',
 
     // Trạng thái hồ sơ
     dossierSectionTitle: 'Thông tin hồ sơ và phiên bản lưu trữ',
@@ -109,9 +113,44 @@ export const staffLegalDocumentsI18n = {
     notaryRequired: 'Văn bản thỏa thuận công chứng bắt buộc có đầy đủ thông tin tổ chức, số công chứng và ngày công chứng.',
     fileRequired: 'Vui lòng tải lên tệp số hóa của văn bản căn cứ.',
 
+    // Tabs
+    tabOverview: 'Tổng quan',
+    tabIntake: 'Tiếp nhận văn bản',
+    tabHistory: 'Lịch sử các phiên bản',
+    versionText: 'Phiên bản',
+
+    // Allocations (Finding B)
+    allocationsSectionTitle: 'Phạm vi phân bổ tài sản theo văn bản Tòa án',
+    allocationsSectionDesc: 'Danh sách tài sản và người nhận được Tòa án phán quyết phân chia. Bắt buộc có ít nhất một mục phân bổ hợp lệ.',
+    allocationAssetId: 'Mã tài sản (assetId)',
+    allocationBeneficiaryId: 'Mã người nhận (beneficiaryId)',
+    allocationDescription: 'Nội dung phân chia theo phán quyết',
+    btnAddAllocation: '+ Thêm phân bổ',
+    btnRemoveAllocation: 'Xóa',
+    allocationBlockerWarning: 'Văn bản căn cứ pháp lý bắt buộc phải có ít nhất một mục phân bổ tài sản cho người nhận theo bản án tòa án (Chờ dữ liệu liên kết tài sản - người thụ hưởng từ PS-88/PS-93/PS-102).',
+    allocationInvalidWarning: 'Mỗi mục phân bổ phải có mã tài sản và mã người nhận hợp lệ (UUID), không được trùng lặp.',
+    allocationEmptyTitle: 'Chưa có phân bổ tài sản',
+
+    // Legacy Notarial and Technical details
+    legacyNotarialNotice: 'Văn bản thỏa thuận công chứng (NOTARIAL) thuộc luồng cũ, chỉ dùng để tra cứu lịch sử. Toàn bộ quy trình mới áp dụng văn bản Tòa án (COURT).',
+    technicalDetailsTitle: 'Chi tiết kỹ thuật lưu trữ',
+    btnGoToIntake: 'Tiếp nhận phiên bản mới',
+
+    // Unsaved draft modal
+    unsavedChangesTitle: 'Bản nháp chưa lưu',
+    unsavedChangesDesc: 'Bạn có dữ liệu tiếp nhận văn bản chưa lưu. Bạn có chắc chắn muốn đổi sang hồ sơ khác và hủy bản nháp này?',
+    btnDiscardAndSwitch: 'Hủy bản nháp và đổi hồ sơ',
+    btnKeepEditing: 'Tiếp tục chỉnh sửa',
+
     // Dữ liệu mẫu preview
     previewBannerLabel: 'CHẾ ĐỘ MINH HỌA (DEV PREVIEW)',
     previewBannerDesc: 'Dữ liệu đang hiển thị là mô phỏng phục vụ kiểm thử giao diện. Các thao tác ghi nhận không làm thay đổi cơ sở dữ liệu thật.',
+
+    // NOTARIAL read-only & Blocker PS-88/93/102
+    notarialReadOnlyBannerTitle: 'Hồ sơ Công chứng (NOTARIAL) chỉ đọc',
+    notarialReadOnlyBannerDesc: 'Hồ sơ thuộc nhánh Công chứng là dữ liệu lịch sử chỉ đọc. Nhân viên quầy không thể tiếp nhận phiên bản mới hoặc chuyển Ban Pháp lý cho nhánh này (Chờ BE COURT-only PS-102).',
+    metadataBlockerLiveNotice: 'Danh mục tài sản và người thừa kế của hồ sơ đang chờ Backend cung cấp API metadata (Blocker PS-88/93/102). Chưa thể tạo phân bổ hoặc tải lên văn bản mới trong phiên trực tiếp.',
+    metadataBlockedTooltip: 'Chờ API metadata tài sản và người nhận từ Backend (PS-88/93/102)',
   },
 
   en: {
@@ -124,11 +163,15 @@ export const staffLegalDocumentsI18n = {
       'Document metadata and dossiers must be verified accurately before sending to Legal Department. Entering metadata does not imply that the dossier has been approved or assets unlocked.',
 
     // Case selection
-    caseSelectTitle: 'Select Verification Case',
-    caseSelectLabel: 'Verification Case ID (UUID)',
-    caseSelectPlaceholder: 'Enter verification case ID...',
-    btnLoadDossier: 'Load Legal Basis Dossier',
+    caseSelectTitle: 'Verification Case Processing',
+    caseSelectLabel: 'Case reference',
+    caseSelectPlaceholder: 'Case reference or select from list...',
+    btnLoadDossier: 'Open dossier',
     loadingDossier: 'Loading dossier records...',
+    btnSelectCase: 'Select case',
+    btnChangeCase: 'Change case',
+    noCaseSelected: 'No verification case selected. Please select a case from the list to continue.',
+    activeCaseHeading: 'Active Case',
 
     // Stored dossier and version section
     dossierSectionTitle: 'Stored Dossier & Version Records',
@@ -224,8 +267,43 @@ export const staffLegalDocumentsI18n = {
     notaryRequired: 'Notarized documents require notary organization, document number, and notarization date.',
     fileRequired: 'Please upload a digitized document file.',
 
+    // Tabs
+    tabOverview: 'Overview',
+    tabIntake: 'Document Intake',
+    tabHistory: 'Version History',
+    versionText: 'Version',
+
+    // Allocations (Finding B)
+    allocationsSectionTitle: 'Asset Allocation Scope per Court Judgment',
+    allocationsSectionDesc: 'List of assets and designated beneficiaries apportioned by the Court. At least one valid allocation entry is required.',
+    allocationAssetId: 'Asset ID (UUID)',
+    allocationBeneficiaryId: 'Beneficiary ID (UUID)',
+    allocationDescription: 'Allocation description per judgment',
+    btnAddAllocation: '+ Add allocation',
+    btnRemoveAllocation: 'Remove',
+    allocationBlockerWarning: 'Court legal basis document requires at least one asset-beneficiary allocation per court judgment (Awaiting asset-beneficiary linkage data from PS-88/PS-93/PS-102).',
+    allocationInvalidWarning: 'Each allocation item must contain valid asset ID and beneficiary ID (UUID), with no duplicate pairs.',
+    allocationEmptyTitle: 'No asset allocations defined',
+
+    // Legacy Notarial and Technical details
+    legacyNotarialNotice: 'Notarized partition agreements (NOTARIAL) belong to the legacy workflow and are retained for historical reference only. All new procedures use Court judgments/decisions (COURT).',
+    technicalDetailsTitle: 'Technical Storage Details',
+    btnGoToIntake: 'Intake new version',
+
+    // Unsaved draft modal
+    unsavedChangesTitle: 'Unsaved Draft Changes',
+    unsavedChangesDesc: 'You have unsaved document intake changes. Are you sure you want to switch cases and discard this draft?',
+    btnDiscardAndSwitch: 'Discard draft and switch',
+    btnKeepEditing: 'Keep editing',
+
     // Preview
     previewBannerLabel: 'PREVIEW DEMONSTRATION MODE',
     previewBannerDesc: 'Data shown is synthetic for UI testing purposes. Intake and forward actions do not affect the live database.',
+
+    // NOTARIAL read-only & Blocker PS-88/93/102
+    notarialReadOnlyBannerTitle: 'Notarial Dossier is Read-Only',
+    notarialReadOnlyBannerDesc: 'This dossier belongs to the legacy Notarial route and is read-only. Staff cannot upload new versions or forward to Legal for this route (COURT route only per PS-102).',
+    metadataBlockerLiveNotice: 'The asset catalog and beneficiary list for this case are awaiting Backend metadata APIs (Blocker PS-88/93/102). New allocations or document uploads are blocked in live sessions.',
+    metadataBlockedTooltip: 'Awaiting asset and beneficiary metadata API from Backend (PS-88/93/102)',
   },
 };

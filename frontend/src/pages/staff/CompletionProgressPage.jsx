@@ -17,12 +17,15 @@ import {
   fetchCompletionProgress,
 } from './handoverSessionService.js';
 import { completionProgressI18n } from './completionProgressI18n.js';
+import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CompletionProgressPage.css';
 
 export default function CompletionProgressPage({
   lang = 'vi',
   caseId: propCaseId,
   caseReference: propCaseReference,
+  caseItem: propCaseItem = null,
   initialCaseId = '',
   initialCaseReference = '',
   initialAssetData = null,
@@ -37,10 +40,12 @@ export default function CompletionProgressPage({
   preview = false,
   isDevPreview = false,
   sessionId: propSessionId = '',
+  onUnauthorized = null,
   onNavigateCases = null,
 }) {
   const t = completionProgressI18n[lang] || completionProgressI18n.vi;
   const caseInputId = useId();
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const effectiveIsDevPreview = Boolean(isDevPreview || preview);
   const effectiveAccessToken = accessToken || session?.accessToken || null;
@@ -318,6 +323,40 @@ export default function CompletionProgressPage({
         <p className="lv-progress-subtitle">{t.pageSubtitle}</p>
       </div>
 
+      {/* Staff Case Context Bar */}
+      <StaffCaseContextBar
+        caseId={caseReference}
+        caseItem={propCaseItem}
+        sessionId={propSessionId}
+        onOpenSelector={() => setIsSelectorOpen(true)}
+        onChangeCase={() => setIsSelectorOpen(true)}
+        lang={lang}
+      />
+
+      {/* Staff Case Selector Modal */}
+      <StaffCaseSelectorModal
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelectCase={(item) => {
+          const newId = item.caseId || item.id;
+          setCaseReference(newId);
+          setAssetData(null);
+          setBeneficiaryData(null);
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('caseId', newId);
+            url.searchParams.delete('sessionId');
+            window.history.replaceState({}, '', url.pathname + url.search);
+          }
+          onCaseChange?.(newId, item);
+        }}
+        accessToken={effectiveAccessToken}
+        isDevPreview={effectiveIsDevPreview}
+        lang={lang}
+        currentCaseId={caseReference}
+        onUnauthorized={onUnauthorized}
+      />
+
       {/* Critical Rule Banner */}
       <section className="lv-progress-notice-banner" role="alert" aria-labelledby="rule-notice-heading">
         <ShieldAlert size={22} className="lv-progress-notice-banner__icon" aria-hidden="true" />
@@ -345,6 +384,24 @@ export default function CompletionProgressPage({
               onChange={(e) => handleCaseChange(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="lv-progress-btn-select-case"
+            onClick={() => setIsSelectorOpen(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid #164639',
+              backgroundColor: '#164639',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
+          </button>
           <button
             type="button"
             className="lv-progress-btn-reset"
