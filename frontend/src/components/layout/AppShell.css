@@ -662,6 +662,33 @@
   animation: lv-spin 800ms linear infinite;
 }
 
+.lv-header-home-btn {
+  width: auto;
+  min-width: 36px;
+  padding: 0 12px;
+  gap: 8px;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.lv-header-home-btn:hover {
+  border-color: var(--lv-border-hover, #baa375);
+  color: var(--lv-brand-forest, #164639);
+}
+
+@media (max-width: 640px) {
+  .lv-header-home-text {
+    display: none;
+  }
+  .lv-header-home-btn {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
 /* Language Toggle */
 .lv-shell-lang-toggle {
   display: flex;

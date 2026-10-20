@@ -204,6 +204,16 @@ export default function AppShell({
   const isLegal = role === 'LEGAL';
   const isBeneficiary = role === 'BENEFICIARY';
   const isAdmin = role === 'ADMIN';
+  const isOwner = role === 'OWNER' || (!isStaff && !isLegal && !isAdmin && !isBeneficiary);
+  const isOwnerOrBeneficiary = isOwner || isBeneficiary;
+
+  const handleNavigateHome = useCallback(() => {
+    if (typeof onNavigateTab === 'function') {
+      onNavigateTab('home');
+    } else if (typeof window !== 'undefined') {
+      window.location.href = lang === 'en' ? '/?lang=en' : '/?lang=vi';
+    }
+  }, [onNavigateTab, lang]);
 
   const content = {
     vi: {
@@ -239,6 +249,7 @@ export default function AppShell({
       accountProfile: 'Hồ sơ tài khoản',
       editProfile: 'Chỉnh sửa hồ sơ',
       neutralAccount: 'Tài khoản',
+      backToHome: 'Về trang chủ',
     },
     en: {
       brandTag: isStaff
@@ -273,6 +284,7 @@ export default function AppShell({
       accountProfile: 'Account Profile',
       editProfile: 'Edit Profile',
       neutralAccount: 'Account',
+      backToHome: 'Back to home',
     },
   };
 
@@ -594,6 +606,37 @@ export default function AppShell({
                   </button>
                 </li>
 
+                {isOwnerOrBeneficiary && (
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="lv-account-menu-item lv-account-menu-item--home"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setMobileMenuOpen(false);
+                        handleNavigateHome();
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      <span>{t.backToHome}</span>
+                    </button>
+                  </li>
+                )}
+
                 {hasSession && <li role="none"><a role="menuitem" className="lv-account-menu-item"
                   href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
                   {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
@@ -818,6 +861,31 @@ export default function AppShell({
 
           {/* Right Header Utilities: Refresh, Language Switcher */}
           <div className="lv-header-right">
+            {isOwnerOrBeneficiary && (
+              <button
+                type="button"
+                className="lv-header-action-btn lv-header-home-btn"
+                onClick={handleNavigateHome}
+                title={t.backToHome}
+                aria-label={t.backToHome}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                <span className="lv-header-home-text">{t.backToHome}</span>
+              </button>
+            )}
             {typeof onRefresh === 'function' && (
               <MagneticButton
                 type="button"
