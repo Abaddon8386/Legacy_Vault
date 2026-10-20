@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) applies to new handover operations. Legacy NOTARIAL remains read-only; current court validation, exact allocation approval and counter guards are mandatory.
+
 # Handover Sessions — PS-60 (LV-HANDOVER-001)
 
 Tất cả endpoint yêu cầu `STAFF_EXECUTOR`; thao tác chỉ áp dụng cho ca đang được gán cho Staff trong principal. Session liên kết trực tiếp với verification case và Staff; Vault được xác định qua `verification_cases.vault_id` để tránh lưu lặp quan hệ.
