@@ -4,6 +4,7 @@ import './RegisterPageHenedo.css';
 import { registerUser, getRegistrationMessage } from '../../utils/registrationService.js';
 import { authenticateWithGoogle, authStatusMessages } from '../../utils/loginService.js';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 
 const i18nContent = {
   vi: {
@@ -115,8 +116,8 @@ const initialForm = {
   agreeTerms: false,
 };
 
-export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated }) {
-  const [lang, setLang] = useState('vi');
+export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation, onRegisterWithInvitation }) {
+  const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -131,7 +132,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated 
   const t = i18nContent[lang];
 
   const handleGoogleCredential = async (credentialResponse) => {
-    if (pendingRef.current) return;
+    if (pendingRef.current || invitationMode) return;
     pendingRef.current = true;
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -217,7 +218,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (pendingRef.current) return;
+    if (pendingRef.current || (invitationMode && typeof onRegisterWithInvitation !== 'function')) return;
     const validationErrors = validateRegistration(values, lang);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length) { setStatus('idle'); return; }
@@ -225,7 +226,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated 
     const controller = new AbortController(); controllerRef.current = controller;
     setStatus('submitting'); setStatusCode('');
     try {
-      await registerUser(values, { lang, signal: controller.signal });
+      await (invitationMode ? onRegisterWithInvitation : registerUser)(values, { lang, signal: controller.signal });
       if (controller.signal.aborted) return;
       setValues(initialForm); setStatus('success'); setStatusCode('SUCCESS');
       navigateToLogin();
@@ -596,7 +597,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated 
             <button
               type="submit"
               className="henedo-cta-btn"
-              disabled={status === 'submitting'}
+              disabled={status === 'submitting' || (invitationMode && typeof onRegisterWithInvitation !== 'function')}
             >
               <span>{status === 'submitting' ? t.submittingButton : t.submitButton}</span>
               <span className="hn-arrow" aria-hidden="true">→</span>
@@ -612,7 +613,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated 
           <div className="henedo-google-section">
             <GoogleSignInButton
               id="hn-register-google-btn"
-              disabled={status === 'submitting'}
+              disabled={status === 'submitting' || invitationMode}
               lang={lang}
               text="continue_with"
               onCredentialReceived={handleGoogleCredential}
@@ -634,6 +635,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated 
           )}
 
           {/* Footer Info & Signin Prompt (No RBAC note) */}
+          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} registration />
           <footer className="henedo-form-footer">
             {typeof onNavigateToLogin === 'function' && (
               <div className="henedo-signin-prompt">

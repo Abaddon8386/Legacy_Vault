@@ -10,6 +10,7 @@ import {
 import { validateTrustee } from '../../utils/trusteeValidation.js';
 import { validateBeneficiary } from '../../utils/beneficiaryValidation.js';
 import './TrusteeBeneficiaryPage.css';
+import BeneficiaryInvitationCode from '../../components/invitations/BeneficiaryInvitationCode.jsx';
 
 const i18n = {
   vi: {
@@ -169,7 +170,7 @@ Object.assign(i18n.en,{updatedSuccess:'Information updated successfully.',pageDe
 const emptyTrustee={fullName:'',phone:'',email:'',relationship:''};
 const emptyBeneficiary={fullName:'',relationship:'',dateOfBirth:'',phone:'',email:''};
 const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người thi hành bên ngoài.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
-export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',onUnauthorized,onRefreshTrigger=0,isDevPreview=false}) {
+export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',onUnauthorized,onRefreshTrigger=0,isDevPreview=false,onLoadInvitation}) {
  const t=i18n[lang]||i18n.vi;
  const [trustees,setTrustees]=useState([]),[beneficiaries,setBeneficiaries]=useState([]);
  const [isSkipped,setIsSkipped]=useState(false),[readiness,setReadiness]=useState(null);
@@ -551,6 +552,8 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                         {b.relationship || (lang === 'vi' ? 'Người thụ hưởng' : 'Beneficiary')}
                       </span>
                     </div>
+                    {!isDevPreviewActive && <BeneficiaryInvitationCode vaultId={vaultId} beneficiaryId={b.id}
+                      accessToken={accessToken} lang={lang} loadInvitation={onLoadInvitation} />}
                     <div className="lv-tb-entity-grid">
                       <div className="lv-tb-entity-prop">
                         <span className="lv-tb-prop-label">{t.dobLabel}</span>

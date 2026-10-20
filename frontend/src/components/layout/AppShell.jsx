@@ -594,6 +594,10 @@ export default function AppShell({
                   </button>
                 </li>
 
+                {hasSession && <li role="none"><a role="menuitem" className="lv-account-menu-item"
+                  href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
+                  {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
+                </a></li>}
                 <li role="separator" className="lv-account-popover-divider" />
                 <li role="none">
                   <button

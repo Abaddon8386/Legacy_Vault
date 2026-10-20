@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { validateLogin } from '../../utils/loginValidation.js';
 import { authenticateUser, authenticateWithGoogle, getAuthMessage } from '../../utils/loginService.js';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 import './LoginPage.css';
 
 const i18nContent = {
@@ -69,8 +70,8 @@ const initialForm = {
   password: '',
 };
 
-export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
-  const [lang, setLang] = useState('vi');
+export default function LoginPage({ onNavigateToRegister, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation }) {
+  const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -163,7 +164,7 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
   };
 
   const handleGoogleCredential = async (credentialResponse) => {
-    if (pendingRef.current) return;
+    if (pendingRef.current || invitationMode) return;
     pendingRef.current = true;
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -470,7 +471,7 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
           <div className="hn-login-google-section hn-login-entrance-3">
             <GoogleSignInButton
               id="hn-login-google-btn"
-              disabled={status === 'submitting'}
+              disabled={status === 'submitting' || invitationMode}
               lang={lang}
               text="continue_with"
               onCredentialReceived={handleGoogleCredential}
@@ -490,6 +491,7 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
           )}
 
           {/* Footer Info & Sign-up Link (Customer-facing, no RBAC note) */}
+          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} />
           <footer className="hn-login-form-footer hn-login-entrance-4">
             <div className="hn-login-signin-prompt">
               {t.signupPrompt}{' '}

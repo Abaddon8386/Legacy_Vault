@@ -11,6 +11,7 @@ export default function TrusteeBeneficiaryRoute({
   onNavigateToVault,
   onRefreshTrigger,
   isDevPreview = false,
+  onLoadInvitation,
 }) {
   const isAuthenticated = Boolean(accessToken && typeof accessToken === 'string' && accessToken.trim().length > 0);
   const effectiveDevPreview = Boolean(import.meta.env?.DEV && !isAuthenticated && isDevPreview);
@@ -70,6 +71,7 @@ export default function TrusteeBeneficiaryRoute({
       onUnauthorized={onUnauthorized}
       onRefreshTrigger={onRefreshTrigger}
       isDevPreview={effectiveDevPreview}
+      onLoadInvitation={onLoadInvitation}
     />
   );
 }
