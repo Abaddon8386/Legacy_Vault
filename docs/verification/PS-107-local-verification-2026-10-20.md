@@ -10,3 +10,7 @@
 - Collection is explicitly READ COMMITTED over DB UTC startedAt/completedAt, not atomic cross-table snapshot. No fabricated zero on errors, no cache/demo fallback.
 - Contract: docs/api-contracts/admin.md; PS-109 mutations/policy remain Long's scope. No FE/browser E2E, uptime/risk, subscription-admin duplication or user writes.
 - No merge or Jira mutation. Handoff, secrets and logs excluded.
+
+## Review follow-up — 20 October 2026
+
+Read database UTC collection timestamps through JDBC 4.2 LocalDateTime, avoiding java.sql.Timestamp dependence on the JVM zone. The corresponding DST-gap bug was reproduced on audit reads in PS-108. SQL/JWT overview + OpenAPI suite: 4 passed, zero failures. Four-PR integration evidence is recorded separately.

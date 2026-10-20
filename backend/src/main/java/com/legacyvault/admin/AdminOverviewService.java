@@ -33,6 +33,6 @@ public class AdminOverviewService {
     }
     private long count(String sql) {return jdbc.queryForObject(sql,Long.class);}
     private Instant databaseTime() {
-        return jdbc.queryForObject("SELECT SYSUTCDATETIME()",(rs,n)->rs.getTimestamp(1).toLocalDateTime().toInstant(java.time.ZoneOffset.UTC));
+        return jdbc.queryForObject("SELECT SYSUTCDATETIME()",(rs,n)->rs.getObject(1,java.time.LocalDateTime.class).toInstant(java.time.ZoneOffset.UTC));
     }
 }
