@@ -2312,6 +2312,46 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Read-only redacted audit search (PS-108)
+      description: ROLE_ADMIN only, no-store. Fixed occurredAt DESC then internal sequence DESC. READ COMMITTED current pages can shift under concurrent inserts. Actor/user/vault IDs are public UUIDs. Raw context, IP, state, names, email and content are never returned.
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: from, in: query, description: Inclusive ISO instant with offset; normalized UTC, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive ISO instant; must follow from, schema: { type: string, format: date-time } }
+        - { name: action, in: query, description: AuditAction enum name or LEGACY_EVENT; unknown values rejected, schema: { type: string } }
+        - { name: actorId, in: query, description: Public user UUID, schema: { type: string, format: uuid } }
+        - { name: actorKind, in: query, schema: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] } }
+      responses:
+        '200':
+          description: Whitelisted metadata page; no-store
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/audit-logs/{id}:
+    get:
+      tags: [Admin]
+      summary: Read redacted audit event by public UUID (PS-108)
+      description: ROLE_ADMIN only, no-store. Missing actor accounts do not hide events. No raw details/IP/states or mutation methods.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Whitelisted metadata and optional trace UUID
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3353,3 +3393,35 @@ components:
             storage: { type: boolean }
         vaultCreated: { type: boolean }
         evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
+
+    AdminAuditActor:
+      type: object
+      required: [kind, userId]
+      properties:
+        kind: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] }
+        userId: { type: string, format: uuid, nullable: true, description: Public user UUID; never a DB key }
+    AdminAuditEvent:
+      type: object
+      required: [id, occurredAt, actor, action, entityType, vaultId]
+      properties:
+        id: { type: string, format: uuid }
+        occurredAt: { type: string, format: date-time }
+        actor: { $ref: '#/components/schemas/AdminAuditActor' }
+        action: { type: string, description: Known AuditAction or LEGACY_EVENT }
+        entityType: { type: string, description: Allowlisted label or OTHER }
+        vaultId: { type: string, format: uuid, nullable: true, description: Public vault UUID }
+    AdminAuditPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/AdminAuditEvent' } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminAuditDetail:
+      type: object
+      required: [event, traceId]
+      properties:
+        event: { $ref: '#/components/schemas/AdminAuditEvent' }
+        traceId: { type: string, format: uuid, nullable: true }
