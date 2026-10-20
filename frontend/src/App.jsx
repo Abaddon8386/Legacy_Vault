@@ -408,6 +408,13 @@ export default function App({ invitationActions } = {}) {
   const historyIndexRef = useRef(0);
   const isRevertingPopStateRef = useRef(false);
   const restoreControllerRef = useRef(null);
+  const refreshControllerRef = useRef(null);
+  const [refreshError, setRefreshError] = useState(null);
+
+  useEffect(() => () => {
+    refreshControllerRef.current?.abort();
+    refreshControllerRef.current = null;
+  }, [session?.accessToken, session?.user.id]);
 
   useEffect(() => {
     isEditFormDirtyRef.current = isEditFormDirty;
@@ -435,6 +442,10 @@ export default function App({ invitationActions } = {}) {
 
   const logout = useCallback(() => {
     restoreControllerRef.current?.abort();
+    refreshControllerRef.current?.abort();
+    refreshControllerRef.current = null;
+    setIsRefreshing(false);
+    setRefreshError(null);
     storeSession(null);
     setRestoreStatus('ready');
     isEditFormDirtyRef.current = false;
@@ -444,7 +455,7 @@ export default function App({ invitationActions } = {}) {
     setInvitationIntent(false);
     setPendingInvitationCode('');
     navigateTo('/login');
-  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode]);
+  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError]);
 
   useEffect(() => {
     const candidate = readStoredSession();
@@ -512,6 +523,10 @@ export default function App({ invitationActions } = {}) {
     return () => clearTimeout(timer);
   }, [session, logout]);
   const establishSession = async (result, options) => {
+    refreshControllerRef.current?.abort();
+    refreshControllerRef.current = null;
+    setIsRefreshing(false);
+    setRefreshError(null);
     const candidate = createSession(result);
     const user = readUser(await request('/auth/me', { ...options, accessToken: candidate.accessToken }));
     if (options.signal?.aborted) return;
@@ -521,8 +536,55 @@ export default function App({ invitationActions } = {}) {
     navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
-    setIsRefreshing(true); setRefreshTrigger(value => value + 1);
-    setIsRefreshing(false);
+    if (refreshControllerRef.current) return;
+    const currentSession = session;
+    if (!currentSession?.accessToken) {
+      setRefreshTrigger(value => value + 1);
+      return;
+    }
+    refreshControllerRef.current?.abort();
+    const controller = new AbortController();
+    refreshControllerRef.current = controller;
+    setIsRefreshing(true);
+    setRefreshError(null);
+    try {
+      const result = await request('/auth/me', {
+        accessToken: currentSession.accessToken,
+        signal: controller.signal,
+        lang,
+      });
+      if (controller.signal.aborted || refreshControllerRef.current !== controller) return;
+      const user = readUser(result);
+      if (user.id !== currentSession.user.id) {
+        logout();
+        return;
+      }
+      setSession(prev => {
+        if (!prev || prev.accessToken !== currentSession.accessToken) return prev;
+        return { ...prev, user };
+      });
+      setRefreshTrigger(value => value + 1);
+      const currentPath = window.location.pathname;
+      if (currentPath === '/beneficiary' && !user.roles?.includes('BENEFICIARY') && !user.roles?.includes('ROLE_BENEFICIARY')) {
+        const nextRoute = resolvePostLoginRoute(user);
+        navigateTo(nextRoute);
+      }
+    } catch (err) {
+      if (controller.signal.aborted || refreshControllerRef.current !== controller || err.name === 'AbortError') return;
+      if (err.status === 401 || err.code === 'INVALID_AUTH_RESPONSE') {
+        logout();
+      } else {
+        const msg = lang === 'en'
+          ? (err.code === 'NETWORK_ERROR' ? 'Network error. Please retry.' : 'Failed to refresh account privileges.')
+          : (err.code === 'NETWORK_ERROR' ? 'Lỗi kết nối máy chủ. Vui lòng thử lại.' : 'Không thể làm mới quyền hạn tài khoản.');
+        setRefreshError(msg);
+      }
+    } finally {
+      if (refreshControllerRef.current === controller) {
+        refreshControllerRef.current = null;
+        setIsRefreshing(false);
+      }
+    }
   };
   const path = location.split('?')[0];
   if (restoreStatus !== 'ready') return (
@@ -537,6 +599,13 @@ export default function App({ invitationActions } = {}) {
     </main>
   );
   const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const resolveAccountRoute = (basePath) => {
+    const params = new URLSearchParams();
+    if (preview) params.set('preview', 'true');
+    if (lang === 'en') params.set('lang', 'en');
+    const qs = params.toString();
+    return `${basePath}${qs ? `?${qs}` : ''}`;
+  };
   if (path === '/invitations') {
     const activeSession = isSessionActive(session) ? session : null;
     return <InvitationPage key={`${activeSession?.user.id || 'anonymous'}:${activeSession?.accessToken || ''}`}
@@ -570,19 +639,66 @@ export default function App({ invitationActions } = {}) {
   }
   if (path === '/beneficiary') {
     if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
-    if (!session.user.roles.includes('BENEFICIARY')) return <main role="alert"><p>{lang === 'en' ? 'This page requires a beneficiary account.' : 'Trang này dành cho tài khoản người thụ hưởng.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
-    return <AppShell role="BENEFICIARY" session={session} user={session.user} lang={lang} currentTab="beneficiary-home"
-      isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : '/beneficiary')}>
-      <BeneficiaryHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} />
-    </AppShell>;
+    const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
+    if (!userRoles.includes('BENEFICIARY') && !userRoles.includes('ROLE_BENEFICIARY')) {
+      return (
+        <main role="alert">
+          <p>{lang === 'en' ? 'This page requires a beneficiary account.' : 'Trang này dành cho tài khoản người thụ hưởng.'}</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+            <button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button>
+            {userRoles.includes('VAULT_OWNER') && (
+              <button type="button" onClick={() => navigateTo('/vault')}>{lang === 'en' ? 'Back to Vault' : 'Về Kho di sản'}</button>
+            )}
+            {userRoles.includes('STAFF_EXECUTOR') && (
+              <button type="button" onClick={() => navigateTo('/staff/cases')}>{lang === 'en' ? 'Staff Portal' : 'Cổng Nhân viên'}</button>
+            )}
+            {userRoles.includes('LEGAL_VERIFIER') && (
+              <button type="button" onClick={() => navigateTo('/legal/death-verification')}>{lang === 'en' ? 'Legal Portal' : 'Cổng Pháp lý'}</button>
+            )}
+          </div>
+        </main>
+      );
+    }
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role="BENEFICIARY"
+          session={session}
+          user={session.user}
+          lang={lang}
+          currentTab="beneficiary-home"
+          isAuthenticated={isSessionActive(session)}
+          onToggleLang={setLang}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onNavigateTab={tab => {
+            if (tab === 'account-profile') navigateTo(resolveAccountRoute('/account/profile'));
+            else if (tab === 'account-edit') navigateTo(resolveAccountRoute('/account/edit'));
+            else if (tab === 'vault') navigateTo('/vault');
+            else if (tab === 'cases') navigateTo('/staff/cases');
+            else if (tab === 'legal-documents') navigateTo('/staff/legal-documents');
+            else if (tab === 'death-verification') navigateTo('/legal/death-verification');
+            else if (tab === 'admin-home') navigateTo('/admin');
+            else navigateTo('/beneficiary');
+          }}
+        >
+          <BeneficiaryHome
+            lang={lang}
+            user={session.user}
+            session={session}
+            onOpenProfile={() => navigateTo(resolveAccountRoute('/account/profile'))}
+            onOpenEditProfile={() => navigateTo(resolveAccountRoute('/account/edit'))}
+            onNavigatePortal={(route) => navigateTo(route)}
+            onLogout={logout}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            errorMessage={refreshError}
+          />
+        </AppShell>
+      </div>
+    );
   }
-  const resolveAccountRoute = (basePath) => {
-    const params = new URLSearchParams();
-    if (preview) params.set('preview', 'true');
-    if (lang === 'en') params.set('lang', 'en');
-    const qs = params.toString();
-    return `${basePath}${qs ? `?${qs}` : ''}`;
-  };
 
   if (path === '/staff/handover') {
     if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
