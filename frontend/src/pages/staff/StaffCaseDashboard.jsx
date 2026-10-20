@@ -1,3 +1,4 @@
+import StaffLiveCase from './StaffLiveCase.jsx';
 import { staffAuthFeedback, useStaffSessionExpiry } from './staffFeedback.js';
 import { formatCaseReference } from '../../utils/caseReference.js';
 import { useState, useEffect } from 'react';
@@ -66,6 +67,17 @@ export default function StaffCaseDashboard({
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedCase, setSelectedCase] = useState(null);
+  const [liveCaseId, setLiveCaseId] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const id = new URLSearchParams(window.location.search).get('caseId');
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '') ? id : null;
+  });
+  const openLiveCase = (id) => {
+    setLiveCaseId(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('caseId', id); else url.searchParams.delete('caseId');
+    window.history.replaceState({}, '', url.pathname + url.search);
+  };
   const [activeIntakeCase, setActiveIntakeCase] = useState(() => {
     if (initialIntakeCase) return initialIntakeCase;
     if (typeof window !== 'undefined') {
@@ -218,6 +230,8 @@ export default function StaffCaseDashboard({
   const authFeedback = staffAuthFeedback(error, lang);
   const isBackendNotReady = error?.code === 'BACKEND_NOT_READY';
 
+  if (!simulation && liveCaseId) return <StaffLiveCase key={`${accessToken}:${liveCaseId}`} caseId={liveCaseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} onBack={() => { openLiveCase(null); setRetry(r => r + 1); }} />;
+
   if (activeIntakeCase && IntakePage) {
     return (
       <IntakePage
@@ -351,7 +365,7 @@ export default function StaffCaseDashboard({
 
       {/* Scope Note */}
       <p className="lv-staff-filter-scope" role="note">
-        {simulation ? t.filters.scopeNote : (lang === 'en' ? 'Open unassigned cases and cases assigned to you. Intake and identity forms remain available in DEV preview while their contracts are being aligned.' : 'Hồ sơ đang mở chưa được nhận và hồ sơ đã giao cho bạn. Biểu mẫu tiếp nhận và xác minh hiện chỉ có trong DEV preview, chờ thống nhất dữ liệu với máy chủ.')}
+        {simulation ? t.filters.scopeNote : (lang === 'en' ? 'Open unassigned cases and cases assigned to you. Open a case to claim it and record physical documents. Contact and identity selection await case data.' : 'Hồ sơ đang mở chưa được nhận và hồ sơ đã giao cho bạn. Mở hồ sơ để nhận và tiếp nhận giấy tờ bản cứng. Chọn người liên hệ/xác minh đang chờ dữ liệu theo hồ sơ.')}
       </p>
 
       {/* Main Content Area based on states */}
@@ -482,7 +496,7 @@ export default function StaffCaseDashboard({
                           variant="secondary"
                           size="sm"
                           className="lv-staff-view-btn"
-                          onClick={() => setSelectedCase({ item: c, scopeKey })}
+                          onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id)}
                           aria-label={`${t.table.viewAction} ${c.caseNumber}`}
                         >
                           <Eye size={14} aria-hidden="true" />
@@ -578,7 +592,7 @@ export default function StaffCaseDashboard({
                       variant="secondary"
                       size="sm"
                       className="lv-staff-card__view-btn"
-                      onClick={() => setSelectedCase({ item: c, scopeKey })}
+                      onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id)}
                       aria-label={`${t.table.viewAction} ${c.caseNumber}`}
                     >
                       <Eye size={15} aria-hidden="true" />
