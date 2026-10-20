@@ -253,7 +253,7 @@ export default function BeneficiaryHome({
         </div>
       </section>
 
-      <a href="/invitations">{en ? 'Link an invitation code' : 'Liên kết bằng mã mời'}</a>
+      <a href={`/invitations?lang=${en ? 'en' : 'vi'}`}>{en ? 'Link an invitation code' : 'Liên kết bằng mã mời'}</a>
       <ReceivedAssets actions={receivedAssetActions} userId={currentUser?.id} accessToken={session?.accessToken} lang={lang} onUnauthorized={onLogout} refreshKey={receivedRefreshKey} />
 
       {/* Mandatory Regulatory & Legal Notice (PS-90 Boundary Rule) */}

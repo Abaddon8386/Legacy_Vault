@@ -753,6 +753,16 @@ test('App integration - Refresh calls /auth/me, updates roles, keeps expiry, and
 });
 
 for (const lang of ['vi', 'en']) {
+  test(`Beneficiary invitation link preserves ${lang}`, async () => {
+    const view = await mount(BeneficiaryHome, { user: refreshUser, lang });
+    try {
+      const link = view.host.querySelector('a[href^="/invitations"]');
+      assert.ok(link);
+      const destination = new URL(link.href);
+      assert.equal(destination.pathname, '/invitations');
+      assert.equal(destination.searchParams.get('lang'), lang);
+    } finally { await view.close(); }
+  });
   test(`Beneficiary phone ${lang}: auth projection without phone does not claim the profile is incomplete`, async () => {
     const projected = readUser({ ...refreshUser, phoneNumber: '0901234567' });
     assert.equal(Object.hasOwn(projected, 'phoneNumber'), false, 'The current auth contract does not expose profile phone');
