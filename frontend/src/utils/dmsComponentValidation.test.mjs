@@ -38,6 +38,44 @@ async function buildComponent(entry) {
 
 const DMSOverviewPage = await buildComponent('src/pages/dms/DMSOverviewPage.jsx');
 
+for (const mutation of ['save', 'check-in']) {
+  test(`DMS: stale refresh cannot overwrite successful ${mutation}`, async () => {
+    const originalFetch = globalThis.fetch;
+    const stale = createDeferred();
+    let reads = 0;
+    const data = (days) => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'MONITORING', checkIntervalDays: days, gracePeriodDays: 1,
+      lastCheckInAt: '2026-10-15T00:00:00Z', nextCheckAt: '2026-12-14T00:00:00Z' });
+    globalThis.fetch = async (_url, options = {}) => {
+      if (options.method === 'PUT' || options.method === 'POST') return json(data(45));
+      return ++reads === 1 ? json(data(30)) : stale.promise;
+    };
+    const host = document.createElement('div'); document.body.append(host);
+    const root = createRoot(host);
+    const render = (refresh) => React.createElement(DMSOverviewPage, {
+      accessToken: 'synthetic', lang: 'vi', onRefreshTrigger: refresh,
+    });
+    try {
+      await act(async () => root.render(render(0)));
+      await act(async () => root.render(render(1)));
+      await act(async () => {
+        if (mutation === 'save') {
+          setInputValue(host.querySelector('#dms-interval-input'), '45');
+        }
+      });
+      await act(async () => {
+        if (mutation === 'save') host.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+        else [...host.querySelectorAll('button')].find(button => button.textContent.includes('Xác nhận còn hoạt động')).click();
+      });
+      assert.match(host.querySelector('.lv-dms-status-card')?.textContent || host.textContent, /45/);
+      await act(async () => stale.resolve(json(data(30))));
+      assert.match(host.textContent, /45/);
+      assert.equal(host.querySelector('#dms-interval-input').value, '45');
+    } finally {
+      await act(async () => root.unmount()); host.remove(); globalThis.fetch = originalFetch;
+    }
+  });
+}
+
 const json = (value, status = 200) =>
   new Response(JSON.stringify(value), {
     status,

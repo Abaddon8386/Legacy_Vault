@@ -156,6 +156,8 @@ export default function DMSOverviewPage({
     }
 
     pendingSave.current = true;
+    // A read started before this mutation must never replace its result.
+    ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setFieldErrors({});
     setIsSaving(true);
@@ -177,7 +179,9 @@ export default function DMSOverviewPage({
         }
       );
       if (!active.current || controller.signal.aborted) return;
+      ++fetchRequestId.current;
       setDmsData(updated ? { ...updated, snapshotTimestamp: Date.now() } : null);
+      if (updated?.checkIntervalDays != null) setIntervalInput(updated.checkIntervalDays);
       setIsConfiguringNew(false);
       setSaveSuccess('SAVED');
     } catch (err) {
@@ -194,6 +198,7 @@ export default function DMSOverviewPage({
   const handleCheckIn = async () => {
     if (pendingCheckIn.current || pendingSave.current) return;
     pendingCheckIn.current = true;
+    ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setIsCheckingIn(true);
     setCheckInNotice('');
@@ -211,7 +216,9 @@ export default function DMSOverviewPage({
         lang, accessToken, ownerId, signal: controller.signal,
       });
       if (!active.current || controller.signal.aborted) return;
+      ++fetchRequestId.current;
       setDmsData(result ? { ...result, snapshotTimestamp: Date.now() } : null);
+      if (result?.checkIntervalDays != null) setIntervalInput(result.checkIntervalDays);
       setCheckInNotice('CHECKED_IN');
     } catch (err) {
       if (active.current && !controller.signal.aborted) {
