@@ -37,6 +37,11 @@ export default function DMSOverviewPage({
 
   // Form states
   const [intervalInput, setIntervalInput] = useState(DEFAULT_INTERVAL_DAYS);
+  const syncedContextRef = useRef(null);
+  const syncedRefreshTriggerRef = useRef(onRefreshTrigger);
+  const syncedRefreshKeyRef = useRef(refreshKey);
+  const activeOwnerIdRef = useRef(ownerId);
+  const fetchRequestId = useRef(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -57,13 +62,27 @@ export default function DMSOverviewPage({
 
   const [showInfoPopover, setShowInfoPopover] = useState(false);
 
-  // Data fetching
+  // Data fetching with intelligent sync, race condition protection and context reset
   useEffect(() => {
     let ignore = false;
     const controller = new AbortController();
+    const currentRequestId = ++fetchRequestId.current;
 
-    // Check if DEV Preview is active via URL params or prop
-    // Strictly gated: scenario only takes effect when import.meta.env.DEV is true AND preview=true is present
+    const currentContextKey = ownerId ?? '__default__';
+    const isOwnerChanged = activeOwnerIdRef.current !== ownerId;
+    if (isOwnerChanged) {
+      activeOwnerIdRef.current = ownerId;
+      // Cleanly reset inputs, errors and responses of previous owner/context
+      setFieldErrors({});
+      setSaveError('');
+      setSaveSuccess('');
+      setCheckInNotice('');
+      setCheckInError('');
+      setError(null);
+      setDmsData(null);
+      setIntervalInput(DEFAULT_INTERVAL_DAYS);
+    }
+
     const searchParams = new URLSearchParams(window.location.search);
     const hasPreview = searchParams.get('preview') === 'true';
     const isDevPreviewActive = Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
@@ -71,17 +90,27 @@ export default function DMSOverviewPage({
 
     fetchDmsConfig({ scenario, isDevPreview: isDevPreviewActive, lang, accessToken, ownerId, signal: controller.signal })
       .then((data) => {
-        if (!ignore) {
+        if (!ignore && currentRequestId === fetchRequestId.current) {
           setDmsData(data ? { ...data, snapshotTimestamp: Date.now() } : null);
-          if (data && data.checkIntervalDays) {
-            setIntervalInput(data.checkIntervalDays);
+          const needsSync =
+            syncedContextRef.current !== currentContextKey ||
+            syncedRefreshTriggerRef.current !== onRefreshTrigger ||
+            syncedRefreshKeyRef.current !== refreshKey;
+
+          if (needsSync) {
+            if (data && data.checkIntervalDays !== undefined && data.checkIntervalDays !== null) {
+              setIntervalInput(data.checkIntervalDays);
+            }
+            syncedContextRef.current = currentContextKey;
+            syncedRefreshTriggerRef.current = onRefreshTrigger;
+            syncedRefreshKeyRef.current = refreshKey;
           }
           setError(null);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!ignore && err.name !== 'AbortError') {
+        if (!ignore && currentRequestId === fetchRequestId.current && err.name !== 'AbortError') {
           if (err.status === 401) { onUnauthorized?.(); return; }
           setError(err);
           setDmsData(null);
@@ -90,11 +119,13 @@ export default function DMSOverviewPage({
       });
 
     return () => {
-      ignore = true; controller.abort();
+      ignore = true;
+      controller.abort();
     };
   }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, onUnauthorized]);
 
-  const handleManualRetry = useCallback(() => {
+
+    const handleManualRetry = useCallback(() => {
     setLoading(true);
     setError(null);
     setRefreshKey((k) => k + 1);
@@ -125,6 +156,8 @@ export default function DMSOverviewPage({
     }
 
     pendingSave.current = true;
+    // A read started before this mutation must never replace its result.
+    ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setFieldErrors({});
     setIsSaving(true);
@@ -146,7 +179,12 @@ export default function DMSOverviewPage({
         }
       );
       if (!active.current || controller.signal.aborted) return;
+      ++fetchRequestId.current;
+      syncedContextRef.current = ownerId ?? '__default__';
+      syncedRefreshTriggerRef.current = onRefreshTrigger;
+      syncedRefreshKeyRef.current = refreshKey;
       setDmsData(updated ? { ...updated, snapshotTimestamp: Date.now() } : null);
+      if (updated?.checkIntervalDays != null) setIntervalInput(updated.checkIntervalDays);
       setIsConfiguringNew(false);
       setSaveSuccess('SAVED');
     } catch (err) {
@@ -163,6 +201,7 @@ export default function DMSOverviewPage({
   const handleCheckIn = async () => {
     if (pendingCheckIn.current || pendingSave.current) return;
     pendingCheckIn.current = true;
+    ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setIsCheckingIn(true);
     setCheckInNotice('');
@@ -180,7 +219,12 @@ export default function DMSOverviewPage({
         lang, accessToken, ownerId, signal: controller.signal,
       });
       if (!active.current || controller.signal.aborted) return;
+      ++fetchRequestId.current;
+      syncedContextRef.current = ownerId ?? '__default__';
+      syncedRefreshTriggerRef.current = onRefreshTrigger;
+      syncedRefreshKeyRef.current = refreshKey;
       setDmsData(result ? { ...result, snapshotTimestamp: Date.now() } : null);
+      if (result?.checkIntervalDays != null) setIntervalInput(result.checkIntervalDays);
       setCheckInNotice('CHECKED_IN');
     } catch (err) {
       if (active.current && !controller.signal.aborted) {
@@ -202,6 +246,11 @@ export default function DMSOverviewPage({
     setFieldErrors({});
     setSaveError('');
   };
+
+  // Localized field error derived from current language and field state
+  const currentIntervalError = fieldErrors.check_interval_days
+    ? validateDmsInterval(intervalInput, lang).check_interval_days
+    : null;
 
   // Calculate cycle progress if timestamps are valid
   const cycleProgress = useMemo(() => {
@@ -262,9 +311,9 @@ export default function DMSOverviewPage({
       configCardSub:
         'Tùy chỉnh khoảng thời gian giữa các lần hệ thống yêu cầu bạn gửi tín hiệu xác nhận.',
       presetsLabel: 'Gợi ý chu kỳ đề xuất:',
-      presetsHelper: 'Các mức ngày trên là gợi ý nhanh; bạn có thể tùy chọn số ngày bất kỳ phù hợp.',
+      presetsHelper: 'Các mức ngày trên là gợi ý nhanh; bạn có thể tùy chọn số ngày phù hợp từ 1 đến 180 ngày.',
       inputLabel: 'Số ngày chu kỳ:',
-      inputHelper: 'Nhập số nguyên ngày (lớn hơn 0) giữa các lần kiểm tra.',
+      inputHelper: 'Nhập số nguyên ngày (từ 1 đến 180 ngày) giữa các lần kiểm tra.',
       saveBtn: 'Lưu cấu hình chu kỳ',
       savingBtn: 'Đang lưu cấu hình…',
       resetBtn: 'Đặt lại',
@@ -310,9 +359,9 @@ export default function DMSOverviewPage({
       configCardSub:
         'Customize the duration between required activity check-in confirmations.',
       presetsLabel: 'Suggested Presets:',
-      presetsHelper: 'The presets above are quick suggestions; you can enter any custom day count.',
+      presetsHelper: 'The presets above are quick suggestions; you can enter any custom day count from 1 to 180 days.',
       inputLabel: 'Interval in Days:',
-      inputHelper: 'Enter a positive integer number of days (> 0) between checks.',
+      inputHelper: 'Enter a positive integer number of days (1 to 180 days) between checks.',
       saveBtn: 'Save Interval Settings',
       savingBtn: 'Saving Settings…',
       resetBtn: 'Reset',
@@ -699,12 +748,13 @@ export default function DMSOverviewPage({
                       name="check_interval_days"
                       type="number"
                       min="1"
+                      max="180"
                       step="1"
-                      className={`lv-dms-input ${fieldErrors.check_interval_days ? 'is-invalid' : ''}`}
+                      className={`lv-dms-input ${currentIntervalError ? 'is-invalid' : ''}`}
                       value={intervalInput}
                       onChange={handleIntervalInputChange}
                       disabled={isSaving}
-                      aria-invalid={Boolean(fieldErrors.check_interval_days)}
+                      aria-invalid={Boolean(currentIntervalError)}
                       aria-describedby={
                         fieldErrors.check_interval_days
                           ? 'dms-interval-error'
@@ -714,9 +764,9 @@ export default function DMSOverviewPage({
                     <span className="lv-dms-input-unit">{t.daysUnit}</span>
                   </div>
 
-                  {fieldErrors.check_interval_days ? (
+                  {currentIntervalError ? (
                     <span id="dms-interval-error" className="lv-dms-field-error" role="alert">
-                      {fieldErrors.check_interval_days}
+                      {currentIntervalError}
                     </span>
                   ) : (
                     <span id="dms-interval-helper" className="lv-dms-input-helper">
