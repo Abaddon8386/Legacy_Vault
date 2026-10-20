@@ -29,6 +29,61 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/legal-verifications/verification-cases:
+    get:
+      tags: [Legal]
+      summary: Paginated Legal discovery using the existing global Legal case scope (PS-102)
+      description: LEGAL_VERIFIER only. Metadata, no assignment changes or asset content. See legal-read-context.md.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        - in: query
+          name: route
+          schema: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+      responses:
+        '200':
+          description: Stable openedAt DESC / internal tie-break, no-store; not a cross-request snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content, page, size, totalElements, totalPages]
+                properties:
+                  content: { type: array, items: { $ref: '#/components/schemas/LegalQueueItem' } }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalElements: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/legal-verifications/verification-cases/{caseId}/context:
+    get:
+      tags: [Legal]
+      summary: Locked metadata/snapshot/capability read for Legal (PS-102)
+      description: No writes, unlock, file download or decryption. Capabilities are advisory; mutations always recheck current guards.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: No-store. Missing dossier is null, never inferred as approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalReadContext' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Case or associated Vault not found }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -2448,6 +2503,83 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    LegalQueueItem:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, route, dossierStatus, reviewStatus, openedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        vaultStatus: { type: string }
+        route: { type: string, nullable: true }
+        dossierStatus: { type: string, nullable: true }
+        reviewStatus: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+    LegalActionCapability:
+      type: object
+      required: [allowed, blockedReason]
+      properties:
+        allowed: { type: boolean }
+        blockedReason: { type: string, nullable: true, description: Existing shared ErrorCode, or null }
+    LegalReadSnapshot:
+      type: object
+      nullable: true
+      required: [dossierId, currentVersion, requiredVersion, sha256Hash, allocationHash, disputeStatus, reviewStatus, reviewFresh, approvalCurrent, latestDecision, courtResult]
+      properties:
+        dossierId: { type: string, format: uuid }
+        currentVersion: { type: integer, minimum: 0 }
+        requiredVersion: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, nullable: true }
+        allocationHash: { type: string }
+        disputeStatus: { type: string }
+        reviewStatus: { type: string }
+        reviewFresh: { type: boolean }
+        approvalCurrent: { type: boolean }
+        courtResult: { type: string, nullable: true }
+        latestDecision:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            versionNo: { type: integer, nullable: true, description: Historical evidence may lack a snapshot }
+            sha256Hash: { type: string, nullable: true }
+            allocationHash: { type: string, nullable: true }
+            disputeStatus: { type: string, nullable: true }
+            result: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+            reviewedBy: { type: string, format: uuid, nullable: true }
+            reviewedAt: { type: string, format: date-time, nullable: true }
+    LegalReadContext:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, deathDocuments, willComparison, basisDossier, snapshot, capabilities, evaluatedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string }
+        vaultStatus: { type: string }
+        deathDocuments:
+          type: array
+          items:
+            type: object
+            required: [id, documentType, receivedAt]
+            properties:
+              id: { type: string, format: uuid }
+              documentType: { type: string }
+              receivedAt: { type: string, format: date-time }
+        willComparison: { $ref: '#/components/schemas/WillComparisonOverviewResponse' }
+        basisDossier:
+          allOf:
+            - $ref: '#/components/schemas/BasisDossierResponse'
+          nullable: true
+        snapshot: { $ref: '#/components/schemas/LegalReadSnapshot' }
+        capabilities:
+          type: object
+          required: [approval, unlock]
+          properties:
+            approval: { $ref: '#/components/schemas/LegalActionCapability' }
+            unlock: { $ref: '#/components/schemas/LegalActionCapability' }
+        evaluatedAt: { type: string, format: date-time }
     HandoverArchiveResponse:
       type: object
       properties:

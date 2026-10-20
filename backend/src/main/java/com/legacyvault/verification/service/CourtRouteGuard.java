@@ -22,14 +22,19 @@ public class CourtRouteGuard {
     /** Caller holds Vault -> case -> dossier locks for its entire protected transaction. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireValidDecision(LegalBasisDossier dossier) {
-        if (!LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())) return;
+        if (blocker(dossier) != null) throw blocked();
+    }
+
+    /** Side-effect-free inspection for context reads; does not mark a transaction rollback-only. */
+    public ErrorCode blocker(LegalBasisDossier dossier) {
+        if (!LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())) return null;
         int current = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         var evidence = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), current)
-                .orElseThrow(CourtRouteGuard::blocked);
-        if (current < dossier.getRequiredVersionNo() || !evidence.isReviewable()) throw blocked();
+                .orElse(null);
+        if (evidence == null || current < dossier.getRequiredVersionNo() || !evidence.isReviewable()) return ErrorCode.COURT_DECISION_REQUIRED;
         var decision = decisions.findFirstByDossierVersionIdOrderByIdDesc(evidence.id())
-                .orElseThrow(CourtRouteGuard::blocked);
-        if (!"VALID".equals(decision.getResult())) throw blocked();
+                .orElse(null);
+        return decision != null && "VALID".equals(decision.getResult()) ? null : ErrorCode.COURT_DECISION_REQUIRED;
     }
 
     private static BusinessException blocked() { return new BusinessException(ErrorCode.COURT_DECISION_REQUIRED); }
