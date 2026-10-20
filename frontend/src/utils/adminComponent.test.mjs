@@ -1,0 +1,456 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { JSDOM } from 'jsdom';
+import { build } from 'vite';
+import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const dom = new JSDOM('<html><body></body></html>', { url: 'http://localhost:5195/admin' });
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+globalThis.HTMLElement = dom.window.HTMLElement;
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+async function loadComponent(entryPath) {
+  const entry = resolve(import.meta.dirname, '..', entryPath.replace(/^src\//, ''));
+  const root = resolve(import.meta.dirname, '../..');
+  const result = await build({
+    root,
+    configFile: false,
+    plugins: [react()],
+    logLevel: 'silent',
+    build: {
+      write: false,
+      minify: false,
+      lib: { entry, formats: ['es'] },
+      rollupOptions: { external: ['react', 'react/jsx-runtime'] },
+    },
+  });
+  let code = (Array.isArray(result) ? result[0] : result).output.find(
+    (item) => item.type === 'chunk' && item.isEntry
+  ).code;
+  for (const name of ['react', 'react/jsx-runtime']) {
+    code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
+  }
+  return (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
+}
+
+const AdminHome = await loadComponent('src/pages/admin/AdminHome.jsx');
+const AdminUsersPage = await loadComponent('src/pages/admin/AdminUsersPage.jsx');
+const AdminLogsPage = await loadComponent('src/pages/admin/AdminLogsPage.jsx');
+const AppShell = await loadComponent('src/components/layout/AppShell.jsx');
+
+async function mount(Component, props) {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  await act(async () => root.render(React.createElement(Component, props)));
+  return {
+    host,
+    close: async () => {
+      await act(async () => root.unmount());
+      host.remove();
+    },
+  };
+}
+
+// ==========================================
+// 1. AdminHome (Overview) Component Tests
+// ==========================================
+
+test('AdminHome renders title with #admin-home-title and bilingual support', async () => {
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('', { status: 404 });
+
+  try {
+    const viView = await mount(AdminHome, { lang: 'vi' });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      const h1 = viView.host.querySelector('#admin-home-title');
+      assert.ok(h1);
+      assert.equal(h1.textContent, 'Tổng quan quản trị');
+      assert.ok(viView.host.textContent.includes('Chỉ số tài khoản & Phân bổ vai trò'));
+      assert.ok(viView.host.textContent.includes('CHỜ TÍCH HỢP BACKEND'));
+    } finally {
+      await viView.close();
+    }
+
+    const enView = await mount(AdminHome, { lang: 'en' });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      const h1 = enView.host.querySelector('#admin-home-title');
+      assert.ok(h1);
+      assert.equal(h1.textContent, 'Administration overview');
+      assert.ok(enView.host.textContent.includes('Account Metrics & Role Distribution'));
+      assert.ok(enView.host.textContent.includes('PENDING BACKEND INTEGRATION'));
+    } finally {
+      await enView.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('AdminHome renders live metrics and multi-role distribution correctly', async () => {
+  const prevFetch = globalThis.fetch;
+  const mockOverview = {
+    asOf: '2026-10-20T12:00:00Z',
+    totalUsers: 50,
+    activeUsers: 48,
+    lockedUsers: 2,
+    roleDistribution: {
+      VAULT_OWNER: 45,
+      BENEFICIARY: 20, // 45 + 20 = 65 > 50 (multi-role)
+      STAFF_EXECUTOR: 4,
+      LEGAL_VERIFIER: 3,
+      ADMIN: 2,
+    },
+  };
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(mockOverview), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  try {
+    const view = await mount(AdminHome, { lang: 'vi', fetchOnMount: true });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      assert.ok(view.host.textContent.includes('50'));
+      assert.ok(view.host.textContent.includes('48'));
+      assert.ok(view.host.textContent.includes('74')); // total roles: 45+20+4+3+2 = 74
+      assert.ok(view.host.textContent.includes('Chủ sở hữu kho'));
+      assert.ok(view.host.textContent.includes('Người thụ hưởng'));
+      assert.ok(view.host.textContent.includes('Bao gồm tài khoản đa vai trò'));
+    } finally {
+      await view.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('AdminHome triggers onUnauthorized on 401', async () => {
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('', { status: 401 });
+
+  let unauthorizedCalled = false;
+  try {
+    const view = await mount(AdminHome, {
+      onUnauthorized: () => { unauthorizedCalled = true; },
+      fetchOnMount: true,
+    });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      assert.equal(unauthorizedCalled, true);
+    } finally {
+      await view.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+// ==========================================
+// 2. AdminUsersPage Component Tests
+// ==========================================
+
+test('AdminUsersPage renders user table, filters, and prevents creation/role editing', async () => {
+  const prevFetch = globalThis.fetch;
+  const mockUsers = [
+    {
+      id: 'u-101',
+      fullName: 'Trần Văn B',
+      email: 'b@example.com',
+      roles: ['ROLE_VAULT_OWNER', 'ROLE_BENEFICIARY'],
+      status: 'ACTIVE',
+      createdAt: '2026-10-15T00:00:00Z',
+    },
+    {
+      id: 'u-102',
+      fullName: 'Lê Thị C',
+      email: 'c@example.com',
+      roles: ['ROLE_STAFF_EXECUTOR'],
+      status: 'LOCKED',
+      createdAt: '2026-10-16T00:00:00Z',
+    },
+  ];
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ items: mockUsers, total: 2 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  try {
+    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+
+      // Title & columns
+      assert.ok(view.host.querySelector('#admin-users-title'));
+      assert.ok(view.host.textContent.includes('Trần Văn B'));
+      assert.ok(view.host.textContent.includes('Lê Thị C'));
+      assert.ok(view.host.textContent.includes('VAULT_OWNER'));
+      assert.ok(view.host.textContent.includes('BENEFICIARY'));
+
+      // Search & Filters exist
+      assert.ok(view.host.querySelector('input[type="search"]'));
+      assert.ok(view.host.querySelectorAll('select').length >= 2);
+
+      // Verify NO create user button exists
+      const buttons = [...view.host.querySelectorAll('button')];
+      assert.equal(
+        buttons.some((b) => b.textContent.includes('Tạo người dùng') || b.textContent.includes('Create user') || b.textContent.includes('Thêm người dùng')),
+        false,
+        'AdminUsersPage must NOT have a create user button'
+      );
+
+      // Verify NO edit user button exists
+      assert.equal(
+        buttons.some((b) => b.textContent.includes('Sửa thông tin') || b.textContent.includes('Edit user')),
+        false,
+        'AdminUsersPage must NOT have an edit user button'
+      );
+    } finally {
+      await view.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('AdminUsersPage user detail modal displays read-only information', async () => {
+  const prevFetch = globalThis.fetch;
+  const mockUser = {
+    id: 'u-101',
+    fullName: 'Trần Văn B',
+    email: 'b@example.com',
+    roles: ['VAULT_OWNER', 'BENEFICIARY'],
+    status: 'ACTIVE',
+    createdAt: '2026-10-15T00:00:00Z',
+  };
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ items: [mockUser], total: 1 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  try {
+    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+
+      // Click "Xem chi tiết"
+      const detailBtn = [...view.host.querySelectorAll('button')].find((b) =>
+        b.textContent.includes('Xem chi tiết')
+      );
+      assert.ok(detailBtn);
+      await act(async () => { detailBtn.click(); });
+
+      // Modal is visible
+      assert.ok(view.host.querySelector('#user-detail-modal-title'));
+      assert.ok(view.host.textContent.includes('u-101'));
+      assert.ok(view.host.textContent.includes('Trần Văn B'));
+      assert.ok(view.host.textContent.includes('b@example.com'));
+
+      // Close modal
+      const closeBtn = [...view.host.querySelectorAll('button')].find((b) =>
+        b.textContent.includes('Đóng')
+      );
+      assert.ok(closeBtn);
+      await act(async () => { closeBtn.click(); });
+      assert.equal(view.host.querySelector('#user-detail-modal-title'), null);
+    } finally {
+      await view.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('AdminUsersPage lock confirmation dialog is guarded and disabled', async () => {
+  const prevFetch = globalThis.fetch;
+  const mockUser = {
+    id: 'u-101',
+    fullName: 'Trần Văn B',
+    email: 'b@example.com',
+    roles: ['VAULT_OWNER'],
+    status: 'ACTIVE',
+  };
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ items: [mockUser], total: 1 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  try {
+    const view = await mount(AdminUsersPage, { lang: 'vi', fetchOnMount: true });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+
+      // Click "Khóa tài khoản"
+      const lockBtn = [...view.host.querySelectorAll('button')].find((b) =>
+        b.textContent.includes('Khóa tài khoản')
+      );
+      assert.ok(lockBtn);
+      await act(async () => { lockBtn.click(); });
+
+      // Modal is open
+      assert.ok(view.host.querySelector('#lock-dialog-title'));
+      assert.ok(view.host.textContent.includes('Trần Văn B'));
+      assert.ok(view.host.textContent.includes('CHỜ TÍCH HỢP BACKEND'));
+      assert.ok(view.host.textContent.includes('chưa chốt policy'));
+
+      // Confirm button must be disabled to prevent fake optimistic success
+      const confirmLockBtn = [...view.host.querySelectorAll('button')].find((b) =>
+        b.textContent.includes('Xác nhận khóa tài khoản')
+      );
+      assert.ok(confirmLockBtn);
+      assert.equal(confirmLockBtn.disabled, true);
+    } finally {
+      await view.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+// ==========================================
+// 3. AdminLogsPage Component Tests
+// ==========================================
+
+test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids edit/delete/export/risk badges', async () => {
+  const prevFetch = globalThis.fetch;
+  const mockLogs = [
+    {
+      id: 'aud-001',
+      occurredAt: '2026-10-20T10:00:00Z',
+      actorType: 'SYSTEM',
+      action: 'DMS_TRIGGERED',
+      entityType: 'Vault',
+      entityId: 'v-1',
+    },
+    {
+      id: 'aud-002',
+      occurredAt: '2026-10-20T10:05:00Z',
+      actorType: 'USER',
+      actorId: 'u-101',
+      actorName: 'Trần Văn B',
+      actorRoles: ['VAULT_OWNER'],
+      action: 'VAULT_CREATED',
+      entityType: 'Vault',
+      entityId: 'v-1',
+      traceId: 'tr-abc-123',
+    },
+  ];
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ items: mockLogs, total: 2 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  try {
+    const view = await mount(AdminLogsPage, { lang: 'vi', fetchOnMount: true });
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+
+      assert.ok(view.host.querySelector('#admin-logs-title'));
+      assert.ok(view.host.textContent.includes('Hệ thống (SYSTEM)'));
+      assert.ok(view.host.textContent.includes('Trần Văn B'));
+      assert.ok(view.host.textContent.includes('DMS_TRIGGERED'));
+      assert.ok(view.host.textContent.includes('VAULT_CREATED'));
+
+      const buttons = [...view.host.querySelectorAll('button')];
+
+      // Strictly NO edit button
+      assert.equal(
+        buttons.some((b) => b.textContent.includes('Sửa') || b.textContent.includes('Edit')),
+        false,
+        'AdminLogsPage must NOT have edit buttons'
+      );
+
+      // Strictly NO delete button
+      assert.equal(
+        buttons.some((b) => b.textContent.includes('Xóa') || b.textContent.includes('Delete')),
+        false,
+        'AdminLogsPage must NOT have delete buttons'
+      );
+
+      // Strictly NO CSV export button
+      assert.equal(
+        buttons.some((b) => b.textContent.includes('Xuất CSV') || b.textContent.includes('Export CSV')),
+        false,
+        'AdminLogsPage must NOT have export CSV buttons'
+      );
+
+      // Strictly NO risk level classifications (e.g. LOW / MEDIUM / CRITICAL risk badges)
+      assert.equal(view.host.textContent.includes('CRITICAL'), false);
+      assert.equal(view.host.textContent.includes('Mức độ rủi ro'), false);
+
+      // Click "Xem chi tiết" on log #2
+      const detailBtns = buttons.filter((b) => b.textContent.includes('Xem chi tiết'));
+      assert.ok(detailBtns.length > 0);
+      await act(async () => { detailBtns[1].click(); });
+
+      // Modal shows traceId
+      assert.ok(view.host.querySelector('#log-detail-modal-title'));
+      assert.ok(view.host.textContent.includes('tr-abc-123'));
+    } finally {
+      await view.close();
+    }
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+// ==========================================
+// 4. AppShell Admin Navigation Regression Tests
+// ==========================================
+
+test('AppShell renders all 4 Admin tabs and preserves 14 render sites constraint', async () => {
+  const activeSession = {
+    accessToken: 'test-admin-token',
+    user: {
+      id: 'admin-1',
+      fullName: 'System Admin',
+      email: 'admin@legacyvault.vn',
+      roles: ['ADMIN'],
+    },
+  };
+
+  const view = await mount(AppShell, {
+    role: 'ADMIN',
+    session: activeSession,
+    user: activeSession.user,
+    lang: 'vi',
+    currentTab: 'admin-home',
+    isAuthenticated: true,
+  });
+
+  try {
+    const navText = view.host.querySelector('.lv-sidebar-nav')?.textContent || '';
+    assert.ok(navText.includes('Tổng quan quản trị'));
+    assert.ok(navText.includes('Người dùng'));
+    assert.ok(navText.includes('Quản lý gói sử dụng'));
+    assert.ok(navText.includes('Nhật ký'));
+  } finally {
+    await view.close();
+  }
+
+  // Regression check: ensure App.jsx strictly maintains exactly 14 <AppShell> render sites
+  const appJsx = readFileSync(resolve(import.meta.dirname, '../App.jsx'), 'utf8');
+  const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
+  assert.equal(
+    appShellMatches.length,
+    14,
+    'Expected exactly 14 AppShell render sites across App.jsx'
+  );
+});

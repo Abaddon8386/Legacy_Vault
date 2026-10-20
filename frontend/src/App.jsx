@@ -4,6 +4,8 @@ import { handoverUrl, isHandoverId } from './pages/staff/liveHandoverService.js'
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
+import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
+import AdminLogsPage from './pages/admin/AdminLogsPage.jsx';
 import { previewRoute } from './utils/previewState.js';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
@@ -629,16 +631,23 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       }}
       onContinue={() => navigateTo('/beneficiary')} />;
   }
-  if (path === '/admin' || path === '/admin/subscriptions') {
+  if (path === '/admin' || path === '/admin/overview' || path === '/admin/users' || path === '/admin/subscriptions' || path === '/admin/logs') {
     if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!session.user.roles.includes('ADMIN')) return <main role="alert"><p>{lang === 'en' ? 'This page requires an administrator account.' : 'Trang này dành cho tài khoản quản trị viên.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
-    const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions' : 'admin-home';
+    const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions'
+      : path === '/admin/users' ? 'admin-users'
+      : path === '/admin/logs' ? 'admin-logs'
+      : 'admin-home';
     return <AppShell role="ADMIN" session={session} user={session.user} lang={lang} currentTab={currentTab}
       isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null}
-      onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : tab === 'beneficiary-home' ? '/beneficiary' : tab === 'admin-subscriptions' ? '/admin/subscriptions' : '/admin')}>
+      onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : tab === 'beneficiary-home' ? '/beneficiary' : tab === 'admin-subscriptions' ? '/admin/subscriptions' : tab === 'admin-users' ? '/admin/users' : tab === 'admin-logs' ? '/admin/logs' : '/admin')}>
       {currentTab === 'admin-subscriptions'
         ? <AdminSubscriptionPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onNavigateHome={() => navigateTo('/admin')} />
-        : <AdminHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} />}
+        : currentTab === 'admin-users'
+        ? <AdminUsersPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
+        : currentTab === 'admin-logs'
+        ? <AdminLogsPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
+        : <AdminHome lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} onNavigate={target => navigateTo(target === 'users' ? '/admin/users' : target === 'logs' ? '/admin/logs' : '/admin/subscriptions')} />}
     </AppShell>;
   }
   if (path === '/beneficiary' && preview) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
@@ -876,7 +885,9 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   const handleExecuteNavigation = (targetTab) => {
     if (targetTab === 'admin-home') { navigateTo('/admin');
+    } else if (targetTab === 'admin-users') { navigateTo('/admin/users');
     } else if (targetTab === 'admin-subscriptions') { navigateTo('/admin/subscriptions');
+    } else if (targetTab === 'admin-logs') { navigateTo('/admin/logs');
     } else if (targetTab === 'beneficiary-home') { navigateTo('/beneficiary');
     } else if (targetTab === 'account-profile') {
       navigateTo(resolveAccountRoute('/account/profile'));
