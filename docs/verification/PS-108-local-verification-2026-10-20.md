@@ -25,3 +25,9 @@ PS-109 writes/user policy and FE PS-110 remain their owners' scope. Shared admin
 ## Review follow-up — 20 October 2026
 
 Reproduced a UTC portability bug under America/New_York: SQL DATETIME2 2026-03-08 02:30 was returned as 03:30Z during the JVM DST gap, and Timestamp-based filter bounds could move as well. Replaced Timestamp conversions with JDBC 4.2 LocalDateTime bindings/reads, then UTC conversion explicitly. New SQL regression changes/restores the JVM zone and checks both detail and half-open search for the exact event. Targeted API/migration/OpenAPI suite: 8 passed, zero failures (6 API, 1 migration, 1 contract). Four-PR combined verification is recorded separately.
+
+## V37 failure-atomicity follow-up
+
+Injected an index-name collision after the new public-ID column/default and unique index were created. SQL Server/Flyway rolled the whole failed V37 back: no new column, no new unique index, no failed V37 history, original event/action/payload/time preserved. Removing only the fixture sentinel and retrying succeeds without repair; old writer inserts still receive stable public UUIDs and UPDATE/DELETE stay blocked. Targeted audit SQL/API/upgrade/failure/OpenAPI suite: 9 passed, zero failures/skips.
+
+Added FourPrIntegrationSqlServerTest, activated only when PS-91 minute DTO, PS-102 context, PS-107 overview and PS-108 audit classes coexist. It exercises real HTTP/JWT and SQL across minute configure/check-in -> preverified COURT fixture -> displayed-snapshot review -> court validation -> final approval -> separate unlock -> Admin counts/audit redaction -> DB role revocation. Standalone PS-108 intentionally skips that one combined test; the combined run is documented separately. It does not assert physical death/counter evidence or FE browser E2E.
