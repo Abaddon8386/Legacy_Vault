@@ -1334,13 +1334,13 @@ export default function App() {
           navigateTo(preview ? previewRoute(tab, window.location.search, lang) : (tab === 'subscription' ? (preview ? '/subscription?preview=true' : '/subscription') : `/${tab}`));
         }
       }}>
-      {preview && (isBeneficiariesRoute || isWillsRoute) ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
-        <h2>{isWillsRoute ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số') : (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng và người thi hành bên ngoài')}</h2>
+      {preview && isWillsRoute ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
+        <h2>{lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số'}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--primary" onClick={() => navigateTo(previewRoute('vault', window.location.search, lang))}>{lang === 'en' ? 'Back to preview' : 'Quay lại tổng quan'}</button>
         <button type="button" className="lv-summary-cta-btn lv-summary-cta-btn--gold" onClick={() => navigateTo('/login')}>{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</button>
       </section> : isSubscriptionRoute ? <SubscriptionPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
-        : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
+        : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute key={session?.user.id || 'preview'} {...context} isDevPreview={preview} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
             : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />

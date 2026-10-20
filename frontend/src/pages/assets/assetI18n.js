@@ -11,7 +11,7 @@ export const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed';
 export const ASSET_I18N = {
   vi: {
     assets: {
-      title: 'Danh sách Tài sản',
+      title: 'Danh mục tài sản',
       subtitle: 'Khai báo các tài sản thuộc kho di sản cá nhân để chuẩn bị phân định thừa kế.',
       addNewBtn: 'Thêm tài sản mới',
       notice:
@@ -113,7 +113,7 @@ export const ASSET_I18N = {
   },
   en: {
     assets: {
-      title: 'Asset Inventory',
+      title: 'Heritage Assets',
       subtitle: 'Record and organize assets within your vault to prepare for succession planning.',
       addNewBtn: 'Add New Asset',
       notice:

@@ -37,16 +37,23 @@
 .lv-dms-action-title{font-size:14px;font-weight:600;margin:0 0 6px;color:#264a38}
 .lv-dms-action-sub{font-size:13px;color:#637068;margin:0;line-height:1.6}
 .lv-dms-action-button-col{flex-shrink:0}
-.lv-dms-page .lv-dms-checkin-btn,.lv-dms-page .lv-dms-submit-btn,.lv-dms-page .lv-dms-empty-cta{display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:44px;padding:11px 20px;border:1px solid #264a38;border-radius:8px;background:#264a38;box-shadow:none;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transform:none}
-.lv-dms-page .lv-dms-checkin-btn:hover:not(:disabled),.lv-dms-page .lv-dms-submit-btn:hover:not(:disabled),.lv-dms-page .lv-dms-empty-cta:hover{background:#193b29;box-shadow:none;transform:none}
-.lv-dms-page .lv-dms-checkin-btn:disabled,.lv-dms-page .lv-dms-submit-btn:disabled{background:#e9ebe4;color:#70786e;border-color:#e9ebe4;cursor:not-allowed;box-shadow:none}
+.lv-dms-page .lv-dms-submit-btn,.lv-dms-page .lv-dms-empty-cta{display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:44px;padding:11px 20px;border:1px solid #264a38;border-radius:8px;background:#264a38;box-shadow:none;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transform:none}
+.lv-dms-page .lv-dms-submit-btn:hover:not(:disabled),.lv-dms-page .lv-dms-empty-cta:hover{background:#193b29;box-shadow:none;transform:none}
+.lv-dms-page .lv-dms-submit-btn:disabled{background:#e9ebe4;color:#70786e;border-color:#e9ebe4;cursor:not-allowed;box-shadow:none}
+
+.lv-dms-page .lv-dms-checkin-btn{display:inline-flex;justify-content:center;align-items:center;gap:10px;min-height:52px;padding:13px 30px;border:1px solid #164639;border-radius:10px;background:linear-gradient(135deg,#1b4d3e 0%,#0f3327 100%);box-shadow:0 4px 16px rgba(22,70,57,0.28);color:#fff;font:inherit;font-size:15px;font-weight:700;letter-spacing:0.01em;cursor:pointer;transition:all 0.2s ease}
+.lv-dms-page .lv-dms-checkin-btn:hover:not(:disabled){background:linear-gradient(135deg,#236350 0%,#133d2f 100%);box-shadow:0 6px 22px rgba(22,70,57,0.38);transform:translateY(-1px)}
+.lv-dms-page .lv-dms-checkin-btn:active:not(:disabled){transform:translateY(0);box-shadow:0 2px 10px rgba(22,70,57,0.24)}
+.lv-dms-page .lv-dms-checkin-btn:focus-visible{outline:2px solid #2d6a4f;outline-offset:3px}
+.lv-dms-page .lv-dms-checkin-btn:disabled{background:#e9ebe4;color:#70786e;border-color:#e9ebe4;cursor:not-allowed;box-shadow:none;transform:none}
+@media(prefers-reduced-motion:reduce){.lv-dms-page .lv-dms-checkin-btn{transition:none;transform:none}.lv-dms-page .lv-dms-checkin-btn:hover:not(:disabled){transform:none}}
 .lv-dms-cycle-timeline{display:grid;gap:8px;padding-top:4px}
 .lv-dms-cycle-timeline-header,.lv-dms-cycle-timeline-bounds{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:#637068}
 .lv-dms-cycle-timeline-percent{font-variant-numeric:tabular-nums}
 .lv-dms-cycle-progress-track{height:4px;background:#eaece5;border-radius:4px;overflow:hidden}
 .lv-dms-cycle-progress-bar{height:100%;background:#6a816b;border-radius:4px;transition:width .2s ease}
 .lv-dms-cycle-timeline-bounds{font-size:11px}
-.lv-dms-triggered-banner{display:flex;gap:12px;padding:16px 18px;background:#fcf4f0;border:1px solid #e8d2c9;border-radius:9px}
+.lv-dms-triggered-banner{display:flex;gap:14px;padding:18px 20px;background:#fef2f2;border:1px solid #fca5a5;border-left:5px solid #dc2626;border-radius:10px;box-shadow:0 3px 12px rgba(220,38,38,0.08)}
 .lv-dms-triggered-icon{color:#a44b38;flex-shrink:0;padding-top:1px}
 .lv-dms-triggered-icon svg{width:20px;height:20px}
 .lv-dms-triggered-content{min-width:0}
@@ -74,7 +81,7 @@
 .lv-dms-reset-btn{min-height:44px;padding:10px 18px;border:1px solid #dfe2d8;border-radius:8px;background:white;color:#526259;font:inherit;font-size:13px;cursor:pointer}
 .lv-dms-reset-btn:disabled{opacity:.6;cursor:not-allowed}
 .lv-dms-toast-notice,.lv-dms-banner-success,.lv-dms-toast-error,.lv-dms-banner-error{display:flex;gap:10px;align-items:center;padding:12px 16px;border:1px solid #d5e1d3;border-radius:8px;background:#f1f6ee;color:#315c3d;font-size:13px;line-height:1.6}
-.lv-dms-toast-error,.lv-dms-banner-error{background:#fcf2ee;border-color:#e8cec5;color:#a43e30}
+.lv-dms-toast-error,.lv-dms-banner-error{background:#fef2f2;border-color:#f87171;border-left:4px solid #dc2626;color:#991b1b;font-weight:500}
 .lv-dms-toast-icon{font-weight:600}
 .lv-dms-policy-footer{padding:0 2px}
 .lv-dms-policy-text{margin:0;color:#637068;font-size:12px;line-height:1.7}

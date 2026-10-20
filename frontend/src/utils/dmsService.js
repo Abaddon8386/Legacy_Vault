@@ -48,6 +48,7 @@ export const dmsStatusMessages = {
     intervalRequired: 'Vui lòng nhập chu kỳ kiểm tra định kỳ.',
     intervalInteger: 'Chu kỳ kiểm tra phải là một số nguyên ngày.',
     intervalPositive: 'Chu kỳ kiểm tra phải là số nguyên dương lớn hơn 0.',
+    intervalMax: 'Chu kỳ kiểm tra không được vượt quá 180 ngày.',
     unauthorized: 'Phiên làm việc đã hết hạn hoặc chưa được xác thực. Vui lòng đăng nhập lại.',
     forbidden: 'Bạn không có quyền truy cập cấu hình giám sát của kho này.',
     notFound: 'Không tìm thấy thông tin cấu hình giám sát của kho di sản.',
@@ -64,6 +65,7 @@ export const dmsStatusMessages = {
     intervalRequired: 'Please enter a check-in interval.',
     intervalInteger: 'Check-in interval must be a whole number of days.',
     intervalPositive: 'Check-in interval must be a positive integer greater than 0.',
+    intervalMax: 'Check-in interval cannot exceed 180 days.',
     unauthorized: 'Session has expired or authentication is required. Please sign in again.',
     forbidden: 'You do not have permission to access the vitality monitor for this vault.',
     notFound: 'Vitality monitor configuration not found for this vault.',
@@ -104,6 +106,8 @@ export function validateDmsInterval(intervalInput, lang = 'vi') {
 
   if (num <= 0) {
     errors.check_interval_days = msgs.intervalPositive;
+  } else if (num > 180) {
+    errors.check_interval_days = msgs.intervalMax;
   }
 
   return errors;

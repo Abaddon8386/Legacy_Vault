@@ -35,7 +35,7 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'assets',
     jiraTicket: 'PS-5',
-    labelVi: 'Danh mục tài sản di sản',
+    labelVi: 'Danh mục tài sản',
     labelEn: 'Heritage Assets',
     status: 'ACTIVE',
   },
