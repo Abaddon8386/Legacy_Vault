@@ -1,3 +1,5 @@
+import ReceivedAssets from './pages/beneficiary/ReceivedAssets.jsx';
+import LanguageToggle from './components/common/LanguageToggle.jsx';
 import { handoverUrl, isHandoverId } from './pages/staff/liveHandoverService.js';
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
@@ -383,7 +385,7 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App({ invitationActions } = {}) {
+export default function App({ invitationActions, beneficiaryAssetActions } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const [session, setSession] = useState(readStoredSession);
@@ -638,6 +640,11 @@ export default function App({ invitationActions } = {}) {
         : <AdminHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} />}
     </AppShell>;
   }
+  if (path === '/beneficiary' && preview) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
+    <LanguageToggle lang={lang} onToggleLang={setLang} />
+    <a href="/login">{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</a>
+    <ReceivedAssets lang={lang} isDevPreview scenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'} />
+  </main>;
   if (path === '/beneficiary') {
     if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
@@ -685,6 +692,8 @@ export default function App({ invitationActions } = {}) {
           }}
         >
           <BeneficiaryHome
+            receivedAssetActions={beneficiaryAssetActions}
+            receivedRefreshKey={refreshTrigger}
             lang={lang}
             user={session.user}
             session={session}
