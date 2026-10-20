@@ -29,21 +29,6 @@ security:
   - bearerAuth: []
 
 paths:
-  /api/v1/admin/overview:
-    get:
-      tags: [Admin]
-      summary: Admin overview from real SQL counts (PS-107)
-      description: ROLE_ADMIN only. Nondeleted accounts including locked; non-ARCHIVED vaults; OPEN cases; per-role assignments on nondeleted accounts. READ_COMMITTED_COLLECTION_WINDOW is explicitly not an atomic cross-table snapshot. No content or private account fields.
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Real counts and UTC collection interval; Cache-Control no-store
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AdminOverview' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -267,6 +252,21 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+  /api/v1/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Admin overview from real SQL counts (PS-107)
+      description: ROLE_ADMIN only. Nondeleted accounts including locked; non-ARCHIVED vaults; OPEN cases; per-role assignments on nondeleted accounts. READ_COMMITTED_COLLECTION_WINDOW is explicitly not an atomic cross-table snapshot. No content or private account fields.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Real counts and UTC collection interval; Cache-Control no-store
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminOverview' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /api/v1/admin/subscriptions/plans:
     get:
       tags: [Admin, Subscriptions]
@@ -2463,20 +2463,6 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
-    AdminOverview:
-      type: object
-      required: [totalAccounts, activeVaults, processingCases, roleAssignments, startedAt, completedAt, consistency]
-      properties:
-        totalAccounts: { type: integer, format: int64, minimum: 0 }
-        activeVaults: { type: integer, format: int64, minimum: 0 }
-        processingCases: { type: integer, format: int64, minimum: 0 }
-        roleAssignments:
-          type: object
-          additionalProperties: { type: integer, format: int64, minimum: 0 }
-        startedAt: { type: string, format: date-time }
-        completedAt: { type: string, format: date-time }
-        consistency: { type: string, enum: [READ_COMMITTED_COLLECTION_WINDOW] }
-
     HandoverArchiveResponse:
       type: object
       properties:
@@ -3332,6 +3318,20 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+
+    AdminOverview:
+      type: object
+      required: [totalAccounts, activeVaults, processingCases, roleAssignments, startedAt, completedAt, consistency]
+      properties:
+        totalAccounts: { type: integer, format: int64, minimum: 0 }
+        activeVaults: { type: integer, format: int64, minimum: 0 }
+        processingCases: { type: integer, format: int64, minimum: 0 }
+        roleAssignments:
+          type: object
+          additionalProperties: { type: integer, format: int64, minimum: 0 }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        consistency: { type: string, enum: [READ_COMMITTED_COLLECTION_WINDOW] }
 
     SubscriptionUpgradeRequest:
       type: object
