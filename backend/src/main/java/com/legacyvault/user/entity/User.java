@@ -42,6 +42,8 @@ public class User {
     @Column(name = "password_login_enabled")
     private Boolean passwordLoginEnabled = true;
     @Column(name = "password_reset_at")
+    // UTC DATETIME2 must use JDBC 4.2 directly, not java.sql.Timestamp / the host DST rules.
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LOCAL_DATE_TIME)
     private LocalDateTime passwordResetAt;
 
     public long getAuthVersion() { return authVersion; }

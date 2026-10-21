@@ -35,7 +35,7 @@ public class PasswordRecoveryService {
     @Transactional
     public Long claim() {
         var ids=jdbc.query("""
-                ;WITH next_job AS (SELECT TOP (1) * FROM dbo.password_recovery_jobs WITH (UPDLOCK,READPAST,ROWLOCK)
+                ;WITH next_job AS (SELECT TOP (1) * FROM dbo.password_recovery_jobs WITH (UPDLOCK,READPAST,READCOMMITTEDLOCK)
                     WHERE status='QUEUED' ORDER BY job_id)
                 UPDATE next_job SET status='CLAIMED' OUTPUT inserted.job_id
                 """,(rs,n)->rs.getLong(1));
@@ -43,7 +43,9 @@ public class PasswordRecoveryService {
     }
     @Transactional
     public Delivery prepare(Long jobId) {
-        var jobs=jdbc.query("SELECT email,locale,requested_at FROM dbo.password_recovery_jobs WHERE job_id=? AND status='CLAIMED'",
+        // Lock order: Job -> User -> Credential. Reset takes User -> Credential and never locks a Job.
+        // Claim alone is not a one-time prepare guard: a repeated caller must not mint a second secret.
+        var jobs=jdbc.query("UPDATE dbo.password_recovery_jobs SET status='PREPARED' OUTPUT inserted.email,inserted.locale,inserted.requested_at WHERE job_id=? AND status='CLAIMED'",
                 (rs,n)->new Job(rs.getString(1),rs.getString(2),rs.getObject(3,LocalDateTime.class)),jobId);
         if(jobs.isEmpty()) return null;
         Job job=jobs.getFirst();
@@ -53,21 +55,24 @@ public class PasswordRecoveryService {
         User user=users.findActiveAccountForUpdate(candidate.getUserId()).orElse(null);
         if(user==null) { mark(jobId,"SKIPPED"); return null; }
         entities.refresh(user); // The lookup above may have populated JPA before waiting for the User lock.
-        if(!eligible(user) || (user.getPasswordResetAt()!=null && !job.requestedAt().isAfter(user.getPasswordResetAt()))) {
+        if(!eligible(user) || !job.email().equals(EmailNormalizer.normalize(user.getEmail()))
+                || (user.getPasswordResetAt()!=null && !job.requestedAt().isAfter(user.getPasswordResetAt()))) {
             mark(jobId,"SKIPPED"); return null;
         }
         LocalDateTime now=now();
         Long active=jdbc.queryForObject("SELECT COUNT_BIG(*) FROM dbo.password_reset_credentials WHERE user_id=? AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at>?",Long.class,user.getUserId(),now);
         if(active!=null && active>=3) { mark(jobId,"SKIPPED"); return null; }
         String raw=secrets.generate();
-        jdbc.update("INSERT dbo.password_reset_credentials(user_id,credential_hash,auth_version,created_at,expires_at) VALUES (?,?,?,?,?)",
-                user.getUserId(),secrets.hash(raw),user.getAuthVersion(),now,now.plusMinutes(15));
+        jdbc.update("INSERT dbo.password_reset_credentials(user_id,credential_hash,auth_version,created_at,expires_at,email_fingerprint) VALUES (?,?,?,?,?,?)",
+                user.getUserId(),secrets.hash(raw),user.getAuthVersion(),now,now.plusMinutes(15),emailFingerprint(user));
         record(user,AuditAction.AUTH_RECOVERY_ISSUED);
         return new Delivery(jobId,user.getEmail(),job.locale(),raw);
     }
     @Transactional
     public void mark(Long jobId,String status) {
-        jdbc.update("UPDATE dbo.password_recovery_jobs SET status=? WHERE job_id=? AND status='CLAIMED'",status,jobId);
+        if(!java.util.Set.of("ACCEPTED","FAILED","SKIPPED").contains(status))
+            throw new IllegalArgumentException("Invalid recovery job transition");
+        jdbc.update("UPDATE dbo.password_recovery_jobs SET status=? WHERE job_id=? AND status IN ('CLAIMED','PREPARED')",status,jobId);
     }
     @Transactional
     public void cleanup() {
@@ -90,18 +95,18 @@ public class PasswordRecoveryService {
         if(!eligible(user)) throw invalid();
         Long usable=jdbc.queryForObject("""
                 SELECT COUNT_BIG(*) FROM dbo.password_reset_credentials WHERE credential_hash=? AND user_id=?
-                AND auth_version=? AND purpose='PASSWORD_RESET' AND consumed_at IS NULL AND revoked_at IS NULL
+                AND auth_version=? AND email_fingerprint=? AND purpose='PASSWORD_RESET' AND consumed_at IS NULL AND revoked_at IS NULL
                 AND expires_at>SYSUTCDATETIME()
-                """,Long.class,hash,user.getUserId(),user.getAuthVersion());
+                """,Long.class,hash,user.getUserId(),user.getAuthVersion(),emailFingerprint(user));
         if(usable==null || usable!=1) throw invalid();
         // Hash before taking the final expiry timestamp: an expensive encode must not extend token validity.
         String encoded=encoder.encode(password);
         LocalDateTime at=now();
         int changed=jdbc.update("""
                 UPDATE dbo.password_reset_credentials SET consumed_at=?
-                WHERE credential_hash=? AND user_id=? AND purpose='PASSWORD_RESET' AND auth_version=?
+                WHERE credential_hash=? AND user_id=? AND purpose='PASSWORD_RESET' AND auth_version=? AND email_fingerprint=?
                     AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at>?
-                """,at,hash,user.getUserId(),user.getAuthVersion(),at);
+                """,at,hash,user.getUserId(),user.getAuthVersion(),emailFingerprint(user),at);
         if(changed!=1) throw invalid();
         user.setPasswordHash(encoded);
         user.advanceAuthVersion(at);
@@ -110,6 +115,7 @@ public class PasswordRecoveryService {
         record(user,AuditAction.AUTH_PASSWORD_RESET);
     }
     private boolean eligible(User u) { return "ACTIVE".equals(u.getStatus()) && u.getDeletedAt()==null && u.isPasswordLoginEnabled(); }
+    private String emailFingerprint(User user) { return secrets.bucket("reset-email",EmailNormalizer.normalize(user.getEmail())); }
     private BusinessException invalid() { return new BusinessException(ErrorCode.RECOVERY_INVALID); }
     private LocalDateTime now() { return jdbc.queryForObject("SELECT SYSUTCDATETIME()",(rs,n)->rs.getObject(1,LocalDateTime.class)); }
     private void record(User user,AuditAction action) {

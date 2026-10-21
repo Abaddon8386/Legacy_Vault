@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Durable rolling windows. Failure of the limiter fails closed, never permits unmetered work. */
@@ -13,7 +14,7 @@ public class RecoveryRateLimiter {
     private final RecoverySecrets secrets;
     public RecoveryRateLimiter(JdbcTemplate jdbc, RecoverySecrets secrets) { this.jdbc=jdbc; this.secrets=secrets; }
 
-    @Transactional(propagation=Propagation.REQUIRES_NEW)
+    @Transactional(propagation=Propagation.REQUIRES_NEW,isolation=Isolation.READ_COMMITTED)
     public boolean allow(String scope, String identity, int maximum, int seconds) {
         String key=secrets.bucket(scope,identity);
         // Hibernate may defer the first physical BEGIN until DML. sp_getapplock requires it now.

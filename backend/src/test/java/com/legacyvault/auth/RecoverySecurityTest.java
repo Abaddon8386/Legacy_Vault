@@ -49,4 +49,15 @@ class RecoverySecurityTest {
         assertDoesNotThrow(()->new RecoveryDeliveryWorker(service,transport).deliver());
         verify(service).mark(1L,"FAILED"); verify(transport,times(1)).send(any(),any(),any());
     }
+    @Test void interruptedWorkerDoesNotClaimMoreJobsAfterAnAmbiguousSend() {
+        var service=mock(PasswordRecoveryService.class); var transport=mock(RecoveryMailTransport.class);
+        when(service.claim()).thenReturn(1L,2L,null);
+        when(service.prepare(1L)).thenReturn(new PasswordRecoveryService.Delivery(1L,"fixture@test","vi","secret"));
+        doAnswer(call->{Thread.currentThread().interrupt();throw new IllegalStateException("interrupted");})
+                .when(transport).send(any(),any(),any());
+        try {
+            new RecoveryDeliveryWorker(service,transport).deliver();
+            verify(service,times(1)).claim(); verify(service).mark(1L,"FAILED");
+        } finally { Thread.interrupted(); }
+    }
 }

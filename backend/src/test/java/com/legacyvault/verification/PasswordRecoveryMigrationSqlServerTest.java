@@ -10,6 +10,36 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named="LEGAL_SQLSERVER_MASTER_URL",matches=".*databaseName=master;.*")
 class PasswordRecoveryMigrationSqlServerTest {
+    @Test void queueClaimWorksWithReadCommittedSnapshotEnabled() throws Exception {
+        String master=System.getenv("LEGAL_SQLSERVER_MASTER_URL");
+        String db="LegacyVault_RecoveryMigration_"+UUID.randomUUID().toString().replace("-","");
+        String url=master.replace("databaseName=master;","databaseName="+db+";");
+        try(var c=DriverManager.getConnection(master);var s=c.createStatement()) {
+            s.execute("CREATE DATABASE ["+db+"]"); s.execute("ALTER DATABASE ["+db+"] SET READ_COMMITTED_SNAPSHOT ON");
+        }
+        try {
+            Flyway.configure().dataSource(url,null,null).locations("classpath:db/migration").load().migrate();
+            var ds=new org.springframework.jdbc.datasource.DriverManagerDataSource(url);
+            var jdbc=new org.springframework.jdbc.core.JdbcTemplate(ds);
+            var transaction=new org.springframework.transaction.support.TransactionTemplate(new org.springframework.jdbc.datasource.DataSourceTransactionManager(ds));
+            jdbc.update("INSERT dbo.password_recovery_jobs(email,locale,requested_at) VALUES ('fixture@example.test','vi',SYSUTCDATETIME())");
+            var service=new com.legacyvault.auth.recovery.PasswordRecoveryService(jdbc,null,null,null,null,null);
+            assertNotNull(transaction.execute(status->service.claim()));
+            var secrets=new com.legacyvault.auth.recovery.RecoverySecrets(java.util.Base64.getEncoder().encodeToString(new byte[32]));
+            var limiter=new com.legacyvault.auth.recovery.RecoveryRateLimiter(jdbc,secrets);
+            try(var pool=java.util.concurrent.Executors.newFixedThreadPool(6)) {
+                var futures=new java.util.ArrayList<java.util.concurrent.Future<Boolean>>();
+                for(int i=0;i<8;i++) futures.add(pool.submit(()->transaction.execute(status->limiter.allow("rcsi-fixture","same-identity",3,60))));
+                int allowed=0; for(var future:futures) if(future.get(15,java.util.concurrent.TimeUnit.SECONDS)) allowed++;
+                assertEquals(3,allowed);
+            }
+        } finally {
+            if(!db.matches("LegacyVault_RecoveryMigration_[a-f0-9]{32}")) throw new IllegalStateException("Unsafe fixture name");
+            try(var c=DriverManager.getConnection(master);var s=c.createStatement()) {
+                s.execute("ALTER DATABASE ["+db+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE"); s.execute("DROP DATABASE ["+db+"]");
+            }
+        }
+    }
     @Test void failedUpgradeRollsBackAllDdlThenRetryPreservesPasswordsAndClassifiesOnlyProvenAccounts() throws Exception {
         String master=System.getenv("LEGAL_SQLSERVER_MASTER_URL");
         String db="LegacyVault_RecoveryMigration_"+UUID.randomUUID().toString().replace("-","");

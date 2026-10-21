@@ -101,8 +101,23 @@ class PasswordRecoverySqlServerTest extends LegalBasisSqlServerSupport {
                 return null;
             }));
             assertTrue(locked.await(10,TimeUnit.SECONDS));
-            var reset=pool.submit(()->failure(()->service().reset(raw,NEW)));
-            release.countDown(); writer.get(10,TimeUnit.SECONDS);
+            var began=new CountDownLatch(1); var resetSession=new java.util.concurrent.atomic.AtomicInteger();
+            var reset=pool.submit(()->tx.execute(status->{
+                resetSession.set(jdbc.queryForObject("SELECT @@SPID",Integer.class)); began.countDown();
+                var code=failure(()->service().reset(raw,NEW)); status.setRollbackOnly(); return code;
+            }));
+            try {
+                assertTrue(began.await(5,TimeUnit.SECONDS));
+                long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5); boolean waiting=false;
+                while(System.nanoTime()<deadline) {
+                    waiting=jdbc.queryForObject("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id=? AND wait_type LIKE 'LCK_M_%'",Integer.class,resetSession.get())>0;
+                    if(waiting) break;
+                    java.util.concurrent.locks.LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10));
+                }
+                assertTrue(waiting,"The reset must actually wait for the account write lock before release");
+                assertFalse(reset.isDone());
+            } finally { release.countDown(); }
+            writer.get(10,TimeUnit.SECONDS);
             assertEquals(ErrorCode.RECOVERY_INVALID,reset.get(10,TimeUnit.SECONDS));
         }
     }
@@ -212,5 +227,75 @@ class PasswordRecoverySqlServerTest extends LegalBasisSqlServerSupport {
         var mvc=MockMvcBuilders.webAppContextSetup((WebApplicationContext)context).apply(springSecurity()).build();
         assertEquals(401,mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+token)).andReturn().getResponse().getStatus());
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.external_auth_identities WHERE user_id=? AND subject=?",Integer.class,a.id(),subject));
+    }
+    @Test void credentialIssuedToPreviousEmailCannotResetAfterAccountEmailChanges() {
+        var a=account(); String raw=issue(a).credential();
+        jdbc.update("UPDATE dbo.users SET email=? WHERE user_id=?",UUID.randomUUID()+"@changed.test",a.id());
+        assertEquals(ErrorCode.RECOVERY_INVALID,failure(()->service().reset(raw,NEW)));
+        assertEquals(0L,jdbc.queryForObject("SELECT auth_version FROM dbo.users WHERE user_id=?",Long.class,a.id()));
+    }
+    @Test void preparingSameJobTwiceCannotIssueAnotherCredential() {
+        var a=account(); service().enqueue(a.email(),"vi"); Long id=service().claim();
+        assertNotNull(service().prepare(id));
+        assertNull(service().prepare(id));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.password_reset_credentials WHERE user_id=?",Integer.class,a.id()));
+        service().mark(id,"FAILED");
+    }
+    @Test void resetWatermarkRoundTripsUtcDuringJvmDstGap() {
+        var a=account(); var original=TimeZone.getDefault();
+        LocalDateTime utcGap=LocalDateTime.of(2026,3,8,2,30);
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+            tx.execute(status->{
+                var user=context.getBean(UserRepository.class).findById(a.id()).orElseThrow();
+                user.advanceAuthVersion(utcGap); context.getBean(UserRepository.class).saveAndFlush(user); return null;
+            });
+            var stored=jdbc.queryForObject("SELECT password_reset_at FROM dbo.users WHERE user_id=?",(rs,n)->rs.getObject(1,LocalDateTime.class),a.id());
+            assertEquals(utcGap,stored);
+        } finally { TimeZone.setDefault(original); }
+    }
+    @Test void concurrentPrepareOfSameJobReturnsOneCredentialOnly() throws Exception {
+        var a=account(); service().enqueue(a.email(),"vi"); Long id=service().claim();
+        try(var pool=Executors.newFixedThreadPool(2)) {
+            var start=new CountDownLatch(1);
+            Callable<PasswordRecoveryService.Delivery> prepare=()->{start.await();return service().prepare(id);};
+            var x=pool.submit(prepare); var y=pool.submit(prepare); start.countDown();
+            int issued=(x.get(20,TimeUnit.SECONDS)!=null?1:0)+(y.get(20,TimeUnit.SECONDS)!=null?1:0);
+            assertEquals(1,issued);
+        }
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.password_reset_credentials WHERE user_id=?",Integer.class,a.id()));
+        service().mark(id,"FAILED");
+    }
+    @Test void prepareAuditFailureRollsBackJobStateAndCredentialSoKnownRollbackCanRetry() {
+        var a=account(); service().enqueue(a.email(),"vi"); Long id=service().claim();
+        jdbc.execute("CREATE TRIGGER dbo.TR_recovery_issue_test_failure ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS(SELECT 1 FROM inserted WHERE action='AUTH_RECOVERY_ISSUED') THROW 51413,'Injected fixture failure',1; END");
+        try { assertThrows(RuntimeException.class,()->service().prepare(id)); }
+        finally { jdbc.execute("DROP TRIGGER dbo.TR_recovery_issue_test_failure"); }
+        assertEquals("CLAIMED",jdbc.queryForObject("SELECT status FROM dbo.password_recovery_jobs WHERE job_id=?",String.class,id));
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.password_reset_credentials WHERE user_id=?",Integer.class,a.id()));
+        assertNotNull(service().prepare(id)); assertNull(service().prepare(id)); service().mark(id,"ACCEPTED");
+    }
+    @Test void emailChangedAfterLookupCannotRetargetQueuedRecovery() {
+        var a=account(); service().enqueue(a.email(),"vi"); Long id=service().claim();
+        var realUsers=context.getBean(UserRepository.class);
+        var hookedUsers=mock(UserRepository.class);
+        when(hookedUsers.findByEmail(a.email())).thenAnswer(call->realUsers.findByEmail(a.email()));
+        when(hookedUsers.findActiveAccountForUpdate(a.id())).thenAnswer(call->{
+            // Simulate an email update between hydrated candidate lookup and lock/refresh.
+            jdbc.update("UPDATE dbo.users SET email=? WHERE user_id=?",UUID.randomUUID()+"@changed.test",a.id());
+            return realUsers.findActiveAccountForUpdate(a.id());
+        });
+        var hooked=new PasswordRecoveryService(jdbc,hookedUsers,entities,context.getBean(PasswordEncoder.class),secrets(),context.getBean(com.legacyvault.audit.AuditService.class));
+        assertNull(tx.execute(status->hooked.prepare(id)));
+        assertEquals("SKIPPED",jdbc.queryForObject("SELECT status FROM dbo.password_recovery_jobs WHERE job_id=?",String.class,id));
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.password_reset_credentials WHERE user_id=?",Integer.class,a.id()));
+    }
+    @Test void caseOnlyEmailChangeKeepsBindingButTerminalJobsCannotBeRequeued() {
+        var a=account(); var delivery=issue(a);
+        jdbc.update("UPDATE dbo.users SET email=? WHERE user_id=?",a.email().toUpperCase(Locale.ROOT),a.id());
+        service().reset(delivery.credential(),NEW);
+        assertThrows(IllegalArgumentException.class,()->service().mark(delivery.jobId(),"QUEUED"));
+        service().mark(delivery.jobId(),"FAILED");
+        assertEquals("ACCEPTED",jdbc.queryForObject("SELECT status FROM dbo.password_recovery_jobs WHERE job_id=?",String.class,delivery.jobId()));
     }
 }

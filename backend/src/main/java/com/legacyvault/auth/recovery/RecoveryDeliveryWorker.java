@@ -28,6 +28,7 @@ public class RecoveryDeliveryWorker {
             } catch(RuntimeException failure) {
                 // Never forward provider exceptions to scheduler logs. Status is observable internally.
                 try { service.mark(id,"FAILED"); } catch(RuntimeException ignored) { return; }
+                if(Thread.currentThread().isInterrupted()) return;
             }
         }
     }
