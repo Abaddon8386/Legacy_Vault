@@ -74,7 +74,7 @@ Lỗi validation:
 | `GOOGLE_SIGNIN_UNAVAILABLE` | 503 | Google Client ID chưa được cấu hình; đăng nhập email/mật khẩu vẫn hoạt động |
 | `GOOGLE_IDENTITY_ALREADY_LINKED` | 409 | Google subject đã được liên kết với một tài khoản LegacyVault |
 | `ACCESS_DENIED` | 403 | Đã đăng nhập nhưng thiếu role |
-| `REAUTH_FAILED` | 403 | Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật (D-API-32). Không dùng 401 để FE không coi là hết phiên |
+| `REAUTH_FAILED` | 403 | Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật (D-API-32) hoặc khi sửa Asset (D-API-40). Không dùng 401 để FE không coi là hết phiên |
 | `RESOURCE_NOT_FOUND` | 404 | Không có tài nguyên, **hoặc** không thuộc quyền người gọi (D-API-07) |
 | `METHOD_NOT_ALLOWED` | 405 | Sai phương thức HTTP |
 | `EMAIL_ALREADY_EXISTS` | 409 | Đăng ký trùng email |
@@ -106,7 +106,7 @@ Lỗi validation:
 | `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
 | `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
 | `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
-| `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
+| `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32, D-API-40) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
 
