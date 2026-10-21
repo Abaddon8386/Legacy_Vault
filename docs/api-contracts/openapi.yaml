@@ -3476,19 +3476,29 @@ components:
 
     ConfigureDmsRequest:
       type: object
-      required: [checkIntervalDays]
+      additionalProperties: false
+      oneOf:
+        - required: [checkIntervalDays]
+        - required: [checkIntervalMinutes]
       properties:
         checkIntervalDays:
           type: integer
           minimum: 1
-          description: Khoảng cho phép do cấu hình (D-API-15); ST-06 nêu ví dụ 30, 90
+          maximum: 180
+          description: Legacy whole days; mutually exclusive with checkIntervalMinutes
+        checkIntervalMinutes:
+          type: integer
+          minimum: 1
+          maximum: 259200
+          description: Whole minutes, supported in production; exactly one duration field
     DmsResponse:
       type: object
-      required: [ownerId, status, checkIntervalDays, gracePeriodDays, nextCheckAt]
+      required: [ownerId, status, checkIntervalDays, checkIntervalMinutes, gracePeriodDays, nextCheckAt]
       properties:
         ownerId: { type: string, format: uuid, description: 'public_id của tài khoản Owner; DMS thuộc Owner, mỗi Owner một DMS' }
         status: { type: string, enum: [MONITORING, TRIGGERED, GRACE_PERIOD_EXCEEDED] }
-        checkIntervalDays: { type: integer }
+        checkIntervalDays: { type: integer, nullable: true, description: Exact whole days or null for a non-whole-day duration; never rounded }
+        checkIntervalMinutes: { type: integer, minimum: 1, description: Authoritative duration; legacy rows may exceed the new configuration maximum }
         gracePeriodDays: { type: integer, description: 'Chỉ đọc; server cấu hình qua DMS_GRACE_PERIOD_DAYS, mặc định 1 (A5)' }
         lastCheckInAt: { type: string, format: date-time, nullable: true }
         nextCheckAt: { type: string, format: date-time }
