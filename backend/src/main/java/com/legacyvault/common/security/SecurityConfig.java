@@ -51,6 +51,7 @@ public class SecurityConfig {
 				.cors(cors -> { })
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
+						.requestMatchers(HttpMethod.GET, "/api/v1/payments/vnpay/ipn").permitAll()
 						.requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 						.requestMatchers(PUBLIC_PATHS).permitAll()
 						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()

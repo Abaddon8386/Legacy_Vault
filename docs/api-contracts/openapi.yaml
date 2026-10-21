@@ -127,6 +127,67 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/subscriptions/me/payments:
+    post:
+      tags: [Subscriptions]
+      summary: Create or replay a VNPay sandbox one-time checkout (Owner)
+      description: Server snapshots catalog price and limits. UUID key is unique per owner. No entitlement until verified IPN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planCode, catalogVersion, idempotencyKey]
+              properties:
+                planCode: { type: string, enum: [STANDARD, EXTENDED] }
+                catalogVersion: { type: integer, minimum: 1 }
+                idempotencyKey: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Created or replayed checkout
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '400': { description: Invalid request }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Catalog stale, non-upgrade, gateway unavailable or PAYMENT_REQUEST_CONFLICT }
+  /api/v1/subscriptions/me/payments/{id}:
+    get:
+      tags: [Subscriptions]
+      summary: Read own server-confirmed payment status (Owner)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Status only; checkoutUrl is null
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Unknown payment or different owner }
+  /api/v1/payments/vnpay/ipn:
+    get:
+      tags: [Subscriptions]
+      security: []
+      summary: Public VNPay IPN, HMAC-SHA512 authentication
+      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Only this endpoint records payment results.
+      responses:
+        '200':
+          description: VNPay acknowledgment; 99 means processing failed and transaction rolled back
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [RspCode, Message]
+                properties:
+                  RspCode: { type: string, enum: ['00', '01', '02', '04', '97', '99'] }
+                  Message: { type: string }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -312,7 +373,7 @@ paths:
                 catalogVersion: { type: integer, minimum: 1 }
       responses:
         '200':
-          description: Informational server quote; payment is not integrated
+          description: Informational server quote; checkout uses a separate POST
           content:
             application/json:
               schema:
@@ -325,15 +386,15 @@ paths:
                   currency: { type: string, enum: [VND] }
                   billingModel: { type: string, enum: [LIFETIME] }
                   previousPurchaseCreditVnd: { type: integer, enum: [0] }
-                  paymentAvailable: { type: boolean, enum: [false] }
+                  paymentAvailable: { type: boolean, description: VNPay sandbox is configured and enabled }
         '401': { description: Unauthenticated }
         '403': { description: Owner role required }
         '409': { description: Stale catalog or non-upgrade }
   /api/v1/subscription-plans:
     get:
       tags: [Subscriptions]
-      summary: Prototype catalog — chờ phê duyệt PS-77
-      description: ROLE_VAULT_OWNER. Mặc định 409 SUBSCRIPTION_POLICY_PENDING; catalog chỉ có khi bật prototype cho test.
+      summary: Available lifetime subscription catalog
+      description: ROLE_VAULT_OWNER. Free BASIC and available paid tiers. Independent of the quota enforcement flag.
       x-status: implemented
       responses:
         '200':
@@ -520,8 +581,8 @@ paths:
       tags: [Subscriptions]
       summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
       description: |
-        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Prototype bật trong test: chưa có Vault trả usage 0.
-        Mặc định 409 SUBSCRIPTION_POLICY_PENDING. Quota prototype chưa được nhóm duyệt.
+        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Chưa có Vault trả usage 0.
+        BASIC miễn phí hoặc tier cao nhất đã thanh toán qua IPN; quota enforcement vẫn cấu hình độc lập.
         Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
         Không áp quota subscription vào evidence pháp lý.
       x-status: implemented
@@ -541,11 +602,11 @@ paths:
   /api/v1/subscriptions/me/upgrade:
     post:
       tags: [Subscriptions]
-      summary: Nâng gói tạm khóa chờ quy trình xác nhận (PS-77)
+      summary: Legacy self-grant endpoint disabled; use payments checkout
       description: |
         ROLE_VAULT_OWNER. Request không phải bằng chứng thanh toán hoặc xác nhận cấp gói.
         Luôn 409 SUBSCRIPTION_UPGRADE_UNAVAILABLE cho request hợp lệ, không cấp entitlement.
-        Chờ nhóm duyệt và triển khai quy trình thanh toán/xác nhận tin cậy; cờ quota không mở self-grant.
+        PS-80 dùng /subscriptions/me/payments và IPN; cờ quota không mở self-grant.
       x-status: implemented
       requestBody:
         required: true
@@ -2569,6 +2630,20 @@ components:
           maxLength: 22
           pattern: '^[A-Za-z0-9_-]{21}[AQgw]$'
           description: Server-generated 128-bit base64url code, 7-day lifetime. Only in issue/reissue success; never in logs, GET or URLs.
+    SubscriptionPayment:
+      type: object
+      required: [paymentId, planCode, catalogVersion, amountVnd, currency, billingModel, status, createdAt, expiresAt, checkoutUrl]
+      properties:
+        paymentId: { type: string, format: uuid }
+        planCode: { type: string, enum: [STANDARD, EXTENDED] }
+        catalogVersion: { type: integer }
+        amountVnd: { type: integer, format: int64 }
+        currency: { type: string, enum: [VND] }
+        billingModel: { type: string, enum: [LIFETIME] }
+        status: { type: string, enum: [PENDING, EXPIRED, SUCCEEDED, FAILED] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: Checkout expiry only; paid plan has no expiry }
+        checkoutUrl: { type: string, nullable: true, description: Signed sandbox URL only on create/replay before expiry }
     HandoverArchiveResponse:
       type: object
       properties:
@@ -2788,6 +2863,7 @@ components:
             - LEGAL_VERIFICATION_INVALID_STATE
             - LEGAL_VERIFICATION_ALREADY_DECIDED
             - SUBSCRIPTION_POLICY_PENDING
+            - PAYMENT_REQUEST_CONFLICT
             - SUBSCRIPTION_UPGRADE_UNAVAILABLE
             - SUBSCRIPTION_CATALOG_STALE
             - SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED

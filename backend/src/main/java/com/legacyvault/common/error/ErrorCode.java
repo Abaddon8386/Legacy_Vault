@@ -8,6 +8,7 @@ package com.legacyvault.common.error;
  * docs/api-contracts/error-contract.md trong cùng PR.
  */
 public enum ErrorCode {
+    PAYMENT_REQUEST_CONFLICT(409, "error.payment.requestConflict"),
     BENEFICIARY_INVITATION_ALREADY_EXISTS(409, "error.invitation.alreadyExists"),
     BENEFICIARY_INVITATION_ALREADY_USED(409, "error.invitation.alreadyUsed"),
     BENEFICIARY_INVITATION_STALE(409, "error.invitation.stale"),
