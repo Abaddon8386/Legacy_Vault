@@ -91,7 +91,8 @@ class BeneficiaryInvitationSqlServerTest extends LegalBasisSqlServerSupport {
                 users, context.getBean(com.legacyvault.user.repository.RoleRepository.class),
                 context.getBean(com.legacyvault.user.repository.UserRoleRepository.class),
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class),
-                context.getBean(com.legacyvault.common.audit.AuditService.class));
+                context.getBean(com.legacyvault.common.audit.AuditService.class),
+                context.getBean(com.legacyvault.beneficiary.BeneficiaryInvitationService.class));
     }
     private void prepareCounter(F f, User staff) {
         jdbc.update("INSERT dbo.verification_cases(vault_id,triggered_at,assigned_staff_user_id) VALUES (?,SYSUTCDATETIME(),?)", f.vault(), staff.getUserId());
@@ -501,7 +502,8 @@ class BeneficiaryInvitationSqlServerTest extends LegalBasisSqlServerSupport {
                 interceptedUsers, context.getBean(com.legacyvault.user.repository.RoleRepository.class),
                 context.getBean(com.legacyvault.user.repository.UserRoleRepository.class),
                 context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class),
-                context.getBean(com.legacyvault.common.audit.AuditService.class));
+                context.getBean(com.legacyvault.common.audit.AuditService.class),
+                context.getBean(com.legacyvault.beneficiary.BeneficiaryInvitationService.class));
         try (var pool = Executors.newFixedThreadPool(2)) {
             var creation = pool.submit(() -> {
                 var security = SecurityContextHolder.createEmptyContext();
@@ -552,5 +554,77 @@ class BeneficiaryInvitationSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals(0, count("users", "email=?", email));
         assertEquals(1, count("beneficiaries", "beneficiary_id=? AND linked_user_id IS NULL AND account_status='NOT_CREATED'", f.beneficiary()));
         assertEquals(0, audits(f, "BENEFICIARY_ACCOUNT_CREATED"));
+    }
+
+    // PS-88: counter read model and the interaction between a counter link and a pending invitation.
+    private UUID caseOf(F f) {
+        return jdbc.queryForObject("SELECT public_id FROM dbo.verification_cases WHERE vault_id=?", UUID.class, f.vault());
+    }
+
+    @Test void counterLinkRevokesAPendingInvitationSoTheSharedCodeCannotBeReused() {
+        var f = ready(); var code = issue(f).code(); var actor = account("ROLE_STAFF_EXECUTOR"); prepareCounter(f, actor);
+        var target = account(); var other = account();
+        var linked = staff(actor, () -> context.getBean(BeneficiaryAccountService.class).link(f.beneficiaryPublic(),
+                new BeneficiaryAccountDtos.LinkRequest(target.getEmail())));
+
+        assertEquals("ACCOUNT_CREATED", linked.accountStatus());
+        assertEquals("REVOKED", metadata(f).state());
+        assertEquals(1, audits(f, "BENEFICIARY_INVITATION_REVOKED"));
+        assertCode(ErrorCode.BENEFICIARY_INVITATION_INVALID, () -> link(code, other));
+        assertEquals(target.getUserId(), jdbc.queryForObject("SELECT linked_user_id FROM dbo.beneficiaries WHERE beneficiary_id=?",
+                Long.class, f.beneficiary()));
+    }
+
+    @Test void counterCreateWithoutAnyInvitationStillWorksAndDoesNotInventOne() {
+        var f = ready(); var actor = account("ROLE_STAFF_EXECUTOR"); prepareCounter(f, actor);
+        String email = UUID.randomUUID() + "@example.test";
+        var created = staff(actor, () -> context.getBean(BeneficiaryAccountService.class).create(f.beneficiaryPublic(),
+                new BeneficiaryAccountDtos.CreateRequest(email, "S3cret-pass", null)));
+
+        assertEquals("ACCOUNT_CREATED", created.accountStatus());
+        assertEquals("NOT_ISSUED", metadata(f).state());
+        assertEquals(0, audits(f, "BENEFICIARY_INVITATION_REVOKED"));
+    }
+
+    @Test void counterListReportsStepInvitationAndActionsFromRealData() {
+        var f = ready(); var actor = account("ROLE_STAFF_EXECUTOR"); prepareCounter(f, actor);
+        UUID unverifiedPublic = UUID.randomUUID();
+        jdbc.update("INSERT dbo.beneficiaries(public_id,vault_id,full_name) VALUES (?,?,'Not yet verified')", unverifiedPublic.toString(), f.vault());
+        issue(f);
+        var counter = context.getBean(CounterBeneficiaryService.class);
+        UUID caseId = caseOf(f);
+
+        var before = staff(actor, () -> counter.list(caseId));
+        assertEquals(2, before.size());
+        var verified = before.stream().filter(i -> i.beneficiaryId().equals(f.beneficiaryPublic())).findFirst().orElseThrow();
+        assertEquals("AWAITING_ACCOUNT_DECISION", verified.counterStep());
+        assertEquals("PENDING", verified.invitation().state());
+        assertTrue(verified.actions().canLinkAccount() && verified.actions().canCreateAccount() && verified.actions().canHandOverWithoutAccount());
+        var waiting = before.stream().filter(i -> i.beneficiaryId().equals(unverifiedPublic)).findFirst().orElseThrow();
+        assertEquals("AWAITING_IDENTITY_VERIFICATION", waiting.counterStep());
+        assertEquals("NOT_ISSUED", waiting.invitation().state());
+        assertFalse(waiting.actions().canLinkAccount() || waiting.actions().canCreateAccount() || waiting.actions().canHandOverWithoutAccount());
+
+        var target = account();
+        staff(actor, () -> context.getBean(BeneficiaryAccountService.class).link(f.beneficiaryPublic(),
+                new BeneficiaryAccountDtos.LinkRequest(target.getEmail())));
+        var after = staff(actor, () -> counter.get(caseId, f.beneficiaryPublic()));
+        assertEquals("ACCOUNT_LINKED", after.counterStep());
+        assertTrue(after.accountLinked());
+        assertEquals("REVOKED", after.invitation().state());
+        assertFalse(after.actions().canLinkAccount() || after.actions().canCreateAccount());
+        assertTrue(after.actions().canHandOverWithoutAccount());
+    }
+
+    @Test void counterListIsHiddenFromOtherStaffClosedCasesAndOtherVaults() {
+        var f = ready(); var actor = account("ROLE_STAFF_EXECUTOR"); prepareCounter(f, actor);
+        var stranger = account("ROLE_STAFF_EXECUTOR"); var elsewhere = ready();
+        var counter = context.getBean(CounterBeneficiaryService.class);
+        UUID caseId = caseOf(f);
+
+        assertCode(ErrorCode.RESOURCE_NOT_FOUND, () -> staff(stranger, () -> counter.list(caseId)));
+        assertCode(ErrorCode.RESOURCE_NOT_FOUND, () -> staff(actor, () -> counter.get(caseId, elsewhere.beneficiaryPublic())));
+        jdbc.update("UPDATE dbo.verification_cases SET status='CANCELLED', closed_at=SYSUTCDATETIME() WHERE vault_id=?", f.vault());
+        assertCode(ErrorCode.RESOURCE_NOT_FOUND, () -> staff(actor, () -> counter.list(caseId)));
     }
 }
