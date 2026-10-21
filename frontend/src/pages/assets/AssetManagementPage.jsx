@@ -168,10 +168,13 @@ export function AssetManagementPage({
       showToast(error.code || 'loadError','error')
     }
   }
-  async function handleUpdateAsset(assetId, patch) {
+  async function handleUpdateAsset(assetId, patch, { signal } = {}) {
     if (submittingRef.current) return
     submittingRef.current = true
     const controller = new AbortController(); mutationRef.current = controller
+    const cancel = () => controller.abort()
+    signal?.addEventListener('abort', cancel, { once: true })
+    if (signal?.aborted) controller.abort()
     setIsUpdating(true); setEditErrorKey(null)
     try {
       await assetService.updateAsset(vaultId,assetId,patch,{lang,accessToken,signal:controller.signal})
@@ -179,11 +182,16 @@ export function AssetManagementPage({
       closeSelection(); loadAssets(); showToast('editSuccess')
     } catch (error) {
       if (controller.signal.aborted || !aliveRef.current) return
+      if (['REAUTH_FAILED', 'TOO_MANY_ATTEMPTS'].includes(error.code)) throw error
       if (error.status === 401) { closeSelection(); onNavigateToLogin?.(); return }
       if ([403,404].includes(error.status)) { closeSelection(); setAssets([]); setTotalElements(0); setError(error.code) }
       else setEditErrorKey(error.code || 'editError')
       showToast(error.code || 'editError','error')
-    } finally { submittingRef.current=false; if (aliveRef.current) setIsUpdating(false) }
+      throw error
+    } finally {
+      signal?.removeEventListener('abort', cancel)
+      if (mutationRef.current === controller) { mutationRef.current=null; submittingRef.current=false; if (aliveRef.current) setIsUpdating(false) }
+    }
   }
   // Client-side filtering by assetType and searching by name/description
   const filteredAssets = useMemo(() => {
@@ -468,7 +476,7 @@ export function AssetManagementPage({
           onNavigateToLogin={onNavigateToLogin}
         />
       )}
-      {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
+      {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} authContext={`${vaultId}:${accessToken}`} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
       {/* Add Asset Modal */}
       {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
         isOpen={true}

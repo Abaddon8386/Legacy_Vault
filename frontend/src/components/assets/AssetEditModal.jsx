@@ -25,7 +25,7 @@ export function AssetEditModal({
   t,
   isSubmitting = false,
   errorKey,
-  verifyPassword,
+  authContext,
 }) {
   const [name, setName] = useState(asset?.name || '')
   const [description, setDescription] = useState(asset?.description || '')
@@ -34,18 +34,18 @@ export function AssetEditModal({
   const replacementPayload = asset?.assetType === 'CREDENTIAL' ? credentialPayload(credentials.username, credentials.password) : payload
   const [errors, setErrors] = useState({})
   const [password, setPassword] = useState('')
-  const [verifying, setVerifying] = useState(false)
-  const verification = useRef(null), pending = useRef(false)
-  useLayoutEffect(() => () => { verification.current?.abort(); verification.current = null; pending.current = false }, [asset?.id, isOpen, verifyPassword])
-  const [previous, setPrevious] = useState({ id: asset?.id, isOpen, verifyPassword })
-  if (previous.id !== asset?.id || previous.isOpen !== isOpen || previous.verifyPassword !== verifyPassword) {
+  const [saving, setSaving] = useState(false)
+  const submission = useRef(null), pending = useRef(false)
+  useLayoutEffect(() => () => { submission.current?.abort(); submission.current = null; pending.current = false }, [asset?.id, isOpen, authContext])
+  const [previous, setPrevious] = useState({ id: asset?.id, isOpen, authContext })
+  if (previous.id !== asset?.id || previous.isOpen !== isOpen || previous.authContext !== authContext) {
     if (previous.id !== asset?.id || previous.isOpen !== isOpen) {
       setName(asset?.name || ''); setDescription(asset?.description || ''); setPayload(''); setCredentials({ username: '', password: '' })
     }
-    setPrevious({ id: asset?.id, isOpen, verifyPassword }); setPassword(''); setVerifying(false); setErrors({})
+    setPrevious({ id: asset?.id, isOpen, authContext }); setPassword(''); setSaving(false); setErrors({})
   }
-  const busy = isSubmitting || verifying
-  const canVerify = typeof verifyPassword === 'function'
+  const busy = isSubmitting || saving
+  const canSubmit = typeof onSubmit === 'function'
 
   function validate() {
     const errs = {}
@@ -78,24 +78,22 @@ export function AssetEditModal({
       return
     }
 
-    if (!canVerify) return
-    if (!password) { setErrors({ password: 'required' }); return }
-    pending.current = true; setVerifying(true)
-    const controller = new AbortController(); verification.current = controller
-    let verified = false
+    if (!canSubmit) return
+    if (!password.trim()) { setErrors({ password: 'required' }); return }
+    pending.current = true; setSaving(true)
+    const controller = new AbortController(); submission.current = controller
+    const submittedPassword = password
+    setPassword('')
     try {
-      const confirmed = await verifyPassword(password, { signal: controller.signal })
-      if (controller.signal.aborted) return
-      if (confirmed !== true) throw new Error('REAUTH_FAILED')
-      verified = true
-      setPassword('')
-      await onSubmit(asset.id, patchData)
-    } catch {
-      if (!controller.signal.aborted) { setErrors(verified ? { save: true } : { password: 'failed' }); setPassword('') }
+      await onSubmit(asset.id, { ...patchData, password: submittedPassword }, { signal: controller.signal })
+    } catch (error) {
+      if (!controller.signal.aborted && submission.current === controller) {
+        setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
+      }
     } finally {
-      if (verification.current === controller) {
-        verification.current = null; pending.current = false
-        if (!controller.signal.aborted) setVerifying(false)
+      if (submission.current === controller) {
+        submission.current = null; pending.current = false
+        if (!controller.signal.aborted) setSaving(false)
       }
     }
   }
@@ -149,6 +147,7 @@ export function AssetEditModal({
         <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
           {errors.save && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
+          {errors.rateLimited && <p className="lv-form-error" role="alert">{t.assets.alerts.TOO_MANY_ATTEMPTS}</p>}
           {errors.noChanges && <p className="lv-form-error" role="alert">{t.assets.editModal.noChangesError}</p>}
           {/* Read-only Asset Type */}
           <div className="lv-form-group">
@@ -207,7 +206,7 @@ export function AssetEditModal({
               {t.assets.editModal.payloadLabel}
             </label>
             {isCredential ? (
-              <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={isSubmitting}
+              <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={busy}
                 onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, noChanges: false })); }} />
             ) : (
             <textarea
@@ -257,7 +256,6 @@ export function AssetEditModal({
               disabled={busy} value={password} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'edit-password-error' : undefined}
               onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: undefined })) }} />
             {errors.password && <p id="edit-password-error" className="lv-form-error" role="alert">{errors.password === 'required' ? t.assets.editModal.passwordRequired : t.assets.editModal.passwordFailed}</p>}
-            {!canVerify && <p className="lv-form-hint" role="status">{t.assets.editModal.passwordUnavailable}</p>}
           </div>
           {/* Actions */}
           <div className="lv-form-actions">
@@ -269,7 +267,7 @@ export function AssetEditModal({
             >
               {t.assets.editModal.cancelBtn}
             </Button>
-            <Button variant="primary" type="submit" isLoading={busy} disabled={!canVerify}>
+            <Button variant="primary" type="submit" isLoading={busy} disabled={!canSubmit}>
               {busy ? t.assets.editModal.submittingBtn : t.assets.editModal.submitBtn}
             </Button>
           </div>

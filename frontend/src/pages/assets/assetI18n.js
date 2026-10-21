@@ -325,5 +325,3 @@ for (const lang of ["vi","en"]) { Object.assign(ASSET_I18N[lang].assets,PS6_I18N
 
 Object.assign(ASSET_I18N.vi.assets.editModal, {confirmPasswordLabel: 'Xác nhận mật khẩu đăng nhập trước khi lưu', passwordRequired: 'Vui lòng nhập mật khẩu hiện tại.', passwordFailed: 'Không thể xác nhận mật khẩu. Vui lòng thử lại.'});
 Object.assign(ASSET_I18N.en.assets.editModal, {confirmPasswordLabel: 'Confirm your current password before saving', passwordRequired: 'Enter your current password.', passwordFailed: 'Unable to verify your password. Please try again.'});
-ASSET_I18N.vi.assets.editModal.passwordUnavailable = 'Hiện chưa thể xác nhận mật khẩu để lưu thay đổi.';
-ASSET_I18N.en.assets.editModal.passwordUnavailable = 'Password confirmation is not currently available to save changes.';
