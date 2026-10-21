@@ -72,6 +72,7 @@ Staff chỉ thao tác khi đã nhận một ca `OPEN` của **đúng kho** chứ
   ca → Beneficiary để không giữ Vault trong lúc chờ email unique index của signup khác.
   Mọi điều kiện được recheck sau khóa; lỗi sau khi cấp User rollback cả User mới.
   Tạo tài khoản, cấp vai trò, liên kết và audit cùng một giao dịch.
+- **Mã mời đang chờ (PS-88):** khi Staff liên kết hoặc tạo tài khoản tại quầy, mã mời hiện hành còn `PENDING` của Beneficiary đó bị **thu hồi** trong cùng giao dịch (audit `BENEFICIARY_INVITATION_REVOKED`), nên mã đã phát không dùng được nữa và Owner thấy trạng thái `REVOKED`. Beneficiary chưa có mã mời vẫn được liên kết/tạo bình thường; không ép tạo tài khoản và không tạo mã mời thay Owner.
 - Migration `V26__beneficiary_account_link_uniqueness.sql`: chỉ mục duy nhất `(vault_id, linked_user_id)` khi đã liên kết (cùng tài khoản vẫn có thể là Beneficiary của kho khác) và ràng buộc giá trị `account_status`. Migration dừng với lỗi nếu dữ liệu hiện có vi phạm, không sửa hay xóa dòng nào.
 
 ## 5. Kiểm chứng và giới hạn
