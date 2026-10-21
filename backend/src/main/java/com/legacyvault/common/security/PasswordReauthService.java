@@ -68,7 +68,7 @@ public class PasswordReauthService {
 			throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
 		}
 
-		if (rawPassword == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+		if (!user.isPasswordLoginAllowed() || rawPassword == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
 			failureRecorder.record(userId, vaultId);
 			throw new BusinessException(ErrorCode.REAUTH_FAILED);
 		}

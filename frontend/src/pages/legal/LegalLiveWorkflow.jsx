@@ -3,6 +3,7 @@ import { isUuid } from '../../api/contracts.js';
 import { isSessionActive } from '../../utils/session.js';
 import * as api from './legalLiveService.js';
 import LegalFinalDecision from './LegalFinalDecision.jsx';
+import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import './LegalLiveWorkflow.css';
 
 const paths = {
@@ -184,6 +185,8 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
   const forwarded = data?.dossier?.status === 'LEGAL_BASIS_FORWARDED' && latest?.forwardStatus === 'FORWARDED'
     && latest.version >= data.dossier.requiredVersion && data.will.vaultStatus === 'LEGAL_BASIS_VERIFICATION';
   const editable = !busy && !needsReload && Boolean(data);
+  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang,
+    onUnauthorized, onDenied: failure => { setData(null); setReceipt(null); setError(failure); setNeedsReload(true); } };
   let eligible = false;
   if (step === 'death-verification') eligible = editable && data.verificationCaseStatus === 'OPEN' && data.vaultStatus === 'AWAITING_VERIFICATION' && data.decisions.length === 0;
   if (step === 'will-document-verification') eligible = editable && ['DOCUMENT_VERIFICATION', 'WILL_VERIFICATION'].includes(data.vaultStatus) && data.wills.length > 0 && data.originalWillIntakes.length > 0;
@@ -246,13 +249,22 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
         <option value="">{en ? 'Select a document' : 'Chọn giấy tờ'}</option>{selected.deathDocumentIds.map((id, i) => <option key={id} value={id}>{en ? 'Document' : 'Giấy tờ'} {i + 1}</option>)}
       </select></label>
       {data && <><p>{data.document.issuingAuthority} · {data.document.documentNumber} · {data.document.issuedDate}</p>
+        {typeof data.document.evidenceReference === 'string' && <p>{en ? 'Evidence reference' : 'Tham chiếu chứng cứ'}: {data.document.evidenceReference}</p>}
         {data.decisions.map((item, i) => <p key={i}>{label(({ APPROVED: 'APPROVE', REJECTED: 'REJECT', NEEDS_CORRECTION: 'REQUEST_MORE' })[item.result], en)} · {item.decidedAt || '—'} · {item.reason} · {item.verifierPublicId || '—'}</p>)}</>}
+      {editable && documentId && <LegalEvidenceFiles {...evidenceProps} kind="death" subjectId={documentId} />}
     </>}
     {step === 'will-document-verification' && data && <>
-      <p>{en ? 'Only metadata and version hashes are available here. No file-download API is provided for Legal.' : 'Hiện chỉ có thông tin và mã kiểm tra phiên bản. Chưa có chức năng tải nội dung file dành cho Pháp lý.'}</p>
+      <p>{en ? 'Select an original intake to view its attached paper-will files. Digitized version metadata is available for comparison.' : 'Chọn lần tiếp nhận để xem tệp đính kèm của di chúc giấy. Thông tin phiên bản số dùng để đối chiếu.'}</p>
       {data.comparisons.map(item => <p key={item.id}>{label(item.result, en)} · {item.version} · {item.sha256} · {item.comparedAt} · {item.checkedBy}</p>)}
+      {editable && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
+        <LegalEvidenceFiles {...evidenceProps} kind="original-will" subjectId={draft.originalWillIntakeId} />}
     </>}
     {data?.dossier && <><p>{label(data.dossier.route, en)}</p>{data.dossier.versions.map(item => <p key={item.version}>{en ? 'Version' : 'Phiên bản'} {item.version} · {item.documentNumber} · {item.sha256} · {item.forwardedAt || '—'}</p>)}
+      {editable && data.dossier.versions.filter(item => item.forwardStatus === 'FORWARDED').map(item => <div key={item.version}>
+        {typeof item.evidenceReference === 'string' && <p>{en ? 'Evidence reference' : 'Tham chiếu chứng cứ'}: {item.evidenceReference}</p>}
+        <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
+          file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />
+      </div>)}
       {data.court?.map(item => <p key={item.id}>{label(item.result, en)} · {item.version} · {item.sha256} · {item.reviewedAt}</p>)}</>}
     <form onSubmit={submit}>
       {step === 'death-verification' && pick('decision', en ? 'Decision' : 'Quyết định', ['APPROVE', 'REJECT', 'REQUEST_MORE'])}

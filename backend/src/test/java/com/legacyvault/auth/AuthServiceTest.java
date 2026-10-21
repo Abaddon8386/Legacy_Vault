@@ -37,6 +37,7 @@ class AuthServiceTest {
         when(users.findByEmail("user@example.test")).thenReturn(Optional.of(user));
         when(user.getStatus()).thenReturn("ACTIVE");
         when(user.getDeletedAt()).thenReturn(null);
+        when(user.isPasswordLoginAllowed()).thenReturn(true);
         when(user.getUserId()).thenReturn(12L);
         when(user.getPublicId()).thenReturn(UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));
         when(user.getEmail()).thenReturn("user@example.test");
@@ -45,7 +46,7 @@ class AuthServiceTest {
         UserRole userRole = mock(UserRole.class);
         when(userRole.getRole()).thenReturn(role);
         when(userRoles.findByUser_UserId(12L)).thenReturn(List.of(userRole));
-        when(jwt.generateAccessToken(user.getPublicId(), user.getEmail(), List.of("ROLE_VAULT_OWNER")))
+        when(jwt.generateAccessToken(user.getPublicId(), user.getEmail(), List.of("ROLE_VAULT_OWNER"), 0))
                 .thenReturn("legacy-jwt");
         when(jwt.getExpirationSeconds()).thenReturn(3600L);
 
@@ -54,7 +55,7 @@ class AuthServiceTest {
         assertEquals("legacy-jwt", result.accessToken());
         assertEquals(3600L, result.expiresInSeconds());
         assertEquals(List.of("VAULT_OWNER"), result.user().roles());
-        verify(jwt).generateAccessToken(user.getPublicId(), user.getEmail(), List.of("ROLE_VAULT_OWNER"));
+        verify(jwt).generateAccessToken(user.getPublicId(), user.getEmail(), List.of("ROLE_VAULT_OWNER"), 0);
         verify(audit).record(any());
     }
 
