@@ -112,7 +112,6 @@ export const legalI18n = {
     // ==========================================
     btnSubmitHelper: 'Chức năng hiện chưa khả dụng',
     btnValidateLocal: 'Kiểm tra biểu mẫu',
-    btnReset: 'Làm mới',
   },
 
   en: {
@@ -228,6 +227,5 @@ export const legalI18n = {
     // ==========================================
     btnSubmitHelper: 'Function is currently unavailable',
     btnValidateLocal: 'Check Form Completeness',
-    btnReset: 'Reset Form',
   },
 };

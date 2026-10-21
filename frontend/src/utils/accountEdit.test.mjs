@@ -183,14 +183,12 @@ test('EX-02 Bilingual Dictionary Completeness (VI & EN)', () => {
     assert.ok(en[key], `Missing EN translation for key: ${key}`);
   }
 
-  // Verify Reset vs Cancel distinction
+  // TASK #23: Verify Cancel button is retained and form reset button is removed
   assert.equal(vi.btnCancel, 'Hủy bỏ');
-  assert.equal(vi.btnReset, 'Khôi phục');
-  assert.notEqual(vi.btnCancel, vi.btnReset);
+  assert.equal(vi.btnReset, undefined);
 
   assert.equal(en.btnCancel, 'Cancel');
-  assert.equal(en.btnReset, 'Reset');
-  assert.notEqual(en.btnCancel, en.btnReset);
+  assert.equal(en.btnReset, undefined);
 
   // Ensure no proposal/technical justification jargon in user copy
   const allTextVi = Object.values(vi).join(' ');
@@ -256,4 +254,12 @@ test('EX-02 AppShell & App.jsx Integrated Navigation Destination Verification', 
     appCode.includes("navigateTo(preview ? '/account/profile?preview=true' : '/account/profile')"),
     'App.jsx Cancel action must navigate to /account/profile'
   );
+});
+
+test('TASK #23 Form Reset Button Removal Verification', () => {
+  const pagePath = resolve('src/pages/account/AccountEditPage.jsx');
+  const code = readFileSync(pagePath, 'utf8');
+  assert.equal(code.includes('handleReset'), false, 'AccountEditPage must not contain handleReset');
+  assert.equal(code.includes('btnReset'), false, 'AccountEditPage must not reference btnReset');
+  assert.equal(code.includes('RotateCcw'), false, 'AccountEditPage must not import RotateCcw');
 });

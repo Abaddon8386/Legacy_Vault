@@ -12,7 +12,6 @@ export const completionProgressI18n = {
     ruleNoticeBody: 'Hồ sơ chỉ được xác định là hoàn tất khi cả hai điều kiện được đáp ứng đồng thời: 100% tài sản đã được bàn giao VÀ 100% người thụ hưởng đã xác nhận.',
     caseSelectLabel: 'Mã hồ sơ / ca thẩm định',
     caseSelectPlaceholder: 'Nhập hoặc chọn mã hồ sơ...',
-    btnReset: 'Đặt lại',
     // Cards
     assetProgressCardTitle: 'Tiến độ bàn giao tài sản',
     assetProgressCardDesc: 'Tỷ lệ tài sản di sản trong phạm vi đã được bàn giao thực tế.',
@@ -45,7 +44,6 @@ export const completionProgressI18n = {
     ruleNoticeBody: 'A case is considered complete ONLY when both criteria are met simultaneously: 100% assets delivered AND 100% beneficiaries confirmed.',
     caseSelectLabel: 'Case / Docket Reference',
     caseSelectPlaceholder: 'Enter or select docket reference...',
-    btnReset: 'Reset',
     // Cards
     assetProgressCardTitle: 'Asset Handover Progress',
     assetProgressCardDesc: 'Proportion of scoped heritage assets physically delivered.',

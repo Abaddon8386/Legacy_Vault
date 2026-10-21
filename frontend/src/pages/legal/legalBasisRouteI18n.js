@@ -48,7 +48,6 @@ export const legalBasisRouteI18n = {
     btnSubmit: 'Xác nhận phương án xử lý',
     btnSubmitHelper: 'Chức năng hiện chưa khả dụng',
     btnValidateLocal: 'Kiểm tra biểu mẫu',
-    btnReset: 'Làm mới',
 
     // Phản hồi kiểm tra biểu mẫu
     validationSuccess: 'Biểu mẫu đã điền đủ thông tin (đã chọn phương án và nhập lý do hợp lệ).',
@@ -109,7 +108,6 @@ export const legalBasisRouteI18n = {
     btnSubmit: 'Confirm Handling Option',
     btnSubmitHelper: 'Function is currently unavailable',
     btnValidateLocal: 'Check Form Completeness',
-    btnReset: 'Reset Form',
 
     // Local validation feedback
     validationSuccess: 'Form is complete (handling option selected and valid rationale provided).',
