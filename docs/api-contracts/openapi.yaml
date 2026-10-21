@@ -24,6 +24,7 @@ tags:
   - name: Beneficiaries
   - name: DMS
   - name: Subscriptions
+  - name: Admin
 
 security:
   - bearerAuth: []
@@ -252,6 +253,46 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: Tra cứu tài khoản (PS-109, chỉ đọc)
+      description: Yêu cầu ROLE_ADMIN. Chỉ trả publicId, fullName, email, roles, createdAt và trạng thái hiệu lực; không trả khóa DB hoặc credential.
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
+        - { name: role, in: query, schema: { type: string, maxLength: 50 } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, DELETED] } }
+      responses:
+        '200':
+          description: Trang tài khoản theo envelope phân trang chung.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/users/{publicId}:
+    get:
+      tags: [Admin]
+      summary: Tra cứu chi tiết tài khoản theo public ID (PS-109, chỉ đọc)
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Tài khoản; chỉ trả các trường allow-list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/admin/subscriptions/plans:
     get:
       tags: [Admin, Subscriptions]
@@ -2448,6 +2489,25 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    AdminUser:
+      type: object
+      required: [publicId, fullName, email, roles, createdAt, status]
+      properties:
+        publicId: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        roles: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time, description: UTC }
+        status: { type: string, enum: [PENDING, ACTIVE, DELETED] }
+    AdminUserPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
     HandoverArchiveResponse:
       type: object
       properties:

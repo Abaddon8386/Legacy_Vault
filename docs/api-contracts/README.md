@@ -36,6 +36,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
 | [subscriptions.md](subscriptions.md) | PS-77 prototype chờ duyệt; self-grant bị chặn, quota mặc định tắt, một Vault/Owner | PS-77 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
+| [admin-user-management.md](admin-user-management.md) | Tra cứu tài khoản Admin PS-109; policy khóa/mở khóa còn chờ xác nhận | PS-109 |
 
 ## Cách đọc một endpoint
 
