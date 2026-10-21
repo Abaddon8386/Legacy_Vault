@@ -30,6 +30,8 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/admin/subscriptions/transactions/{paymentId}:
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions~1{paymentId}"
   /api/v1/staff/verification-cases:
     get:
       tags: [Staff]
@@ -734,16 +736,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/admin/subscriptions/transactions:
-    get:
-      tags: [Admin, Subscriptions]
-      summary: Tra cứu giao dịch thanh toán (PS-82)
-      description: Phụ thuộc phân hệ PS-80. Trả 409 khi nguồn thanh toán chưa sẵn sàng.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
-
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions"
   /api/v1/subscriptions/me:
     get:
       tags: [Subscriptions]
