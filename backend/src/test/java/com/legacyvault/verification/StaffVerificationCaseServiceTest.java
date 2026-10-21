@@ -45,6 +45,7 @@ class StaffVerificationCaseServiceTest {
         when(vaultRepository.findById(20L)).thenReturn(Optional.of(vault));
         when(vault.getStatus()).thenReturn("AWAITING_VERIFICATION");
         when(vault.getOwnerUserId()).thenReturn(30L);
+        when(vault.getVaultId()).thenReturn(20L);
         when(userRepository.findById(30L)).thenReturn(Optional.of(owner));
         when(trusteeRepository.findFirstByVault_VaultIdAndStatus(20L, "APPOINTED"))
                 .thenReturn(Optional.empty());
@@ -71,6 +72,7 @@ class StaffVerificationCaseServiceTest {
         when(item.getCaseNumber()).thenReturn("HS-2026-000123");
         when(vaultRepository.findById(20L)).thenReturn(Optional.of(vault));
         when(vault.getOwnerUserId()).thenReturn(30L);
+        when(vault.getVaultId()).thenReturn(20L);
         when(vault.getPublicId()).thenReturn(UUID.randomUUID());
         when(vault.getStatus()).thenReturn("AWAITING_VERIFICATION");
         when(userRepository.findById(30L)).thenReturn(Optional.of(owner));
