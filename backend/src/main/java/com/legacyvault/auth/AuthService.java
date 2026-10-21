@@ -121,6 +121,7 @@ public class AuthService {
         if (user == null
                 || !"ACTIVE".equals(user.getStatus())
                 || user.getDeletedAt() != null
+                || !user.isPasswordLoginAllowed()
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
 
             auditService.recordLoginFailure(user != null ? user.getUserId() : null);
@@ -149,7 +150,7 @@ public class AuthService {
         String accessToken = jwtService.generateAccessToken(
                 user.getPublicId(),
                 user.getEmail(),
-                securityRoles
+                securityRoles, user.getAuthVersion()
         );
 
         List<String> apiRoles = securityRoles.stream()

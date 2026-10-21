@@ -58,6 +58,12 @@ legacyvault:
     secret: ${JWT_SECRET_BASE64}
     expiration-seconds: 3600
   auth:
+    recovery:
+      email-enabled: ${RECOVERY_EMAIL_ENABLED:false}
+      resend-api-key: ${RESEND_API_KEY:}
+      sender: ${RECOVERY_EMAIL_FROM:}
+      reset-url: ${RECOVERY_RESET_URL:}
+      recipient-allowlist: ${RECOVERY_RECIPIENT_ALLOWLIST:}
     google:
       # GIS ID-token audience. Configure the same Web OAuth client ID used by the PS-83 frontend.
       client-id: ${GOOGLE_CLIENT_ID:}

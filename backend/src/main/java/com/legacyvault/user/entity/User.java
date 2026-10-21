@@ -37,6 +37,24 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion;
+    @Column(name = "password_login_enabled")
+    private Boolean passwordLoginEnabled = true;
+    @Column(name = "password_reset_at")
+    private LocalDateTime passwordResetAt;
+
+    public long getAuthVersion() { return authVersion; }
+    public boolean isPasswordLoginEnabled() { return Boolean.TRUE.equals(passwordLoginEnabled); }
+    // NULL means unclassified legacy account: preserve its existing login, but prohibit recovery.
+    public boolean isPasswordLoginAllowed() { return !Boolean.FALSE.equals(passwordLoginEnabled); }
+    public void setPasswordLoginEnabled(boolean enabled) { passwordLoginEnabled=enabled; }
+    public LocalDateTime getPasswordResetAt() { return passwordResetAt; }
+    public void advanceAuthVersion(LocalDateTime at) {
+        authVersion = Math.addExact(authVersion, 1); passwordResetAt=at;
+    }
+
+
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
