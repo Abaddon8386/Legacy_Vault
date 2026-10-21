@@ -131,3 +131,9 @@ test('audit actor filter is a public user UUID; a vault ID never becomes the ent
     assert.equal(result.items[0].vaultId, id); assert.equal(result.items[0].entityId, undefined);
   });
 });
+
+test('PS-103 attachment audit actions do not invalidate the Admin log after an evidence read', () => {
+  for (const action of ['INTAKE_ATTACHMENT_UPLOADED', 'EVIDENCE_FILE_READ'])
+    assert.equal(validateAdminAuditLog({ ...event, action }).action, action);
+  assert.throws(() => validateAdminAuditLog({ ...event, action: 'UNREVIEWED_ACTION' }));
+});
