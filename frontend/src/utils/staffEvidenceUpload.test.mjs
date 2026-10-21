@@ -5,6 +5,7 @@ import {
   validateEvidenceFile,
   formatFileSize,
   uploadEvidenceMultipart,
+  validateIntakeAttachmentReceipt,
   ALLOWED_EVIDENCE_MIME_TYPES,
   ALLOWED_EVIDENCE_EXTENSIONS,
   MAX_EVIDENCE_FILE_SIZE_BYTES,
@@ -292,4 +293,103 @@ test('PS-98: uploadEvidenceMultipart maps 413 and 415 HTTP status codes safely',
     assert.equal(err.code, 'UNSUPPORTED_MEDIA_TYPE');
     return true;
   });
+});
+
+test('PS-98/PS-103: validateIntakeAttachmentReceipt validates strict backend contract', () => {
+  const caseId = '12345678-1234-4234-8234-123456789012';
+  const recordId = '87654321-4321-4321-8321-210987654321';
+  const attId = '11111111-2222-4333-8444-555555555555';
+  const userId = '99999999-8888-4777-8666-555555555555';
+
+  const validReceipt = {
+    id: attId,
+    caseId,
+    subjectType: 'DEATH_DOCUMENT',
+    subjectId: recordId,
+    uploadedBy: userId,
+    fileName: 'death_cert.pdf',
+    sizeBytes: 2048,
+    contentType: 'application/pdf',
+    sha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+    uploadedAt: '2026-10-21T10:00:00Z',
+  };
+
+  const validated = validateIntakeAttachmentReceipt(validReceipt, {
+    caseId,
+    kind: 'death-documents',
+    recordId,
+  });
+  assert.equal(validated.id, attId);
+  for (const patch of [
+    { sha256: 'z'.repeat(64) }, { sizeBytes: undefined }, { sizeBytes: 0 },
+    { sizeBytes: -1 }, { sizeBytes: 1.5 }, { sizeBytes: '2048' },
+    { contentType: undefined }, { contentType: 'text/html' },
+  ]) {
+    assert.throws(() => validateIntakeAttachmentReceipt({ ...validReceipt, ...patch }, {
+      caseId, kind: 'death-documents', recordId,
+    }), { code: 'INVALID_RECEIPT' });
+  }
+
+  // Mismatched caseId throws INVALID_RECEIPT
+  assert.throws(
+    () => validateIntakeAttachmentReceipt(validReceipt, { caseId: '11111111-1111-4111-8111-111111111111', kind: 'death-documents', recordId }),
+    { code: 'INVALID_RECEIPT' }
+  );
+
+  // Mismatched recordId throws INVALID_RECEIPT
+  assert.throws(
+    () => validateIntakeAttachmentReceipt(validReceipt, { caseId, kind: 'death-documents', recordId: '22222222-2222-4222-8222-222222222222' }),
+    { code: 'INVALID_RECEIPT' }
+  );
+
+  // Mismatched kind/subjectType throws INVALID_RECEIPT
+  assert.throws(
+    () => validateIntakeAttachmentReceipt(validReceipt, { caseId, kind: 'original-will-intakes', recordId }),
+    { code: 'INVALID_RECEIPT' }
+  );
+
+  // Invalid SHA-256 (not 64 hex chars) throws INVALID_RECEIPT
+  assert.throws(
+    () => validateIntakeAttachmentReceipt({ ...validReceipt, sha256: 'short-sha' }, { caseId, kind: 'death-documents', recordId }),
+    { code: 'INVALID_RECEIPT' }
+  );
+
+  // Missing or non-UUID id throws INVALID_RECEIPT
+  assert.throws(
+    () => validateIntakeAttachmentReceipt({ ...validReceipt, id: 'bad-id' }, { caseId, kind: 'death-documents', recordId }),
+    { code: 'INVALID_RECEIPT' }
+  );
+});
+
+test('PS-98/PS-103: uploadEvidenceMultipart supports file-only multipart without metadata part', async () => {
+  const mockXhr = new MockXMLHttpRequest();
+  const file = new File([new Uint8Array(100)], 'attachment.pdf', { type: 'application/pdf' });
+
+  const uploadPromise = uploadEvidenceMultipart({
+    url: '/api/v1/staff/verification-cases/case-123/death-documents/rec-456/attachments',
+    file,
+    xhrFactory: () => mockXhr,
+  });
+
+  assert.ok(mockXhr.sentData instanceof FormData);
+  assert.equal(mockXhr.sentData.has('file'), true);
+  assert.equal(mockXhr.sentData.has('metadata'), false);
+
+  mockXhr.status = 201;
+  mockXhr.responseText = JSON.stringify({
+    id: 'att-001',
+    caseId: 'case-123',
+    subjectType: 'DEATH_DOCUMENT',
+    subjectId: 'rec-456',
+    fileName: 'attachment.pdf',
+    sizeBytes: 100,
+    contentType: 'application/pdf',
+    sha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+    createdAt: '2026-10-21T10:00:00Z',
+  });
+  mockXhr.onload();
+
+  const receipt = await uploadPromise;
+  assert.equal(receipt.id, 'att-001');
+  assert.equal(receipt.fileName, 'attachment.pdf');
 });
