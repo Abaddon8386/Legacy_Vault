@@ -29,6 +29,64 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/staff/verification-cases:
+    get:
+      tags: [Staff]
+      summary: Read cases assigned to the current Staff and OPEN unassigned claimable cases
+      x-status: implemented
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, CANCELLED, CLOSED] } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Queue; trustee is null in list items and returned only by case detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCasePage" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/staff/verification-cases/{caseId}:
+    get:
+      tags: [Staff]
+      summary: Read case context available to the current Staff
+      description: An OPEN unassigned case is claimable and viewable; a case assigned to another Staff is hidden as 404. Trustee summary contains only current APPOINTED contact fields, never notes or identity-document data.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Case, Vault state, assignment state, owner summary and optional current Trustee contact
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCase" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/staff/verification-cases/{caseId}/claim:
+    post:
+      tags: [Staff]
+      summary: Claim an OPEN unassigned case for the current Staff
+      description: Conditional assignment and audit are atomic. The success response includes the same case detail context; caller identity comes from the authenticated principal.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Claimed case and current Trustee contact summary, if present
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCase" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: VERIFICATION_CASE_NOT_CLAIMABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -2773,6 +2831,41 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    StaffVerificationCasePage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: "#/components/schemas/StaffVerificationCase" } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    StaffVerificationCase:
+      type: object
+      required: [caseId, caseNumber, status, triggeredAt, closedAt, vaultId, vaultStatus, vaultName, ownerId, ownerName, assignmentStatus, trustee]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        status: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        triggeredAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+        vaultId: { type: string, format: uuid }
+        vaultStatus: { type: string, description: Current workflow state; not an authorization to unlock or hand over assets }
+        vaultName: { type: string }
+        ownerId: { type: string, format: uuid }
+        ownerName: { type: string }
+        assignmentStatus: { type: string, enum: [UNASSIGNED_CLAIMABLE, ASSIGNED_TO_CURRENT_STAFF] }
+        trustee:
+          type: object
+          nullable: true
+          description: Present only for GET case detail; null for queue items or when there is no APPOINTED Trustee
+          required: [trusteeId, fullName, phone, email, relationship]
+          properties:
+            trusteeId: { type: string, format: uuid }
+            fullName: { type: string }
+            phone: { type: string, nullable: true }
+            email: { type: string, format: email, nullable: true }
+            relationship: { type: string, nullable: true }
     BeneficiaryInvitationMetadata:
       type: object
       required: [invitationId, beneficiaryId, state, generation, issuedAt, expiresAt, revokedAt, consumedAt]
