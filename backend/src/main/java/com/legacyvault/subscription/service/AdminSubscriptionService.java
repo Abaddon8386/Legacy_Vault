@@ -1,5 +1,11 @@
 package com.legacyvault.subscription.service;
 
+import com.legacyvault.common.api.PageEnvelope;
+import com.legacyvault.subscription.dto.AdminPaymentDtos.Transaction;
+import com.legacyvault.subscription.dto.AdminPaymentDtos.Filter;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.dao.DataAccessException;
+
 import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
@@ -488,10 +494,34 @@ public class AdminSubscriptionService {
         );
     }
 
+    @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
+    public PageEnvelope<Transaction> lookupTransactions(String query) {
+        return lookupTransactions(query,null,null,null,null,0,20);
+    }
+
+    @Transactional(readOnly = true, isolation = Isolation.SERIALIZABLE)
+    public PageEnvelope<Transaction> lookupTransactions(
+            String query, UUID accountId, String status, Instant from, Instant to, int page, int size) {
+        if(page<0 || size<1 || size>100 || (from!=null && to!=null && !from.isBefore(to)))
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        if(query!=null) {
+            query=query.trim();
+            if(query.length()>254 || query.codePoints().anyMatch(Character::isISOControl)) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            if(query.isEmpty()) query=null;
+        }
+        if(status!=null && !Set.of("PENDING","SUCCEEDED","FAILED","EXPIRED").contains(status))
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        try {
+            return payments.adminList(new Filter(query,accountId,status,from,to,page,size),Instant.now());
+        } catch(DataAccessException unavailable) {
+            throw new BusinessException(ErrorCode.PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE);
+        }
+    }
+
     @Transactional(readOnly = true)
-    public void lookupTransactions(String query) {
-        // PS-80 Payment subsystem integration pending
-        throw new BusinessException(ErrorCode.PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE);
+    public Transaction transactionDetail(UUID paymentId) {
+        try {return payments.adminDetail(paymentId,Instant.now()).orElseThrow(()->new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));}
+        catch(DataAccessException unavailable) {throw new BusinessException(ErrorCode.PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE);}
     }
 
     private String validateAndNormalizePlanCode(String planCode) {

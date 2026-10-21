@@ -31,6 +31,8 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/admin/subscriptions/transactions/{paymentId}:
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions~1{paymentId}"
   /api/v1/staff/verification-cases:
     get:
       tags: [Staff]
@@ -735,16 +737,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/admin/subscriptions/transactions:
-    get:
-      tags: [Admin, Subscriptions]
-      summary: Tra cứu giao dịch thanh toán (PS-82)
-      description: Phụ thuộc phân hệ PS-80. Trả 409 khi nguồn thanh toán chưa sẵn sàng.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
-
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions"
   /api/v1/subscriptions/me:
     get:
       tags: [Subscriptions]
@@ -821,6 +814,59 @@ paths:
               schema: { $ref: '#/components/schemas/DbCheckResponse' }
               example: { database: UP }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/auth/password-recovery/requests:
+    post:
+      tags: [Auth]
+      summary: Yêu cầu khôi phục mật khẩu (PS-112)
+      x-status: implemented
+      security: []
+      description: Neutral durable acceptance; no proof of email delivery or account existence. Email delivery disabled by default. See password-recovery.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordRecoveryRequest' }
+      responses:
+        '202':
+          description: Accepted or neutrally suppressed by per-email limits
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messageKey]
+                properties:
+                  messageKey: { type: string, enum: [auth.recovery.requestAccepted] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503': { $ref: '#/components/responses/RecoveryUnavailable' }
+
+  /api/v1/auth/password-recovery/reset:
+    post:
+      tags: [Auth]
+      summary: Đổi mật khẩu bằng credential một lần (PS-112)
+      x-status: implemented
+      security: []
+      description: Atomically consumes purpose-bound credential, changes BCrypt password, revokes links and all LegacyVault JWTs. Never unlocks accounts, changes roles or creates provider links. No automatic login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordRecoveryReset' }
+      responses:
+        '204':
+          description: Password reset committed; sign in again
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+        '400':
+          description: RECOVERY_INVALID or password/input validation; no expired/used/account-status oracle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503': { $ref: '#/components/responses/RecoveryUnavailable' }
 
   /api/v1/auth/register:
     post:
@@ -1170,8 +1216,11 @@ paths:
       summary: Cập nhật một phần Asset (PS-16, D-API-24)
       description: |
         Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+        PS-111 (D-API-40): mọi lần sửa phải kèm `password` là mật khẩu đăng nhập hiện tại; server tự xác thực lại, không có cờ
+        "đã xác nhận" từ client. Thứ tự: ownership (404) -> trạng thái Vault (409) -> mật khẩu/giới hạn (403 `REAUTH_FAILED` / 429
+        `TOO_MANY_ATTEMPTS`). Bộ đếm thử sai dùng chung với `reveal`.
         Chỉ khi bật quota prototype PS-77: payload tính chênh lệch byte UTF-8; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED. Mặc định không áp quota đề xuất.
-      x-status: designed
+      x-status: implemented
       parameters:
         - $ref: '#/components/parameters/VaultId'
         - $ref: '#/components/parameters/AssetId'
@@ -1180,7 +1229,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/UpdateAssetRequest' }
-            example: { description: Cập nhật ghi chú }
+            example: { description: Cập nhật ghi chú, password: '<mật khẩu đăng nhập hiện tại>' }
       responses:
         '200':
           description: Đã cập nhật
@@ -1192,6 +1241,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '429': { description: TOO_MANY_ATTEMPTS - quá số lần nhập sai mật khẩu xác nhận trong cửa sổ thời gian (kể cả khi lần sau đúng) }
 
   /api/v1/vaults/{vaultId}/assets/{assetId}/reveal:
     post:
@@ -1696,6 +1746,346 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OriginalWillIntakeResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/death-documents/{recordId}/attachments:
+    post:
+      tags: [Staff]
+      summary: Staff attaches a file or image to a received death document (PS-103, ST-11)
+      description: |
+        Only the Staff assigned to the OPEN case. multipart/form-data with one `file` part (PDF/JPEG/PNG detected by content).
+        Append-only and encrypted; the server computes SHA-256. Not an identity-document upload: CCCD/passport are checked in person
+        outside the system. An attachment does not prove the document valid; Legal decides.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Metadata only, never the content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntakeAttachment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: VERIFICATION_CASE_NOT_OPEN or INTAKE_ATTACHMENT_LIMIT_EXCEEDED }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+    get:
+      tags: [Staff]
+      summary: Staff lists attachment metadata of a received death document (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/death-documents/{recordId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Staff]
+      summary: Staff reads one attachment of a received death document (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/staff/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments:
+    post:
+      tags: [Staff]
+      summary: Staff attaches a file or image to the original paper will (PS-103, ST-13)
+      description: |
+        Only the Staff assigned to the OPEN case. multipart/form-data with one `file` part (PDF/JPEG/PNG detected by content).
+        Append-only and encrypted; the server computes SHA-256. Not an identity-document upload: CCCD/passport are checked in person
+        outside the system. An attachment does not prove the document valid; Legal decides.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Metadata only, never the content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntakeAttachment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: VERIFICATION_CASE_NOT_OPEN or INTAKE_ATTACHMENT_LIMIT_EXCEEDED }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+    get:
+      tags: [Staff]
+      summary: Staff lists attachment metadata of the original paper will (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Staff]
+      summary: Staff reads one attachment of the original paper will (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content:
+    get:
+      tags: [Staff]
+      summary: Staff reads the file of a legal-basis version of an assigned case (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionNo
+          in: path
+          required: true
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentId}/attachments:
+    get:
+      tags: [Legal]
+      summary: Legal lists attachment metadata of a death document (PS-103, ST-12)
+      description: Read only, existing global Legal scope.
+      x-status: implemented
+      parameters:
+        - name: deathDocumentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Legal]
+      summary: Legal reads one death-document attachment (PS-103, ST-12)
+      x-status: implemented
+      parameters:
+        - name: deathDocumentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments:
+    get:
+      tags: [Legal]
+      summary: Legal lists attachment metadata of an original-will intake (PS-103, ST-15)
+      description: Read only, existing global Legal scope.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Legal]
+      summary: Legal reads one original-will attachment (PS-103, ST-15)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content:
+    get:
+      tags: [Legal]
+      summary: Legal reads the file of a FORWARDED legal-basis version (unforwarded versions are 404) (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionNo
+          in: path
+          required: true
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -2961,6 +3351,21 @@ components:
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
 
   responses:
+    RecoveryRateLimited:
+      description: RATE_LIMITED; only IP/credential limits are exposed
+      headers:
+        Retry-After: { schema: { type: integer, example: 900 } }
+        Cache-Control: { schema: { type: string, enum: [no-store] } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RecoveryUnavailable:
+      description: RECOVERY_UNAVAILABLE; configuration or infrastructure unavailable, independent of account eligibility
+      headers:
+        Cache-Control: { schema: { type: string, enum: [no-store] } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
     ValidationError:
       description: VALIDATION_FAILED, có `errors[]` theo trường
       content:
@@ -3460,6 +3865,10 @@ components:
           type: string
           description: Mã ổn định để FE phân loại. Xem error-contract.md
           enum:
+            - RECOVERY_INVALID
+            - RECOVERY_UNAVAILABLE
+            - RATE_LIMITED
+            - PASSWORD_POLICY
             - REAUTH_FAILED
             - TRUSTEE_REVOKED
             - ALERT_NOT_CANCELLABLE
@@ -3509,6 +3918,7 @@ components:
             - VAULT_NOT_EDITABLE
             - DMS_NOT_MONITORING
             - VERIFICATION_CASE_NOT_OPEN
+            - INTAKE_ATTACHMENT_LIMIT_EXCEEDED
             - HANDOVER_SESSION_ALREADY_OPEN
             - HANDOVER_SESSION_INVALID_STATE
             - HANDOVER_RECEIPT_INVALID_STATE
@@ -3562,6 +3972,19 @@ components:
       required: [database]
       properties:
         database: { type: string, enum: [UP, DOWN] }
+
+    PasswordRecoveryRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254, writeOnly: true }
+        locale: { type: string, enum: [vi, en], default: vi }
+    PasswordRecoveryReset:
+      type: object
+      required: [credential, password]
+      properties:
+        credential: { type: string, maxLength: 128, writeOnly: true, description: Canonical base64url 256-bit reset secret; never an access JWT }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true, description: Shared password policy also limits UTF-8 to 72 bytes; no trimming }
 
     RegisterRequest:
       type: object
@@ -3644,11 +4067,13 @@ components:
         payload: { type: string, writeOnly: true, description: Nội dung bí mật; mã hóa phía server; không bao giờ trả lại }
     UpdateAssetRequest:
       type: object
-      minProperties: 1
+      required: [password]
+      description: Cần ít nhất một trong name, description, payload cùng với password (PS-111, D-API-40)
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
         description: { type: string, maxLength: 1000 }
         payload: { type: string, writeOnly: true }
+        password: { type: string, minLength: 1, maxLength: 72, writeOnly: true, description: Mật khẩu đăng nhập hiện tại của Owner; không bao giờ được log hoặc trả lại }
     AssetResponse:
       type: object
       required: [id, vaultId, name, assetType, hasPayload, createdAt, updatedAt]
@@ -3682,6 +4107,21 @@ components:
         issuedDate: { type: string, format: date, description: Không ở tương lai }
         evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu hồ sơ giấy, không phải file }
         notes: { type: string, maxLength: 1000, nullable: true }
+    IntakeAttachment:
+      type: object
+      required: [id, caseId, subjectType, subjectId, fileName, contentType, sizeBytes, sha256, uploadedBy, uploadedAt]
+      description: Metadata of a file attached to a received document; never content, path or internal key
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        subjectType: { type: string, enum: [DEATH_DOCUMENT, ORIGINAL_WILL] }
+        subjectId: { type: string, format: uuid, description: Public id of the death document record or original-will intake }
+        fileName: { type: string, description: Sanitized display name only }
+        contentType: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: SHA-256 hex of the original bytes }
+        uploadedBy: { type: string, format: uuid, nullable: true }
+        uploadedAt: { type: string, format: date-time }
     DeathDocumentRecordResponse:
       type: object
       required: [id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt]

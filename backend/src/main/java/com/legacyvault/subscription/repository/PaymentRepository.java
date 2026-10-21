@@ -1,5 +1,12 @@
 package com.legacyvault.subscription.repository;
 
+import com.legacyvault.common.api.PageEnvelope;
+import com.legacyvault.subscription.dto.AdminPaymentDtos.Transaction;
+import com.legacyvault.subscription.dto.AdminPaymentDtos.Filter;
+import com.legacyvault.subscription.dto.AdminSubscriptionDtos.PlanLimitsDto;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import com.legacyvault.subscription.dto.SubscriptionDtos.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -53,6 +60,66 @@ public class PaymentRepository {
             SELECT TOP(1) * FROM dbo.subscription_payments WHERE owner_user_id=? AND status='SUCCEEDED'
             ORDER BY CASE plan_code WHEN 'EXTENDED' THEN 2 ELSE 1 END DESC,completed_at DESC,payment_id DESC
             """,ROW,owner).stream().map(Payment::plan).findFirst();
+    }
+
+    private static final String ADMIN_COLUMNS="""
+        SELECT p.payment_id,u.public_id AS account_id,u.email AS account_email,p.plan_code,p.catalog_version,
+            p.amount_vnd,p.asset_limit,p.storage_limit_bytes,p.file_limit_bytes,p.status,
+            p.created_at,p.expires_at,p.completed_at,p.gateway_transaction_no
+        FROM dbo.subscription_payments p JOIN dbo.users u ON u.user_id=p.owner_user_id
+        """;
+
+    /** Caller uses SERIALIZABLE for a consistent count/page while IPN changes membership. No NOLOCK. */
+    public PageEnvelope<Transaction> adminList(
+            Filter filter, Instant observedAt) {
+        var args=new ArrayList<Object>();
+        StringBuilder where=new StringBuilder(" WHERE 1=1");
+        if(filter.accountId()!=null) {where.append(" AND u.public_id=?");args.add(filter.accountId().toString());}
+        if(filter.from()!=null) {where.append(" AND p.created_at>=?");args.add(LocalDateTime.ofInstant(filter.from(),ZoneOffset.UTC));}
+        if(filter.to()!=null) {where.append(" AND p.created_at<?");args.add(LocalDateTime.ofInstant(filter.to(),ZoneOffset.UTC));}
+        if(filter.status()!=null) {
+            if(filter.status().equals("EXPIRED")) {
+                where.append(" AND p.status='PENDING' AND p.expires_at<=?");args.add(LocalDateTime.ofInstant(observedAt,ZoneOffset.UTC));
+            } else if(filter.status().equals("PENDING")) {
+                where.append(" AND p.status='PENDING' AND p.expires_at>?");args.add(LocalDateTime.ofInstant(observedAt,ZoneOffset.UTC));
+            } else {where.append(" AND p.status=?");args.add(filter.status());}
+        }
+        if(filter.query()!=null) {
+            String q=filter.query();
+            if(q.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+                where.append(" AND (p.payment_id=? OR u.public_id=?)");args.add(q);args.add(q);
+            } else if(q.matches("(?i)[0-9a-f]{32}")) {
+                String id=q.replaceFirst("(.{8})(.{4})(.{4})(.{4})(.{12})","$1-$2-$3-$4-$5");
+                where.append(" AND p.payment_id=?");args.add(id);
+            } else if(q.matches("[0-9]{1,15}")) {
+                where.append(" AND p.gateway_transaction_no=?");args.add(q);
+            } else if(q.contains("@")) {
+                where.append(" AND LOWER(u.email)=?");args.add(q.toLowerCase(Locale.ROOT));
+            } else {where.append(" AND 1=0");}
+        }
+        long count=jdbc.queryForObject("SELECT COUNT_BIG(*) FROM dbo.subscription_payments p JOIN dbo.users u ON u.user_id=p.owner_user_id"+where,
+                Long.class,args.toArray());
+        args.add((long)filter.page()*filter.size());args.add(filter.size());
+        var rows=jdbc.query(ADMIN_COLUMNS+where+" ORDER BY p.created_at DESC,p.payment_id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
+                (r,n)->adminRow(r,observedAt),args.toArray());
+        return new PageEnvelope<>(rows,filter.page(),filter.size(),count,(int)((count+filter.size()-1)/filter.size()));
+    }
+    public Optional<Transaction> adminDetail(UUID id,Instant observedAt) {
+        return jdbc.query(ADMIN_COLUMNS+" WHERE p.payment_id=?",(r,n)->adminRow(r,observedAt),id.toString()).stream().findFirst();
+    }
+    private static Transaction adminRow(ResultSet r,Instant observedAt) throws SQLException {
+        String persisted=r.getString("status");
+        Instant expires=adminTime(r,"expires_at");
+        String status="PENDING".equals(persisted) && !observedAt.isBefore(expires) ? "EXPIRED" : persisted;
+        UUID id=UUID.fromString(r.getString("payment_id"));
+        return new Transaction(id,UUID.fromString(r.getString("account_id")),r.getString("account_email"),
+                r.getString("plan_code"),r.getInt("catalog_version"),r.getLong("amount_vnd"),"VND","LIFETIME",
+                new PlanLimitsDto(r.getLong("asset_limit"),r.getLong("storage_limit_bytes"),r.getLong("file_limit_bytes")),
+                status,persisted,adminTime(r,"created_at"),expires,adminTime(r,"completed_at"),r.getString("gateway_transaction_no"),id.toString().replace("-",""));
+    }
+    private static Instant adminTime(ResultSet r,String column) throws SQLException {
+        var value=r.getObject(column,LocalDateTime.class);
+        return value==null ? null : value.toInstant(ZoneOffset.UTC);
     }
     private static Timestamp utc(Instant time) { return Timestamp.valueOf(LocalDateTime.ofInstant(time,ZoneOffset.UTC)); }
 }

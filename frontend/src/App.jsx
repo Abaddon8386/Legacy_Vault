@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
+import PasswordRecoveryRoute from './pages/auth/PasswordRecoveryRoute.jsx';
 import InvitationPage from './pages/beneficiary/InvitationPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
@@ -403,7 +404,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     navigateTo(`${window.location.pathname}?lang=${lang}`);
   };
   const authPath = path => invitationIntent ? `${path}?lang=${lang}&invitation=true` : path;
-  const [restoreStatus, setRestoreStatus] = useState(() => (readStoredSession() ? 'loading' : 'ready'));
+  const [restoreStatus, setRestoreStatus] = useState(() => (!['/forgot-password', '/reset-password'].includes(window.location.pathname) && readStoredSession() ? 'loading' : 'ready'));
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -521,6 +522,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
 
   useEffect(() => {
+    if (['/forgot-password', '/reset-password'].includes(window.location.pathname)) return;
     const candidate = readStoredSession();
     if (!candidate) return;
     const controller = new AbortController();
@@ -651,6 +653,10 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   };
   const path = location.split('?')[0];
   const isSharedWithMeRoute = path === '/shared-with-me';
+  if (path === '/forgot-password' || path === '/reset-password') {
+    return <PasswordRecoveryRoute key={location} mode={path === '/reset-password' ? 'reset' : 'request'} initialLang={new URLSearchParams(location.split('?')[1] || '').get('lang')}
+      onNavigate={navigateTo} onComplete={recoveryLang => { logout(); navigateTo(`/login?lang=${recoveryLang}`); }} />;
+  }
   // Stored credentials are only a candidate until /auth/me succeeds.
   if (restoreStatus !== 'ready') return (
     <main role={restoreStatus === 'error' ? 'alert' : 'status'}>
@@ -707,7 +713,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       onContinue={() => navigateTo('/beneficiary')} />;
   }
   if (path === '/admin' || path === '/admin/overview' || path === '/admin/users' || path === '/admin/subscriptions' || path === '/admin/logs') {
-    if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+    if (!isSessionActive(session)) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!session.user.roles.includes('ADMIN')) return <main role="alert"><p>{lang === 'en' ? 'This page requires an administrator account.' : 'Trang này dành cho tài khoản quản trị viên.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
     const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions'
       : path === '/admin/users' ? 'admin-users'
@@ -719,7 +725,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       {currentTab === 'admin-subscriptions'
         ? <AdminSubscriptionPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onNavigateHome={() => navigateTo('/admin')} />
         : currentTab === 'admin-users'
-        ? <AdminUsersPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
+        ? <AdminUsersPage fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
         : currentTab === 'admin-logs'
         ? <AdminLogsPage fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
         : <AdminHome fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} onNavigate={target => navigateTo(target === 'users' ? '/admin/users' : target === 'logs' ? '/admin/logs' : '/admin/subscriptions')} />}
@@ -781,7 +787,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     <ReceivedAssets lang={lang} isDevPreview scenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'} />
   </main>;
   if (path === '/beneficiary') {
-    if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+    if (!isSessionActive(session)) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
     if (!userRoles.includes('BENEFICIARY') && !userRoles.includes('ROLE_BENEFICIARY')) {
       return (
@@ -853,7 +859,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }
 
   if (path === '/staff/handover') {
-    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return (
       <div className="lv-app-root">
@@ -897,7 +903,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const isStaffRoute = path === '/staff/cases';
   if (isStaffRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (session && !session.user?.roles?.includes('STAFF_EXECUTOR')) {
       return (
@@ -975,7 +981,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (path === '/legal/approval-review') {
-    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'This portal requires a Legal Verifier account.' : 'Cổng này chỉ dành cho tài khoản Thẩm định Pháp lý (LEGAL_VERIFIER).'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><LegalApprovalReviewPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
@@ -983,7 +989,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1108,7 +1114,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1167,7 +1173,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1246,13 +1252,13 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }
 
   if (path === '/staff/beneficiary-accounts') {
-    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (session && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (session && !canAccessStaffLegalDocuments(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1294,7 +1300,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   if (isStaffAssetHandoverRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (session && !canAccessScopedAssetHandover(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1337,7 +1343,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   if (isStaffBeneficiaryConfirmationRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (session && !canAccessBeneficiaryConfirmation(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1379,7 +1385,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   if (isStaffCompletionProgressRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (session && !canAccessCompletionProgress(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1421,7 +1427,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   if (isStaffCloseArchiveRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (session && !canAccessCloseArchive(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
@@ -1461,7 +1467,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }
 
   if (path === '/legal/controlled-unlock') {
-    if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+    if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('LEGAL_VERIFIER')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><ControlledUnlockPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
@@ -1469,7 +1475,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1528,7 +1534,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1587,7 +1593,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return (
         <div className="lv-app-root">
-          <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+          <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
         </div>
       );
     }
@@ -1643,7 +1649,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }
   if (isVaultRoute || isDmsRoute || isAssetsRoute || isWillsRoute || isBeneficiariesRoute || isSubscriptionRoute) {
     if (!isSessionActive(session) && !preview) {
-      return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
+      return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
     if (!preview && !session.user.roles.includes('VAULT_OWNER')) {
       return <main role="alert"><p>{lang === 'en' ? 'This page requires a Vault Owner account.' : 'Trang này dành cho tài khoản chủ sở hữu kho.'}</p>
@@ -1720,6 +1726,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }
   return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onRegisterWithInvitation={pendingInvitationCode.trim() && typeof invitationActions?.register === 'function' ? (values, options) => invitationActions.register({ ...values, code: pendingInvitationCode }, options) : undefined} onNavigateToLogin={() => navigateTo(authPath('/login'))} onAuthenticated={establishSession} />
-    : path === '/login' ? <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
+    : path === '/login' ? <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />
       : <NotFoundFallback onNavigateToRegister={() => navigateTo(authPath('/register'))} onNavigateToLogin={() => navigateTo(authPath('/login'))} />}</div>;
 }

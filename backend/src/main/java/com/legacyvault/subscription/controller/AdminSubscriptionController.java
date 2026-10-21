@@ -1,5 +1,10 @@
 package com.legacyvault.subscription.controller;
 
+import com.legacyvault.common.api.PageEnvelope;
+import com.legacyvault.subscription.dto.AdminPaymentDtos.Transaction;
+import java.util.UUID;
+import java.time.Instant;
+
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.subscription.dto.AdminSubscriptionDtos.*;
 import com.legacyvault.subscription.service.AdminSubscriptionService;
@@ -104,7 +109,19 @@ public class AdminSubscriptionController {
     }
 
     @GetMapping("/transactions")
-    public void lookupTransactions(@RequestParam(value = "query", required = false) String query) {
-        adminService.lookupTransactions(query);
+    public PageEnvelope<Transaction> lookupTransactions(
+            @RequestParam(required=false) String query,
+            @RequestParam(required=false) UUID accountId,
+            @RequestParam(required=false) String status,
+            @RequestParam(required=false) Instant from,
+            @RequestParam(required=false) Instant to,
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="20") int size) {
+        return adminService.lookupTransactions(query,accountId,status,from,to,page,size);
+    }
+
+    @GetMapping("/transactions/{paymentId}")
+    public Transaction transactionDetail(@PathVariable UUID paymentId) {
+        return adminService.transactionDetail(paymentId);
     }
 }

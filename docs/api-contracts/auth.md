@@ -114,3 +114,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 Success/validation/401/403: `ErrorContractTest` (khung). PS-9/10/11 bổ sung: đăng ký thành công, trùng email 409, mật khẩu
 được băm (không bằng plaintext), đăng nhập đúng/sai/đã xóa, token hợp lệ vs thiếu token vs sai role.
+
+## PS-112
+
+Recovery contract and session-version deployment/rollback policy: [password-recovery.md](password-recovery.md). Password login and password reauth reject explicitly password-disabled accounts; unclassified legacy accounts keep existing login but cannot recover. Legacy JWTs without authVersion must sign in again. New JWT claims are checked against the DB on every protected request.

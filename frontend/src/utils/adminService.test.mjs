@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeAdminRole, normalizeAdminRoles, validateAdminOverview, validateAdminUser, validateAdminAuditLog,
-  fetchAdminOverview, fetchAdminUsers, fetchAdminAuditLogs, fetchAdminAuditDetail, lockAdminUser } from './adminService.js';
+  fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, lockAdminUser } from './adminService.js';
 const id = '11111111-1111-4111-8111-111111111111';
 const event = { id, occurredAt: '2026-10-20T12:00:00Z', actor: { kind: 'UNKNOWN', userId: null },
   action: 'LEGACY_EVENT', entityType: 'OTHER', vaultId: null };
@@ -15,7 +15,7 @@ test('roles and user validation preserve multi-role and unknown status', () => {
   assert.equal(normalizeAdminRole('ROLE_ADMIN'), 'ADMIN');
   assert.deepEqual(normalizeAdminRoles(['ADMIN','ROLE_ADMIN']), ['ADMIN']);
   assert.deepEqual(normalizeAdminRoles(null), []);
-  assert.equal(validateAdminUser({ id }).status, null);
+  assert.equal(validateAdminUser({ publicId: id }).status, null);
   assert.throws(() => validateAdminUser({}), /MISSING_USER_ID/);
 });
 test('PS-107 counts retain their real meaning and role totals may exceed accounts', () => {
@@ -84,4 +84,56 @@ test('read adapters preserve authorization, unavailable and abort failures', asy
 test('provisional user parser rejects malformed lists and user writes remain disabled', async () => {
   await withFetch(async () => json({ bad: true }), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
   await assert.rejects(() => lockAdminUser('T', { userId: id }), /LOCK_POLICY_PENDING/);
+});
+
+const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'DELETED', createdAt: '2026-10-20T12:00:00Z' };
+test('PS-109 user search maps pagination and role, uses shared authentication and strips unexpected fields', async () => {
+  await withFetch(async (url, options) => {
+    const q = new URL(url, 'http://local').searchParams;
+    assert.equal(q.get('page'), '1'); assert.equal(q.get('size'), '10');
+    assert.equal(q.get('query'), 'Account'); assert.equal(q.get('role'), 'ROLE_ADMIN'); assert.equal(q.get('status'), 'DELETED');
+    assert.equal(q.has('q'), false); assert.equal(q.has('pageSize'), false);
+    assert.equal(options.headers.Authorization, 'Bearer T'); assert.equal(options.headers['Accept-Language'], 'en');
+    return json({ content: [{ ...wireUser, passwordHash: 'secret' }], page: 1, size: 10, totalElements: 11, totalPages: 2 });
+  }, async () => {
+    const result = await fetchAdminUsers('T', { query: ' Account ', role: 'ADMIN', status: 'DELETED', page: 2, pageSize: 10, lang: 'en' });
+    assert.equal(result.items[0].id, id); assert.equal(result.items[0].passwordHash, undefined);
+    assert.equal(result.items[0].status, 'DELETED'); assert.equal(result.page, 2);
+  });
+});
+
+test('PS-109 detail is fetched by public UUID and refuses a mismatched receipt', async () => {
+  await withFetch(async url => { assert.ok(url.endsWith('/' + id)); return json(wireUser); }, async () => {
+    assert.equal((await fetchAdminUserDetail('T', id)).id, id);
+  });
+  await withFetch(async () => json({ ...wireUser, publicId: '22222222-2222-4222-8222-222222222222' }),
+    () => assert.rejects(() => fetchAdminUserDetail('T', id), /INVALID_USER_RECORD/));
+});
+
+test('PS-109 rejects malformed paging, duplicate records and invalid request parameters', async () => {
+  for (const raw of [{ items: [] }, { content: [] }, { content: [wireUser, wireUser], page: 0, size: 20, totalElements: 2, totalPages: 1 }]) {
+    await withFetch(async () => json(raw), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
+  }
+  await withFetch(() => { throw Error('unexpected network'); }, async () => {
+    for (const params of [{ page: 0 }, { pageSize: 101 }, { status: 'LOCKED' }, { role: 'GUARDIAN' }, { query: 'x'.repeat(101) }])
+      await assert.rejects(() => fetchAdminUsers('T', params), /VALIDATION_FAILED/);
+    await assert.rejects(() => fetchAdminAuditLogs('T', { actorId: 'bad-id' }), /VALIDATION_FAILED/);
+  });
+});
+
+test('audit actor filter is a public user UUID; a vault ID never becomes the entity ID', async () => {
+  const row = { ...event, entityType: 'ASSET', vaultId: id };
+  await withFetch(async url => {
+    assert.equal(new URL(url, 'http://local').searchParams.get('actorId'), id);
+    return json({ content: [row], page: 0, size: 20, totalElements: 1, totalPages: 1 });
+  }, async () => {
+    const result = await fetchAdminAuditLogs('T', { actorId: id });
+    assert.equal(result.items[0].vaultId, id); assert.equal(result.items[0].entityId, undefined);
+  });
+});
+
+test('PS-103 attachment audit actions do not invalidate the Admin log after an evidence read', () => {
+  for (const action of ['INTAKE_ATTACHMENT_UPLOADED', 'EVIDENCE_FILE_READ'])
+    assert.equal(validateAdminAuditLog({ ...event, action }).action, action);
+  assert.throws(() => validateAdminAuditLog({ ...event, action: 'UNREVIEWED_ACTION' }));
 });

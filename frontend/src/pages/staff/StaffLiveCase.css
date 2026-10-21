@@ -1,4 +1,4 @@
-.lv-staff-live { max-width: 960px; margin: auto; padding: 24px; }
+﻿.lv-staff-live { max-width: 960px; margin: auto; padding: 24px; }
 .lv-staff-live button, .lv-staff-live input, .lv-staff-live select { font: inherit; padding: 10px; border: 1px solid #b7c1b9; border-radius: 8px; }
 .lv-staff-live button { margin: 8px 8px 8px 0; cursor: pointer; }
 .lv-staff-live button:disabled { cursor: default; opacity: .55; }
@@ -6,3 +6,162 @@
 .lv-staff-live fieldset { border: 1px solid #b7c1b9; border-radius: 12px; padding: 20px; }
 .lv-staff-live input, .lv-staff-live select { width: 100%; box-sizing: border-box; }
 .lv-staff-live h1, .lv-staff-live li { overflow-wrap: anywhere; }
+
+/* --------------------------------------------------------------------------
+   Staff Record Item & Attachments (PS-98 & PS-103)
+   -------------------------------------------------------------------------- */
+.lv-staff-records-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lv-staff-record-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.lv-staff-record-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lv-staff-btn-toggle-att {
+  font-size: 13px !important;
+  font-weight: 600;
+  padding: 6px 12px !important;
+  margin: 0 !important;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+}
+
+.lv-staff-btn-toggle-att:hover:not(:disabled) {
+  background-color: #e2e8f0;
+}
+
+.lv-staff-attachments-pane {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  background-color: #fafbfc;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.lv-staff-attachments-pane h4 {
+  margin: 0 0 8px 0;
+  font-size: 13.5px;
+  color: #334155;
+}
+
+.lv-staff-no-att {
+  font-size: 13px;
+  color: #64748b;
+  margin: 6px 0;
+}
+
+.lv-staff-attachments-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lv-staff-attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.lv-staff-att-name {
+  font-weight: 500;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.lv-staff-att-size {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.lv-staff-btn-view-att {
+  margin-left: auto !important;
+  font-size: 12px !important;
+  padding: 4px 10px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0 !important;
+  border-radius: 4px !important;
+}
+
+.lv-staff-btn-view-att:hover:not(:disabled) {
+  background-color: #d1fae5;
+}
+
+.lv-staff-attachment-upload-box {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.lv-staff-attachment-upload-box label {
+  margin: 0 0 6px 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.lv-staff-selected-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.lv-staff-btn-submit-att {
+  font-size: 12.5px !important;
+  font-weight: 600;
+  padding: 5px 12px !important;
+  margin: 0 !important;
+  background-color: #164639;
+  color: #ffffff;
+  border: 1px solid #164639 !important;
+  border-radius: 6px !important;
+}
+
+.lv-staff-btn-submit-att:hover:not(:disabled) {
+  background-color: #0f332a;
+}
+
+.lv-staff-att-error {
+  color: #dc2626;
+  font-size: 12.5px;
+  margin: 6px 0 0 0;
+}

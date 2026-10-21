@@ -35,6 +35,11 @@ class StaffInvitationFlowSqlServerTest extends LegalBasisSqlServerSupport {
         return new Fixture(ownerId, vaultId, beneficiaryPublicId);
     }
 
+    /** The disposable database is shared by every test method of the class, so each test needs its own address. */
+    private static String uniqueEmail() {
+        return "recipient-" + UUID.randomUUID() + "@example.test";
+    }
+
     private User recipient(String email) {
         UUID publicId = UUID.randomUUID();
         long id = jdbc.queryForObject(
@@ -43,13 +48,13 @@ class StaffInvitationFlowSqlServerTest extends LegalBasisSqlServerSupport {
         return tx.execute(status -> context.getBean(UserRepository.class).findById(id).orElseThrow());
     }
 
-    private InvitationDtos.Issued issueBound(Fixture fixture) {
+    private InvitationDtos.Issued issueBound(Fixture fixture, String confirmedEmail) {
         return tx.execute(status -> {
             Beneficiary beneficiary = context.getBean(BeneficiaryRepository.class)
                     .findByPublicIdAndVault_VaultId(fixture.beneficiaryPublicId(), fixture.vaultId())
                     .orElseThrow();
             return context.getBean(BeneficiaryInvitationService.class)
-                    .issueBoundForStaff(beneficiary, "recipient@example.test", fixture.ownerId(), 0);
+                    .issueBoundForStaff(beneficiary, confirmedEmail, fixture.ownerId(), 0);
         });
     }
 
@@ -70,8 +75,9 @@ class StaffInvitationFlowSqlServerTest extends LegalBasisSqlServerSupport {
 
     private void assertRedeemsIn(String vaultStatus) {
         Fixture fixture = ready();
-        InvitationDtos.Issued issued = issueBound(fixture);
-        User recipient = recipient("recipient@example.test");
+        String email = uniqueEmail();
+        InvitationDtos.Issued issued = issueBound(fixture, email);
+        User recipient = recipient(email);
         jdbc.update("UPDATE dbo.vaults SET status=? WHERE vault_id=?", vaultStatus, fixture.vaultId());
 
         InvitationDtos.Linked linked = redeem(issued.code(), recipient);
@@ -86,8 +92,9 @@ class StaffInvitationFlowSqlServerTest extends LegalBasisSqlServerSupport {
     void archivedAndPreUnlockBlockedVaultStatesRejectStaffBoundInvitation() {
         for (String vaultStatus : new String[] { "ARCHIVED", "ON_HOLD", "AWAITING_VERIFICATION", "WILL_VERIFICATION", "LEGAL_BASIS_VERIFICATION" }) {
             Fixture fixture = ready();
-            InvitationDtos.Issued issued = issueBound(fixture);
-            User recipient = recipient("recipient@example.test");
+            String email = uniqueEmail();
+            InvitationDtos.Issued issued = issueBound(fixture, email);
+            User recipient = recipient(email);
             jdbc.update("UPDATE dbo.vaults SET status=? WHERE vault_id=?", vaultStatus, fixture.vaultId());
 
             BusinessException error = assertThrows(BusinessException.class, () -> redeem(issued.code(), recipient), vaultStatus);
@@ -108,7 +115,7 @@ class StaffInvitationFlowSqlServerTest extends LegalBasisSqlServerSupport {
         String code = tokens.generate();
         jdbc.update("INSERT dbo.beneficiary_invitations(public_id,beneficiary_id,generation,is_current,code_hash,issued_at,expires_at,issued_by_user_id) VALUES (?,?,1,1,?,SYSUTCDATETIME(),DATEADD(day,7,SYSUTCDATETIME()),?)",
                 UUID.randomUUID().toString(), beneficiaryId, tokens.hash(code), fixture.ownerId());
-        User recipient = recipient("recipient@example.test");
+        User recipient = recipient(uniqueEmail());
         jdbc.update("UPDATE dbo.vaults SET status='UNLOCKED' WHERE vault_id=?", fixture.vaultId());
 
         assertThrows(BusinessException.class, () -> tx.execute(status -> context.getBean(BeneficiaryInvitationService.class)
