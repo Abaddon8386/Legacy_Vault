@@ -158,8 +158,13 @@ public class BeneficiaryInvitationService {
         entities.refresh(account);
         Vault vault = vaults.findByIdForUpdate(vaultId).orElseThrow(this::invalid);
         entities.refresh(vault);
-        // Freeze/archive never opens a new self-service path; Staff fallback remains separate.
-        if (!"ACTIVE".equals(vault.getStatus()) || accountId.equals(vault.getOwnerUserId())) throw invalid();
+        // Email-bound Staff invitations remain redeemable after Legal unlock, including during
+        // handover. Legacy/Owner invitations retain the original ACTIVE-only behavior.
+        boolean redeemableVaultStatus = requireEmailBinding
+                ? Vault.STATUS_ACTIVE.equals(vault.getStatus()) || Vault.STATUS_UNLOCKED.equals(vault.getStatus())
+                        || Vault.STATUS_HANDOVER_IN_PROGRESS.equals(vault.getStatus())
+                : Vault.STATUS_ACTIVE.equals(vault.getStatus());
+        if (!redeemableVaultStatus || accountId.equals(vault.getOwnerUserId())) throw invalid();
         Beneficiary beneficiary = invitation.getBeneficiary();
         entities.refresh(beneficiary);
         entities.refresh(invitation);
