@@ -183,3 +183,26 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - `POST /api/v1/auth/google/link` lets an authenticated active user link a verified Google `sub` to their own account. It never links by email or creates an account; a subject already mapped to any account is rejected. This is the approved self-service linking path implemented in PS-85.
 - First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
 - Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.
+
+## PS-106 — Staff email invitation orchestration (pending contract)
+
+Status: **BLOCKED for invitation-email orchestration**. The repository does not yet define a safe,
+end-to-end contract for selecting the recipient address, proving counter verification, or sending
+the one-time PS-86 code. Do not add a Staff send endpoint, generate another code, or send mail until
+the decisions below are approved and the required infrastructure exists.
+
+| Concern | Current source and behavior | Missing decision / constraint |
+|---|---|---|
+| Requester and scope | PS-88 Staff beneficiary reads require the authenticated `STAFF_EXECUTOR`, an assigned `OPEN` case, and the matching vault. | Reuse the server-side case/vault guard; never accept role, case, or beneficiary authority from the request body. |
+| Beneficiary | PS-88 returns case-scoped beneficiary summaries and server-derived action hints. | Define the exact eligibility predicate tying the selected beneficiary to the current COURT allocation and invitation. |
+| In-person verification | The existing identity-verification route accepts a result from the client and persists `MATCH`/`VERIFIED_AT_COUNTER`; that is not independent evidence of physical verification. | Approve an authoritative staff-recorded counter-verification source and evidence/audit contract. Do not treat client-supplied `verified`, `MATCH`, or linked-account state as proof. |
+| Recipient email | Beneficiary email is distinct from a linked account's email; PS-86 explicitly does not verify or match email. `User.emailVerifiedAt` exists, but invitation issuance does not use it. | Decide which address is authoritative and how it is proven to belong to this beneficiary. Do not allow a caller-selected destination or infer binding from matching email. |
+| Court/legal gate | PS-102 establishes court-only intake; Legal approval guards compare current dossier version/hash/allocation scope. | The send operation must reuse the applicable current approval/hold guard and verify the beneficiary is within the approved scope; no NOTARIAL bypass. |
+| Invitation/code | PS-86 Owner issue/reissue returns the raw code once, stores only its hash, and defines a fixed 7-day lifetime. There is no Staff API to retrieve an existing raw code. | Decide whether/how Staff can initiate delivery without issuing a second code or exposing a code after its one-time response. Do not change PS-86 lifecycle or invent TTL/resend rules. |
+| Mail and delivery state | No mail sender/provider, outbox, queue, or transport-status model was found in backend source, dependencies, or API docs. PS-86 explicitly says the system does not send email/SMS. | Select/configure approved provider, sender, test recipient, transport semantics, retry/idempotency and failure policy before implementing delivery. `accepted` must not be described as delivered/read/linked. |
+| Audit and transaction | PS-86 writes invitation lifecycle audit with its issuance/reissue/revoke transaction; it does not audit mail delivery. | Define delivery audit events and atomicity/outbox behavior with the chosen mail architecture. Never log raw codes or sensitive beneficiary data. |
+
+PS-86 remains the only invitation-code lifecycle. PS-87 redemption/linking remains distinct from delivery:
+email or code possession grants no asset access; only the existing beneficiary authorization for
+that beneficiary's `DELIVERED` items may do so. No PS-106 API/OpenAPI operation is published until
+the recipient-binding, verification-evidence, and mail-transport contracts are approved.
