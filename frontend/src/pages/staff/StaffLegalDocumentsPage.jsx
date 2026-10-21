@@ -1146,14 +1146,7 @@ export default function StaffLegalDocumentsPage({
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  className="lv-btn-reset-form"
-                  onClick={handleResetForm}
-                  disabled={isSubmitting}
-                >
-                  {t.btnResetForm}
-                </button>
+
               </div>
             </form>
           </section>

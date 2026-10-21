@@ -97,7 +97,6 @@ export const staffLegalDocumentsI18n = {
     btnForwardToLegal: 'Chuyển Ban Pháp lý thẩm định',
     forwardingToLegal: 'Đang chuyển cho Ban Pháp lý...',
     btnForwardHelper: 'Chỉ khả dụng khi hồ sơ đã có phiên bản mới nhất chưa chuyển',
-    btnResetForm: 'Làm mới biểu mẫu',
 
     // Phản hồi hành động
     uploadSuccessNotice: 'Tiếp nhận văn bản thành công. Phiên bản số hóa đã được lưu trữ an toàn.',
@@ -251,7 +250,6 @@ export const staffLegalDocumentsI18n = {
     btnForwardToLegal: 'Send to Legal Department',
     forwardingToLegal: 'Forwarding to Legal Department...',
     btnForwardHelper: 'Only available when the dossier has a latest version that has not yet been forwarded',
-    btnResetForm: 'Reset Form',
 
     // Feedback
     uploadSuccessNotice: 'Document intake successful. The digitized version has been securely stored.',
