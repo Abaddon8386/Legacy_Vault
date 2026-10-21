@@ -752,6 +752,40 @@ paths:
               schema: { $ref: '#/components/schemas/ApiError' }
               example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
 
+  /api/v1/auth/google/link:
+    post:
+      tags: [Auth]
+      summary: Liên kết Google vào tài khoản đang đăng nhập (PS-85)
+      description: Yêu cầu JWT LegacyVault. Backend xác minh Google ID token và lấy sub đã xác minh; chỉ liên kết vào tài khoản hiện tại, không tạo tài khoản hoặc liên kết theo email.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+            example: { credential: '<Google ID token>' }
+      responses:
+        '200':
+          description: Google identity đã liên kết vào tài khoản hiện tại.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoogleIdentityLinkResponse' }
+              example: { linked: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: Google subject đã liên kết với một tài khoản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 409, code: GOOGLE_IDENTITY_ALREADY_LINKED, messageKey: error.auth.googleIdentityAlreadyLinked, message: 'Danh tính Google này đã được liên kết với một tài khoản.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '503':
+          description: Google Client ID is not configured or Google JWKS is unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+
   /api/v1/auth/me:
     get:
       tags: [Auth]
@@ -2920,6 +2954,7 @@ components:
             - INVALID_CREDENTIALS
             - INVALID_GOOGLE_CREDENTIAL
             - GOOGLE_SIGNIN_UNAVAILABLE
+            - GOOGLE_IDENTITY_ALREADY_LINKED
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
@@ -3005,6 +3040,11 @@ components:
       additionalProperties: false
       properties:
         credential: { type: string, minLength: 1, maxLength: 8192, writeOnly: true, description: GIS ID token; backend verifies the signature and claims. }
+    GoogleIdentityLinkResponse:
+      type: object
+      required: [linked]
+      properties:
+        linked: { type: boolean, enum: [true] }
     UserResponse:
       type: object
       required: [id, fullName, email, roles]

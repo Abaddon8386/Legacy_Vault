@@ -22,6 +22,7 @@ public enum ErrorCode {
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),
 	INVALID_CREDENTIALS(401, "error.auth.invalidCredentials"),
 	INVALID_GOOGLE_CREDENTIAL(401, "error.auth.googleCredentialInvalid"),
+	GOOGLE_IDENTITY_ALREADY_LINKED(409, "error.auth.googleIdentityAlreadyLinked"),
 	GOOGLE_SIGNIN_UNAVAILABLE(503, "error.auth.googleSignInUnavailable"),
 	ACCESS_DENIED(403, "error.auth.accessDenied"),
 	REAUTH_FAILED(403, "error.auth.reauthFailed"),

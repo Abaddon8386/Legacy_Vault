@@ -72,6 +72,7 @@ Lỗi validation:
 | `INVALID_CREDENTIALS` | 401 | Sai email/mật khẩu; tài khoản đã xóa; Google subject chưa liên kết hoặc account Google không đủ điều kiện — **không phân biệt** |
 | `INVALID_GOOGLE_CREDENTIAL` | 401 | Google ID token sai chữ ký/claim, hết hạn hoặc đã được dùng đổi phiên |
 | `GOOGLE_SIGNIN_UNAVAILABLE` | 503 | Google Client ID chưa được cấu hình; đăng nhập email/mật khẩu vẫn hoạt động |
+| `GOOGLE_IDENTITY_ALREADY_LINKED` | 409 | Google subject đã được liên kết với một tài khoản LegacyVault |
 | `ACCESS_DENIED` | 403 | Đã đăng nhập nhưng thiếu role |
 | `REAUTH_FAILED` | 403 | Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật (D-API-32). Không dùng 401 để FE không coi là hết phiên |
 | `RESOURCE_NOT_FOUND` | 404 | Không có tài nguyên, **hoặc** không thuộc quyền người gọi (D-API-07) |

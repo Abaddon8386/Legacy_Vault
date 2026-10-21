@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
-/** Explicitly provisioned provider/subject link; this entity does not perform account linking. */
+/** Explicit provider/subject mapping. Account-linking authorization is enforced by the auth service. */
 @Entity
 @Table(name = "external_auth_identities", schema = "dbo")
 public class ExternalAuthIdentity {
