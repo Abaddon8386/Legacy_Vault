@@ -124,9 +124,10 @@ public class Vault {
      * ST-16: WILL_VERIFICATION -> AWAITING_LEGAL_BASIS hoặc ON_HOLD.
      */
     public void markLegalBasisRouted(boolean onHold) {
-        moveTo(
-                STATUS_WILL_VERIFICATION,
-                onHold ? STATUS_ON_HOLD : STATUS_AWAITING_LEGAL_BASIS);
+        if (!STATUS_DOCUMENT_VERIFICATION.equals(status) && !STATUS_WILL_VERIFICATION.equals(status))
+            throw new IllegalStateException("Death verification must precede court classification");
+        status = onHold ? STATUS_ON_HOLD : STATUS_AWAITING_LEGAL_BASIS;
+        updatedAt = Instant.now();
     }
 
     /** ON_HOLD -> AWAITING_LEGAL_BASIS sau khi Legal phân loại lại. */

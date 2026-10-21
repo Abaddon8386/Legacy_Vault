@@ -9,7 +9,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Real V27 -> current upgrade in a disposable database; no repair or existing DB access. */
+/** Real V27 -> latest upgrade in a disposable database; no repair or existing DB access. */
 @EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class HandoverMigrationUpgradeSqlServerTest {
     @Test
@@ -33,7 +33,10 @@ class HandoverMigrationUpgradeSqlServerTest {
             }
             var flyway = Flyway.configure().dataSource(url, null, null)
                     .locations("classpath:db/migration").load();
-            assertEquals(7, flyway.migrate().migrationsExecuted); // V28 through V34, without editing applied migrations.
+            var pending = flyway.info().pending();
+            var versions = java.util.Arrays.stream(pending).map(m -> m.getVersion().toString()).toList();
+            assertTrue(versions.containsAll(java.util.List.of("28", "29", "30")), "Handover migrations must be included");
+            assertEquals(pending.length, flyway.migrate().migrationsExecuted);
             flyway.validate();
             assertEquals(0, flyway.migrate().migrationsExecuted);
             try (var c = DriverManager.getConnection(url); var s = c.createStatement();

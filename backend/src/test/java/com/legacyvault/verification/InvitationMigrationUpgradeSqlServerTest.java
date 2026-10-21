@@ -24,7 +24,10 @@ class InvitationMigrationUpgradeSqlServerTest {
                 s.executeUpdate("INSERT dbo.beneficiaries(vault_id,full_name,linked_user_id,account_status,id_verification_status) SELECT v.vault_id,'Preserved beneficiary',u.user_id,'ACCOUNT_CREATED','VERIFIED_AT_COUNTER' FROM dbo.vaults v CROSS JOIN dbo.users u WHERE u.email='recipient@upgrade.test'");
             }
             var flyway = Flyway.configure().dataSource(url, null, null).locations("classpath:db/migration").load();
-            assertEquals(1, flyway.migrate().migrationsExecuted); flyway.validate();
+            var pending = flyway.info().pending();
+            assertTrue(pending.length >= 1 && java.util.Arrays.stream(pending).anyMatch(m -> "34".equals(m.getVersion().toString())),
+                    "V34 invitations must be among the migrations applied on upgrade");
+            assertEquals(pending.length, flyway.migrate().migrationsExecuted); flyway.validate();
             assertEquals(0, flyway.migrate().migrationsExecuted);
             try (var c = DriverManager.getConnection(url); var s = c.createStatement();
                  var r = s.executeQuery("SELECT b.full_name,b.account_status,b.id_verification_status,u.email FROM dbo.beneficiaries b JOIN dbo.users u ON u.user_id=b.linked_user_id")) {

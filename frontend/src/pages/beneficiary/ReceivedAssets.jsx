@@ -1,93 +1,184 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal } from '../../components/common/Modal.jsx';
-import { readReceivedPage, readReceivedDetail, readReceivedContent, receivedActions, receivedPreviewAllowed } from './receivedAssetsModel.js';
+import { readReceivedPage, receivedActions, receivedPreviewAllowed, readReceivedDetail, readReceivedContent, formatDeliveredDate } from './receivedAssetsModel.js';
 import { PREVIEW_SUBJECT, previewReceivedActions } from './receivedAssetsPreview.js';
+import { Modal } from '../../components/common/Modal.jsx';
 import './ReceivedAssets.css';
 
 function errorMessage(error, en) {
-  if (error?.status === 401) return en ? 'Your session expired. Sign in again.' : 'Phiên đã hết hạn. Vui lòng đăng nhập lại.';
-  if ([403, 404].includes(error?.status)) return en ? 'This received item is unavailable or you no longer have access.' : 'Tài sản đã nhận không khả dụng hoặc bạn không còn quyền xem.';
-  return en ? 'Unable to load information. Please retry.' : 'Chưa tải được thông tin. Vui lòng thử lại.';
+  if (error?.status === 401) return en ? 'Your session has expired. Please sign in again.' : 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  if (error?.status === 403) return en ? 'You are not authorized to view this received asset.' : 'Bạn không có quyền xem tài sản đã nhận này.';
+  if (error?.status === 404) return en ? 'Received asset not found.' : 'Không tìm thấy tài sản đã nhận.';
+  return en ? 'Could not load data. Please retry.' : 'Không thể tải dữ liệu. Vui lòng thử lại.';
 }
+
 function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
   const en = lang === 'en';
-  const [state, setState] = useState({ busy: false, url: null, error: null });
-  const control = useRef(null);
-  const objectUrl = useRef(null);
-  const locked = useRef(false);
-  useEffect(() => () => { control.current?.abort(); if (objectUrl.current) URL.revokeObjectURL(objectUrl.current); }, []);
-  const hide = () => {
-    control.current?.abort(); if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
-    objectUrl.current = null; locked.current = false; setState({ busy: false, url: null, error: null });
-  };
-  async function load() {
-    if (locked.current) return;
-    locked.current = true; const c = new AbortController(); control.current = c;
-    setState({ busy: true, url: null, error: null });
+  const [state, setState] = useState({ busy: false, blobUrl: null, error: null });
+  const blobRef = useRef(null);
+  const controller = useRef(null);
+  const errorRef = useRef(onError);
+  useEffect(() => { errorRef.current = onError; }, [onError]);
+  useEffect(() => () => { controller.current?.abort(); }, []);
+  useEffect(() => () => {
+    controller.current?.abort();
+    if (blobRef.current) { URL.revokeObjectURL(blobRef.current); blobRef.current = null; }
+  }, []);
+  const toggle = async () => {
+    if (state.blobUrl) {
+      URL.revokeObjectURL(state.blobUrl);
+      blobRef.current = null;
+      setState({ busy: false, blobUrl: null, error: null });
+      return;
+    }
+    const c = new AbortController();
+    controller.current = c;
+    setState({ busy: true, blobUrl: null, error: null });
     try {
       const blob = await actions.image(itemId, image.imageId, { ...options, signal: c.signal });
-      if (c.signal.aborted) return;
-      if (!(blob instanceof Blob) || !['image/png', 'image/jpeg'].includes(blob.type) || blob.size === 0) throw new Error('INVALID_RESPONSE');
-      const url = URL.createObjectURL(blob); objectUrl.current = url;
-      setState({ busy: false, url, error: null });
-    } catch (error) { if (!c.signal.aborted) { setState({ busy: false, url: null, error }); onError(error); } }
-    finally { if (!c.signal.aborted) locked.current = false; }
-  }
-  return <div className="lv-received-image">
-    <p>{image.label}</p>
-    {state.error && <p role="alert">{errorMessage(state.error, en)}</p>}
-    {state.busy && <p role="status">{en ? 'Loading image…' : 'Đang tải ảnh…'}</p>}
-    {state.url && <img src={state.url} alt={image.label} />}
-    <button onClick={load} disabled={state.busy || Boolean(state.url)}>{en ? 'View image' : 'Xem ảnh'}</button>
-    {(state.url || state.busy) && <button onClick={hide}>{en ? 'Hide image' : 'Ẩn ảnh'}</button>}
-  </div>;
+      if (!c.signal.aborted) {
+        const url = URL.createObjectURL(blob);
+        blobRef.current = url;
+        setState({ busy: false, blobUrl: url, error: null });
+      }
+    } catch (error) {
+      if (!c.signal.aborted) {
+        setState({ busy: false, blobUrl: null, error });
+        errorRef.current(error);
+      }
+    }
+  };
+  return (
+    <div className="lv-received-image">
+      <div className="lv-received-image__header">
+        <span className="lv-received-image__label">{image.label}</span>
+        <button type="button" className="lv-received-detail__btn" disabled={state.busy} onClick={toggle}>
+          {state.blobUrl ? (en ? 'Hide image' : 'Ẩn ảnh') : (state.busy ? (en ? 'Loading…' : 'Đang tải…') : (en ? 'View image' : 'Xem ảnh'))}
+        </button>
+      </div>
+      {state.error && <p role="alert" className="lv-received-detail__error">{errorMessage(state.error, en)}</p>}
+      {state.blobUrl && <img src={state.blobUrl} alt={image.label} className="lv-received-image__img" />}
+    </div>
+  );
 }
-function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onClose, onError }) {
+
+function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, onClose }) {
   const en = lang === 'en';
   const [result, setResult] = useState({ loading: true, data: null, error: null });
   const [content, setContent] = useState({ busy: false, text: null, error: null });
   const [retry, setRetry] = useState(0);
-  const contentControl = useRef(null);
+  const controller = useRef(null);
   const locked = useRef(false);
   const errorRef = useRef(onError);
   useEffect(() => { errorRef.current = onError; }, [onError]);
+  useEffect(() => () => { controller.current?.abort(); }, []);
   useEffect(() => {
     const c = new AbortController();
-    actions.detail(itemId, { accessToken, signal: c.signal }).then(raw => {
-      if (!c.signal.aborted) setResult({ loading: false, data: readReceivedDetail(raw, subjectId, itemId), error: null });
+    actions.detail(itemId, { accessToken, lang, signal: c.signal }).then(data => {
+      if (!c.signal.aborted) setResult({ loading: false, data: readReceivedDetail(data, subjectId, itemId), error: null });
     }).catch(error => { if (!c.signal.aborted) { setResult({ loading: false, data: null, error }); errorRef.current(error); } });
-    return () => { c.abort(); contentControl.current?.abort(); };
-  }, [itemId, subjectId, actions, accessToken, retry]);
-  async function showContent() {
-    if (locked.current || !result.data) return;
-    locked.current = true; const c = new AbortController(); contentControl.current = c;
+    return () => {
+      c.abort();
+      controller.current?.abort();
+    };
+  }, [actions, subjectId, itemId, accessToken, lang, retry]);
+  const showContent = async () => {
+    if (locked.current) return;
+    locked.current = true;
+    const c = new AbortController();
+    controller.current = c;
     setContent({ busy: true, text: null, error: null });
     try {
-      const raw = await actions.content(itemId, { accessToken, lang, signal: c.signal });
-      if (!c.signal.aborted) setContent({ busy: false, text: readReceivedContent(raw, subjectId, itemId), error: null });
+      const res = await actions.content(itemId, { accessToken, lang, signal: c.signal });
+      if (!c.signal.aborted) setContent({ busy: false, text: readReceivedContent(res, subjectId, itemId), error: null });
     } catch (error) { if (!c.signal.aborted) { setContent({ busy: false, text: null, error }); errorRef.current(error); } }
     finally { if (!c.signal.aborted) locked.current = false; }
-  }
+  };
   const item = result.data;
-  return <Modal isOpen onClose={onClose} closeLabel={en ? 'Close received asset' : 'Đóng tài sản đã nhận'} title={item?.title || (en ? 'Received asset' : 'Tài sản đã nhận')} maxWidth="760px">
-    <div className="lv-received-detail">
-      {result.loading && <p role="status">{en ? 'Loading details…' : 'Đang tải chi tiết…'}</p>}
-      {result.error && <><p role="alert">{errorMessage(result.error, en)}</p><button onClick={() => { setResult({ loading: true, data: null, error: null }); setRetry(v => v + 1); }}>{en ? 'Retry' : 'Thử lại'}</button></>}
-      {item && <>
-        <p>{item.sourceLabel}</p><p>{en ? 'Handed over at' : 'Bàn giao lúc'}: {item.deliveredAt}</p>
-        {(item.vaultStatus === 'ARCHIVED' || item.caseStatus === 'CLOSED' || item.sessionStatus === 'COMPLETED') && <p className="lv-received-archive">{en ? 'The handover record is completed or archived. You can still view this received asset.' : 'Phiên/hồ sơ đã hoàn tất hoặc lưu trữ. Bạn vẫn xem lại được tài sản đã nhận này.'}</p>}
-        <p>{en ? 'Read only — this item was handed over to you.' : 'Chỉ xem — tài sản này đã được bàn giao cho bạn.'}</p>
-        <button disabled={content.busy} onClick={showContent}>{en ? 'View received content' : 'Xem nội dung đã nhận'}</button>
-        {content.busy && <p role="status">{en ? 'Loading content…' : 'Đang tải nội dung…'}</p>}
-        {content.error && <p role="alert">{errorMessage(content.error, en)}</p>}
-        {content.text !== null && <><pre className="lv-received-content">{content.text || (en ? 'Empty content' : 'Nội dung trống')}</pre><button onClick={() => setContent({ busy: false, text: null, error: null })}>{en ? 'Hide content' : 'Ẩn nội dung'}</button></>}
-        <h3>{en ? 'Received images' : 'Ảnh tài sản đã nhận'}</h3>
-        {item.images.length === 0 && <p>{en ? 'No images attached to this received item.' : 'Tài sản đã nhận này không có ảnh đính kèm.'}</p>}
-        {item.images.map(image => <ReceivedImage key={image.imageId} itemId={itemId} image={image} actions={actions} options={{ accessToken, lang }} lang={lang} onError={onError} />)}
-      </>}
-    </div>
-  </Modal>;
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      closeLabel={en ? 'Close' : 'Đóng'}
+      title={item?.title || (en ? 'Received asset' : 'Tài sản đã nhận')}
+      maxWidth="680px"
+    >
+      <div className="lv-received-detail">
+        {result.loading && <p role="status">{en ? 'Loading details…' : 'Đang tải chi tiết…'}</p>}
+        {result.error && (
+          <div className="lv-received-error-box">
+            <p role="alert">{errorMessage(result.error, en)}</p>
+            <button
+              type="button"
+              className="lv-received-retry-btn"
+              onClick={() => { setResult({ loading: true, data: null, error: null }); setRetry(v => v + 1); }}
+            >
+              {en ? 'Retry' : 'Thử lại'}
+            </button>
+          </div>
+        )}
+        {item && (
+          <>
+            <div className="lv-received-detail__meta">
+              <div className="lv-received-detail__meta-row">
+                <span className="lv-received-detail__label">{en ? 'Source' : 'Nguồn'}:</span>
+                <span>{item.sourceLabel}</span>
+              </div>
+              <div className="lv-received-detail__meta-row">
+                <span className="lv-received-detail__label">{en ? 'Received date' : 'Ngày nhận'}:</span>
+                <span>{formatDeliveredDate(item.deliveredAt, lang)}</span>
+              </div>
+            </div>
+
+            <div className="lv-received-detail__section">
+              {content.text === null && (
+                <button
+                  type="button"
+                  className="lv-received-detail__btn"
+                  disabled={content.busy}
+                  onClick={showContent}
+                >
+                  {content.busy ? (en ? 'Loading…' : 'Đang tải…') : (en ? 'View content' : 'Xem nội dung')}
+                </button>
+              )}
+              {content.error && <p role="alert" className="lv-received-detail__error">{errorMessage(content.error, en)}</p>}
+              {content.text !== null && (
+                <div className="lv-received-detail__content-wrap">
+                  <pre className="lv-received-content">{content.text || (en ? 'Empty content' : 'Nội dung trống')}</pre>
+                  <button
+                    type="button"
+                    className="lv-received-detail__btn"
+                    onClick={() => setContent({ busy: false, text: null, error: null })}
+                  >
+                    {en ? 'Hide content' : 'Ẩn nội dung'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="lv-received-detail__section">
+              <h3 className="lv-received-detail__subheading">{en ? 'Received images' : 'Ảnh tài sản đã nhận'}</h3>
+              {item.images.length === 0 && (
+                <p className="lv-received-detail__empty-images">{en ? 'No images attached to this received item.' : 'Tài sản đã nhận này không có ảnh đính kèm.'}</p>
+              )}
+              {item.images.map(image => (
+                <ReceivedImage
+                  key={image.imageId}
+                  itemId={itemId}
+                  image={image}
+                  actions={actions}
+                  options={{ accessToken, lang }}
+                  lang={lang}
+                  onError={onError}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
 }
+
 function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, onError }) {
   const en = lang === 'en';
   const [state, setState] = useState({ loading: true, data: null, error: null });
@@ -110,22 +201,62 @@ function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, 
     }
     errorRef.current(error);
   };
-  const stages = en ? { UNLINKED: 'Your beneficiary record is not linked yet.', AWAITING_HANDOVER: 'No assets have been handed over to you yet.', PARTIAL: 'Part of the handover has been recorded. Only received items are shown.', RECEIVED: 'Assets handed over to you.' } : { UNLINKED: 'Hồ sơ người thụ hưởng chưa được liên kết.', AWAITING_HANDOVER: 'Chưa có tài sản được bàn giao cho bạn.', PARTIAL: 'Đã bàn giao một phần. Chỉ hiển thị các tài sản bạn đã nhận.', RECEIVED: 'Các tài sản đã được bàn giao cho bạn.' };
+  const stages = en ? {
+    UNLINKED: 'Account not linked yet.',
+    AWAITING_HANDOVER: 'No assets handed over to you yet.',
+    PARTIAL: 'Partially received',
+    RECEIVED: ''
+  } : {
+    UNLINKED: 'Hồ sơ chưa được liên kết.',
+    AWAITING_HANDOVER: 'Chưa có tài sản được bàn giao cho bạn.',
+    PARTIAL: 'Đã nhận một phần',
+    RECEIVED: ''
+  };
+  const totalPages = data ? Math.ceil(data.total / size) : 0;
   return <>
-    {state.loading && <p role="status">{en ? 'Loading received assets…' : 'Đang tải tài sản đã nhận…'}</p>}
-    {state.error && <><p role="alert">{errorMessage(state.error, en)}</p><button onClick={() => { setState({ loading: true, data: null, error: null }); setRetry(v => v + 1); }}>{en ? 'Retry received assets' : 'Thử tải lại tài sản'}</button></>}
+    {state.loading && <p role="status">{en ? 'Loading…' : 'Đang tải…'}</p>}
+    {state.error && (
+      <div className="lv-received-error-box">
+        <p role="alert">{errorMessage(state.error, en)}</p>
+        <button
+          type="button"
+          className="lv-received-retry-btn"
+          onClick={() => { setState({ loading: true, data: null, error: null }); setRetry(v => v + 1); }}
+        >
+          {en ? 'Retry' : 'Thử lại'}
+        </button>
+      </div>
+    )}
     {data && <>
-      <p role="status">{stages[data.accountState]}</p>
-      <ul className="lv-received-list">{data.items.map(item => <li key={item.itemId}>
-        <div><h3>{item.title}</h3><p>{item.sourceLabel}</p><p>{en ? 'Handed over' : 'Đã bàn giao'}: {item.deliveredAt}</p>
-          {item.vaultStatus === 'ARCHIVED' && <span className="lv-received-archive">{en ? 'Archived — available to view' : 'Đã lưu trữ — vẫn được xem'}</span>}</div>
-        <button onClick={() => setSelected(item.itemId)}>{en ? 'View received asset' : 'Xem tài sản đã nhận'}</button>
-      </li>)}</ul>
-      {data.total > 0 && <nav aria-label={en ? 'Received assets pagination' : 'Phân trang tài sản đã nhận'}>
-        <button disabled={page === 0} onClick={() => onPage(page - 1)}>{en ? 'Previous' : 'Trước'}</button>
-        <span>{page + 1}/{Math.max(1, Math.ceil(data.total / size))}</span>
-        <button disabled={(page + 1) * size >= data.total} onClick={() => onPage(page + 1)}>{en ? 'Next' : 'Sau'}</button>
-      </nav>}
+      {stages[data.accountState] && <p role="status" className="lv-received-status">{stages[data.accountState]}</p>}
+      <ul className="lv-received-list">
+        {data.items.map(item => (
+          <li key={item.itemId} className="lv-received-item">
+            <div className="lv-received-item__info">
+              <h3 className="lv-received-item__title">{item.title}</h3>
+              <div className="lv-received-item__meta">
+                <span className="lv-received-item__source">{item.sourceLabel}</span>
+                <span className="lv-received-item__dot">·</span>
+                <span className="lv-received-item__date">{en ? 'Received: ' : 'Đã nhận: '}{formatDeliveredDate(item.deliveredAt, lang)}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="lv-received-item__btn"
+              onClick={() => setSelected(item.itemId)}
+            >
+              {en ? 'View details' : 'Xem chi tiết'}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {totalPages > 1 && (
+        <nav aria-label={en ? 'Received assets pagination' : 'Phân trang tài sản đã nhận'} className="lv-received-pagination">
+          <button type="button" disabled={page === 0} onClick={() => onPage(page - 1)}>{en ? 'Previous' : 'Trước'}</button>
+          <span>{page + 1}/{totalPages}</span>
+          <button type="button" disabled={(page + 1) * size >= data.total} onClick={() => onPage(page + 1)}>{en ? 'Next' : 'Sau'}</button>
+        </nav>
+      )}
     </>}
     {selected && <ItemDetail key={selected} itemId={selected} subjectId={subjectId} actions={actions} accessToken={accessToken} lang={lang} onError={handleDetailError} onClose={() => setSelected(null)} />}
   </>;
@@ -134,20 +265,56 @@ function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, 
 export default function ReceivedAssets(props) {
   return <ReceivedAssetsContent key={`${props.userId || 'preview'}:${props.accessToken || 'anonymous'}`} {...props} />;
 }
-function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDevPreview = false, scenario = 'received', onUnauthorized, refreshKey = 0 }) {
+
+function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDevPreview = false, scenario = 'unlinked', onUnauthorized, refreshKey = 0, hideTitle = false }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);
   const preview = receivedPreviewAllowed({ accessToken, isDevPreview });
-  const previewActions = useMemo(() => previewReceivedActions(scenario), [scenario]);
+  const previewActions = useMemo(() => previewReceivedActions(scenario, lang), [scenario, lang]);
   const source = receivedActions(actions, { accessToken, isDevPreview, previewActions });
   const [revision, setRevision] = useState(0);
   const subjectId = preview ? PREVIEW_SUBJECT : userId;
-  return <section className="lv-received" aria-labelledby="received-assets-title">
-    <header><div><h2 id="received-assets-title">{en ? 'Your received assets' : 'Tài sản bạn đã nhận'}</h2><p>{en ? 'Invitation codes do not grant access to assets. Only handed-over items can be viewed, including after archiving.' : 'Mã mời không cấp quyền xem tài sản. Chỉ xem tài sản đã được bàn giao, kể cả sau khi lưu trữ.'}</p></div>
-      {source && <button onClick={() => { setPage(0); setRevision(v => v + 1); }}>{en ? 'Reload received assets' : 'Tải lại tài sản đã nhận'}</button>}
-    </header>
-    {preview && <p className="lv-received-demo" role="note">{en ? 'Demo data — not saved to the server' : 'Dữ liệu minh họa — chưa lưu lên máy chủ'}</p>}
-    {!source ? <div className="lv-received-pending" role="status"><h3>{en ? 'Received asset information is not available yet' : 'Thông tin tài sản đã nhận chưa khả dụng'}</h3><p>{en ? 'The received-assets service has not been connected yet. This does not mean that you have no received assets.' : 'Dịch vụ tra cứu tài sản đã nhận chưa được kết nối. Điều này không có nghĩa là bạn chưa nhận tài sản.'}</p></div>
-      : <AssetPage key={`${subjectId}:${accessToken || 'demo'}:${page}:${revision}:${refreshKey}:${scenario}`} actions={source} subjectId={subjectId} accessToken={accessToken} lang={lang} page={page} size={5} onPage={setPage} onError={error => { if (error?.status === 401) onUnauthorized?.(); }} />}
-  </section>;
+  return (
+    <section className="lv-received" aria-labelledby="received-assets-title">
+      <header className={`lv-received__header ${hideTitle ? 'lv-received__header--concise' : ''}`}>
+        {hideTitle ? (
+          <h2 id="received-assets-title" className="lv-sr-only">{en ? 'Received assets' : 'Tài sản bạn đã nhận'}</h2>
+        ) : (
+          <div>
+            <h2 id="received-assets-title">{en ? 'Received assets' : 'Tài sản bạn đã nhận'}</h2>
+          </div>
+        )}
+        <div className="lv-received__header-actions">
+          {preview && <span className="lv-received-demo" role="note">{en ? 'Demo data' : 'Dữ liệu minh họa'}</span>}
+          {source && (
+            <button
+              type="button"
+              className="lv-received__reload-btn"
+              onClick={() => { setPage(0); setRevision(v => v + 1); }}
+            >
+              {en ? 'Reload' : 'Tải lại'}
+            </button>
+          )}
+        </div>
+      </header>
+      {!source ? (
+        <div className="lv-received-pending" role="status">
+          <h3>{en ? 'Received asset information is not available yet' : 'Thông tin tài sản đã nhận chưa khả dụng'}</h3>
+          <p>{en ? 'The received-assets service has not been connected yet.' : 'Dịch vụ tra cứu tài sản đã nhận chưa được kết nối.'}</p>
+        </div>
+      ) : (
+        <AssetPage
+          key={`${subjectId}:${accessToken || 'demo'}:${page}:${revision}:${refreshKey}:${scenario}`}
+          actions={source}
+          subjectId={subjectId}
+          accessToken={accessToken}
+          lang={lang}
+          page={page}
+          size={5}
+          onPage={setPage}
+          onError={error => { if (error?.status === 401) onUnauthorized?.(); }}
+        />
+      )}
+    </section>
+  );
 }

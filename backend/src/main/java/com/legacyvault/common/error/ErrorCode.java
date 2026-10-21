@@ -8,6 +8,7 @@ package com.legacyvault.common.error;
  * docs/api-contracts/error-contract.md trong cùng PR.
  */
 public enum ErrorCode {
+    PAYMENT_REQUEST_CONFLICT(409, "error.payment.requestConflict"),
     BENEFICIARY_INVITATION_ALREADY_EXISTS(409, "error.invitation.alreadyExists"),
     BENEFICIARY_INVITATION_ALREADY_USED(409, "error.invitation.alreadyUsed"),
     BENEFICIARY_INVITATION_STALE(409, "error.invitation.stale"),
@@ -20,6 +21,9 @@ public enum ErrorCode {
 	MALFORMED_REQUEST(400, "error.request.malformed"),
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),
 	INVALID_CREDENTIALS(401, "error.auth.invalidCredentials"),
+	INVALID_GOOGLE_CREDENTIAL(401, "error.auth.googleCredentialInvalid"),
+	GOOGLE_IDENTITY_ALREADY_LINKED(409, "error.auth.googleIdentityAlreadyLinked"),
+	GOOGLE_SIGNIN_UNAVAILABLE(503, "error.auth.googleSignInUnavailable"),
 	ACCESS_DENIED(403, "error.auth.accessDenied"),
 	REAUTH_FAILED(403, "error.auth.reauthFailed"),
 	RESOURCE_NOT_FOUND(404, "error.resource.notFound"),

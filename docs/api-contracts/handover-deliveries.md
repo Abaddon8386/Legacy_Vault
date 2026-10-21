@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) applies to new handover operations. Legacy NOTARIAL remains read-only; current court validation, exact allocation approval and counter guards are mandatory.
+
 # Bàn giao tài sản tại quầy — PS-64, PS-65, PS-66 (ST-25, LV-HANDOVER-001)
 
 **Trạng thái:** đã triển khai. Các quyết định thiết kế ghi ở [D-API-38](open-decisions.md); đó là cách đọc Main Flow v4.2 và chờ nhóm xác nhận.
@@ -34,7 +36,7 @@ và không có hold; không bao giờ chỉ dựa vào trạng thái Vault `UNLO
 Mọi thao tác bàn giao đi qua guard này, theo thứ tự (khóa Vault → ca → hồ sơ → phiên):
 
 1. Ca thuộc Staff đang gọi, nếu không `404 RESOURCE_NOT_FOUND`.
-2. `LegalWorkflowGuard` (loại `HANDOVER`): ca `OPEN`, không hold (`LEGAL_WORKFLOW_ON_HOLD`), hồ sơ đã chuyển và đủ phiên bản yêu cầu, quyết định Tòa án hợp lệ với nhánh COURT (`COURT_DECISION_REQUIRED`), phê duyệt Legal còn khớp phiên bản, hash và phạm vi (`LEGAL_DECISION_STALE`, `LEGAL_APPROVAL_REQUIRED`).
+2. `LegalWorkflowGuard` (loại `HANDOVER`): ca `OPEN`, không hold (`LEGAL_WORKFLOW_ON_HOLD`), hồ sơ đã chuyển và đủ phiên bản yêu cầu, bắt buộc nhánh COURT và quyết định Tòa án hợp lệ (`COURT_DECISION_REQUIRED`), phê duyệt Legal còn khớp phiên bản, hash và phạm vi (`LEGAL_DECISION_STALE`, `LEGAL_APPROVAL_REQUIRED`).
 3. Vault là `UNLOCKED` hoặc `HANDOVER_IN_PROGRESS`, nếu không `409 HANDOVER_VAULT_NOT_UNLOCKED`.
 4. Phiên của ca và Staff tồn tại (nếu không `404`) và đang `OPEN` (`409 HANDOVER_SESSION_INVALID_STATE`).
 

@@ -23,12 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * PS-41 (ST-16, LV-BASIS-001): Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ của ca. Chỉ Legal chọn nhánh; chỉ làm
- * được khi ca còn mở, di chúc gốc đã được đối chiếu khớp (Vault WILL_VERIFICATION và kết quả mới nhất là MATCH) và ca chưa có
- * hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD (chưa đủ thông tin) chuyển sang ON_HOLD.
- * Thứ tự khóa Vault -> ca, như Cancel Alert và các bước Legal khác.
- */
+/** PS-102: COURT-only writes; optional will comparison never substitutes court validation.
+ * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier. */
 @Service
 public class BasisClassificationService {
 
@@ -73,15 +69,14 @@ public class BasisClassificationService {
         lockedState.refresh(verificationCase);
 
         if (!Objects.equals(verificationCase.getVaultId(), vault.getVaultId()) || !verificationCase.isOpen()
-                || !Vault.STATUS_WILL_VERIFICATION.equals(vault.getStatus())) {
+                || !(Vault.STATUS_WILL_VERIFICATION.equals(vault.getStatus())
+                || Vault.STATUS_DOCUMENT_VERIFICATION.equals(vault.getStatus()))) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
         if (dossiers.findByVerificationCaseId(verificationCase.getVerificationCaseId()).isPresent()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_ALREADY_EXISTS);
         }
-        if (willComparisons.isApprovalBlocked(verificationCase.getVerificationCaseId())) {
-            throw new BusinessException(ErrorCode.WILL_NOT_VERIFIED);
-        }
+        // COURT evidence, not a will MATCH, controls distribution (PS-102).
 
         String route = request.route().name();
         boolean onHold = request.route() == ClassifyBasisRequest.Route.ON_HOLD;
@@ -126,6 +121,9 @@ public class BasisClassificationService {
 
     private static String validate(ClassifyBasisRequest request) {
         if (request == null || request.route() == null || request.routeReason() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        if (request.route() == ClassifyBasisRequest.Route.NOTARIAL) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         String reason = request.routeReason().trim();

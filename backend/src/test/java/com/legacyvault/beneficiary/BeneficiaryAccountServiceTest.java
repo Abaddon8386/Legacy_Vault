@@ -61,8 +61,9 @@ class BeneficiaryAccountServiceTest {
 	private final UserRoleRepository userRoles = mock(UserRoleRepository.class);
 	private final PasswordEncoder encoder = mock(PasswordEncoder.class);
 	private final AuditService audit = mock(AuditService.class);
+	private final BeneficiaryInvitationService invitations = mock(BeneficiaryInvitationService.class);
 	private final BeneficiaryAccountService service = new BeneficiaryAccountService(beneficiaries, staff, cases,
-			entities, users, roles, userRoles, encoder, audit);
+			entities, users, roles, userRoles, encoder, audit, invitations);
 
 	private final User actor = mock(User.class);
 	private final Beneficiary beneficiary = mock(Beneficiary.class);
@@ -117,6 +118,7 @@ class BeneficiaryAccountServiceTest {
 		assertThat(response.beneficiaryId()).isEqualTo(BENEFICIARY_ID);
 		assertThat(response.accountId()).isEqualTo(ACCOUNT_PUBLIC_ID);
 		assertThat(response.accountStatus()).isEqualTo("ACCOUNT_CREATED");
+		verify(invitations).revokeForCounterLink(beneficiary, STAFF_ID);
 		InOrder order = inOrder(users, cases, entities, beneficiary, beneficiaries);
 		order.verify(users).findActiveAccountForUpdate(ACCOUNT_ID);
 		order.verify(cases).requireOpenForWrite(VAULT_ID, STAFF_ID);
@@ -261,6 +263,7 @@ class BeneficiaryAccountServiceTest {
 
 		assertThat(response.accountId()).isEqualTo(ACCOUNT_PUBLIC_ID);
 		assertThat(response.accountStatus()).isEqualTo("ACCOUNT_CREATED");
+		verify(invitations).revokeForCounterLink(beneficiary, STAFF_ID);
 		ArgumentCaptor<User> created = ArgumentCaptor.forClass(User.class);
 		verify(users).saveAndFlush(created.capture());
 		assertThat(created.getValue().getEmail()).isEqualTo("new@example.com");
@@ -288,7 +291,7 @@ class BeneficiaryAccountServiceTest {
 
 		verify(users, never()).saveAndFlush(any());
 		verify(beneficiary, never()).linkAccount(any());
-		verifyNoInteractions(audit);
+		verifyNoInteractions(audit, invitations);
 	}
 
 	@Test
