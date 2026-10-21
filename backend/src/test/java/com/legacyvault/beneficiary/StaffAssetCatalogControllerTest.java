@@ -1,10 +1,13 @@
 package com.legacyvault.beneficiary;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,6 +50,17 @@ class StaffAssetCatalogControllerTest {
 	}
 
 	@Test
+	void validPaginationValuesAreAcceptedAndPassedToTheService() throws Exception {
+		when(service.list(eq(caseId), eq(2), eq(100))).thenReturn(new PageResponse<>(List.of(), 2, 100, 0, 0));
+
+		mvc.perform(get(path()).param("page", "2").param("size", "100")
+					.with(user("staff").roles("STAFF_EXECUTOR")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.page").value(2))
+				.andExpect(jsonPath("$.size").value(100));
+	}
+
+	@Test
 	void onlyStaffRoleCanCallCatalog() throws Exception {
 		for (String role : List.of("VAULT_OWNER", "LEGAL_VERIFIER", "BENEFICIARY", "ADMIN")) {
 			mvc.perform(get(path()).with(user("x").roles(role))).andExpect(status().isForbidden());
@@ -58,9 +72,18 @@ class StaffAssetCatalogControllerTest {
 	@Test
 	void paginationAndPathParametersAreValidated() throws Exception {
 		mvc.perform(get(path() + "?page=-1").with(user("staff").roles("STAFF_EXECUTOR")))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+				.andExpect(jsonPath("$.messageKey").value("error.validation.failed"))
+				.andExpect(jsonPath("$.traceId").isNotEmpty())
+				.andExpect(jsonPath("$.errors").isArray())
+				.andExpect(content().string(not(containsString("ConstraintViolationException"))));
 		mvc.perform(get(path() + "?size=101").with(user("staff").roles("STAFF_EXECUTOR")))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+				.andExpect(jsonPath("$.errors").isArray());
 		mvc.perform(get("/api/v1/staff/verification-cases/not-a-uuid/assets")
 					.with(user("staff").roles("STAFF_EXECUTOR")))
 				.andExpect(status().isBadRequest());

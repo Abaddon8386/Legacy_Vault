@@ -23,6 +23,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.validation.ConstraintViolationException;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -58,8 +59,8 @@ public class GlobalExceptionHandler {
 		return respond(factory.validation(request, ex.getBindingResult()));
 	}
 
-	@ExceptionHandler(HandlerMethodValidationException.class)
-	ResponseEntity<ApiError> handleMethodValidation(HandlerMethodValidationException ex, HttpServletRequest request) {
+	@ExceptionHandler({ HandlerMethodValidationException.class, ConstraintViolationException.class })
+	ResponseEntity<ApiError> handleMethodValidation(Exception ex, HttpServletRequest request) {
 		return respond(factory.create(request, ErrorCode.VALIDATION_FAILED, List.of()));
 	}
 
