@@ -11,6 +11,18 @@ public class OwnerUsageRepository {
 
     public OwnerUsageRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
+    /**
+     * PS-92 (D-API-42): wills are stored as DOCUMENT Assets and each one occupies a slot in the Asset limit, so
+     * {@link #read} counts them. This breakdown only lets clients explain that total; it never changes the limit check.
+     */
+    public long willCount(Long ownerUserId) {
+        Long wills = jdbc.queryForObject("""
+            SELECT COUNT_BIG(*) FROM dbo.assets a JOIN dbo.vaults v ON v.vault_id = a.vault_id
+            WHERE v.owner_user_id = ? AND a.asset_type = 'DOCUMENT'
+            """, Long.class, ownerUserId);
+        return wills == null ? 0 : wills;
+    }
+
     public Usage read(Long ownerUserId) {
         Usage payloads = jdbc.queryForObject("""
             SELECT COUNT_BIG(*) AS assets, COALESCE(SUM(a.payload_size_bytes), 0) AS bytes

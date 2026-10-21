@@ -84,13 +84,21 @@ vì mật khẩu nằm trong body (không đưa vào URL/log); không thay đổ
 Tạo/liệt kê/xem/cập nhật thành công · validation (tên rỗng, loại sai) · `payload` không xuất hiện trong bất kỳ response nào ·
 không log `payload` hay mật khẩu · `reveal`: đúng mật khẩu trả `payload`, sai → 403, vượt giới hạn → 429, kho đóng băng → 409 · ownership (Vault/Asset người khác → 404; role sai → 403) · 401 · chỉ trường hợp lệ được đổi.
 
-## PS-77 — quota nội dung (prototype chưa áp dụng)
+## Quota nội dung — PS-77, PS-92 (D-API-42)
 
-**Mặc định tắt**, chờ nhóm phê duyệt tại open-decisions.md §G. Các phép tính/lỗi quota dưới đây
-chỉ áp dụng khi bật prototype trong test cô lập; không phải chính sách production đã được duyệt.
-Giới hạn payload/upload sẵn có và guard quyền/trạng thái vẫn có hiệu lực.
+**Mặc định bật** (D-API-42, đề xuất chờ nhóm xác nhận): giới hạn của gói hiện hành (BASIC 5 / STANDARD 50 / EXTENDED 200 tài sản;
+100 MiB / 1 GiB / 5 GiB nội dung) được thực thi cho mọi thao tác ghi của Owner. Cờ `legacyvault.subscription.quota-enforcement-enabled`
+(biến môi trường `QUOTA_ENFORCEMENT_ENABLED`) chỉ là công tắc vận hành để tắt khi cần. Giới hạn payload/upload sẵn có và guard
+quyền/trạng thái vẫn có hiệu lực.
 
-Tạo Asset tăng một đơn vị count và số byte payload UTF-8; thay payload tính chênh lệch byte.
-Mọi Asset còn lưu kể cả DOCUMENT được tính, không chỉ các hàng trong endpoint danh sách này.
-409 `ASSET_QUOTA_EXCEEDED` / `STORAGE_QUOTA_EXCEEDED` dùng shared ApiError và vi/en.
-Không tăng usage vẫn phải thỏa ownership/trạng thái. Chi tiết: [subscriptions.md](subscriptions.md).
+- **Cách đếm số tài sản:** mọi Asset còn lưu của mọi Vault của Owner, **kể cả di chúc** (Asset loại `DOCUMENT`). Mỗi di chúc chiếm một chỗ;
+  thêm phiên bản mới cho cùng một di chúc **không** chiếm thêm chỗ. Owner BASIC có 1 di chúc chỉ tạo thêm được 4 tài sản.
+- **Cách đếm dung lượng:** byte payload UTF-8 của Asset + mọi phiên bản file di chúc còn lưu + mọi ảnh đính kèm Asset (đơn vị nhị phân).
+- Tạo Asset tăng một đơn vị count và số byte payload; thay payload tính chênh lệch byte; thêm ảnh/phiên bản di chúc chỉ tăng byte.
+- 409 `ASSET_QUOTA_EXCEEDED` / `STORAGE_QUOTA_EXCEEDED` (shared ApiError, vi/en). Kiểm tra và ghi cùng một giao dịch dưới khóa Owner
+  nên các request đồng thời không thể vượt giới hạn.
+- **Owner đang vượt giới hạn (dữ liệu cũ):** vẫn đọc, sửa không tăng usage (đổi tên, mô tả, thu nhỏ payload) và xóa ảnh; mọi thao tác tăng
+  count hoặc byte bị 409. `GET /subscriptions/me` trả `overQuota`. Không có dữ liệu nào bị xóa hay sửa tự động.
+- `GET /subscriptions/me` → `usage` có `assetCount` (số được tính vào giới hạn, gồm di chúc), `willCount` và `assetOnlyCount`
+  (= `assetCount - willCount`, số tài sản Owner thấy trong danh sách). FE nên hiển thị "tài sản + di chúc" để số liệu khớp giới hạn.
+- Không tăng usage vẫn phải thỏa ownership/trạng thái. Chi tiết: [subscriptions.md](subscriptions.md).

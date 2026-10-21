@@ -48,8 +48,9 @@ legacyvault:
     hash-secret: ${VNPAY_HASH_SECRET:}
     return-url: ${VNPAY_RETURN_URL:}
   subscription:
-    # Pending group approval in open-decisions.md. Never enables paid self-grants.
-    quota-enforcement-enabled: false
+    # PS-92 (D-API-42): the lifetime catalog limits (5/50/200 assets incl. wills, 100 MiB/1 GiB/5 GiB) are enforced by
+    # default. Set QUOTA_ENFORCEMENT_ENABLED=false only as an operational kill switch. Never enables paid self-grants.
+    quota-enforcement-enabled: ${QUOTA_ENFORCEMENT_ENABLED:true}
   cors:
     # Danh sách origin được phép, phân cách bằng dấu phẩy. Mặc định rỗng (dev dùng Vite proxy nên không cần).
     # Ví dụ khi muốn gọi thẳng không qua proxy: CORS_ALLOWED_ORIGINS=http://localhost:5173
