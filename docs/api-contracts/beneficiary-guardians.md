@@ -20,3 +20,5 @@ Errors use the repo envelope: 400 VALIDATION_FAILED/MALFORMED_REQUEST; 401 UNAUT
 Migration V47 is a provisional slot after PS-112 V41 and proposed Long V42–V46. It is additive and does not modify deployed migrations. Recheck actual develop/merge order before publishing; do not deploy V47 ahead of outstanding lower versions then try to introduce them later. No coordination with Long is claimed. Roll back application without dropping guardian data or revision; pre-feature code ignores these additive objects. Restoring a database is an operations decision, not an automatic down migration.
 
 FE UI/browser integration remains with Huy; this backend change does not certify that UI flow.
+
+Synthetic FE context fixture: fixtures/beneficiary-guardian.json. Unknown fields are not mapped to persistence; only declared request fields are used.

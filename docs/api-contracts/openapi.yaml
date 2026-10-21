@@ -827,6 +827,59 @@ paths:
               example: { database: UP }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/auth/password-recovery/requests:
+    post:
+      tags: [Auth]
+      summary: Yêu cầu khôi phục mật khẩu (PS-112)
+      x-status: implemented
+      security: []
+      description: Neutral durable acceptance; no proof of email delivery or account existence. Email delivery disabled by default. See password-recovery.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordRecoveryRequest' }
+      responses:
+        '202':
+          description: Accepted or neutrally suppressed by per-email limits
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messageKey]
+                properties:
+                  messageKey: { type: string, enum: [auth.recovery.requestAccepted] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503': { $ref: '#/components/responses/RecoveryUnavailable' }
+
+  /api/v1/auth/password-recovery/reset:
+    post:
+      tags: [Auth]
+      summary: Đổi mật khẩu bằng credential một lần (PS-112)
+      x-status: implemented
+      security: []
+      description: Atomically consumes purpose-bound credential, changes BCrypt password, revokes links and all LegacyVault JWTs. Never unlocks accounts, changes roles or creates provider links. No automatic login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordRecoveryReset' }
+      responses:
+        '204':
+          description: Password reset committed; sign in again
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+        '400':
+          description: RECOVERY_INVALID or password/input validation; no expired/used/account-status oracle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503': { $ref: '#/components/responses/RecoveryUnavailable' }
+
   /api/v1/auth/register:
     post:
       tags: [Auth]
@@ -3201,6 +3254,21 @@ components:
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
 
   responses:
+    RecoveryRateLimited:
+      description: RATE_LIMITED; only IP/credential limits are exposed
+      headers:
+        Retry-After: { schema: { type: integer, example: 900 } }
+        Cache-Control: { schema: { type: string, enum: [no-store] } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RecoveryUnavailable:
+      description: RECOVERY_UNAVAILABLE; configuration or infrastructure unavailable, independent of account eligibility
+      headers:
+        Cache-Control: { schema: { type: string, enum: [no-store] } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
     ValidationError:
       description: VALIDATION_FAILED, có `errors[]` theo trường
       content:
@@ -3672,6 +3740,10 @@ components:
           type: string
           description: Mã ổn định để FE phân loại. Xem error-contract.md
           enum:
+            - RECOVERY_INVALID
+            - RECOVERY_UNAVAILABLE
+            - RATE_LIMITED
+            - PASSWORD_POLICY
             - REAUTH_FAILED
             - TRUSTEE_REVOKED
             - ALERT_NOT_CANCELLABLE
@@ -3773,6 +3845,19 @@ components:
       required: [database]
       properties:
         database: { type: string, enum: [UP, DOWN] }
+
+    PasswordRecoveryRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254, writeOnly: true }
+        locale: { type: string, enum: [vi, en], default: vi }
+    PasswordRecoveryReset:
+      type: object
+      required: [credential, password]
+      properties:
+        credential: { type: string, maxLength: 128, writeOnly: true, description: Canonical base64url 256-bit reset secret; never an access JWT }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true, description: Shared password policy also limits UTF-8 to 72 bytes; no trimming }
 
     RegisterRequest:
       type: object

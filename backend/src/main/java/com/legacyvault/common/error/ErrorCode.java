@@ -9,6 +9,10 @@ package com.legacyvault.common.error;
  */
 public enum ErrorCode {
     BENEFICIARY_GUARDIAN_STALE(409, "error.guardian.stale"),
+    PASSWORD_POLICY(400, "validation.passwordPolicy"),
+    RECOVERY_INVALID(400, "error.auth.recoveryInvalid"),
+    RECOVERY_UNAVAILABLE(503, "error.auth.recoveryUnavailable"),
+    RATE_LIMITED(429, "error.auth.rateLimited"),
     PAYMENT_REQUEST_CONFLICT(409, "error.payment.requestConflict"),
     BENEFICIARY_INVITATION_ALREADY_EXISTS(409, "error.invitation.alreadyExists"),
     BENEFICIARY_INVITATION_ALREADY_USED(409, "error.invitation.alreadyUsed"),

@@ -173,3 +173,6 @@ PS-58: `LEGAL_APPROVAL_REQUIRED` (409, `error.legalApproval.required`) when a pr
 PS-80: `PAYMENT_REQUEST_CONFLICT` (409) — idempotency key đổi nội dung hoặc đang có checkout chưa hết hạn. Retry cùng key/body để nhận lại đơn. IPN dùng `{RspCode,Message}` theo [payments-vnpay.md](payments-vnpay.md).
 
 PS-113: `BENEFICIARY_GUARDIAN_STALE` — HTTP 409, reload guardian context/revision before retry; messages VI/EN use `error.guardian.stale`.
+## PS-112 recovery
+
+400 RECOVERY_INVALID normalizes invalid/expired/used/revoked/ineligible credentials; 400 PASSWORD_POLICY is shared password policy rejection. DTO validation remains VALIDATION_FAILED (password field maps to FE PASSWORD_POLICY). 429 RATE_LIMITED has Retry-After:900; 503 RECOVERY_UNAVAILABLE covers missing email configuration or infrastructure failure without account-specific provider errors. No token/password/account status is echoed. See password-recovery.md.

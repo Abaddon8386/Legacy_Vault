@@ -98,4 +98,3 @@ class GuardianSqlServerTest {
         assertEquals(1,service.history(vaultId,beneficiaryId,0,20).totalElements());
     }
 }
-

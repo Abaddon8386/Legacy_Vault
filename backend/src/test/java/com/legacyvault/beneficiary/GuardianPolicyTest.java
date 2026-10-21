@@ -20,4 +20,10 @@ class GuardianPolicyTest {
         var clean=GuardianService.normalize(new GuardianDtos.UpsertRequest(0L," Name "," Parent "," TEST@example.test ",null));
         assertEquals("Name",clean.fullName()); assertEquals("test@example.test",clean.email());
     }
+    @Test void birthDateValidatorUsesVietnamCalendarAndKeepsNullCompatible() {
+        var validator=new BeneficiaryBirthDate.Validator();
+        var today=LocalDate.now(GuardianService.AGE_ZONE);
+        assertTrue(validator.isValid(null,null)); assertTrue(validator.isValid(today,null));
+        assertFalse(validator.isValid(today.plusDays(1),null));
+    }
 }
