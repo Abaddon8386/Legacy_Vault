@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
-import { fetchAdminUsers } from '../../utils/adminService.js';
+import { fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
 import './AdminPages.css';
 
 export default function AdminUsersPage({
@@ -17,8 +17,8 @@ export default function AdminUsersPage({
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const t = adminI18n[lang] || adminI18n.vi;
-  const { data, loading, apiPending, error, reload: handleReload } = useAdminQuery(
-    fetchAdminUsers, accessToken, { query, role: roleFilter, status: statusFilter, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
+  const { data, loading, apiPending, error, deny, reload: handleReload } = useAdminQuery(
+    fetchAdminUsers, accessToken, { lang, query, role: roleFilter, status: statusFilter, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
   );
   const users = data?.items || [];
   const total = data?.total ?? null;
@@ -29,7 +29,6 @@ export default function AdminUsersPage({
   const lockTargetUser = lockSelection?.data === data ? lockSelection.record : null;
   const setLockTargetUser = (record) => setLockSelection(record ? { record, data } : null);
   const [lockReason, setLockReason] = useState('');
-  const detailRef = useModalFocus(Boolean(detailUser), () => setDetailUser(null));
   const lockRef = useModalFocus(Boolean(lockTargetUser), () => setLockTargetUser(null));
 
   const handleSearchSubmit = (e) => {
@@ -73,7 +72,7 @@ export default function AdminUsersPage({
         <section className="lv-admin-pending-banner" role="status" aria-label="Users API Pending Notice">
           <div className="lv-admin-pending-banner-header">
             <span className="lv-admin-pending-banner-title">
-              {lang === 'vi' ? 'Trạng thái API Người dùng' : 'Users API Integration Status'}
+              {t.usersTitle}
             </span>
             <span className="lv-admin-pending-badge">{t.pendingApiBadge}</span>
           </div>
@@ -108,8 +107,9 @@ export default function AdminUsersPage({
             type="search"
             className="lv-admin-input lv-admin-search-input"
             placeholder={t.searchPlaceholder}
+            maxLength={100}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             aria-label={t.searchPlaceholder}
           />
 
@@ -141,7 +141,7 @@ export default function AdminUsersPage({
           >
             <option value="">{t.allStatuses}</option>
             <option value="ACTIVE">{t.statusActive}</option>
-            <option value="LOCKED">{t.statusLocked}</option>
+            <option value="DELETED">{t.statusDeleted}</option>
             <option value="PENDING">{t.statusPending}</option>
           </select>
 
@@ -181,6 +181,8 @@ export default function AdminUsersPage({
                   {t.loading}
                 </td>
               </tr>
+            ) : error || apiPending ? (
+              <tr><td colSpan={6}>{t.notAvailable}</td></tr>
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--lv-text-muted)' }}>
@@ -210,7 +212,7 @@ export default function AdminUsersPage({
                         ? t.statusPending
                         : user.status === 'ACTIVE'
                         ? t.statusActive
-                        : t.notAvailable}
+                        : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
                     </span>
                   </td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -270,86 +272,8 @@ export default function AdminUsersPage({
         </nav>
       )}
 
-      {/* User Detail Modal */}
-      {detailUser && (
-        <div className="lv-admin-modal-backdrop" ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="user-detail-modal-title">
-          <div className="lv-admin-modal-card">
-            <div className="lv-admin-modal-header">
-              <h2 id="user-detail-modal-title" className="lv-admin-modal-title">
-                {t.userDetailTitle}
-              </h2>
-              <button
-                type="button"
-                className="lv-admin-modal-close-btn"
-                onClick={() => setDetailUser(null)}
-                aria-label={t.closeModal}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lv-admin-modal-body">
-              <div className="lv-admin-detail-list">
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.userId}</span>
-                  <span className="lv-admin-detail-val" style={{ fontFamily: 'monospace' }}>{detailUser.id}</span>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.userFullName}</span>
-                  <span className="lv-admin-detail-val">{detailUser.fullName || t.notAvailable}</span>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.userEmail}</span>
-                  <span className="lv-admin-detail-val">{detailUser.email}</span>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.userRoles}</span>
-                  <div className="lv-admin-detail-val" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                    {detailUser.roles.map((r) => (
-                      <span key={r} className="lv-admin-role-badge">
-                        {r}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.userStatus}</span>
-                  <span className="lv-admin-detail-val">
-                    <span className={`lv-admin-status-badge lv-admin-status-${(detailUser.status || 'neutral').toLowerCase()}`}>
-                      {detailUser.status === 'LOCKED'
-                        ? t.statusLocked
-                        : detailUser.status === 'PENDING'
-                        ? t.statusPending
-                        : detailUser.status === 'ACTIVE'
-                        ? t.statusActive
-                        : t.notAvailable}
-                    </span>
-                  </span>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.userCreatedAt}</span>
-                  <span className="lv-admin-detail-val">{formatDate(detailUser.createdAt)}</span>
-                </div>
-                {detailUser.lastLoginAt && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.userLastLogin}</span>
-                    <span className="lv-admin-detail-val">{formatDate(detailUser.lastLoginAt)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="lv-admin-modal-footer">
-              <button
-                type="button"
-                className="lv-admin-btn lv-admin-btn-secondary"
-                onClick={() => setDetailUser(null)}
-              >
-                {t.closeModal}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {detailUser && <UserDetail key={detailUser.id} id={detailUser.id} accessToken={accessToken} lang={lang}
+        onClose={() => setDetailUser(null)} onUnauthorized={onUnauthorized} onDenied={deny} />}
       {/* Lock/Unlock Confirmation Dialog */}
       {lockTargetUser && (
         <div className="lv-admin-modal-backdrop" ref={lockRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="lock-dialog-title">
@@ -434,4 +358,27 @@ export default function AdminUsersPage({
       )}
     </div>
   );
+}
+
+const loadUserDetail = (token, { id, ...options }) => fetchAdminUserDetail(token, id, options);
+function UserDetail({ id, accessToken, lang, onClose, onUnauthorized, onDenied }) {
+  const t = adminI18n[lang] || adminI18n.vi;
+  const ref = useModalFocus(true, onClose);
+  const { data, loading, error, apiPending, reload } = useAdminQuery(loadUserDetail, accessToken, { id, lang }, true,
+    onUnauthorized, t.accessDenied, failure => { if (failure.status === 403) onDenied(); });
+  return <div className="lv-admin-modal-backdrop" ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="user-detail-modal-title">
+    <div className="lv-admin-modal-card">
+      <div className="lv-admin-modal-header"><h2 id="user-detail-modal-title">{t.userDetailTitle}</h2>
+        <button type="button" className="lv-admin-modal-close-btn" onClick={onClose} aria-label={t.closeModal}>✕</button></div>
+      <div className="lv-admin-modal-body">
+        {loading ? <p role="status">{t.loading}</p> : error || apiPending ? <><p role="alert">{error || t.notAvailable}</p>
+          <button type="button" onClick={reload}>{t.retryBtn}</button></> : data && <dl className="lv-admin-detail-list">
+          {[[t.userId, data.id], [t.userFullName, data.fullName], [t.userEmail, data.email], [t.userRoles, data.roles.join(', ')],
+            [t.userStatus, data.status === 'ACTIVE' ? t.statusActive : data.status === 'PENDING' ? t.statusPending : data.status === 'DELETED' ? t.statusDeleted : t.notAvailable],
+            [t.userCreatedAt, data.createdAt]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t.notAvailable}</dd></div>)}
+        </dl>}
+      </div>
+      <div className="lv-admin-modal-footer"><button type="button" onClick={onClose}>{t.closeModal}</button></div>
+    </div>
+  </div>;
 }

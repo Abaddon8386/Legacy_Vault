@@ -1,3 +1,4 @@
+const userId = '11111111-1111-4111-8111-111111111111';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
@@ -181,7 +182,7 @@ test('AdminUsersPage renders user table, filters, and prevents creation/role edi
   ];
 
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ items: mockUsers, total: 2 }), {
+    new Response(JSON.stringify(userPage(mockUsers)), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -235,8 +236,8 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
     createdAt: '2026-10-15T00:00:00Z',
   };
 
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ items: [mockUser], total: 1 }), {
+  globalThis.fetch = async url =>
+    new Response(JSON.stringify(url.includes('?') ? userPage([mockUser]) : wireUser(mockUser)), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -255,7 +256,7 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
 
       // Modal is visible
       assert.ok(view.host.querySelector('#user-detail-modal-title'));
-      assert.ok(view.host.textContent.includes('u-101'));
+      assert.ok(view.host.textContent.includes(userId));
       assert.ok(view.host.textContent.includes('Trần Văn B'));
       assert.ok(view.host.textContent.includes('b@example.com'));
 
@@ -285,7 +286,7 @@ test('AdminUsersPage lock confirmation dialog is guarded and disabled', async ()
   };
 
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ items: [mockUser], total: 1 }), {
+    new Response(JSON.stringify(userPage([mockUser])), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -434,3 +435,12 @@ test('AppShell renders all 4 Admin tabs and preserves 15 render sites including 
     'Expected 15 AppShell render sites including the Shared with me route from develop'
   );
 });
+
+// Exact PS-109 wire fixtures; IDs and createdAt below are synthetic test-only values.
+
+function wireUser(value, index = 0) {
+  const rest = { ...value }; delete rest.id;
+  return { ...rest, publicId: value.publicId || (index ? '22222222-2222-4222-8222-222222222222' : userId),
+    createdAt: value.createdAt || '2026-10-20T10:00:00Z' };
+}
+function userPage(users) { return { content: users.map(wireUser), page: 0, size: 10, totalElements: users.length, totalPages: users.length ? 1 : 0 }; }
