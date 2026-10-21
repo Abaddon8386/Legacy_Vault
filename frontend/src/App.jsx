@@ -651,6 +651,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   };
   const path = location.split('?')[0];
   const isSharedWithMeRoute = path === '/shared-with-me';
+  // Stored credentials are only a candidate until /auth/me succeeds.
   if (restoreStatus !== 'ready') return (
     <main role={restoreStatus === 'error' ? 'alert' : 'status'}>
       <p>{restoreStatus === 'error'
@@ -1686,8 +1687,18 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     </AppShell></div>;
   }
   if (path === '/') {
+    const isOwnerOrBeneficiary = restoreStatus === 'ready' && isSessionActive(session) && Boolean(
+      session?.user?.roles?.includes('VAULT_OWNER') || session?.user?.roles?.includes('BENEFICIARY')
+    );
+    const targetDashboardRoute = isOwnerOrBeneficiary
+      ? (session.user.roles?.includes('STAFF_EXECUTOR') && !session.user.roles?.includes('VAULT_OWNER') && !session.user.roles?.includes('LEGAL_VERIFIER')
+          ? '/staff/cases'
+          : resolvePostLoginRoute(session.user))
+      : null;
+
     return (
       <LandingPage
+        session={session}
         onLogin={targetLang => {
           const nextLang = targetLang || lang || 'vi';
           const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
@@ -1697,6 +1708,12 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           const nextLang = targetLang || lang || 'vi';
           const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
           navigateTo(invitationIntent ? `/register${query}&invitation=true` : `/register${query}`);
+        }}
+        onDashboard={targetLang => {
+          if (!targetDashboardRoute) return;
+          const nextLang = targetLang || lang || 'vi';
+          const separator = targetDashboardRoute.includes('?') ? '&' : '?';
+          navigateTo(`${targetDashboardRoute}${nextLang === 'en' ? `${separator}lang=en` : ''}`);
         }}
       />
     );
