@@ -679,10 +679,10 @@ test('PS-27 Integration: StaffCaseDashboard transitions between Dashboard, Intak
   await app.close();
 });
 
-test('Live dashboard renders server OPEN status and only server filters; no preview workflow actions', async () => {
+test('Live dashboard renders OPEN queue and opens scoped live case instead of preview actions', async () => {
  const previous = globalThis.fetch;
  const id = '12345678-1234-4234-8234-123456789012';
- globalThis.fetch = async () => new Response(JSON.stringify({ content: [{ caseId: id, vaultId: id, ownerId: id, vaultName: 'Synthetic live vault', ownerName: 'Synthetic owner', status: 'OPEN', triggeredAt: '2026-10-17T10:00:00', closedAt: null }], page:0,size:5,totalElements:1,totalPages:1 }), {status:200,headers:{'Content-Type':'application/json'}});
+ globalThis.fetch = async (url) => new Response(JSON.stringify(url.endsWith('/'+id) ? {caseId:id,status:'OPEN',vaultName:'Synthetic live vault',ownerName:'Synthetic owner',triggeredAt:'2026-10-17T10:00:00'} : { content: [{ caseId: id, vaultId: id, ownerId: id, vaultName: 'Synthetic live vault', ownerName: 'Synthetic owner', status: 'OPEN', triggeredAt: '2026-10-17T10:00:00', closedAt: null }], page:0,size:5,totalElements:1,totalPages:1 }), {status:200,headers:{'Content-Type':'application/json'}});
  const view = await mount(StaffCaseDashboard, { accessToken:'synthetic', isDevPreview:true });
  try {
   await act(async () => { await new Promise(resolve => setTimeout(resolve,20)); });
@@ -692,6 +692,12 @@ test('Live dashboard renders server OPEN status and only server filters; no prev
   assert.equal(view.host.textContent.includes('CASE-2026-0001'),false);
   assert.equal(view.host.querySelector('.lv-staff-preview-banner'),null);
   await act(async () => view.host.querySelector('.lv-staff-view-btn').click());
-  assert.match(document.body.textContent,/Thời điểm tạo hồ sơ/);
+  assert.match(view.host.textContent,/Tiếp nhận hồ sơ/);
+  assert.match(view.host.textContent,/Synthetic live vault/);
+  assert.equal(view.host.querySelector('fieldset').disabled,true);
+  assert.equal(new URLSearchParams(window.location.search).get('caseId'),id);
+  await act(async()=>[...view.host.querySelectorAll('button')].find(b=>b.textContent.includes('Về danh sách')).click());
+  assert.equal(new URLSearchParams(window.location.search).has('caseId'),false);
+  assert.ok(view.host.querySelector('.lv-staff-dashboard'));
  } finally { await view.close(); globalThis.fetch = previous; }
 });
