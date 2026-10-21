@@ -4678,10 +4678,12 @@ components:
         effectiveUntil: { type: string, format: date-time, nullable: true, description: Luôn null vì mọi gói đều trọn đời }
         usage:
           type: object
-          required: [assetCount, storageBytes]
+          required: [assetCount, storageBytes, willCount, assetOnlyCount]
           properties:
-            assetCount: { type: integer, format: int64, minimum: 0 }
+            assetCount: { type: integer, format: int64, minimum: 0, description: Số được tính vào giới hạn gói, bao gồm di chúc (PS-92, D-API-42) }
             storageBytes: { type: integer, format: int64, minimum: 0 }
+            willCount: { type: integer, format: int64, minimum: 0, description: Số di chúc nằm trong assetCount }
+            assetOnlyCount: { type: integer, format: int64, minimum: 0, description: assetCount trừ willCount; số tài sản Owner thấy trong danh sách }
         overQuota:
           type: object
           required: [assets, storage]
