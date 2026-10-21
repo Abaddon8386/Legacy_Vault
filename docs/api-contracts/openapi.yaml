@@ -474,6 +474,102 @@ paths:
         "413": { description: "Shared ApiError; see image contract" }
         "415": { description: "Shared ApiError; see image contract" }
         "429": { description: "Shared ApiError; see image contract" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+    get:
+      tags: [Assets]
+      summary: Owner lists PDF/Word documents attached to an Asset (PS-114)
+      description: Metadata only; no content. Owner of the Vault only. See asset-documents.md.
+      x-status: implemented
+      responses:
+        "200":
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AssetDocument" } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Assets]
+      summary: Owner attaches PDF/DOC/DOCX files to an Asset (PS-114)
+      description: |
+        multipart/form-data with one or more `documents` parts. Types are detected by content; macro-enabled files and other
+        containers are rejected. All files of a request are stored or none. Bytes count toward the plan storage quota; the
+        document does not occupy an Asset slot. Vault must be ACTIVE. A Will is never a target.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [documents]
+              properties:
+                documents: { type: array, items: { type: string, format: binary } }
+      responses:
+        "201":
+          description: Metadata of every document of the Asset
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AssetDocument" } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "ASSET_DOCUMENT_LIMIT_EXCEEDED, STORAGE_QUOTA_EXCEEDED or VAULT_NOT_EDITABLE" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/documents/{documentId}/download:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Assets]
+      summary: Owner reads one attached document after re-entering the login password (PS-114)
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: Decrypted bytes. Always attachment, nosniff, no-store, CSP sandbox.
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            application/msword: { schema: { type: string, format: binary } }
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: "ACCESS_DENIED (role) or REAUTH_FAILED (wrong password; not 401)" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: VAULT_NOT_EDITABLE }
+        "429": { description: TOO_MANY_ATTEMPTS }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/documents/{documentId}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Assets]
+      summary: Owner removes an attached document and frees its storage (PS-114)
+      x-status: implemented
+      responses:
+        "204": { description: Removed }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: VAULT_NOT_EDITABLE }
   /api/v1/subscriptions/me/upgrade-quote:
     post:
       tags: [Subscriptions]
@@ -3893,6 +3989,7 @@ components:
             - PLAN_VERSION_ALREADY_EXISTS
             - PLAN_VERSION_CONFLICT
             - ASSET_IMAGE_LIMIT_EXCEEDED
+            - ASSET_DOCUMENT_LIMIT_EXCEEDED
             - PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
             - CASE_EVIDENCE_QUOTA_EXCEEDED
             - ASSET_QUOTA_EXCEEDED
@@ -4091,6 +4188,17 @@ components:
       required: [password]
       properties:
         password: { type: string, maxLength: 72, writeOnly: true, description: Mật khẩu đăng nhập hiện tại của Owner; không bao giờ được log }
+    AssetDocument:
+      type: object
+      required: [id, fileName, contentType, sizeBytes, sha256, createdAt]
+      description: Metadata of a PDF/Word document attached to an Asset; never content or a storage path
+      properties:
+        id: { type: string, format: uuid }
+        fileName: { type: string, description: Sanitized display name only }
+        contentType: { type: string, enum: [application/pdf, application/msword, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: SHA-256 hex of the original bytes }
+        createdAt: { type: string, format: date-time }
     AssetSecretResponse:
       type: object
       required: [id, payload]

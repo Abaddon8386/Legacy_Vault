@@ -93,7 +93,7 @@ quyền/trạng thái vẫn có hiệu lực.
 
 - **Cách đếm số tài sản:** mọi Asset còn lưu của mọi Vault của Owner, **kể cả di chúc** (Asset loại `DOCUMENT`). Mỗi di chúc chiếm một chỗ;
   thêm phiên bản mới cho cùng một di chúc **không** chiếm thêm chỗ. Owner BASIC có 1 di chúc chỉ tạo thêm được 4 tài sản.
-- **Cách đếm dung lượng:** byte payload UTF-8 của Asset + mọi phiên bản file di chúc còn lưu + mọi ảnh đính kèm Asset (đơn vị nhị phân).
+- **Cách đếm dung lượng:** byte payload UTF-8 của Asset + mọi phiên bản file di chúc còn lưu + mọi ảnh đính kèm Asset + mọi tài liệu PDF/Word đính kèm Asset ([asset-documents.md](asset-documents.md), PS-114) (đơn vị nhị phân).
 - Tạo Asset tăng một đơn vị count và số byte payload; thay payload tính chênh lệch byte; thêm ảnh/phiên bản di chúc chỉ tăng byte.
 - 409 `ASSET_QUOTA_EXCEEDED` / `STORAGE_QUOTA_EXCEEDED` (shared ApiError, vi/en). Kiểm tra và ghi cùng một giao dịch dưới khóa Owner
   nên các request đồng thời không thể vượt giới hạn.

@@ -41,6 +41,12 @@ public class OwnerUsageRepository {
             JOIN dbo.assets a ON a.asset_id=i.asset_id JOIN dbo.vaults v ON v.vault_id=a.vault_id
             WHERE v.owner_user_id=?
             """, Long.class, ownerUserId);
-        return new Usage(payloads.assets(), Math.addExact(Math.addExact(payloads.bytes(), versions), imageBytes));
+        Long documentBytes = jdbc.queryForObject("""
+            SELECT COALESCE(SUM(d.file_size_bytes), 0) FROM dbo.asset_documents d
+            JOIN dbo.assets a ON a.asset_id=d.asset_id JOIN dbo.vaults v ON v.vault_id=a.vault_id
+            WHERE v.owner_user_id=?
+            """, Long.class, ownerUserId);
+        // PS-114: attached documents count toward storage only; they never occupy an Asset slot.
+        return new Usage(payloads.assets(), Math.addExact(Math.addExact(Math.addExact(payloads.bytes(), versions), imageBytes), documentBytes));
     }
 }

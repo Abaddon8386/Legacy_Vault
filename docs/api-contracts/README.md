@@ -32,6 +32,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [beneficiary-accounts.md](beneficiary-accounts.md) | Staff liên kết hoặc tạo tài khoản Beneficiary tại quầy | PS-62, PS-63 |
 | [counter-beneficiaries.md](counter-beneficiaries.md) | Staff xem Beneficiary của ca, bước tại quầy và trạng thái mã mời/tài khoản | PS-88 |
 | [intake-attachments.md](intake-attachments.md) | Staff đính kèm file/ảnh vào giấy tờ tử vong và di chúc giấy gốc; Staff/Legal đọc file và file căn cứ theo quyền | PS-103 |
+| [asset-documents.md](asset-documents.md) | Owner đính kèm và đọc tài liệu PDF/Word của tài sản (mã hóa, theo quyền, tính vào dung lượng) | PS-114 |
 | [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
 | [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [legal-basis-dossier.md](legal-basis-dossier.md) | Hồ sơ căn cứ phân chia: Legal phân loại nhánh, Staff tiếp nhận và chuyển văn bản | PS-41, PS-42, PS-43 |

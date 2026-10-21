@@ -114,6 +114,7 @@ Lỗi validation:
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
 | `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
+| `ASSET_DOCUMENT_LIMIT_EXCEEDED` | 409 | Tải lên làm vượt số tài liệu đính kèm tối đa của một tài sản (`legacyvault.asset-documents.max-per-asset`, PS-114, D-API-43) |
 | `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
 | `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
 | `TOO_MANY_ATTEMPTS` | 429 | Quá số lần sai cho phép: mật khẩu xác nhận (D-API-32), hoặc PS-87 redeem theo bucket account và account+invitation trong 15 phút |
