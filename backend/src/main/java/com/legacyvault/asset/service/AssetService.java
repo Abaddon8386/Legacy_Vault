@@ -177,7 +177,7 @@ public class AssetService {
 	}
 
 	/** Gắn ciphertext với đúng Asset (UUID công khai): chép sang bản ghi khác thì giải mã thất bại. */
-	static byte[] associatedData(Asset asset) {
+	public static byte[] associatedData(Asset asset) {
 		return asset.getPublicId().toString().getBytes(StandardCharsets.UTF_8);
 	}
 
