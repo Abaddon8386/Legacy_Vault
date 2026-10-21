@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
 import { fetchAdminUsers } from '../../utils/adminService.js';
@@ -28,6 +29,8 @@ export default function AdminUsersPage({
   const lockTargetUser = lockSelection?.data === data ? lockSelection.record : null;
   const setLockTargetUser = (record) => setLockSelection(record ? { record, data } : null);
   const [lockReason, setLockReason] = useState('');
+  const detailRef = useModalFocus(Boolean(detailUser), () => setDetailUser(null));
+  const lockRef = useModalFocus(Boolean(lockTargetUser), () => setLockTargetUser(null));
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -269,7 +272,7 @@ export default function AdminUsersPage({
 
       {/* User Detail Modal */}
       {detailUser && (
-        <div className="lv-admin-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="user-detail-modal-title">
+        <div className="lv-admin-modal-backdrop" ref={detailRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="user-detail-modal-title">
           <div className="lv-admin-modal-card">
             <div className="lv-admin-modal-header">
               <h2 id="user-detail-modal-title" className="lv-admin-modal-title">
@@ -349,7 +352,7 @@ export default function AdminUsersPage({
 
       {/* Lock/Unlock Confirmation Dialog */}
       {lockTargetUser && (
-        <div className="lv-admin-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lock-dialog-title">
+        <div className="lv-admin-modal-backdrop" ref={lockRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="lock-dialog-title">
           <div className="lv-admin-modal-card">
             <div className="lv-admin-modal-header">
               <h2 id="lock-dialog-title" className="lv-admin-modal-title">

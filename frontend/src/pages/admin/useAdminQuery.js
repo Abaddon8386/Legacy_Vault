@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 
 // A successful result belongs to one token, filter set and reload attempt.
 // Pending contract mode never performs requests, including manual retries.
-export function useAdminQuery(fetchData, accessToken, params, enabled, onUnauthorized, accessDenied) {
+export function useAdminQuery(fetchData, accessToken, params, enabled, onUnauthorized, accessDenied, onFailure) {
+  const failureHandler = useRef(onFailure);
+  useEffect(() => { failureHandler.current = onFailure; }, [onFailure]);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState(null);
   const query = JSON.stringify(params);
@@ -21,6 +23,7 @@ export function useAdminQuery(fetchData, accessToken, params, enabled, onUnautho
     }).catch((error) => {
       if (!active || error.name === 'AbortError') return;
       setResult({ scope, error });
+      failureHandler.current?.(error);
       if (error.status === 401) onUnauthorized?.();
     });
     return () => {
@@ -34,9 +37,10 @@ export function useAdminQuery(fetchData, accessToken, params, enabled, onUnautho
     ['API_NOT_AVAILABLE', 'BACKEND_NOT_READY'].includes(failure?.code);
   return {
     data: current?.data ?? null,
+    deny: () => setResult({ scope, error: { status: 403, message: accessDenied } }),
     loading: Boolean(enabled && accessToken && !current),
     apiPending,
-    error: failure && !apiPending ? (failure.status === 403 ? accessDenied : failure.message) : null,
+    error: failure && !apiPending ? (failure.status === 403 ? accessDenied : (params.lang === 'en' ? 'Unable to load information. Please retry.' : 'Không thể tải thông tin. Vui lòng thử lại.')) : null,
     reload: () => { if (enabled && accessToken) setAttempt((value) => value + 1); },
   };
 }

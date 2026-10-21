@@ -73,7 +73,7 @@ test('AdminHome renders title with #admin-home-title and bilingual support', asy
       assert.ok(h1);
       assert.equal(h1.textContent, 'Tổng quan quản trị');
       assert.ok(viView.host.textContent.includes('Chỉ số tài khoản & Phân bổ vai trò'));
-      assert.ok(viView.host.textContent.includes('CHỜ TÍCH HỢP BACKEND'));
+      assert.ok(viView.host.textContent.includes('CHƯA KHẢ DỤNG'));
     } finally {
       await viView.close();
     }
@@ -85,7 +85,7 @@ test('AdminHome renders title with #admin-home-title and bilingual support', asy
       assert.ok(h1);
       assert.equal(h1.textContent, 'Administration overview');
       assert.ok(enView.host.textContent.includes('Account Metrics & Role Distribution'));
-      assert.ok(enView.host.textContent.includes('PENDING BACKEND INTEGRATION'));
+      assert.ok(enView.host.textContent.includes('UNAVAILABLE'));
     } finally {
       await enView.close();
     }
@@ -97,16 +97,16 @@ test('AdminHome renders title with #admin-home-title and bilingual support', asy
 test('AdminHome renders live metrics and multi-role distribution correctly', async () => {
   const prevFetch = globalThis.fetch;
   const mockOverview = {
-    asOf: '2026-10-20T12:00:00Z',
-    totalUsers: 50,
-    activeUsers: 48,
-    lockedUsers: 2,
-    roleDistribution: {
-      VAULT_OWNER: 45,
-      BENEFICIARY: 20, // 45 + 20 = 65 > 50 (multi-role)
-      STAFF_EXECUTOR: 4,
-      LEGAL_VERIFIER: 3,
-      ADMIN: 2,
+    completedAt: '2026-10-20T12:00:00Z',
+    totalAccounts: 50,
+    activeVaults: 48,
+    processingCases: 2,
+    roleAssignments: {
+      ROLE_VAULT_OWNER: 45,
+      ROLE_BENEFICIARY: 20, // 45 + 20 = 65 > 50 (multi-role)
+      ROLE_STAFF_EXECUTOR: 4,
+      ROLE_LEGAL_VERIFIER: 3,
+      ROLE_ADMIN: 2,
     },
   };
 
@@ -125,7 +125,7 @@ test('AdminHome renders live metrics and multi-role distribution correctly', asy
       assert.ok(view.host.textContent.includes('74')); // total roles: 45+20+4+3+2 = 74
       assert.ok(view.host.textContent.includes('Chủ sở hữu kho'));
       assert.ok(view.host.textContent.includes('Người thụ hưởng'));
-      assert.ok(view.host.textContent.includes('Bao gồm tài khoản đa vai trò'));
+      assert.ok(view.host.textContent.includes('Kho chưa lưu trữ'));
     } finally {
       await view.close();
     }
@@ -305,8 +305,8 @@ test('AdminUsersPage lock confirmation dialog is guarded and disabled', async ()
       // Modal is open
       assert.ok(view.host.querySelector('#lock-dialog-title'));
       assert.ok(view.host.textContent.includes('Trần Văn B'));
-      assert.ok(view.host.textContent.includes('CHỜ TÍCH HỢP BACKEND'));
-      assert.ok(view.host.textContent.includes('chưa chốt policy'));
+      assert.ok(view.host.textContent.includes('CHƯA KHẢ DỤNG'));
+      assert.ok(view.host.textContent.includes('hiện chưa khả dụng'));
 
       // Confirm button must be disabled to prevent fake optimistic success
       const confirmLockBtn = [...view.host.querySelectorAll('button')].find((b) =>
@@ -328,34 +328,14 @@ test('AdminUsersPage lock confirmation dialog is guarded and disabled', async ()
 
 test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids edit/delete/export/risk badges', async () => {
   const prevFetch = globalThis.fetch;
-  const mockLogs = [
-    {
-      id: 'aud-001',
-      occurredAt: '2026-10-20T10:00:00Z',
-      actorType: 'SYSTEM',
-      action: 'DMS_TRIGGERED',
-      entityType: 'Vault',
-      entityId: 'v-1',
-    },
-    {
-      id: 'aud-002',
-      occurredAt: '2026-10-20T10:05:00Z',
-      actorType: 'USER',
-      actorId: 'u-101',
-      actorName: 'Trần Văn B',
-      actorRoles: ['VAULT_OWNER'],
-      action: 'VAULT_CREATED',
-      entityType: 'Vault',
-      entityId: 'v-1',
-      traceId: 'tr-abc-123',
-    },
-  ];
-
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ items: mockLogs, total: 2 }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  const actorId = '11111111-1111-4111-8111-111111111111';
+  const mockLogs = ['SYSTEM', 'USER'].map((kind, index) => ({
+    id: `22222222-2222-4222-8222-22222222222${index}`,
+    occurredAt: '2026-10-20T10:00:00Z', actor: { kind, userId: kind === 'USER' ? actorId : null },
+    action: index ? 'VAULT_CREATED' : 'DMS_TRIGGERED', entityType: 'VAULT', vaultId: null,
+  }));
+  globalThis.fetch = async url => new Response(JSON.stringify(url.includes('?') ? { content: mockLogs, page: 0, size: 10, totalElements: 2, totalPages: 1 } : { event: mockLogs[1], traceId: actorId }),
+    { headers: { 'Content-Type': 'application/json' } });
 
   try {
     const view = await mount(AdminLogsPage, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
@@ -364,7 +344,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
 
       assert.ok(view.host.querySelector('#admin-logs-title'));
       assert.ok(view.host.textContent.includes('Hệ thống (SYSTEM)'));
-      assert.ok(view.host.textContent.includes('Trần Văn B'));
+      assert.ok(view.host.textContent.includes(actorId));
       assert.ok(view.host.textContent.includes('DMS_TRIGGERED'));
       assert.ok(view.host.textContent.includes('VAULT_CREATED'));
 
@@ -401,8 +381,8 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
       await act(async () => { detailBtns[1].click(); });
 
       // Modal shows traceId
-      assert.ok(view.host.querySelector('#log-detail-modal-title'));
-      assert.ok(view.host.textContent.includes('tr-abc-123'));
+      assert.ok(view.host.querySelector('[role="dialog"]'));
+      assert.ok(view.host.textContent.includes(actorId));
     } finally {
       await view.close();
     }

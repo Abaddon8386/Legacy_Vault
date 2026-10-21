@@ -272,6 +272,7 @@
 
 .lv-close-archive-view .lv-ca-table {
   width: 100%;
+  min-width: 600px;
   border-collapse: collapse;
   font-size: 13.5px;
   text-align: left;

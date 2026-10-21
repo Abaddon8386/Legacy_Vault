@@ -1,6 +1,5 @@
 import ReceivedAssets from './pages/beneficiary/ReceivedAssets.jsx';
 import LanguageToggle from './components/common/LanguageToggle.jsx';
-import { handoverUrl, isHandoverId } from './pages/staff/liveHandoverService.js';
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
@@ -403,7 +402,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     navigateTo(`${window.location.pathname}?lang=${lang}`);
   };
   const authPath = path => invitationIntent ? `${path}?lang=${lang}&invitation=true` : path;
-  const [restoreStatus, setRestoreStatus] = useState(() => readStoredSession() ? 'loading' : 'ready');
+  const [restoreStatus, setRestoreStatus] = useState(() => (readStoredSession() ? 'loading' : 'ready'));
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -439,6 +438,60 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     }
   }, []);
 
+  const [staffContextCaseId, setStaffContextCaseId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('caseId') || '';
+  });
+  const [staffContextSessionId, setStaffContextSessionId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('sessionId') || '';
+  });
+  const [staffActiveCase, setStaffActiveCase] = useState(null);
+
+  // Synchronize Staff context from URL parameters on route changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const cId = params.get('caseId') || '';
+    const sId = params.get('sessionId') || '';
+    if (cId !== staffContextCaseId || sId !== staffContextSessionId) {
+      queueMicrotask(() => {
+        if (cId !== staffContextCaseId) setStaffContextCaseId(cId);
+        if (sId !== staffContextSessionId) setStaffContextSessionId(sId);
+      });
+    }
+  }, [location, staffContextCaseId, staffContextSessionId]);
+
+  const handleSelectStaffCase = useCallback((caseItemOrId) => {
+    const nextCaseId = typeof caseItemOrId === 'object' && caseItemOrId !== null
+      ? (caseItemOrId.caseId || caseItemOrId.id || '')
+      : (caseItemOrId || '');
+    const nextCaseItem = typeof caseItemOrId === 'object' ? caseItemOrId : null;
+    setStaffContextCaseId(nextCaseId);
+    setStaffActiveCase(nextCaseItem);
+    // Đổi hồ sơ BẮT BUỘC xóa sessionId của hồ sơ cũ!
+    setStaffContextSessionId('');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (nextCaseId) url.searchParams.set('caseId', nextCaseId);
+      else url.searchParams.delete('caseId');
+      url.searchParams.delete('sessionId');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+      setLocation(url.pathname + url.search);
+    }
+  }, [setStaffContextCaseId, setStaffActiveCase, setStaffContextSessionId]);
+
+  const handleSelectStaffSession = useCallback((nextSessionId) => {
+    setStaffContextSessionId(nextSessionId || '');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (nextSessionId) url.searchParams.set('sessionId', nextSessionId);
+      else url.searchParams.delete('sessionId');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+      setLocation(url.pathname + url.search);
+    }
+  }, [setStaffContextSessionId]);
+
   const navigateTo = useCallback(path => {
     const nextIdx = (historyIndexRef.current || 0) + 1;
     historyIndexRef.current = nextIdx;
@@ -460,8 +513,11 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     setSession(null);
     setInvitationIntent(false);
     setPendingInvitationCode('');
+    setStaffContextCaseId('');
+    setStaffContextSessionId('');
+    setStaffActiveCase(null);
     navigateTo('/login');
-  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError]);
+  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
 
   useEffect(() => {
     const candidate = readStoredSession();
@@ -604,7 +660,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       </>}
     </main>
   );
-  const preview = Boolean(import.meta.env.DEV && !session && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
+  const preview = Boolean(import.meta.env.DEV && new URLSearchParams(location.split('?')[1] || '').get('preview') === 'true');
   const resolveAccountRoute = (basePath) => {
     const params = new URLSearchParams();
     if (preview) params.set('preview', 'true');
@@ -612,6 +668,22 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     const qs = params.toString();
     return `${basePath}${qs ? `?${qs}` : ''}`;
   };
+
+  const staffParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const staffCaseId = staffContextCaseId || staffParams?.get('caseId') || '';
+  const staffSessionId = staffContextSessionId || staffParams?.get('sessionId') || '';
+
+  const buildStaffRoute = (basePath, overrides = {}) => {
+    const params = new URLSearchParams();
+    if (preview) params.set('preview', 'true');
+    const cId = overrides.caseId !== undefined ? overrides.caseId : staffCaseId;
+    const sId = overrides.sessionId !== undefined ? overrides.sessionId : staffSessionId;
+    if (cId) params.set('caseId', cId);
+    if (sId) params.set('sessionId', sId);
+    const qs = params.toString();
+    return qs ? `${basePath}?${qs}` : basePath;
+  };
+
   if (path === '/invitations') {
     const activeSession = isSessionActive(session) ? session : null;
     return <InvitationPage key={`${activeSession?.user.id || 'anonymous'}:${activeSession?.accessToken || ''}`}
@@ -646,11 +718,11 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         : currentTab === 'admin-users'
         ? <AdminUsersPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
         : currentTab === 'admin-logs'
-        ? <AdminLogsPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
-        : <AdminHome lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} onNavigate={target => navigateTo(target === 'users' ? '/admin/users' : target === 'logs' ? '/admin/logs' : '/admin/subscriptions')} />}
+        ? <AdminLogsPage fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
+        : <AdminHome fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} onNavigate={target => navigateTo(target === 'users' ? '/admin/users' : target === 'logs' ? '/admin/logs' : '/admin/subscriptions')} />}
     </AppShell>;
   }
-  if (path === '/beneficiary' && preview) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
+  if (path === '/beneficiary' && preview && !isSessionActive(session)) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
     <LanguageToggle lang={lang} onToggleLang={setLang} />
     <a href="/login">{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</a>
     <ReceivedAssets lang={lang} isDevPreview scenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'} />
@@ -723,14 +795,51 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   if (path === '/staff/handover') {
     if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
-    return <div className="lv-app-root"><CounterHandoverPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+    return (
+      <div className="lv-app-root">
+        <StaffShell
+          session={session}
+          user={session?.user || null}
+          onNavigateProfile={() => navigateTo(resolveAccountRoute('/account/profile'))}
+          onNavigateAccountEdit={() => navigateTo(resolveAccountRoute('/account/edit'))}
+          lang={lang}
+          onToggleLang={setLang}
+          onLogout={logout}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          isPreview={preview}
+          currentTab="handover"
+          onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
+        >
+          <CounterHandoverPage
+            key={session?.user.id || 'preview'}
+            accessToken={session?.accessToken}
+            isDevPreview={preview}
+            lang={lang}
+            onToggleLang={setLang}
+            onLogout={logout}
+            onRefresh={handleRefresh}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            caseItem={staffActiveCase}
+            onCaseChange={handleSelectStaffCase}
+            onSelectSession={handleSelectStaffSession}
+          />
+        </StaffShell>
+      </div>
+    );
   }
   const isStaffRoute = path === '/staff/cases';
   if (isStaffRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
-    if (!preview && !session.user.roles.includes('STAFF_EXECUTOR')) {
+    if (session && !session.user?.roles?.includes('STAFF_EXECUTOR')) {
       return (
         <main role="alert" style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", backgroundColor: '#f7f5f0' }}>
           <p style={{ fontSize: '16px', color: '#164639', fontWeight: 600, marginBottom: '16px' }}>
@@ -763,17 +872,19 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           isPreview={preview}
           currentTab="cases"
-          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
-          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
-          onNavigateCloseAndArchive={() => navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive')}
-          onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
+          onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <StaffCaseDashboard
             key={session?.user.id || 'preview'}
             {...staffContext}
             isDevPreview={preview}
+            caseId={staffCaseId}
+            onSelectCase={handleSelectStaffCase}
           />
         </StaffShell>
       </div>
@@ -801,6 +912,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         step={legalLiveTabs[path]} caseId={selectedCaseId} discovery={legalDiscovery} onNavigate={navigateTo} onUnauthorized={logout} />
     </AppShell></div>;
   }
+
   const isLegalDossierReviewRoute = path === '/legal/dossier-review';
   if (path === '/legal/approval-review') {
     if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
@@ -894,17 +1006,17 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     } else if (targetTab === 'account-edit') {
       navigateTo(resolveAccountRoute('/account/edit'));
     } else if (targetTab === 'cases') {
-      navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
+      navigateTo(buildStaffRoute('/staff/cases'));
     } else if (targetTab === 'legal-documents') {
-      navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
+      navigateTo(buildStaffRoute('/staff/legal-documents'));
     } else if (targetTab === 'asset-handover') {
-      navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
+      navigateTo(buildStaffRoute('/staff/asset-handover'));
     } else if (targetTab === 'beneficiary-confirmation') {
-      navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
+      navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'));
     } else if (targetTab === 'completion-progress') {
-      navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
+      navigateTo(buildStaffRoute('/staff/completion-progress'));
     } else if (targetTab === 'close-and-archive') {
-      navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
+      navigateTo(buildStaffRoute('/staff/close-and-archive'));
     } else if (targetTab === 'death-verification') {
       navigateTo(preview ? '/legal/death-verification?preview=true' : '/legal/death-verification');
     } else if (targetTab === 'will-document-verification') {
@@ -1067,14 +1179,14 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
 
   if (path === '/staff/beneficiary-accounts') {
     if (!isSessionActive(session) && !preview) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
-    if (!preview && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
+    if (session && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
     return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
       return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
-    if (!preview && !canAccessStaffLegalDocuments(session)) {
+    if (session && !canAccessStaffLegalDocuments(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
     }
     return (
@@ -1090,32 +1202,22 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           session={session}
           user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            }
-          }}
+          onNavigateTab={handleExecuteNavigation}
         >
           <StaffLegalDocumentsPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
-            onNavigateHome={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            caseItem={staffActiveCase}
+            onCaseChange={handleSelectStaffCase}
+            onUnauthorized={logout}
+            onNavigateHome={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+            onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
         </AppShell>
       </div>
@@ -1126,7 +1228,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
-    if (!preview && !canAccessScopedAssetHandover(session)) {
+    if (session && !canAccessScopedAssetHandover(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
     }
     return (
@@ -1139,33 +1241,26 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           isPreview={preview}
           currentTab="asset-handover"
-          onNavigateCases={() => navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases')}
-          onNavigateLegalDocuments={() => navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents')}
-          onNavigateAssetHandover={() => navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover')}
-          onNavigateCloseAndArchive={() => navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive')}
-          onNavigateCompletionProgress={() => navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress')}
-          onNavigateBeneficiaryConfirmation={() => navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation')}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            }
-          }}
+          onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
+          onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
+          onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
+          onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
-          {isHandoverId(new URLSearchParams(window.location.search).get('caseId')) && <a href={handoverUrl('/staff/handover', new URLSearchParams(window.location.search).get('caseId'), new URLSearchParams(window.location.search).get('sessionId'))}>{lang === 'en' ? 'Back to handover session' : 'Về phiên bàn giao'}</a>}
           <ScopedAssetHandoverPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            caseItem={staffActiveCase}
+            onCaseChange={handleSelectStaffCase}
+            onUnauthorized={logout}
+            onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
         </StaffShell>
       </div>
@@ -1176,7 +1271,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
-    if (!preview && !canAccessBeneficiaryConfirmation(session)) {
+    if (session && !canAccessBeneficiaryConfirmation(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
     }
     return (
@@ -1192,31 +1287,22 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           session={session}
           user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            }
-          }}
+          onNavigateTab={handleExecuteNavigation}
         >
           <BeneficiaryConfirmationPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            caseReference={staffCaseId}
+            sessionId={staffSessionId}
+            caseItem={staffActiveCase}
+            onCaseChange={handleSelectStaffCase}
+            onUnauthorized={logout}
+            onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
         </AppShell>
       </div>
@@ -1227,7 +1313,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
-    if (!preview && !canAccessCompletionProgress(session)) {
+    if (session && !canAccessCompletionProgress(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
     }
     return (
@@ -1243,31 +1329,22 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           session={session}
           user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            }
-          }}
+          onNavigateTab={handleExecuteNavigation}
         >
           <CompletionProgressPage
             lang={lang}
             preview={preview}
+            isDevPreview={preview}
             session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            caseReference={staffCaseId}
+            sessionId={staffSessionId}
+            caseItem={staffActiveCase}
+            onCaseChange={handleSelectStaffCase}
+            onUnauthorized={logout}
+            onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
         </AppShell>
       </div>
@@ -1278,7 +1355,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session) && !preview) {
       return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     }
-    if (!preview && !canAccessCloseArchive(session)) {
+    if (session && !canAccessCloseArchive(session)) {
       return <StaffAccessDeniedFallback lang={lang} onLogout={logout} />;
     }
     return (
@@ -1294,29 +1371,21 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           session={session}
           user={session?.user || null}
-          onNavigateTab={tab => {
-            if (tab === 'cases') {
-              navigateTo(preview ? '/staff/cases?preview=true' : '/staff/cases');
-            } else if (tab === 'asset-handover') {
-              navigateTo(preview ? '/staff/asset-handover?preview=true' : '/staff/asset-handover');
-            } else if (tab === 'legal-documents') {
-              navigateTo(preview ? '/staff/legal-documents?preview=true' : '/staff/legal-documents');
-            } else if (tab === 'beneficiary-confirmation') {
-              navigateTo(preview ? '/staff/beneficiary-confirmation?preview=true' : '/staff/beneficiary-confirmation');
-            } else if (tab === 'completion-progress') {
-              navigateTo(preview ? '/staff/completion-progress?preview=true' : '/staff/completion-progress');
-            } else if (tab === 'close-and-archive') {
-              navigateTo(preview ? '/staff/close-and-archive?preview=true' : '/staff/close-and-archive');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
-              navigateTo(resolveAccountRoute('/account/profile'));
-            } else if (tab === 'account-edit') {
-              navigateTo(resolveAccountRoute('/account/edit'));
-            }
-          }}
+          onNavigateTab={handleExecuteNavigation}
         >
           <CloseAndArchivePage
             lang={lang}
+            preview={preview}
+            isDevPreview={preview}
+            session={session}
+            accessToken={session?.accessToken || null}
+            user={session?.user || null}
+            caseId={staffCaseId}
+            sessionId={staffSessionId}
+            caseItem={staffActiveCase}
+            onCaseChange={handleSelectStaffCase}
+            onUnauthorized={logout}
+            onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
         </AppShell>
       </div>

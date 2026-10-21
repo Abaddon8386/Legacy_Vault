@@ -14,7 +14,7 @@ export default function AdminHome({
 }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const { data, loading, apiPending, error, reload: handleReload } = useAdminQuery(
-    fetchAdminOverview, accessToken, {}, fetchOnMount, onUnauthorized, t.accessDenied
+    fetchAdminOverview, accessToken, { lang }, fetchOnMount, onUnauthorized, t.accessDenied
   );
 
   const formatDate = (isoString) => {
@@ -39,7 +39,8 @@ export default function AdminHome({
         <p className="lv-admin-header-subtitle">{t.overviewSubtitle}</p>
         <div style={{ marginTop: 8, fontSize: 13, color: 'var(--lv-text-muted)' }}>
           <strong>{t.statsAsOf}</strong>{' '}
-          {loading ? t.loading : apiPending ? t.notAvailable : formatDate(data?.asOf)}
+          {loading ? t.loading : apiPending ? t.notAvailable : `${formatDate(data?.startedAt)} — ${formatDate(data?.completedAt)}`}
+          <p>{lang === 'en' ? 'Metrics are collected over this interval and may change during collection.' : 'Số liệu được thu thập trong khoảng thời gian này và có thể thay đổi trong lúc thu thập.'}</p>
         </div>
       </header>
 
@@ -48,11 +49,12 @@ export default function AdminHome({
         <section className="lv-admin-pending-banner" role="status" aria-label="API Pending Notice">
           <div className="lv-admin-pending-banner-header">
             <span className="lv-admin-pending-banner-title">
-              {lang === 'vi' ? 'Trạng thái tích hợp API Tổng quan' : 'Overview API Integration Status'}
+              {lang === 'vi' ? 'Thông tin tổng quan' : 'Overview information'}
             </span>
             <span className="lv-admin-pending-badge">{t.pendingApiBadge}</span>
           </div>
           <p className="lv-admin-pending-banner-desc">{t.overviewPendingNotice}</p>
+          {fetchOnMount && <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={handleReload}>{t.retryBtn}</button>}
         </section>
       )}
 
@@ -88,53 +90,12 @@ export default function AdminHome({
         </h2>
 
         <div className="lv-admin-overview-grid">
-          <div className="lv-admin-metric-card">
-            <div className="lv-admin-metric-label">{t.totalUsers}</div>
-            <div className="lv-admin-metric-value">
-              {loading ? '...' : apiPending ? '—' : data?.totalUsers !== null && data?.totalUsers !== undefined ? data.totalUsers : t.notAvailable}
+          {['totalAccounts', 'activeVaults', 'processingCases', 'totalRolesAssigned'].map(key => (
+            <div className="lv-admin-metric-card" key={key}>
+              <div className="lv-admin-metric-label">{t[key]}</div>
+              <div className="lv-admin-metric-value">{loading ? '...' : apiPending ? '—' : data?.[key] ?? t.notAvailable}</div>
             </div>
-            <div className="lv-admin-metric-subtext">
-              {apiPending
-                ? t.notAvailable
-                : data?.activeUsers !== null && data?.activeUsers !== undefined
-                ? `${data.activeUsers} ${t.statusActive.toLowerCase()}`
-                : t.notAvailable}
-            </div>
-          </div>
-
-          <div className="lv-admin-metric-card">
-            <div className="lv-admin-metric-label">{t.activeUsers}</div>
-            <div className="lv-admin-metric-value" style={{ color: 'var(--lv-status-success-text)' }}>
-              {loading ? '...' : apiPending ? '—' : data?.activeUsers !== null && data?.activeUsers !== undefined ? data.activeUsers : t.notAvailable}
-            </div>
-            <div className="lv-admin-metric-subtext">
-              {apiPending
-                ? t.notAvailable
-                : data?.totalUsers && data?.activeUsers !== null && data?.activeUsers !== undefined
-                ? `${Math.round((data.activeUsers / data.totalUsers) * 100)}%`
-                : t.notAvailable}
-            </div>
-          </div>
-
-          <div className="lv-admin-metric-card">
-            <div className="lv-admin-metric-label">{t.lockedUsers}</div>
-            <div className="lv-admin-metric-value" style={{ color: 'var(--lv-status-error-text)' }}>
-              {loading ? '...' : apiPending ? '—' : data?.lockedUsers !== null && data?.lockedUsers !== undefined ? data.lockedUsers : t.notAvailable}
-            </div>
-            <div className="lv-admin-metric-subtext">
-              {apiPending ? t.notAvailable : t.statusLocked}
-            </div>
-          </div>
-
-          <div className="lv-admin-metric-card">
-            <div className="lv-admin-metric-label">{t.totalRolesAssigned}</div>
-            <div className="lv-admin-metric-value" style={{ color: 'var(--lv-accent-gold)' }}>
-              {loading ? '...' : apiPending ? '—' : data?.totalRolesAssigned !== null && data?.totalRolesAssigned !== undefined ? data.totalRolesAssigned : t.notAvailable}
-            </div>
-            <div className="lv-admin-metric-subtext">
-              {apiPending ? t.notAvailable : (lang === 'vi' ? 'Bao gồm tài khoản đa vai trò' : 'Includes multi-role users')}
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 

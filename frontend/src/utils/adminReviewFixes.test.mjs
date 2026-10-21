@@ -47,6 +47,14 @@ async function loadComponent(entryPath) {
 
 const AdminUsersPage = await loadComponent('src/pages/admin/AdminUsersPage.jsx');
 
+function auditEvent() {
+  return { id: '22222222-2222-4222-8222-222222222222', occurredAt: '2026-10-20T10:00:00Z',
+    actor: { kind: 'SYSTEM', userId: null }, action: 'VAULT_CREATED', entityType: 'VAULT', vaultId: null };
+}
+function pageFixture(Component, name) {
+  return Component === AdminUsersPage ? { items: [{ id: 'item', fullName: name, status: 'ACTIVE' }], total: 1 }
+    : { content: [auditEvent()], page: 0, size: 10, totalElements: 1, totalPages: 1 };
+}
 async function mount(Component, props) {
   const host = document.createElement('div');
   document.body.append(host);
@@ -81,47 +89,15 @@ test('REPRO Lỗi 3: validateAdminUser must NOT default missing status to ACTIVE
   assert.equal(user.status, null);
 });
 
-test('REPRO Lỗi 3: validateAdminOverview must NOT default missing asOf to now, nor missing metrics to 0 or totalUsers', () => {
-  const overview = validateAdminOverview({
-    totalUsers: 100,
-  });
-  assert.equal(
-    overview.asOf,
-    null,
-    'Overview asOf must NOT default to current time when missing from backend'
-  );
-  assert.equal(
-    overview.activeUsers,
-    null,
-    'Overview activeUsers must NOT default to totalUsers when missing'
-  );
-  assert.equal(
-    overview.lockedUsers,
-    null,
-    'Overview lockedUsers must NOT default to 0 when missing'
-  );
-  assert.equal(
-    overview.roleDistribution.VAULT_OWNER,
-    null,
-    'Role count must NOT default to 0 when missing'
-  );
+test('overview missing metrics remain unknown with PS-107 fields', () => {
+  const overview = validateAdminOverview({ totalAccounts: 100 });
+  assert.equal(overview.completedAt, null);
+  assert.equal(overview.activeVaults, null);
+  assert.equal(overview.processingCases, null);
+  assert.equal(overview.roleDistribution.VAULT_OWNER, null);
 });
-
-test('REPRO Lỗi 3: validateAdminAuditLog must NOT default missing occurredAt to now, nor missing actorType to USER', () => {
-  const log = validateAdminAuditLog({
-    id: 'aud-1',
-    action: 'VAULT_CREATED',
-  });
-  assert.equal(
-    log.occurredAt,
-    null,
-    'occurredAt must NOT default to current time when missing'
-  );
-  assert.equal(
-    log.actorType,
-    null,
-    'actorType must NOT default to USER when missing'
-  );
+test('incomplete audit event is rejected instead of fabricating actor or time', () => {
+  assert.throws(() => validateAdminAuditLog({ id: 'aud-1' }));
 });
 
 // =========================================================================
@@ -384,22 +360,22 @@ const AdminHome = await loadComponent('src/pages/admin/AdminHome.jsx');
 
 test('missing and malformed counts never become zero or a partial total', () => {
   for (const value of [null, undefined, '', ' ', false, [], -1, 1.5]) {
-    const data = validateAdminOverview({ activeUsers: value, lockedUsers: value, roleDistribution: { ADMIN: value } });
-    assert.equal(data.totalUsers, null);
-    assert.equal(data.activeUsers, null);
-    assert.equal(data.lockedUsers, null);
+    const data = validateAdminOverview({ activeVaults: value, processingCases: value, roleAssignments: { ROLE_ADMIN: value } });
+    assert.equal(data.totalAccounts, null);
+    assert.equal(data.activeVaults, null);
+    assert.equal(data.processingCases, null);
     assert.equal(data.roleDistribution.ADMIN, null);
     assert.equal(data.totalRolesAssigned, null);
   }
-  assert.equal(validateAdminOverview({ totalUsers: 0 }).totalUsers, 0);
+  assert.equal(validateAdminOverview({ totalAccounts: 0 }).totalAccounts, 0);
 });
 
 test('audit metadata without an approved field contract is never exposed', () => {
   for (const metadata of [{ payload: { password: 'SENSITIVE' } }, { note: 'SENSITIVE' }, 'SENSITIVE', [{ token: 'SENSITIVE' }]]) {
-    const log = validateAdminAuditLog({ id: 'audit', context: metadata, stateBefore: metadata, stateAfter: metadata });
-    assert.equal(log.context, null);
-    assert.equal(log.stateBefore, null);
-    assert.equal(log.stateAfter, null);
+    const log = validateAdminAuditLog({ ...auditEvent(), context: metadata, stateBefore: metadata, stateAfter: metadata });
+    assert.equal(log.context, undefined);
+    assert.equal(log.stateBefore, undefined);
+    assert.equal(log.stateAfter, undefined);
   }
 });
 
@@ -433,7 +409,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
     let lateSignal;
     let calls = 0;
     globalThis.fetch = async (_url, options) => {
-      if (++calls === 1) return new Response(JSON.stringify({ items: [{ id: 'item', fullName: 'OLD_RECORD', actorName: 'OLD_RECORD', action: 'VAULT_CREATED', status: 'ACTIVE' }], total: 1 }));
+      if (++calls === 1) return new Response(JSON.stringify(pageFixture(Component, 'OLD_RECORD')), { headers: { 'Content-Type': 'application/json' } });
       lateSignal = options.signal;
       return new Promise((resolve) => { resolveLate = resolve; });
     };
@@ -459,7 +435,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
     let resolveLate;
     let calls = 0;
     globalThis.fetch = async () => {
-      if (++calls === 1) return new Response(JSON.stringify({ items: [{ id: 'item', fullName: 'OLD_FILTER', actorName: 'OLD_FILTER', action: 'VAULT_CREATED' }], total: 1 }));
+      if (++calls === 1) return new Response(JSON.stringify(pageFixture(Component, 'OLD_FILTER')), { headers: { 'Content-Type': 'application/json' } });
       return new Promise((resolve) => { resolveLate = resolve; });
     };
     let view;
@@ -495,5 +471,20 @@ test('returning to a previous token never revives its previous successful result
     await view.rerender({ accessToken: 'B', fetchOnMount: true });
     await view.rerender({ accessToken: 'A', fetchOnMount: true });
     assert.equal(view.host.textContent.includes('PREVIOUS_SESSION'), false);
+  } finally { if (view) await view.close(); globalThis.fetch = previous; }
+});
+
+test('audit detail 403 clears list and open detail, without retaining event metadata', async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async url => new Response(JSON.stringify(url.includes('?') ? {
+    content: [auditEvent()], page: 0, size: 10, totalElements: 1, totalPages: 1,
+  } : { code: 'ACCESS_DENIED' }), { status: url.includes('?') ? 200 : 403, headers: { 'Content-Type': 'application/json' } });
+  let view;
+  try {
+    view = await mount(AdminLogsPage, { accessToken: 'A', fetchOnMount: true });
+    await act(async () => [...view.host.querySelectorAll('button')].find(b => b.textContent.includes('Xem chi tiết')).click());
+    assert.equal(view.host.querySelector('[role="dialog"]'), null);
+    assert.equal(view.host.querySelector('tbody').textContent.includes('VAULT_CREATED'), false);
+    assert.ok(view.host.querySelector('[role="alert"]'));
   } finally { if (view) await view.close(); globalThis.fetch = previous; }
 });

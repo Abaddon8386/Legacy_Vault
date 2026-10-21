@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
-import { fetchAdminAuditLogs } from '../../utils/adminService.js';
+import { Modal } from '../../components/common/Modal.jsx';
+import { fetchAdminAuditDetail, fetchAdminAuditLogs } from '../../utils/adminService.js';
 import './AdminPages.css';
 
 const COMMON_ACTIONS = [
@@ -37,8 +38,8 @@ export default function AdminLogsPage({
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const t = adminI18n[lang] || adminI18n.vi;
-  const { data, loading, apiPending, error, reload: handleReload } = useAdminQuery(
-    fetchAdminAuditLogs, accessToken, { action: actionFilter, actorType: actorTypeFilter, fromDate, toDate, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
+  const { data, loading, apiPending, error, deny, reload: handleReload } = useAdminQuery(
+    fetchAdminAuditLogs, accessToken, { lang, action: actionFilter, actorType: actorTypeFilter, fromDate, toDate, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
   );
   const logs = data?.items || [];
   const total = data?.total ?? null;
@@ -74,9 +75,10 @@ export default function AdminLogsPage({
     if (log.actorType === 'SYSTEM') {
       return <span style={{ color: 'var(--lv-brand-forest)', fontWeight: 600 }}>{t.actorSystem}</span>;
     }
-    if (!log.actorId && !log.actorName) {
+    if (log.actorType === 'DELETED_USER') {
       return <span style={{ color: 'var(--lv-text-muted)', fontStyle: 'italic' }}>{t.actorDeleted}</span>;
     }
+    if (log.actorType === 'UNKNOWN') return <span>{t.actorUnknown}</span>;
     return (
       <div>
         <div style={{ fontWeight: 600 }}>{log.actorName || log.actorId}</div>
@@ -105,11 +107,12 @@ export default function AdminLogsPage({
         <section className="lv-admin-pending-banner" role="status" aria-label="Audit Logs API Pending Notice">
           <div className="lv-admin-pending-banner-header">
             <span className="lv-admin-pending-banner-title">
-              {lang === 'vi' ? 'Trạng thái API Nhật ký kiểm toán' : 'Audit Logs API Integration Status'}
+              {lang === 'vi' ? 'Thông tin nhật ký' : 'Audit log information'}
             </span>
             <span className="lv-admin-pending-badge">{t.pendingApiBadge}</span>
           </div>
           <p className="lv-admin-pending-banner-desc">{t.logsPendingNotice}</p>
+          {fetchOnMount && <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={handleReload}>{t.retryBtn}</button>}
         </section>
       )}
 
@@ -165,6 +168,8 @@ export default function AdminLogsPage({
             <option value="">{t.allActorTypes}</option>
             <option value="USER">{t.actorUser}</option>
             <option value="SYSTEM">{t.actorSystem}</option>
+            <option value="DELETED_USER">{t.actorDeleted}</option>
+            <option value="UNKNOWN">{t.actorUnknown}</option>
           </select>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
@@ -175,7 +180,7 @@ export default function AdminLogsPage({
               className="lv-admin-input"
               style={{ height: 40 }}
               value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
             />
           </div>
 
@@ -187,7 +192,7 @@ export default function AdminLogsPage({
               className="lv-admin-input"
               style={{ height: 40 }}
               value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={(e) => { setToDate(e.target.value); setPage(1); }}
             />
           </div>
 
@@ -214,7 +219,7 @@ export default function AdminLogsPage({
             <tr>
               <th scope="col">{t.thTimestamp}</th>
               <th scope="col">{t.thActor}</th>
-              <th scope="col">{t.thActorRoles}</th>
+
               <th scope="col">{t.thAction}</th>
               <th scope="col">{t.thEntity}</th>
               {logs.some((l) => l.ipAddress) && <th scope="col">{t.logIp}</th>}
@@ -241,13 +246,6 @@ export default function AdminLogsPage({
                 <tr key={log.id}>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{formatTimestamp(log.occurredAt)}</td>
                   <td>{renderActorLabel(log)}</td>
-                  <td>
-                    {log.actorRoles.map((role) => (
-                      <span key={role} className="lv-admin-role-badge">
-                        {role}
-                      </span>
-                    ))}
-                  </td>
                   <td>
                     <span
                       style={{
@@ -318,99 +316,23 @@ export default function AdminLogsPage({
         </nav>
       )}
 
-      {/* Log Detail Modal */}
-      {detailLog && (
-        <div className="lv-admin-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="log-detail-modal-title">
-          <div className="lv-admin-modal-card" style={{ maxWidth: 640 }}>
-            <div className="lv-admin-modal-header">
-              <h2 id="log-detail-modal-title" className="lv-admin-modal-title">
-                {t.logDetailTitle}
-              </h2>
-              <button
-                type="button"
-                className="lv-admin-modal-close-btn"
-                onClick={() => setDetailLog(null)}
-                aria-label={t.closeModal}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lv-admin-modal-body">
-              <div className="lv-admin-detail-list">
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.logId}</span>
-                  <span className="lv-admin-detail-val" style={{ fontFamily: 'monospace' }}>{detailLog.id}</span>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.logTimestamp}</span>
-                  <span className="lv-admin-detail-val" style={{ fontFamily: 'monospace' }}>{formatTimestamp(detailLog.occurredAt)}</span>
-                </div>
-                {detailLog.traceId && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.logTraceId}</span>
-                    <span className="lv-admin-detail-val" style={{ fontFamily: 'monospace' }}>{detailLog.traceId}</span>
-                  </div>
-                )}
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.logActorType}</span>
-                  <span className="lv-admin-detail-val">{detailLog.actorType}</span>
-                </div>
-                <div className="lv-admin-detail-item">
-                  <span className="lv-admin-detail-key">{t.logActionCode}</span>
-                  <span className="lv-admin-detail-val" style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--lv-brand-forest)' }}>
-                    {detailLog.action}
-                  </span>
-                </div>
-                {detailLog.entityType && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.logEntityType}</span>
-                    <span className="lv-admin-detail-val">{detailLog.entityType} ({detailLog.entityId || 'N/A'})</span>
-                  </div>
-                )}
-                {detailLog.ipAddress && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.logIp}</span>
-                    <span className="lv-admin-detail-val" style={{ fontFamily: 'monospace' }}>{detailLog.ipAddress}</span>
-                  </div>
-                )}
-                {detailLog.stateBefore && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.logStateBefore}</span>
-                    <pre style={{ background: 'var(--lv-bg-canvas)', padding: 10, borderRadius: 6, fontSize: 12, overflowX: 'auto', margin: '4px 0 0 0' }}>
-                      {typeof detailLog.stateBefore === 'string' ? detailLog.stateBefore : JSON.stringify(detailLog.stateBefore, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {detailLog.stateAfter && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.logStateAfter}</span>
-                    <pre style={{ background: 'var(--lv-bg-canvas)', padding: 10, borderRadius: 6, fontSize: 12, overflowX: 'auto', margin: '4px 0 0 0' }}>
-                      {typeof detailLog.stateAfter === 'string' ? detailLog.stateAfter : JSON.stringify(detailLog.stateAfter, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {detailLog.context && (
-                  <div className="lv-admin-detail-item">
-                    <span className="lv-admin-detail-key">{t.logContext}</span>
-                    <pre style={{ background: 'var(--lv-bg-canvas)', padding: 10, borderRadius: 6, fontSize: 12, overflowX: 'auto', margin: '4px 0 0 0' }}>
-                      {typeof detailLog.context === 'string' ? detailLog.context : JSON.stringify(detailLog.context, null, 2)}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="lv-admin-modal-footer">
-              <button
-                type="button"
-                className="lv-admin-btn lv-admin-btn-secondary"
-                onClick={() => setDetailLog(null)}
-              >
-                {t.closeModal}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {detailLog && <AuditDetail key={detailLog.id} event={detailLog} accessToken={accessToken} lang={lang}
+        onClose={() => setDetailLog(null)} onUnauthorized={onUnauthorized} onDenied={deny} />}
     </div>
   );
+}
+
+const loadDetail = (token, { id, ...options }) => fetchAdminAuditDetail(token, id, options);
+function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDenied }) {
+  const t = adminI18n[lang] || adminI18n.vi;
+  const onFailure = (error) => { if (error.status === 403) onDenied(); };
+  const { data, loading, error, apiPending } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
+  return <Modal isOpen onClose={onClose} title={t.logDetailTitle} closeLabel={t.closeModal}>
+    {loading ? <p role="status">{t.loading}</p> : error ? <p role="alert">{error}</p> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data &&
+      <dl className="lv-admin-detail-list">{[
+        [t.logId, data.id], [t.logTimestamp, data.occurredAt], [t.logActorType, data.actorType],
+        [t.logActorId, data.actorId], [t.logActionCode, data.action], [t.logEntityType, data.entityType],
+        [t.logEntityId, data.entityId], [t.logTraceId, data.traceId],
+      ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? t.notAvailable}</dd></div>)}</dl>}
+  </Modal>;
 }
