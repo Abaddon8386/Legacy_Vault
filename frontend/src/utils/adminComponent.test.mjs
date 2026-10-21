@@ -395,7 +395,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
 // 4. AppShell Admin Navigation Regression Tests
 // ==========================================
 
-test('AppShell renders all 4 Admin tabs and preserves 14 render sites constraint', async () => {
+test('AppShell renders all 4 Admin tabs and preserves 15 render sites including Shared with me', async () => {
   const activeSession = {
     accessToken: 'test-admin-token',
     user: {
@@ -425,12 +425,12 @@ test('AppShell renders all 4 Admin tabs and preserves 14 render sites constraint
     await view.close();
   }
 
-  // Regression check: ensure App.jsx strictly maintains exactly 14 <AppShell> render sites
+  // Develop adds the Shared with me shell; Admin continues to use its existing shell.
   const appJsx = readFileSync(resolve(import.meta.dirname, '../App.jsx'), 'utf8');
   const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
   assert.equal(
     appShellMatches.length,
-    14,
-    'Expected exactly 14 AppShell render sites across App.jsx'
+    15,
+    'Expected 15 AppShell render sites including the Shared with me route from develop'
   );
 });

@@ -25,12 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * PS-43 (ST-16, LV-HOLD-001): Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (chưa đủ thông tin) sang NOTARIAL hoặc COURT khi đã
- * có đủ chứng cứ. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và COURT không đổi trực tiếp lẫn nhau, dù Trustee đổi lời khai (D-LEGAL-002).
- * Phân loại cũ được lưu vào lịch sử, không ghi đè. Vault ON_HOLD -> AWAITING_LEGAL_BASIS (qua LEGAL_BASIS_CLASSIFICATION).
- * Thứ tự khóa Vault -> ca -> hồ sơ.
- */
+/** PS-102: COURT-only writes; optional will comparison never substitutes court validation.
+ * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier. */
 @Service
 public class BasisReclassificationService {
 
@@ -86,9 +82,7 @@ public class BasisReclassificationService {
                 || !LegalBasisDossier.STATUS_DRAFT.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
-        if (willComparisons.isApprovalBlocked(verificationCase.getVerificationCaseId())) {
-            throw new BusinessException(ErrorCode.WILL_NOT_VERIFIED);
-        }
+        // COURT evidence, not a will MATCH, controls distribution (PS-102).
 
         String previousRoute = dossier.getRoute();
         String route = request.route().name();
@@ -127,6 +121,9 @@ public class BasisReclassificationService {
     private static String validate(ClassifyBasisRequest request) {
         if (request == null || request.route() == null || request.routeReason() == null
                 || request.route() == ClassifyBasisRequest.Route.ON_HOLD) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        if (request.route() == ClassifyBasisRequest.Route.NOTARIAL) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         String reason = request.routeReason().trim();

@@ -24,8 +24,10 @@ public class DmsConfig {
 	@Column(name = "owner_user_id", nullable = false)
 	private Long ownerUserId;
 
-	@Column(name = "check_interval_days", nullable = false)
-	private int checkIntervalDays;
+	@Column(name = "check_interval_days")
+	private Integer checkIntervalDays;
+	@Column(name = "check_interval_minutes")
+	private Integer checkIntervalMinutes;
 
 	@Column(name = "grace_period_days", nullable = false)
 	private int gracePeriodDays;
@@ -53,6 +55,7 @@ public class DmsConfig {
 	public DmsConfig(Long ownerUserId, int checkIntervalDays, int gracePeriodDays, LocalDateTime nextCheckAt) {
 		this.ownerUserId = ownerUserId;
 		this.checkIntervalDays = checkIntervalDays;
+		this.checkIntervalMinutes = Math.multiplyExact(checkIntervalDays, 1440);
 		this.gracePeriodDays = gracePeriodDays;
 		this.status = "MONITORING";
 		this.nextCheckAt = nextCheckAt;
@@ -71,7 +74,18 @@ public class DmsConfig {
 	}
 
 	public void configure(int checkIntervalDays, LocalDateTime nextCheckAt) {
-		this.checkIntervalDays = checkIntervalDays;
+		configureMinutes(Math.multiplyExact(checkIntervalDays, 1440), nextCheckAt);
+	}
+
+	public static DmsConfig withMinutes(Long ownerId, int minutes, int graceDays, LocalDateTime nextCheckAt) {
+		var config = new DmsConfig(ownerId, 1, graceDays, nextCheckAt);
+		config.configureMinutes(minutes, nextCheckAt);
+		return config;
+	}
+	public void configureMinutes(int minutes, LocalDateTime nextCheckAt) {
+		if (minutes < 1 || minutes > 47184480) throw new IllegalArgumentException("Invalid DMS minutes");
+		this.checkIntervalMinutes = minutes;
+		this.checkIntervalDays = minutes % 1440 == 0 ? minutes / 1440 : null;
 		this.status = "MONITORING";
 		this.lastCheckInAt = null;
 		this.nextCheckAt = nextCheckAt;
@@ -82,14 +96,14 @@ public class DmsConfig {
 
 	public void checkIn(LocalDateTime now) {
 		this.lastCheckInAt = now;
-		this.nextCheckAt = now.plusDays(checkIntervalDays);
+		this.nextCheckAt = now.plusMinutes(getCheckIntervalMinutes());
 		this.updatedAt = now;
 	}
 
 	public void restoreAfterAlert(LocalDateTime now) {
 		this.status = "MONITORING";
 		this.lastCheckInAt = now;
-		this.nextCheckAt = now.plusDays(this.checkIntervalDays);
+		this.nextCheckAt = now.plusMinutes(getCheckIntervalMinutes());
 		this.triggeredAt = null;
 		this.graceDeadline = null;
 		this.updatedAt = now;
@@ -116,7 +130,8 @@ public class DmsConfig {
 
 	public Long getId() { return id; }
 	public Long getOwnerUserId() { return ownerUserId; }
-	public int getCheckIntervalDays() { return checkIntervalDays; }
+	public Integer getCheckIntervalDays() { return checkIntervalDays; }
+	public int getCheckIntervalMinutes() { return checkIntervalMinutes != null ? checkIntervalMinutes : Math.multiplyExact(checkIntervalDays, 1440); }
 	public int getGracePeriodDays() { return gracePeriodDays; }
 	public String getStatus() { return status; }
 	public LocalDateTime getLastCheckInAt() { return lastCheckInAt; }

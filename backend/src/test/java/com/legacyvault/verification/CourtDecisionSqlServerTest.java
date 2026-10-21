@@ -85,7 +85,7 @@ class CourtDecisionSqlServerTest extends LegalBasisSqlServerSupport {
                 new CourtDecisionRequest(1, CourtDecisionRequest.Result.VALID, "Cancelled")));
         var notarial = fixture(true);
         context.getBean(BasisClassificationService.class).classify(notarial.publicCaseId(), notarial.legal(),
-                new ClassifyBasisRequest(ClassifyBasisRequest.Route.NOTARIAL, "No dispute"));
+                new ClassifyBasisRequest(ClassifyBasisRequest.Route.COURT, "No dispute"));
         assertThrows(BusinessException.class, () -> service().record(notarial.publicCaseId(), notarial.legal(),
                 new CourtDecisionRequest(1, CourtDecisionRequest.Result.VALID, "Wrong route")));
     }

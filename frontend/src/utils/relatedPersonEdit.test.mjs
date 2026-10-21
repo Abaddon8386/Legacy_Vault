@@ -85,3 +85,21 @@ test('Bug 5: create form validates email and phone on blur, not only after submi
  for(const prefix of ['trustee','ben']){await change(view.host,prefix+'-email','invalid');await act(async()=>props(view.host.querySelector('#'+prefix+'-email')).onBlur());assert.equal(view.host.querySelector('#'+prefix+'-email').classList.contains('has-error'),true);await change(view.host,prefix+'-phone','abc');await act(async()=>props(view.host.querySelector('#'+prefix+'-phone')).onBlur());assert.equal(view.host.querySelector('#'+prefix+'-phone').classList.contains('has-error'),true);}
  }finally{await view.close();globalThis.fetch=oldFetch;}
 });
+
+test('editing a birthdate into minority warns and cannot bypass pending guardian support',async()=>{
+ const oldFetch=globalThis.fetch;let writes=0;
+ globalThis.fetch=async(url,options={})=>{if(options.method==='PUT')writes++;return listResponse(url);};
+ const view=await mount();try{
+  const section=view.host.querySelector('section[aria-labelledby="beneficiary-heading"]');
+  await act(async()=>section.querySelector('.lv-tb-entity-header button').click());
+  await change(view.host,'related-edit-dateOfBirth',`${new Date().getFullYear()-10}-01-01`);
+  const form=view.host.querySelector('.lv-tb-edit-backdrop form');
+  assert.match(view.host.querySelector('#related-guardian-notice').textContent,/under 18/);
+  assert.equal(form.querySelector('button[type="submit"]').disabled,true);
+  await act(async()=>form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(writes,0);
+  await change(view.host,'related-edit-dateOfBirth','1995-05-20');
+  assert.equal(view.host.querySelector('#related-guardian-notice'),null);
+  assert.equal(form.querySelector('button[type="submit"]').disabled,false);
+ }finally{await view.close();globalThis.fetch=oldFetch;}
+});

@@ -15,4 +15,6 @@ public interface LegalBasisReviewHistoryRepository
 
     Optional<LegalBasisReviewHistory> findFirstByDossierIdAndVersionNoAndReviewStatusInOrderByIdDesc(
             Long dossierId, Integer versionNo, List<String> reviewStatuses);
+    Optional<LegalBasisReviewHistory> findFirstByDossierIdAndReviewStatusInOrderByIdDesc(
+            Long dossierId, List<String> reviewStatuses);
 }

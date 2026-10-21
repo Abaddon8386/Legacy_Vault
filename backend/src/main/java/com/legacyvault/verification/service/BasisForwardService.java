@@ -105,7 +105,7 @@ public class BasisForwardService {
         lockedState.refresh(dossier);
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
 
-        if (!LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())) {
+        if (!dossier.acceptsIntake() || !LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 

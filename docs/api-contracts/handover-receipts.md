@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) applies to new handover operations. Legacy NOTARIAL remains read-only; current court validation, exact allocation approval and counter guards are mandatory.
+
 # Staff Handover Confirmation Records — PS-61 (intermediate record)
 
 Receipt creation is currently fail-closed. COMPLETED, VERIFIED_AT_COUNTER, and approved allocation alone do not prove that PS-65 delivery, PS-67 beneficiary confirmation, PS-68/69/70 dual completion, and PS-71 valid close have completed for the correct recipient and approved scope.

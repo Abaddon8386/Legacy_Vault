@@ -477,8 +477,8 @@ test('EX-01 AppShell Dashboard & Navigation Auth State Regression Verification',
   const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
   assert.equal(
     appShellMatches.length,
-    14,
-    'Expected 14 AppShell render sites including live Legal, Beneficiary and Admin destinations'
+    15,
+    'Expected 15 AppShell render sites including live Legal, Beneficiary, Shared with me and Admin destinations'
   );
 
   for (let i = 0; i < appShellMatches.length; i++) {
