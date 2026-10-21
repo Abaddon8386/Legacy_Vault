@@ -156,3 +156,18 @@ test('Task 26: Homepage authentication states and role-based Dashboard button', 
     } finally { await view.close(); }
   }
 });
+
+test('all landing calls to action preserve language and route authenticated users to Dashboard', async () => {
+  const Landing = await component();
+  for (const authenticated of [false, true]) {
+    const calls = [];
+    const view = await mount(Landing, { session: authenticated ? { accessToken: 'fixture', expiresAt: Date.now()+60000, user: { id: 'owner', roles: ['VAULT_OWNER'] } } : null,
+      onRegister: lang => calls.push(['register',lang]), onDashboard: lang => calls.push(['dashboard',lang]) });
+    try {
+      await act(async () => view.host.querySelector('.lv-landing-language').click());
+      await act(async () => view.host.querySelector('.lv-landing-primary').click());
+      await act(async () => view.host.querySelector('.lv-landing-end-cta').click());
+      assert.deepEqual(calls, [[authenticated ? 'dashboard':'register','en'],[authenticated ? 'dashboard':'register','en']]);
+    } finally { await view.close(); }
+  }
+});

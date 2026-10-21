@@ -42,7 +42,7 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
             <p className="lv-landing-eyebrow"><span />{en ? 'A PLACE FOR WHAT MATTERS' : 'DÀNH CHỖ CHO NHỮNG ĐIỀU QUÝ GIÁ'}</p>
             <h1 id="lv-landing-title">{en ? 'A lifetime of stories.' : 'Một đời vun đắp.'}<br /><em>{en ? 'A legacy to keep.' : 'Một nơi gìn giữ.'}</em></h1>
             <p className="lv-landing-description">{en ? 'Bring your digital assets, documents and wishes together. Thoughtfully organised today, for the people you care about tomorrow.' : 'Sắp xếp tài sản số, lưu giữ tài liệu và những điều muốn gửi gắm. Để những gì bạn trân trọng hôm nay được chuẩn bị chu đáo cho ngày mai.'}</p>
-            <button className="lv-landing-primary" onClick={onRegister}>{en ? 'Create your space' : 'Bắt đầu gìn giữ'}<ArrowUpRight size={20} /></button>
+            <button className="lv-landing-primary" disabled={isRestoringSession} onClick={() => (isDashboardEligible ? onDashboard : onRegister)?.(lang)}>{isDashboardEligible ? (en ? 'Dashboard' : 'Bảng điều khiển') : (en ? 'Create your space' : 'Bắt đầu gìn giữ')}<ArrowUpRight size={20} /></button>
             <p className="lv-landing-small">{en ? 'Start with the free Basic plan. One vault, through every chapter.' : 'Bắt đầu với gói Cơ bản miễn phí. Một kho, đồng hành qua từng chặng đời.'}</p>
           </div>
           <div className="lv-landing-art">
@@ -83,7 +83,7 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
         <p className="lv-landing-plan-note">{en ? 'Proposed plans for reference. Activation and billing are not available yet.' : 'Các gói đề xuất để tham khảo. Hiện chưa mở kích hoạt và thanh toán.'}</p>
         <div className="lv-landing-plans">{SUBSCRIPTION_PLANS.map(plan => <article key={plan.code}><h3>{en ? plan.nameEn : plan.nameVi}</h3><p className="lv-landing-price">{en ? plan.priceEn : plan.priceVi}</p><p>{plan.maxAssets} {en ? 'assets' : 'tài sản'}<br />{plan.code === 'BASIC' ? '100 MB' : plan.code === 'STANDARD' ? '1 GB' : '5 GB'} {en ? 'document storage' : 'lưu trữ tài liệu'}</p></article>)}</div>
         <p className="lv-landing-plan-note">{en ? 'Every plan includes one vault for the lifetime of your account. No online payment is collected here.' : 'Mọi gói đều áp dụng một kho trong suốt vòng đời tài khoản. Trang này chưa tiếp nhận thanh toán trực tuyến.'}</p>
-        <button className="lv-landing-end-cta" onClick={onRegister}>{en ? 'Create an account' : 'Tạo tài khoản'}<ArrowUpRight size={18} /></button>
+        <button className="lv-landing-end-cta" disabled={isRestoringSession} onClick={() => (isDashboardEligible ? onDashboard : onRegister)?.(lang)}>{isDashboardEligible ? (en ? 'Dashboard' : 'Bảng điều khiển') : (en ? 'Create an account' : 'Tạo tài khoản')}<ArrowUpRight size={18} /></button>
       </section>
     </main>
     <footer className="lv-landing-footer"><span>LegacyVault</span><p>{en ? 'For the chapters that follow.' : 'Gìn giữ hôm nay, trao gửi mai sau.'}</p><span>© 2026</span></footer>
