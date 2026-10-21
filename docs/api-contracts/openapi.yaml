@@ -2928,6 +2928,51 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/assets:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: page
+        in: query
+        schema: { type: integer, minimum: 0, default: 0 }
+      - name: size
+        in: query
+        schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    get:
+      tags: [Staff]
+      summary: Staff đọc catalog metadata tài sản trước unlock (PS-118, FE PS-96)
+      description: |
+        Read only. Requires ROLE_STAFF_EXECUTOR, authenticated principal and an OPEN case assigned to that Staff.
+        Vault must be in AWAITING_VERIFICATION, DOCUMENT_VERIFICATION, WILL_VERIFICATION,
+        AWAITING_LEGAL_BASIS or LEGAL_BASIS_VERIFICATION. ON_HOLD, ACTIVE, UNLOCKED, HANDOVER_IN_PROGRESS
+        and ARCHIVED are not readable. Lists ACTIVE assets in the case Vault, excluding DOCUMENT (will files).
+        Only public assetId, assetType and display name are returned; no description, secret, payload, image,
+        credential, key, internal id or allocation data. Empty catalogs return content: []. Does not change
+        allocations or workflow state. Response is Cache-Control: no-store. Beneficiaries remain available at
+        the existing /beneficiaries contract.
+      x-status: implemented
+      responses:
+        '200':
+          description: Paged public metadata catalog
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffAssetCatalogPage' }
+              example:
+                content:
+                  - assetId: 2af808e1-9be3-47b7-9101-a7d559a25058
+                    assetType: TEXT
+                    name: Bank account
+                page: 0
+                size: 20
+                totalElements: 1
+                totalPages: 1
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
     post:
       tags: [Staff]
@@ -4758,6 +4803,26 @@ components:
             canLinkAccount: { type: boolean }
             canCreateAccount: { type: boolean }
             canHandOverWithoutAccount: { type: boolean, description: "Chỉ cần xác minh tại quầy, không cần tài khoản" }
+    StaffAssetCatalogItem:
+      type: object
+      additionalProperties: false
+      required: [assetId, assetType, name]
+      properties:
+        assetId: { type: string, format: uuid, description: Public asset ID }
+        assetType: { type: string, enum: [TEXT, CREDENTIAL, FILE] }
+        name: { type: string, maxLength: 200, description: Display title; not the protected payload }
+    StaffAssetCatalogPage:
+      type: object
+      additionalProperties: false
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/StaffAssetCatalogItem' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalElements: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
     BeneficiaryAccountLinkRequest:
       type: object
       required: [accountEmail]
