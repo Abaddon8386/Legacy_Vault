@@ -300,7 +300,13 @@ export default function AppShell({
     t.brandTag = lang === 'en' ? 'Administrator account' : 'Tài khoản quản trị';
     t.navSectionTitle = lang === 'en' ? 'ADMINISTRATION' : 'QUẢN TRỊ';
     t.breadcrumbHome = lang === 'en' ? 'Administration' : 'Quản trị';
-    t.breadcrumbCurrent = currentTab === 'admin-subscriptions' ? (lang === 'en' ? 'Subscription management' : 'Quản lý gói sử dụng') : (lang === 'en' ? 'Overview' : 'Tổng quan');
+    t.breadcrumbCurrent = currentTab === 'admin-subscriptions'
+      ? (lang === 'en' ? 'Subscription management' : 'Quản lý gói sử dụng')
+      : currentTab === 'admin-users'
+      ? (lang === 'en' ? 'Users' : 'Người dùng')
+      : currentTab === 'admin-logs'
+      ? (lang === 'en' ? 'Audit logs' : 'Nhật ký')
+      : (lang === 'en' ? 'Administration overview' : 'Tổng quan quản trị');
     t.roleBadge = lang === 'en' ? 'Administrator' : 'Quản trị viên';
   }
   if (isBeneficiary) {
@@ -313,7 +319,9 @@ export default function AppShell({
   const navList = isAdmin
     ? [
         { id: 'admin-home', labelVi: 'Tổng quan quản trị', labelEn: 'Administration overview', status: 'ACTIVE' },
+        { id: 'admin-users', labelVi: 'Người dùng', labelEn: 'Users', status: 'ACTIVE' },
         { id: 'admin-subscriptions', labelVi: 'Quản lý gói sử dụng', labelEn: 'Subscription management', status: 'ACTIVE' },
+        { id: 'admin-logs', labelVi: 'Nhật ký', labelEn: 'Audit logs', status: 'ACTIVE' },
       ]
     : isBeneficiary
       ? [
