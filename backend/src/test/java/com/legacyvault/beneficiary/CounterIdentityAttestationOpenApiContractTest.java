@@ -69,4 +69,37 @@ class CounterIdentityAttestationOpenApiContractTest {
         assertEquals(java.util.Set.of("expectedGeneration"),
                 ((Map<?, ?>) staffMailRequest.get("properties")).keySet());
     }
+
+    @Test
+    void declaresSafePreUnlockAssetCatalogAndPreservesBeneficiaryContract() throws Exception {
+        Path file = Path.of("docs/api-contracts/openapi.yaml");
+        if (!Files.exists(file)) file = Path.of("../docs/api-contracts/openapi.yaml");
+        LoaderOptions options = new LoaderOptions();
+        options.setAllowDuplicateKeys(false);
+        Map<?, ?> root = new Yaml(new SafeConstructor(options)).load(Files.readString(file));
+        Map<?, ?> paths = (Map<?, ?>) root.get("paths");
+        Map<?, ?> catalogPath = (Map<?, ?>) paths.get("/api/v1/staff/verification-cases/{caseId}/assets");
+        Map<?, ?> get = (Map<?, ?>) catalogPath.get("get");
+        assertEquals("implemented", get.get("x-status"));
+        Map<?, ?> responses = (Map<?, ?>) get.get("responses");
+        Map<?, ?> response200 = (Map<?, ?>) responses.get("200");
+        Map<?, ?> schema = (Map<?, ?>) ((Map<?, ?>) ((Map<?, ?>) response200.get("content"))
+                .get("application/json")).get("schema");
+        assertEquals("#/components/schemas/StaffAssetCatalogPage", schema.get("$ref"));
+        Map<?, ?> schemas = (Map<?, ?>) ((Map<?, ?>) root.get("components")).get("schemas");
+        Map<?, ?> item = (Map<?, ?>) schemas.get("StaffAssetCatalogItem");
+        assertEquals(java.util.Set.of("assetId", "assetType", "name"),
+                ((Map<?, ?>) item.get("properties")).keySet());
+        assertEquals(Boolean.FALSE, item.get("additionalProperties"));
+
+        Map<?, ?> beneficiaries = (Map<?, ?>) paths.get("/api/v1/staff/verification-cases/{caseId}/beneficiaries");
+        assertTrue(beneficiaries.containsKey("get"), "existing PS-88 beneficiary contract remains in place");
+        Map<?, ?> beneficiaryGet = (Map<?, ?>) beneficiaries.get("get");
+        Map<?, ?> beneficiaryResponses = (Map<?, ?>) beneficiaryGet.get("responses");
+        Map<?, ?> beneficiary200 = (Map<?, ?>) beneficiaryResponses.get("200");
+        Map<?, ?> beneficiaryContent = (Map<?, ?>) beneficiary200.get("content");
+        Map<?, ?> beneficiaryJson = (Map<?, ?>) beneficiaryContent.get("application/json");
+        Map<?, ?> beneficiarySchema = (Map<?, ?>) beneficiaryJson.get("schema");
+        assertEquals("array", beneficiarySchema.get("type"));
+    }
 }
