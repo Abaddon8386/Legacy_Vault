@@ -19,8 +19,15 @@ public final class SubscriptionDtos {
                     new Limits(plan.getAssetLimit(), plan.getStorageLimitBytes(), plan.getFileLimitBytes()));
         }
     }
-    public record UsageView(long assetCount, long storageBytes) {
-        public static UsageView from(Usage usage) { return new UsageView(usage.assets(), usage.bytes()); }
+    /**
+     * {@code assetCount} is the number counted against the plan limit and includes wills (D-API-42);
+     * {@code willCount} and {@code assetOnlyCount} (= assetCount - willCount) explain that total.
+     */
+    public record UsageView(long assetCount, long storageBytes, long willCount, long assetOnlyCount) {
+        public static UsageView from(Usage usage, long wills) {
+            long safeWills = Math.min(Math.max(wills, 0), usage.assets());
+            return new UsageView(usage.assets(), usage.bytes(), safeWills, usage.assets() - safeWills);
+        }
     }
     public record OverQuota(boolean assets, boolean storage) {}
     public record Current(Plan effectivePlan, Instant effectiveUntil, UsageView usage,

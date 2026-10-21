@@ -6,6 +6,22 @@
   color: #1a202c;
 }
 
+.lv-admin-sub-gauges{display:grid;gap:16px;margin-top:20px}
+.lv-admin-sub-gauge-title{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.lv-admin-sub-bar{height:10px;border-radius:6px;overflow:hidden;background:#e2e8f0;margin-top:6px}
+.lv-admin-sub-bar-fill{height:100%;background:#164639}.lv-admin-sub-bar-fill.over{background:#b54532}
+.lv-admin-sub-quota-warning{color:#b54532;font-weight:600}
+.lv-admin-sub-search-form{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.lv-admin-sub-search-input{flex:1 1 220px;min-width:0;padding:12px;border:1px solid #ddd8cc;border-radius:8px;background:#fff}
+.lv-admin-sub-account-result{background:#fff;border:1px solid #e6e1d7;padding:20px;border-radius:14px}
+.lv-admin-sub-account-header{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.lv-admin-sub-account-header h3{margin:0 0 8px}.lv-admin-sub-id-badge{font-size:12px;color:#68756d;overflow-wrap:anywhere;margin-top:6px}
+.lv-admin-sub-meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.lv-admin-sub-meta-box{display:flex;flex-direction:column;gap:6px;min-width:0;overflow-wrap:anywhere}
+.lv-admin-sub-meta-label{font-size:13px;color:#68756d}.lv-admin-sub-meta-val{font-weight:600}
+.lv-admin-sub-btn{padding:10px 16px;border:1px solid #c5cfc7;border-radius:8px;background:#fff;color:#164639;cursor:pointer}
+.lv-admin-sub-btn--primary{background:#164639;color:#fff}.lv-admin-sub-btn:disabled{opacity:.5;cursor:default}
+
 .lv-admin-sub-header {
   margin-bottom: 24px;
 }

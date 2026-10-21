@@ -58,6 +58,8 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Auth | `AUTH_REGISTERED`, `AUTH_LOGIN_SUCCEEDED`, `AUTH_LOGIN_FAILED` | PS-9, PS-10 |
 | Vault | `VAULT_CREATED`, `VAULT_ALERT_CANCELLED` | PS-12, PS-33 |
 | Asset | `ASSET_CREATED`, `ASSET_UPDATED`, `ASSET_REVEALED` | PS-15, PS-16 |
+| Tài sản đã nhận (Beneficiary) | `RECEIVED_ASSET_OPENED`, `RECEIVED_ASSET_IMAGE_OPENED` (không ghi nội dung) | PS-104 |
+| Tài liệu đính kèm tài sản | `ASSET_DOCUMENT_ADDED`, `ASSET_DOCUMENT_OPENED`, `ASSET_DOCUMENT_REMOVED` (không ghi tên tệp hay nội dung) | PS-114 |
 | Tệp đính kèm giấy tờ tiếp nhận | `INTAKE_ATTACHMENT_UPLOADED`; `EVIDENCE_FILE_READ` (mỗi lần đọc nội dung tệp đính kèm hoặc file phiên bản căn cứ; không ghi tên file/nội dung) | PS-103 |
 | Xác nhận lại mật khẩu | `REAUTH_FAILED` (mỗi lần sai, khi xem hoặc sửa Asset; là bộ đếm cho giới hạn thử, D-API-32, D-API-40) | PS-16, PS-111 |
 | Will | `WILL_UPLOADED`, `WILL_VERSION_ADDED`, `WILL_FILE_OPENED` | PS-17, PS-18 |

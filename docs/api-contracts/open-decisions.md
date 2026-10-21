@@ -31,6 +31,57 @@ Contract và scope kiểm chứng: [beneficiary-invitations.md](beneficiary-invi
 Quyết định này mở rộng hạn chế onboarding "chỉ tại quầy" cũ của PS-20/PS-62/63,
 không thay các yêu cầu xác minh trực tiếp, Legal, handover, confirmation hoặc archive.
 
+## PS-87 / PS-106 — approved direction and implementation blockers
+
+The following direction is approved in the user's 2026-10-21 instruction for this feature branch and supersedes
+conflicting legacy wording only for PS-87/PS-106 integration. It does not retroactively mark existing PS-86
+invitations as email-bound and does not alter the existing `VERIFIED_AT_COUNTER` workflow:
+
+- PS-87 is authenticated-only redemption for an existing account. New users use ordinary signup/login first; no
+  public signup+redeem route. Preserve existing roles and add only the Beneficiary role through PS-86. Email is bound
+  to the Beneficiary/invitation after Staff confirms the recipient and address at the counter. Backend must reject
+  missing/mismatched/unproven binding; no email, account ID, role, or verification flag from FE is authoritative.
+- PS-106 targets the Staff-confirmed email before account linking. Counter evidence records authenticated Staff,
+  server UTC time, case/Beneficiary and evidence reference. The optional `confirmedEmail` snapshot is stored in the
+  append-only attestation but is not returned or logged as plaintext. It does not change legacy identity status.
+- PS-86 code/lifecycle remains authoritative. No new generator or plaintext recovery. Raw code may reach mail only
+  through an atomic encrypted outbox. Transport must remain disabled by default until provider/sender/test recipient
+  and transport policies are approved. Linking never unlocks content; PS-104 exact-recipient DELIVERED authorization
+  remains the only read gate.
+- For a current PS-106 invitation generation bound to the email Staff confirmed in person for the correct Beneficiary,
+  redeem requires the authenticated account's normalized email to equal that generation's bound address;
+  `users.email_verified_at` may be NULL. This narrow exception does not write that column or claim Staff attestation
+  proves mailbox control. It does not apply to unbound/legacy or Owner-issued invitations. The existing
+  `VERIFIED_AT_COUNTER` beneficiary status remains required; the new attestation does not write or substitute for it.
+  Legacy invitations without email binding must be confirmed by Staff and revoked/reissued through the existing PS-86
+  lifecycle with audit; no silent trust promotion.
+- Redeem limits retain five failed attempts/account/15 minutes and add five failed attempts/account+invitation/15
+  minutes. A pessimistic lock on the authenticated User row serializes checks across instances; failed-attempt rows
+  are written in a separate transaction so rollback cannot erase them. Invalid-format inputs consume only the account
+  bucket because they have no canonical invitation hash. No trusted IP/X-Forwarded-For policy is introduced.
+- Route: `POST /api/v1/auth/invitations/redeem` with bearer authentication and `{ "code": "..." }`. Staff-bound
+  issuance and authenticated redeem are implemented. Signup+redeem remains excluded; real email delivery and the
+  PS-104 delivered-item read API remain separate integration blockers.
+
+Source-backed blockers still open:
+
+- `BeneficiaryInvitation.recipient_email` is now nullable and legacy rows remain null. Migration V41 adds this field.
+  The Staff PS-106 endpoint now confirms the current generation, applies the existing PS-86 issue/reissue lifecycle,
+  binds the last counter-confirmed email, and writes the generation's code+recipient encrypted in V43 outbox in the
+  same transaction. Legacy rows stay unbound until this explicit flow reissues them.
+- Durable redeem limiting is implemented with SQL Server failure rows and the locked authenticated User row. SQL
+  Server concurrency/rollback behavior still needs a real SQL Server integration run.
+- The Staff counter attestation has a nullable `confirmed_email` snapshot; this records the address Staff confirmed
+  at the counter, but does not prove mailbox control. The approved PS-106 flow binds that address to the invitation
+  generation and permits the matching authenticated account to redeem even while `users.email_verified_at` is NULL.
+  No email-verification flow currently populates that column; no general email-verification policy is inferred.
+- No mail provider/sandbox, sender, test recipient, transport adapter, or worker exists. The outbox is persisted but
+  transport remains hard-disabled. Provider acceptance,
+  timeout/retry/backoff, resend/idempotency semantics, audit events, and ciphertext/key-version deletion/retention
+  policy are not configured. Transport remains disabled; do not claim delivery.
+- Current develop has no beneficiary-scoped delivered-item content/image endpoint from PS-104. Linking does not
+  grant asset reads, and no replacement access mechanism is implemented.
+
 > **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
 
 > **Cách đọc:** mục **ĐÃ CHỐT** là quyết định để FE/BE triển khai Sprint 1, do **Dương (điều phối PS-74) chốt ngày 2026-10-11**
@@ -89,6 +140,9 @@ không thay các yêu cầu xác minh trực tiếp, Legal, handover, confirmati
 | D-API-39 | PS-88 | Dữ liệu tại quầy cho Beneficiary (ST-14, ST-24) | **Giải quyết theo Main Flow v4.2; chờ nhóm xác nhận.** (1) Staff chỉ đọc Beneficiary của ca `OPEN` được giao cho mình; không trả email, số điện thoại, số giấy tờ hay mã mời. (2) `counterStep` suy ra từ dữ liệu server: chờ xác minh tại quầy → chờ quyết định tài khoản → đã liên kết; `actions` chỉ là gợi ý, server kiểm tra lại. (3) Tài khoản không bắt buộc: bàn giao chỉ cần `VERIFIED_AT_COUNTER` (D-API-38), nên người nhận chọn xử lý offline không cần bản ghi riêng; chưa có API ghi nhận lựa chọn này. (4) Liên kết/tạo tại quầy thu hồi mã mời `PENDING` của Beneficiary đó. (5) Chưa idempotent khi liên kết lại cùng tài khoản: vẫn trả `BENEFICIARY_ACCOUNT_ALREADY_LINKED`. |
 | D-API-40 | PS-111 | Xác thực lại mật khẩu khi sửa Asset | **Đề xuất, chờ nhóm xác nhận.** (1) `PATCH .../assets/{assetId}` bắt buộc trường `password` (mật khẩu đăng nhập hiện tại); server tự xác thực, không dựa cờ FE. (2) Áp dụng cho mọi lần sửa (tên, mô tả, payload), không chỉ payload. (3) Dùng lại `PasswordReauthService` và cùng bộ đếm thử sai với `reveal` (mặc định 5 lần/15 phút, cấu hình được, chưa chốt). (4) Thứ tự 404 → 409 → 403/429; thiếu `password` là 400 và không tính lần sai. (5) Client cũ không gửi `password` nhận 400 (thay đổi không tương thích, FE PR #141 gửi kèm). (6) Chưa có reauth cho thao tác tạo/xóa Asset. |
 | D-API-41 | PS-103 | Tệp đính kèm giấy tờ tiếp nhận và đọc file theo quyền | **Đề xuất, chờ nhóm xác nhận.** (1) Bảng riêng `staff_intake_attachments` (V40), chỉ thêm, mã hóa AES-256-GCM, gắn vào bản ghi giấy tờ tử vong hoặc lần nộp di chúc giấy gốc; không có nhóm giấy tờ danh tính. (2) Loại PDF/JPEG/PNG theo nội dung, tối đa 10 MB/tệp và 10 tệp/bản ghi, cấu hình `legacyvault.intake.*`: các con số là mặc định đề xuất, chưa chốt; chưa có retention hay quota theo gói. (3) Staff đã nhận ca được tải lên khi ca `OPEN`; Staff được giao và mọi Legal Verifier đọc (phạm vi Legal toàn cục sẵn có); file căn cứ chỉ Legal đọc khi phiên bản đã chuyển (ST-19). (4) Mỗi lần đọc nội dung ghi audit `EVIDENCE_FILE_READ`. (5) Chưa chặn đính kèm thêm sau khi Legal đã quyết định; đề xuất chặn nếu nhóm đồng ý. |
+| D-API-42 | PS-92 | Thực thi hạn mức tài sản và cách đếm di chúc | **Đề xuất, chờ nhóm xác nhận** (người dùng chọn 21/10/2026 trong phiên làm PS-92). (1) `quota-enforcement-enabled` mặc định **true**: hạn mức catalog hiện hành (5/50/200 tài sản; 100 MiB/1 GiB/5 GiB) được thực thi; đặt `QUOTA_ENFORCEMENT_ENABLED=false` để tắt khi vận hành. (2) Di chúc **tính vào** số tài sản (mỗi di chúc một chỗ; phiên bản mới của cùng di chúc không chiếm thêm); mọi phiên bản file di chúc và ảnh tính vào dung lượng. (3) Owner đang vượt giới hạn vẫn đọc/sửa không tăng usage/xóa ảnh, nhưng mọi thao tác tăng count hoặc byte bị 409; không xóa hay sửa dữ liệu tự động. (4) `GET /subscriptions/me` thêm `usage.willCount` và `usage.assetOnlyCount` (đếm vẫn nằm trong `assetCount`). (5) Chưa có API xóa Asset/di chúc để Owner tự giải phóng chỗ; chưa có chính sách xử lý Owner vượt hạn mức do hạ gói. |
+| D-API-43 | PS-114 | Tài liệu PDF/Word đính kèm tài sản | **Đề xuất, chờ nhóm xác nhận** (người dùng chọn định dạng trong phiên làm PS-114). (1) Bảng riêng `asset_documents` (V48), mã hóa AES-256-GCM, đính vào tài sản `TEXT`/`CREDENTIAL`; không dùng cho di chúc, chứng cứ Staff hay ảnh. (2) Định dạng theo nội dung: PDF, DOCX và DOC; từ chối macro (`vbaProject.bin`, `_VBA_PROJECT`), ActiveX, container khác và ZIP bom. (3) Mặc định 10 MiB/tệp và 5 tệp/tài sản, cấu hình `legacyvault.asset-documents.*`: các con số chưa chốt. (4) Dung lượng tính vào hạn mức lưu trữ, không chiếm chỗ số tài sản. (5) Đọc cần mật khẩu hiện tại (như ảnh và `reveal`); Owner xóa được khi Vault `ACTIVE`. (6) Chưa có retention, quét mã độc, xem trước phía server; tài liệu chưa thuộc phạm vi bàn giao cho Beneficiary. |
+| D-API-44 | PS-104 | Đọc tài sản đã nhận của tài khoản Beneficiary | **Đề xuất, chờ nhóm xác nhận.** (1) Quyền = principal ∧ Beneficiary liên kết với tài khoản ∧ mục bàn giao `DELIVERED`/`VERIFIED_BY_BENEFICIARY`; không có ID người nhận/kho/tài khoản trong request. (2) Chỉ thấy phần đã giao, không thấy phần đã phân bổ nhưng chưa giao. (3) Mục đã giao vẫn đọc được khi kho `ARCHIVED` hoặc `ON_HOLD` (lịch sử, không tự thu hồi); tranh chấp mới chỉ chặn phần chưa giao (LV-HOLD-001). (4) Đọc nội dung/ảnh cần mật khẩu hiện tại, dùng chung bộ đếm thử sai với `reveal` (mặc định 5 lần/15 phút, chưa chốt). (5) Một tài khoản nhận từ nhiều kho; endpoint tách biệt `/api/v1/received-assets`. (6) Chưa gồm tài liệu PDF/Word đính kèm (PS-114) và chưa có ngưỡng thời gian giữ quyền đọc sau lưu trữ. |
 
 ## C. Câu hỏi mở kế thừa từ tài liệu nghiệp vụ — **TẠM HOÃN** (2026-10-12)
 

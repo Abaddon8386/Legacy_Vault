@@ -42,6 +42,7 @@ async function mount(Component, props) {
   await act(async () => root.render(React.createElement(Component, props)));
   return {
     host,
+    root,
     close: async () => {
       await act(async () => root.unmount());
       host.remove();
@@ -84,12 +85,32 @@ test('AdminSubscriptionPage renders header, title, and tabs in both VI and EN', 
   }
 });
 
-test('Tab switching displays account search and transactions notice', async () => {
+test('Quota lookup preserves true over-limit values, warns, and clears on query/account change',async()=>{
+  const previousFetch=globalThis.fetch;
+  globalThis.fetch=async url=>({ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>url.includes('/accounts?')?
+    {accountId:'test',username:'Quota test',email:'quota@example.test',assetCount:8,assetLimit:5,storageBytes:200,storageBytesLimit:100}:[]});
+  const view=await mount(Page,{accessToken:'one',lang:'en'});
+  const props=el=>el[Object.keys(el).find(k=>k.startsWith('__reactProps$'))];
+  try{
+    await act(async()=>view.host.querySelectorAll('.lv-admin-sub-tab-btn')[1].click());
+    await act(async()=>props(view.host.querySelector('.lv-admin-sub-search-input')).onChange({target:{value:'quota@example.test'}}));
+    await act(async()=>props(view.host.querySelector('form')).onSubmit({preventDefault(){}}));
+    assert.match(view.host.textContent,/8 \/ 5/);assert.match(view.host.textContent,/Over quota/);
+    assert.equal(view.host.querySelector('.lv-admin-sub-bar-fill.over').style.width,'100%');
+    await act(async()=>props(view.host.querySelector('.lv-admin-sub-search-input')).onChange({target:{value:'other'}}));
+    assert.doesNotMatch(view.host.textContent,/8 \/ 5/);
+    await act(async()=>view.root.render(React.createElement(Page,{accessToken:'two',lang:'en'})));
+    assert.doesNotMatch(view.host.textContent,/quota@example.test/);
+  }finally{await view.close();globalThis.fetch=previousFetch;}
+});
+
+test('Tab switching displays account search and genuine unavailable transaction errors', async () => {
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = async () => ({
-    ok: true,
+  globalThis.fetch = async (url) => ({
+    ok: !url.includes('/transactions'),
+    status: url.includes('/transactions') ? 409 : 200,
     headers: { get: () => 'application/json' },
-    json: async () => [],
+    json: async () => url.includes('/transactions') ? {code:'PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE'} : [],
   });
 
   try {
@@ -110,7 +131,6 @@ test('Tab switching displays account search and transactions notice', async () =
       await act(async () => {
         buttons[2].click();
       });
-      assert.ok(view.host.textContent.includes('PS-80'));
       assert.ok(view.host.textContent.includes('chưa khả dụng'));
     } finally {
       await view.close();

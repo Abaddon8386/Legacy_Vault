@@ -1,5 +1,6 @@
 package com.legacyvault.beneficiary;
 
+import com.legacyvault.auth.EmailNormalizer;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,6 +16,7 @@ public class BeneficiaryInvitation {
     @Column(nullable = false, updatable = false) private int generation;
     @Column(name = "is_current", nullable = false) private boolean current;
     @Column(name = "code_hash", nullable = false, updatable = false, length = 64) private String codeHash;
+    @Column(name = "recipient_email", length = 254) private String recipientEmail;
     @Column(name = "issued_at", nullable = false, updatable = false) private LocalDateTime issuedAt;
     @Column(name = "expires_at", nullable = false, updatable = false) private LocalDateTime expiresAt;
     @Column(name = "issued_by_user_id", nullable = false, updatable = false) private Long issuedBy;
@@ -28,6 +30,11 @@ public class BeneficiaryInvitation {
         this.publicId = UUID.randomUUID(); this.beneficiary = beneficiary; this.generation = generation;
         this.current = true; this.codeHash = hash; this.issuedAt = now; this.expiresAt = now.plusDays(7);
         this.issuedBy = actor;
+    }
+    BeneficiaryInvitation(Beneficiary beneficiary, int generation, String hash, Long actor, LocalDateTime now,
+            String recipientEmail) {
+        this(beneficiary, generation, hash, actor, now);
+        this.recipientEmail = EmailNormalizer.normalize(recipientEmail);
     }
     public String state(LocalDateTime now) {
         if (consumedAt != null) return "CONSUMED";
@@ -47,4 +54,5 @@ public class BeneficiaryInvitation {
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public LocalDateTime getRevokedAt() { return revokedAt; }
     public LocalDateTime getConsumedAt() { return consumedAt; }
+    public String getRecipientEmail() { return recipientEmail; }
 }

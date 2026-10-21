@@ -5,6 +5,7 @@ info:
   description: |
     Contract Sprint 1 (PS-9 → PS-23). Quyết định đã chốt ngày 2026-10-11 (xem open-decisions.md), chờ FE/BE review.
     `x-status: designed` = đã chốt contract, chưa triển khai. `x-status: implemented` = đã có code Backend trong workspace.
+    `x-status: blocked` = contract draft, chưa có runtime endpoint. `x-integration-status: blocked` = endpoint đã tồn tại nhưng flow chưa đủ điều kiện tích hợp end-to-end.
     Mọi lỗi dùng cùng hình dạng `ApiError` (kể cả 401/403). FE phân loại lỗi bằng `code`, không bằng `message`.
     Ví dụ dùng dữ liệu giả; không chứa token hay mật khẩu thật.
 servers:
@@ -36,6 +37,8 @@ paths:
     $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian~1revoke"
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/history:
     $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian~1history"
+  /api/v1/admin/subscriptions/transactions/{paymentId}:
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions~1{paymentId}"
   /api/v1/staff/verification-cases:
     get:
       tags: [Staff]
@@ -477,6 +480,243 @@ paths:
         "413": { description: "Shared ApiError; see image contract" }
         "415": { description: "Shared ApiError; see image contract" }
         "429": { description: "Shared ApiError; see image contract" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+    get:
+      tags: [Assets]
+      summary: Owner lists PDF/Word documents attached to an Asset (PS-114)
+      description: Metadata only; no content. Owner of the Vault only. See asset-documents.md.
+      x-status: implemented
+      responses:
+        "200":
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AssetDocument" } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Assets]
+      summary: Owner attaches PDF/DOC/DOCX files to an Asset (PS-114)
+      description: |
+        multipart/form-data with one or more `documents` parts. Types are detected by content; macro-enabled files and other
+        containers are rejected. All files of a request are stored or none. Bytes count toward the plan storage quota; the
+        document does not occupy an Asset slot. Vault must be ACTIVE. A Will is never a target.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [documents]
+              properties:
+                documents: { type: array, items: { type: string, format: binary } }
+      responses:
+        "201":
+          description: Metadata of every document of the Asset
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AssetDocument" } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "ASSET_DOCUMENT_LIMIT_EXCEEDED, STORAGE_QUOTA_EXCEEDED or VAULT_NOT_EDITABLE" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/documents/{documentId}/download:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Assets]
+      summary: Owner reads one attached document after re-entering the login password (PS-114)
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: Decrypted bytes. Always attachment, nosniff, no-store, CSP sandbox.
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            application/msword: { schema: { type: string, format: binary } }
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: "ACCESS_DENIED (role) or REAUTH_FAILED (wrong password; not 401)" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: VAULT_NOT_EDITABLE }
+        "429": { description: TOO_MANY_ATTEMPTS }
+  /api/v1/vaults/{vaultId}/assets/{assetId}/documents/{documentId}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/AssetId"
+      - name: documentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Assets]
+      summary: Owner removes an attached document and frees its storage (PS-114)
+      x-status: implemented
+      responses:
+        "204": { description: Removed }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: VAULT_NOT_EDITABLE }
+  /api/v1/received-assets:
+    get:
+      tags: [Beneficiary]
+      summary: Beneficiary account lists the assets Staff delivered to it (PS-104)
+      description: |
+        Role BENEFICIARY only. The account is taken from the principal; only handover items DELIVERED or
+        VERIFIED_BY_BENEFICIARY to a Beneficiary linked to this account are returned, from every source Vault, newest first.
+        Undelivered allocations are never listed. Still readable after the Vault is archived. See received-assets.md.
+      x-status: implemented
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Page of received items (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content, page, size, totalElements, totalPages]
+                properties:
+                  content: { type: array, items: { $ref: "#/components/schemas/ReceivedAsset" } }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalElements: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/received-assets/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Beneficiary]
+      summary: Beneficiary account reads one received item, metadata only (PS-104)
+      x-status: implemented
+      responses:
+        "200":
+          description: The item; never content
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceivedAsset" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/received-assets/{itemId}/images:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Beneficiary]
+      summary: Metadata of the images of a received asset (PS-104)
+      x-status: implemented
+      responses:
+        "200":
+          description: Image metadata, no bytes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, fileName, contentType, sizeBytes, createdAt]
+                  properties:
+                    id: { type: string, format: uuid }
+                    fileName: { type: string }
+                    contentType: { type: string, enum: [image/jpeg, image/png] }
+                    sizeBytes: { type: integer, format: int64 }
+                    createdAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/received-assets/{itemId}/content:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Beneficiary]
+      summary: Beneficiary account reads the decrypted content of a received asset after re-entering the password (PS-104)
+      description: Shares the attempt limit with reveal. Wrong password 403 REAUTH_FAILED (not 401); over the limit 429. Never cached.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: Decrypted content (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itemId, assetId, payload]
+                properties:
+                  itemId: { type: string, format: uuid }
+                  assetId: { type: string, format: uuid }
+                  payload: { type: string, writeOnly: true }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { description: TOO_MANY_ATTEMPTS }
+  /api/v1/received-assets/{itemId}/images/{imageId}/download:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: imageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Beneficiary]
+      summary: Beneficiary account reads one image of a received asset after re-entering the password (PS-104)
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: Decrypted bytes. Always attachment, nosniff, no-store, CSP sandbox.
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { description: TOO_MANY_ATTEMPTS }
   /api/v1/subscriptions/me/upgrade-quote:
     post:
       tags: [Subscriptions]
@@ -740,16 +980,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/admin/subscriptions/transactions:
-    get:
-      tags: [Admin, Subscriptions]
-      summary: Tra cứu giao dịch thanh toán (PS-82)
-      description: Phụ thuộc phân hệ PS-80. Trả 409 khi nguồn thanh toán chưa sẵn sàng.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
-
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions"
   /api/v1/subscriptions/me:
     get:
       tags: [Subscriptions]
@@ -1025,6 +1256,54 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/UserResponse' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/auth/invitations/redeem:
+    post:
+      tags: [Auth, Beneficiaries]
+      summary: Redeem a beneficiary invitation for the authenticated account (PS-87)
+      description: |
+        Requires an existing authenticated account. Signup+redeem is intentionally not supported. The backend
+        derives the account from the principal and calls the PS-86 transaction seam. A current PS-106 Staff-bound
+        generation requires an exact normalized match between the account email and the Staff-confirmed recipient
+        email; users.email_verified_at may be NULL for this scoped flow. Staff attestation does not set that field or
+        prove mailbox control. Legacy unbound/Owner-issued invitations do not receive this exception and fail closed.
+        The existing Beneficiary VERIFIED_AT_COUNTER state is still required; PS-106 attestation does not set it.
+        Linking grants no asset-read access; PS-104 exact-recipient DELIVERED authorization remains authoritative.
+        Email transport remains disabled, so the outbox does not prove mail delivery or provide an E2E path.
+      x-status: implemented
+      x-integration-status: blocked
+      x-blockers: [approved-mail-transport, ps104-delivered-item-read-api]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryInvitationRedeemRequest' }
+      responses:
+        '200':
+          description: Account linked to the invited Beneficiary; this does not authorize reading undelivered assets.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryInvitationLinked' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED may apply to unbound/legacy invitation attempts from an account without a verified email; PS-106-bound redemption uses the bound-email match instead. BENEFICIARY_IDENTITY_NOT_VERIFIED is returned when legacy counter verification is absent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '422':
+          description: BENEFICIARY_INVITATION_INVALID for unknown, expired, revoked, consumed, legacy unbound, or email-mismatched invitations.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429':
+          description: TOO_MANY_ATTEMPTS when five failed attempts occurred for the account or the account+invitation pair in the previous fifteen minutes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
   /api/v1/vaults:
     post:
@@ -2752,6 +3031,67 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations:
+    post:
+      tags: [Staff]
+      summary: Staff attests in-person document check (PS-106)
+      description: Requires ROLE_STAFF_EXECUTOR and the exact assigned OPEN case containing the Beneficiary. The server records the authenticated Staff actor and UTC time. evidenceReference is a reference only; no document upload, OCR, client-supplied MATCH, or automatic asset access. Optional confirmedEmail is a Staff-attested snapshot of the address directly confirmed with this Beneficiary at the counter; it is not returned or audited as plaintext and is not equivalent to mailbox verification. This append-only attestation does not mark the legacy identity-verification status or by itself authorize invitation delivery.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CounterIdentityAttestationRequest' }
+      responses:
+        '201':
+          description: Append-only Staff attestation recorded; evidence reference and confirmed email are not echoed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterIdentityAttestation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/invitation-email:
+    post:
+      tags: [Staff, Beneficiaries]
+      summary: Reissue or create a PS-86 invitation bound to the counter-confirmed email and queue it (PS-106)
+      description: |
+        ROLE_STAFF_EXECUTOR and the assigned OPEN case only. The body supplies only expectedGeneration (0 means no
+        current invitation); email and recipient are loaded from the latest append-only counter attestation. Requires
+        existing VERIFIED_AT_COUNTER, current COURT decision/legal approval, and the Beneficiary to occur in the
+        approved current allocation. Existing unbound PS-86 codes are revoked and replaced through PS-86 generation
+        rules. The new code and recipient are encrypted into the transactional outbox; code/email are never returned.
+        HTTP 202 means stored in the local outbox only. Transport is disabled; no provider accepted/sent/delivered claim.
+      x-status: implemented
+      x-integration-status: blocked
+      x-blockers: [approved-mail-provider-sender-sandbox, transport-retry-and-ciphertext-retention-policy]
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffInvitationEmailRequest' }
+      responses:
+        '202':
+          description: Stored as QUEUED in the encrypted local outbox; transportStatus is DISABLED.
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffInvitationEmailQueued' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
       tags: [Beneficiaries]
@@ -3436,6 +3776,34 @@ components:
           maxLength: 22
           pattern: '^[A-Za-z0-9_-]{21}[AQgw]$'
           description: Server-generated 128-bit base64url code, 7-day lifetime. Only in issue/reissue success; never in logs, GET or URLs.
+    BeneficiaryInvitationRedeemRequest:
+      type: object
+      required: [code]
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 1, maxLength: 128, description: PS-86 code; valid values are canonical 22-character base64url strings. Malformed attempts are counted in the account bucket. Never accept account ID, email, role, or verification flags from the client. }
+    BeneficiaryInvitationLinked:
+      type: object
+      required: [beneficiaryId, accountId, accountStatus]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid, description: Public ID of the authenticated account }
+        accountStatus: { type: string, enum: [ACCOUNT_CREATED] }
+    StaffInvitationEmailRequest:
+      type: object
+      required: [expectedGeneration]
+      additionalProperties: false
+      properties:
+        expectedGeneration: { type: integer, minimum: 0, description: Current generation read by Staff; 0 means no invitation. Used to prevent stale or duplicate rotation. }
+    StaffInvitationEmailQueued:
+      type: object
+      required: [outboxId, invitationId, invitationGeneration, queueStatus, transportStatus]
+      properties:
+        outboxId: { type: string, format: uuid }
+        invitationId: { type: string, format: uuid }
+        invitationGeneration: { type: integer, minimum: 1 }
+        queueStatus: { type: string, enum: [QUEUED] }
+        transportStatus: { type: string, enum: [DISABLED] }
     SubscriptionPayment:
       type: object
       required: [paymentId, planCode, catalogVersion, amountVnd, currency, billingModel, status, createdAt, expiresAt, checkoutUrl]
@@ -3768,6 +4136,7 @@ components:
             - PLAN_VERSION_ALREADY_EXISTS
             - PLAN_VERSION_CONFLICT
             - ASSET_IMAGE_LIMIT_EXCEEDED
+            - ASSET_DOCUMENT_LIMIT_EXCEEDED
             - PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
             - CASE_EVIDENCE_QUOTA_EXCEEDED
             - ASSET_QUOTA_EXCEEDED
@@ -3814,6 +4183,8 @@ components:
             - BENEFICIARY_INVITATION_STALE
             - BENEFICIARY_GUARDIAN_STALE
             - BENEFICIARY_INVITATION_INVALID
+            - BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED
+            - BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
@@ -3965,6 +4336,34 @@ components:
       required: [password]
       properties:
         password: { type: string, maxLength: 72, writeOnly: true, description: Mật khẩu đăng nhập hiện tại của Owner; không bao giờ được log }
+    AssetDocument:
+      type: object
+      required: [id, fileName, contentType, sizeBytes, sha256, createdAt]
+      description: Metadata of a PDF/Word document attached to an Asset; never content or a storage path
+      properties:
+        id: { type: string, format: uuid }
+        fileName: { type: string, description: Sanitized display name only }
+        contentType: { type: string, enum: [application/pdf, application/msword, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: SHA-256 hex of the original bytes }
+        createdAt: { type: string, format: date-time }
+    ReceivedAsset:
+      type: object
+      required: [itemId, assetId, vaultId, vaultName, name, assetType, deliveredAt, status, imageCount, hasContent]
+      description: A handover item delivered to the authenticated account; never content, other recipients or undelivered assets
+      properties:
+        itemId: { type: string, format: uuid, description: Handover item public id; key of the other received-asset endpoints }
+        assetId: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid, description: Source Vault (an account may receive from several) }
+        vaultName: { type: string }
+        name: { type: string }
+        assetType: { type: string, enum: [TEXT, CREDENTIAL, FILE] }
+        description: { type: string, nullable: true }
+        allocationNote: { type: string, nullable: true, description: Note of the approved allocation line }
+        deliveredAt: { type: string, format: date-time }
+        status: { type: string, enum: [DELIVERED, VERIFIED_BY_BENEFICIARY] }
+        imageCount: { type: integer }
+        hasContent: { type: boolean }
     AssetSecretResponse:
       type: object
       required: [id, payload]
@@ -4404,6 +4803,21 @@ components:
             id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
             fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
         verifiedAt: { type: string, format: date-time }
+    CounterIdentityAttestationRequest:
+      type: object
+      required: [evidenceReference]
+      properties:
+        evidenceReference: { type: string, minLength: 1, maxLength: 200, description: Reference to the off-system counter evidence; do not include document numbers or document contents }
+        confirmedEmail: { type: string, format: email, maxLength: 254, nullable: true, description: Optional address directly confirmed by Staff with the Beneficiary at the counter; not a client claim of email ownership and not returned in the response }
+    CounterIdentityAttestation:
+      type: object
+      required: [attestationId, caseId, beneficiaryId, recordedBy, recordedAt]
+      properties:
+        attestationId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        recordedBy: { type: string, format: uuid, description: Authenticated Staff public ID }
+        recordedAt: { type: string, format: date-time, description: Server-generated UTC timestamp }
     BeneficiaryResponse:
       type: object
       required: [id, vaultId, fullName, hasAccount, hasIdentityNumber, status]
@@ -4537,10 +4951,12 @@ components:
         effectiveUntil: { type: string, format: date-time, nullable: true, description: Luôn null vì mọi gói đều trọn đời }
         usage:
           type: object
-          required: [assetCount, storageBytes]
+          required: [assetCount, storageBytes, willCount, assetOnlyCount]
           properties:
-            assetCount: { type: integer, format: int64, minimum: 0 }
+            assetCount: { type: integer, format: int64, minimum: 0, description: Số được tính vào giới hạn gói, bao gồm di chúc (PS-92, D-API-42) }
             storageBytes: { type: integer, format: int64, minimum: 0 }
+            willCount: { type: integer, format: int64, minimum: 0, description: Số di chúc nằm trong assetCount }
+            assetOnlyCount: { type: integer, format: int64, minimum: 0, description: assetCount trừ willCount; số tài sản Owner thấy trong danh sách }
         overQuota:
           type: object
           required: [assets, storage]

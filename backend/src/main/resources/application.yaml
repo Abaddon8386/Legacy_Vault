@@ -48,8 +48,9 @@ legacyvault:
     hash-secret: ${VNPAY_HASH_SECRET:}
     return-url: ${VNPAY_RETURN_URL:}
   subscription:
-    # Pending group approval in open-decisions.md. Never enables paid self-grants.
-    quota-enforcement-enabled: false
+    # PS-92 (D-API-42): the lifetime catalog limits (5/50/200 assets incl. wills, 100 MiB/1 GiB/5 GiB) are enforced by
+    # default. Set QUOTA_ENFORCEMENT_ENABLED=false only as an operational kill switch. Never enables paid self-grants.
+    quota-enforcement-enabled: ${QUOTA_ENFORCEMENT_ENABLED:true}
   cors:
     # Danh sách origin được phép, phân cách bằng dấu phẩy. Mặc định rỗng (dev dùng Vite proxy nên không cần).
     # Ví dụ khi muốn gọi thẳng không qua proxy: CORS_ALLOWED_ORIGINS=http://localhost:5173
@@ -83,6 +84,11 @@ legacyvault:
   will:
     # File di chúc số hóa tối đa (byte), mặc định 10 MB (D-API-14). Loại cho phép: PDF/JPEG/PNG theo nội dung file.
     max-file-bytes: 10485760
+  asset-documents:
+    # PS-114 (D-API-43, đề xuất chờ nhóm xác nhận): PDF / DOC / DOCX đính kèm tài sản, kiểm tra theo nội dung.
+    # Giới hạn servlet (spring.servlet.multipart) phải >= max-file-bytes. Dung lượng tính vào quota lưu trữ của gói.
+    max-file-bytes: 10485760
+    max-per-asset: 5
   intake:
     # PS-103 (D-API-41, đề xuất chờ nhóm xác nhận): tệp đính kèm giấy tờ tử vong / di chúc giấy gốc. Cùng loại PDF/JPEG/PNG
     # theo nội dung; giới hạn tầng servlet (spring.servlet.multipart) phải >= max-file-bytes.
