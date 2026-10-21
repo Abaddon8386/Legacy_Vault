@@ -38,9 +38,18 @@ public class GlobalExceptionHandler {
 		this.factory = factory;
 	}
 
+    @ExceptionHandler(com.legacyvault.auth.recovery.PasswordRecoveryController.Limited.class)
+    ResponseEntity<ApiError> handleRecoveryLimit(HttpServletRequest request) {
+        return ResponseEntity.status(429).header("Retry-After", "900").header("Cache-Control", "no-store")
+                .body(factory.create(request, ErrorCode.RATE_LIMITED, List.of()));
+    }
+
 	@ExceptionHandler(BusinessException.class)
 	ResponseEntity<ApiError> handleBusiness(BusinessException ex, HttpServletRequest request) {
 		ErrorCode code = ex.getErrorCode();
+        if (request.getRequestURI().startsWith("/api/v1/auth/password-recovery/"))
+            return ResponseEntity.status(code.status()).header("Cache-Control", "no-store")
+                    .body(factory.create(request, code, List.of(), ex.getArgs()));
 		return respond(factory.create(request, code, List.of(), ex.getArgs()));
 	}
 

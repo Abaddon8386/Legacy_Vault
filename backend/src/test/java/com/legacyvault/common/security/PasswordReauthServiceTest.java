@@ -30,6 +30,17 @@ import com.legacyvault.user.repository.UserRepository;
 
 /** Xác nhận lại mật khẩu: so BCrypt, đếm lần sai theo audit, khóa tạm khi vượt ngưỡng (D-API-32). */
 class PasswordReauthServiceTest {
+    @Test
+    void explicitlyPasswordDisabledAccountCannotReauthenticateWithItsOldHash() {
+        User user=new User();
+        ReflectionTestUtils.setField(user,"userId",USER_ID);
+        user.setStatus("ACTIVE"); user.setPasswordHash(encoder.encode(PASSWORD));
+        user.setPasswordLoginEnabled(false);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        assertThatThrownBy(()->service.requirePassword(USER_ID,VAULT_ID,PASSWORD))
+                .isInstanceOfSatisfying(BusinessException.class,e->assertThat(e.getErrorCode()).isEqualTo(ErrorCode.REAUTH_FAILED));
+        verify(recorder).record(USER_ID,VAULT_ID);
+    }
 
 	private static final Long USER_ID = 7L;
 	private static final Long VAULT_ID = 10L;

@@ -62,6 +62,7 @@ class JwtAuthenticationFilterTest {
         Claims claims = mock(Claims.class);
         when(jwtService.parseAndValidate("valid-token")).thenReturn(claims);
         when(claims.getSubject()).thenReturn(publicId.toString());
+        when(claims.get("authVersion")).thenReturn(0L);
 
         User user = mock(User.class);
         when(userRepository.findByPublicId(publicId))
