@@ -29,7 +29,7 @@ public final class BeneficiaryDtos {
 		public static Response from(Beneficiary beneficiary) {
 			return new Response(beneficiary.getPublicId(), beneficiary.getVault().getPublicId(), beneficiary.getFullName(),
 					beneficiary.getRelationship(), beneficiary.getDateOfBirth(), beneficiary.getPhone(), beneficiary.getEmail(),
-					beneficiary.hasIdentityNumber(), false, beneficiary.getStatus(),
+					beneficiary.hasIdentityNumber(), beneficiary.hasAccount(), beneficiary.getStatus(),
 					utc(beneficiary.getCreatedAt()), utc(beneficiary.getUpdatedAt()));
 		}
 	}

@@ -162,3 +162,5 @@
 
 .lv-tb-page .lv-tb-edit-backdrop{position:fixed;inset:0;z-index:1000;background:#0c2b2277;display:flex;align-items:center;justify-content:center;padding:16px}
 .lv-tb-page .lv-tb-edit-backdrop>.lv-tb-dialog{position:relative;inset:auto;margin:0}
+
+.lv-tb-age-warning{padding:12px;border:1px solid var(--lv-status-error-border);background:var(--lv-status-error-bg);color:var(--lv-status-error-text);border-radius:8px;line-height:1.5;font-size:13px}

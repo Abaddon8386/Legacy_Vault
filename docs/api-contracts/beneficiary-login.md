@@ -1,5 +1,10 @@
 # Đăng nhập Beneficiary — 19/10/2026
 
+Cập nhật 20/10: [PS-86](beneficiary-invitations.md) có vòng đời mã mời và hàm consume
+nội bộ nguyên tử cho PS-87. Không đổi route/login/portal trong PS-86, chưa mở API
+nhận mã công khai. Policy dùng code possession, không email verification/OTP, không
+early access; luồng quầy và các giới hạn quyền bên dưới tiếp tục áp dụng.
+
 Nguồn Jira đã đọc: PS-52, PS-62, PS-63 (tài khoản được Staff tạo/liên kết tại quầy), PS-64–66 (phạm vi bàn giao và guard), PS-54 (Staff ghi nhận xác nhận). Không tạo Guest Portal, Claim Link hoặc OTP.
 
 - Dùng chung `/login` và API auth hiện hữu. Nút “Về trang chủ” đưa về `/` (landing 3D).

@@ -1,5 +1,15 @@
 # Beneficiary — PS-20, PS-21 (ST-05)
 
+## Mở rộng onboarding PS-86 — 20/10/2026
+
+Owner có thể cấp mã mời cho hồ sơ đã thêm qua [beneficiary-invitations.md](beneficiary-invitations.md).
+Quyết định mới cho phép liên kết bằng bằng chứng sở hữu mã, không email verification/OTP;
+thay giới hạn cũ "chỉ liên kết tại quầy" riêng cho onboarding này. PS-87 chưa mở public
+signup/redeem; luồng Staff, xác minh danh tính và quyền xem tài sản vẫn giữ điều kiện cũ.
+Thêm người và cấp mã là hai request: lỗi cấp mã retry theo ID đã lưu, không tạo lại người.
+Đổi email tự thu hồi mã chưa dùng; không hủy account đã liên kết. `hasAccount` trả trạng
+thái linkage thật.
+
 Trạng thái PS-20/21: **contract đã chốt**. Quyền: `VAULT_OWNER` + sở hữu Vault.
 
 ## Xác minh danh tính trực tiếp — PS-45 (ST-14, LV-ID-001)
@@ -41,7 +51,8 @@ xác minh mới nhất trước. Cả hai endpoint chỉ dành cho `ROLE_STAFF_E
 ## Nguyên tắc nghiệp vụ
 
 - Beneficiary **độc lập với tài khoản `User`**: không cần tài khoản khi khai báo; request/response không có `userId`.
-- **Không tự tạo tài khoản.** Tài khoản được tạo/liên kết sau, tại quầy, do Staff hướng dẫn (ST-24) — ngoài Sprint 1.
+- **POST tạo hồ sơ không tự tạo tài khoản.** Tạo/liên kết account là luồng riêng tại quầy
+  (ST-24) hoặc bằng mã mời theo PS-86/87; không tự cấp role từ request tạo Beneficiary.
 - **Không** có Claim Link, OTP email, Guest Portal.
 - Nếu gửi `identityNumber`, Backend mã hóa AES-256-GCM bằng khóa chung `LEGACYVAULT_ENCRYPTION_KEY` (base64, 32 byte). Cột mã hóa lưu cả IV và `LEGACYVAULT_ENCRYPTION_KEY_VERSION`; không ghi khóa hoặc số định danh vào repo/log.
 - Bảng `asset_allocations` trong DB là **kế hoạch phân bổ chờ Legal duyệt** (LV-BASIS-001), không phải quyết định của Owner; Sprint 1 không có API cho bảng này.
@@ -60,7 +71,7 @@ xác minh mới nhất trước. Cả hai endpoint chỉ dành cho `ROLE_STAFF_E
 | `dateOfBirth` | date `YYYY-MM-DD` | tùy chọn, không ở tương lai |
 | `phone`, `email` | string | tùy chọn |
 | `hasIdentityNumber` | boolean | cho biết đã có số định danh; số gốc là **write-only** (`identityNumber`) và **không bao giờ** trả ra (D-API-26) |
-| `hasAccount` | boolean | chỉ đọc; luôn `false` ở Sprint 1 |
+| `hasAccount` | boolean | chỉ đọc; phản ánh `linked_user_id` thật sau liên kết tại quầy hoặc nhận mã |
 | `status` | enum `DESIGNATED` | |
 | `createdAt`, `updatedAt` | datetime | cột `created_at`, `updated_at` (`updated_at` thêm bởi migration V4 — D-API-31) |
 
