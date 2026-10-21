@@ -8,6 +8,15 @@ package com.legacyvault.common.error;
  * docs/api-contracts/error-contract.md trong cùng PR.
  */
 public enum ErrorCode {
+    PASSWORD_POLICY(400, "validation.passwordPolicy"),
+    RECOVERY_INVALID(400, "error.auth.recoveryInvalid"),
+    RECOVERY_UNAVAILABLE(503, "error.auth.recoveryUnavailable"),
+    RATE_LIMITED(429, "error.auth.rateLimited"),
+    PAYMENT_REQUEST_CONFLICT(409, "error.payment.requestConflict"),
+    BENEFICIARY_INVITATION_ALREADY_EXISTS(409, "error.invitation.alreadyExists"),
+    BENEFICIARY_INVITATION_ALREADY_USED(409, "error.invitation.alreadyUsed"),
+    BENEFICIARY_INVITATION_STALE(409, "error.invitation.stale"),
+    BENEFICIARY_INVITATION_INVALID(422, "error.invitation.invalid"),
 	ASSET_IMAGE_LIMIT_EXCEEDED(409, "error.asset.imageLimitExceeded"),
 	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
 	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),
@@ -16,6 +25,9 @@ public enum ErrorCode {
 	MALFORMED_REQUEST(400, "error.request.malformed"),
 	UNAUTHENTICATED(401, "error.auth.unauthenticated"),
 	INVALID_CREDENTIALS(401, "error.auth.invalidCredentials"),
+	INVALID_GOOGLE_CREDENTIAL(401, "error.auth.googleCredentialInvalid"),
+	GOOGLE_IDENTITY_ALREADY_LINKED(409, "error.auth.googleIdentityAlreadyLinked"),
+	GOOGLE_SIGNIN_UNAVAILABLE(503, "error.auth.googleSignInUnavailable"),
 	ACCESS_DENIED(403, "error.auth.accessDenied"),
 	REAUTH_FAILED(403, "error.auth.reauthFailed"),
 	RESOURCE_NOT_FOUND(404, "error.resource.notFound"),
@@ -29,6 +41,7 @@ public enum ErrorCode {
 	DMS_NOT_MONITORING(409, "error.dms.notMonitoring"),
 	VERIFICATION_CASE_NOT_CLAIMABLE(409, "error.verificationCase.notClaimable"),
 	VERIFICATION_CASE_NOT_OPEN(409, "error.verificationCase.notOpen"),
+	INTAKE_ATTACHMENT_LIMIT_EXCEEDED(409, "error.intake.attachmentLimit"),
 	HANDOVER_SESSION_ALREADY_OPEN(409, "error.handoverSession.alreadyOpen"),
 	HANDOVER_SESSION_INVALID_STATE(409, "error.handoverSession.invalidState"),
 	HANDOVER_RECEIPT_INVALID_STATE(409, "error.handoverReceipt.invalidState"),

@@ -1,5 +1,20 @@
 # Hợp đồng lỗi chung
 
+PS-86 bổ sung mã lỗi cùng envelope VI/EN:
+
+- 409 `BENEFICIARY_INVITATION_ALREADY_EXISTS` — `error.invitation.alreadyExists`;
+  mã đã được cấp, GET metadata hoặc chủ động reissue.
+- 409 `BENEFICIARY_INVITATION_ALREADY_USED` — `error.invitation.alreadyUsed`;
+  không thu hồi/cấp lại generation đã dùng.
+- 409 `BENEFICIARY_INVITATION_STALE` — `error.invitation.stale`;
+  request reissue hoặc DELETE dùng generation cũ; tải metadata trước khi thử lại.
+- 422 `BENEFICIARY_INVITATION_INVALID` — `error.invitation.invalid`;
+  seam consume nội bộ trả chung cho mã sai/hết hạn/thu hồi/đã dùng bởi account khác
+  và account không đủ điều kiện. Chưa có endpoint redeem công khai ở PS-86.
+
+Owner sai kho vẫn dùng 404 `RESOURCE_NOT_FOUND`, Vault không ACTIVE dùng 409
+`VAULT_NOT_EDITABLE`; hồ sơ đã link dùng `BENEFICIARY_ACCOUNT_ALREADY_LINKED`.
+
 PS-44: `409 TRUSTEE_REVOKED` (`error.trustee.revoked`) khi Staff qua guard ca OPEN được giao nhưng
 ghi liên hệ mới với Trustee đã REVOKED. Không tạo lịch sử/audit mới; lịch sử cũ vẫn đọc theo quyền ca.
 Ngoài quyền ca vẫn trả 404 trước khi kiểm tra trạng thái Trustee.
@@ -54,9 +69,12 @@ Lỗi validation:
 | `VALIDATION_FAILED` | 400 | Dữ liệu đầu vào sai quy tắc validation |
 | `MALFORMED_REQUEST` | 400 | JSON hỏng, thiếu tham số bắt buộc, sai kiểu tham số |
 | `UNAUTHENTICATED` | 401 | Chưa đăng nhập, token thiếu/sai/hết hạn |
-| `INVALID_CREDENTIALS` | 401 | Sai email/mật khẩu, hoặc tài khoản đã xóa (`deleted_at != null`) — **không phân biệt** |
+| `INVALID_CREDENTIALS` | 401 | Sai email/mật khẩu; tài khoản đã xóa; Google subject chưa liên kết hoặc account Google không đủ điều kiện — **không phân biệt** |
+| `INVALID_GOOGLE_CREDENTIAL` | 401 | Google ID token sai chữ ký/claim, hết hạn hoặc đã được dùng đổi phiên |
+| `GOOGLE_SIGNIN_UNAVAILABLE` | 503 | Google Client ID chưa được cấu hình; đăng nhập email/mật khẩu vẫn hoạt động |
+| `GOOGLE_IDENTITY_ALREADY_LINKED` | 409 | Google subject đã được liên kết với một tài khoản LegacyVault |
 | `ACCESS_DENIED` | 403 | Đã đăng nhập nhưng thiếu role |
-| `REAUTH_FAILED` | 403 | Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật (D-API-32). Không dùng 401 để FE không coi là hết phiên |
+| `REAUTH_FAILED` | 403 | Nhập sai mật khẩu xác nhận khi xem nội dung bảo mật (D-API-32) hoặc khi sửa Asset (D-API-40). Không dùng 401 để FE không coi là hết phiên |
 | `RESOURCE_NOT_FOUND` | 404 | Không có tài nguyên, **hoặc** không thuộc quyền người gọi (D-API-07) |
 | `METHOD_NOT_ALLOWED` | 405 | Sai phương thức HTTP |
 | `EMAIL_ALREADY_EXISTS` | 409 | Đăng ký trùng email |
@@ -64,6 +82,7 @@ Lỗi validation:
 | `VAULT_NOT_EDITABLE` | 409 | Vault hiện không cho phép Owner chỉnh sửa |
 | `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
+| `INTAKE_ATTACHMENT_LIMIT_EXCEEDED` | 409 | Giấy tờ đã đạt số tệp đính kèm tối đa (`legacyvault.intake.max-attachments-per-record`, PS-103, D-API-41) |
 | `HANDOVER_SESSION_ALREADY_OPEN` | 409 | Ca đã có một handover session đang mở (PS-60) |
 | `HANDOVER_SESSION_INVALID_STATE` | 409 | Case, Vault hoặc session không thỏa lifecycle PS-60 |
 | `HANDOVER_RECEIPT_INVALID_STATE` | 409 | Session/Vault/legal workflow không cho phép lập receipt (PS-61) |
@@ -88,7 +107,7 @@ Lỗi validation:
 | `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
 | `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
 | `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
-| `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
+| `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32, D-API-40) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
 
@@ -150,3 +169,9 @@ for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
 PS-57: `LEGAL_DECISION_STALE` (409, `error.legalApproval.snapshotStale`) when version, hash, allocation scope, or review snapshot no longer matches.
 
 PS-58: `LEGAL_APPROVAL_REQUIRED` (409, `error.legalApproval.required`) when a protected transition has no matching current-version Legal approval. `LEGAL_DECISION_STALE` indicates that an existing review/approval snapshot no longer matches the current version, hash, dispute state, or allocation scope.
+
+PS-80: `PAYMENT_REQUEST_CONFLICT` (409) — idempotency key đổi nội dung hoặc đang có checkout chưa hết hạn. Retry cùng key/body để nhận lại đơn. IPN dùng `{RspCode,Message}` theo [payments-vnpay.md](payments-vnpay.md).
+
+## PS-112 recovery
+
+400 RECOVERY_INVALID normalizes invalid/expired/used/revoked/ineligible credentials; 400 PASSWORD_POLICY is shared password policy rejection. DTO validation remains VALIDATION_FAILED (password field maps to FE PASSWORD_POLICY). 429 RATE_LIMITED has Retry-After:900; 503 RECOVERY_UNAVAILABLE covers missing email configuration or infrastructure failure without account-specific provider errors. No token/password/account status is echoed. See password-recovery.md.

@@ -5,7 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
-import { validateRecoveryEmail, recoveryErrorKey } from './passwordRecoveryValidation.js';
+import { validateRecoveryEmail, recoveryErrorKey, validateRecoveryPassword } from './passwordRecoveryValidation.js';
+import { readRecoveryCredential, requestPasswordRecovery, resetRecoveredPassword } from './passwordRecoveryService.js';
 import { validatePasswordFields } from './registrationValidation.js';
 import { passwordRecoveryI18n } from '../pages/auth/passwordRecoveryI18n.js';
 
@@ -142,7 +143,7 @@ test('leaving request/reset aborts pending work and ignores a late result', asyn
   await view.close();
 });
 
-test('actual App routes expose FE forms without fabricating requests, credentials or success', async () => {
+test('actual App routes enable requests but block reset without credential; never submit on GET', async () => {
   for (const path of ['/forgot-password?lang=en', '/reset-password?lang=en']) {
     window.history.replaceState({}, '', path);
     let calls = 0; const originalFetch = globalThis.fetch;
@@ -150,7 +151,7 @@ test('actual App routes expose FE forms without fabricating requests, credential
     const view = await mount(App, {});
     try {
       assert.ok(view.host.querySelector('.lv-password-recovery-page'));
-      assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
+      assert.equal(view.host.querySelector('button[type=submit]').disabled, path.startsWith('/reset-password'));
       assert.equal(calls, 0); assert.equal(window.sessionStorage.length, 0);
       assert.doesNotMatch(view.host.textContent, /If the account is eligible|password has been reset/);
     } finally { await view.close(); globalThis.fetch = originalFetch; }
@@ -166,4 +167,58 @@ test('actual App routes expose FE forms without fabricating requests, credential
     await act(async () => view.host.querySelector('a[href="/login?lang=en"]').click());
     assert.ok(view.host.querySelector('.hn-login-page'));
   } finally { await view.close(); }
+});
+
+const credential = 'A'.repeat(43);
+test('recovery adapters use public POSTs, exact bodies/statuses and no JWT; reset accepts empty 204', async () => {
+  const controller = new AbortController();
+  let captured;
+  const fetchFn = async (url, options) => { captured = { url, ...options }; return new Response(JSON.stringify({ messageKey: 'auth.recovery.requestAccepted' }), { status: 202 }); };
+  await requestPasswordRecovery({ email: 'a@example.test' }, { lang: 'en', signal: controller.signal, fetchFn });
+  assert.match(captured.url, /\/auth\/password-recovery\/requests$/);
+  assert.deepEqual(JSON.parse(captured.body), { email: 'a@example.test', locale: 'en' });
+  assert.equal(captured.headers.Authorization, undefined);
+  assert.equal(captured.signal, controller.signal);
+  assert.equal(captured.cache, 'no-store');
+  await resetRecoveredPassword(credential, { password: ' pass123 ' }, { fetchFn: async (url, options) => {
+    assert.match(url, /\/password-recovery\/reset$/);
+    assert.deepEqual(JSON.parse(options.body), { credential, password: ' pass123 ' });
+    return new Response(null, { status: 204 });
+  } });
+  for (const [status, code] of [[400, 'RECOVERY_INVALID'], [429, 'RATE_LIMITED'], [503, 'RECOVERY_UNAVAILABLE']]) {
+    await assert.rejects(requestPasswordRecovery({ email: 'a@example.test' }, { fetchFn: async () => new Response(JSON.stringify({ code }), { status }) }), error => error.code === code && error.status === status);
+  }
+  await assert.rejects(requestPasswordRecovery({ email: 'a@example.test' }, { fetchFn: async () => new Response('{}', { status: 200 }) }), { code: 'INVALID_RESPONSE' });
+  await assert.rejects(resetRecoveredPassword(credential, { password: 'password1' }, { fetchFn: async () => new Response(JSON.stringify({code:'VALIDATION_FAILED', errors:[{field:'password'}]}), {status:400}) }), {code:'PASSWORD_POLICY'});
+});
+
+test('credential parsing and reset policy follow PS-112 without storing or trimming secrets', () => {
+  assert.equal(readRecoveryCredential(`#token=${credential}`), credential);
+  for (const hash of ['', '#token=bad', `#token=${credential}&token=${credential}`, '#token=' + 'B'.repeat(43)]) assert.equal(readRecoveryCredential(hash), null);
+  for (const password of [' '.repeat(8), 'é'.repeat(37), 'a'.repeat(8) + '\0', 'a'.repeat(8) + '\uD800']) assert.ok(validateRecoveryPassword({password,confirmPassword:password}, 'en').password);
+  assert.deepEqual(validateRecoveryPassword({password:' pass123 ',confirmPassword:' pass123 '}, 'en'), {});
+});
+
+test('actual App captures fragment, removes it immediately and resets via API before clearing session and going to login', async () => {
+  window.history.replaceState({}, '', `/reset-password?lang=en#token=${credential}`);
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    assert.match(url, /\/password-recovery\/reset$/);
+    assert.deepEqual(JSON.parse(options.body), {credential,password:'password1'});
+    assert.equal(options.headers.Authorization, undefined);
+    return new Response(null, {status:204});
+  };
+  const view = await mount(App, {});
+  try {
+    assert.equal(window.location.hash, ''); assert.equal(calls, 0);
+    assert.equal(view.host.querySelector('button[type=submit]').disabled, false);
+    assert.doesNotMatch(JSON.stringify({...window.sessionStorage,...window.localStorage}), /AAAAAAAA/);
+    await change(view.host,'password','password1'); await change(view.host,'confirmPassword','password1');
+    window.sessionStorage.setItem('legacyvault.session.v1', 'stale-session');
+    await submit(view.host);
+    assert.equal(calls, 1); assert.equal(window.sessionStorage.getItem('legacyvault.session.v1'), null);
+    assert.equal(window.location.pathname, '/login'); assert.equal(window.location.search, '?lang=en');
+  } finally { await view.close(); globalThis.fetch = originalFetch; }
 });

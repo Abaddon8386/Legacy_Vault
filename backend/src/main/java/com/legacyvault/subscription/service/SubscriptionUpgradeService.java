@@ -7,13 +7,14 @@ import org.springframework.stereotype.Service;
 import com.legacyvault.subscription.repository.SubscriptionPlanRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-/** No entitlement may be granted until an approved payment/confirmation workflow exists. */
+/** Quotes never grant a plan; verified payment IPN is handled by PaymentService. */
 @Service
 public class SubscriptionUpgradeService {
     private final SubscriptionPlanRepository plans;
     private final OwnerQuotaService quotas;
-    public SubscriptionUpgradeService(SubscriptionPlanRepository plans, OwnerQuotaService quotas) {
-        this.plans = plans; this.quotas = quotas;
+    private final VnPayGateway gateway;
+    public SubscriptionUpgradeService(SubscriptionPlanRepository plans, OwnerQuotaService quotas, VnPayGateway gateway) {
+        this.plans = plans; this.quotas = quotas; this.gateway = gateway;
     }
     /** An informational quote never grants access or creates a successful payment. */
     @Transactional
@@ -24,7 +25,7 @@ public class SubscriptionUpgradeService {
         if (!target.isAvailable() || target.getVersion() != request.catalogVersion())
             throw new BusinessException(ErrorCode.SUBSCRIPTION_CATALOG_STALE);
         long amount = fullTargetPrice(current.code(), target.getCode(), target.getPriceVnd());
-        return new UpgradeQuote(target.getCode(), target.getVersion(), amount, "VND", "LIFETIME", 0, false);
+        return new UpgradeQuote(target.getCode(), target.getVersion(), amount, "VND", "LIFETIME", 0, gateway.available());
     }
     public static long fullTargetPrice(String current, String target, long targetPrice) {
         var tiers = java.util.List.of("BASIC", "STANDARD", "EXTENDED");

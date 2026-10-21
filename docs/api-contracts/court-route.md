@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # COURT — PS-47 (LV-COURT-001)
 
 Chỉ `LEGAL_VERIFIER` thẩm định tính hợp lệ của quyết định tòa. Backend kiểm tra tính đầy đủ của

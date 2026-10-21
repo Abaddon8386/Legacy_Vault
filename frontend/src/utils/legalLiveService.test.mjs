@@ -6,8 +6,8 @@ const id = '11111111-1111-4111-8111-111111111111';
 const other = '22222222-2222-4222-8222-222222222222';
 const digest = 'a'.repeat(64), allocation = 'b'.repeat(64), now = '2026-10-20T06:00:00Z';
 const base = '/api/v1/legal-verifications/verification-cases/' + id;
-const options = { accessToken: 'test-token', roles: ['LEGAL_VERIFIER'], userId: id, dossierId: id, vaultId: id, expectedHash: digest };
-const dossier = { id, caseId: id, route: 'NOTARIAL', status: 'DRAFT', disputeStatus: 'NONE', requiredVersion: 1, versions: [], classifiedBy: id };
+const options = { accessToken: 'test-token', roles: ['LEGAL_VERIFIER'], userId: id, dossierId: id, vaultId: id, expectedHash: digest, reviewSnapshot: { versionNo: 1, sha256Hash: digest, allocationHash: allocation, disputeStatus: 'NONE' } };
+const dossier = { id, caseId: id, route: 'COURT', status: 'DRAFT', disputeStatus: 'NONE', requiredVersion: 1, versions: [], classifiedBy: id };
 const death = { deathDocumentPublicId: id, verificationCasePublicId: id, result: 'APPROVED', verifierPublicId: id, decidedAt: now, reason: 'Reviewed', verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION' };
 const review = { dossierId: id, reviewStatus: 'FRESH', reviewRequired: false, currentVersionNo: 1, currentSha256Hash: digest, currentAllocationHash: allocation, currentDisputeStatus: 'NONE', checkedAt: '2026-10-20T06:00:00' };
 const comparison = { id, caseId: id, originalWillIntakeId: id, willId: id, version: 1, sha256: digest, result: 'MATCH', checkedBy: id, comparedAt: now };
@@ -17,10 +17,10 @@ const unlock = { caseId: id, vaultId: id, status: 'UNLOCKED', unlockedBy: id, un
 const cases = [
   ['death', o => api.decideDeathDocument(id, id, { decision: 'APPROVE', reason: ' Reviewed ', role: 'ADMIN' }, o), '/api/v1/legal-verifications/death-documents/' + id + '/decision', 200, death, { decision: 'APPROVE', reason: 'Reviewed' }],
   ['will', o => api.compareWill(id, { originalWillIntakeId: id, willId: id, version: 1, result: 'MATCH', checkedBy: other }, o), base + '/will-comparisons', 201, comparison, { originalWillIntakeId: id, willId: id, version: 1, result: 'MATCH', reason: '' }],
-  ['classify', o => api.classifyLegalDossier(id, { route: 'NOTARIAL', routeReason: 'Reviewed' }, o), base + '/basis-dossier', 201, dossier, { route: 'NOTARIAL', routeReason: 'Reviewed' }],
-  ['reclassify', o => api.classifyLegalDossier(id, { route: 'NOTARIAL', routeReason: 'Reviewed' }, { ...o, reclassification: true }), base + '/basis-dossier/reclassification', 200, dossier, { route: 'NOTARIAL', routeReason: 'Reviewed' }],
+  ['classify', o => api.classifyLegalDossier(id, { route: 'COURT', routeReason: 'Reviewed' }, o), base + '/basis-dossier', 201, dossier, { route: 'COURT', routeReason: 'Reviewed' }],
+  ['reclassify', o => api.classifyLegalDossier(id, { route: 'COURT', routeReason: 'Reviewed' }, { ...o, reclassification: true }), base + '/basis-dossier/reclassification', 200, dossier, { route: 'COURT', routeReason: 'Reviewed' }],
   ['hold', o => api.holdLegalDossier(id, { cause: 'NEW_DISPUTE', reason: 'Reviewed' }, o), base + '/basis-dossier/hold', 200, { ...dossier, route: 'ON_HOLD' }, { cause: 'NEW_DISPUTE', reason: 'Reviewed' }],
-  ['review', o => api.reviewLegalDossier(id, { action: 'review', reason: 'Reviewed' }, o), base + '/basis-dossier/review', 200, review, { reason: 'Reviewed' }],
+  ['review', o => api.reviewLegalDossier(id, { action: 'review', reason: 'Reviewed' }, o), base + '/basis-dossier/review', 200, review, { reason: 'Reviewed', versionNo: 1, sha256Hash: digest, allocationHash: allocation, disputeStatus: 'NONE' }],
   ['supplement', o => api.reviewLegalDossier(id, { action: 'request-supplementation', reason: 'Reviewed' }, o), base + '/basis-dossier/request-supplementation', 200, { ...review, reviewRequired: true, reviewStatus: 'REVIEW_REQUIRED' }, { reason: 'Reviewed' }],
   ['court', o => api.decideCourt(id, { version: 1, result: 'VALID', reason: 'Reviewed' }, o), base + '/basis-dossier/court-decisions', 201, court, { version: 1, result: 'VALID', reason: 'Reviewed' }],
   ['approval', o => api.decideLegalApproval(id, { decision: 'APPROVE', versionNo: 1, sha256Hash: digest, allocationHash: allocation }, o), base + '/basis-dossier/decision', 200, approval, { decision: 'APPROVE', versionNo: 1, sha256Hash: digest, allocationHash: allocation, reason: '' }],
@@ -81,4 +81,11 @@ test('Known reads only use Legal endpoints and reject cross-case data', async ()
     { deathDocumentPublicId: id, verificationCasePublicId: id, verificationCaseStatus: 'OPEN', vaultStatus: 'AWAITING_VERIFICATION', document: {}, decisions: [] });
   await read(o => api.loadWillComparisons(id, o), base + '/will-comparisons', { caseId: id, vaultStatus: 'DOCUMENT_VERIFICATION', approvalBlocked: true, originalWillIntakes: [], wills: [], comparisons: [] });
   await assert.rejects(api.loadLegalDossier(id, { ...options, fetchFn: async () => json({ ...dossier, caseId: other }) }), { code: 'INVALID_RESPONSE' });
+});
+
+test('Review requires the displayed snapshot and rejects a receipt for another scope', async () => {
+  await assert.rejects(api.reviewLegalDossier(id, { action: 'review', reason: 'Reviewed' }, { ...options, reviewSnapshot: null,
+    fetchFn: async () => assert.fail('No request without displayed snapshot') }), { code: 'VALIDATION_FAILED' });
+  await assert.rejects(api.reviewLegalDossier(id, { action: 'review', reason: 'Reviewed' }, { ...options,
+    fetchFn: async () => json({ ...review, currentAllocationHash: 'c'.repeat(64) }) }), { code: 'INVALID_RESPONSE' });
 });

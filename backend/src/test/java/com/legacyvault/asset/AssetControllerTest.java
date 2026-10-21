@@ -10,6 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -319,7 +320,7 @@ class AssetControllerTest {
 		when(assetService.updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), any())).thenReturn(ASSET);
 
 		patchAsset("""
-				{"description":"Mô tả mới","payload":"%s","assetType":"TEXT","vaultId":"%s","id":"%s"}"""
+				{"description":"Mô tả mới","payload":"%s","password":"MatKhau@123","assetType":"TEXT","vaultId":"%s","id":"%s"}"""
 				.formatted(SECRET, UUID.randomUUID(), UUID.randomUUID()), owner())
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.assetType").value("CREDENTIAL"))
@@ -329,13 +330,15 @@ class AssetControllerTest {
 		verify(assetService).updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), request.capture());
 		assertThat(request.getValue().name()).isNull();
 		assertThat(request.getValue().description()).isEqualTo("Mô tả mới");
-		assertThat(request.getValue().toString()).doesNotContain(SECRET);
-		assertThat(output.getAll()).doesNotContain(SECRET);
+		assertThat(request.getValue().password()).isEqualTo("MatKhau@123");
+		assertThat(request.getValue().toString()).doesNotContain(SECRET).doesNotContain("MatKhau@123");
+		assertThat(output.getAll()).doesNotContain(SECRET).doesNotContain("MatKhau@123");
 	}
 
 	@Test
 	void patch_emptyBodyOrOnlyIgnoredFields_returns400() throws Exception {
-		for (String json : List.of("{}", "{\"assetType\":\"TEXT\"}", "{\"name\":null}")) {
+		for (String json : List.of("{\"password\":\"MatKhau@123\"}",
+				"{\"password\":\"MatKhau@123\",\"assetType\":\"TEXT\"}", "{\"password\":\"MatKhau@123\",\"name\":null}")) {
 			patchAsset(json, owner())
 					.andExpect(status().isBadRequest())
 					.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
@@ -346,14 +349,14 @@ class AssetControllerTest {
 
 	@Test
 	void patch_blankNameOrPayload_orTooLong_returns400() throws Exception {
-		patchAsset("{\"name\":\"   \",\"payload\":\"\"}", owner())
+		patchAsset("{\"name\":\"   \",\"payload\":\"\",\"password\":\"MatKhau@123\"}", owner())
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors[?(@.field=='name')].code").value("NULL_OR_NOT_BLANK"))
 				.andExpect(jsonPath("$.errors[?(@.field=='payload')].code").value("NULL_OR_NOT_BLANK"));
-		patchAsset("{\"description\":\"%s\"}".formatted("a".repeat(1001)), owner())
+		patchAsset("{\"description\":\"%s\",\"password\":\"MatKhau@123\"}".formatted("a".repeat(1001)), owner())
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors[?(@.field=='description')].code").value("SIZE"));
-		patchAsset("{\"payload\":\"%s\"}".formatted("a".repeat(65_537)), owner())
+		patchAsset("{\"payload\":\"%s\",\"password\":\"MatKhau@123\"}".formatted("a".repeat(65_537)), owner())
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.errors[?(@.field=='payload')].code").value("PAYLOAD_SIZE"));
 		verifyNoInteractions(assetService);
@@ -366,16 +369,49 @@ class AssetControllerTest {
 		when(assetService.updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(2L), any()))
 				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-		patchAsset("{\"name\":\"x\"}", owner())
+		patchAsset("{\"name\":\"x\",\"password\":\"MatKhau@123\"}", owner())
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("VAULT_NOT_EDITABLE"));
-		patchAsset("{\"name\":\"x\"}", as(new CustomUserPrincipal(2L, UUID.randomUUID(), "user@example.com"), "VAULT_OWNER"))
+		patchAsset("{\"name\":\"x\",\"password\":\"MatKhau@123\"}", as(new CustomUserPrincipal(2L, UUID.randomUUID(), "user@example.com"), "VAULT_OWNER"))
 				.andExpect(status().isNotFound());
-		patchAsset("{\"name\":\"x\"}", as(OWNER, "BENEFICIARY"))
+		patchAsset("{\"name\":\"x\",\"password\":\"MatKhau@123\"}", as(OWNER, "BENEFICIARY"))
 				.andExpect(status().isForbidden());
 		mockMvc.perform(patch("/api/v1/vaults/{vaultId}/assets/{assetId}", VAULT_ID, ASSET_ID)
 				.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"x\"}"))
 				.andExpect(status().isUnauthorized());
+	}
+
+	// ---------- PS-111 (D-API-40): PATCH bắt buộc xác thực lại mật khẩu ----------
+
+	@Test
+	void patch_withoutOrWithBlankOrTooLongPassword_returns400_andNeverReachesService() throws Exception {
+		for (String json : List.of("{\"name\":\"x\"}", "{\"name\":\"x\",\"password\":\"\"}",
+				"{\"name\":\"x\",\"password\":\"   \"}", "{\"name\":\"x\",\"password\":null}")) {
+			patchAsset(json, owner())
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+					.andExpect(jsonPath("$.errors[?(@.field=='password')].code").value("NOT_BLANK"));
+		}
+		patchAsset("{\"name\":\"x\",\"password\":\"%s\"}".formatted("a".repeat(73)), owner())
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[?(@.field=='password')].code").value("SIZE"));
+		verifyNoInteractions(assetService);
+	}
+
+	@Test
+	void patch_wrongPassword403_tooManyAttempts429_andNoPasswordInResponseOrLog(CapturedOutput output) throws Exception {
+		when(assetService.updateAsset(eq(VAULT_ID), eq(ASSET_ID), eq(OWNER.userId()), any()))
+				.thenThrow(new BusinessException(ErrorCode.REAUTH_FAILED))
+				.thenThrow(new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS));
+
+		patchAsset("{\"name\":\"x\",\"password\":\"sai-mat-khau\"}", owner())
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("REAUTH_FAILED"))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("sai-mat-khau"))));
+		patchAsset("{\"name\":\"x\",\"password\":\"sai-mat-khau\"}", owner())
+				.andExpect(status().isTooManyRequests())
+				.andExpect(jsonPath("$.code").value("TOO_MANY_ATTEMPTS"));
+		assertThat(output.getAll()).doesNotContain("sai-mat-khau");
 	}
 
 	// ---------- PS-16: POST .../reveal (xem nội dung bảo mật) ----------

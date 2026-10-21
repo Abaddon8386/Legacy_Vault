@@ -61,8 +61,9 @@ class BeneficiaryAccountServiceTest {
 	private final UserRoleRepository userRoles = mock(UserRoleRepository.class);
 	private final PasswordEncoder encoder = mock(PasswordEncoder.class);
 	private final AuditService audit = mock(AuditService.class);
+	private final BeneficiaryInvitationService invitations = mock(BeneficiaryInvitationService.class);
 	private final BeneficiaryAccountService service = new BeneficiaryAccountService(beneficiaries, staff, cases,
-			entities, users, roles, userRoles, encoder, audit);
+			entities, users, roles, userRoles, encoder, audit, invitations);
 
 	private final User actor = mock(User.class);
 	private final Beneficiary beneficiary = mock(Beneficiary.class);
@@ -94,6 +95,7 @@ class BeneficiaryAccountServiceTest {
 		when(account.getPublicId()).thenReturn(ACCOUNT_PUBLIC_ID);
 		when(account.getStatus()).thenReturn(status);
 		when(account.getDeletedAt()).thenReturn(deletedAt);
+		when(users.findActiveAccountForUpdate(ACCOUNT_ID)).thenReturn(Optional.of(account));
 		return account;
 	}
 
@@ -116,7 +118,9 @@ class BeneficiaryAccountServiceTest {
 		assertThat(response.beneficiaryId()).isEqualTo(BENEFICIARY_ID);
 		assertThat(response.accountId()).isEqualTo(ACCOUNT_PUBLIC_ID);
 		assertThat(response.accountStatus()).isEqualTo("ACCOUNT_CREATED");
-		InOrder order = inOrder(cases, entities, beneficiary, beneficiaries);
+		verify(invitations).revokeForCounterLink(beneficiary, STAFF_ID);
+		InOrder order = inOrder(users, cases, entities, beneficiary, beneficiaries);
+		order.verify(users).findActiveAccountForUpdate(ACCOUNT_ID);
 		order.verify(cases).requireOpenForWrite(VAULT_ID, STAFF_ID);
 		order.verify(entities).refresh(beneficiary);
 		order.verify(beneficiary).linkAccount(ACCOUNT_ID);
@@ -234,7 +238,7 @@ class BeneficiaryAccountServiceTest {
 	@Test
 	void caseGuardFailureStopsEverythingAndHidesTheRecord() {
 		org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
-				.when(cases).requireOpenForWrite(VAULT_ID, STAFF_ID);
+				.when(cases).requireOpenForRead(VAULT_ID, STAFF_ID);
 
 		assertThat(expect(() -> service.create(BENEFICIARY_ID,
 				new BeneficiaryAccountDtos.CreateRequest("a@example.com", "S3cret-pass", null))).getErrorCode())
@@ -259,6 +263,7 @@ class BeneficiaryAccountServiceTest {
 
 		assertThat(response.accountId()).isEqualTo(ACCOUNT_PUBLIC_ID);
 		assertThat(response.accountStatus()).isEqualTo("ACCOUNT_CREATED");
+		verify(invitations).revokeForCounterLink(beneficiary, STAFF_ID);
 		ArgumentCaptor<User> created = ArgumentCaptor.forClass(User.class);
 		verify(users).saveAndFlush(created.capture());
 		assertThat(created.getValue().getEmail()).isEqualTo("new@example.com");
@@ -286,7 +291,7 @@ class BeneficiaryAccountServiceTest {
 
 		verify(users, never()).saveAndFlush(any());
 		verify(beneficiary, never()).linkAccount(any());
-		verifyNoInteractions(audit);
+		verifyNoInteractions(audit, invitations);
 	}
 
 	@Test
@@ -306,5 +311,15 @@ class BeneficiaryAccountServiceTest {
 		var request = new BeneficiaryAccountDtos.CreateRequest("a@example.com", "S3cret-pass", null);
 		assertThatThrownBy(() -> { throw new IllegalStateException(request.toString()); })
 				.hasMessageNotContaining("S3cret");
+	}
+
+	@Test
+	void readCaseAuthorizationMustPrecedeAnyTargetAccountLookupOrLock() {
+		org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
+				.when(cases).requireOpenForRead(VAULT_ID, STAFF_ID);
+		assertThat(expect(() -> service.link(BENEFICIARY_ID, new BeneficiaryAccountDtos.LinkRequest("target@example.com")))
+				.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+		verifyNoInteractions(users, audit);
+		verify(cases, never()).requireOpenForWrite(any(), any());
 	}
 }

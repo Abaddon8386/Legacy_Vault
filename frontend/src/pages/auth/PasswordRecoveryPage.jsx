@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { validatePasswordFields } from '../../utils/registrationValidation.js';
-import { recoveryErrorKey, validateRecoveryEmail } from '../../utils/passwordRecoveryValidation.js';
+import { recoveryErrorKey, validateRecoveryEmail, validateRecoveryPassword } from '../../utils/passwordRecoveryValidation.js';
 import { passwordRecoveryI18n } from './passwordRecoveryI18n.js';
 import './LoginPage.css';
 import './PasswordRecoveryPage.css';
 
-// Component callbacks only. No HTTP endpoint, recovery credential format or provider is assumed.
+// HTTP and credential handling belong to PasswordRecoveryRoute.
 function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPassword, onNavigate }) {
   const [lang, setLang] = useState(initialLang === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState({ email: '', password: '', confirmPassword: '' });
@@ -20,7 +19,7 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
   const handler = reset ? onResetPassword : onRequestRecovery;
   const available = typeof handler === 'function';
   const busy = status === 'pending';
-  const errors = reset ? validatePasswordFields(values, lang) : validateRecoveryEmail(values.email, lang);
+  const errors = reset ? validateRecoveryPassword(values, lang) : validateRecoveryEmail(values.email, lang);
   useEffect(() => {
     headingRef.current?.focus();
     return () => requestRef.current?.abort();
@@ -49,7 +48,7 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
     const controller = new AbortController(); requestRef.current = controller;
     setStatus('pending');
     try {
-      await handler(reset ? { password: values.password } : { email: values.email.trim() }, { signal: controller.signal });
+      await handler(reset ? { password: values.password } : { email: values.email.trim() }, { signal: controller.signal, lang });
       if (controller.signal.aborted) return;
       setValues({ email: '', password: '', confirmPassword: '' });
       setAttempted(false);
