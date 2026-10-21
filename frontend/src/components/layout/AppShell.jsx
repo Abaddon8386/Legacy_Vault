@@ -54,6 +54,13 @@ const NAVIGATION_REGISTRY = [
     status: 'ACTIVE',
   },
   {
+    id: 'shared-with-me',
+    jiraTicket: 'PS-105',
+    labelVi: 'Được chia sẻ với tôi',
+    labelEn: 'Shared with me',
+    status: 'ACTIVE',
+  },
+  {
     id: 'subscription',
     jiraTicket: 'CR-01',
     labelVi: 'Gói sử dụng',
@@ -300,7 +307,7 @@ export default function AppShell({
     t.brandTag = lang === 'en' ? 'Beneficiary account' : 'Tài khoản người thụ hưởng';
     t.navSectionTitle = lang === 'en' ? 'BENEFICIARY' : 'NGƯỜI THỤ HƯỞNG';
     t.breadcrumbHome = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
-    t.breadcrumbCurrent = lang === 'en' ? 'Account information' : 'Thông tin tài khoản';
+    t.breadcrumbCurrent = currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : (lang === 'en' ? 'Account information' : 'Thông tin tài khoản');
     t.roleBadge = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
   }
   const navList = isAdmin
@@ -309,7 +316,10 @@ export default function AppShell({
         { id: 'admin-subscriptions', labelVi: 'Quản lý gói sử dụng', labelEn: 'Subscription management', status: 'ACTIVE' },
       ]
     : isBeneficiary
-    ? [{ id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary information', status: 'ACTIVE' }]
+      ? [
+          { id: 'shared-with-me', labelVi: 'Được chia sẻ với tôi', labelEn: 'Shared with me', status: 'ACTIVE' },
+          { id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary Information', status: 'ACTIVE' },
+        ]
     : isStaff
     ? STAFF_NAVIGATION_REGISTRY
     : isLegal
@@ -846,7 +856,7 @@ export default function AppShell({
                           : currentTab === 'death-verification'
                             ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
                             : t.breadcrumbCurrent
-                  : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
+                  : currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người thi hành bên ngoài')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')
