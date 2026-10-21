@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /** Explicit provider/subject mapping. Account-linking authorization is enforced by the auth service. */
 @Entity
@@ -41,10 +42,12 @@ public class ExternalAuthIdentity {
         this.providerCode = providerCode;
         this.subject = subject;
         this.user = user;
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public Long getId() { return id; }
     public String getProviderCode() { return providerCode; }
     public String getSubject() { return subject; }
     public User getUser() { return user; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }

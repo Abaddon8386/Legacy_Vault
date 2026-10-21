@@ -15,6 +15,7 @@ import com.legacyvault.user.entity.ExternalAuthIdentity;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.ExternalAuthIdentityRepository;
 import com.legacyvault.user.repository.UserRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +77,9 @@ public class GoogleAuthService {
             credentialUses.saveAndFlush(new GoogleLoginCredentialUse(
                     credential.credentialHash(), LocalDateTime.ofInstant(credential.expiresAt(), ZoneOffset.UTC)));
         } catch (DataIntegrityViolationException exception) {
+            if (!violatesConstraint(exception, "PK_google_login_credential_uses")) {
+                throw exception;
+            }
             auditService.recordLoginFailure(user.getUserId());
             throw new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
         }
@@ -101,12 +105,18 @@ public class GoogleAuthService {
             credentialUses.saveAndFlush(new GoogleLoginCredentialUse(
                     credential.credentialHash(), LocalDateTime.ofInstant(credential.expiresAt(), ZoneOffset.UTC)));
         } catch (DataIntegrityViolationException exception) {
+            if (!violatesConstraint(exception, "PK_google_login_credential_uses")) {
+                throw exception;
+            }
             throw new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
         }
 
         try {
             identities.saveAndFlush(new ExternalAuthIdentity(GOOGLE_PROVIDER, credential.subject(), user));
         } catch (DataIntegrityViolationException exception) {
+            if (!violatesConstraint(exception, "UQ_external_auth_identities_provider_subject")) {
+                throw exception;
+            }
             // The database unique constraint is the final guard against concurrent link requests.
             throw new BusinessException(ErrorCode.GOOGLE_IDENTITY_ALREADY_LINKED);
         }
@@ -126,5 +136,17 @@ public class GoogleAuthService {
                 null));
 
         return new GoogleIdentityLinkResponse(true);
+    }
+
+    private static boolean violatesConstraint(DataIntegrityViolationException exception, String expectedName) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException violation
+                    && expectedName.equalsIgnoreCase(violation.getConstraintName())) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 }

@@ -12,6 +12,7 @@ import com.legacyvault.user.entity.ExternalAuthIdentity;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.ExternalAuthIdentityRepository;
 import com.legacyvault.user.repository.UserRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -104,7 +105,7 @@ class GoogleAuthServiceTest {
     @Test
     void reusedCredentialCannotMintAnotherSession() {
         when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class)))
-                .thenThrow(new DataIntegrityViolationException("duplicate fingerprint"));
+                .thenThrow(dataViolation("PK_google_login_credential_uses"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.login(new GoogleLoginRequest(token)));
@@ -112,6 +113,17 @@ class GoogleAuthServiceTest {
         assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
         verify(audit).recordLoginFailure(41L);
         verifyNoInteractions(authService);
+    }
+
+    @Test
+    void loginDoesNotTreatOtherDatabaseIntegrityErrorsAsCredentialReplay() {
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("foreign key failed");
+        when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class))).thenThrow(failure);
+
+        assertSame(failure, assertThrows(DataIntegrityViolationException.class,
+                () -> service.login(new GoogleLoginRequest(token))));
+        verifyNoInteractions(authService);
+        verify(audit, never()).recordLoginFailure(any());
     }
 
     @Test
@@ -200,7 +212,7 @@ class GoogleAuthServiceTest {
         when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
                 .thenReturn(Optional.empty());
         when(identities.saveAndFlush(any(ExternalAuthIdentity.class)))
-                .thenThrow(new DataIntegrityViolationException("duplicate provider subject"));
+                .thenThrow(dataViolation("UQ_external_auth_identities_provider_subject"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.linkIdentity(new GoogleLoginRequest(token), 41L));
@@ -210,8 +222,39 @@ class GoogleAuthServiceTest {
     }
 
     @Test
+    void linkDuplicateCredentialIsRejectedAsReplayBeforeIdentityConflictHandling() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
+                .thenReturn(Optional.empty());
+        when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class)))
+                .thenThrow(dataViolation("PK_google_login_credential_uses"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.linkIdentity(new GoogleLoginRequest(token), 41L));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(identities, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void linkDoesNotMapUnrelatedIdentityDatabaseFailureToAlreadyLinked() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
+                .thenReturn(Optional.empty());
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("foreign key failed");
+        when(identities.saveAndFlush(any(ExternalAuthIdentity.class))).thenThrow(failure);
+
+        assertSame(failure, assertThrows(DataIntegrityViolationException.class,
+                () -> service.linkIdentity(new GoogleLoginRequest(token), 41L)));
+        verify(audit, never()).record(any());
+    }
+
+    @Test
     void linkRunsInTransaction() throws Exception {
         assertTrue(GoogleAuthService.class.getMethod("linkIdentity", GoogleLoginRequest.class, Long.class)
                 .isAnnotationPresent(Transactional.class));
+    }
+
+    private static DataIntegrityViolationException dataViolation(String constraint) {
+        return new DataIntegrityViolationException("constraint violation",
+                new ConstraintViolationException("constraint violation", null, constraint));
     }
 }
