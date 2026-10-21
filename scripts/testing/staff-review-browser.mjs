@@ -31,6 +31,49 @@ const user = {
 };
 
 // DTO chuẩn BasisDossierResponse & BasisVersionResponse
+
+// Dữ liệu nhị phân PDF mẫu chuẩn RFC (inline rendering)
+const SAMPLE_PDF_BUFFER = Buffer.from(
+  '%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj\n4 0 obj << /Length 51 >> stream\nBT\n/F1 24 Tf\n100 700 Td\n(LegacyVault Verified Document) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000216 00000 n \ntrailer << /Size 5 /Root 1 0 R >>\nstartxref\n318\n%%EOF\n',
+  'utf8'
+);
+
+const initialDocId = '11111111-1111-4111-8111-111111111111';
+const deathDocuments = [
+  {
+    id: initialDocId,
+    caseId,
+    documentType: 'DEATH_CERTIFICATE',
+    issuingAuthority: 'UBND Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+    documentNumber: '118/2026/TLKT-BS',
+    issuedDate: '2026-10-12',
+    deliveredByName: 'Nguyễn Văn Vance',
+    evidenceReference: 'GCT-SO-118-2026',
+    receivedBy: user.id,
+    receivedAt: '2026-10-19T08:15:00Z',
+  },
+];
+const willIntakes = [];
+const attachmentsStore = new Map([
+  [
+    initialDocId,
+    [
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        caseId,
+        subjectType: 'DEATH_DOCUMENT',
+        subjectId: initialDocId,
+        fileName: 'trich_luc_khai_tu_goc.pdf',
+        sizeBytes: 1048576,
+        contentType: 'application/pdf',
+        sha256: '9f833777d97ff1b8d7d8e9e70a6ec495d8ed05d909fed451a604b807773ac242',
+        uploadedBy: user.id,
+        uploadedAt: '2026-10-19T08:30:00Z',
+      },
+    ],
+  ],
+]);
+
 let basisDossier = {
   id: 'dossier-002',
   caseId,
@@ -178,6 +221,118 @@ function staffFixturePlugin({ evidencePath } = {}) { return {
       }
 
       // Basis Dossier COURT endpoints (trả raw DTO BasisDossierResponse)
+
+      // Content binary của phiên bản văn bản căn cứ (PS-96 & PS-103)
+      if (path.includes('/basis-dossier/versions/') && path.endsWith('/content')) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="court_judgment.pdf"');
+        return res.end(SAMPLE_PDF_BUFFER);
+      }
+
+      // Content binary của tệp đính kèm giấy tờ (PS-98 & PS-103)
+      if (path.includes('/attachments/') && path.endsWith('/content')) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="intake_attachment.pdf"');
+        return res.end(SAMPLE_PDF_BUFFER);
+      }
+
+      // Danh sách và upload tệp đính kèm giấy tờ tử vong (PS-98 & PS-103)
+      const deathAttMatch = path.match(/\/death-documents\/([^/]+)\/attachments$/);
+      if (deathAttMatch) {
+        const recordId = deathAttMatch[1];
+        if (post) {
+          const filenameMatch = text.match(/filename="([^"]+)"/);
+          const fileName = filenameMatch ? filenameMatch[1] : 'dinh_kem_chung_tu.pdf';
+          const newAtt = {
+            id: randomUUID(),
+            caseId,
+            subjectType: 'DEATH_DOCUMENT',
+            subjectId: recordId,
+            fileName,
+            sizeBytes: 204800,
+            contentType: 'application/pdf',
+            sha256: 'a'.repeat(64),
+            uploadedBy: user.id,
+            uploadedAt: new Date().toISOString(),
+          };
+          const list = attachmentsStore.get(recordId) || [];
+          list.push(newAtt);
+          attachmentsStore.set(recordId, list);
+          return send(newAtt, 201);
+        }
+        return send(attachmentsStore.get(recordId) || []);
+      }
+
+      // Danh sách và upload tệp đính kèm di chúc gốc (PS-98 & PS-103)
+      const willAttMatch = path.match(/\/original-will-intakes\/([^/]+)\/attachments$/);
+      if (willAttMatch) {
+        const intakeId = willAttMatch[1];
+        if (post) {
+          const filenameMatch = text.match(/filename="([^"]+)"/);
+          const fileName = filenameMatch ? filenameMatch[1] : 'ban_goc_di_chuc.pdf';
+          const newAtt = {
+            id: randomUUID(),
+            caseId,
+            subjectType: 'ORIGINAL_WILL',
+            subjectId: intakeId,
+            fileName,
+            sizeBytes: 512000,
+            contentType: 'application/pdf',
+            sha256: 'c'.repeat(64),
+            uploadedBy: user.id,
+            uploadedAt: new Date().toISOString(),
+          };
+          const list = attachmentsStore.get(intakeId) || [];
+          list.push(newAtt);
+          attachmentsStore.set(intakeId, list);
+          return send(newAtt, 201);
+        }
+        return send(attachmentsStore.get(intakeId) || []);
+      }
+
+      // Quản lý bản ghi tiếp nhận giấy chứng tử
+      if (path.endsWith('/death-documents')) {
+        if (post) {
+          const newDoc = {
+            id: randomUUID(),
+            caseId,
+            documentType: body.documentType || 'DEATH_CERTIFICATE',
+            issuingAuthority: body.issuingAuthority || 'UBND Phường',
+            documentNumber: body.documentNumber || '01/2026',
+            issuedDate: body.issuedDate || '2026-10-15',
+            deliveredByName: body.deliveredByName || 'Người giao nộp',
+            evidenceReference: body.evidenceReference || null,
+            receivedBy: user.id,
+            receivedAt: new Date().toISOString(),
+          };
+          deathDocuments.push(newDoc);
+          return send(newDoc, 201);
+        }
+        return send(deathDocuments);
+      }
+
+      // Quản lý bản ghi tiếp nhận di chúc gốc
+      if (path.endsWith('/original-will-intakes')) {
+        if (post) {
+          const newWill = {
+            id: randomUUID(),
+            caseId,
+            issuingAuthority: body.issuingAuthority || 'Văn phòng Công chứng',
+            documentNumber: body.documentNumber || '99/CC',
+            issuedDate: body.issuedDate || '2026-10-10',
+            deliveredByName: body.deliveredByName || 'Người nộp di chúc',
+            evidenceReference: body.evidenceReference || null,
+            receivedBy: user.id,
+            receivedAt: new Date().toISOString(),
+          };
+          willIntakes.push(newWill);
+          return send(newWill, 201);
+        }
+        return send(willIntakes);
+      }
+
       if (path.endsWith('/basis-dossier')) {
         return send(basisDossier);
       }

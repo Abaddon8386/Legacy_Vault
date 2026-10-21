@@ -24,7 +24,9 @@ import {
   fetchBasisDossier,
   uploadBasisVersion,
   forwardBasisVersion,
+  readBasisVersionContent,
 } from './staffLegalDocumentsService.js';
+import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
 import './StaffLegalDocumentsPage.css';
 
@@ -68,6 +70,17 @@ export default function StaffLegalDocumentsPage({
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 
   // Dossier State
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const previewController = useRef(null);
+  const previewScope = `${selectedCaseId}:${effectiveAccessToken}`;
+  const [lastPreviewScope, setLastPreviewScope] = useState(previewScope);
+  if (lastPreviewScope !== previewScope) {
+    setLastPreviewScope(previewScope);
+    setPreviewDoc(null);
+    setIsPreviewLoading(false);
+  }
+  useEffect(() => () => previewController.current?.abort(), [selectedCaseId, effectiveAccessToken]);
   const [dossier, setDossier] = useState(initialDossier);
   const [isDossierLoading, setIsDossierLoading] = useState(false);
   const [dossierNotFound, setDossierNotFound] = useState(false);
@@ -460,6 +473,37 @@ export default function StaffLegalDocumentsPage({
   };
 
   // Forward phiên bản mới nhất cho Ban Pháp lý (Finding C & Lỗi B/C)
+  const handleViewVersionFile = async (version) => {
+    if (!selectedCaseId || !version?.version) return;
+    if (previewController.current && !previewController.current.signal.aborted) return;
+    const c = new AbortController();
+    previewController.current = c;
+    setIsPreviewLoading(true);
+    setActionError(null);
+    try {
+      const blob = await readBasisVersionContent(selectedCaseId, version.version, {
+        accessToken: effectiveAccessToken,
+        isDevPreview: effectiveIsDevPreview,
+        lang,
+        signal: c.signal,
+      });
+      if (c.signal.aborted) return;
+      const url = URL.createObjectURL(blob);
+      setPreviewDoc({
+        blobUrl: url,
+        fileName: 'legal-basis-v' + version.version + '-' + selectedCaseId.slice(0, 8) + '.pdf',
+        contentType: version.contentType || 'application/pdf',
+      });
+    } catch (err) {
+      if (c.signal.aborted) return;
+      if (err.status === 401) onUnauthorized?.();
+      setActionError(err.message || (en ? 'Failed to read document file.' : 'Không thể tải nội dung tệp.'));
+    } finally {
+      if (previewController.current === c) previewController.current = null;
+      if (!c.signal.aborted) setIsPreviewLoading(false);
+    }
+  };
+
   const handleForwardToLegal = async () => {
     if (isForwarding || isSubmitting || isRouteNotarial) return;
 
@@ -789,6 +833,26 @@ export default function StaffLegalDocumentsPage({
 
             {/* Action Bar trong Tab Tổng quan */}
             <div className="lv-dossier-overview-actions">
+              {latestVersion && (
+                <button
+                  type="button"
+                  className="lv-btn-view-document"
+                  onClick={() => handleViewVersionFile(latestVersion)}
+                  disabled={isPreviewLoading}
+                >
+                  {isPreviewLoading ? (
+                    <>
+                      <RefreshCw size={16} className="lv-spin" aria-hidden="true" />
+                      <span>{en ? 'Loading file…' : 'Đang tải tệp…'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText size={16} aria-hidden="true" />
+                      <span>{en ? 'View document file' : 'Xem tệp số hóa'}</span>
+                    </>
+                  )}
+                </button>
+              )}
               {latestVersion && !isLatestForwarded && !isRouteOnHold && !isRouteNotarial && (
                 <button
                   type="button"
@@ -1180,6 +1244,7 @@ export default function StaffLegalDocumentsPage({
                       <th>{t.issuanceDateLabel}</th>
                       <th>{t.forwardStatusLabel}</th>
                       <th>{en ? 'Allocations' : 'Phân bổ'}</th>
+                      <th>{en ? 'File' : 'Tệp'}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1207,6 +1272,18 @@ export default function StaffLegalDocumentsPage({
                             <span className="lv-alloc-count-empty">0</span>
                           )}
                         </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="lv-btn-view-version-file"
+                            onClick={() => handleViewVersionFile(v)}
+                            disabled={isPreviewLoading}
+                            title={en ? `View file for version ${v.version}` : `Xem tệp phiên bản ${v.version}`}
+                          >
+                            <FileText size={14} aria-hidden="true" />
+                            <span>{en ? 'View' : 'Xem'}</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1227,6 +1304,16 @@ export default function StaffLegalDocumentsPage({
         lang={lang}
         currentCaseId={selectedCaseId}
         onUnauthorized={onUnauthorized}
+      />
+
+      {/* Evidence Document Preview Modal (PS-96 & PS-103) */}
+      <EvidencePreviewModal
+        isOpen={Boolean(previewDoc)}
+        onClose={() => setPreviewDoc(null)}
+        blobUrl={previewDoc?.blobUrl}
+        fileName={previewDoc?.fileName}
+        contentType={previewDoc?.contentType}
+        lang={lang}
       />
 
       {/* Unsaved Changes Confirmation Modal */}
