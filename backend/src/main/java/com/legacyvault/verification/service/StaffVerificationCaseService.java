@@ -13,6 +13,7 @@ import com.legacyvault.user.entity.User;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
+import com.legacyvault.trustee.TrusteeRepository;
 import com.legacyvault.verification.dto.StaffVerificationCaseResponse;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
@@ -32,17 +33,20 @@ public class StaffVerificationCaseService {
     private final VaultRepository vaultRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final TrusteeRepository trusteeRepository;
 
     public StaffVerificationCaseService(
             VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository,
             UserRepository userRepository,
-            AuditService auditService
+            AuditService auditService,
+            TrusteeRepository trusteeRepository
     ) {
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.trusteeRepository = trusteeRepository;
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +75,7 @@ public class StaffVerificationCaseService {
 
         Page<VerificationCase> cases = caseRepository.findQueueByStaff(staffUserId, status, pageable);
 
-        return PageResponse.from(cases, this::toResponse);
+        return PageResponse.from(cases, item -> toResponse(item, false));
     }
 
     @Transactional(readOnly = true)
@@ -82,15 +86,21 @@ public class StaffVerificationCaseService {
                 caseRepository.findViewableCaseByPublicId(caseId, staffUserId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        return toResponse(verificationCase);
+        return toResponse(verificationCase, true);
     }
 
-    private StaffVerificationCaseResponse toResponse(VerificationCase verificationCase) {
+    private StaffVerificationCaseResponse toResponse(
+            VerificationCase verificationCase, boolean includeTrustee) {
         Vault vault = vaultRepository.findById(verificationCase.getVaultId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         User owner = userRepository.findById(vault.getOwnerUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        var trustee = includeTrustee
+                ? trusteeRepository.findFirstByVault_VaultIdAndStatus(
+                        vault.getVaultId(), "APPOINTED").orElse(null)
+                : null;
 
         return new StaffVerificationCaseResponse(
                 verificationCase.getPublicId(),
@@ -99,9 +109,15 @@ public class StaffVerificationCaseService {
                 verificationCase.getTriggeredAt(),
                 verificationCase.getClosedAt(),
                 vault.getPublicId(),
+                vault.getStatus(),
                 vault.getName(),
                 owner.getPublicId(),
-                owner.getFullName()
+                owner.getFullName(),
+                verificationCase.getAssignedStaffUserId() == null
+                        ? "UNASSIGNED_CLAIMABLE" : "ASSIGNED_TO_CURRENT_STAFF",
+                trustee == null ? null : new StaffVerificationCaseResponse.TrusteeSummary(
+                        trustee.getPublicId(), trustee.getFullName(), trustee.getPhone(), trustee.getEmail(),
+                        trustee.getRelationship())
         );
     }
 
@@ -138,6 +154,6 @@ public class StaffVerificationCaseService {
                 null
         ));
 
-        return toResponse(verificationCase);
+        return toResponse(verificationCase, true);
     }
 }

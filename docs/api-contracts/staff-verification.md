@@ -21,7 +21,7 @@ Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integrat
 
   | Trường | Kiểu | Bắt buộc | Validation / mặc định |
   |---|---|---|---|
-  | `status` | string | Không | Null/rỗng thì không lọc; giá trị được `trim()` và chuyển thành chữ hoa. Service hiện chỉ chấp nhận `OPEN` hoặc `CANCELLED`. |
+  | `status` | string | Không | Null/rỗng thì không lọc; giá trị được `trim()` và chuyển thành chữ hoa. Service chấp nhận `OPEN`, `CANCELLED` hoặc `CLOSED`. |
   | `page` | integer | Không | Mặc định `0`; `@Min(0)`. |
   | `size` | integer | Không | Mặc định `20`; `@Min(1)`, `@Max(100)`. |
 
@@ -37,17 +37,21 @@ Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integrat
   ```json
   {
     "caseId": "6f1a4c2d-0000-4000-8000-000000000001",
+    "caseNumber": "HS-2026-000001",
     "status": "OPEN",
     "triggeredAt": "2026-10-16T07:00:00",
     "closedAt": null,
     "vaultId": "9c1f0b6e-0000-4000-8000-000000000001",
+    "vaultStatus": "AWAITING_VERIFICATION",
     "vaultName": "Kho di sản gia đình",
     "ownerId": "2c5d1a3e-0000-4000-8000-000000000001",
-    "ownerName": "Nguyễn Văn A"
+    "ownerName": "Nguyễn Văn A",
+    "assignmentStatus": "UNASSIGNED_CLAIMABLE",
+    "trustee": null
   }
   ```
 
-  `triggeredAt` và `closedAt` là `LocalDateTime`; định dạng JSON phụ thuộc cấu hình Jackson. Cấu trúc bao ngoài phân trang được định nghĩa bởi class `PageResponse`.
+  `triggeredAt` và `closedAt` là `LocalDateTime`; định dạng JSON phụ thuộc cấu hình Jackson. Cấu trúc bao ngoài phân trang được định nghĩa bởi class `PageResponse`. Queue trả `assignmentStatus` và `vaultStatus`, còn `trustee` bị bỏ trống trong các item danh sách; chi tiết trả Trustee hiện `APPOINTED` (chỉ tên, phone, email, quan hệ; không trả ghi chú).
 
 - **Lỗi:** `VALIDATION_FAILED` nếu `status` không hợp lệ. Mã lỗi HTTP cho lỗi validation của `page`/`size` cần được xác minh bằng controller integration test; unit test service không chứng minh response HTTP thực tế.
 
@@ -58,6 +62,30 @@ Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integrat
 - **Authorization:** Role `STAFF_EXECUTOR` được kiểm tra ở cấp controller.
 - **Quyền xem:** Service gọi `findViewableCaseByPublicId(caseId, staffUserId)`. Repository chỉ cho phép xem nếu case chưa được gán và đang `OPEN`, hoặc đã được gán cho Staff hiện tại.
 - **Response 200:** Một `StaffVerificationCaseResponse` với `caseId`, `status`, `triggeredAt`, `closedAt`, `vaultId`, `vaultName`, `ownerId`, `ownerName`.
+- `Response 200` hiện bổ sung trạng thái phân công, trạng thái Vault và Trustee `APPOINTED` tối thiểu để liên hệ; ví dụ:
+
+  ```json
+  {
+    "caseId": "6f1a4c2d-0000-4000-8000-000000000001",
+    "caseNumber": "HS-2026-000001",
+    "status": "OPEN",
+    "triggeredAt": "2026-10-16T07:00:00",
+    "closedAt": null,
+    "vaultId": "9c1f0b6e-0000-4000-8000-000000000001",
+    "vaultStatus": "AWAITING_VERIFICATION",
+    "vaultName": "Kho di sản gia đình",
+    "ownerId": "2c5d1a3e-0000-4000-8000-000000000001",
+    "ownerName": "Nguyễn Văn A",
+    "assignmentStatus": "ASSIGNED_TO_CURRENT_STAFF",
+    "trustee": {
+      "trusteeId": "b2f23e61-2c09-4ec7-9db7-148359db0001",
+      "fullName": "Nguyễn Thị B",
+      "phone": "+84900000000",
+      "email": "trustee@example.test",
+      "relationship": "Người thân"
+    }
+  }
+  ```
 - **Lỗi:** `RESOURCE_NOT_FOUND` nếu case không tồn tại hoặc không thuộc phạm vi xem của Staff hiện tại. Nếu không tìm thấy Vault hoặc Owner liên quan, service cũng trả `RESOURCE_NOT_FOUND`.
 
 ## POST /api/v1/staff/verification-cases/{caseId}/claim — ST-09
@@ -82,9 +110,21 @@ Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integrat
 | `triggeredAt` | `LocalDateTime` |
 | `closedAt` | `LocalDateTime` |
 | `vaultId` | `UUID` |
+| `vaultStatus` | `String` |
 | `vaultName` | `String` |
 | `ownerId` | `UUID` |
 | `ownerName` | `String` |
+| `assignmentStatus` | `UNASSIGNED_CLAIMABLE` hoặc `ASSIGNED_TO_CURRENT_STAFF` |
+| `trustee` | `trusteeId`, `fullName`, `phone`, `email`, `relationship`; chỉ chi tiết; `null` khi không có Trustee APPOINTED |
+
+### Nguồn context theo case và giới hạn
+
+- `GET /{caseId}` giữ nguyên quyền: Staff hiện tại chỉ xem case OPEN chưa nhận hoặc case được gán cho chính mình; case của Staff khác trả 404.
+- `vaultStatus` lấy trực tiếp từ Vault hiện hành. Đây là bước workflow, không phải quyền unlock/giao tài sản.
+- Trustee lấy từ bản ghi hiện hành `APPOINTED` cùng Vault; không trả `note` hay giấy tờ định danh. Nếu thiếu Trustee, response trả `null`. Chính sách người liên hệ thay thế vẫn mở (C3: số lần/kênh/thời gian chờ), nên API không tự chọn fallback.
+- Dữ liệu văn bản/phân bổ theo từng version được đọc qua `GET /api/v1/staff/verification-cases/{caseId}/basis-dossier` (đã giới hạn vào case được giao). Sau unlock, recipient/item đủ điều kiện được lấy qua `GET .../handover-sessions/{sessionId}/eligible-assets`; không dùng Owner Beneficiary API.
+- Lịch sử death-document và bản di chúc giấy đã nhận được đọc qua các GET PS-38/39 hiện có; contact history qua PS-44. Các API này chỉ trả tham chiếu/metadata đã ghi, không chứng minh tự thân rằng Legal đã duyệt hay danh tính được xác minh.
+- Beneficiary discovery trước unlock, ghi nhận trách nhiệm Staff/tham chiếu chứng từ tại quầy và chính xác hóa gate trước bàn giao chưa được chốt thành một Staff read contract. Không thêm endpoint/DTO tổng hợp cho các phần này. Cần nhóm xác nhận nguồn ghi nhận tại quầy và cách FE tiêu thụ gate; không xem invitation/link tài khoản hoặc `VERIFIED_AT_COUNTER` do client gửi là bằng chứng xác minh ngoài đời.
 
 Service lấy Vault bằng `vaultRepository.findById(verificationCase.getVaultId())`, sau đó lấy Owner bằng `userRepository.findById(vault.getOwnerUserId())`.
 
