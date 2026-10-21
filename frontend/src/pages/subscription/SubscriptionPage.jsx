@@ -13,6 +13,7 @@ import {
   subscriptionErrorMessage,
 } from '../../utils/subscriptionService.js';
 import './SubscriptionPage.css';
+import PaymentCheckout from './PaymentCheckout.jsx';
 
 function getInitialScenario() {
   return subscriptionScenario(typeof window === 'undefined' ? '' : window.location.search);
@@ -199,7 +200,7 @@ export default function SubscriptionPage({
         <p className="lv-sub-subtitle">{lang === 'en' ? 'Your plan, usage and storage limits in one place.' : 'Theo dõi gói hiện tại và dung lượng bạn đã sử dụng.'}</p>
       </header>
 
-      <p>{lang === 'en' ? 'One payment for lifetime use. Upgrades cost the full target plan price; previous purchases are not credited. Online checkout is not available yet.' : 'Mua một lần, sử dụng trọn đời. Nâng cấp trả toàn bộ giá gói đích, không trừ tiền gói đã mua. Thanh toán trực tuyến hiện chưa khả dụng.'}</p>
+      <p>{lang === 'en' ? 'One payment for lifetime use. Upgrades cost the full target plan price; previous purchases are not credited.' : 'Mua một lần, sử dụng trọn đời. Nâng cấp trả toàn bộ giá gói đích, không trừ tiền gói đã mua.'}</p>
       {/* Hero Card: Current Subscription & Quota Gauges */}
       <section className="lv-sub-current-card" aria-label={lang === 'en' ? 'Current subscription' : 'Thông tin gói hiện tại'}>
         <div className="lv-sub-current-top">
@@ -354,11 +355,8 @@ export default function SubscriptionPage({
         </details>
 
         {/* Informational Policy Footnote */}
-        <p className="lv-sub-plans-footer-note">
-          {lang === 'en'
-            ? 'Online plan changes are currently unavailable.'
-            : 'Hệ thống hiện chưa hỗ trợ thay đổi gói trực tuyến.'}
-        </p>
+        {accessToken && !canDemo && <PaymentCheckout key={accessToken} accessToken={accessToken}
+          lang={lang} currentPlan={data.planCode} onPaid={loadData} />}
       </section>
     </div>
   );

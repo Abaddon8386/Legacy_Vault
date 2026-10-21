@@ -1,12 +1,12 @@
 /**
- * Localization dictionary for PS-54 Beneficiary Confirmation
+ * Localization dictionary for PS-54 Asset receipt confirmation
  * Clean, user-friendly copy adhering to Henedo art direction.
  * Does not expose raw internal enums, ticket IDs, or implementation details.
  */
 
 export const beneficiaryConfirmationI18n = {
   vi: {
-    pageTitle: 'Xác nhận người thụ hưởng',
+    pageTitle: 'Xác nhận đã nhận tài sản',
     pageSubtitle: 'Nhân viên thực thi ghi nhận biên nhận và xác nhận việc nhận tài sản/thừa kế của người thụ hưởng theo quy định.',
     noticeTitle: 'Quy tắc xác nhận độc lập',
     noticeBody: 'Xác nhận của người thụ hưởng được ghi nhận riêng biệt cùng biên nhận/số tham chiếu. Trạng thái bàn giao tài sản không tự động thay đổi xác nhận của người thụ hưởng.',
@@ -32,7 +32,6 @@ export const beneficiaryConfirmationI18n = {
     receiptInputPlaceholder: 'VD: BN-2026-0891 hoặc REF-8812...',
     receiptInputHint: 'Nhập số biên lai hoặc mã số văn bản xác nhận đã ký.',
     btnRecordConfirmation: 'Ghi nhận xác nhận',
-    btnResetForm: 'Đặt lại',
     unavailableNotice: 'Chức năng hiện chưa khả dụng',
     informationUnavailable: 'Chưa có thông tin',
     emptyBeneficiaries: 'Chưa có thông tin người thụ hưởng trong hồ sơ này.',
@@ -44,7 +43,7 @@ export const beneficiaryConfirmationI18n = {
     caseRequired: 'Vui lòng nhập mã hồ sơ hợp lệ.',
   },
   en: {
-    pageTitle: 'Beneficiary Confirmation',
+    pageTitle: 'Asset receipt confirmation',
     pageSubtitle: 'Staff Executor records confirmation receipt and acknowledgement from designated beneficiaries.',
     noticeTitle: 'Independent Confirmation Rule',
     noticeBody: 'Beneficiary confirmation must be recorded separately with a receipt/reference. Asset delivery does not automatically confirm beneficiary acknowledgement.',
@@ -63,14 +62,13 @@ export const beneficiaryConfirmationI18n = {
     deliveryDelivered: 'Delivered',
     deliveryPending: 'Pending Delivery',
     deliveryUnknown: 'Information not available',
-    formHeading: 'Record Beneficiary Confirmation',
+    formHeading: 'Record Asset receipt confirmation',
     beneficiarySelectLabel: 'Beneficiary',
     beneficiarySelectPlaceholder: '-- Select Beneficiary --',
     receiptInputLabel: 'Receipt Number / Reference Code',
     receiptInputPlaceholder: 'E.g. REC-2026-0891 or REF-8812...',
     receiptInputHint: 'Enter signed receipt identifier or official confirmation reference.',
     btnRecordConfirmation: 'Record Confirmation',
-    btnResetForm: 'Reset',
     unavailableNotice: 'This function is currently unavailable.',
     informationUnavailable: 'Information unavailable',
     emptyBeneficiaries: 'No beneficiaries found for this case.',

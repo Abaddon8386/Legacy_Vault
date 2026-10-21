@@ -29,6 +29,165 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/BeneficiaryId"
+    get:
+      tags: [Beneficiaries]
+      summary: Owner reads current invitation metadata, never the code or hash
+      description: Owner of this Vault only. NOT_ISSUED when no generation exists. Cache-Control no-store.
+      x-status: implemented
+      responses:
+        "200":
+          description: Current metadata, including for frozen or archived Vaults owned by caller
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationMetadata" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Beneficiaries]
+      summary: Owner issues the first invitation for an unlinked Beneficiary in an ACTIVE Vault
+      description: No body required. Code possession proves acceptance, not legal identity. 128-bit CSPRNG, 7 days UTC. Plaintext returned once. Existing generation is a conflict; never auto-rotate on retry.
+      x-status: implemented
+      responses:
+        "201":
+          description: Invitation issued atomically with audit; no Location containing the code
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationIssued" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_ALREADY_EXISTS, BENEFICIARY_ACCOUNT_ALREADY_LINKED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    delete:
+      tags: [Beneficiaries]
+      summary: Owner revokes the current unused invitation in an ACTIVE Vault
+      description: Repeated revocation of the same generation returns 204 without replacing evidence or audit. Stale generation is 409 and cannot revoke a newer code. No invitation is 404; consumed invitation is 409. Account linkage is never removed.
+      x-status: implemented
+      parameters:
+        - name: generation
+          in: query
+          required: true
+          description: Current generation displayed to Owner; prevents a delayed or repeated request from revoking a reissued code
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        "204": { description: Revoked or already revoked; Cache-Control no-store }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_STALE, BENEFICIARY_INVITATION_ALREADY_USED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation/reissue:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/BeneficiaryId"
+    post:
+      tags: [Beneficiaries]
+      summary: Owner explicitly replaces an unused invitation with a new generation
+      description: ACTIVE owned Vault only. Atomically revokes and retires the old generation. Client generation prevents concurrent or repeated rotation. Read metadata and explicitly reissue after losing a success response; code cannot be recovered.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [generation]
+              properties:
+                generation: { type: integer, format: int32, minimum: 1 }
+      responses:
+        "201":
+          description: New code returned once; Cache-Control no-store
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationIssued" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_STALE, BENEFICIARY_INVITATION_ALREADY_USED, BENEFICIARY_ACCOUNT_ALREADY_LINKED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/subscriptions/me/payments:
+    post:
+      tags: [Subscriptions]
+      summary: Create or replay a VNPay sandbox one-time checkout (Owner)
+      description: Server snapshots catalog price and limits. UUID key is unique per owner. No entitlement until verified IPN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planCode, catalogVersion, idempotencyKey]
+              properties:
+                planCode: { type: string, enum: [STANDARD, EXTENDED] }
+                catalogVersion: { type: integer, minimum: 1 }
+                idempotencyKey: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Created or replayed checkout
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '400': { description: Invalid request }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Catalog stale, non-upgrade, gateway unavailable or PAYMENT_REQUEST_CONFLICT }
+  /api/v1/subscriptions/me/payments/{id}:
+    get:
+      tags: [Subscriptions]
+      summary: Read own server-confirmed payment status (Owner)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Status only; checkoutUrl is null
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Unknown payment or different owner }
+  /api/v1/payments/vnpay/ipn:
+    get:
+      tags: [Subscriptions]
+      security: []
+      summary: Public VNPay IPN, HMAC-SHA512 authentication
+      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Only this endpoint records payment results.
+      responses:
+        '200':
+          description: VNPay acknowledgment; 99 means processing failed and transaction rolled back
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [RspCode, Message]
+                properties:
+                  RspCode: { type: string, enum: ['00', '01', '02', '04', '97', '99'] }
+                  Message: { type: string }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -214,7 +373,7 @@ paths:
                 catalogVersion: { type: integer, minimum: 1 }
       responses:
         '200':
-          description: Informational server quote; payment is not integrated
+          description: Informational server quote; checkout uses a separate POST
           content:
             application/json:
               schema:
@@ -227,15 +386,15 @@ paths:
                   currency: { type: string, enum: [VND] }
                   billingModel: { type: string, enum: [LIFETIME] }
                   previousPurchaseCreditVnd: { type: integer, enum: [0] }
-                  paymentAvailable: { type: boolean, enum: [false] }
+                  paymentAvailable: { type: boolean, description: VNPay sandbox is configured and enabled }
         '401': { description: Unauthenticated }
         '403': { description: Owner role required }
         '409': { description: Stale catalog or non-upgrade }
   /api/v1/subscription-plans:
     get:
       tags: [Subscriptions]
-      summary: Prototype catalog — chờ phê duyệt PS-77
-      description: ROLE_VAULT_OWNER. Mặc định 409 SUBSCRIPTION_POLICY_PENDING; catalog chỉ có khi bật prototype cho test.
+      summary: Available lifetime subscription catalog
+      description: ROLE_VAULT_OWNER. Free BASIC and available paid tiers. Independent of the quota enforcement flag.
       x-status: implemented
       responses:
         '200':
@@ -422,8 +581,8 @@ paths:
       tags: [Subscriptions]
       summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
       description: |
-        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Prototype bật trong test: chưa có Vault trả usage 0.
-        Mặc định 409 SUBSCRIPTION_POLICY_PENDING. Quota prototype chưa được nhóm duyệt.
+        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Chưa có Vault trả usage 0.
+        BASIC miễn phí hoặc tier cao nhất đã thanh toán qua IPN; quota enforcement vẫn cấu hình độc lập.
         Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
         Không áp quota subscription vào evidence pháp lý.
       x-status: implemented
@@ -443,11 +602,11 @@ paths:
   /api/v1/subscriptions/me/upgrade:
     post:
       tags: [Subscriptions]
-      summary: Nâng gói tạm khóa chờ quy trình xác nhận (PS-77)
+      summary: Legacy self-grant endpoint disabled; use payments checkout
       description: |
         ROLE_VAULT_OWNER. Request không phải bằng chứng thanh toán hoặc xác nhận cấp gói.
         Luôn 409 SUBSCRIPTION_UPGRADE_UNAVAILABLE cho request hợp lệ, không cấp entitlement.
-        Chờ nhóm duyệt và triển khai quy trình thanh toán/xác nhận tin cậy; cờ quota không mở self-grant.
+        PS-80 dùng /subscriptions/me/payments và IPN; cờ quota không mở self-grant.
       x-status: implemented
       requestBody:
         required: true
@@ -2312,6 +2471,46 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Read-only redacted audit search (PS-108)
+      description: ROLE_ADMIN only, no-store. Fixed occurredAt DESC then internal sequence DESC. READ COMMITTED current pages can shift under concurrent inserts. Actor/user/vault IDs are public UUIDs. Raw context, IP, state, names, email and content are never returned.
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: from, in: query, description: Inclusive ISO instant with offset; normalized UTC, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive ISO instant; must follow from, schema: { type: string, format: date-time } }
+        - { name: action, in: query, description: AuditAction enum name or LEGACY_EVENT; unknown values rejected, schema: { type: string } }
+        - { name: actorId, in: query, description: Public user UUID, schema: { type: string, format: uuid } }
+        - { name: actorKind, in: query, schema: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] } }
+      responses:
+        '200':
+          description: Whitelisted metadata page; no-store
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/audit-logs/{id}:
+    get:
+      tags: [Admin]
+      summary: Read redacted audit event by public UUID (PS-108)
+      description: ROLE_ADMIN only, no-store. Missing actor accounts do not hide events. No raw details/IP/states or mutation methods.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Whitelisted metadata and optional trace UUID
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2448,6 +2647,43 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    BeneficiaryInvitationMetadata:
+      type: object
+      required: [invitationId, beneficiaryId, state, generation, issuedAt, expiresAt, revokedAt, consumedAt]
+      properties:
+        invitationId: { type: string, format: uuid, nullable: true }
+        beneficiaryId: { type: string, format: uuid }
+        state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
+        generation: { type: integer, format: int32, minimum: 1, nullable: true }
+        issuedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+        consumedAt: { type: string, format: date-time, nullable: true }
+    BeneficiaryInvitationIssued:
+      type: object
+      required: [invitation, code]
+      properties:
+        invitation: { $ref: "#/components/schemas/BeneficiaryInvitationMetadata" }
+        code:
+          type: string
+          minLength: 22
+          maxLength: 22
+          pattern: '^[A-Za-z0-9_-]{21}[AQgw]$'
+          description: Server-generated 128-bit base64url code, 7-day lifetime. Only in issue/reissue success; never in logs, GET or URLs.
+    SubscriptionPayment:
+      type: object
+      required: [paymentId, planCode, catalogVersion, amountVnd, currency, billingModel, status, createdAt, expiresAt, checkoutUrl]
+      properties:
+        paymentId: { type: string, format: uuid }
+        planCode: { type: string, enum: [STANDARD, EXTENDED] }
+        catalogVersion: { type: integer }
+        amountVnd: { type: integer, format: int64 }
+        currency: { type: string, enum: [VND] }
+        billingModel: { type: string, enum: [LIFETIME] }
+        status: { type: string, enum: [PENDING, EXPIRED, SUCCEEDED, FAILED] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: Checkout expiry only; paid plan has no expiry }
+        checkoutUrl: { type: string, nullable: true, description: Signed sandbox URL only on create/replay before expiry }
     HandoverArchiveResponse:
       type: object
       properties:
@@ -2667,6 +2903,7 @@ components:
             - LEGAL_VERIFICATION_INVALID_STATE
             - LEGAL_VERIFICATION_ALREADY_DECIDED
             - SUBSCRIPTION_POLICY_PENDING
+            - PAYMENT_REQUEST_CONFLICT
             - SUBSCRIPTION_UPGRADE_UNAVAILABLE
             - SUBSCRIPTION_CATALOG_STALE
             - SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED
@@ -2712,6 +2949,10 @@ components:
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE
+            - BENEFICIARY_INVITATION_ALREADY_EXISTS
+            - BENEFICIARY_INVITATION_ALREADY_USED
+            - BENEFICIARY_INVITATION_STALE
+            - BENEFICIARY_INVITATION_INVALID
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
@@ -3244,7 +3485,7 @@ components:
         phone: { type: string, nullable: true }
         email: { type: string, nullable: true }
         hasIdentityNumber: { type: boolean }
-        hasAccount: { type: boolean, description: Luôn false ở Sprint 1 }
+        hasAccount: { type: boolean, description: True when this Beneficiary is linked to a real User account through the counter workflow or invitation service }
         status: { type: string, enum: [DESIGNATED] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -3275,19 +3516,29 @@ components:
 
     ConfigureDmsRequest:
       type: object
-      required: [checkIntervalDays]
+      additionalProperties: false
+      oneOf:
+        - required: [checkIntervalDays]
+        - required: [checkIntervalMinutes]
       properties:
         checkIntervalDays:
           type: integer
           minimum: 1
-          description: Khoảng cho phép do cấu hình (D-API-15); ST-06 nêu ví dụ 30, 90
+          maximum: 180
+          description: Legacy whole days; mutually exclusive with checkIntervalMinutes
+        checkIntervalMinutes:
+          type: integer
+          minimum: 1
+          maximum: 259200
+          description: Whole minutes, supported in production; exactly one duration field
     DmsResponse:
       type: object
-      required: [ownerId, status, checkIntervalDays, gracePeriodDays, nextCheckAt]
+      required: [ownerId, status, checkIntervalDays, checkIntervalMinutes, gracePeriodDays, nextCheckAt]
       properties:
         ownerId: { type: string, format: uuid, description: 'public_id của tài khoản Owner; DMS thuộc Owner, mỗi Owner một DMS' }
         status: { type: string, enum: [MONITORING, TRIGGERED, GRACE_PERIOD_EXCEEDED] }
-        checkIntervalDays: { type: integer }
+        checkIntervalDays: { type: integer, nullable: true, description: Exact whole days or null for a non-whole-day duration; never rounded }
+        checkIntervalMinutes: { type: integer, minimum: 1, description: Authoritative duration; legacy rows may exceed the new configuration maximum }
         gracePeriodDays: { type: integer, description: 'Chỉ đọc; server cấu hình qua DMS_GRACE_PERIOD_DAYS, mặc định 1 (A5)' }
         lastCheckInAt: { type: string, format: date-time, nullable: true }
         nextCheckAt: { type: string, format: date-time }
@@ -3353,3 +3604,35 @@ components:
             storage: { type: boolean }
         vaultCreated: { type: boolean }
         evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
+
+    AdminAuditActor:
+      type: object
+      required: [kind, userId]
+      properties:
+        kind: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] }
+        userId: { type: string, format: uuid, nullable: true, description: Public user UUID; never a DB key }
+    AdminAuditEvent:
+      type: object
+      required: [id, occurredAt, actor, action, entityType, vaultId]
+      properties:
+        id: { type: string, format: uuid }
+        occurredAt: { type: string, format: date-time }
+        actor: { $ref: '#/components/schemas/AdminAuditActor' }
+        action: { type: string, description: Known AuditAction or LEGACY_EVENT }
+        entityType: { type: string, description: Allowlisted label or OTHER }
+        vaultId: { type: string, format: uuid, nullable: true, description: Public vault UUID }
+    AdminAuditPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/AdminAuditEvent' } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminAuditDetail:
+      type: object
+      required: [event, traceId]
+      properties:
+        event: { $ref: '#/components/schemas/AdminAuditEvent' }
+        traceId: { type: string, format: uuid, nullable: true }

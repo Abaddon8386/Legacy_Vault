@@ -1,5 +1,20 @@
 # Hợp đồng lỗi chung
 
+PS-86 bổ sung mã lỗi cùng envelope VI/EN:
+
+- 409 `BENEFICIARY_INVITATION_ALREADY_EXISTS` — `error.invitation.alreadyExists`;
+  mã đã được cấp, GET metadata hoặc chủ động reissue.
+- 409 `BENEFICIARY_INVITATION_ALREADY_USED` — `error.invitation.alreadyUsed`;
+  không thu hồi/cấp lại generation đã dùng.
+- 409 `BENEFICIARY_INVITATION_STALE` — `error.invitation.stale`;
+  request reissue hoặc DELETE dùng generation cũ; tải metadata trước khi thử lại.
+- 422 `BENEFICIARY_INVITATION_INVALID` — `error.invitation.invalid`;
+  seam consume nội bộ trả chung cho mã sai/hết hạn/thu hồi/đã dùng bởi account khác
+  và account không đủ điều kiện. Chưa có endpoint redeem công khai ở PS-86.
+
+Owner sai kho vẫn dùng 404 `RESOURCE_NOT_FOUND`, Vault không ACTIVE dùng 409
+`VAULT_NOT_EDITABLE`; hồ sơ đã link dùng `BENEFICIARY_ACCOUNT_ALREADY_LINKED`.
+
 PS-44: `409 TRUSTEE_REVOKED` (`error.trustee.revoked`) khi Staff qua guard ca OPEN được giao nhưng
 ghi liên hệ mới với Trustee đã REVOKED. Không tạo lịch sử/audit mới; lịch sử cũ vẫn đọc theo quyền ca.
 Ngoài quyền ca vẫn trả 404 trước khi kiểm tra trạng thái Trustee.
@@ -150,3 +165,5 @@ for disabled/unapproved prototype APIs; 409 `SUBSCRIPTION_UPGRADE_UNAVAILABLE`
 PS-57: `LEGAL_DECISION_STALE` (409, `error.legalApproval.snapshotStale`) when version, hash, allocation scope, or review snapshot no longer matches.
 
 PS-58: `LEGAL_APPROVAL_REQUIRED` (409, `error.legalApproval.required`) when a protected transition has no matching current-version Legal approval. `LEGAL_DECISION_STALE` indicates that an existing review/approval snapshot no longer matches the current version, hash, dispute state, or allocation scope.
+
+PS-80: `PAYMENT_REQUEST_CONFLICT` (409) — idempotency key đổi nội dung hoặc đang có checkout chưa hết hạn. Retry cùng key/body để nhận lại đơn. IPN dùng `{RspCode,Message}` theo [payments-vnpay.md](payments-vnpay.md).

@@ -39,6 +39,7 @@ public class AdminSubscriptionService {
     private final OwnerUsageRepository ownerUsageRepository;
     private final VaultRepository vaultRepository;
     private final AuditService auditService;
+    private final com.legacyvault.subscription.repository.PaymentRepository payments;
 
     public AdminSubscriptionService(
         SubscriptionPlanVersionRepository planVersionRepository,
@@ -46,7 +47,8 @@ public class AdminSubscriptionService {
         UserRepository userRepository,
         OwnerUsageRepository ownerUsageRepository,
         VaultRepository vaultRepository,
-        AuditService auditService
+        AuditService auditService,
+        com.legacyvault.subscription.repository.PaymentRepository payments
     ) {
         this.planVersionRepository = planVersionRepository;
         this.activePlanRepository = activePlanRepository;
@@ -54,6 +56,7 @@ public class AdminSubscriptionService {
         this.ownerUsageRepository = ownerUsageRepository;
         this.vaultRepository = vaultRepository;
         this.auditService = auditService;
+        this.payments = payments;
     }
 
     @Transactional(readOnly = true)
@@ -451,6 +454,12 @@ public class AdminSubscriptionService {
         long assetLimit = basicPlan != null ? basicPlan.getAssetLimit() : 5L;
         long storageLimit = basicPlan != null ? basicPlan.getStorageLimitBytes() : 104857600L;
         long fileLimit = basicPlan != null ? basicPlan.getFileLimitBytes() : STANDARD_MAX_FILE_BYTES;
+        var paid = payments.effective(userId);
+        if (paid.isPresent()) {
+            assetLimit = paid.get().limits().assetCount();
+            storageLimit = paid.get().limits().storageBytes();
+            fileLimit = paid.get().limits().fileBytes();
+        }
 
         Instant createdAtInstant = user.getCreatedAt() != null
             ? user.getCreatedAt().toInstant(ZoneOffset.UTC)
@@ -461,11 +470,11 @@ public class AdminSubscriptionService {
             user.getFullName(),
             user.getEmail(),
             user.getStatus() != null ? user.getStatus() : "ACTIVE",
-            "BASIC",
-            "Gói Cơ bản (Mặc định)",
+            paid.map(p -> p.code()).orElse("BASIC"),
+            paid.map(p -> p.code()).orElse("Gói Cơ bản (Mặc định)"),
             "ACTIVE",
-            "DEFAULT_BASIC_FREE",
-            createdAtInstant,
+            paid.isPresent() ? "VERIFIED_VNPAY_PAYMENT" : "DEFAULT_BASIC_FREE",
+            paid.isPresent() ? null : createdAtInstant,
             null, // Free plan has no expiration
             "LIFETIME",
             observedUsage.assets(),
