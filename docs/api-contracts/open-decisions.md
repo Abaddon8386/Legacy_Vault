@@ -186,6 +186,6 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
 - Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.
 
-## PS-113 — approved in user chat 2026-10-21
+## PS-113 — D-API-45 (proposal, pending group approval, 2026-10-21)
 
 Guardian: age 18 by Asia/Ho_Chi_Minh date; one current guardian; name/relationship plus email or phone; incomplete beneficiary remains savable/readable with warning; replace/revoke retains history; DOB/adulthood never auto-delete or grant access. See beneficiary-guardians.md. No changes to Trustee or PS-86/87/104/106/116 permissions.

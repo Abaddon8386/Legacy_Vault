@@ -8,7 +8,7 @@ Targeted SQL Server tests: 3 passed on disposable databases: history/reload/DOB 
 
 AC trace: ownership/API/privacy -> GuardianController/Service; DOB/policy -> BeneficiaryBirthDate, GuardianPolicyTest; persistence/history/race/audit rollback -> GuardianSqlServerTest; frontend handoff -> beneficiary-guardians.md + guardian.openapi.yaml. Huy still owns the UI; browser create-minor/guardian/reload is not certified by these backend tests.
 
-V47 is provisional after PS-112 V41 and proposed PS-87/106 V42–V46. Do not merge/deploy out of order. Recheck the actual develop migrations and renumber this unpublished file before merge if the sequence changes. Existing migrations/checksums are untouched; private test fixtures do not reserve a number globally.
+Migration renumbered V47 → V49 (develop already has V48 from PS-114; a lower unapplied V47 would fail Flyway validation). Recheck the actual develop migrations before merge. Existing migrations/checksums are untouched; private test fixtures do not reserve a number globally.
 
 Remaining final review requested by user: integrate latest PS-87/106/109/112 and PS-92/104/114 as they land; migration upgrade/failure injection on the final merged sequence; full backend regression, actual JWT locked/deleted/expired boundary checks and frontend browser acceptance. These are release checks, not claimed complete here. No push/PR/merge into develop/email delivery performed for this task.
 

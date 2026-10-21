@@ -1,6 +1,6 @@
 # PS-113 — Owner guardian contract
 
-Policy approved by the user in chat on 2026-10-21. Guardian is a contact linked to one beneficiary, not a Trustee, login identity, invitation recipient override or permission to receive/decrypt assets. No identity-document collection, email delivery or role assignment.
+Policy proposed on 2026-10-21 (D-API-45, pending group approval). Guardian is a contact linked to one beneficiary, not a Trustee, login identity, invitation recipient override or permission to receive/decrypt assets. No identity-document collection, email delivery or role assignment.
 
 Age uses the calendar date in `Asia/Ho_Chi_Minh`. A beneficiary becomes ADULT on DOB plus 18 years (Java LocalDate: February 29 maps to February 28 in a non-leap eighteenth year). Null/future legacy DOB returns UNKNOWN; new beneficiary DOB keeps the existing PastOrPresent validation. MINOR without a guardian is a warning, not a save/read/handover gate. At most one current guardian. Name, relationship and at least email or phone required. Replacing/revoking preserves history. DOB changes and adulthood never automatically erase guardian history or alter rights.
 
@@ -17,7 +17,7 @@ Warnings: `BENEFICIARY_GUARDIAN_RECOMMENDED` (VI: Nên bổ sung người giám 
 
 Errors use the repo envelope: 400 VALIDATION_FAILED/MALFORMED_REQUEST; 401 UNAUTHENTICATED; 403 ACCESS_DENIED; 404 RESOURCE_NOT_FOUND for wrong ownership/cross-vault; 409 VAULT_NOT_EDITABLE or BENEFICIARY_GUARDIAN_STALE. Stale writes roll back, reload revision before retry.
 
-Migration V47 is a provisional slot after PS-112 V41 and proposed Long V42–V46. It is additive and does not modify deployed migrations. Recheck actual develop/merge order before publishing; do not deploy V47 ahead of outstanding lower versions then try to introduce them later. No coordination with Long is claimed. Roll back application without dropping guardian data or revision; pre-feature code ignores these additive objects. Restoring a database is an operations decision, not an automatic down migration.
+Migration V49 follows V48 (PS-114 asset documents, already on develop); V47 was reassigned because Flyway rejects a lower, not-yet-applied version once a higher one is applied (no `outOfOrder`). It is additive and does not modify deployed migrations. Recheck the actual develop order before merging and never renumber an already applied migration. Roll back application without dropping guardian data or revision; pre-feature code ignores these additive objects. Restoring a database is an operations decision, not an automatic down migration.
 
 FE UI/browser integration remains with Huy; this backend change does not certify that UI flow.
 

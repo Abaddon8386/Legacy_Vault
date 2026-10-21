@@ -64,6 +64,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Trustee | `TRUSTEE_APPOINTED`, `TRUSTEE_UPDATED`, `TRUSTEE_REVOKED`, `TRUSTEE_CONTACT_RECORDED` | PS-19, PS-44 |
 | Beneficiary | `BENEFICIARY_ADDED`, `BENEFICIARY_UPDATED` | PS-20 |
 | Identity verification | `BENEFICIARY_IDENTITY_VERIFIED` | PS-45 |
+| Guardian của Beneficiary | `BENEFICIARY_GUARDIAN_RECORDED`, `BENEFICIARY_GUARDIAN_REVOKED` (ID công khai của Beneficiary, revision; không tên/email/điện thoại guardian) | PS-113 |
 | Tài khoản Beneficiary | `BENEFICIARY_ACCOUNT_LINKED`, `BENEFICIARY_ACCOUNT_CREATED` (ID công khai của Beneficiary và tài khoản, trạng thái trước/sau; không email, mật khẩu hay số giấy tờ) | PS-62, PS-63 (ST-24) |
 | DMS | `DMS_CONFIGURED`, `DMS_CHECKED_IN`, `DMS_TRIGGERED`, `DMS_GRACE_PERIOD_EXCEEDED` | PS-22, PS-23 |
 | Verification case | `VERIFICATION_CASE_CREATED`, `VERIFICATION_CASE_CLAIMED` | ST-09 |

@@ -1,5 +1,5 @@
-/* PS-113: additive only. Proposed slot after PS-112 V41 and PS-87/106 V42-V46.
-   Recheck merge order before release; never renumber an already applied migration. */
+/* PS-113: additive only. V49 follows V48 (PS-114); a lower unapplied version fails Flyway validation.
+   Never renumber an already applied migration. */
 ALTER TABLE dbo.beneficiaries ADD guardian_revision BIGINT NOT NULL
     CONSTRAINT DF_beneficiary_guardian_revision DEFAULT 0
     CONSTRAINT CK_beneficiary_guardian_revision CHECK (guardian_revision >= 0);
