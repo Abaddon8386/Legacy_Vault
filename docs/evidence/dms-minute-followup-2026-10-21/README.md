@@ -9,7 +9,7 @@ Fix frontend PS-91 minute duration handling and obsolete backend-pending copy. K
 - Test the reader directly, malformed save receipts (no success, draft retained), UI VI/EN, and valid/invalid duration boundaries. Correct the old 30-day fixture to total 43200 minutes.
 
 ## Independent checks
-- Full frontend: 1030/1030 passed, 27 suites, no failure/skip.
+- Full frontend before develop sync: 1030/1030 passed. After integrating develop cbb2dd0: 1061/1061 passed, 27 suites, no failure/skip. Lint/build passed again after integration.
 - DMS focused: 20/20 passed. Lint and build passed; build retains the existing large-bundle warning.
 - Real browser desktop 1440x1000 VI and mobile 390x844 EN, with actual Spring Boot and SQL Server local database. No fixture in the screenshots below.
 - User authorized creating a new synthetic test account, vault and adult beneficiary through public APIs. No existing credentials, roles or business records were reset.
