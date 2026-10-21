@@ -754,7 +754,8 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           onNavigateTab={tab => {
-            if (tab === 'account-profile') navigateTo(resolveAccountRoute('/account/profile'));
+            if (tab === 'home') navigateTo(`/?lang=${lang}`);
+            else if (tab === 'account-profile') navigateTo(resolveAccountRoute('/account/profile'));
             else if (tab === 'account-edit') navigateTo(resolveAccountRoute('/account/edit'));
             else if (tab === 'vault') navigateTo('/vault');
             else if (tab === 'cases') navigateTo('/staff/cases');
@@ -987,7 +988,8 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
   const handleExecuteNavigation = (targetTab) => {
-    if (targetTab === 'admin-home') { navigateTo('/admin');
+    if (targetTab === 'home') { navigateTo(`/?lang=${lang}`);
+    } else if (targetTab === 'admin-home') { navigateTo('/admin');
     } else if (targetTab === 'admin-subscriptions') { navigateTo('/admin/subscriptions');
     } else if (targetTab === 'beneficiary-home') { navigateTo('/beneficiary');
     } else if (targetTab === 'account-profile') {
@@ -1577,7 +1579,9 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     return <div className="lv-app-root"><AppShell currentTab={isSubscriptionRoute ? 'subscription' : isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       role="OWNER" isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onRefresh={handleRefresh} isRefreshing={isRefreshing} session={session} user={session?.user || null}
       onNavigateTab={tab => {
-        if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
+        if (tab === 'home') {
+          navigateTo(`/?lang=${lang}`);
+        } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
           navigateTo(resolveAccountRoute('/account/profile'));
         } else if (tab === 'account-edit') {
