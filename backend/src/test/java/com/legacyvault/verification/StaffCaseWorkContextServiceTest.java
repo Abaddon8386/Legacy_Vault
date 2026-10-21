@@ -90,8 +90,44 @@ class StaffCaseWorkContextServiceTest {
     @Test void inaccessibleCaseIsHiddenAsNotFound() {
         UUID caseId = UUID.randomUUID();
         when(cases.findViewableCaseByPublicId(caseId, 17L)).thenReturn(Optional.empty());
-        assertThrows(BusinessException.class, () -> service.get(caseId, staff));
+        BusinessException error = assertThrows(BusinessException.class, () -> service.get(caseId, staff));
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND, error.getErrorCode());
         verifyNoInteractions(vaults, trustees, beneficiaries, dossiers);
+    }
+
+    @Test void openUnassignedCaseIsReportedAsClaimable() {
+        UUID caseId = UUID.randomUUID();
+        VerificationCase item = mock(VerificationCase.class);
+        Vault vault = mock(Vault.class);
+        when(cases.findViewableCaseByPublicId(caseId, 17L)).thenReturn(Optional.of(item));
+        when(item.getVaultId()).thenReturn(40L);
+        when(item.getAssignedStaffUserId()).thenReturn(null);
+        when(item.getCaseNumber()).thenReturn("HS-2026-000124");
+        when(item.getVerificationCaseId()).thenReturn(100L);
+        when(item.getStatus()).thenReturn("OPEN");
+        when(vaults.findById(40L)).thenReturn(Optional.of(vault));
+        when(vault.getVaultId()).thenReturn(40L);
+        when(vault.getPublicId()).thenReturn(UUID.randomUUID());
+        when(vault.getStatus()).thenReturn(Vault.STATUS_ON_HOLD);
+        when(trustees.findFirstByVault_VaultIdAndStatus(40L, "APPOINTED")).thenReturn(Optional.empty());
+        when(beneficiaries.findAllByVault_VaultId(eq(40L), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(dossiers.findByVerificationCaseId(100L)).thenReturn(Optional.empty());
+
+        var result = service.get(caseId, staff);
+
+        assertEquals("UNASSIGNED_CLAIMABLE", result.assignment());
+        assertNull(result.assignedStaffId());
+        assertTrue(result.unmetConditions().contains("CASE_NOT_CLAIMED"));
+    }
+
+    @Test void unknownCaseIdIsNotFound() {
+        UUID caseId = UUID.randomUUID();
+        when(cases.findViewableCaseByPublicId(caseId, 17L)).thenReturn(Optional.empty());
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.get(caseId, staff));
+
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND, error.getErrorCode());
     }
 
     @Test void courtWorkContextReportsMissingCurrentApprovalWithoutThrowing() {

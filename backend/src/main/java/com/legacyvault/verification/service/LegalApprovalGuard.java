@@ -41,15 +41,10 @@ public class LegalApprovalGuard {
         if (blocker != null) throw new BusinessException(blocker);
     }
 
-    /** Read-only form for callers that need to report blockers without marking a transaction rollback-only. */
-    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    /** Same snapshot rules as the write guard, but returns the blocker so GET callers do not poison the transaction. */
     public ErrorCode currentApprovalBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         String currentAllocationHash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
-        if (!"FRESH".equals(dossier.getReviewStatus())
-                || !Objects.equals(dossier.getLastReviewedVersionNo(), currentVersion.version())
-                || !sameHash(dossier.getLastReviewedSha256Hash(), currentVersion.sha256())
-                || !Objects.equals(dossier.getLastReviewedDisputeStatus(), dossier.getDisputeStatus())
-                || !sameHash(dossier.getLastReviewedAllocationHash(), currentAllocationHash)) {
+        if (!reviewMatches(dossier, currentVersion, currentAllocationHash)) {
             return ErrorCode.LEGAL_DECISION_STALE;
         }
 
@@ -57,8 +52,7 @@ public class LegalApprovalGuard {
                 .findFirstByDossierIdAndVersionNoAndReviewStatusInOrderByIdDesc(
                         dossier.getLegalBasisDossierId(), currentVersion.version(), List.of(APPROVED, REJECTED))
                 .orElse(null);
-        if (decision == null) return ErrorCode.LEGAL_APPROVAL_REQUIRED;
-        if (REJECTED.equals(decision.getReviewStatus())) {
+        if (decision == null || REJECTED.equals(decision.getReviewStatus())) {
             return ErrorCode.LEGAL_APPROVAL_REQUIRED;
         }
         if (!APPROVED.equals(decision.getReviewStatus())
@@ -70,6 +64,23 @@ public class LegalApprovalGuard {
             return ErrorCode.LEGAL_DECISION_STALE;
         }
         return null;
+    }
+
+    /** Reports whether the dossier's reviewed snapshot still matches its authoritative current version. */
+    public ErrorCode reviewBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
+        String currentAllocationHash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
+        return reviewMatches(dossier, currentVersion, currentAllocationHash)
+                ? null
+                : ErrorCode.LEGAL_DECISION_STALE;
+    }
+
+    private static boolean reviewMatches(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion,
+            String currentAllocationHash) {
+        return "FRESH".equals(dossier.getReviewStatus())
+                && Objects.equals(dossier.getLastReviewedVersionNo(), currentVersion.version())
+                && sameHash(dossier.getLastReviewedSha256Hash(), currentVersion.sha256())
+                && Objects.equals(dossier.getLastReviewedDisputeStatus(), dossier.getDisputeStatus())
+                && sameHash(dossier.getLastReviewedAllocationHash(), currentAllocationHash);
     }
 
     private String allocationHash(Long dossierId, int versionNo) {

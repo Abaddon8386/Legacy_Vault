@@ -405,12 +405,61 @@ class BasisIntakeServiceTest {
     }
 
     @Test
-    void notarialDossierIsReadOnlyForNewIntake() {
-        happyPath("NOTARIAL");
-        LegalBasisDossier dossier = dossier("NOTARIAL");
-        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(dossier));
-        assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
-                .satisfies(exception -> assertThat(codeOf(exception)).isEqualTo(ErrorCode.COURT_DECISION_REQUIRED));
+    void notarialIntake_isRejectedByCourtOnlyPolicy() {
+        BasisIntakeMetadata base = metadata("NOTARIAL_PARTITION");
+
+        BasisIntakeMetadata[] incomplete = {
+                new BasisIntakeMetadata(
+                        base.legalBasisType(),
+                        base.issuingAuthority(),
+                        base.documentNumber(),
+                        base.issueDate(),
+                        null,
+                        base.notarialDocumentNumber(),
+                        base.notarizedAt(),
+                        null,
+                        null,
+                        base.allocations()
+                ),
+                new BasisIntakeMetadata(
+                        base.legalBasisType(),
+                        base.issuingAuthority(),
+                        base.documentNumber(),
+                        base.issueDate(),
+                        base.notaryAuthority(),
+                        "  ",
+                        base.notarizedAt(),
+                        null,
+                        null,
+                        base.allocations()
+                ),
+                new BasisIntakeMetadata(
+                        base.legalBasisType(),
+                        base.issuingAuthority(),
+                        base.documentNumber(),
+                        base.issueDate(),
+                        base.notaryAuthority(),
+                        base.notarialDocumentNumber(),
+                        null,
+                        null,
+                        null,
+                        base.allocations()
+                )
+        };
+
+        for (BasisIntakeMetadata metadata : incomplete) {
+            happyPath("NOTARIAL");
+
+            assertThatThrownBy(() -> service.intake(
+                    CASE_ID,
+                    staff,
+                    metadata,
+                    pdf()
+            )).satisfies(exception ->
+                    assertThat(codeOf(exception))
+                            .isEqualTo(ErrorCode.COURT_DECISION_REQUIRED));
+        }
+
         verify(versions, never()).saveAndFlush(any());
     }
 

@@ -1,5 +1,36 @@
 # Quyết định API (Decision Log)
 
+## PS-86 — quyết định người dùng ngày 20/10/2026
+
+Người dùng xác nhận trong chat: đồng ý đề xuất mã mời; **dùng mã làm bằng chứng
+nhận lời mời, chưa thêm xác minh email hay OTP**. Ưu tiên PS-86, PS-80 chờ quyết định;
+triển khai/kiểm thử local, chưa push hoặc merge. Đây không phải biên bản nhóm phê duyệt
+payment hoặc cập nhật trạng thái Jira.
+
+- 128-bit CSPRNG, base64url 22 ký tự, 7 ngày UTC; DB hash-only, raw code chỉ ở response
+  cấp/cấp lại; Owner có thể thu hồi/cấp lại mã chưa dùng trong Vault ACTIVE.
+- Code possession không chứng minh danh tính pháp lý. Email không bắt buộc, không
+  so khớp/verify email; không thêm OTP, guest portal hay quyền đọc tài sản sớm.
+- Tạo Beneficiary rồi cấp mã theo ID đã lưu; không tạo lại người khi riêng bước cấp
+  mã thất bại. Cấp lại gửi generation hiện tại để chặn request stale/rotate hai lần.
+  Review 20/10 bổ sung generation bắt buộc cho DELETE để retry thu hồi không hủy mã vừa cấp lại.
+- Tài khoản mới theo mã chỉ thêm Beneficiary (PS-87); account cũ giữ role hợp lệ.
+  Không nhận role/accountId từ client. Account/link/role/consume/audit chung transaction.
+- Sau freeze không mở tự phục vụ mới; làm việc với Staff theo workflow hiện có.
+  Đổi email thu hồi mã chưa dùng; không tự hủy liên kết account.
+- Public signup/redeem và limiter do PS-87 tích hợp; trước khi mở phải có bộ đếm
+  dùng chung (5 lỗi/account/15 phút) và chốt trusted-source limit cho signup. PS-86
+  không mở route redeem hoặc tự thay Google login/FE.
+- Review 20/10 đồng bộ thứ tự khóa nhận mã và Staff link account có sẵn thành target
+  User → Vault (→ Case với Staff), theo User → Vault của Owner/quota writers. Recheck
+  Vault/Beneficiary/invitation sau khi chờ khóa; không giữ resource write lock trước seam.
+  Staff create cũng preflight rồi kiểm tra/tạo User trước Vault/Case, tránh đảo khóa
+  trên email unique index với signup-by-invitation; mọi lỗi final guard/audit rollback User mới.
+
+Contract và scope kiểm chứng: [beneficiary-invitations.md](beneficiary-invitations.md).
+Quyết định này mở rộng hạn chế onboarding "chỉ tại quầy" cũ của PS-20/PS-62/63,
+không thay các yêu cầu xác minh trực tiếp, Legal, handover, confirmation hoặc archive.
+
 > **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
 
 > **Cách đọc:** mục **ĐÃ CHỐT** là quyết định để FE/BE triển khai Sprint 1, do **Dương (điều phối PS-74) chốt ngày 2026-10-11**
@@ -143,3 +174,11 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - PS-58 derives stale approval by comparing the current dossier snapshot in `LegalApprovalGuard`; it does not append a separate invalidation event. Confirm whether an explicit invalidation record is required for audit/reporting. Do not treat the derived guard as a persisted invalidation event.
 - Main Flow ST-28 requires a completed handover record signed by Staff and every Beneficiary. PS-61 `STAFF_ATTESTATION` represents Staff confirmation only. The group must decide the evidence/signature model and whether the receipt is issued before or after PS-71 closes the session. No electronic signature or Beneficiary signature is claimed by the current schema.
 - Main Flow ST-23 lists `IN_PERSON_PRESENT`, while PS-60 V24/runtime session states are `OPEN`, `COMPLETED`, and `CANCELLED`. Confirm whether this is a workflow milestone or a required persisted session status before changing the enum or migration.
+
+## PS-85 — Google account onboarding and linking
+
+- `POST /api/v1/auth/google` accepts only an ID token whose verified `sub` already maps to a LegacyVault account in `dbo.external_auth_identities`.
+- Unknown `sub` is rejected with generic `401 INVALID_CREDENTIALS`; no account is created and a matching email never links accounts.
+- `POST /api/v1/auth/google/link` lets an authenticated active user link a verified Google `sub` to their own account. It never links by email or creates an account; a subject already mapped to any account is rejected. This is the approved self-service linking path implemented in PS-85.
+- First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
+- Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.

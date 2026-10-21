@@ -42,7 +42,7 @@ import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.WillComparisonService;
 
-/** PS-102: only ON_HOLD cases reclassify to COURT; prior NOTARIAL records stay read-only. */
+/** PS-43 (ST-16, LV-HOLD-001): chỉ ON_HOLD được phân loại lại; lưu lịch sử; NOTARIAL/COURT không đổi lẫn nhau. */
 class BasisReclassificationServiceTest {
 
     private static final Long LEGAL_ID = 21L;
@@ -97,6 +97,7 @@ class BasisReclassificationServiceTest {
         when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
         when(caseRepository.findByIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(openCase()));
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(dossier));
+        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(false);
         return vault;
     }
 
@@ -105,11 +106,13 @@ class BasisReclassificationServiceTest {
     }
 
     @Test
-    void notarialReclassificationTargetIsRejected() {
+    void onHoldToNotarial_isRejectedByCourtOnlyPolicy() {
+        happyPath(dossier("ON_HOLD", "DRAFT"));
         assertThatThrownBy(() -> service.reclassify(CASE_ID, legal,
-                request(Route.NOTARIAL, "Legacy route is read-only")))
+                request(Route.NOTARIAL, "Đã đủ chứng cứ không tranh chấp")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
-        verifyNoInteractions(caseLookup, history, auditService);
+        verify(history, never()).saveAndFlush(any());
+        verifyNoInteractions(auditService);
     }
 
     @Test
@@ -184,12 +187,14 @@ class BasisReclassificationServiceTest {
     }
 
     @Test
-    void reclassificationDoesNotUseWillComparisonAsSubstituteForCourtBasis() {
+    void courtReclassificationDoesNotRequireWillComparison() {
         LegalBasisDossier dossier = dossier("ON_HOLD", "DRAFT");
-        happyPath(dossier);
-        service.reclassify(CASE_ID, legal, request(Route.COURT, "Court evidence is required"));
+        Vault vault = happyPath(dossier);
+        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(true);
+        service.reclassify(CASE_ID, legal, request(Route.COURT, "Có căn cứ tòa án"));
         assertThat(dossier.getRoute()).isEqualTo("COURT");
-        verifyNoInteractions(willComparisons);
+        assertThat(vault.getStatus()).isEqualTo("AWAITING_LEGAL_BASIS");
+        verify(history).saveAndFlush(any(LegalBasisClassificationHistory.class));
     }
 
     @Test

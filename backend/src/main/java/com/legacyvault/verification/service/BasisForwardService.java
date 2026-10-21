@@ -104,7 +104,7 @@ public class BasisForwardService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         lockedState.refresh(dossier);
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
-        LegalWorkflowGuard.requireCourtRoute(dossier);
+        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!LegalBasisDossier.STATUS_PROVIDED.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);

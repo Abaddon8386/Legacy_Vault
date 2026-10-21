@@ -36,11 +36,12 @@ class LegalApprovalGuardTest {
     private final LegalApprovalGuard guard = new LegalApprovalGuard(history, allocations);
     private final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
     private final CourtEvidenceVersion current = new CourtEvidenceVersion(VERSION_ID, VERSION_NO, HASH,
-            "NOTARIAL_PARTITION", "Authority", "DOC-3", null, "FORWARDED", true);
+            "COURT_JUDGMENT", "Authority", "DOC-3", null, "FORWARDED", true);
 
     @BeforeEach
     void setUp() {
         when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
+        when(dossier.getRoute()).thenReturn("COURT");
         when(dossier.getReviewStatus()).thenReturn("FRESH");
         when(dossier.getLastReviewedVersionNo()).thenReturn(VERSION_NO);
         when(dossier.getLastReviewedSha256Hash()).thenReturn(HASH);
@@ -76,6 +77,19 @@ class LegalApprovalGuardTest {
         assertThat(guard.currentApprovalBlocker(dossier, current)).isEqualTo(ErrorCode.LEGAL_APPROVAL_REQUIRED);
         assertThat(guard.currentApprovalBlocker(dossier, current)).isEqualTo(ErrorCode.LEGAL_DECISION_STALE);
         assertThat(guard.currentApprovalBlocker(dossier, current)).isNull();
+    }
+
+    @Test
+    void reviewBlockerChecksVersionHashAndAllocationSnapshotWithoutThrowing() {
+        assertThat(guard.reviewBlocker(dossier, current)).isNull();
+
+        when(dossier.getLastReviewedSha256Hash()).thenReturn("b".repeat(64));
+        assertThat(guard.reviewBlocker(dossier, current)).isEqualTo(ErrorCode.LEGAL_DECISION_STALE);
+
+        when(dossier.getLastReviewedSha256Hash()).thenReturn(HASH);
+        when(allocations.findRowsByDossier(DOSSIER_ID)).thenReturn(List.of(
+                new AllocationRow(VERSION_NO, UUID.randomUUID(), UUID.randomUUID(), "changed scope")));
+        assertThat(guard.reviewBlocker(dossier, current)).isEqualTo(ErrorCode.LEGAL_DECISION_STALE);
     }
 
     @Test

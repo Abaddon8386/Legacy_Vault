@@ -15,13 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
-/** Proposed quota algorithm, disabled by default; no paid entitlement is trusted or granted. */
+/** Quota enforcement remains opt-in; paid access comes only from verified payment snapshots. */
 @Service
 public class OwnerQuotaService {
     private final OwnerWriteLockRepository ownerLocks;
     private final SubscriptionPlanRepository plans;
     private final OwnerUsageRepository usage;
     private final VaultRepository vaults;
+    private final com.legacyvault.subscription.repository.PaymentRepository payments;
     @org.springframework.beans.factory.annotation.Value("${legacyvault.subscription.quota-enforcement-enabled:false}")
     private boolean enforcementEnabled;
 
@@ -32,11 +33,13 @@ public class OwnerQuotaService {
     private final QuotaPolicy policy = new QuotaPolicy();
 
     public OwnerQuotaService(OwnerWriteLockRepository ownerLocks, SubscriptionPlanRepository plans,
-                             OwnerUsageRepository usage, VaultRepository vaults) {
+                             OwnerUsageRepository usage, VaultRepository vaults,
+                             com.legacyvault.subscription.repository.PaymentRepository payments) {
         this.ownerLocks = ownerLocks;
         this.plans = plans;
         this.usage = usage;
         this.vaults = vaults;
+        this.payments = payments;
     }
 
     /** Must precede any resource write lock and remain held through the caller's commit. */
@@ -80,7 +83,7 @@ public class OwnerQuotaService {
 
     private Plan effective(Long ownerUserId) {
         // Never trust pre-review self-granted rows as proof of payment/authorization.
-        return Plan.from(basic());
+        return payments.effective(ownerUserId).orElseGet(() -> Plan.from(basic()));
     }
 
     private SubscriptionPlan basic() {

@@ -58,7 +58,7 @@ class LegalBasisReviewServiceTest {
         final VerificationCaseRepository cases = mock(VerificationCaseRepository.class);
         final VaultRepository vaults = mock(VaultRepository.class);
         final LegalBasisReviewService service = new LegalBasisReviewService(
-                dossiers, versions, allocations, history, audit, cases, vaults);
+                dossiers, versions, allocations, history, audit, cases, vaults, mock(com.legacyvault.verification.service.LegalBasisLockedState.class));
 
         final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
         final VerificationCase verificationCase = mock(VerificationCase.class);

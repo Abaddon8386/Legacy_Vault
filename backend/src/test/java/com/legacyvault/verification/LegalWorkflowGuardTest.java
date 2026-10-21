@@ -102,6 +102,7 @@ class LegalWorkflowGuardTest {
     @Test
     void notarialHistoryCannotEnterNewProtectedApprovalUnlockOrHandoverFlow() {
         when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_NOTARIAL);
+        when(dossier.acceptsIntake()).thenReturn(false);
         for (LegalWorkflowGuard.ProtectedTransition transition : LegalWorkflowGuard.ProtectedTransition.values()) {
             assertThatThrownBy(() -> guard.requireProtectedTransition(CASE_ID, transition))
                     .isInstanceOf(BusinessException.class)

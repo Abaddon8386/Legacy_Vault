@@ -313,6 +313,18 @@ class BasisForwardServiceTest {
     }
 
     @Test
+    void notarialHistoryRequiresCourtDecisionBeforeForwarding() {
+        LegalBasisDossier notarial = dossier("LEGAL_BASIS_PROVIDED");
+        ReflectionTestUtils.setField(notarial, "route", LegalBasisDossier.ROUTE_NOTARIAL);
+        happyPath(notarial, 1);
+
+        assertThatThrownBy(() -> service.forward(CASE_ID, 1, staff))
+                .satisfies(exception -> assertThat(codeOf(exception))
+                        .isEqualTo(ErrorCode.COURT_DECISION_REQUIRED));
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
     void caseNotOwnedByStaff_isNotFound() {
         when(staffCases.findOwnedByStaff(CASE_ID, STAFF_ID))
                 .thenReturn(Optional.empty());

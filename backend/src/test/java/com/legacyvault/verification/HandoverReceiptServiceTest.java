@@ -83,7 +83,7 @@ class HandoverReceiptServiceTest {
         when(session.getStatus()).thenReturn(HandoverSessionStatus.COMPLETED);
         when(versions.findMaxVersionNo(71L)).thenReturn(4);
         when(versions.findCourtEvidence(71L, 4)).thenReturn(Optional.of(
-                new CourtEvidenceVersion(701L, 4, "a".repeat(64), "NOTARIAL_PARTITION", null, null,
+                new CourtEvidenceVersion(701L, 4, "a".repeat(64), "COURT_JUDGMENT", null, null,
                         null, "FORWARDED", true)));
         when(allocations.findReceiptRowsByDossier(71L)).thenReturn(List.of(
                 new ReceiptAllocationRow(4, 401L, 501L, ASSET_PUBLIC_ID, 601L, RECIPIENT_PUBLIC_ID,

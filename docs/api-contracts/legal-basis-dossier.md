@@ -1,3 +1,7 @@
+> **Stale-review fix:** POST `/basis-dossier/review` now requires `reason`, `versionNo`, `sha256Hash`, `allocationHash`, `disputeStatus` from the context snapshot displayed to Legal. Missing snapshot returns 400; any mismatch returns 409 LEGAL_DECISION_STALE before writes/audit, under Vault -> Case -> Dossier locks. Reason-only legacy clients must upgrade; no fallback to reviewing the newest version. Request-supplementation still takes only reason. FE captures the snapshot on load and sends it unchanged on review; it must not fetch a new hash at click time and silently attest that version.
+
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # Hồ sơ căn cứ phân chia di sản — PS-41, PS-42, PS-43 (ST-16..19, LV-BASIS-001)
 
 **Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) PS-42 (Staff chuyển văn bản cho Legal) và PS-43 (Legal phân loại lại từ ON_HOLD, kiểm tra thông tin công chứng) đã triển khai. Các quyết định thiết kế được ghi ở

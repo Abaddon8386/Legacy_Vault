@@ -40,7 +40,7 @@ import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.WillComparisonService;
 
-/** PS-102: Legal writes use COURT only; one dossier per case; will matching is not the legal basis gate. */
+/** PS-41 (ST-16, LV-BASIS-001): chỉ Legal phân loại; cần MATCH; một hồ sơ mỗi ca; chuyển Vault đúng nhánh. */
 class BasisClassificationServiceTest {
 
     private static final Long LEGAL_ID = 20L;
@@ -78,13 +78,14 @@ class BasisClassificationServiceTest {
         return ((BusinessException) ex).getErrorCode();
     }
 
-    /** PS-102: classification uses court evidence; a will MATCH is not a prerequisite. */
+    /** Dữ liệu hợp lệ: ca mở, Vault WILL_VERIFICATION, chưa có hồ sơ, kết quả đối chiếu mới nhất là MATCH. */
     private Vault happyPath() {
         Vault vault = vault("WILL_VERIFICATION");
         when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.of(openCase()));
         when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
         when(caseRepository.findByIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(openCase()));
         when(dossiers.findByVerificationCaseId(CASE_DB_ID)).thenReturn(Optional.empty());
+        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(false);
         when(dossiers.saveAndFlush(any(LegalBasisDossier.class))).thenAnswer(inv -> {
             LegalBasisDossier d = inv.getArgument(0);
             ReflectionTestUtils.setField(d, "legalBasisDossierId", 900L);
@@ -99,13 +100,23 @@ class BasisClassificationServiceTest {
     }
 
     @Test
-    void court_createsDossier_movesVaultToAwaitingLegalBasis_andAuditsWithoutReason() {
+    void notarialRoute_isRejectedByCourtOnlyPolicy() {
+        happyPath();
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal,
+                request(Route.NOTARIAL, "  Không tranh chấp, đủ điều kiện công chứng  ")))
+                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        verify(dossiers, never()).saveAndFlush(any());
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void courtClassification_createsDossierAndAuditsWithoutReason() {
         Vault vault = happyPath();
         BasisDossierResponse expected = mock(BasisDossierResponse.class);
         when(views.view(any(VerificationCase.class), org.mockito.ArgumentMatchers.eq(true))).thenReturn(expected);
 
         BasisDossierResponse response = service.classify(CASE_ID, legal,
-                request(Route.COURT, "  Có căn cứ theo quyết định của tòa án  "));
+                request(Route.COURT, "Có căn cứ tòa án"));
 
         assertThat(response).isSameAs(expected);
         ArgumentCaptor<LegalBasisDossier> saved = ArgumentCaptor.forClass(LegalBasisDossier.class);
@@ -114,7 +125,7 @@ class BasisClassificationServiceTest {
         assertThat(d.getRoute()).isEqualTo("COURT");
         assertThat(d.getDisputeStatus()).isEqualTo("DISPUTED");
         assertThat(d.getStatus()).isEqualTo("DRAFT");
-        assertThat(d.getRouteReason()).isEqualTo("Có căn cứ theo quyết định của tòa án");
+        assertThat(d.getRouteReason()).isEqualTo("Có căn cứ tòa án");
         assertThat(d.getCreatedByUserId()).isEqualTo(LEGAL_ID);
         assertThat(vault.getStatus()).isEqualTo("AWAITING_LEGAL_BASIS");
 
@@ -127,7 +138,7 @@ class BasisClassificationServiceTest {
         assertThat(event.stateBefore()).isEqualTo("WILL_VERIFICATION");
         assertThat(event.stateAfter()).isEqualTo("AWAITING_LEGAL_BASIS");
         assertThat(event.context()).containsEntry("route", "COURT").containsEntry("disputeStatus", "DISPUTED");
-        assertThat(event.context().toString()).doesNotContain("quyết định");
+        assertThat(event.context().toString()).doesNotContain("công chứng");
     }
 
     @Test
@@ -146,19 +157,12 @@ class BasisClassificationServiceTest {
 
     @Test
     void blankOrMissingReason_isRejected_andNothingIsRead() {
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, "   ")))
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "   ")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
         assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, null)))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
         assertThatThrownBy(() -> service.classify(CASE_ID, null, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.UNAUTHENTICATED));
-        verifyNoInteractions(caseLookup, dossiers, auditService);
-    }
-
-    @Test
-    void notarialRouteIsRejectedAsValidationFailure() {
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "Legacy route")))
-                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
         verifyNoInteractions(caseLookup, dossiers, auditService);
     }
 
@@ -200,10 +204,12 @@ class BasisClassificationServiceTest {
     }
 
     @Test
-    void classificationDoesNotUseWillComparisonAsSubstituteForCourtBasis() {
-        happyPath();
-        service.classify(CASE_ID, legal, request(Route.COURT, "Court basis available"));
-        verifyNoInteractions(willComparisons);
+    void courtClassificationIsNotBlockedByWillComparison() {
+        Vault vault = happyPath();
+        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(true);
+        service.classify(CASE_ID, legal, request(Route.COURT, "Có căn cứ tòa án"));
+        assertThat(vault.getStatus()).isEqualTo("AWAITING_LEGAL_BASIS");
+        verify(dossiers).saveAndFlush(any(LegalBasisDossier.class));
     }
 
     @Test
