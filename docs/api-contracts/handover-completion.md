@@ -1,3 +1,5 @@
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) applies to new handover operations. Legacy NOTARIAL remains read-only; current court validation, exact allocation approval and counter guards are mandatory.
+
 # Handover reconciliation and completion — PS-67–72
 
 Validation status: code + unit/API tests, **chưa chứng nhận SQL integration**.

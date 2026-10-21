@@ -8,6 +8,7 @@ import com.legacyvault.verification.dto.LegalBasisReviewResponse;
 import com.legacyvault.verification.dto.LegalApprovalRequest;
 import com.legacyvault.verification.dto.LegalApprovalResponse;
 import com.legacyvault.verification.dto.RecordLegalBasisReviewRequest;
+import com.legacyvault.verification.dto.CompleteLegalBasisReviewRequest;
 import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisReclassificationService;
@@ -99,7 +100,7 @@ public class LegalBasisDossierController {
     @PostMapping("/review")
     public ResponseEntity<LegalBasisReviewResponse> recordReview(
             @PathVariable UUID caseId,
-            @Valid @RequestBody RecordLegalBasisReviewRequest request,
+            @Valid @RequestBody CompleteLegalBasisReviewRequest request,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
 
         Long reviewerUserId =
@@ -109,7 +110,7 @@ public class LegalBasisDossierController {
                 legalBasisReviewService.recordCompletedReviewByCasePublicId(
                         caseId,
                         reviewerUserId,
-                        request.reason());
+                        request);
 
         return ResponseEntity.ok(response);
     }

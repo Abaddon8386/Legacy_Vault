@@ -188,6 +188,61 @@ paths:
                 properties:
                   RspCode: { type: string, enum: ['00', '01', '02', '04', '97', '99'] }
                   Message: { type: string }
+  /api/v1/legal-verifications/verification-cases:
+    get:
+      tags: [Legal]
+      summary: Paginated Legal discovery using the existing global Legal case scope (PS-102)
+      description: LEGAL_VERIFIER only. Metadata, no assignment changes or asset content. See legal-read-context.md.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        - in: query
+          name: route
+          schema: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+      responses:
+        '200':
+          description: Stable openedAt DESC / internal tie-break, no-store; not a cross-request snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content, page, size, totalElements, totalPages]
+                properties:
+                  content: { type: array, items: { $ref: '#/components/schemas/LegalQueueItem' } }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalElements: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/legal-verifications/verification-cases/{caseId}/context:
+    get:
+      tags: [Legal]
+      summary: Locked metadata/snapshot/capability read for Legal (PS-102)
+      description: No writes, unlock, file download or decryption. Capabilities are advisory; mutations always recheck current guards.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: No-store. Missing dossier is null, never inferred as approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalReadContext' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Case or associated Vault not found }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -1593,8 +1648,8 @@ paths:
       tags: [Legal]
       summary: Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ (PS-41, ST-16)
       description: |
-        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `WILL_VERIFICATION` và kết quả đối chiếu di chúc mới
-        nhất là MATCH. Mỗi ca một hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD.
+        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION` sau xác minh tử vong.
+        Chỉ COURT hoặc ON_HOLD; không yêu cầu di chúc/MATCH. COURT chuyển Vault sang AWAITING_LEGAL_BASIS.
       x-status: implemented
       parameters:
         - name: caseId
@@ -1641,7 +1696,7 @@ paths:
       tags: [Legal]
       summary: Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (PS-43, ST-16, LV-HOLD-001)
       description: |
-        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `NOTARIAL` hoặc `COURT`; Vault
+        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `COURT`; Vault
         `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. `NOTARIAL` và `COURT` không đổi lẫn nhau. Phân loại cũ được lưu vào lịch sử.
       x-status: implemented
       parameters:
@@ -1960,7 +2015,7 @@ paths:
       description: |
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
         và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
-        có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+        có nhánh COURT. NOTARIAL lịch sử chỉ đọc, mọi ghi mới bị chặn. Tiếp nhận không đồng nghĩa đã duyệt.
         Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
       x-status: implemented
       parameters:
@@ -2272,7 +2327,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            schema: { $ref: '#/components/schemas/CompleteLegalBasisReviewRequest' }
             example: { reason: "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan." }
       responses:
         '200':
@@ -2755,6 +2810,83 @@ components:
         createdAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time, description: Checkout expiry only; paid plan has no expiry }
         checkoutUrl: { type: string, nullable: true, description: Signed sandbox URL only on create/replay before expiry }
+    LegalQueueItem:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, route, dossierStatus, reviewStatus, openedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        vaultStatus: { type: string }
+        route: { type: string, nullable: true }
+        dossierStatus: { type: string, nullable: true }
+        reviewStatus: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+    LegalActionCapability:
+      type: object
+      required: [allowed, blockedReason]
+      properties:
+        allowed: { type: boolean }
+        blockedReason: { type: string, nullable: true, description: Existing shared ErrorCode, or null }
+    LegalReadSnapshot:
+      type: object
+      nullable: true
+      required: [dossierId, currentVersion, requiredVersion, sha256Hash, allocationHash, disputeStatus, reviewStatus, reviewFresh, approvalCurrent, latestDecision, courtResult]
+      properties:
+        dossierId: { type: string, format: uuid }
+        currentVersion: { type: integer, minimum: 0 }
+        requiredVersion: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, nullable: true }
+        allocationHash: { type: string }
+        disputeStatus: { type: string }
+        reviewStatus: { type: string }
+        reviewFresh: { type: boolean }
+        approvalCurrent: { type: boolean }
+        courtResult: { type: string, nullable: true }
+        latestDecision:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            versionNo: { type: integer, nullable: true, description: Historical evidence may lack a snapshot }
+            sha256Hash: { type: string, nullable: true }
+            allocationHash: { type: string, nullable: true }
+            disputeStatus: { type: string, nullable: true }
+            result: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+            reviewedBy: { type: string, format: uuid, nullable: true }
+            reviewedAt: { type: string, format: date-time, nullable: true }
+    LegalReadContext:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, deathDocuments, willComparison, basisDossier, snapshot, capabilities, evaluatedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string }
+        vaultStatus: { type: string }
+        deathDocuments:
+          type: array
+          items:
+            type: object
+            required: [id, documentType, receivedAt]
+            properties:
+              id: { type: string, format: uuid }
+              documentType: { type: string }
+              receivedAt: { type: string, format: date-time }
+        willComparison: { $ref: '#/components/schemas/WillComparisonOverviewResponse' }
+        basisDossier:
+          allOf:
+            - $ref: '#/components/schemas/BasisDossierResponse'
+          nullable: true
+        snapshot: { $ref: '#/components/schemas/LegalReadSnapshot' }
+        capabilities:
+          type: object
+          required: [approval, unlock]
+          properties:
+            approval: { $ref: '#/components/schemas/LegalActionCapability' }
+            unlock: { $ref: '#/components/schemas/LegalActionCapability' }
+        evaluatedAt: { type: string, format: date-time }
     HandoverArchiveResponse:
       type: object
       properties:
@@ -2822,6 +2954,15 @@ components:
         allocationHash: { type: string, minLength: 64, maxLength: 64 }
         decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
         decidedAt: { type: string, format: date-time }
+    CompleteLegalBasisReviewRequest:
+      type: object
+      required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
     RecordLegalBasisReviewRequest:
       type: object
       required: [reason]
@@ -3327,13 +3468,13 @@ components:
       type: object
       required: [route, routeReason]
       properties:
-        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        route: { type: string, enum: [COURT, ON_HOLD] }
         routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
     BasisIntakeMetadata:
       type: object
       required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
       properties:
-        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
+        legalBasisType: { type: string, enum: [COURT_JUDGMENT, COURT_DECISION] }
         issuingAuthority: { type: string, maxLength: 255 }
         documentNumber: { type: string, maxLength: 100 }
         issueDate: { type: string, format: date }

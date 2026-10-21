@@ -38,7 +38,7 @@ class LegalWorkflowGuardTest {
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final Vault vault = mock(Vault.class);
     private final CourtEvidenceVersion current = new CourtEvidenceVersion(VERSION_ID, VERSION, "a".repeat(64),
-            "NOTARIAL_PARTITION", "Authority", "DOC", null, "FORWARDED", true);
+            "COURT_JUDGMENT", "Authority", "DOC", null, "FORWARDED", true);
 
     @BeforeEach
     void setUp() {

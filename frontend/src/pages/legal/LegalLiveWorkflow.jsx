@@ -115,9 +115,12 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
     else if (step === 'will-document-verification') task = api.loadWillComparisons(selected.caseId, opts);
     else if (['basis-route-selection', 'dossier-review'].includes(step)) task = Promise.all([
       api.loadWillComparisons(selected.caseId, opts),
-      api.loadLegalDossier(selected.caseId, opts).catch(err => { if (err.status === 404 && step === 'basis-route-selection') return null; throw err; }),
-    ]).then(async ([will, dossier]) => ({ will, dossier,
-      court: dossier?.route === 'COURT' ? await api.loadCourtDecisions(selected.caseId, opts) : [] }));
+      (step === 'dossier-review' ? api.loadLegalReviewContext(selected.caseId, opts) : api.loadLegalDossier(selected.caseId, opts)).catch(err => { if (err.status === 404 && step === 'basis-route-selection') return null; throw err; }),
+    ]).then(async ([will, loaded]) => {
+      const dossier = step === 'dossier-review' ? loaded.dossier : loaded;
+      return { will, dossier, reviewSnapshot: loaded?.reviewSnapshot,
+        court: dossier?.route === 'COURT' ? await api.loadCourtDecisions(selected.caseId, opts) : [] };
+    });
     else task = Promise.resolve(null); // No guessed GET snapshot/unlock; PS-102 has not supplied this read contract.
     task.then(value => { if (!c.signal.aborted) { setData(value); setError(null); setNeedsReload(false); } })
       .catch(err => { if (!c.signal.aborted) { setData(null); setError(err); setNeedsReload(true); if (err.status === 401) auth.current?.(); } })
@@ -173,7 +176,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
       if (step === 'dossier-review') {
         if (draft.action === 'hold') value = await api.holdLegalDossier(selected.caseId, draft, opts);
         else if (draft.action === 'court') value = await api.decideCourt(selected.caseId, { ...draft, version: latest?.version }, { ...opts, expectedHash: latest?.sha256 });
-        else value = await api.reviewLegalDossier(selected.caseId, draft, { ...opts, dossierId: data.dossier?.id });
+        else value = await api.reviewLegalDossier(selected.caseId, draft, { ...opts, dossierId: data.dossier?.id, reviewSnapshot: data.reviewSnapshot });
       }
       if (c.signal.aborted) return;
       setReceipt(value); setNeedsReload(true); // A receipt never grants the next capability: reload authoritative state.
