@@ -106,7 +106,7 @@ class StaffBasisIntakeControllerTest {
     void receive_returns201WithLocation_forStaff() throws Exception {
         when(intake.intake(eq(CASE_ID), any(), any(), any())).thenReturn(DOSSIER);
 
-        receive(metadata("NOTARIAL_PARTITION", "045/2026"), true, staff())
+        receive(metadata("COURT_JUDGMENT", "045/2026"), true, staff())
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/api/v1/staff/verification-cases/" + CASE_ID + "/basis-dossier"))
                 .andExpect(jsonPath("$.status").value("LEGAL_BASIS_PROVIDED"))
@@ -116,9 +116,9 @@ class StaffBasisIntakeControllerTest {
     @Test
     void receive_invalidMetadata_returns400_withoutCallingService() throws Exception {
         receive(metadata("PASSPORT", "1"), true, staff()).andExpect(status().isBadRequest());
-        receive(metadata("NOTARIAL_PARTITION", "   "), true, staff()).andExpect(status().isBadRequest());
+        receive(metadata("COURT_JUDGMENT", "   "), true, staff()).andExpect(status().isBadRequest());
         receive("{}", true, staff()).andExpect(status().isBadRequest());
-        receive(metadata("NOTARIAL_PARTITION", "1").replace("2026-09-20", "2999-01-01"), true, staff())
+        receive(metadata("COURT_JUDGMENT", "1").replace("2026-09-20", "2999-01-01"), true, staff())
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(intake);
     }
@@ -140,7 +140,7 @@ class StaffBasisIntakeControllerTest {
                 .thenThrow(new BusinessException(ErrorCode.UNSUPPORTED_MEDIA_TYPE))
                 .thenThrow(new BusinessException(ErrorCode.PAYLOAD_TOO_LARGE))
                 .thenThrow(new BusinessException(ErrorCode.VALIDATION_FAILED));
-        String meta = metadata("NOTARIAL_PARTITION", "045/2026");
+        String meta = metadata("COURT_JUDGMENT", "045/2026");
 
         receive(meta, true, staff()).andExpect(status().isNotFound());
         receive(meta, true, staff()).andExpect(status().isConflict())

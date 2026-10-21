@@ -58,7 +58,7 @@ class LegalBasisReviewServiceTest {
         final VerificationCaseRepository cases = mock(VerificationCaseRepository.class);
         final VaultRepository vaults = mock(VaultRepository.class);
         final LegalBasisReviewService service = new LegalBasisReviewService(
-                dossiers, versions, allocations, history, audit, cases, vaults);
+                dossiers, versions, allocations, history, audit, cases, vaults, mock(com.legacyvault.verification.service.LegalBasisLockedState.class));
 
         final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
         final VerificationCase verificationCase = mock(VerificationCase.class);
@@ -69,7 +69,8 @@ class LegalBasisReviewServiceTest {
             when(dossier.getPublicId()).thenReturn(DOSSIER_PUBLIC_ID);
             when(dossier.getVerificationCaseId()).thenReturn(CASE_DB_ID);
             when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
-            when(dossier.getRoute()).thenReturn("NOTARIAL");
+            when(dossier.getRoute()).thenReturn("COURT");
+            when(dossier.acceptsIntake()).thenReturn(true);
             when(dossier.getDisputeStatus()).thenReturn("NONE");
             when(dossier.getReviewStatus()).thenReturn("FRESH");
             when(dossier.getLastReviewedVersionNo()).thenReturn(1);
@@ -105,7 +106,7 @@ class LegalBasisReviewServiceTest {
 
     private static BasisVersionRow row(int version, String hash) {
         return new BasisVersionRow(
-                version, "NOTARIAL_PARTITION", "Authority", "DOC-1",
+                version, "COURT_JUDGMENT", "Authority", "DOC-1",
                 null, null, null, null, null, null, "application/pdf",
                 100L, hash, "FORWARDED", REVIEWER_ID, null, null);
     }

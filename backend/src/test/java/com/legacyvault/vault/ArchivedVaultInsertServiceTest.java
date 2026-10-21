@@ -62,7 +62,7 @@ class ArchivedVaultInsertServiceTest {
     @Test void beneficiaryInsertRefreshesLockedVaultBeforeEncryptionOrSave(){
         var cipher=mock(IdentityNumberCipher.class);
         var service=new BeneficiaryService(beneficiaries,guard,owners,cipher,audit,
-                mock(com.legacyvault.common.i18n.MessageService.class));
+                mock(com.legacyvault.common.i18n.MessageService.class),mock(com.legacyvault.beneficiary.BeneficiaryInvitationService.class),entities);
         blocked(()->service.create(vaultId,new BeneficiaryDtos.UpsertRequest("Beneficiary",null,null,null,null,null)));
         verifyNoInteractions(beneficiaries,cipher);
     }

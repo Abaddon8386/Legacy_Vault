@@ -3,7 +3,6 @@ import {
   FileCheck,
   CheckCircle2,
   Clock,
-  RotateCcw,
   AlertTriangle,
   UserCheck,
   HelpCircle,
@@ -245,22 +244,6 @@ function BeneficiaryConfirmationPageContext({
     }
   };
 
-  const handleReset = () => {
-    confirmationController.current?.abort();
-    confirmationController.current = null;
-    setIsSubmitting(false);
-    activeCaseRef.current = '';
-    lastFetchedKeyRef.current = '';
-    setCaseReference('');
-    setSessionId('');
-    setBeneficiaries([]);
-    setLoadedCaseId('');
-    setSelectedBeneficiaryId('');
-    setReceiptReference('');
-    setErrors({});
-    setActionSuccess(null);
-    setActionError(null);
-  };
 
   // Submit xác nhận người thụ hưởng
   const handleSubmitConfirmation = async (e) => {
@@ -524,14 +507,7 @@ function BeneficiaryConfirmationPageContext({
           >
             {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
           </button>
-          <button
-            type="button"
-            className="lv-confirm-btn-reset"
-            onClick={handleReset}
-          >
-            <RotateCcw size={14} aria-hidden="true" />
-            <span>{t.btnResetForm}</span>
-          </button>
+
         </div>
       </section>
 
@@ -735,19 +711,7 @@ function BeneficiaryConfirmationPageContext({
               )}
             </button>
 
-            <button
-              type="button"
-              className="lv-confirm-btn-reset"
-              onClick={() => {
-                setSelectedBeneficiaryId('');
-                setReceiptReference('');
-                setErrors({});
-              }}
-              disabled={isSubmitting}
-            >
-              <RotateCcw size={14} aria-hidden="true" />
-              <span>{t.btnResetForm}</span>
-            </button>
+
           </div>
         </form>
       </section>

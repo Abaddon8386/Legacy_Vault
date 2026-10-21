@@ -455,8 +455,9 @@ export default function VaultSummary({
             type="button"
             className="lv-summary-cta-btn lv-summary-cta-btn--gold"
             onClick={() => onNavigate?.('subscription')}
+            aria-label={en ? 'Upgrade plan' : 'Nâng cấp gói'}
           >
-            <span>{en ? 'Plan details' : 'Chi tiết gói'}</span>
+            <span>{en ? 'Upgrade plan' : 'Nâng cấp gói'}</span>
             <ArrowRight size={13} aria-hidden="true" />
           </button>
         </div>

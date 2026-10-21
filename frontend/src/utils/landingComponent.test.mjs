@@ -41,6 +41,39 @@ test('Landing renders six decorative 3D faces without playback controls, support
   } finally { await view.close(); }
 });
 
+test('Landing renders Register button beside Sign in with bilingual text and language preservation', async () => {
+  const Landing = await component(false, 'src/pages/landing/LandingPage.jsx');
+  let registeredWithLang = null;
+  let loggedInWithLang = null;
+  const view = await mount(Landing, {
+    onLogin: lang => { loggedInWithLang = lang; },
+    onRegister: lang => { registeredWithLang = lang; },
+  });
+  try {
+    const registerBtn = view.host.querySelector('.lv-landing-register');
+    const loginBtn = view.host.querySelector('.lv-landing-login');
+    assert.ok(registerBtn, 'Register button should exist in navbar');
+    assert.ok(loginBtn, 'Login button should exist in navbar');
+    assert.equal(registerBtn.textContent.trim(), 'Đăng ký');
+    assert.match(loginBtn.textContent, /Đăng nhập/);
+
+    await act(async () => registerBtn.click());
+    assert.equal(registeredWithLang, 'vi');
+
+    await act(async () => view.host.querySelector('.lv-landing-language').click());
+    assert.equal(registerBtn.textContent.trim(), 'Sign up');
+    assert.match(loginBtn.textContent, /Sign in/);
+
+    await act(async () => registerBtn.click());
+    assert.equal(registeredWithLang, 'en');
+
+    await act(async () => loginBtn.click());
+    assert.equal(loggedInWithLang, 'en');
+  } finally {
+    await view.close();
+  }
+});
+
 test('Task 26: Homepage authentication states and role-based Dashboard button', async () => {
   const Landing = await component(false, 'src/pages/landing/LandingPage.jsx');
 
