@@ -14,7 +14,7 @@ Tài liệu này thay các quyết định giá tháng/prototype trước đó c
 
 GET `/subscription-plans` và `/subscriptions/me` là thông tin đọc thật, tách khỏi cờ enforcement. Current DTO vẫn dùng `effectivePlan`, `usage`, `effectiveUntil=null`, `vaultCreated`. FE có adapter cho DTO này.
 
-POST `/subscriptions/me/upgrade-quote`, body `{planCode,catalogVersion}`, trả `{planCode,catalogVersion,amountVnd,currency:"VND",billingModel:"LIFETIME",previousPurchaseCreditVnd:0,paymentAvailable:false}`. Giá và version được server lấy từ catalog; không nhận giá phía client. Đây là báo giá tham khảo, không tạo giao dịch, không cấp gói. POST `/subscriptions/me/upgrade` vẫn trả `SUBSCRIPTION_UPGRADE_UNAVAILABLE` cho tới khi payment được triển khai. Không tin entitlement prototype cũ là bằng chứng đã thanh toán. Quota enforcement vẫn tắt mặc định; không bật ngầm khi sửa giá.
+POST `/subscriptions/me/upgrade-quote`, body `{planCode,catalogVersion}`, trả `{planCode,catalogVersion,amountVnd,currency:"VND",billingModel:"LIFETIME",previousPurchaseCreditVnd:0,paymentAvailable:false}`. Giá và version được server lấy từ catalog; không nhận giá phía client. Đây là báo giá tham khảo, không tạo giao dịch, không cấp gói. POST `/subscriptions/me/upgrade` vẫn trả `SUBSCRIPTION_UPGRADE_UNAVAILABLE` cho tới khi payment được triển khai. Không tin entitlement prototype cũ là bằng chứng đã thanh toán. Quota enforcement bật mặc định từ PS-92 (D-API-42, đề xuất chờ nhóm xác nhận); xem [assets.md](assets.md#quota-nội-dung--ps-77-ps-92-d-api-42).
 
 ## Ảnh gắn tài sản
 

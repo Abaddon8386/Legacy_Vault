@@ -1,3 +1,4 @@
+const userId = '11111111-1111-4111-8111-111111111111';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
@@ -52,7 +53,7 @@ function auditEvent() {
     actor: { kind: 'SYSTEM', userId: null }, action: 'VAULT_CREATED', entityType: 'VAULT', vaultId: null };
 }
 function pageFixture(Component, name) {
-  return Component === AdminUsersPage ? { items: [{ id: 'item', fullName: name, status: 'ACTIVE' }], total: 1 }
+  return Component === AdminUsersPage ? userPage([{ fullName: name, status: 'ACTIVE' }])
     : { content: [auditEvent()], page: 0, size: 10, totalElements: 1, totalPages: 1 };
 }
 async function mount(Component, props) {
@@ -78,7 +79,7 @@ async function mount(Component, props) {
 
 test('REPRO Lỗi 3: validateAdminUser must NOT default missing status to ACTIVE', () => {
   const user = validateAdminUser({
-    id: 'u-1',
+    publicId: '11111111-1111-4111-8111-111111111111',
     email: 'user@example.com',
   });
   assert.notEqual(
@@ -107,7 +108,7 @@ test('incomplete audit event is rejected instead of fabricating actor or time', 
 test('REPRO Lỗi 4: fetchAdminUsers must throw error on malformed response without items array', async () => {
   const prevFetch = globalThis.fetch;
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ malformed: true }), {
+    fixtureResponse(JSON.stringify({ malformed: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -128,7 +129,7 @@ test('REPRO Lỗi 4: fetchAdminUsers must throw error on malformed response with
 test('REPRO Lỗi 4: fetchAdminAuditLogs must throw error on malformed response without items array', async () => {
   const prevFetch = globalThis.fetch;
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ unexpectedField: 'xyz' }), {
+    fixtureResponse(JSON.stringify({ unexpectedField: 'xyz' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -154,20 +155,18 @@ test('REPRO Lỗi 1: AdminUsersPage on 403 clears users list, detail modal, and 
   const prevFetch = globalThis.fetch;
   let fetchCount = 0;
 
-  globalThis.fetch = async () => {
+  globalThis.fetch = async url => {
+    if (url.endsWith('/' + userId)) return fixtureResponse(JSON.stringify(wireUser({ fullName: 'User 1', email: 'u1@example.com', roles: ['ADMIN'], status: 'ACTIVE' })));
     fetchCount++;
     if (fetchCount === 1) {
       // First call succeeds with 1 user
-      return new Response(
-        JSON.stringify({
-          items: [{ id: 'u-1', fullName: 'User 1', email: 'u1@example.com', roles: ['ADMIN'], status: 'ACTIVE' }],
-          total: 1,
-        }),
+      return fixtureResponse(
+        JSON.stringify(userPage([{ id: 'u-1', fullName: 'User 1', email: 'u1@example.com', roles: ['ADMIN'], status: 'ACTIVE' }])),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
     // Second call (e.g. reload or search) returns 403 Forbidden
-    return new Response(JSON.stringify({ code: 'FORBIDDEN' }), { status: 403 });
+    return fixtureResponse(JSON.stringify({ code: 'FORBIDDEN' }), { status: 403 });
   };
 
   try {
@@ -225,22 +224,16 @@ test('REPRO Lỗi 2: AdminUsersPage discards late response from previous token a
       return new Promise((resolve) => {
         delayedResolve = () =>
           resolve(
-            new Response(
-              JSON.stringify({
-                items: [{ id: 'u-A', fullName: 'User From Token A', email: 'a@example.com', roles: ['VAULT_OWNER'], status: 'ACTIVE' }],
-                total: 1,
-              }),
+            fixtureResponse(
+              JSON.stringify(userPage([{ id: 'u-A', fullName: 'User From Token A', email: 'a@example.com', roles: ['VAULT_OWNER'], status: 'ACTIVE' }])),
               { status: 200, headers: { 'Content-Type': 'application/json' } }
             )
           );
       });
     }
     // Token B returns immediately with User B
-    return new Response(
-      JSON.stringify({
-        items: [{ id: 'u-B', fullName: 'User From Token B', email: 'b@example.com', roles: ['ADMIN'], status: 'ACTIVE' }],
-        total: 1,
-      }),
+    return fixtureResponse(
+      JSON.stringify(userPage([{ id: 'u-B', fullName: 'User From Token B', email: 'b@example.com', roles: ['ADMIN'], status: 'ACTIVE' }])),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   };
@@ -292,22 +285,16 @@ test('REPRO Lỗi 2: AdminUsersPage discards late response on rapid reload/retry
       return new Promise((resolve) => {
         delayedResolve1 = () =>
           resolve(
-            new Response(
-              JSON.stringify({
-                items: [{ id: 'u-1', fullName: 'Slow Result 1', email: 'slow1@example.com', roles: ['ADMIN'], status: 'ACTIVE' }],
-                total: 1,
-              }),
+            fixtureResponse(
+              JSON.stringify(userPage([{ id: 'u-1', fullName: 'Slow Result 1', email: 'slow1@example.com', roles: ['ADMIN'], status: 'ACTIVE' }])),
               { status: 200, headers: { 'Content-Type': 'application/json' } }
             )
           );
       });
     }
     // Second reload request returns fast with fresh data
-    return new Response(
-      JSON.stringify({
-        items: [{ id: 'u-2', fullName: 'Fresh Result 2', email: 'fresh2@example.com', roles: ['ADMIN'], status: 'ACTIVE' }],
-        total: 1,
-      }),
+    return fixtureResponse(
+      JSON.stringify(userPage([{ id: 'u-2', fullName: 'Fresh Result 2', email: 'fresh2@example.com', roles: ['ADMIN'], status: 'ACTIVE' }])),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   };
@@ -409,7 +396,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
     let lateSignal;
     let calls = 0;
     globalThis.fetch = async (_url, options) => {
-      if (++calls === 1) return new Response(JSON.stringify(pageFixture(Component, 'OLD_RECORD')), { headers: { 'Content-Type': 'application/json' } });
+      if (++calls === 1) return fixtureResponse(JSON.stringify(pageFixture(Component, 'OLD_RECORD')), { headers: { 'Content-Type': 'application/json' } });
       lateSignal = options.signal;
       return new Promise((resolve) => { resolveLate = resolve; });
     };
@@ -424,7 +411,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
       assert.equal(view.host.textContent.includes('OLD_RECORD'), false);
       await view.close(); view = null;
       assert.equal(lateSignal.aborted, true);
-      await act(async () => resolveLate(new Response(JSON.stringify({ items: [], total: 0 }))));
+      await act(async () => resolveLate(fixtureResponse(JSON.stringify(userPage([])))));
     } finally { if (view) await view.close(); globalThis.fetch = previous; }
   });
 }
@@ -435,7 +422,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
     let resolveLate;
     let calls = 0;
     globalThis.fetch = async () => {
-      if (++calls === 1) return new Response(JSON.stringify(pageFixture(Component, 'OLD_FILTER')), { headers: { 'Content-Type': 'application/json' } });
+      if (++calls === 1) return fixtureResponse(JSON.stringify(pageFixture(Component, 'OLD_FILTER')), { headers: { 'Content-Type': 'application/json' } });
       return new Promise((resolve) => { resolveLate = resolve; });
     };
     let view;
@@ -449,7 +436,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
       });
       assert.equal(view.host.querySelector('[role="dialog"]'), null);
       assert.equal(view.host.textContent.includes('OLD_FILTER'), false);
-      await act(async () => resolveLate(new Response(JSON.stringify({ malformed: true }))));
+      await act(async () => resolveLate(fixtureResponse(JSON.stringify({ malformed: true }))));
       assert.ok(view.host.querySelector('[role="alert"]'));
       assert.equal(view.host.textContent.includes('OLD_FILTER'), false);
       assert.equal(view.host.querySelector('[role="dialog"]'), null);
@@ -461,7 +448,7 @@ test('returning to a previous token never revives its previous successful result
   const previous = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => {
-    if (++calls === 1) return new Response(JSON.stringify({ items: [{ id: 'old', fullName: 'PREVIOUS_SESSION' }], total: 1 }));
+    if (++calls === 1) return fixtureResponse(JSON.stringify(userPage([{ id: 'old', fullName: 'PREVIOUS_SESSION' }])));
     return new Promise(() => {});
   };
   let view;
@@ -476,7 +463,7 @@ test('returning to a previous token never revives its previous successful result
 
 test('audit detail 403 clears list and open detail, without retaining event metadata', async () => {
   const previous = globalThis.fetch;
-  globalThis.fetch = async url => new Response(JSON.stringify(url.includes('?') ? {
+  globalThis.fetch = async url => fixtureResponse(JSON.stringify(url.includes('?') ? {
     content: [auditEvent()], page: 0, size: 10, totalElements: 1, totalPages: 1,
   } : { code: 'ACCESS_DENIED' }), { status: url.includes('?') ? 200 : 403, headers: { 'Content-Type': 'application/json' } });
   let view;
@@ -487,4 +474,29 @@ test('audit detail 403 clears list and open detail, without retaining event meta
     assert.equal(view.host.querySelector('tbody').textContent.includes('VAULT_CREATED'), false);
     assert.ok(view.host.querySelector('[role="alert"]'));
   } finally { if (view) await view.close(); globalThis.fetch = previous; }
+});
+
+// Exact PS-109 wire fixtures; IDs and createdAt below are synthetic test-only values.
+
+function wireUser(value, index = 0) {
+  const rest = { ...value }; delete rest.id;
+  return { ...rest, publicId: value.publicId || (index ? '22222222-2222-4222-8222-222222222222' : userId),
+    createdAt: value.createdAt || '2026-10-20T10:00:00Z' };
+}
+function userPage(users) { return { content: users.map(wireUser), page: 0, size: 10, totalElements: users.length, totalPages: users.length ? 1 : 0 }; }
+function fixtureResponse(body, options = {}) { return new Response(body, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } }); }
+
+test('user detail 403 revokes the displayed list and closes its dialog', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async url => url.includes('?')
+    ? fixtureResponse(JSON.stringify(userPage([{ fullName: 'Restricted account', roles: ['ADMIN'], status: 'ACTIVE' }])))
+    : fixtureResponse(JSON.stringify({ code: 'ACCESS_DENIED' }), { status: 403 });
+  const view = await mount(AdminUsersPage, { accessToken: 'T', fetchOnMount: true, lang: 'en' });
+  try {
+    assert.match(view.host.textContent, /Restricted account/);
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => /view details/i.test(button.textContent)).click());
+    assert.equal(view.host.querySelector('[role="dialog"]'), null);
+    assert.doesNotMatch(view.host.querySelector('tbody').textContent, /Restricted account/);
+    assert.ok(view.host.querySelector('[role="alert"]'));
+  } finally { await view.close(); globalThis.fetch = original; }
 });

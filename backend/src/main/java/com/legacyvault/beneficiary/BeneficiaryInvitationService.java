@@ -13,6 +13,7 @@ import com.legacyvault.common.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.OwnerContextService;
+import com.legacyvault.auth.EmailNormalizer;
 import com.legacyvault.user.entity.Role;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.entity.UserRole;
@@ -81,6 +82,30 @@ public class BeneficiaryInvitationService {
         return create(beneficiary, Math.addExact(generation, 1), owner.getUserId(), "BENEFICIARY_INVITATION_REISSUED");
     }
 
+    /** PS-106 internal seam: rotate an unbound/current PS-86 code (or create the first generation), binding the
+     * new code to the Staff-confirmed address. Caller owns the Staff/case/Legal/allocation guards and outbox txn. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public InvitationDtos.Issued issueBoundForStaff(Beneficiary beneficiary, String confirmedEmail,
+            Long staffUserId, int expectedGeneration) {
+        requireUnlinked(beneficiary);
+        String normalizedEmail = EmailNormalizer.normalize(confirmedEmail);
+        if (normalizedEmail == null || normalizedEmail.isBlank()) {
+            throw error(ErrorCode.BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED);
+        }
+        BeneficiaryInvitation old = current(beneficiary);
+        int currentGeneration = old == null ? 0 : old.getGeneration();
+        if (expectedGeneration != currentGeneration) throw error(ErrorCode.BENEFICIARY_INVITATION_STALE);
+        if (old != null) {
+            if (old.getConsumedAt() != null) throw error(ErrorCode.BENEFICIARY_INVITATION_ALREADY_USED);
+            if (old.getRecipientEmail() != null) throw error(ErrorCode.BENEFICIARY_INVITATION_ALREADY_EXISTS);
+            if (old.getRevokedAt() == null) old.revoke(staffUserId, now());
+            old.retire();
+            invitations.saveAndFlush(old);
+        }
+        String action = old == null ? "BENEFICIARY_INVITATION_ISSUED" : "BENEFICIARY_INVITATION_REISSUED";
+        return create(beneficiary, Math.addExact(currentGeneration, 1), staffUserId, action, normalizedEmail);
+    }
+
     @Transactional
     public void revoke(UUID vaultId, UUID beneficiaryId, int generation) {
         User owner = owners.requireOwner();
@@ -110,13 +135,21 @@ public class BeneficiaryInvitationService {
         revokeForEmailChange(beneficiary, actor);
     }
 
-    /** Internal PS-87 integration seam, NOT an HTTP API. Caller resolves accountId from a verified
-     * authenticated principal, or a new account created inside the SAME transaction. Caller must
-     * enforce a durable/shared failed-attempt limit before calling; never accept a client accountId.
-     * Lock order target User -> Vault. Caller must not already hold a Vault/resource write lock.
-     * Code possession is the invitation proof: there is deliberately no email match/verification check. */
+    /** PS-86 internal seam retained for established Staff flows. */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Linked linkAccount(String code, Long accountId) {
+        return linkAccountInternal(code, accountId, false);
+    }
+
+    /** Authenticated PS-87 redeem. A Staff-bound PS-106 invitation may be redeemed when the
+     * authenticated account email exactly matches the counter-confirmed binding. Legacy unbound
+     * invitations retain the existing verified-account-email requirement and fail closed. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public InvitationDtos.Linked redeemBoundAccount(String code, Long accountId) {
+        return linkAccountInternal(code, accountId, true);
+    }
+
+    private InvitationDtos.Linked linkAccountInternal(String code, Long accountId, boolean requireEmailBinding) {
         if (!tokens.validFormat(code) || accountId == null) throw invalid();
         BeneficiaryInvitation invitation = invitations.findByCodeHash(tokens.hash(code)).orElseThrow(this::invalid);
         Long vaultId = invitation.getBeneficiary().getVault().getVaultId();
@@ -125,11 +158,28 @@ public class BeneficiaryInvitationService {
         entities.refresh(account);
         Vault vault = vaults.findByIdForUpdate(vaultId).orElseThrow(this::invalid);
         entities.refresh(vault);
-        // Freeze/archive never opens a new self-service path; Staff fallback remains separate.
-        if (!"ACTIVE".equals(vault.getStatus()) || accountId.equals(vault.getOwnerUserId())) throw invalid();
+        // Email-bound Staff invitations remain redeemable after Legal unlock, including during
+        // handover. Legacy/Owner invitations retain the original ACTIVE-only behavior.
+        boolean redeemableVaultStatus = requireEmailBinding
+                ? Vault.STATUS_ACTIVE.equals(vault.getStatus()) || Vault.STATUS_UNLOCKED.equals(vault.getStatus())
+                        || Vault.STATUS_HANDOVER_IN_PROGRESS.equals(vault.getStatus())
+                : Vault.STATUS_ACTIVE.equals(vault.getStatus());
+        if (!redeemableVaultStatus || accountId.equals(vault.getOwnerUserId())) throw invalid();
         Beneficiary beneficiary = invitation.getBeneficiary();
         entities.refresh(beneficiary);
         entities.refresh(invitation);
+        if (requireEmailBinding) {
+            String recipientEmail = EmailNormalizer.normalize(invitation.getRecipientEmail());
+            if ((recipientEmail == null || recipientEmail.isBlank()) && account.getEmailVerifiedAt() == null) {
+                throw error(ErrorCode.BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED);
+            }
+            if (recipientEmail == null || !recipientEmail.equals(EmailNormalizer.normalize(account.getEmail()))) {
+                throw invalid();
+            }
+        }
+        if (requireEmailBinding && !Beneficiary.VERIFIED_AT_COUNTER.equals(beneficiary.getIdentityVerificationStatus())) {
+            throw error(ErrorCode.BENEFICIARY_IDENTITY_NOT_VERIFIED);
+        }
         if (!vaultId.equals(beneficiary.getVault().getVaultId())) throw invalid();
         if (!"ACTIVE".equals(account.getStatus()) || account.getDeletedAt() != null) throw invalid();
         var authorities = userRoles.findByUserIdWithRole(accountId).stream()
@@ -186,9 +236,13 @@ public class BeneficiaryInvitationService {
         if (beneficiary.hasAccount()) throw error(ErrorCode.BENEFICIARY_ACCOUNT_ALREADY_LINKED);
     }
     private InvitationDtos.Issued create(Beneficiary beneficiary, int generation, Long actor, String action) {
+        return create(beneficiary, generation, actor, action, null);
+    }
+    private InvitationDtos.Issued create(Beneficiary beneficiary, int generation, Long actor, String action,
+            String recipientEmail) {
         String code = tokens.generate();
         BeneficiaryInvitation invitation = invitations.saveAndFlush(
-                new BeneficiaryInvitation(beneficiary, generation, tokens.hash(code), actor, now()));
+                new BeneficiaryInvitation(beneficiary, generation, tokens.hash(code), actor, now(), recipientEmail));
         record(actor, invitation, action);
         return new InvitationDtos.Issued(InvitationDtos.Metadata.from(invitation, beneficiary.getPublicId(), now()), code);
     }

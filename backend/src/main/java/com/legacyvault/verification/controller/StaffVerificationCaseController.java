@@ -31,11 +31,12 @@ public class StaffVerificationCaseController {
     @GetMapping
     public PageResponse<StaffVerificationCaseResponse> listCases(
             @RequestParam(required = false) String status,
+            @RequestParam(name = "q", required = false) String query,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return caseService.listCases(principal, status, page, size);
+        return caseService.listCases(principal, status, query, page, size);
     }
 
     @GetMapping("/{caseId}")

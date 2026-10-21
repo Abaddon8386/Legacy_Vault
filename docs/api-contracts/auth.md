@@ -2,10 +2,13 @@
 
 **PS-86, policy 20/10/2026:** xem [beneficiary-invitations.md](beneficiary-invitations.md).
 Owner có API quản lý mã; service nội bộ `linkAccount(code, accountId)` chỉ chạy trong
-outer transaction PS-87. Chưa có public signup/redeem bằng mã. Khi PS-87 tích hợp,
-accountId phải do BE xác thực, thêm limiter dùng chung, không gán Owner cho signup
-bằng mã, giữ role cũ và cấp JWT phản ánh role thật. Dùng mã làm bằng chứng lời mời,
-không ràng buộc/xác minh email hay OTP; không cấp quyền xem tài sản sớm.
+outer transaction PS-87. PS-87 hiện có `POST /api/v1/auth/invitations/redeem` sau đăng nhập;
+account lấy từ principal và bị kiểm tra ACTIVE. Chỉ invitation generation được Staff PS-106
+gắn với email đã xác nhận tại quầy mới được redeem khi normalized email tài khoản khớp chính xác;
+`email_verified_at` có thể NULL riêng cho flow này. Đây không phải xác minh mailbox và không
+ghi cột đó. Invitation legacy/Owner không binding vẫn fail closed. Mã chỉ liên kết Beneficiary,
+không cấp quyền đọc tài sản; PS-104 exact-recipient item `DELIVERED` vẫn là gate duy nhất.
+Không có signup+redeem công khai, không nhận role/account ID từ client, không đổi Google login.
 
 Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật & lỗi chung đã có từ PS-74).
 
@@ -84,9 +87,22 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 ## GET /api/v1/auth/me — **[D-API-23]**
 
-- **Quyền:** đã đăng nhập. **Response 200:** như `user` ở trên. **Lỗi:** `401 UNAUTHENTICATED`.
+- **Quyền:** đã đăng nhập. **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles" }`; roles đọc từ DB. Không trả trạng thái nội bộ, mật khẩu/hash hay token.
+- Danh tính chỉ lấy từ principal đã xác thực.
 - Để FE khởi tạo trạng thái đăng nhập mà không giải mã JWT phía client.
-- D-API-04 cập nhật 2026-10-19: FE khôi phục phiên từ `sessionStorage` của tab sau reload và xác minh qua endpoint này trước khi hiển thị trang bảo vệ. Không gia hạn token; lỗi mạng cho phép thử lại, 401 xóa phiên. API request/response không đổi.
+- D-API-04 cập nhật 2026-10-19: FE khôi phục phiên từ `sessionStorage` của tab sau reload và xác minh qua endpoint này trước khi hiển thị trang bảo vệ. Không gia hạn token; lỗi mạng cho phép thử lại, 401 xóa phiên.
+
+## PATCH /api/v1/auth/me — PS-79
+
+- **Quyền:** đã đăng nhập; chỉ cập nhật tài khoản trong principal hiện hành. Không nhận ID, role hay trạng thái từ request.
+- **Trường cập nhật:** partial JSON nhận `fullName`, `email`, `phoneNumber`, `password`. Field khác (kể cả `id`, `roles`, `authVersion`, `password_login_enabled`, `status`) bị từ chối với `400 MALFORMED_REQUEST`. Trường bỏ qua/null không đổi; object không có thay đổi là no-op. `phoneNumber: ""` xóa số điện thoại.
+- **Validation:** tên 1–150 ký tự; phone 8–15 chữ số, `+` tùy chọn; email hợp lệ tối đa 254 ký tự và chuẩn hóa lowercase; password theo `PasswordPolicy` (8–72 ký tự/byte UTF-8, không NUL, Unicode hợp lệ).
+- **Reauthentication:** khi email thực sự đổi hoặc có password mới, request phải kèm `currentPassword`. Nếu không đổi email/password thì không gửi field này. Server dùng `PasswordReauthService`; sai mật khẩu ghi `REAUTH_FAILED` và áp dụng giới hạn hiện hành (mặc định 5 lần/15 phút, 429 `TOO_MANY_ATTEMPTS`). Thiếu bằng chứng trả `400 MALFORMED_REQUEST`; sai trả `403 REAUTH_FAILED`. Không cần reauth cho tên/số điện thoại. `currentPassword` chỉ được dùng xác minh, không lưu hoặc trả về.
+- **Email:** kiểm tra trùng trước cập nhật và unique constraint `UQ_users_email` là chốt cuối khi có request đồng thời; trùng trả `409 EMAIL_ALREADY_EXISTS`. Codebase hiện không có email verification flow; khi đổi địa chỉ, `email_verified_at` được xóa để không mang bằng chứng cũ sang địa chỉ mới.
+- **Password:** mã hóa bằng encoder hiện hành. Tài khoản `password_login_enabled=0` không vượt qua reauthentication bằng password và không bị bật password login. Đổi password tăng `authVersion` trong cùng transaction với cập nhật password/audit; JWT cũ bị từ chối tại request kế tiếp theo `JwtAuthenticationFilter`. Không thay đổi recovery flow PS-112.
+- **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles" }`; không chứa password, hash, currentPassword hay token.
+- **Lỗi:** `400 VALIDATION_FAILED` hoặc `MALFORMED_REQUEST`, `401 UNAUTHENTICATED`, `403 REAUTH_FAILED`, `409 EMAIL_ALREADY_EXISTS`, `429 TOO_MANY_ATTEMPTS`.
+- Cập nhật ghi `AUTH_PROFILE_UPDATED` với kết quả và tên trường thay đổi, không ghi giá trị. Actor lấy từ principal. Audit và thay đổi profile cùng transaction theo `LV-AUD-001`; lỗi audit làm rollback cập nhật.
 
 ## Bảo mật & RBAC — PS-11
 
@@ -111,3 +127,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 Success/validation/401/403: `ErrorContractTest` (khung). PS-9/10/11 bổ sung: đăng ký thành công, trùng email 409, mật khẩu
 được băm (không bằng plaintext), đăng nhập đúng/sai/đã xóa, token hợp lệ vs thiếu token vs sai role.
+
+## PS-112
+
+Recovery contract and session-version deployment/rollback policy: [password-recovery.md](password-recovery.md). Password login and password reauth reject explicitly password-disabled accounts; unclassified legacy accounts keep existing login but cannot recover. Legacy JWTs without authVersion must sign in again. New JWT claims are checked against the DB on every protected request.

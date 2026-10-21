@@ -19,6 +19,9 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 	/** Danh sách Asset của Vault, bỏ loại DOCUMENT (di chúc đi qua /wills). */
 	Page<Asset> findByVaultIdAndAssetTypeNot(Long vaultId, AssetType excludedType, Pageable pageable);
 
+	/** Public metadata catalog for an authorized pre-unlock Staff case. */
+	Page<Asset> findByVaultIdAndStatusAndAssetTypeNot(Long vaultId, String status, AssetType excludedType, Pageable pageable);
+
 	/** Một Asset của đúng Vault đó (bỏ DOCUMENT): Asset của Vault khác hay di chúc đều coi như không tồn tại. */
 	Optional<Asset> findByPublicIdAndVaultIdAndAssetTypeNot(UUID publicId, Long vaultId, AssetType excludedType);
 }

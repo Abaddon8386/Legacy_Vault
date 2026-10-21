@@ -35,9 +35,10 @@ class CounterBeneficiaryServiceTest {
 	private final StaffVaultCaseGuard guard = mock(StaffVaultCaseGuard.class);
 	private final BeneficiaryRepository beneficiaries = mock(BeneficiaryRepository.class);
 	private final BeneficiaryInvitationRepository invitations = mock(BeneficiaryInvitationRepository.class);
+	private final BeneficiaryCounterAttestationRepository attestations = mock(BeneficiaryCounterAttestationRepository.class);
 	private final StaffContextService staff = mock(StaffContextService.class);
 	private final CounterBeneficiaryService service =
-			new CounterBeneficiaryService(cases, guard, beneficiaries, invitations, staff);
+			new CounterBeneficiaryService(cases, guard, beneficiaries, invitations, attestations, staff);
 
 	private final VerificationCase verificationCase = mock(VerificationCase.class);
 
@@ -86,13 +87,13 @@ class CounterBeneficiaryServiceTest {
 				"AWAITING_IDENTITY_VERIFICATION", "AWAITING_ACCOUNT_DECISION", "ACCOUNT_LINKED");
 		assertThat(items.get(0).invitation().state()).isEqualTo("NOT_ISSUED");
 		assertThat(items.get(0).invitation().expiresAt()).isNull();
-		assertThat(items.get(0).actions()).isEqualTo(new CounterBeneficiaryDtos.Actions(false, false, false));
+		assertThat(items.get(0).actions()).isEqualTo(new CounterBeneficiaryDtos.Actions(false, false, false, false));
 		assertThat(items.get(1).invitation().state()).isEqualTo("PENDING");
 		assertThat(items.get(1).invitation().expiresAt())
 				.isEqualTo(LocalDateTime.of(2026, 10, 27, 8, 0).toInstant(ZoneOffset.UTC));
-		assertThat(items.get(1).actions()).isEqualTo(new CounterBeneficiaryDtos.Actions(true, true, true));
+		assertThat(items.get(1).actions()).isEqualTo(new CounterBeneficiaryDtos.Actions(true, true, true, false));
 		assertThat(items.get(2).accountLinked()).isTrue();
-		assertThat(items.get(2).actions()).isEqualTo(new CounterBeneficiaryDtos.Actions(false, false, true));
+		assertThat(items.get(2).actions()).isEqualTo(new CounterBeneficiaryDtos.Actions(false, false, true, false));
 		assertThat(items).extracting(CounterBeneficiaryDtos.Item::caseId).containsOnly(CASE_ID);
 	}
 

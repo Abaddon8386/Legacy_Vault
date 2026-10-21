@@ -65,7 +65,20 @@ export function validateRegistration(values, lang = 'vi') {
     errors.phone = msgs.phoneInvalid;
   }
 
-  // Password
+  Object.assign(errors, validatePasswordFields(values, lang));
+
+  // Terms Agreement
+  if (!values.agreeTerms) {
+    errors.agreeTerms = msgs.termsRequired;
+  }
+
+  return errors;
+}
+
+// Shared by registration and password recovery; keep the existing 8–72 policy.
+export function validatePasswordFields(values = {}, lang = 'vi') {
+  const msgs = validationMessages[lang] || validationMessages.vi;
+  const errors = {};
   const pwd = values.password || '';
   if (!pwd) {
     errors.password = msgs.passwordRequired;
@@ -81,11 +94,6 @@ export function validateRegistration(values, lang = 'vi') {
     errors.confirmPassword = msgs.confirmRequired;
   } else if (confirmPwd !== pwd) {
     errors.confirmPassword = msgs.confirmMismatch;
-  }
-
-  // Terms Agreement
-  if (!values.agreeTerms) {
-    errors.agreeTerms = msgs.termsRequired;
   }
 
   return errors;

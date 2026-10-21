@@ -6,6 +6,7 @@ import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import {
+  readDms,
   validateDmsDuration,
   validateDmsInterval,
   formatDmsInterval,
@@ -145,20 +146,81 @@ test('formatDmsInterval - formats correctly for days, hours, and minutes', () =>
 // 2. LIVE VS MOCK CONTRACT COMPATIBILITY & PS-91 GATING
 // ============================================================================
 
-test('saveDmsConfig - Live mode blocks sub-day intervals with BACKEND_SUBDAY_PENDING (PS-91)', async () => {
-  await assert.rejects(
-    async () => {
-      await saveDmsConfig(
-        { days: 0, hours: 12, minutes: 0 },
-        { isDevPreview: false, accessToken: 'real-token', lang: 'vi' }
-      );
-    },
-    (err) => {
-      assert.equal(err.code, 'BACKEND_SUBDAY_PENDING');
-      assert.ok(err.message.includes('PS-91'));
-      return true;
+test('saveDmsConfig - Live mode sends checkIntervalMinutes for sub-day intervals (PS-91)', async () => {
+  const originalFetch = globalThis.fetch;
+  let putBody = null;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'PUT') {
+      putBody = JSON.parse(options.body);
+      return json({
+        ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        status: 'MONITORING',
+        checkIntervalDays: null,
+        checkIntervalMinutes: 720,
+        gracePeriodDays: 1,
+        lastCheckInAt: '2026-10-15T00:00:00Z',
+        nextCheckAt: '2026-10-15T12:00:00Z',
+      });
     }
-  );
+    return json({});
+  };
+
+  try {
+    const res = await saveDmsConfig(
+      { days: 0, hours: 12, minutes: 0 },
+      { isDevPreview: false, accessToken: 'real-token', lang: 'vi' }
+    );
+    assert.equal(res.checkIntervalDays, null);
+    assert.equal(res.checkIntervalHours, 12);
+    assert.equal(res.checkIntervalMinutes, 0);
+    assert.equal(res.checkIntervalTotalMinutes, 720);
+    assert.deepEqual(putBody, { checkIntervalMinutes: 720 });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('saveDmsConfig - Live mode sends checkIntervalMinutes for combined days, hours, and minutes', async () => {
+  const originalFetch = globalThis.fetch;
+  let putBody = null;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'PUT') {
+      putBody = JSON.parse(options.body);
+      return json({
+        ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        status: 'MONITORING',
+        checkIntervalDays: null,
+        checkIntervalMinutes: 1590,
+        gracePeriodDays: 1,
+        lastCheckInAt: '2026-10-15T00:00:00Z',
+        nextCheckAt: '2026-10-16T02:30:00Z',
+      });
+    }
+    return json({});
+  };
+
+  try {
+    const res = await saveDmsConfig(
+      { days: 1, hours: 2, minutes: 30 },
+      { isDevPreview: false, accessToken: 'real-token', lang: 'vi' }
+    );
+    assert.equal(res.checkIntervalDays, null);
+    assert.equal(res.days, 1);
+    assert.equal(res.hours, 2);
+    assert.equal(res.minutes, 30);
+    assert.equal(res.checkIntervalTotalMinutes, 1590);
+    assert.deepEqual(putBody, { checkIntervalMinutes: 1590 });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('formatDmsInterval - formats raw subday minutes', () => {
+  const res = formatDmsInterval({
+    checkIntervalDays: null,
+    checkIntervalMinutes: 90,
+  }, 'vi');
+  assert.equal(res, '1 giờ 30 phút');
 });
 
 test('saveDmsConfig - Live mode passes whole-day intervals to PUT /dms', async () => {
@@ -234,8 +296,7 @@ test('DMS UI - Renders days, hours, and minutes inputs with presets', async () =
     ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     status: 'MONITORING',
     checkIntervalDays: 30,
-    checkIntervalHours: 0,
-    checkIntervalMinutes: 0,
+    checkIntervalMinutes: 43200,
     gracePeriodDays: 1,
     lastCheckInAt: '2026-10-15T00:00:00Z',
     nextCheckAt: '2026-11-14T00:00:00Z',
@@ -356,16 +417,31 @@ test('DMS UI - Indeterminate save progress bar appears during pending save and d
   }
 });
 
-test('DMS UI - Preserves draft on error and displays PS-91 message when sub-day attempted in live mode', async () => {
+test('DMS UI - Successfully saves sub-day interval in live mode and updates state', async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => json({
-    ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    status: 'MONITORING',
-    checkIntervalDays: 30,
-    gracePeriodDays: 1,
-    lastCheckInAt: '2026-10-15T00:00:00Z',
-    nextCheckAt: '2026-11-14T00:00:00Z',
-  });
+  let putBody = null;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'PUT') {
+      putBody = JSON.parse(options.body);
+      return json({
+        ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        status: 'MONITORING',
+        checkIntervalDays: null,
+        checkIntervalMinutes: 720,
+        gracePeriodDays: 1,
+        lastCheckInAt: '2026-10-15T00:00:00Z',
+        nextCheckAt: '2026-10-15T12:00:00Z',
+      });
+    }
+    return json({
+      ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      status: 'MONITORING',
+      checkIntervalDays: 30,
+      gracePeriodDays: 1,
+      lastCheckInAt: '2026-10-15T00:00:00Z',
+      nextCheckAt: '2026-11-14T00:00:00Z',
+    });
+  };
 
   const host = document.createElement('div');
   document.body.append(host);
@@ -387,10 +463,62 @@ test('DMS UI - Preserves draft on error and displays PS-91 message when sub-day 
       setInputValue(hoursInput, '12');
     });
 
-    // Verify sub-day live hint notice is shown
-    const notice = host.querySelector('.lv-dms-subday-notice');
-    assert.ok(notice, 'Live sub-day hint notice must be displayed');
-    assert.ok(notice.textContent.includes('PS-91'));
+    // Submit
+    const form = host.querySelector('form');
+    await act(async () => {
+      form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    // Verify PUT body sent checkIntervalMinutes: 720
+    assert.deepEqual(putBody, { checkIntervalMinutes: 720 });
+
+    // Success banner displayed and values preserved
+    const bannerSuccess = host.querySelector('.lv-dms-banner-success');
+    assert.ok(bannerSuccess, 'Success banner should be shown');
+    assert.equal(daysInput.value, '0');
+    assert.equal(hoursInput.value, '12');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('DMS UI - Preserves draft on server error and displays error banner', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'PUT') {
+      return json({ code: 'VAULT_NOT_EDITABLE', message: 'Kho không thể sửa' }, 409);
+    }
+    return json({
+      ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      status: 'MONITORING',
+      checkIntervalDays: 30,
+      gracePeriodDays: 1,
+      lastCheckInAt: '2026-10-15T00:00:00Z',
+      nextCheckAt: '2026-11-14T00:00:00Z',
+    });
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(React.createElement(DMSOverviewPage, {
+        accessToken: 'real-session-token',
+        lang: 'vi',
+      }));
+    });
+
+    const daysInput = host.querySelector('#dms-interval-input');
+    const hoursInput = host.querySelector('#dms-interval-hours-input');
+
+    await act(async () => {
+      setInputValue(daysInput, '0');
+      setInputValue(hoursInput, '12');
+    });
 
     // Submit
     const form = host.querySelector('form');
@@ -401,8 +529,6 @@ test('DMS UI - Preserves draft on error and displays PS-91 message when sub-day 
     // Error banner should be displayed and draft preserved
     const bannerError = host.querySelector('.lv-dms-banner-error');
     assert.ok(bannerError, 'Error banner should be shown');
-    assert.ok(bannerError.textContent.includes('PS-91'));
-
     assert.equal(daysInput.value, '0');
     assert.equal(hoursInput.value, '12');
   } finally {
@@ -473,4 +599,53 @@ test('DMS UI - Switching language retains draft duration values', async () => {
     host.remove();
     globalThis.fetch = originalFetch;
   }
+});
+
+const receipt = { ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'MONITORING', gracePeriodDays: 1, nextCheckAt: '2026-11-14T00:00:00Z' };
+test('readDms validates exact minute/day relationship and preserves legacy history', () => {
+  for (const total of [1,59,60,90,1440,1590,259200,260640]) {
+    const days = total % 1440 === 0 ? total / 1440 : null;
+    const result = readDms({...receipt, checkIntervalDays: days, checkIntervalMinutes: total});
+    assert.equal(result.checkIntervalTotalMinutes, total);
+    assert.equal(result.days*1440+result.hours*60+result.minutes,total);
+  }
+  assert.equal(readDms({...receipt,checkIntervalDays:181}).checkIntervalTotalMinutes,260640);
+  for (const value of ['90',-1,0,1.5,null,undefined,Infinity,Number.MAX_SAFE_INTEGER+1]) {
+    assert.throws(()=>readDms({...receipt,checkIntervalDays:30,checkIntervalMinutes:value}),{code:'INVALID_RESPONSE'});
+  }
+  for (const bad of [
+    {checkIntervalDays:30,checkIntervalMinutes:90},
+    {checkIntervalDays:null,checkIntervalMinutes:1440},
+    {checkIntervalMinutes:90},
+    {checkIntervalDays:2,checkIntervalMinutes:1440},
+    {checkIntervalDays:0},{checkIntervalDays:'30'},{}
+  ]) assert.throws(()=>readDms({...receipt,...bad}),{code:'INVALID_RESPONSE'});
+});
+test('DMS UI hides obsolete backend warning for subday inputs in both languages', async()=>{
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=async()=>json({...receipt,checkIntervalDays:null,checkIntervalMinutes:90});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try {for(const lang of ['vi','en']) {await act(async()=>{root.render(React.createElement(DMSOverviewPage,{accessToken:'synthetic',lang}));});
+ assert.equal(host.querySelector('.lv-dms-subday-notice'),null);
+ assert.doesNotMatch(host.textContent,/máy chủ chưa hỗ trợ|demo-only pending server support|awaiting backend support/i);
+ assert.equal(host.querySelector('#dms-interval-hours-input').value,'1');
+ assert.equal(host.querySelector('#dms-interval-minutes-input').value,'30');
+ }} finally {await act(async()=>root.unmount());host.remove();globalThis.fetch=originalFetch;}
+});
+
+test('DMS UI rejects malformed successful save receipt and keeps draft without success', async()=>{
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=async(_url,options={})=>json(options.method==='PUT'
+   ? {...receipt,checkIntervalDays:30,checkIntervalMinutes:90}
+   : {...receipt,checkIntervalDays:30,checkIntervalMinutes:43200});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try {
+ await act(async()=>root.render(React.createElement(DMSOverviewPage,{accessToken:'synthetic',lang:'vi'})));
+ const days=host.querySelector('#dms-interval-input');const hours=host.querySelector('#dms-interval-hours-input');
+ await act(async()=>{setInputValue(days,'0');setInputValue(hours,'12');});
+ await act(async()=>host.querySelector('form').dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true})));
+ assert.equal(host.querySelector('.lv-dms-banner-success'),null);
+ assert.ok(host.querySelector('.lv-dms-banner-error'));
+ assert.equal(days.value,'0');assert.equal(hours.value,'12');
+ } finally {await act(async()=>root.unmount());host.remove();globalThis.fetch=originalFetch;}
 });

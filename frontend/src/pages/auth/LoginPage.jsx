@@ -33,6 +33,7 @@ const i18nContent = {
     googleSigningIn: 'Đang xác thực tài khoản Google…',
     signupPrompt: 'Chưa có tài khoản?',
     signupAction: 'Khởi tạo tài khoản cá nhân',
+    forgotPassword: 'Quên mật khẩu?',
   },
   en: {
     brandName: 'LegacyVault',
@@ -61,6 +62,7 @@ const i18nContent = {
     googleSigningIn: 'Authenticating with Google…',
     signupPrompt: "Don't have an account?",
     signupAction: 'Create personal account',
+    forgotPassword: 'Forgot password?',
   },
 };
 
@@ -70,7 +72,7 @@ const initialForm = {
   password: '',
 };
 
-export default function LoginPage({ onNavigateToRegister, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation }) {
+export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegister, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation }) {
   const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
@@ -451,6 +453,11 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated, onNav
               )}
             </div>
 
+            <a className="hn-login-forgot-password" href={`/forgot-password?lang=${lang}`} onClick={event => {
+              if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !onNavigateToForgotPassword) return;
+              event.preventDefault();
+              onNavigateToForgotPassword(`/forgot-password?lang=${lang}`);
+            }}>{t.forgotPassword}</a>
             {/* Sand Gold Primary Action CTA */}
             <button
               type="submit"

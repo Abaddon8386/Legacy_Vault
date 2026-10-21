@@ -41,11 +41,22 @@ Giới hạn kích thước `payload`: mặc định 64 KB, cấu hình qua prop
 
 ## PATCH /api/v1/vaults/{vaultId}/assets/{assetId} — PS-16 **[D-API-24]**
 
-- **Request:** các trường tùy chọn `name`, `description`, `payload`. Trường vắng = không đổi. **Chỉ các trường này được đổi**;
-  `assetType`, `vaultId`, `id` bị bỏ qua. Body phải có ít nhất một trường hợp lệ, nếu không `400 VALIDATION_FAILED`.
-- **Response 200:** `AssetResponse` đã cập nhật (`updatedAt` mới).
-- **Lỗi:** `400` · `401` · `403` · `404` · `409 VAULT_NOT_EDITABLE`.
-- **Audit:** `ASSET_UPDATED` (danh sách tên trường đã đổi; không ghi giá trị `payload`).
+- **Request:** các trường tùy chọn `name`, `description`, `payload` và **bắt buộc `password`** (PS-111, D-API-40). Trường vắng = không
+  đổi. **Chỉ các trường này được đổi**; `assetType`, `vaultId`, `id` bị bỏ qua. Body phải có ít nhất một trong ba trường dữ liệu,
+  nếu không `400 VALIDATION_FAILED`.
+- **`password`** (PS-111): mật khẩu đăng nhập hiện tại, không rỗng, tối đa 72 ký tự. Server tự xác thực lại trong chính request PATCH
+  (cùng cơ chế và cùng bộ đếm với `reveal`); không có cờ hoặc token "đã xác nhận" do client gửi. Mọi lần sửa đều cần, kể cả khi chỉ
+  đổi tên/mô tả. Thiếu hoặc rỗng: `400 VALIDATION_FAILED` (không tính là lần nhập sai).
+- **Response 200:** `AssetResponse` đã cập nhật (`updatedAt` mới). Không trả lại `password` hay `payload`.
+- **Thứ tự kiểm tra:** role (403) → ownership (404) → trạng thái Vault (409) → giới hạn/mật khẩu (429/403) → quota/ghi. Người lạ
+  nhận 404 và kho đóng băng nhận 409 trước khi mật khẩu bị kiểm tra nên không bị tính lần sai.
+- **Lỗi:** `400` · `401` · `403 ACCESS_DENIED` (thiếu role) · `403 REAUTH_FAILED` (sai mật khẩu; không dùng 401) · `404` ·
+  `409 VAULT_NOT_EDITABLE` · `429 TOO_MANY_ATTEMPTS` (quá `legacyvault.reauth.max-failed-attempts` lần sai trong
+  `legacyvault.reauth.window-minutes` phút, kể cả khi lần sau đúng).
+- **Audit:** `ASSET_UPDATED` (danh sách tên trường đã đổi; không ghi giá trị `payload` hay mật khẩu); mỗi lần sai ghi `REAUTH_FAILED`
+  trong giao dịch riêng nên vẫn được lưu khi request bị từ chối.
+- **Tương thích:** client cũ gửi PATCH không có `password` nhận `400`. FE (PR #141) gửi `password` trong body PATCH thay cho bước xác
+  thực riêng; không lưu mật khẩu vào `localStorage`/log.
 
 ## POST /api/v1/vaults/{vaultId}/assets/{assetId}/reveal — PS-16 **[D-API-32]**
 
@@ -73,13 +84,21 @@ vì mật khẩu nằm trong body (không đưa vào URL/log); không thay đổ
 Tạo/liệt kê/xem/cập nhật thành công · validation (tên rỗng, loại sai) · `payload` không xuất hiện trong bất kỳ response nào ·
 không log `payload` hay mật khẩu · `reveal`: đúng mật khẩu trả `payload`, sai → 403, vượt giới hạn → 429, kho đóng băng → 409 · ownership (Vault/Asset người khác → 404; role sai → 403) · 401 · chỉ trường hợp lệ được đổi.
 
-## PS-77 — quota nội dung (prototype chưa áp dụng)
+## Quota nội dung — PS-77, PS-92 (D-API-42)
 
-**Mặc định tắt**, chờ nhóm phê duyệt tại open-decisions.md §G. Các phép tính/lỗi quota dưới đây
-chỉ áp dụng khi bật prototype trong test cô lập; không phải chính sách production đã được duyệt.
-Giới hạn payload/upload sẵn có và guard quyền/trạng thái vẫn có hiệu lực.
+**Mặc định bật** (D-API-42, đề xuất chờ nhóm xác nhận): giới hạn của gói hiện hành (BASIC 5 / STANDARD 50 / EXTENDED 200 tài sản;
+100 MiB / 1 GiB / 5 GiB nội dung) được thực thi cho mọi thao tác ghi của Owner. Cờ `legacyvault.subscription.quota-enforcement-enabled`
+(biến môi trường `QUOTA_ENFORCEMENT_ENABLED`) chỉ là công tắc vận hành để tắt khi cần. Giới hạn payload/upload sẵn có và guard
+quyền/trạng thái vẫn có hiệu lực.
 
-Tạo Asset tăng một đơn vị count và số byte payload UTF-8; thay payload tính chênh lệch byte.
-Mọi Asset còn lưu kể cả DOCUMENT được tính, không chỉ các hàng trong endpoint danh sách này.
-409 `ASSET_QUOTA_EXCEEDED` / `STORAGE_QUOTA_EXCEEDED` dùng shared ApiError và vi/en.
-Không tăng usage vẫn phải thỏa ownership/trạng thái. Chi tiết: [subscriptions.md](subscriptions.md).
+- **Cách đếm số tài sản:** mọi Asset còn lưu của mọi Vault của Owner, **kể cả di chúc** (Asset loại `DOCUMENT`). Mỗi di chúc chiếm một chỗ;
+  thêm phiên bản mới cho cùng một di chúc **không** chiếm thêm chỗ. Owner BASIC có 1 di chúc chỉ tạo thêm được 4 tài sản.
+- **Cách đếm dung lượng:** byte payload UTF-8 của Asset + mọi phiên bản file di chúc còn lưu + mọi ảnh đính kèm Asset + mọi tài liệu PDF/Word đính kèm Asset ([asset-documents.md](asset-documents.md), PS-114) (đơn vị nhị phân).
+- Tạo Asset tăng một đơn vị count và số byte payload; thay payload tính chênh lệch byte; thêm ảnh/phiên bản di chúc chỉ tăng byte.
+- 409 `ASSET_QUOTA_EXCEEDED` / `STORAGE_QUOTA_EXCEEDED` (shared ApiError, vi/en). Kiểm tra và ghi cùng một giao dịch dưới khóa Owner
+  nên các request đồng thời không thể vượt giới hạn.
+- **Owner đang vượt giới hạn (dữ liệu cũ):** vẫn đọc, sửa không tăng usage (đổi tên, mô tả, thu nhỏ payload) và xóa ảnh; mọi thao tác tăng
+  count hoặc byte bị 409. `GET /subscriptions/me` trả `overQuota`. Không có dữ liệu nào bị xóa hay sửa tự động.
+- `GET /subscriptions/me` → `usage` có `assetCount` (số được tính vào giới hạn, gồm di chúc), `willCount` và `assetOnlyCount`
+  (= `assetCount - willCount`, số tài sản Owner thấy trong danh sách). FE nên hiển thị "tài sản + di chúc" để số liệu khớp giới hạn.
+- Không tăng usage vẫn phải thỏa ownership/trạng thái. Chi tiết: [subscriptions.md](subscriptions.md).

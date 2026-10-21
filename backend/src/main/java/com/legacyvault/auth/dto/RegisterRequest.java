@@ -23,6 +23,7 @@ public record RegisterRequest(
         // Đây chỉ là kiểm tra dữ liệu đầu vào, không phải mã hóa mật khẩu.
         @NotBlank(message = "{auth.register.password.required}")
         @Size(min = 8, max = 72, message = "{auth.register.password.size}")
+        @com.legacyvault.auth.policy.ValidPassword
         String password,
 
         // Số điện thoại không bắt buộc.

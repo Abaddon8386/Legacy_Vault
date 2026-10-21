@@ -23,6 +23,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.validation.ConstraintViolationException;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -38,9 +39,18 @@ public class GlobalExceptionHandler {
 		this.factory = factory;
 	}
 
+    @ExceptionHandler(com.legacyvault.auth.recovery.PasswordRecoveryController.Limited.class)
+    ResponseEntity<ApiError> handleRecoveryLimit(HttpServletRequest request) {
+        return ResponseEntity.status(429).header("Retry-After", "900").header("Cache-Control", "no-store")
+                .body(factory.create(request, ErrorCode.RATE_LIMITED, List.of()));
+    }
+
 	@ExceptionHandler(BusinessException.class)
 	ResponseEntity<ApiError> handleBusiness(BusinessException ex, HttpServletRequest request) {
 		ErrorCode code = ex.getErrorCode();
+        if (request.getRequestURI().startsWith("/api/v1/auth/password-recovery/"))
+            return ResponseEntity.status(code.status()).header("Cache-Control", "no-store")
+                    .body(factory.create(request, code, List.of(), ex.getArgs()));
 		return respond(factory.create(request, code, List.of(), ex.getArgs()));
 	}
 
@@ -49,8 +59,8 @@ public class GlobalExceptionHandler {
 		return respond(factory.validation(request, ex.getBindingResult()));
 	}
 
-	@ExceptionHandler(HandlerMethodValidationException.class)
-	ResponseEntity<ApiError> handleMethodValidation(HandlerMethodValidationException ex, HttpServletRequest request) {
+	@ExceptionHandler({ HandlerMethodValidationException.class, ConstraintViolationException.class })
+	ResponseEntity<ApiError> handleMethodValidation(Exception ex, HttpServletRequest request) {
 		return respond(factory.create(request, ErrorCode.VALIDATION_FAILED, List.of()));
 	}
 

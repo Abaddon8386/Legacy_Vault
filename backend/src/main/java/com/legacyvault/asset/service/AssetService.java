@@ -97,11 +97,19 @@ public class AssetService {
 	}
 
 	/**
-	 * Cập nhật một phần (PS-16): chỉ {@code name}, {@code description}, {@code payload}. Không có thay đổi thực sự thì
-	 * không ghi DB, không audit. Audit chỉ ghi tên trường đã đổi, không ghi giá trị.
+	 * Cập nhật một phần (PS-16): chỉ {@code name}, {@code description}, {@code payload}. Bắt buộc nhập lại mật khẩu đăng
+	 * nhập hiện tại (PS-111). Không có thay đổi thực sự thì không ghi DB, không audit. Audit chỉ ghi tên trường đã đổi,
+	 * không ghi giá trị.
 	 */
 	@Transactional
 	public AssetResponse updateAsset(UUID vaultId, UUID assetId, Long ownerUserId, UpdateAssetRequest request) {
+		// PS-111 (D-API-40): xác thực lại mật khẩu TRƯỚC mọi khóa bi quan. BCrypt chậm nên không giữ khóa dòng
+		// users/vaults trong lúc băm, và lần sai (audit REQUIRES_NEW) không phụ thuộc khóa của giao dịch này.
+		// Thứ tự như reveal: ownership (404) -> trạng thái kho (409) -> mật khẩu/giới hạn (403/429).
+		Vault visibleVault = vaultService.requireEditableVault(vaultId, ownerUserId);
+		requireAsset(visibleVault, assetId);
+		reauthService.requirePassword(ownerUserId, visibleVault.getVaultId(), request.password());
+
 		quotas.lockOwner(ownerUserId);
 		Vault vault = vaultService.requireEditableVaultForUpdate(vaultId, ownerUserId);
 		Asset asset = requireAsset(vault, assetId);
@@ -169,7 +177,7 @@ public class AssetService {
 	}
 
 	/** Gắn ciphertext với đúng Asset (UUID công khai): chép sang bản ghi khác thì giải mã thất bại. */
-	static byte[] associatedData(Asset asset) {
+	public static byte[] associatedData(Asset asset) {
 		return asset.getPublicId().toString().getBytes(StandardCharsets.UTF_8);
 	}
 

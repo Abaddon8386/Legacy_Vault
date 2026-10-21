@@ -231,4 +231,76 @@ class PaymentSqlServerTest {
         assertTrue(quotas.current(owner).vaultCreated());assertEquals(1,quotas.current(owner).usage().assetCount());
         assertEquals(vault,jdbc.queryForObject("SELECT vault_id FROM dbo.assets WHERE asset_id=?",Long.class,asset));
     }
+
+    @Test void adminLookupReadsVerifiedSnapshotsFiltersAndStablePages() {
+        var admin=context.getBean(AdminSubscriptionService.class);
+        var payment=create(PlanCode.STANDARD);
+        assertEquals("00",service.ipn(callback(payment,"00","00")).code());
+        // A later catalog edit must never rewrite the payment snapshot.
+        long price=jdbc.queryForObject("SELECT purchase_price_vnd FROM dbo.subscription_plans WHERE plan_code='STANDARD'",Long.class);
+        try {
+            jdbc.update("UPDATE dbo.subscription_plans SET purchase_price_vnd=700000 WHERE plan_code='STANDARD'");
+            var detail=admin.transactionDetail(payment.paymentId());
+            assertEquals(499000,detail.amountVnd()); assertEquals("SUCCEEDED",detail.status());
+            assertEquals(payment.catalogVersion(),detail.catalogVersion()); assertEquals(50,detail.limits().assetCount());
+            assertEquals(userPublic,detail.accountId()); assertNotNull(detail.completedAt());
+            assertEquals(1,admin.lookupTransactions(null,userPublic,"SUCCEEDED",null,null,0,1).totalElements());
+            assertEquals(0,admin.lookupTransactions(null,userPublic,"FAILED",null,null,0,1).totalElements());
+            assertEquals(1,admin.lookupTransactions(detail.gatewayReference()).totalElements());
+            assertEquals(1,admin.lookupTransactions(detail.checkoutReference()).totalElements());
+            assertEquals(1,admin.lookupTransactions(userPublic+"@example.test").totalElements());
+            assertEquals(1,admin.lookupTransactions(null,userPublic,null,detail.createdAt(),detail.createdAt().plusSeconds(1),0,20).totalElements());
+            assertEquals(0,admin.lookupTransactions(null,userPublic,null,null,detail.createdAt(),0,20).totalElements());
+            assertTrue(admin.lookupTransactions(null,userPublic,null,null,null,1,1).content().isEmpty());
+            assertEquals(0,admin.lookupTransactions("' OR 1=1 --").totalElements());
+            var upgrade=create(PlanCode.EXTENDED);
+            assertEquals("00",service.ipn(callback(upgrade,"24","02")).code());
+            var first=admin.lookupTransactions(null,userPublic,null,null,null,0,1);
+            var second=admin.lookupTransactions(null,userPublic,null,null,null,1,1);
+            assertEquals(2,first.totalElements());assertNotEquals(first.content().getFirst().paymentId(),second.content().getFirst().paymentId());
+            assertEquals("FAILED",admin.transactionDetail(upgrade.paymentId()).persistedStatus());
+        } finally {jdbc.update("UPDATE dbo.subscription_plans SET purchase_price_vnd=? WHERE plan_code='STANDARD'",price);}
+    }
+    @Test void adminExpiredViewDoesNotChangePersistedStateOrConferEntitlement() {
+        var admin=context.getBean(AdminSubscriptionService.class); var payment=create(PlanCode.STANDARD);
+        jdbc.update("UPDATE dbo.subscription_payments SET created_at=DATEADD(minute,-30,SYSUTCDATETIME()),expires_at=DATEADD(minute,-15,SYSUTCDATETIME()) WHERE payment_id=?",payment.paymentId().toString());
+        var detail=admin.transactionDetail(payment.paymentId());
+        assertEquals("EXPIRED",detail.status());assertEquals("PENDING",detail.persistedStatus());assertNull(detail.completedAt());
+        assertEquals(1,admin.lookupTransactions(null,userPublic,"EXPIRED",null,null,0,20).totalElements());
+        assertEquals(0,admin.lookupTransactions(null,userPublic,"PENDING",null,null,0,20).totalElements());
+        assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+    }
+    @Test void adminReadDuringVerifiedIpnIsCommittedAndConsistent() throws Exception {
+        var admin=context.getBean(AdminSubscriptionService.class);var payment=create(PlanCode.STANDARD);var signed=callback(payment,"00","00");
+        var barrier=new CyclicBarrier(2);
+        try(var pool=Executors.newFixedThreadPool(2)) {
+            var write=pool.submit(()->{barrier.await(10,TimeUnit.SECONDS);return service.ipn(signed).code();});
+            var read=pool.submit(()->{barrier.await(10,TimeUnit.SECONDS);return admin.lookupTransactions(null,userPublic,"SUCCEEDED",null,null,0,20);});
+            var observed=read.get(30,TimeUnit.SECONDS); assertEquals(observed.totalElements(),observed.content().size());
+            for(var row:observed.content()) {assertEquals("SUCCEEDED",row.persistedStatus());assertNotNull(row.completedAt());assertNotNull(row.gatewayReference());}
+            assertEquals("00",write.get(30,TimeUnit.SECONDS));
+        }
+        assertEquals("SUCCEEDED",admin.transactionDetail(payment.paymentId()).status());
+    }
+    @Test void adminTransactionApiUsesActualJwtRoleAccountAndExpiryChecksAndRedactsSecrets() throws Exception {
+        var payment=create(PlanCode.STANDARD);
+        String path="/api/v1/admin/subscriptions/transactions";
+        var jwt=context.getBean(com.legacyvault.auth.JwtService.class);
+        String token=jwt.generateAccessToken(userPublic,userPublic+"@example.test",List.of("ADMIN"));
+        // A forged role claim is insufficient: authorities come from SQL Server.
+        mvc.perform(get(path).header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+        jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_ADMIN'",owner);
+        mvc.perform(get(path+"/"+payment.paymentId()).header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.paymentId").value(payment.paymentId().toString()))
+            .andExpect(jsonPath("$.merchant").doesNotExist()).andExpect(jsonPath("$.idempotencyKey").doesNotExist())
+            .andExpect(jsonPath("$.checkoutUrl").doesNotExist()).andExpect(jsonPath("$.responseCode").doesNotExist());
+        jdbc.update("UPDATE dbo.users SET status='INACTIVE' WHERE user_id=?",owner);
+        mvc.perform(get(path).header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
+        jdbc.update("UPDATE dbo.users SET status='ACTIVE',deleted_at=SYSUTCDATETIME() WHERE user_id=?",owner);
+        mvc.perform(get(path).header("Authorization","Bearer "+token)).andExpect(status().isUnauthorized());
+        jdbc.update("UPDATE dbo.users SET deleted_at=NULL WHERE user_id=?",owner);
+        String expired=io.jsonwebtoken.Jwts.builder().subject(userPublic.toString()).expiration(new java.util.Date(0))
+            .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(new byte[32])).compact();
+        mvc.perform(get(path).header("Authorization","Bearer "+expired)).andExpect(status().isUnauthorized());
+    }
 }

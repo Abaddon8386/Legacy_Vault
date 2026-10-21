@@ -85,7 +85,7 @@ public record WillFile(byte[] content, String fileName, String contentType, Stri
 	 * Tên chỉ để hiển thị, không bao giờ dùng làm đường dẫn lưu: bỏ phần thư mục (cả {@code /} và {@code \}),
 	 * ký tự điều khiển, cắt còn 255 ký tự.
 	 */
-	static String sanitizeFileName(String original) {
+	public static String sanitizeFileName(String original) {
 		if (original == null) {
 			return "file";
 		}
@@ -97,7 +97,7 @@ public record WillFile(byte[] content, String fileName, String contentType, Stri
 		return name.length() > MAX_FILE_NAME_LENGTH ? name.substring(0, MAX_FILE_NAME_LENGTH) : name;
 	}
 
-	static String sha256Hex(byte[] content) {
+	public static String sha256Hex(byte[] content) {
 		try {
 			return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
 		}

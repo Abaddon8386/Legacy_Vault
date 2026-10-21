@@ -762,7 +762,7 @@ test('PS-96/97/98 Integration: Finding B - Upload form blocks submit when alloca
     assert.ok(addAllocBtn, 'Add allocation button must exist');
     assert.equal(addAllocBtn.disabled, true, 'Add allocation button must be disabled in live session pending metadata');
     assert.ok(
-      host.textContent.includes('PS-88') || host.textContent.includes('metadata'),
+      host.textContent.includes('danh mục tài sản') || host.textContent.includes('asset catalog'),
       'Must display business blocker banner when allocations metadata is pending'
     );
     assert.equal(posted, false, 'Must NOT have posted any request');

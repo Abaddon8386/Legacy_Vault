@@ -2,7 +2,18 @@
 
 # Staff Verification Case — PS-34, PS-35 (ST-09)
 
-Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integration runtime cần được xác nhận bằng kết quả test mới nhất**. Base path: `/api/v1/staff/verification-cases`. Controller yêu cầu role `STAFF_EXECUTOR` bằng `@PreAuthorize("hasRole('STAFF_EXECUTOR')")`.
+## PS-106 — Attestation xác minh trực tiếp
+
+`POST /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations`
+ghi nhận Staff đang đăng nhập, thời gian UTC do server tạo và `evidenceReference` (tham chiếu chứng từ bên ngoài hệ thống).
+Chỉ Staff được giao đúng case `OPEN` và Beneficiary thuộc Vault của case mới được ghi. Endpoint không nhận `MATCH`,
+không tải giấy tờ lên, không trả lại evidence reference và không thay đổi trạng thái `VERIFIED_AT_COUNTER` cũ.
+Request có thể kèm `confirmedEmail` (email Staff đối chiếu trực tiếp với người nhận tại quầy). Backend chuẩn hóa và lưu
+snapshot này trong attestation bất biến; response và audit không chứa email rõ. Đây là bằng chứng ghi nhận nghiệp vụ
+của Staff, không phải xác minh quyền kiểm soát mailbox. Attestation chưa tự cấp điều kiện gửi invitation; PS-106
+delivery vẫn cần gắn email này với generation PS-86 trong transaction outbox và áp dụng các guard Legal hiện hành.
+
+Trạng thái: **focused service/controller/OpenAPI tests pass trên working tree ngày 2026-10-21; SQL Server migration chưa được chạy**. Base path: `/api/v1/staff/verification-cases`. Controller yêu cầu role `STAFF_EXECUTOR` bằng `@PreAuthorize("hasRole('STAFF_EXECUTOR')")`.
 
 ## Quy tắc nghiệp vụ và phạm vi truy cập
 
@@ -22,13 +33,16 @@ Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integrat
   | Trường | Kiểu | Bắt buộc | Validation / mặc định |
   |---|---|---|---|
   | `status` | string | Không | Null/rỗng thì không lọc; giá trị được `trim()` và chuyển thành chữ hoa. Service chấp nhận `OPEN`, `CANCELLED` hoặc `CLOSED`. |
+  | `q` | string | Không | PS-88: từ khóa tìm hồ sơ/kho (D-API-46). Rỗng/chỉ khoảng trắng thì không tìm; được `trim()`, tối đa 100 ký tự, không chứa ký tự điều khiển (vi phạm → 400 `VALIDATION_FAILED`). Khớp không phân biệt hoa thường theo: **tên kho** (chứa), **tên chủ kho** (chứa), **tên người thụ hưởng** của kho (chứa), **mã hồ sơ** `HS-YYYY-NNNNNN` (khớp đúng năm và số), **UUID công khai của hồ sơ hoặc kho** (khớp đúng). `%`, `_`, `[` là ký tự thường, không phải wildcard. Không khớp theo email, điện thoại, số giấy tờ. |
   | `page` | integer | Không | Mặc định `0`; `@Min(0)`. |
   | `size` | integer | Không | Mặc định `20`; `@Min(1)`, `@Max(100)`. |
+
+  `q` chỉ thu hẹp kết quả trong phạm vi hàng chờ của Staff (hồ sơ đã gán cho mình hoặc `OPEN` chưa gán); không bao giờ mở rộng. Hồ sơ gán cho Staff khác không xuất hiện kể cả khi nhập đúng UUID. Kết hợp với `status` theo phép AND. Không ghi audit (chỉ đọc), `q` không được ghi log.
 
   Ví dụ:
 
   ```http
-  GET /api/v1/staff/verification-cases?status=OPEN&page=0&size=20
+  GET /api/v1/staff/verification-cases?status=OPEN&q=Nguy%E1%BB%85n&page=0&size=20
   ```
 
 - **Repository:** `VerificationCaseRepository.findQueueByStaff(staffUserId, status, pageable)` chọn case đã gán cho Staff hiện tại hoặc case chưa gán có trạng thái `OPEN`; filter status được áp dụng nếu có. Thứ tự mặc định là `triggeredAt DESC`.

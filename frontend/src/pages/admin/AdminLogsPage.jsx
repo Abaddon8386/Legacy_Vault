@@ -35,11 +35,12 @@ export default function AdminLogsPage({
   const [pageSize] = useState(10);
   const [actionFilter, setActionFilter] = useState('');
   const [actorTypeFilter, setActorTypeFilter] = useState('');
+  const [actorIdFilter, setActorIdFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const t = adminI18n[lang] || adminI18n.vi;
   const { data, loading, apiPending, error, deny, reload: handleReload } = useAdminQuery(
-    fetchAdminAuditLogs, accessToken, { lang, action: actionFilter, actorType: actorTypeFilter, fromDate, toDate, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
+    fetchAdminAuditLogs, accessToken, { lang, action: actionFilter, actorType: actorTypeFilter, actorId: actorIdFilter.trim(), fromDate, toDate, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
   );
   const logs = data?.items || [];
   const total = data?.total ?? null;
@@ -56,6 +57,7 @@ export default function AdminLogsPage({
   const handleResetFilters = () => {
     setActionFilter('');
     setActorTypeFilter('');
+    setActorIdFilter('');
     setFromDate('');
     setToDate('');
     setPage(1);
@@ -173,6 +175,11 @@ export default function AdminLogsPage({
           </select>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <label htmlFor="log-actor-id">{t.logActorId}</label>
+            <input id="log-actor-id" type="text" className="lv-admin-input" value={actorIdFilter}
+              onChange={event => { setActorIdFilter(event.target.value); setPage(1); }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
             <label htmlFor="log-from-date" style={{ color: 'var(--lv-text-muted)' }}>{t.fromDate}</label>
             <input
               id="log-from-date"
@@ -200,7 +207,7 @@ export default function AdminLogsPage({
             {lang === 'vi' ? 'Lọc nhật ký' : 'Filter Logs'}
           </button>
 
-          {(actionFilter || actorTypeFilter || fromDate || toDate) && (
+          {(actionFilter || actorTypeFilter || actorIdFilter || fromDate || toDate) && (
             <button
               type="button"
               className="lv-admin-btn lv-admin-btn-secondary"
@@ -233,6 +240,8 @@ export default function AdminLogsPage({
                   {t.loading}
                 </td>
               </tr>
+            ) : error || apiPending ? (
+              <tr><td colSpan={7}>{t.notAvailable}</td></tr>
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--lv-text-muted)' }}>
@@ -261,7 +270,7 @@ export default function AdminLogsPage({
                     {log.entityType ? (
                       <span style={{ fontSize: 12 }}>
                         <strong>{log.entityType}</strong>
-                        {log.entityId && ` #${log.entityId}`}
+                        {log.vaultId && <div>{t.logVaultId} {log.vaultId}</div>}
                       </span>
                     ) : (
                       '—'
@@ -332,7 +341,7 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
       <dl className="lv-admin-detail-list">{[
         [t.logId, data.id], [t.logTimestamp, data.occurredAt], [t.logActorType, data.actorType],
         [t.logActorId, data.actorId], [t.logActionCode, data.action], [t.logEntityType, data.entityType],
-        [t.logEntityId, data.entityId], [t.logTraceId, data.traceId],
+        [t.logVaultId, data.vaultId], [t.logTraceId, data.traceId],
       ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? t.notAvailable}</dd></div>)}</dl>}
   </Modal>;
 }

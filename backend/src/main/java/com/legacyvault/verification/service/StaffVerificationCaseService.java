@@ -49,10 +49,25 @@ public class StaffVerificationCaseService {
         this.trusteeRepository = trusteeRepository;
     }
 
+    private static final int MAX_SEARCH_LENGTH = 100;
+    private static final java.util.regex.Pattern CASE_REFERENCE =
+            java.util.regex.Pattern.compile("^HS-(\\d{4})-(\\d{1,9})$", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    public PageResponse<StaffVerificationCaseResponse> listCases(
+            CustomUserPrincipal principal,
+            String status,
+            int page,
+            int size
+    ) {
+        return listCases(principal, status, null, page, size);
+    }
+
+    /** PS-88 (ST-09/ST-10): search the Staff queue by case reference, Vault/owner/Beneficiary name or public UUID. */
     @Transactional(readOnly = true)
     public PageResponse<StaffVerificationCaseResponse> listCases(
             CustomUserPrincipal principal,
             String status,
+            String query,
             int page,
             int size
     ) {
@@ -73,9 +88,42 @@ public class StaffVerificationCaseService {
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "triggeredAt"));
 
-        Page<VerificationCase> cases = caseRepository.findQueueByStaff(staffUserId, status, pageable);
+        String term = normalizeQuery(query);
+        Page<VerificationCase> cases = term == null
+                ? caseRepository.findQueueByStaff(staffUserId, status, pageable)
+                : search(staffUserId, status, term, pageable);
 
         return PageResponse.from(cases, item -> toResponse(item, false));
+    }
+
+    private Page<VerificationCase> search(Long staffUserId, String status, String term, PageRequest pageable) {
+        UUID publicId = new UUID(0L, 0L);
+        try {
+            publicId = UUID.fromString(term);
+        } catch (IllegalArgumentException ignored) {
+            // not a UUID: name / case reference search only
+        }
+        long caseId = -1L;
+        int year = -1;
+        var reference = CASE_REFERENCE.matcher(term);
+        if (reference.matches()) {
+            year = Integer.parseInt(reference.group(1));
+            caseId = Long.parseLong(reference.group(2));
+        }
+        String pattern = "%" + term.toLowerCase(Locale.ROOT)
+                .replace("!", "!!").replace("%", "!%").replace("_", "!_").replace("[", "![") + "%";
+        return caseRepository.searchQueueByStaff(staffUserId, status, pattern, publicId, caseId, year, pageable);
+    }
+
+    private static String normalizeQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        String term = query.trim();
+        if (term.length() > MAX_SEARCH_LENGTH || term.codePoints().anyMatch(Character::isISOControl)) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        return term;
     }
 
     @Transactional(readOnly = true)
