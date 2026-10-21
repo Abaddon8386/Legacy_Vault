@@ -67,4 +67,5 @@ Mỗi endpoint ghi: **quyền** (ai gọi được) · **ownership** (dữ liệ
 3. Nếu đổi hành vi đã chốt: ghi vào `open-decisions.md` (ai quyết, ngày) và báo FE.
 4. Có test bám contract (success/validation/401/403 khi áp dụng).
 
+- [PS-113 Guardian contract](beneficiary-guardians.md) — Owner-only contact history; [OpenAPI](guardian.openapi.yaml).
 - [PS-115 Admin VNPay lookup](admin-payment-transactions.md) — real read-only SQL source; [OpenAPI](admin-payments.openapi.yaml), synthetic fixture in fixtures/admin-payments.json.

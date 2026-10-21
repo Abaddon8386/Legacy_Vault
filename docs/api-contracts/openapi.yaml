@@ -31,6 +31,12 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian:
+    $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian"
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/revoke:
+    $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian~1revoke"
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/history:
+    $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian~1history"
   /api/v1/admin/subscriptions/transactions/{paymentId}:
     $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions~1{paymentId}"
   /api/v1/staff/verification-cases:
@@ -4175,6 +4181,7 @@ components:
             - BENEFICIARY_INVITATION_ALREADY_EXISTS
             - BENEFICIARY_INVITATION_ALREADY_USED
             - BENEFICIARY_INVITATION_STALE
+            - BENEFICIARY_GUARDIAN_STALE
             - BENEFICIARY_INVITATION_INVALID
             - BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED
             - BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED

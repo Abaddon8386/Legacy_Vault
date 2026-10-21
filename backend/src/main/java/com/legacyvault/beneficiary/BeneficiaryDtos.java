@@ -8,7 +8,6 @@ import java.util.UUID;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 
 public final class BeneficiaryDtos {
@@ -17,7 +16,7 @@ public final class BeneficiaryDtos {
 	public record UpsertRequest(
 			@NotBlank(message = "validation.NotBlank") @Size(max = 150, message = "validation.Size") String fullName,
 			@Size(max = 100, message = "validation.Size") String relationship,
-			@PastOrPresent(message = "validation.PastOrPresent") LocalDate dateOfBirth,
+			@BeneficiaryBirthDate LocalDate dateOfBirth,
 			@Size(max = 20, message = "validation.Size") String phone,
 			@Email(message = "validation.Email") @Size(max = 254, message = "validation.Size") String email,
 			@Size(max = 100, message = "validation.Size") String identityNumber) {
