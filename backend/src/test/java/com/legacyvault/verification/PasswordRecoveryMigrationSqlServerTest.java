@@ -47,7 +47,7 @@ class PasswordRecoveryMigrationSqlServerTest {
         try(var c=DriverManager.getConnection(master);var s=c.createStatement()) { s.execute("CREATE DATABASE ["+db+"]"); }
         String hash=new BCryptPasswordEncoder().encode("Preserved-password-123");
         try {
-            Flyway.configure().dataSource(url,null,null).locations("classpath:db/migration").target("38").load().migrate();
+            Flyway.configure().dataSource(url,null,null).locations("classpath:db/migration").target("40").load().migrate();
             try(var c=DriverManager.getConnection(url);var s=c.createStatement()) {
                 try(var p=c.prepareStatement("INSERT dbo.users(full_name,email,password_hash,status) VALUES ('Registered','registered@fixture.test',?,'ACTIVE'),('Unclassified','unknown@fixture.test',?,'ACTIVE')")) {
                     p.setString(1,hash); p.setString(2,hash); p.executeUpdate();
@@ -61,7 +61,7 @@ class PasswordRecoveryMigrationSqlServerTest {
             try(var c=DriverManager.getConnection(url);var s=c.createStatement()) {
                 try(var r=s.executeQuery("SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID('dbo.users') AND name='auth_version'")) { assertTrue(r.next()); assertEquals(0,r.getInt(1)); }
                 try(var r=s.executeQuery("SELECT COUNT(*) FROM sys.tables WHERE name IN ('password_reset_credentials','password_recovery_jobs')")) { assertTrue(r.next()); assertEquals(0,r.getInt(1)); }
-                try(var r=s.executeQuery("SELECT COUNT(*) FROM dbo.flyway_schema_history WHERE version='39'")) { assertTrue(r.next()); assertEquals(0,r.getInt(1)); }
+                try(var r=s.executeQuery("SELECT COUNT(*) FROM dbo.flyway_schema_history WHERE version='41'")) { assertTrue(r.next()); assertEquals(0,r.getInt(1)); }
                 s.execute("DROP TABLE dbo.password_recovery_limits");
             }
             upgrade.migrate(); upgrade.validate(); assertEquals(0,upgrade.migrate().migrationsExecuted);

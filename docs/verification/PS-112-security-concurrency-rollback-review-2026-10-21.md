@@ -1,5 +1,7 @@
 # PS-112 security, concurrency and rollback review — 2026-10-21
 
+> Historical evidence before migration renumbering. The old feature-only V39/V40 described below are superseded by the single V41__password_recovery.sql after develop PS-103 V40. See PS-112-V41-develop-upgrade-2026-10-21.md for current upgrade/rollback evidence. Do not deploy or repair old private migration history from this report.
+
 Reviewed baseline: e2a4e1442e5c4e8b0f0d9723cb91e593d6c0ba5f, feature/PS-112-password-recovery. No merge, Jira mutation or real email enablement. Handoff files are excluded. Frontend code and public API DTOs are unchanged.
 
 ## Reproduced defects and fixes

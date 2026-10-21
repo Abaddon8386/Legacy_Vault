@@ -1,5 +1,7 @@
 # PS-112 local implementation and verification — 2026-10-21
 
+> Historical evidence before migration renumbering. The old feature-only V39/V40 described below are superseded by the single V41__password_recovery.sql after develop PS-103 V40. See PS-112-V41-develop-upgrade-2026-10-21.md for current upgrade/rollback evidence. Do not deploy or repair old private migration history from this report.
+
 Branch: feature/PS-112-password-recovery. Base: origin/develop cbb2dd0. Changes remain local/uncommitted; no push, merge or Jira mutation. Existing CONTEXT-HANDOFF files are untouched and excluded from this work.
 
 ## Delivered

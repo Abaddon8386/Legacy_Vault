@@ -115,7 +115,7 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
       <p>{en ? 'Opened (server time)' : 'Mở lúc (giờ máy chủ)'}: {selected.openedAt}</p>
       {selected.closedAt && <p>{en ? 'Closed (server time)' : 'Đóng lúc (giờ máy chủ)'}: {selected.closedAt}</p>}
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
-      {' · '}<a href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Asset handover (integration PS-97)' : 'Bàn giao tài sản (chờ tích hợp PS-97)'}</a>
+      {' · '}<a href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Asset handover' : 'Bàn giao tài sản'}</a>
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
       {confirmCancel && <div role="group" aria-label={en ? 'Confirm cancellation' : 'Xác nhận hủy phiên'}>
         <p>{en ? 'Cancel this open session?' : 'Hủy phiên đang mở này?'}</p>

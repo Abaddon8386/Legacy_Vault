@@ -83,5 +83,10 @@ legacyvault:
   will:
     # File di chúc số hóa tối đa (byte), mặc định 10 MB (D-API-14). Loại cho phép: PDF/JPEG/PNG theo nội dung file.
     max-file-bytes: 10485760
+  intake:
+    # PS-103 (D-API-41, đề xuất chờ nhóm xác nhận): tệp đính kèm giấy tờ tử vong / di chúc giấy gốc. Cùng loại PDF/JPEG/PNG
+    # theo nội dung; giới hạn tầng servlet (spring.servlet.multipart) phải >= max-file-bytes.
+    max-file-bytes: 10485760
+    max-attachments-per-record: 10
   dms:
     grace-period-days: ${DMS_GRACE_PERIOD_DAYS:1}

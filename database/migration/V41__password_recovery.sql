@@ -1,4 +1,6 @@
--- PS-112. Additive migration; retain these columns on binary rollback.
+-- PS-112. Single unpublished feature migration after develop V40 (PS-103).
+-- Includes email binding and prepare-once guards from the pre-merge security review.
+-- Keep V42 onward free for PS-87/PS-106; retain this schema on binary rollback.
 ALTER TABLE dbo.users ADD auth_version BIGINT NOT NULL CONSTRAINT DF_users_auth_version DEFAULT 0,
     password_login_enabled BIT NULL CONSTRAINT DF_users_password_login_enabled DEFAULT NULL,
     password_reset_at DATETIME2 NULL;
@@ -15,6 +17,7 @@ CREATE TABLE dbo.password_reset_credentials (
     credential_id BIGINT IDENTITY PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES dbo.users(user_id),
     credential_hash CHAR(64) COLLATE Latin1_General_100_BIN2 NOT NULL UNIQUE,
+    email_fingerprint CHAR(64) COLLATE Latin1_General_100_BIN2 NOT NULL,
     purpose VARCHAR(30) NOT NULL CONSTRAINT DF_reset_purpose DEFAULT 'PASSWORD_RESET',
     auth_version BIGINT NOT NULL,
     created_at DATETIME2 NOT NULL,
@@ -32,7 +35,7 @@ CREATE TABLE dbo.password_recovery_jobs (
     locale VARCHAR(2) NOT NULL,
     requested_at DATETIME2 NOT NULL,
     status VARCHAR(20) NOT NULL CONSTRAINT DF_recovery_job_status DEFAULT 'QUEUED',
-    CONSTRAINT CK_recovery_job_status CHECK (status IN ('QUEUED','CLAIMED','ACCEPTED','FAILED','SKIPPED')),
+    CONSTRAINT CK_recovery_job_status CHECK (status IN ('QUEUED','CLAIMED','PREPARED','ACCEPTED','FAILED','SKIPPED')),
     CONSTRAINT CK_recovery_job_locale CHECK (locale IN ('vi','en'))
 );
 CREATE INDEX IX_recovery_queue ON dbo.password_recovery_jobs(status,job_id);
