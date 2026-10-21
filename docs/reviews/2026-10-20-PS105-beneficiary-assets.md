@@ -132,3 +132,51 @@ Bản báo cáo Anti trước khi chỉnh được giữ ngoài checkout ở art
 - Giữ nguyên các cơ chế an toàn của Codex: Chống gửi trùng redeem bằng synchronous ref guard, abort pending request khi chuyển trang / unmount, dọn dẹp Blob URL ảnh và dọn dẹp bí mật khi đổi tài khoản / đóng modal.
 - Ranh giới BE PS-104: Vẫn chờ tích hợp API backend thực tế. Hai giao diện Staff và Beneficiary là các thành phần độc lập, chưa liên thông dữ liệu thật.
 - **Trạng thái bàn giao:** Chưa commit, chưa push, chưa tạo PR, chưa merge, chưa thay đổi trạng thái Jira. Sẵn sàng bàn giao cho Codex review.
+
+
+---
+
+## Cập nhật đợt 4 (21/10/2026): Đồng bộ develop mới nhất, Preview mặc định unlinked & Hoàn thiện kiểm thử
+
+### 1. Đồng bộ develop & Giải quyết xung đột
+- **Branch:** `feature/PS-105-beneficiary-received-assets`
+- **Base (origin/develop):** `7648cd7cf81a7d144165c817dae7f32f96eaf291`
+- **Head SHA:** `17bb22e3504bb407a9f71de5bbc267911d81dcf5` (và commit báo cáo này)
+- **Tích hợp merge:** Đã fetch và merge `origin/develop` thông qua merge commit chuẩn (`git merge origin/develop`).
+- **Giải quyết xung đột:** Xung đột tại `frontend/src/App.jsx` được xử lý giữ nguyên toàn bộ:
+  - Tính năng điều hướng "Về trang chủ" (`home`) từ PR #162 (Huy/develop).
+  - Khối định tuyến `isSharedWithMeRoute` của PS-105.
+  - Toàn bộ route Staff COURT (PS-96, PS-97, PS-98) đã merge.
+  - Sửa lỗi hoisting cho hàm `function handleExecuteNavigation(targetTab)` để đảm bảo không bị ReferenceError TDZ khi render.
+
+### 2. Sửa hành vi Preview mặc định
+- **Yêu cầu & Thực hiện:** Khi truy cập `/shared-with-me?preview=true` không truyền query `scenario`, giao diện mặc định chuyển về `unlinked`:
+  - Hiển thị thông báo trạng thái: "Hồ sơ chưa được liên kết." (VI) / "Account not linked yet." (EN).
+  - Số lượng tài sản hiển thị là 0 (danh sách hoàn toàn rỗng).
+  - Khung nhập mã mời vẫn hiển thị để người dùng có thể thao tác thử nghiệm.
+- **Chỉ hiển thị dữ liệu mẫu khi có scenario rõ ràng:**
+  - `scenario=received`: Hiển thị 2 tài sản mẫu ("Kỷ vật gia đình", "Tài liệu cá nhân").
+  - `scenario=partial`: Hiển thị trạng thái "Đã nhận một phần" và 1 tài sản mẫu.
+  - `scenario=waiting`: Hiển thị "Chưa có tài sản được bàn giao cho bạn." và 0 tài sản.
+  - `scenario=error`: Hiển thị hộp cảnh báo lỗi và nút Thử lại.
+- **Bảo toàn khi điều hướng/reload:** Cơ chế điều hướng tab trong `App.jsx` giữ nguyên query `scenario` hiện tại khi người dùng click tab; không tự tiện chuyển từ `unlinked` sang `received`.
+- **Ranh giới tài khoản thật:** Tài khoản thật đã đăng nhập (`session.accessToken`) tuyệt đối không dùng preview fixture, giữ nguyên cơ chế gọi API và hiển thị tài sản DELIVERED sau khi reload/close/archive theo dữ liệu BE.
+
+### 3. Kết quả kiểm thử thực tế sau khi tích hợp develop
+- **Bộ test chuyên biệt PS-105 (ReceivedAssets & SharedWithMePage):** `37 / 37 tests PASS` (`receivedAssetsComponent.test.mjs`, `receivedAssetsModel.test.mjs`, `sharedWithMeAppIntegration.test.mjs`).
+  - Đã bổ sung 3 test App thật: mặc định không có scenario hiển thị unlinked với 0 item; chỉ hiện demo item khi scenario rõ ràng; điều hướng tab bảo tồn active scenario.
+- **Bộ test của Codex Reviewer (Round 1 & 2):** `5 / 5 tests PASS` (`reviewPS105.test.mjs`, `reviewPS105Round2.test.mjs`).
+- **Toàn bộ bộ test Frontend sau merge:** `975 / 975 tests PASS` (27 test suites, 0 fail, 0 cancel, 0 skip).
+- **Kiểm tra cú pháp & phong cách mã (Lint):** `npm run lint` đạt 0 errors, 0 warnings.
+- **Production Build:** `npm run build` thành công (`vite v8.3.3` built client environment in 1.92s).
+
+### 4. Minh chứng Browser thực tế (Desktop & Mobile)
+- Đã kiểm tra trực tiếp qua browser subagent trên server riêng cổng 5178:
+  - **Desktop VI (1440x900) - Mặc định:** `/shared-with-me?preview=true` hiển thị "Hồ sơ chưa được liên kết." và 0 tài sản. (Ảnh: `desktop_default_unlinked_1792559828936.png`).
+  - **Desktop VI (1440x900) - Received:** `/shared-with-me?preview=true&scenario=received` hiển thị 2 tài sản, mở modal có nền đặc trắng sáng, nút đóng cùng hàng tiêu đề, ngày định dạng `19/10/2026`, Escape đóng modal sạch sẽ. (Ảnh: `desktop_received_modal_1792559885980.png`).
+  - **Mobile EN (390x844) - Mặc định:** `/shared-with-me?preview=true&lang=en` hiển thị "Account not linked yet." và 0 tài sản. (Ảnh: `mobile_default_unlinked_1792559938037.png`).
+  - **Mobile EN (390x844) - Partial:** `/shared-with-me?preview=true&lang=en&scenario=partial` hiển thị "Partially received", mở modal vừa vặn 390px, không tràn ngang, nút đóng dễ thao tác. (Ảnh: `mobile_partial_modal_1792559960080.png`).
+
+### 5. Ranh giới kỹ thuật & Kế hoạch tiếp theo
+- Chưa nối HTTP API backend thực tế (PS-104); hai màn hình Staff và Beneficiary là các màn độc lập, chưa liên thông dữ liệu.
+- PR được tạo ở trạng thái Draft PR vào nhánh `develop` để Codex review; không tự ý merge và không đổi trạng thái Jira.
