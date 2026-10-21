@@ -42,7 +42,7 @@ test('adminSubscriptionErrorMessage handles error codes and status', () => {
   assert.match(adminSubscriptionErrorMessage(new ApiError('PLAN_VERSION_ALREADY_EXISTS', 409), 'vi'), /Đã tồn tại/i);
   assert.match(adminSubscriptionErrorMessage(new ApiError('SUBSCRIPTION_CATALOG_STALE', 409), 'vi'), /thay đổi/i);
   assert.match(adminSubscriptionErrorMessage(new ApiError('PLAN_VERSION_CONFLICT', 409), 'vi'), /thay đổi/i);
-  assert.match(adminSubscriptionErrorMessage(new ApiError('PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE', 409), 'vi'), /PS-80/i);
+  assert.match(adminSubscriptionErrorMessage(new ApiError('PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE', 409), 'vi'), /chưa khả dụng/i);
 });
 
 test('API client functions call expected endpoints with parameters', async () => {
@@ -54,7 +54,7 @@ test('API client functions call expected endpoints with parameters', async () =>
       ok: true,
       status: isPostCreate ? 201 : 200,
       headers: { get: () => 'application/json' },
-      json: async () => ({ success: true }),
+      json: async () => url.includes('/accounts?') ? {assetCount:8,assetLimit:5,storageBytes:1,storageBytesLimit:100} : ({ success: true }),
     };
   };
 
