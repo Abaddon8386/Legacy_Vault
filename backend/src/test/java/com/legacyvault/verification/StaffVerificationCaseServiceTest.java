@@ -9,6 +9,7 @@ import com.legacyvault.verification.dto.StaffVerificationCaseResponse;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.StaffVerificationCaseService;
+import com.legacyvault.trustee.TrusteeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,12 +41,58 @@ class StaffVerificationCaseServiceTest {
         when(item.getVaultId()).thenReturn(20L);
         when(item.getPublicId()).thenReturn(caseId);
         when(item.getCaseNumber()).thenReturn("HS-2026-000123");
+        when(item.getAssignedStaffUserId()).thenReturn(10L);
         when(vaultRepository.findById(20L)).thenReturn(Optional.of(vault));
+        when(vault.getStatus()).thenReturn("AWAITING_VERIFICATION");
         when(vault.getOwnerUserId()).thenReturn(30L);
+        when(vault.getVaultId()).thenReturn(20L);
         when(userRepository.findById(30L)).thenReturn(Optional.of(owner));
+        when(trusteeRepository.findFirstByVault_VaultIdAndStatus(20L, "APPOINTED"))
+                .thenReturn(Optional.empty());
         var result = service.getCase(caseId, staff);
         assertEquals(caseId, result.caseId());
         assertEquals("HS-2026-000123", result.caseNumber());
+        assertEquals("ASSIGNED_TO_CURRENT_STAFF", result.assignmentStatus());
+        assertEquals("AWAITING_VERIFICATION", result.vaultStatus());
+        assertNull(result.trustee());
+    }
+
+    @Test
+    void detailReturnsOnlyCurrentAppointedTrusteeContactSummary() {
+        var item = mock(VerificationCase.class);
+        var vault = mock(com.legacyvault.vault.entity.Vault.class);
+        var owner = mock(com.legacyvault.user.entity.User.class);
+        var trustee = mock(com.legacyvault.trustee.Trustee.class);
+        UUID caseId = UUID.randomUUID();
+        UUID trusteeId = UUID.randomUUID();
+        when(caseRepository.findViewableCaseByPublicId(caseId, 10L)).thenReturn(Optional.of(item));
+        when(item.getVaultId()).thenReturn(20L);
+        when(item.getPublicId()).thenReturn(caseId);
+        when(item.getAssignedStaffUserId()).thenReturn(null);
+        when(item.getCaseNumber()).thenReturn("HS-2026-000123");
+        when(vaultRepository.findById(20L)).thenReturn(Optional.of(vault));
+        when(vault.getOwnerUserId()).thenReturn(30L);
+        when(vault.getVaultId()).thenReturn(20L);
+        when(vault.getPublicId()).thenReturn(UUID.randomUUID());
+        when(vault.getStatus()).thenReturn("AWAITING_VERIFICATION");
+        when(userRepository.findById(30L)).thenReturn(Optional.of(owner));
+        when(trusteeRepository.findFirstByVault_VaultIdAndStatus(20L, "APPOINTED"))
+                .thenReturn(Optional.of(trustee));
+        when(trustee.getPublicId()).thenReturn(trusteeId);
+        when(trustee.getFullName()).thenReturn("Trustee Example");
+        when(trustee.getPhone()).thenReturn("+84900000000");
+        when(trustee.getEmail()).thenReturn("trustee@example.test");
+        when(trustee.getRelationship()).thenReturn("Relative");
+
+        var result = service.getCase(caseId, staff);
+
+        assertEquals("UNASSIGNED_CLAIMABLE", result.assignmentStatus());
+        assertNotNull(result.trustee());
+        assertEquals(trusteeId, result.trustee().trusteeId());
+        assertEquals("Trustee Example", result.trustee().fullName());
+        assertEquals("+84900000000", result.trustee().phone());
+        assertEquals("trustee@example.test", result.trustee().email());
+        assertEquals("Relative", result.trustee().relationship());
     }
 
     @Mock
@@ -56,6 +103,9 @@ class StaffVerificationCaseServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private TrusteeRepository trusteeRepository;
 
     @InjectMocks
     private StaffVerificationCaseService service;
@@ -91,6 +141,7 @@ class StaffVerificationCaseServiceTest {
         verify(caseRepository).findQueueByStaff(
                 eq(10L), isNull(), any(PageRequest.class)
         );
+        verifyNoInteractions(trusteeRepository);
     }
 
     @Test

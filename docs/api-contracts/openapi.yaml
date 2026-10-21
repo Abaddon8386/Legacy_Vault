@@ -30,6 +30,278 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/staff/verification-cases:
+    get:
+      tags: [Staff]
+      summary: Read cases assigned to the current Staff and OPEN unassigned claimable cases
+      x-status: implemented
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, CANCELLED, CLOSED] } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Queue; trustee is null in list items and returned only by case detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCasePage" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/staff/verification-cases/{caseId}:
+    get:
+      tags: [Staff]
+      summary: Read case context available to the current Staff
+      description: An OPEN unassigned case is claimable and viewable; a case assigned to another Staff is hidden as 404. Trustee summary contains only current APPOINTED contact fields, never notes or identity-document data.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Case, Vault state, assignment state, owner summary and optional current Trustee contact
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCase" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/staff/verification-cases/{caseId}/claim:
+    post:
+      tags: [Staff]
+      summary: Claim an OPEN unassigned case for the current Staff
+      description: Conditional assignment and audit are atomic. The success response includes the same case detail context; caller identity comes from the authenticated principal.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Claimed case and current Trustee contact summary, if present
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCase" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: VERIFICATION_CASE_NOT_CLAIMABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/BeneficiaryId"
+    get:
+      tags: [Beneficiaries]
+      summary: Owner reads current invitation metadata, never the code or hash
+      description: Owner of this Vault only. NOT_ISSUED when no generation exists. Cache-Control no-store.
+      x-status: implemented
+      responses:
+        "200":
+          description: Current metadata, including for frozen or archived Vaults owned by caller
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationMetadata" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Beneficiaries]
+      summary: Owner issues the first invitation for an unlinked Beneficiary in an ACTIVE Vault
+      description: No body required. Code possession proves acceptance, not legal identity. 128-bit CSPRNG, 7 days UTC. Plaintext returned once. Existing generation is a conflict; never auto-rotate on retry.
+      x-status: implemented
+      responses:
+        "201":
+          description: Invitation issued atomically with audit; no Location containing the code
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationIssued" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_ALREADY_EXISTS, BENEFICIARY_ACCOUNT_ALREADY_LINKED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    delete:
+      tags: [Beneficiaries]
+      summary: Owner revokes the current unused invitation in an ACTIVE Vault
+      description: Repeated revocation of the same generation returns 204 without replacing evidence or audit. Stale generation is 409 and cannot revoke a newer code. No invitation is 404; consumed invitation is 409. Account linkage is never removed.
+      x-status: implemented
+      parameters:
+        - name: generation
+          in: query
+          required: true
+          description: Current generation displayed to Owner; prevents a delayed or repeated request from revoking a reissued code
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        "204": { description: Revoked or already revoked; Cache-Control no-store }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_STALE, BENEFICIARY_INVITATION_ALREADY_USED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation/reissue:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/BeneficiaryId"
+    post:
+      tags: [Beneficiaries]
+      summary: Owner explicitly replaces an unused invitation with a new generation
+      description: ACTIVE owned Vault only. Atomically revokes and retires the old generation. Client generation prevents concurrent or repeated rotation. Read metadata and explicitly reissue after losing a success response; code cannot be recovered.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [generation]
+              properties:
+                generation: { type: integer, format: int32, minimum: 1 }
+      responses:
+        "201":
+          description: New code returned once; Cache-Control no-store
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationIssued" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_STALE, BENEFICIARY_INVITATION_ALREADY_USED, BENEFICIARY_ACCOUNT_ALREADY_LINKED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/subscriptions/me/payments:
+    post:
+      tags: [Subscriptions]
+      summary: Create or replay a VNPay sandbox one-time checkout (Owner)
+      description: Server snapshots catalog price and limits. UUID key is unique per owner. No entitlement until verified IPN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planCode, catalogVersion, idempotencyKey]
+              properties:
+                planCode: { type: string, enum: [STANDARD, EXTENDED] }
+                catalogVersion: { type: integer, minimum: 1 }
+                idempotencyKey: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Created or replayed checkout
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '400': { description: Invalid request }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Catalog stale, non-upgrade, gateway unavailable or PAYMENT_REQUEST_CONFLICT }
+  /api/v1/subscriptions/me/payments/{id}:
+    get:
+      tags: [Subscriptions]
+      summary: Read own server-confirmed payment status (Owner)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Status only; checkoutUrl is null
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Unknown payment or different owner }
+  /api/v1/payments/vnpay/ipn:
+    get:
+      tags: [Subscriptions]
+      security: []
+      summary: Public VNPay IPN, HMAC-SHA512 authentication
+      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Only this endpoint records payment results.
+      responses:
+        '200':
+          description: VNPay acknowledgment; 99 means processing failed and transaction rolled back
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [RspCode, Message]
+                properties:
+                  RspCode: { type: string, enum: ['00', '01', '02', '04', '97', '99'] }
+                  Message: { type: string }
+  /api/v1/legal-verifications/verification-cases:
+    get:
+      tags: [Legal]
+      summary: Paginated Legal discovery using the existing global Legal case scope (PS-102)
+      description: LEGAL_VERIFIER only. Metadata, no assignment changes or asset content. See legal-read-context.md.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        - in: query
+          name: route
+          schema: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+      responses:
+        '200':
+          description: Stable openedAt DESC / internal tie-break, no-store; not a cross-request snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content, page, size, totalElements, totalPages]
+                properties:
+                  content: { type: array, items: { $ref: '#/components/schemas/LegalQueueItem' } }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalElements: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/legal-verifications/verification-cases/{caseId}/context:
+    get:
+      tags: [Legal]
+      summary: Locked metadata/snapshot/capability read for Legal (PS-102)
+      description: No writes, unlock, file download or decryption. Capabilities are advisory; mutations always recheck current guards.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: No-store. Missing dossier is null, never inferred as approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalReadContext' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Case or associated Vault not found }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -215,7 +487,7 @@ paths:
                 catalogVersion: { type: integer, minimum: 1 }
       responses:
         '200':
-          description: Informational server quote; payment is not integrated
+          description: Informational server quote; checkout uses a separate POST
           content:
             application/json:
               schema:
@@ -228,15 +500,15 @@ paths:
                   currency: { type: string, enum: [VND] }
                   billingModel: { type: string, enum: [LIFETIME] }
                   previousPurchaseCreditVnd: { type: integer, enum: [0] }
-                  paymentAvailable: { type: boolean, enum: [false] }
+                  paymentAvailable: { type: boolean, description: VNPay sandbox is configured and enabled }
         '401': { description: Unauthenticated }
         '403': { description: Owner role required }
         '409': { description: Stale catalog or non-upgrade }
   /api/v1/subscription-plans:
     get:
       tags: [Subscriptions]
-      summary: Prototype catalog — chờ phê duyệt PS-77
-      description: ROLE_VAULT_OWNER. Mặc định 409 SUBSCRIPTION_POLICY_PENDING; catalog chỉ có khi bật prototype cho test.
+      summary: Available lifetime subscription catalog
+      description: ROLE_VAULT_OWNER. Free BASIC and available paid tiers. Independent of the quota enforcement flag.
       x-status: implemented
       responses:
         '200':
@@ -292,6 +564,20 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Admin overview from real SQL counts (PS-107)
+      description: ROLE_ADMIN only. Nondeleted accounts including locked; non-ARCHIVED vaults; OPEN cases; per-role assignments on nondeleted accounts. READ_COMMITTED_COLLECTION_WINDOW is explicitly not an atomic cross-table snapshot. No content or private account fields.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Real counts and UTC collection interval; Cache-Control no-store
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminOverview' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /api/v1/admin/subscriptions/plans:
     get:
@@ -463,8 +749,8 @@ paths:
       tags: [Subscriptions]
       summary: Gói hiệu lực và usage của Owner hiện tại (PS-77)
       description: |
-        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Prototype bật trong test: chưa có Vault trả usage 0.
-        Mặc định 409 SUBSCRIPTION_POLICY_PENDING. Quota prototype chưa được nhóm duyệt.
+        Quyền ROLE_VAULT_OWNER; Owner lấy từ principal. Chưa có Vault trả usage 0.
+        BASIC miễn phí hoặc tier cao nhất đã thanh toán qua IPN; quota enforcement vẫn cấu hình độc lập.
         Count gồm mọi Asset còn lưu kể cả DOCUMENT; byte gồm payload UTF-8 và mọi file version còn lưu.
         Không áp quota subscription vào evidence pháp lý.
       x-status: implemented
@@ -484,11 +770,11 @@ paths:
   /api/v1/subscriptions/me/upgrade:
     post:
       tags: [Subscriptions]
-      summary: Nâng gói tạm khóa chờ quy trình xác nhận (PS-77)
+      summary: Legacy self-grant endpoint disabled; use payments checkout
       description: |
         ROLE_VAULT_OWNER. Request không phải bằng chứng thanh toán hoặc xác nhận cấp gói.
         Luôn 409 SUBSCRIPTION_UPGRADE_UNAVAILABLE cho request hợp lệ, không cấp entitlement.
-        Chờ nhóm duyệt và triển khai quy trình thanh toán/xác nhận tin cậy; cờ quota không mở self-grant.
+        PS-80 dùng /subscriptions/me/payments và IPN; cờ quota không mở self-grant.
       x-status: implemented
       requestBody:
         required: true
@@ -596,6 +882,77 @@ paths:
                 user: { id: 3f2b8c1e-0a4d-4c8e-9b1a-6a1d2f3e4b5c, fullName: Nguyen Van A, email: user@example.com, roles: [VAULT_OWNER] }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/InvalidCredentials' }
+
+  /api/v1/auth/google:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng Google GIS ID credential (PS-85)
+      description: Backend xác minh OIDC/JWKS. Chỉ subject đã được liên kết tường minh với tài khoản LegacyVault mới đăng nhập được; không tạo tài khoản hoặc ghép theo email.
+      x-status: implemented
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+            example: { credential: '<Google ID token>' }
+      responses:
+        '200':
+          description: JWT LegacyVault với role lấy từ database; cùng cấu trúc với đăng nhập mật khẩu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Credential Google sai/hết hạn/đã dùng lại, hoặc danh tính chưa liên kết/tài khoản không đủ điều kiện.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                invalidGoogleCredential:
+                  value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_GOOGLE_CREDENTIAL, messageKey: error.auth.googleCredentialInvalid, message: 'Thông tin xác thực Google không hợp lệ, đã hết hạn hoặc đã được sử dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+                unlinkedIdentity:
+                  value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_CREDENTIALS, messageKey: error.auth.invalidCredentials, message: 'Email hoặc mật khẩu không đúng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '503':
+          description: Backend thiếu Google Client ID hoặc không truy cập được Google JWKS.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+
+  /api/v1/auth/google/link:
+    post:
+      tags: [Auth]
+      summary: Liên kết Google vào tài khoản đang đăng nhập (PS-85)
+      description: Yêu cầu JWT LegacyVault. Backend xác minh Google ID token và lấy sub đã xác minh; chỉ liên kết vào tài khoản hiện tại, không tạo tài khoản hoặc liên kết theo email.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+            example: { credential: '<Google ID token>' }
+      responses:
+        '200':
+          description: Google identity đã liên kết vào tài khoản hiện tại.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoogleIdentityLinkResponse' }
+              example: { linked: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: Google subject đã liên kết với một tài khoản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 409, code: GOOGLE_IDENTITY_ALREADY_LINKED, messageKey: error.auth.googleIdentityAlreadyLinked, message: 'Danh tính Google này đã được liên kết với một tài khoản.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '503':
+          description: Google Client ID is not configured or Google JWKS is unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
 
   /api/v1/auth/me:
     get:
@@ -1404,8 +1761,8 @@ paths:
       tags: [Legal]
       summary: Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ (PS-41, ST-16)
       description: |
-        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `WILL_VERIFICATION` và kết quả đối chiếu di chúc mới
-        nhất là MATCH. Mỗi ca một hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD.
+        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION` sau xác minh tử vong.
+        Chỉ COURT hoặc ON_HOLD; không yêu cầu di chúc/MATCH. COURT chuyển Vault sang AWAITING_LEGAL_BASIS.
       x-status: implemented
       parameters:
         - name: caseId
@@ -1452,7 +1809,7 @@ paths:
       tags: [Legal]
       summary: Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (PS-43, ST-16, LV-HOLD-001)
       description: |
-        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `NOTARIAL` hoặc `COURT`; Vault
+        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `COURT`; Vault
         `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. `NOTARIAL` và `COURT` không đổi lẫn nhau. Phân loại cũ được lưu vào lịch sử.
       x-status: implemented
       parameters:
@@ -1771,7 +2128,7 @@ paths:
       description: |
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
         và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
-        có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+        có nhánh COURT. NOTARIAL lịch sử chỉ đọc, mọi ghi mới bị chặn. Tiếp nhận không đồng nghĩa đã duyệt.
         Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
       x-status: implemented
       parameters:
@@ -1833,6 +2190,61 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem Beneficiary của ca đang phục vụ tại quầy (PS-88, ST-14/ST-24)
+      description: |
+        Read only. Requires ROLE_STAFF_EXECUTOR and an OPEN case of the Vault assigned to the actor; any other case, a
+        closed case or an unknown id returns 404 RESOURCE_NOT_FOUND. Lists every Beneficiary of the case Vault with
+        public ids only: identity verification status, account status, a summary of the current invitation
+        (NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED), the counter step and UI hints. No email, phone, identity
+        number or invitation secret is returned. Response is Cache-Control: no-store.
+      x-status: implemented
+      responses:
+        '200':
+          description: Beneficiaries of the case
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CounterBeneficiary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: beneficiaryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem một Beneficiary của ca (PS-88)
+      description: Same authorization and data as the list. A Beneficiary of another Vault returns 404.
+      x-status: implemented
+      responses:
+        '200':
+          description: The Beneficiary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterBeneficiary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
     post:
@@ -2083,7 +2495,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            schema: { $ref: '#/components/schemas/CompleteLegalBasisReviewRequest' }
             example: { reason: "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan." }
       responses:
         '200':
@@ -2353,6 +2765,46 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: Read-only redacted audit search (PS-108)
+      description: ROLE_ADMIN only, no-store. Fixed occurredAt DESC then internal sequence DESC. READ COMMITTED current pages can shift under concurrent inserts. Actor/user/vault IDs are public UUIDs. Raw context, IP, state, names, email and content are never returned.
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: from, in: query, description: Inclusive ISO instant with offset; normalized UTC, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive ISO instant; must follow from, schema: { type: string, format: date-time } }
+        - { name: action, in: query, description: AuditAction enum name or LEGACY_EVENT; unknown values rejected, schema: { type: string } }
+        - { name: actorId, in: query, description: Public user UUID, schema: { type: string, format: uuid } }
+        - { name: actorKind, in: query, schema: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] } }
+      responses:
+        '200':
+          description: Whitelisted metadata page; no-store
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/audit-logs/{id}:
+    get:
+      tags: [Admin]
+      summary: Read redacted audit event by public UUID (PS-108)
+      description: ROLE_ADMIN only, no-store. Missing actor accounts do not hide events. No raw details/IP/states or mutation methods.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Whitelisted metadata and optional trace UUID
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAuditDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2508,6 +2960,155 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+    StaffVerificationCasePage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: "#/components/schemas/StaffVerificationCase" } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    StaffVerificationCase:
+      type: object
+      required: [caseId, caseNumber, status, triggeredAt, closedAt, vaultId, vaultStatus, vaultName, ownerId, ownerName, assignmentStatus, trustee]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        status: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        triggeredAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+        vaultId: { type: string, format: uuid }
+        vaultStatus: { type: string, description: Current workflow state; not an authorization to unlock or hand over assets }
+        vaultName: { type: string }
+        ownerId: { type: string, format: uuid }
+        ownerName: { type: string }
+        assignmentStatus: { type: string, enum: [UNASSIGNED_CLAIMABLE, ASSIGNED_TO_CURRENT_STAFF] }
+        trustee:
+          type: object
+          nullable: true
+          description: Present only for GET case detail; null for queue items or when there is no APPOINTED Trustee
+          required: [trusteeId, fullName, phone, email, relationship]
+          properties:
+            trusteeId: { type: string, format: uuid }
+            fullName: { type: string }
+            phone: { type: string, nullable: true }
+            email: { type: string, format: email, nullable: true }
+            relationship: { type: string, nullable: true }
+    BeneficiaryInvitationMetadata:
+      type: object
+      required: [invitationId, beneficiaryId, state, generation, issuedAt, expiresAt, revokedAt, consumedAt]
+      properties:
+        invitationId: { type: string, format: uuid, nullable: true }
+        beneficiaryId: { type: string, format: uuid }
+        state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
+        generation: { type: integer, format: int32, minimum: 1, nullable: true }
+        issuedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+        consumedAt: { type: string, format: date-time, nullable: true }
+    BeneficiaryInvitationIssued:
+      type: object
+      required: [invitation, code]
+      properties:
+        invitation: { $ref: "#/components/schemas/BeneficiaryInvitationMetadata" }
+        code:
+          type: string
+          minLength: 22
+          maxLength: 22
+          pattern: '^[A-Za-z0-9_-]{21}[AQgw]$'
+          description: Server-generated 128-bit base64url code, 7-day lifetime. Only in issue/reissue success; never in logs, GET or URLs.
+    SubscriptionPayment:
+      type: object
+      required: [paymentId, planCode, catalogVersion, amountVnd, currency, billingModel, status, createdAt, expiresAt, checkoutUrl]
+      properties:
+        paymentId: { type: string, format: uuid }
+        planCode: { type: string, enum: [STANDARD, EXTENDED] }
+        catalogVersion: { type: integer }
+        amountVnd: { type: integer, format: int64 }
+        currency: { type: string, enum: [VND] }
+        billingModel: { type: string, enum: [LIFETIME] }
+        status: { type: string, enum: [PENDING, EXPIRED, SUCCEEDED, FAILED] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: Checkout expiry only; paid plan has no expiry }
+        checkoutUrl: { type: string, nullable: true, description: Signed sandbox URL only on create/replay before expiry }
+    LegalQueueItem:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, route, dossierStatus, reviewStatus, openedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        vaultStatus: { type: string }
+        route: { type: string, nullable: true }
+        dossierStatus: { type: string, nullable: true }
+        reviewStatus: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+    LegalActionCapability:
+      type: object
+      required: [allowed, blockedReason]
+      properties:
+        allowed: { type: boolean }
+        blockedReason: { type: string, nullable: true, description: Existing shared ErrorCode, or null }
+    LegalReadSnapshot:
+      type: object
+      nullable: true
+      required: [dossierId, currentVersion, requiredVersion, sha256Hash, allocationHash, disputeStatus, reviewStatus, reviewFresh, approvalCurrent, latestDecision, courtResult]
+      properties:
+        dossierId: { type: string, format: uuid }
+        currentVersion: { type: integer, minimum: 0 }
+        requiredVersion: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, nullable: true }
+        allocationHash: { type: string }
+        disputeStatus: { type: string }
+        reviewStatus: { type: string }
+        reviewFresh: { type: boolean }
+        approvalCurrent: { type: boolean }
+        courtResult: { type: string, nullable: true }
+        latestDecision:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            versionNo: { type: integer, nullable: true, description: Historical evidence may lack a snapshot }
+            sha256Hash: { type: string, nullable: true }
+            allocationHash: { type: string, nullable: true }
+            disputeStatus: { type: string, nullable: true }
+            result: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+            reviewedBy: { type: string, format: uuid, nullable: true }
+            reviewedAt: { type: string, format: date-time, nullable: true }
+    LegalReadContext:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, deathDocuments, willComparison, basisDossier, snapshot, capabilities, evaluatedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string }
+        vaultStatus: { type: string }
+        deathDocuments:
+          type: array
+          items:
+            type: object
+            required: [id, documentType, receivedAt]
+            properties:
+              id: { type: string, format: uuid }
+              documentType: { type: string }
+              receivedAt: { type: string, format: date-time }
+        willComparison: { $ref: '#/components/schemas/WillComparisonOverviewResponse' }
+        basisDossier:
+          allOf:
+            - $ref: '#/components/schemas/BasisDossierResponse'
+          nullable: true
+        snapshot: { $ref: '#/components/schemas/LegalReadSnapshot' }
+        capabilities:
+          type: object
+          required: [approval, unlock]
+          properties:
+            approval: { $ref: '#/components/schemas/LegalActionCapability' }
+            unlock: { $ref: '#/components/schemas/LegalActionCapability' }
+        evaluatedAt: { type: string, format: date-time }
     HandoverArchiveResponse:
       type: object
       properties:
@@ -2575,6 +3176,15 @@ components:
         allocationHash: { type: string, minLength: 64, maxLength: 64 }
         decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
         decidedAt: { type: string, format: date-time }
+    CompleteLegalBasisReviewRequest:
+      type: object
+      required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
     RecordLegalBasisReviewRequest:
       type: object
       required: [reason]
@@ -2727,6 +3337,7 @@ components:
             - LEGAL_VERIFICATION_INVALID_STATE
             - LEGAL_VERIFICATION_ALREADY_DECIDED
             - SUBSCRIPTION_POLICY_PENDING
+            - PAYMENT_REQUEST_CONFLICT
             - SUBSCRIPTION_UPGRADE_UNAVAILABLE
             - SUBSCRIPTION_CATALOG_STALE
             - SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED
@@ -2744,6 +3355,9 @@ components:
             - MALFORMED_REQUEST
             - UNAUTHENTICATED
             - INVALID_CREDENTIALS
+            - INVALID_GOOGLE_CREDENTIAL
+            - GOOGLE_SIGNIN_UNAVAILABLE
+            - GOOGLE_IDENTITY_ALREADY_LINKED
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
@@ -2772,6 +3386,10 @@ components:
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE
+            - BENEFICIARY_INVITATION_ALREADY_EXISTS
+            - BENEFICIARY_INVITATION_ALREADY_USED
+            - BENEFICIARY_INVITATION_STALE
+            - BENEFICIARY_INVITATION_INVALID
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
@@ -2819,6 +3437,17 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string, format: password, writeOnly: true }
+    GoogleLoginRequest:
+      type: object
+      required: [credential]
+      additionalProperties: false
+      properties:
+        credential: { type: string, minLength: 1, maxLength: 8192, writeOnly: true, description: GIS ID token; backend verifies the signature and claims. }
+    GoogleIdentityLinkResponse:
+      type: object
+      required: [linked]
+      properties:
+        linked: { type: boolean, enum: [true] }
     UserResponse:
       type: object
       required: [id, fullName, email, roles]
@@ -3061,13 +3690,13 @@ components:
       type: object
       required: [route, routeReason]
       properties:
-        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        route: { type: string, enum: [COURT, ON_HOLD] }
         routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
     BasisIntakeMetadata:
       type: object
       required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
       properties:
-        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
+        legalBasisType: { type: string, enum: [COURT_JUDGMENT, COURT_DECISION] }
         issuingAuthority: { type: string, maxLength: 255 }
         documentNumber: { type: string, maxLength: 100 }
         issueDate: { type: string, format: date }
@@ -3247,6 +3876,35 @@ components:
         phone: { type: string }
         email: { type: string, format: email }
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    CounterBeneficiary:
+      type: object
+      required: [beneficiaryId, caseId, fullName, identityVerificationStatus, accountStatus, accountLinked, invitation, counterStep, actions]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        fullName: { type: string }
+        relationship: { type: string, nullable: true }
+        identityVerificationStatus: { type: string, enum: [NOT_VERIFIED, VERIFIED_AT_COUNTER] }
+        accountStatus: { type: string, enum: [NOT_CREATED, ACCOUNT_CREATED] }
+        accountLinked: { type: boolean }
+        invitation:
+          type: object
+          required: [state]
+          properties:
+            state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
+            expiresAt: { type: string, format: date-time, nullable: true }
+        counterStep:
+          type: string
+          enum: [AWAITING_IDENTITY_VERIFICATION, AWAITING_ACCOUNT_DECISION, ACCOUNT_LINKED]
+          description: Bước tại quầy suy ra từ dữ liệu server
+        actions:
+          type: object
+          description: Gợi ý hiển thị. Server kiểm tra lại mọi điều kiện khi thực hiện thao tác.
+          required: [canLinkAccount, canCreateAccount, canHandOverWithoutAccount]
+          properties:
+            canLinkAccount: { type: boolean }
+            canCreateAccount: { type: boolean }
+            canHandOverWithoutAccount: { type: boolean, description: "Chỉ cần xác minh tại quầy, không cần tài khoản" }
     BeneficiaryAccountLinkRequest:
       type: object
       required: [accountEmail]
@@ -3304,7 +3962,7 @@ components:
         phone: { type: string, nullable: true }
         email: { type: string, nullable: true }
         hasIdentityNumber: { type: boolean }
-        hasAccount: { type: boolean, description: Luôn false ở Sprint 1 }
+        hasAccount: { type: boolean, description: True when this Beneficiary is linked to a real User account through the counter workflow or invitation service }
         status: { type: string, enum: [DESIGNATED] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -3335,19 +3993,29 @@ components:
 
     ConfigureDmsRequest:
       type: object
-      required: [checkIntervalDays]
+      additionalProperties: false
+      oneOf:
+        - required: [checkIntervalDays]
+        - required: [checkIntervalMinutes]
       properties:
         checkIntervalDays:
           type: integer
           minimum: 1
-          description: Khoảng cho phép do cấu hình (D-API-15); ST-06 nêu ví dụ 30, 90
+          maximum: 180
+          description: Legacy whole days; mutually exclusive with checkIntervalMinutes
+        checkIntervalMinutes:
+          type: integer
+          minimum: 1
+          maximum: 259200
+          description: Whole minutes, supported in production; exactly one duration field
     DmsResponse:
       type: object
-      required: [ownerId, status, checkIntervalDays, gracePeriodDays, nextCheckAt]
+      required: [ownerId, status, checkIntervalDays, checkIntervalMinutes, gracePeriodDays, nextCheckAt]
       properties:
         ownerId: { type: string, format: uuid, description: 'public_id của tài khoản Owner; DMS thuộc Owner, mỗi Owner một DMS' }
         status: { type: string, enum: [MONITORING, TRIGGERED, GRACE_PERIOD_EXCEEDED] }
-        checkIntervalDays: { type: integer }
+        checkIntervalDays: { type: integer, nullable: true, description: Exact whole days or null for a non-whole-day duration; never rounded }
+        checkIntervalMinutes: { type: integer, minimum: 1, description: Authoritative duration; legacy rows may exceed the new configuration maximum }
         gracePeriodDays: { type: integer, description: 'Chỉ đọc; server cấu hình qua DMS_GRACE_PERIOD_DAYS, mặc định 1 (A5)' }
         lastCheckInAt: { type: string, format: date-time, nullable: true }
         nextCheckAt: { type: string, format: date-time }
@@ -3363,6 +4031,20 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+
+    AdminOverview:
+      type: object
+      required: [totalAccounts, activeVaults, processingCases, roleAssignments, startedAt, completedAt, consistency]
+      properties:
+        totalAccounts: { type: integer, format: int64, minimum: 0 }
+        activeVaults: { type: integer, format: int64, minimum: 0 }
+        processingCases: { type: integer, format: int64, minimum: 0 }
+        roleAssignments:
+          type: object
+          additionalProperties: { type: integer, format: int64, minimum: 0 }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        consistency: { type: string, enum: [READ_COMMITTED_COLLECTION_WINDOW] }
 
     SubscriptionUpgradeRequest:
       type: object
@@ -3413,3 +4095,35 @@ components:
             storage: { type: boolean }
         vaultCreated: { type: boolean }
         evaluatedAt: { type: string, format: date-time, description: ISO-8601 UTC }
+
+    AdminAuditActor:
+      type: object
+      required: [kind, userId]
+      properties:
+        kind: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] }
+        userId: { type: string, format: uuid, nullable: true, description: Public user UUID; never a DB key }
+    AdminAuditEvent:
+      type: object
+      required: [id, occurredAt, actor, action, entityType, vaultId]
+      properties:
+        id: { type: string, format: uuid }
+        occurredAt: { type: string, format: date-time }
+        actor: { $ref: '#/components/schemas/AdminAuditActor' }
+        action: { type: string, description: Known AuditAction or LEGACY_EVENT }
+        entityType: { type: string, description: Allowlisted label or OTHER }
+        vaultId: { type: string, format: uuid, nullable: true, description: Public vault UUID }
+    AdminAuditPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/AdminAuditEvent' } }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    AdminAuditDetail:
+      type: object
+      required: [event, traceId]
+      properties:
+        event: { $ref: '#/components/schemas/AdminAuditEvent' }
+        traceId: { type: string, format: uuid, nullable: true }

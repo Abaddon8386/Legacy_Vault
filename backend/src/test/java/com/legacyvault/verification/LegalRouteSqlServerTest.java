@@ -19,7 +19,7 @@ class LegalRouteSqlServerTest extends LegalBasisSqlServerSupport {
 
     @Test
     void allRoutesPersistReasonAndValidJsonAuditWithoutLeakingReason() {
-        for (Route route : Route.values()) {
+        for (Route route : new Route[]{Route.COURT, Route.ON_HOLD}) {
             var f = fixture(true);
             String reason = "Private classification evidence " + route;
             var result = service().classify(f.publicCaseId(), f.legal(), new ClassifyBasisRequest(route, reason));
@@ -37,11 +37,14 @@ class LegalRouteSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
-    void missingComparisonBlocksClassification() {
+    void absentWillDoesNotBlockCourtButNotarialIsRejectedWithoutWrites() {
         var f = fixture(false);
-        var error = assertThrows(BusinessException.class, () -> service().classify(f.publicCaseId(), f.legal(), new ClassifyBasisRequest(Route.COURT, "Evidence")));
-        assertEquals(ErrorCode.WILL_NOT_VERIFIED, error.getErrorCode());
-        assertEquals(0, count("legal_basis_dossiers", "verification_case_id = ?", f.caseId()));
+        jdbc.update("UPDATE dbo.vaults SET status='DOCUMENT_VERIFICATION' WHERE vault_id=?",f.vaultId());
+        var error=assertThrows(BusinessException.class,()->service().classify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(Route.NOTARIAL,"Legacy client")));
+        assertEquals(ErrorCode.VALIDATION_FAILED,error.getErrorCode());
+        assertEquals(0,count("legal_basis_dossiers","verification_case_id=?",f.caseId()));
+        assertEquals("COURT",service().classify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(Route.COURT,"Court evidence next")).route());
+        assertEquals(0,count("will_comparisons","verification_case_id=?",f.caseId()));
     }
 
     @Test
@@ -67,7 +70,7 @@ class LegalRouteSqlServerTest extends LegalBasisSqlServerSupport {
         Callable<Boolean> classify = () -> {
             assertTrue(start.await(10, TimeUnit.SECONDS));
             try {
-                service().classify(f.publicCaseId(), f.legal(), new ClassifyBasisRequest(Route.NOTARIAL, "Evidence"));
+                service().classify(f.publicCaseId(), f.legal(), new ClassifyBasisRequest(Route.COURT, "Evidence"));
                 return true;
             } catch (BusinessException ex) { return false; }
         };

@@ -1,3 +1,4 @@
+import SharedWithMePage from './pages/beneficiary/SharedWithMePage.jsx';
 import ReceivedAssets from './pages/beneficiary/ReceivedAssets.jsx';
 import LanguageToggle from './components/common/LanguageToggle.jsx';
 import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
@@ -647,6 +648,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     }
   };
   const path = location.split('?')[0];
+  const isSharedWithMeRoute = path === '/shared-with-me';
   if (restoreStatus !== 'ready') return (
     <main role={restoreStatus === 'error' ? 'alert' : 'status'}>
       <p>{restoreStatus === 'error'
@@ -705,7 +707,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (!isSessionActive(session)) return <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (!session.user.roles.includes('ADMIN')) return <main role="alert"><p>{lang === 'en' ? 'This page requires an administrator account.' : 'Trang này dành cho tài khoản quản trị viên.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button></main>;
     const currentTab = path === '/admin/subscriptions' ? 'admin-subscriptions' : 'admin-home';
-    return <AppShell role="ADMIN" session={session} user={session.user} lang={lang} currentTab={currentTab}
+    return <AppShell role="ADMIN" session={session} user={session?.user || null} lang={lang} currentTab={currentTab}
       isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null}
       onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : tab === 'beneficiary-home' ? '/beneficiary' : tab === 'admin-subscriptions' ? '/admin/subscriptions' : '/admin')}>
       {currentTab === 'admin-subscriptions'
@@ -713,6 +715,56 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         : <AdminHome lang={lang} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} />}
     </AppShell>;
   }
+    if (isSharedWithMeRoute) {
+    if (!isSessionActive(session) && !preview) {
+      return (
+        <div className="lv-app-root">
+          <LoginPage
+            invitationMode={invitationIntent}
+            onCancelInvitation={cancelInvitation}
+            onNavigateToInvitations={navigateTo}
+            onAuthenticated={establishSession}
+            onNavigateToRegister={() => navigateTo(authPath('/register'))}
+          />
+        </div>
+      );
+    }
+
+    const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
+    const shellRole = preview ? (new URLSearchParams(location.split('?')[1] || '').get('role') === 'BENEFICIARY' ? 'BENEFICIARY' : 'OWNER') : (userRoles.includes('VAULT_OWNER') ? 'OWNER' : userRoles.includes('BENEFICIARY') ? 'BENEFICIARY' : 'OWNER');
+
+    return (
+      <div className="lv-app-root">
+        <AppShell
+          role={shellRole}
+          session={session}
+          user={session?.user || null}
+          lang={lang}
+          currentTab="shared-with-me"
+          isAuthenticated={isSessionActive(session)}
+          onToggleLang={setLang}
+          onLogout={isSessionActive(session) ? logout : null}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          onNavigateTab={handleExecuteNavigation}
+        >
+          <SharedWithMePage
+            key={`${session?.user?.id || 'anon'}:${session?.accessToken || ''}`}
+            lang={lang}
+            receivedAssetActions={beneficiaryAssetActions}
+            invitationActions={invitationActions}
+            isDevPreview={preview}
+            previewScenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'unlinked'}
+            user={session?.user || null}
+            session={session}
+            onUnauthorized={logout}
+            refreshKey={refreshTrigger}
+          />
+        </AppShell>
+      </div>
+    );
+  }
+
   if (path === '/beneficiary' && preview && !isSessionActive(session)) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
     <LanguageToggle lang={lang} onToggleLang={setLang} />
     <a href="/login">{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</a>
@@ -754,7 +806,12 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           onNavigateTab={tab => {
-            if (tab === 'account-profile') navigateTo(resolveAccountRoute('/account/profile'));
+            if (tab === 'home') navigateTo(`/?lang=${lang}`);
+            else if (tab === 'shared-with-me') {
+              const curScenario = new URLSearchParams(location.split('?')[1] || '').get('scenario');
+              navigateTo(preview ? `/shared-with-me?preview=true${curScenario ? `&scenario=${encodeURIComponent(curScenario)}` : ''}` : '/shared-with-me');
+            }
+            else if (tab === 'account-profile') navigateTo(resolveAccountRoute('/account/profile'));
             else if (tab === 'account-edit') navigateTo(resolveAccountRoute('/account/edit'));
             else if (tab === 'vault') navigateTo('/vault');
             else if (tab === 'cases') navigateTo('/staff/cases');
@@ -768,7 +825,9 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             receivedAssetActions={beneficiaryAssetActions}
             receivedRefreshKey={refreshTrigger}
             lang={lang}
-            user={session.user}
+            isDevPreview={preview}
+            previewScenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'}
+            user={session?.user || null}
             session={session}
             onOpenProfile={() => navigateTo(resolveAccountRoute('/account/profile'))}
             onOpenEditProfile={() => navigateTo(resolveAccountRoute('/account/edit'))}
@@ -952,7 +1011,10 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'basis-route-selection') {
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
+            } else if (tab === 'shared-with-me') {
+          const curScenario = new URLSearchParams(location.split('?')[1] || '').get('scenario');
+          navigateTo(preview ? `/shared-with-me?preview=true${curScenario ? `&scenario=${encodeURIComponent(curScenario)}` : ''}` : '/shared-with-me');
+        } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -986,8 +1048,13 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
-  const handleExecuteNavigation = (targetTab) => {
-    if (targetTab === 'admin-home') { navigateTo('/admin');
+  function handleExecuteNavigation(targetTab) {
+    if (targetTab === 'home') {
+      navigateTo(`/?lang=${lang}`);
+    } else if (targetTab === 'shared-with-me') {
+      const curScenario2 = new URLSearchParams(location.split('?')[1] || '').get('scenario');
+      navigateTo(preview ? `/shared-with-me?preview=true${curScenario2 ? `&scenario=${encodeURIComponent(curScenario2)}` : ''}` : '/shared-with-me');
+    } else if (targetTab === 'admin-home') { navigateTo('/admin');
     } else if (targetTab === 'admin-subscriptions') { navigateTo('/admin/subscriptions');
     } else if (targetTab === 'beneficiary-home') { navigateTo('/beneficiary');
     } else if (targetTab === 'account-profile') {
@@ -1577,13 +1644,21 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     return <div className="lv-app-root"><AppShell currentTab={isSubscriptionRoute ? 'subscription' : isBeneficiariesRoute ? 'beneficiaries' : isWillsRoute ? 'wills' : isAssetsRoute ? 'assets' : isDmsRoute ? 'dms' : 'vault'} lang={lang}
       role="OWNER" isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null} onRefresh={handleRefresh} isRefreshing={isRefreshing} session={session} user={session?.user || null}
       onNavigateTab={tab => {
-        if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
-            } else if (tab === 'account-profile') {
+        if (tab === 'home') {
+          navigateTo(`/?lang=${lang}`);
+        } else if (tab === 'shared-with-me') {
+          const curScenario3 = new URLSearchParams(location.split('?')[1] || '').get('scenario');
+          navigateTo(preview ? `/shared-with-me?preview=true${curScenario3 ? `&scenario=${encodeURIComponent(curScenario3)}` : ''}` : '/shared-with-me');
+        } else if (tab === 'beneficiary-home') {
+          navigateTo('/beneficiary');
+        } else if (tab === 'account-profile') {
           navigateTo(resolveAccountRoute('/account/profile'));
         } else if (tab === 'account-edit') {
           navigateTo(resolveAccountRoute('/account/edit'));
         } else if (tab === 'vault' || tab === 'dms' || tab === 'assets' || tab === 'wills' || tab === 'beneficiaries' || tab === 'subscription') {
           navigateTo(preview ? previewRoute(tab, window.location.search, lang) : (tab === 'subscription' ? (preview ? '/subscription?preview=true' : '/subscription') : `/${tab}`));
+        } else {
+          handleExecuteNavigation(tab);
         }
       }}>
       {preview && isWillsRoute ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
@@ -1596,10 +1671,25 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
             : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
-              : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
+              : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
-  if (path === '/') return <LandingPage onLogin={() => navigateTo('/login')} onRegister={() => navigateTo('/register')} />;
+  if (path === '/') {
+    return (
+      <LandingPage
+        onLogin={targetLang => {
+          const nextLang = targetLang || lang || 'vi';
+          const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
+          navigateTo(invitationIntent ? `/login${query}&invitation=true` : `/login${query}`);
+        }}
+        onRegister={targetLang => {
+          const nextLang = targetLang || lang || 'vi';
+          const query = nextLang === 'en' ? '?lang=en' : '?lang=vi';
+          navigateTo(invitationIntent ? `/register${query}&invitation=true` : `/register${query}`);
+        }}
+      />
+    );
+  }
   return <div className="lv-app-root">{path === '/register'
     ? <RegisterPageHenedo invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onRegisterWithInvitation={pendingInvitationCode.trim() && typeof invitationActions?.register === 'function' ? (values, options) => invitationActions.register({ ...values, code: pendingInvitationCode }, options) : undefined} onNavigateToLogin={() => navigateTo(authPath('/login'))} onAuthenticated={establishSession} />
     : path === '/login' ? <LoginPage invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />

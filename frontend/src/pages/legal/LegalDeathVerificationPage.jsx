@@ -7,7 +7,6 @@ import {
   HelpCircle,
   FileText,
   UserCheck,
-  RefreshCw,
   Info,
 } from 'lucide-react';
 import {
@@ -79,16 +78,6 @@ export default function LegalDeathVerificationPage({
     });
     setErrors(res.errors);
     setValidationStatus(res.isValid ? 'success' : 'error');
-  };
-
-  const handleReset = () => {
-    setDocketReference('');
-    setDecision('');
-    setReason('');
-    setNotes('');
-    setErrors({});
-    setValidatedOnce(false);
-    setValidationStatus(null);
   };
 
   return (
@@ -323,15 +312,6 @@ export default function LegalDeathVerificationPage({
                 onClick={handleValidateLocal}
               >
                 <span>{t.btnValidateLocal}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 
