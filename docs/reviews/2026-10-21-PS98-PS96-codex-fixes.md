@@ -1,5 +1,7 @@
 # Codex sửa sau review PS-98/PS-96 — 21/10/2026
 
+> Cập nhật vòng kiểm thật tiếp theo: đã chạy Staff upload/read/reload/download cho giấy tờ tử vong và di chúc bằng browser–BE–SQL, đối chiếu hash và ciphertext, ảnh desktop/mobile. Xem [bằng chứng hiện hành](../evidence/ps98-ps96-live-2026-10-21/README.md). Giới hạn “chưa kiểm browser Staff” ở phần lịch sử bên dưới đã được thay thế; PS-96 COURT intake/forward vẫn bị chặn vì thiếu catalog tài sản và chưa có dossier Legal. Không coi toàn bộ PS-96 đã hoàn tất.
+
 Checkout: `C:/Users/hai/Downloads/FALL26/SWP/LV-staff-evidence`; remote `Abaddon8386/Legacy_Vault`, nhánh `feature/PS-98-96-staff-evidence-integration`, base `5283c61`. Giữ thay đổi Anti, không sửa BE hoặc checkout chính, không commit/push/PR/Jira.
 
 ## Đã sửa
