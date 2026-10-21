@@ -11,7 +11,7 @@
 import { ApiError, request } from '../api/http.js';
 import { isUuid } from '../api/contracts.js';
 
-const AUDIT_ACTIONS = new Set(['VAULT_HANDOVER_ARCHIVED', 'BENEFICIARY_HANDOVER_CONFIRMED', 'AUTH_REGISTERED', 'AUTH_LOGIN_SUCCEEDED', 'AUTH_LOGIN_FAILED', 'SUBSCRIPTION_UPGRADED', 'SUBSCRIPTION_PLAN_DRAFT_CREATED', 'SUBSCRIPTION_PLAN_DRAFT_UPDATED', 'SUBSCRIPTION_PLAN_PUBLISHED', 'SUBSCRIPTION_PLAN_DEPRECATED', 'VAULT_CREATED', 'VAULT_ALERT_CANCELLED', 'ASSET_IMAGE_ADDED', 'ASSET_IMAGE_OPENED', 'ASSET_IMAGE_REMOVED', 'ASSET_CREATED', 'ASSET_UPDATED', 'ASSET_REVEALED', 'WILL_UPLOADED', 'WILL_VERSION_ADDED', 'WILL_FILE_OPENED', 'REAUTH_FAILED', 'TRUSTEE_APPOINTED', 'TRUSTEE_UPDATED', 'TRUSTEE_REVOKED', 'TRUSTEE_CONTACT_RECORDED', 'BENEFICIARY_ADDED', 'BENEFICIARY_UPDATED', 'BENEFICIARY_IDENTITY_VERIFIED', 'DMS_CONFIGURED', 'DMS_CHECKED_IN', 'DMS_TRIGGERED', 'DMS_GRACE_PERIOD_EXCEEDED', 'VERIFICATION_CASE_CREATED', 'VERIFICATION_CASE_CLAIMED', 'DEATH_DOCUMENT_RECORDED', 'ORIGINAL_WILL_RECEIVED', 'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED', 'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECEIVED', 'LEGAL_BASIS_FORWARDED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED', 'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED', 'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'HANDOVER_SESSION_OPENED', 'HANDOVER_SESSION_COMPLETED', 'HANDOVER_SESSION_CANCELLED', 'HANDOVER_RECEIPT_STAFF_CONFIRMED', 'HANDOVER_ASSET_DELIVERED', 'BENEFICIARY_ACCOUNT_LINKED', 'BENEFICIARY_ACCOUNT_CREATED', 'LEGACY_EVENT']);
+const AUDIT_ACTIONS = new Set(['BENEFICIARY_INVITATION_ISSUED', 'BENEFICIARY_INVITATION_REISSUED', 'BENEFICIARY_INVITATION_REVOKED', 'BENEFICIARY_INVITATION_CONSUMED', 'AUTH_GOOGLE_IDENTITY_LINKED', 'SUBSCRIPTION_PAYMENT_CREATED', 'SUBSCRIPTION_PAYMENT_SUCCEEDED', 'SUBSCRIPTION_PAYMENT_FAILED', 'VAULT_HANDOVER_ARCHIVED', 'BENEFICIARY_HANDOVER_CONFIRMED', 'AUTH_REGISTERED', 'AUTH_LOGIN_SUCCEEDED', 'AUTH_LOGIN_FAILED', 'SUBSCRIPTION_UPGRADED', 'SUBSCRIPTION_PLAN_DRAFT_CREATED', 'SUBSCRIPTION_PLAN_DRAFT_UPDATED', 'SUBSCRIPTION_PLAN_PUBLISHED', 'SUBSCRIPTION_PLAN_DEPRECATED', 'VAULT_CREATED', 'VAULT_ALERT_CANCELLED', 'ASSET_IMAGE_ADDED', 'ASSET_IMAGE_OPENED', 'ASSET_IMAGE_REMOVED', 'ASSET_CREATED', 'ASSET_UPDATED', 'ASSET_REVEALED', 'WILL_UPLOADED', 'WILL_VERSION_ADDED', 'WILL_FILE_OPENED', 'REAUTH_FAILED', 'TRUSTEE_APPOINTED', 'TRUSTEE_UPDATED', 'TRUSTEE_REVOKED', 'TRUSTEE_CONTACT_RECORDED', 'BENEFICIARY_ADDED', 'BENEFICIARY_UPDATED', 'BENEFICIARY_IDENTITY_VERIFIED', 'DMS_CONFIGURED', 'DMS_CHECKED_IN', 'DMS_TRIGGERED', 'DMS_GRACE_PERIOD_EXCEEDED', 'VERIFICATION_CASE_CREATED', 'VERIFICATION_CASE_CLAIMED', 'DEATH_DOCUMENT_RECORDED', 'ORIGINAL_WILL_RECEIVED', 'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED', 'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECEIVED', 'LEGAL_BASIS_FORWARDED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED', 'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED', 'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'HANDOVER_SESSION_OPENED', 'HANDOVER_SESSION_COMPLETED', 'HANDOVER_SESSION_CANCELLED', 'HANDOVER_RECEIPT_STAFF_CONFIRMED', 'HANDOVER_ASSET_DELIVERED', 'BENEFICIARY_ACCOUNT_LINKED', 'BENEFICIARY_ACCOUNT_CREATED', 'LEGACY_EVENT']);
 const AUDIT_ENTITIES = new Set(['USER', 'VAULT', 'ASSET', 'ASSET_VERSION', 'ASSET_IMAGE', 'WILL', 'TRUSTEE', 'BENEFICIARY', 'DMS_CONFIG', 'VERIFICATION_CASE', 'DEATH_DOCUMENT_RECORD', 'LEGAL_VERIFICATION', 'WILL_COMPARISON', 'ORIGINAL_WILL_INTAKE', 'LEGAL_BASIS_DOSSIER', 'LEGAL_BASIS_VERSION', 'COURT_DECISION', 'HANDOVER_SESSION', 'HANDOVER_ITEM', 'HANDOVER_RECEIPT', 'BENEFICIARY_INVITATION', 'SUBSCRIPTION', 'SUBSCRIPTION_PLAN', 'SUBSCRIPTION_PAYMENT', 'OTHER']);
 
 const VALID_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
@@ -81,13 +81,13 @@ export function validateAdminUser(raw) {
     throw new ApiError('INVALID_USER_RECORD', 500);
   }
 
-  const id = String(raw.id || '').trim();
-  if (!id) {
+  const id = raw.publicId;
+  if (!isUuid(id)) {
     throw new ApiError('MISSING_USER_ID', 500);
   }
 
   const email = String(raw.email || '').trim();
-  const fullName = String(raw.fullName || raw.name || '').trim();
+  const fullName = typeof raw.fullName === 'string' ? raw.fullName.trim() : '';
   const roles = normalizeAdminRoles(raw.roles);
 
   // Do NOT default status to 'ACTIVE'!
@@ -96,8 +96,7 @@ export function validateAdminUser(raw) {
       ? raw.status.trim().toUpperCase()
       : null;
 
-  const createdAt = raw.createdAt || raw.createdDate || null;
-  const lastLoginAt = raw.lastLoginAt || raw.lastLogin || null;
+  const createdAt = typeof raw.createdAt === 'string' && /Z$/.test(raw.createdAt) && Number.isFinite(Date.parse(raw.createdAt)) ? raw.createdAt : null;
 
   return {
     id,
@@ -106,7 +105,6 @@ export function validateAdminUser(raw) {
     roles,
     status,
     createdAt,
-    lastLoginAt,
   };
 }
 
@@ -130,67 +128,8 @@ export function validateAdminAuditLog(raw) {
       (raw.vaultId !== null && !isUuid(raw.vaultId))) throw new ApiError('INVALID_AUDIT_RECORD', 500);
   // Explicit PS-108 whitelist. Never copy arbitrary raw properties or metadata.
   return { id: raw.id, occurredAt: raw.occurredAt, actorType: raw.actor.kind, actorId: raw.actor.userId,
-    action: raw.action, entityType: raw.entityType, entityId: raw.vaultId };
+    action: raw.action, entityType: raw.entityType, vaultId: raw.vaultId };
 
-}
-
-/**
- * Executes an authenticated Admin request, handling standard error codes.
- */
-async function executeAdminFetch(url, { accessToken, method = 'GET', body = null, signal = null } = {}) {
-  const headers = {
-    Accept: 'application/json',
-  };
-
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  if (body) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  let response;
-  try {
-    response = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : null,
-      signal,
-    });
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      throw err;
-    }
-    // Network or server unreachable
-    throw new ApiError('BACKEND_NOT_READY', 0, { cause: err });
-  }
-
-  if (response.status === 401) {
-    throw new ApiError('UNAUTHENTICATED', 401);
-  }
-
-  if (response.status === 403) {
-    throw new ApiError('FORBIDDEN', 403);
-  }
-
-  if (response.status === 404 || response.status === 501) {
-    throw new ApiError('API_NOT_AVAILABLE', response.status);
-  }
-
-  if (!response.ok) {
-    let payload = null;
-    try {
-      payload = await response.json();
-    } catch {
-      // ignore
-    }
-    throw new ApiError(payload?.code || 'ADMIN_API_ERROR', response.status, {
-      details: payload,
-    });
-  }
-
-  return response.json();
 }
 
 /**
@@ -213,38 +152,42 @@ export async function fetchAdminOverview(accessToken, options = {}) {
  */
 export async function fetchAdminUsers(
   accessToken,
-  { query = '', role = '', status = '', page = 1, pageSize = 20, signal = null } = {}
+  { query = '', role = '', status = '', page = 1, pageSize = 20, ...options } = {}
 ) {
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100 ||
+      typeof query !== 'string' || query.trim().length > 100 ||
+      (role && !VALID_ROLES.includes(normalizeAdminRole(role))) ||
+      (status && !['ACTIVE', 'PENDING', 'DELETED'].includes(status))) throw new ApiError('VALIDATION_FAILED', 400);
   const urlParams = new URLSearchParams();
-  if (query) urlParams.set('q', query);
-  if (role) urlParams.set('role', role);
+  if (query.trim()) urlParams.set('query', query.trim());
+  if (role) urlParams.set('role', `ROLE_${normalizeAdminRole(role)}`);
   if (status) urlParams.set('status', status);
-  urlParams.set('page', String(page));
-  urlParams.set('pageSize', String(pageSize));
+  urlParams.set('page', String(page - 1));
+  urlParams.set('size', String(pageSize));
 
-  const data = await executeAdminFetch(`/api/v1/admin/users?${urlParams.toString()}`, {
-    accessToken,
-    signal,
+  const data = await request(`/admin/users?${urlParams}`, {
+    ...options, accessToken, expectedStatus: 200,
   });
 
-  if (!data || typeof data !== 'object') {
+  if (!data || !Array.isArray(data.content) || !Number.isSafeInteger(data.totalElements) || data.totalElements < data.content.length ||
+      data.page !== page - 1 || data.size !== pageSize || !Number.isSafeInteger(data.totalPages) ||
+      data.totalPages !== Math.ceil(data.totalElements / pageSize) || data.content.length > pageSize) {
     throw new ApiError('INVALID_USERS_RESPONSE', 500);
   }
 
-  const rawList = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : null);
-  if (!rawList) {
-    throw new ApiError('INVALID_USERS_RESPONSE', 500);
-  }
-
-  const items = rawList.map(validateAdminUser);
-  const total = typeof data.total === 'number' && Number.isSafeInteger(data.total) && data.total >= items.length ? data.total : null;
+  const items = data.content.map(validateAdminUser);
+  if (new Set(items.map(item => item.id)).size !== items.length) throw new ApiError('INVALID_USERS_RESPONSE', 500);
 
   return {
-    items,
-    total,
-    page: Number.isFinite(Number(data.page)) ? Number(data.page) : Number(page),
-    pageSize: Number.isFinite(Number(data.pageSize)) ? Number(data.pageSize) : Number(pageSize),
+    items, total: data.totalElements, page: data.page + 1, pageSize: data.size,
   };
+}
+
+export async function fetchAdminUserDetail(accessToken, id, options = {}) {
+  if (!isUuid(id)) throw new ApiError('VALIDATION_FAILED', 400);
+  const user = validateAdminUser(await request(`/admin/users/${id}`, { ...options, accessToken, expectedStatus: 200 }));
+  if (user.id !== id) throw new ApiError('INVALID_USER_RECORD', 500);
+  return user;
 }
 
 /**
@@ -255,12 +198,16 @@ export async function fetchAdminUsers(
  * @returns {Promise<Object>}
  */
 export async function fetchAdminAuditLogs(accessToken,
-  { action = '', actorType = '', fromDate = '', toDate = '', page = 1, pageSize = 20, ...options } = {}) {
+  { action = '', actorType = '', actorId = '', fromDate = '', toDate = '', page = 1, pageSize = 20, ...options } = {}) {
   if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
     throw new ApiError('VALIDATION_FAILED', 400);
   const params = new URLSearchParams({ page: String(page - 1), size: String(pageSize) });
   if (action) params.set('action', action);
   if (actorType) params.set('actorKind', actorType);
+  if (actorId) {
+    if (!isUuid(actorId)) throw new ApiError('VALIDATION_FAILED', 400);
+    params.set('actorId', actorId);
+  }
   const dateBound = (value, end) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new ApiError('VALIDATION_FAILED', 400);
     const date = new Date(value + 'T00:00:00Z');
