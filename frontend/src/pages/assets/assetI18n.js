@@ -11,7 +11,7 @@ export const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed';
 export const ASSET_I18N = {
   vi: {
     assets: {
-      title: 'Danh sách Tài sản',
+      title: 'Danh mục tài sản',
       subtitle: 'Khai báo các tài sản thuộc kho di sản cá nhân để chuẩn bị phân định thừa kế.',
       addNewBtn: 'Thêm tài sản mới',
       notice:
@@ -73,6 +73,8 @@ export const ASSET_I18N = {
         typeLabel: 'Dạng nội dung',
         typePlaceholder: '-- Chọn dạng nội dung --',
         typeDescText: 'Ghi chú văn bản bảo mật (hướng dẫn bí mật, di nguyện riêng tư, tài liệu ghi chú...)',
+        credentialUsernameLabel: 'Tên đăng nhập',
+        credentialPasswordLabel: 'Mật khẩu / mã bí mật',
         typeDescCredential: 'Thông tin xác thực (tài khoản đăng nhập, mật khẩu, mã PIN, khóa bảo mật...)',
         beneficiaryHint: 'Lưu ý cấu hình: Cần khai báo Người thụ hưởng để hoàn tất cấu hình kho di sản. Bạn vẫn có thể lưu tài sản ngay bây giờ và bổ sung người thụ hưởng sau.',
         descriptionLabel: 'Mô tả / Ghi chú',
@@ -113,7 +115,7 @@ export const ASSET_I18N = {
   },
   en: {
     assets: {
-      title: 'Asset Inventory',
+      title: 'Heritage Assets',
       subtitle: 'Record and organize assets within your vault to prepare for succession planning.',
       addNewBtn: 'Add New Asset',
       notice:
@@ -175,6 +177,8 @@ export const ASSET_I18N = {
         typeLabel: 'Content Format',
         typePlaceholder: '-- Select content format --',
         typeDescText: 'Secured text note (private instructions, messages, notes...)',
+        credentialUsernameLabel: 'Username',
+        credentialPasswordLabel: 'Password / secret',
         typeDescCredential: 'Credentials (account logins, passwords, PINs, secret keys...)',
         beneficiaryHint: 'Vault Configuration Notice: Declaring beneficiaries is needed to complete your vault setup. You can still save this asset now and add beneficiaries later.',
         descriptionLabel: 'Description / Notes',

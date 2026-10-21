@@ -58,10 +58,42 @@ test('DMS Validation - Non-integer and floating values trigger integer error', (
 
 test('DMS Validation - Zero and negative values trigger positive error', () => {
   const errZero = validateDmsInterval(0, 'vi');
+  assert.equal(typeof errZero.check_interval_days, 'string');
+  assert.equal(errZero.check_interval_days, 'Chu kỳ kiểm tra phải là số nguyên dương lớn hơn 0.');
   assert.equal(errZero.check_interval_days, dmsStatusMessages.vi.intervalPositive);
 
   const errNegative = validateDmsInterval(-10, 'en');
+  assert.equal(typeof errNegative.check_interval_days, 'string');
+  assert.equal(errNegative.check_interval_days, 'Check-in interval must be a positive integer greater than 0.');
   assert.equal(errNegative.check_interval_days, dmsStatusMessages.en.intervalPositive);
+});
+
+test('DMS Validation - Over 180 days triggers intervalMax error (VI and EN)', () => {
+  // Test 181 and 365 in VI
+  const err181Vi = validateDmsInterval(181, 'vi');
+  assert.equal(typeof err181Vi.check_interval_days, 'string');
+  assert.ok(err181Vi.check_interval_days.length > 0);
+  assert.equal(err181Vi.check_interval_days, 'Chu kỳ kiểm tra không được vượt quá 180 ngày.');
+  assert.equal(err181Vi.check_interval_days, dmsStatusMessages.vi.intervalMax);
+
+  const err365Vi = validateDmsInterval('365', 'vi');
+  assert.equal(err365Vi.check_interval_days, 'Chu kỳ kiểm tra không được vượt quá 180 ngày.');
+
+  // Test 181 and 365 in EN
+  const err181En = validateDmsInterval(181, 'en');
+  assert.equal(typeof err181En.check_interval_days, 'string');
+  assert.ok(err181En.check_interval_days.length > 0);
+  assert.equal(err181En.check_interval_days, 'Check-in interval cannot exceed 180 days.');
+  assert.equal(err181En.check_interval_days, dmsStatusMessages.en.intervalMax);
+
+  const err365En = validateDmsInterval('365', 'en');
+  assert.equal(err365En.check_interval_days, 'Check-in interval cannot exceed 180 days.');
+
+  // Boundary 1 and 180 pass validation
+  assert.deepEqual(validateDmsInterval(1, 'vi'), {});
+  assert.deepEqual(validateDmsInterval('1', 'en'), {});
+  assert.deepEqual(validateDmsInterval(180, 'vi'), {});
+  assert.deepEqual(validateDmsInterval('180', 'en'), {});
 });
 
 test('DMS Validation - Valid positive integers pass validation', () => {

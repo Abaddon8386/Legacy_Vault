@@ -269,22 +269,6 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
         </div>
 
         <div className="lv-pagination-controls">
-          <div className="lv-page-size-selector">
-            <label htmlFor="page-size-select">{t.assets.pagination.rowsPerPage}</label>
-            <select
-              id="page-size-select"
-              value={pageSize}
-              onChange={(e) => {
-                onQueryChange({ ...query, size: Number(e.target.value), page: 0 })
-              }}
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-
           <div className="lv-page-nav-btns">
             <Button
               variant="secondary"

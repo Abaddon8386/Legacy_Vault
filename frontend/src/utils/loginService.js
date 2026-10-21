@@ -39,6 +39,12 @@ export const authStatusMessages = {
     SERVICE_UNAVAILABLE: 'Dịch vụ xác thực tạm thời không thể kết nối. Vui lòng thử lại sau.',
     INVALID_AUTH_RESPONSE: 'Phản hồi xác thực từ máy chủ không đúng định dạng quy chuẩn. Vui lòng thử lại sau.',
     SUCCESS: 'Đăng nhập thành công.',
+    GOOGLE_SIGNIN_UNAVAILABLE: 'Đăng nhập Google hiện chưa khả dụng.',
+    GOOGLE_SCRIPT_LOAD_ERROR: 'Không thể kết nối đến dịch vụ Google. Vui lòng kiểm tra kết nối mạng hoặc tiện ích chặn quảng cáo.',
+    GOOGLE_CLIENT_ID_MISSING: 'Đăng nhập Google hiện chưa khả dụng.',
+    INVALID_GOOGLE_CREDENTIAL: 'Thông tin xác thực từ Google không hợp lệ hoặc đã hết hạn.',
+    GOOGLE_SIGNIN_CANCELLED: 'Phiên đăng nhập Google đã được đóng hoặc hủy.',
+    BACKEND_NOT_READY: 'Dịch vụ xác thực hiện chưa sẵn sàng trên máy chủ. Vui lòng thử lại sau.',
   },
   en: {
     SIMULATED_SUCCESS: 'Simulated login successful (DEV Preview Mode). Real authentication session is not activated.',
@@ -55,6 +61,12 @@ export const authStatusMessages = {
     SERVICE_UNAVAILABLE: 'Authentication service temporarily unavailable. Please try again later.',
     INVALID_AUTH_RESPONSE: 'Authentication response from server has an invalid format. Please try again later.',
     SUCCESS: 'Login successful.',
+    GOOGLE_SIGNIN_UNAVAILABLE: 'Google sign-in is currently unavailable.',
+    GOOGLE_SCRIPT_LOAD_ERROR: 'Unable to connect to Google services. Please check your network connection or ad blocker.',
+    GOOGLE_CLIENT_ID_MISSING: 'Google sign-in is currently unavailable.',
+    INVALID_GOOGLE_CREDENTIAL: 'Google authentication credential is invalid or has expired.',
+    GOOGLE_SIGNIN_CANCELLED: 'Google sign-in session was closed or cancelled.',
+    BACKEND_NOT_READY: 'Authentication service is not ready on the server. Please try again later.',
   },
 };
 
@@ -83,6 +95,69 @@ export function getAuthMessage(code, lang = 'vi') {
 export function isValidLoginResponse(data) {
   try { createSession(data); return true; } catch { return false; }
 }
+
+/**
+ * Proposed Google authentication contract for LegacyVault (awaiting Backend confirmation).
+ * Sends Google Identity Services (GIS) ID credential to /auth/google.
+ *
+ * SAFETY & ARCHITECTURAL COMPLIANCE:
+ * 1. Never decode credential in client to create fake user or session.
+ * 2. Only valid backend LoginResponse creates an active session.
+ * 3. Gracefully maps unready backend (404/HTML) to GOOGLE_SIGNIN_UNAVAILABLE.
+ * 4. Stale responses are aborted via AbortSignal.
+ * 5. Isolated strictly within loginService.js so UI components never need adjustments
+ *    once Backend finalizes the endpoint.
+ *
+ * @param {Object} payload - { credential: string }
+ * @param {Object} options - { lang: 'vi'|'en', signal?: AbortSignal, fetchFn?: Function }
+ * @returns {Promise<Object>} resolved login result
+ */
+export async function authenticateWithGoogle({ credential } = {}, options = {}) {
+  const token = typeof credential === 'string' ? credential.trim() : '';
+  const lang = options.lang || 'vi';
+
+  if (!token) {
+    const err = new ApiError('INVALID_GOOGLE_CREDENTIAL', 400);
+    err.message = getAuthMessage('INVALID_GOOGLE_CREDENTIAL', lang);
+    throw err;
+  }
+
+  try {
+    // Proposed contract: POST /auth/google with { credential: string }
+    const data = await request('/auth/google', {
+      ...options,
+      method: 'POST',
+      expectedStatus: 200,
+      body: { credential: token },
+    });
+    const session = createSession(data);
+    return {
+      accessToken: session.accessToken,
+      tokenType: data.tokenType,
+      expiresInSeconds: data.expiresInSeconds,
+      user: session.user,
+      status: 200,
+      code: 'SUCCESS',
+      message: getAuthMessage('SUCCESS', lang),
+      isSimulation: false,
+    };
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    let safeCode = error.code;
+    if (
+      ['BACKEND_NOT_READY', 'RESOURCE_NOT_FOUND', 'ENDPOINT_NOT_IMPLEMENTED', 'INVALID_RESPONSE'].includes(error.code) ||
+      error.status === 404
+    ) {
+      safeCode = 'GOOGLE_SIGNIN_UNAVAILABLE';
+    } else if (error.code === 'INVALID_AUTH_RESPONSE') {
+      safeCode = 'INVALID_AUTH_RESPONSE';
+    }
+    const safeError = new ApiError(safeCode, error.status || 0, { traceId: error.traceId });
+    safeError.message = getAuthMessage(safeCode, lang);
+    throw safeError;
+  }
+}
+
 
 /**
  * Execute login in preview/development mode or via backend API when configured.

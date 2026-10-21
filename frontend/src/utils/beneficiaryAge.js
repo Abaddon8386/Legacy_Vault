@@ -1,5 +1,6 @@
 // Calendar age for immediate form feedback only; no server decision is inferred.
 export function beneficiaryAge(dateOfBirth, today = new Date()) {
+  if (!(today instanceof Date) || !Number.isFinite(today.getTime())) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth || '')) return null;
   const date = new Date(`${dateOfBirth}T00:00:00Z`);
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== dateOfBirth) return null;

@@ -1,4 +1,6 @@
 import { validateLinkExistingAccountForm, validateCreateBeneficiaryAccountForm } from '../../utils/beneficiaryAccountValidation.js';
+import { request, ApiError } from '../../api/http.js';
+import { isUuid } from '../../api/contracts.js';
 export function assertHandoverWritable(data, options = {}, requireSession = true) {
   const fail = (code, vi, en) => { const error = new Error(options.lang === 'en' ? en : vi); error.code = code; throw error; };
   if (options.roles && !options.roles.includes('STAFF_EXECUTOR')) fail('FORBIDDEN', 'Bạn không có quyền bàn giao.', 'You cannot perform handover actions.');
@@ -426,34 +428,94 @@ export async function fetchHandoverCase(scenarioKey = 'case-standard', options =
   notReadyError.status = 503;
   throw notReadyError;
 }
+export function validateBeneficiaryAccountReceipt(result, expectedBeneficiaryId) {
+  if (!result || typeof result !== 'object') {
+    const err = new ApiError('INVALID_RECEIPT', 500);
+    throw err;
+  }
+  if (!isUuid(result.beneficiaryId) || result.beneficiaryId !== expectedBeneficiaryId) {
+    const err = new ApiError('INVALID_RECEIPT', 500);
+    throw err;
+  }
+  if (!isUuid(result.accountId)) {
+    const err = new ApiError('INVALID_RECEIPT', 500);
+    throw err;
+  }
+  if (result.accountStatus !== 'ACCOUNT_CREATED') {
+    const err = new ApiError('INVALID_RECEIPT', 500);
+    throw err;
+  }
+  if (result.identityVerificationStatus !== 'VERIFIED_AT_COUNTER') {
+    const err = new ApiError('INVALID_RECEIPT', 500);
+    throw err;
+  }
+  return true;
+}
+
 export async function linkExistingBeneficiaryAccount(beneficiaryId, email, options = {}) {
-  if (isCounterHandoverSimulationPermitted(options)) assertHandoverWritable(options.caseData, options);
+  const isSimulation = isCounterHandoverSimulationPermitted(options);
+  if (isSimulation) assertHandoverWritable(options.caseData, options);
   const validation = validateLinkExistingAccountForm(email);
   if (!validation.isValid) {
-    const err = new Error(validation.messageVi);
+    const err = new Error(options.lang === 'en' ? validation.messageEn : validation.messageVi);
     err.code = 'VALIDATION_FAILED';
     err.fieldErrors = { email: validation.errorKey };
     throw err;
   }
 
-  if (isCounterHandoverSimulationPermitted(options)) {
+  if (isSimulation) {
     return {
       beneficiaryId,
       linkedUserId: `usr-${String(Math.floor(Math.random() * 9000) + 1000)}`,
       linkedEmail: validation.email,
       status: 'LINKED',
+      accountStatus: 'ACCOUNT_CREATED',
+      identityVerificationStatus: 'VERIFIED_AT_COUNTER',
     };
   }
 
-  const notReadyError = new Error('Dịch vụ liên kết tài khoản chưa sẵn sàng từ máy chủ.');
-  notReadyError.code = 'BACKEND_NOT_READY';
-  notReadyError.status = 503;
-  throw notReadyError;
+  if (!options.accessToken) {
+    const notReadyError = new Error(options.lang === 'en' ? 'Account linking service is not available.' : 'Dịch vụ liên kết tài khoản chưa sẵn sàng từ máy chủ.');
+    notReadyError.code = 'BACKEND_NOT_READY';
+    notReadyError.status = 503;
+    throw notReadyError;
+  }
+
+  try {
+    const result = await request(`/staff/beneficiaries/${beneficiaryId}/account-link`, {
+      method: 'POST',
+      body: { accountEmail: validation.email },
+      accessToken: options.accessToken,
+      lang: options.lang || 'vi',
+      signal: options.signal,
+      fetchFn: options.fetchFn,
+      expectedStatus: 200,
+    });
+    validateBeneficiaryAccountReceipt(result, beneficiaryId);
+    return {
+      beneficiaryId: result.beneficiaryId,
+      linkedUserId: result.accountId,
+      linkedEmail: validation.email,
+      status: 'LINKED',
+      accountStatus: result.accountStatus,
+      identityVerificationStatus: result.identityVerificationStatus,
+    };
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    if (err.code === 'NETWORK_ERROR' || err.status === 503) {
+      const notReady = new Error(options.lang === 'en' ? 'Counter account linking service is not ready.' : 'Dịch vụ liên kết tài khoản tại quầy chưa sẵn sàng trên máy chủ.');
+      notReady.code = 'BACKEND_NOT_READY';
+      notReady.status = 503;
+      throw notReady;
+    }
+    throw err;
+  }
 }
 
 export async function createAndLinkBeneficiaryAccount(beneficiaryId, formData = {}, options = {}) {
-  if (isCounterHandoverSimulationPermitted(options)) assertHandoverWritable(options.caseData, options);
-  const validation = validateCreateBeneficiaryAccountForm(formData);
+  const isSimulation = isCounterHandoverSimulationPermitted(options);
+  if (isSimulation) assertHandoverWritable(options.caseData, options);
+  const validation = validateCreateBeneficiaryAccountForm(formData, { isLive: !isSimulation });
   if (!validation.isValid) {
     const err = new Error('Thông tin tạo tài khoản không hợp lệ.');
     err.code = 'VALIDATION_FAILED';
@@ -461,18 +523,60 @@ export async function createAndLinkBeneficiaryAccount(beneficiaryId, formData = 
     throw err;
   }
 
-  if (isCounterHandoverSimulationPermitted(options)) {
+  if (isSimulation) {
     return {
       beneficiaryId,
       linkedUserId: `usr-new-${String(Math.floor(Math.random() * 9000) + 1000)}`,
       linkedEmail: formData.email.trim(),
       status: 'LINKED',
       activatedAtCounter: true,
+      accountStatus: 'ACCOUNT_CREATED',
+      identityVerificationStatus: 'VERIFIED_AT_COUNTER',
     };
   }
 
-  const notReadyError = new Error('Dịch vụ tạo tài khoản thụ hưởng chưa sẵn sàng từ máy chủ.');
-  notReadyError.code = 'BACKEND_NOT_READY';
-  notReadyError.status = 503;
-  throw notReadyError;
+  if (!options.accessToken) {
+    const notReadyError = new Error(options.lang === 'en' ? 'Account creation service is not available.' : 'Dịch vụ tạo tài khoản thụ hưởng chưa sẵn sàng từ máy chủ.');
+    notReadyError.code = 'BACKEND_NOT_READY';
+    notReadyError.status = 503;
+    throw notReadyError;
+  }
+
+  try {
+    const payload = {
+      email: validation.email || formData.email.trim(),
+      password: formData.password,
+    };
+    if (typeof formData.phone === 'string' && formData.phone.trim().length > 0) {
+      payload.phone = formData.phone.trim();
+    }
+    const result = await request(`/staff/beneficiaries/${beneficiaryId}/account`, {
+      method: 'POST',
+      body: payload,
+      accessToken: options.accessToken,
+      lang: options.lang || 'vi',
+      signal: options.signal,
+      fetchFn: options.fetchFn,
+      expectedStatus: 201,
+    });
+    validateBeneficiaryAccountReceipt(result, beneficiaryId);
+    return {
+      beneficiaryId: result.beneficiaryId,
+      linkedUserId: result.accountId,
+      linkedEmail: payload.email,
+      status: 'LINKED',
+      activatedAtCounter: true,
+      accountStatus: result.accountStatus,
+      identityVerificationStatus: result.identityVerificationStatus,
+    };
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    if (err.code === 'NETWORK_ERROR' || err.status === 503) {
+      const notReady = new Error(options.lang === 'en' ? 'Counter account creation service is not ready.' : 'Dịch vụ tạo tài khoản thụ hưởng tại quầy chưa sẵn sàng trên máy chủ.');
+      notReady.code = 'BACKEND_NOT_READY';
+      notReady.status = 503;
+      throw notReady;
+    }
+    throw err;
+  }
 }

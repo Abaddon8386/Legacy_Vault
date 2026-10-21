@@ -1,3 +1,5 @@
+import { AssetCredentialFields } from './AssetCredentialFields.jsx'
+import { credentialPayload } from '../../utils/credentialPayload.js'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
@@ -27,6 +29,8 @@ export function AssetEditModal({
   const [name, setName] = useState(asset?.name || '')
   const [description, setDescription] = useState(asset?.description || '')
   const [payload, setPayload] = useState('')
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const replacementPayload = asset?.assetType === 'CREDENTIAL' ? credentialPayload(credentials.username, credentials.password) : payload
   const [errors, setErrors] = useState({})
 
   function validate() {
@@ -54,7 +58,7 @@ export function AssetEditModal({
     const patchData = {}
     if (name.trim() !== asset.name) patchData.name = name.trim()
     if (description.trim() !== (asset.description || '')) patchData.description = description.trim()
-    if (payload.length) patchData.payload = payload
+    if (replacementPayload.length) patchData.payload = replacementPayload
     if (!Object.keys(patchData).length) {
       setErrors({ noChanges: true })
       return
@@ -66,6 +70,7 @@ export function AssetEditModal({
   function handleResetAndClose() {
     if (isSubmitting) return
     setPayload('')
+    setCredentials({ username: '', password: '' })
     setErrors({})
     onClose()
   }
@@ -163,9 +168,13 @@ export function AssetEditModal({
 
           {/* Confidential Payload (Write-Only, starts empty) */}
           <div className="lv-form-group">
-            <label htmlFor="edit-asset-payload" className="lv-form-label">
+            <label htmlFor={isCredential ? 'edit-credential-username' : 'edit-asset-payload'} className="lv-form-label">
               {t.assets.editModal.payloadLabel}
             </label>
+            {isCredential ? (
+              <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={isSubmitting}
+                onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, noChanges: false })); }} />
+            ) : (
             <textarea
               id="edit-asset-payload"
               rows={3}
@@ -175,6 +184,7 @@ export function AssetEditModal({
               onChange={(e) => { setPayload(e.target.value); if (errors.noChanges) setErrors(prev => ({ ...prev, noChanges: false })) }}
               disabled={isSubmitting}
             />
+            )}
             <span className="lv-form-hint">
               <Lock size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
               {t.assets.editModal.payloadHint}

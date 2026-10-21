@@ -17,13 +17,37 @@ async function compile(production=false) {
 }
 async function mount(Component,props={}) { const host=document.createElement('div');document.body.append(host);const root=createRoot(host);await act(async()=>root.render(React.createElement(Component,props)));return {host,render:async(props)=>{await act(async()=>root.render(React.createElement(Component,props)));},close:async()=>{await act(async()=>root.unmount());host.remove();}}; }
 const Preview=await compile();
+
+test('Create dialog clears password on Escape and cancel, returns focus, and retains draft on language change', async () => {
+ const props={isDevPreview:true,lang:'en'};const view=await mount(Preview,props);
+ const change=(element,value)=>{const key=Object.keys(element).find(key=>key.startsWith('__reactProps'));element[key].onChange({target:{value}});};
+ try {
+  for(const close of ['Escape','cancel']) {
+   const opener=[...view.host.querySelectorAll('button')].find(button=>button.textContent.includes('Activate at Counter'));
+   opener.focus();await act(async()=>opener.click());
+   const input=view.host.querySelector('input[type=password]');assert.ok(input);
+   await act(async()=>change(input,'synthetic-secret'));
+   await view.render({...props,lang:'vi'});
+   assert.equal(view.host.querySelector('input[type=password]').value,'synthetic-secret');
+   if(close==='Escape')await act(async()=>window.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+   else await act(async()=>[...view.host.querySelectorAll('[role=dialog] button')].find(button=>button.textContent.includes('Hủy')).click());
+   assert.equal(view.host.querySelector('[role=dialog]'),null);
+   assert.equal(document.activeElement,opener);
+   await view.render(props);
+   await act(async()=>opener.click());
+   assert.equal(view.host.querySelector('input[type=password]').value,'');
+   await act(async()=>window.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+  }
+ } finally {await view.close();}
+});
 test('Rendered preview permits only ticket-specific actions', async()=>{
  const view=await mount(Preview,{isDevPreview:true,lang:'vi'}); const {host}=view;
  try { const link=[...host.querySelectorAll('button')].find(b=>/Liên kết/.test(b.textContent));assert.ok(link);await act(async()=>link.click());const dialog=host.querySelector('[role=dialog]');assert.ok(dialog);assert.equal(document.activeElement,dialog.querySelector('input'));await act(async()=>{document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));});assert.equal(host.querySelector('[role=dialog]'),null);assert.equal([...host.querySelectorAll('button')].some(b=>/Ký nhận|Lưu trữ|Giao tài sản/.test(b.textContent)),false); } finally { await view.close(); }
 });
 test('Real production build rejects preview override without synthetic success', async()=>{
+ const previous=globalThis.fetch;const calls=[];globalThis.fetch=async(url)=>{calls.push(url);return new Response(JSON.stringify({code:'BACKEND_NOT_READY'}),{status:503,headers:{'Content-Type':'application/json'}});};
  const Production=await compile(true);const view=await mount(Production,{isDevPreview:true,lang:'vi'});
- try { assert.match(view.host.textContent,/chưa sẵn sàng|BACKEND_NOT_READY/i); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();}
+ try { assert.ok(view.host.querySelector('[role=alert]')); assert.ok(calls.some(url=>url.includes('/staff/verification-cases'))); assert.doesNotMatch(view.host.textContent,/CASE-2026-0049|HDS-/); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();globalThis.fetch=previous;}
 });
 
 test('Create/link validation shows specific localized errors and re-translates on VI/EN switch', async()=>{

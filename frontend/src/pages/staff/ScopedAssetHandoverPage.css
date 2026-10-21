@@ -207,6 +207,7 @@
 
 .lv-asset-handover-view .lv-handover-table {
   width: 100%;
+  min-width: 600px;
   border-collapse: collapse;
   text-align: left;
   font-size: 14px;
@@ -322,15 +323,372 @@
   flex-shrink: 0;
 }
 
+/* Step Indicator & Headers */
+.lv-asset-handover-view .lv-handover-step-indicator {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.lv-asset-handover-view .lv-handover-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-asset-handover-view .lv-handover-card__desc {
+  font-size: 13.5px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 4px 0 0;
+  line-height: 1.45;
+}
+
+/* Step 1: Recipient Selector */
+.lv-asset-handover-view .lv-recipient-selector-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 600px;
+}
+
+.lv-asset-handover-view .lv-handover-recipient-select {
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: var(--lv-radius-md, 10px);
+  font-size: 14px;
+  color: var(--lv-text-ink, #1f2421);
+  background-color: #faf9f6;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.lv-asset-handover-view .lv-handover-recipient-select:focus {
+  outline: none;
+  border-color: var(--lv-border-focus, #c5a059);
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.18);
+  background-color: #ffffff;
+}
+
+/* Step 2: Checkbox Table */
+.lv-asset-handover-view .lv-handover-table-checkbox {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  accent-color: var(--lv-brand-forest, #164639);
+}
+
+.lv-asset-handover-view .lv-handover-table-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.lv-asset-handover-view .lv-handover-row--selected td {
+  background-color: #f7f9f7;
+}
+
+.lv-asset-handover-view .lv-asset-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lv-asset-handover-view .lv-asset-item-desc {
+  font-size: 12.5px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.4;
+}
+
+/* Action Bar below Table */
+.lv-asset-handover-view .lv-handover-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-asset-handover-view .lv-selected-count-text {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-asset-handover-view .lv-btn-review-handover {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--lv-radius-md, 8px);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.lv-asset-handover-view .lv-btn-review-handover:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.lv-asset-handover-view .lv-btn-review-handover:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #8c918b;
+}
+
+/* Step 3: Review Modal Dialog */
+.lv-asset-handover-view .lv-handover-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(22, 70, 57, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+  animation: lvFadeIn 0.2s ease-out;
+}
+
+.lv-asset-handover-view .lv-handover-modal-dialog {
+  background-color: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 36px rgba(22, 70, 57, 0.15);
+  overflow: hidden;
+  animation: lvSlideUp 0.2s ease-out;
+}
+
+.lv-asset-handover-view .lv-handover-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  background-color: #faf9f6;
+}
+
+.lv-asset-handover-view .lv-handover-modal-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0;
+}
+
+.lv-asset-handover-view .lv-btn-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--lv-text-muted, #6b726b);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.lv-asset-handover-view .lv-btn-modal-close:hover {
+  background-color: #eee9e0;
+}
+
+.lv-asset-handover-view .lv-handover-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lv-asset-handover-view .lv-review-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background-color: #faf8f5;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 8px);
+  padding: 14px 16px;
+}
+
+.lv-asset-handover-view .lv-review-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lv-asset-handover-view .lv-review-meta-item--full {
+  grid-column: 1 / -1;
+  border-top: 1px dashed var(--lv-border-subtle, #eae5dc);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.lv-asset-handover-view .lv-review-meta-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lv-text-muted, #6b726b);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lv-asset-handover-view .lv-review-meta-value {
+  font-size: 13.5px;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-asset-handover-view .lv-review-section-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 0 10px;
+}
+
+.lv-asset-handover-view .lv-review-assets-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.lv-asset-handover-view .lv-review-asset-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: #fcfbf9;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 6px;
+  font-size: 13.5px;
+}
+
+.lv-asset-handover-view .lv-review-check-icon {
+  color: var(--lv-status-success-text, #1d724f);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-asset-handover-view .lv-review-item-desc {
+  font-size: 12px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 2px 0 0;
+}
+
+.lv-asset-handover-view .lv-review-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: #fff9ed;
+  border: 1px solid var(--lv-accent-gold-border, rgba(197, 160, 89, 0.3));
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.lv-asset-handover-view .lv-review-warning-icon {
+  color: var(--lv-accent-gold, #c5a059);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-asset-handover-view .lv-review-warning-box p {
+  font-size: 12.5px;
+  color: #7a5010;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.lv-asset-handover-view .lv-handover-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  background-color: #faf9f6;
+}
+
+.lv-asset-handover-view .lv-btn-cancel-review {
+  padding: 9px 18px;
+  background-color: transparent;
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--lv-text-body, #2b302c);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.lv-asset-handover-view .lv-btn-cancel-review:hover {
+  background-color: #eee9e0;
+}
+
+.lv-asset-handover-view .lv-btn-confirm-deliver {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  background-color: var(--lv-brand-forest, #164639);
+  border: none;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.lv-asset-handover-view .lv-btn-confirm-deliver:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.lv-asset-handover-view .lv-btn-confirm-deliver:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .lv-asset-handover-view .lv-handover-case-bar {
+  .lv-asset-handover-view .lv-handover-action-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
 
-  .lv-asset-handover-view .lv-handover-btn-reset {
+  .lv-asset-handover-view .lv-btn-review-handover {
     width: 100%;
     justify-content: center;
+  }
+
+  .lv-asset-handover-view .lv-review-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lv-asset-handover-view .lv-handover-modal-dialog {
+    max-height: 95vh;
   }
 }

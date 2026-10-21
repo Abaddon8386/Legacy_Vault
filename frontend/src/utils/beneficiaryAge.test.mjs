@@ -16,3 +16,5 @@ test('missing, impossible and future birthdays do not imply adulthood', () => {
   }
   assert.equal(beneficiaryAge('2008-02-29', new Date(2026, 1, 28)), 17);
 });
+
+test('invalid reference clock does not imply an age',()=>{assert.equal(beneficiaryAge('2000-01-01',new Date('invalid')),null);});

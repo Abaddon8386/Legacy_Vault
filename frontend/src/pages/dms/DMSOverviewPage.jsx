@@ -6,7 +6,8 @@ import {
   INTERVAL_PRESETS,
   DEFAULT_INTERVAL_DAYS,
   formatDmsDate,
-  validateDmsInterval,
+  formatDmsInterval,
+  validateDmsDuration,
   getDmsMessage,
 } from '../../utils/dmsService.js';
 import StatusBadge from '../../components/common/StatusBadge.jsx';
@@ -37,6 +38,13 @@ export default function DMSOverviewPage({
 
   // Form states
   const [intervalInput, setIntervalInput] = useState(DEFAULT_INTERVAL_DAYS);
+  const [hoursInput, setHoursInput] = useState('0');
+  const [minutesInput, setMinutesInput] = useState('0');
+  const syncedContextRef = useRef(null);
+  const syncedRefreshTriggerRef = useRef(onRefreshTrigger);
+  const syncedRefreshKeyRef = useRef(refreshKey);
+  const activeOwnerIdRef = useRef(ownerId);
+  const fetchRequestId = useRef(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -56,14 +64,36 @@ export default function DMSOverviewPage({
   useEffect(() => { active.current = true; return () => { active.current = false; mutationController.current?.abort(); }; }, []);
 
   const [showInfoPopover, setShowInfoPopover] = useState(false);
+  const isDevPreviewActive = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const searchParams = new URLSearchParams(window.location.search);
+    const hasPreview = searchParams.get('preview') === 'true';
+    return Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
+  }, [accessToken, isDevPreview, showDevToolbar]);
 
-  // Data fetching
+  // Data fetching with intelligent sync, race condition protection and context reset
   useEffect(() => {
     let ignore = false;
     const controller = new AbortController();
+    const currentRequestId = ++fetchRequestId.current;
 
-    // Check if DEV Preview is active via URL params or prop
-    // Strictly gated: scenario only takes effect when import.meta.env.DEV is true AND preview=true is present
+    const currentContextKey = ownerId ?? '__default__';
+    const isOwnerChanged = activeOwnerIdRef.current !== ownerId;
+    if (isOwnerChanged) {
+      activeOwnerIdRef.current = ownerId;
+      // Cleanly reset inputs, errors and responses of previous owner/context
+      setFieldErrors({});
+      setSaveError('');
+      setSaveSuccess('');
+      setCheckInNotice('');
+      setCheckInError('');
+      setError(null);
+      setDmsData(null);
+      setIntervalInput(DEFAULT_INTERVAL_DAYS);
+      setHoursInput('0');
+      setMinutesInput('0');
+    }
+
     const searchParams = new URLSearchParams(window.location.search);
     const hasPreview = searchParams.get('preview') === 'true';
     const isDevPreviewActive = Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
@@ -71,17 +101,29 @@ export default function DMSOverviewPage({
 
     fetchDmsConfig({ scenario, isDevPreview: isDevPreviewActive, lang, accessToken, ownerId, signal: controller.signal })
       .then((data) => {
-        if (!ignore) {
+        if (!ignore && currentRequestId === fetchRequestId.current) {
           setDmsData(data ? { ...data, snapshotTimestamp: Date.now() } : null);
-          if (data && data.checkIntervalDays) {
-            setIntervalInput(data.checkIntervalDays);
+          const needsSync =
+            syncedContextRef.current !== currentContextKey ||
+            syncedRefreshTriggerRef.current !== onRefreshTrigger ||
+            syncedRefreshKeyRef.current !== refreshKey;
+
+          if (needsSync) {
+            if (data && data.checkIntervalDays !== undefined && data.checkIntervalDays !== null) {
+              setIntervalInput(data.checkIntervalDays);
+              setHoursInput(String(data.checkIntervalHours ?? 0));
+              setMinutesInput(String(data.checkIntervalMinutes ?? 0));
+            }
+            syncedContextRef.current = currentContextKey;
+            syncedRefreshTriggerRef.current = onRefreshTrigger;
+            syncedRefreshKeyRef.current = refreshKey;
           }
           setError(null);
           setLoading(false);
         }
       })
       .catch((err) => {
-        if (!ignore && err.name !== 'AbortError') {
+        if (!ignore && currentRequestId === fetchRequestId.current && err.name !== 'AbortError') {
           if (err.status === 401) { onUnauthorized?.(); return; }
           setError(err);
           setDmsData(null);
@@ -90,11 +132,13 @@ export default function DMSOverviewPage({
       });
 
     return () => {
-      ignore = true; controller.abort();
+      ignore = true;
+      controller.abort();
     };
   }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, onUnauthorized]);
 
-  const handleManualRetry = useCallback(() => {
+
+    const handleManualRetry = useCallback(() => {
     setLoading(true);
     setError(null);
     setRefreshKey((k) => k + 1);
@@ -102,6 +146,8 @@ export default function DMSOverviewPage({
 
   const handlePresetSelect = (days) => {
     setIntervalInput(days);
+    setHoursInput('0');
+    setMinutesInput('0');
     setFieldErrors({});
     setSaveError('');
   };
@@ -109,8 +155,26 @@ export default function DMSOverviewPage({
   const handleIntervalInputChange = (e) => {
     const val = e.target.value;
     setIntervalInput(val);
-    if (fieldErrors.check_interval_days) {
-      const errs = validateDmsInterval(val, lang);
+    if (fieldErrors.days || fieldErrors.duration || fieldErrors.check_interval_days) {
+      const errs = validateDmsDuration({ days: val, hours: hoursInput, minutes: minutesInput }, lang);
+      setFieldErrors(errs);
+    }
+  };
+
+  const handleHoursInputChange = (e) => {
+    const val = e.target.value;
+    setHoursInput(val);
+    if (fieldErrors.hours || fieldErrors.duration) {
+      const errs = validateDmsDuration({ days: intervalInput, hours: val, minutes: minutesInput }, lang);
+      setFieldErrors(errs);
+    }
+  };
+
+  const handleMinutesInputChange = (e) => {
+    const val = e.target.value;
+    setMinutesInput(val);
+    if (fieldErrors.minutes || fieldErrors.duration) {
+      const errs = validateDmsDuration({ days: intervalInput, hours: hoursInput, minutes: val }, lang);
       setFieldErrors(errs);
     }
   };
@@ -118,13 +182,15 @@ export default function DMSOverviewPage({
   const handleSaveInterval = async (e) => {
     e.preventDefault();
     if (pendingSave.current || pendingCheckIn.current) return;
-    const errors = validateDmsInterval(intervalInput, lang);
+    const errors = validateDmsDuration({ days: intervalInput, hours: hoursInput, minutes: minutesInput }, lang);
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
     }
 
     pendingSave.current = true;
+    // A read started before this mutation must never replace its result.
+    ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setFieldErrors({});
     setIsSaving(true);
@@ -138,7 +204,7 @@ export default function DMSOverviewPage({
 
     try {
       const updated = await saveDmsConfig(
-        { check_interval_days: intervalInput },
+        { days: intervalInput, hours: hoursInput, minutes: minutesInput },
         {
           isDevPreview: isDevPreviewActive,
           scenario,
@@ -146,7 +212,14 @@ export default function DMSOverviewPage({
         }
       );
       if (!active.current || controller.signal.aborted) return;
+      ++fetchRequestId.current;
+      syncedContextRef.current = ownerId ?? '__default__';
+      syncedRefreshTriggerRef.current = onRefreshTrigger;
+      syncedRefreshKeyRef.current = refreshKey;
       setDmsData(updated ? { ...updated, snapshotTimestamp: Date.now() } : null);
+      if (updated?.checkIntervalDays != null) setIntervalInput(updated.checkIntervalDays);
+      if (updated?.checkIntervalHours != null) setHoursInput(String(updated.checkIntervalHours));
+      if (updated?.checkIntervalMinutes != null) setMinutesInput(String(updated.checkIntervalMinutes));
       setIsConfiguringNew(false);
       setSaveSuccess('SAVED');
     } catch (err) {
@@ -163,6 +236,7 @@ export default function DMSOverviewPage({
   const handleCheckIn = async () => {
     if (pendingCheckIn.current || pendingSave.current) return;
     pendingCheckIn.current = true;
+    ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setIsCheckingIn(true);
     setCheckInNotice('');
@@ -180,7 +254,14 @@ export default function DMSOverviewPage({
         lang, accessToken, ownerId, signal: controller.signal,
       });
       if (!active.current || controller.signal.aborted) return;
+      ++fetchRequestId.current;
+      syncedContextRef.current = ownerId ?? '__default__';
+      syncedRefreshTriggerRef.current = onRefreshTrigger;
+      syncedRefreshKeyRef.current = refreshKey;
       setDmsData(result ? { ...result, snapshotTimestamp: Date.now() } : null);
+      if (result?.checkIntervalDays != null) setIntervalInput(result.checkIntervalDays);
+      if (result?.checkIntervalHours != null) setHoursInput(String(result.checkIntervalHours));
+      if (result?.checkIntervalMinutes != null) setMinutesInput(String(result.checkIntervalMinutes));
       setCheckInNotice('CHECKED_IN');
     } catch (err) {
       if (active.current && !controller.signal.aborted) {
@@ -194,14 +275,27 @@ export default function DMSOverviewPage({
   };
 
   const handleResetForm = () => {
-    if (dmsData && dmsData.checkIntervalDays) {
+    if (dmsData && dmsData.checkIntervalDays != null) {
       setIntervalInput(dmsData.checkIntervalDays);
+      setHoursInput(String(dmsData.checkIntervalHours ?? 0));
+      setMinutesInput(String(dmsData.checkIntervalMinutes ?? 0));
     } else {
       setIntervalInput(DEFAULT_INTERVAL_DAYS);
+      setHoursInput('0');
+      setMinutesInput('0');
     }
     setFieldErrors({});
     setSaveError('');
   };
+
+  // Localized field errors derived from current language and duration state
+  const currentErrors = useMemo(() => {
+    if (Object.keys(fieldErrors).length === 0) return {};
+    return validateDmsDuration({ days: intervalInput, hours: hoursInput, minutes: minutesInput }, lang);
+  }, [fieldErrors, intervalInput, hoursInput, minutesInput, lang]);
+
+  const currentIntervalError = currentErrors.days || currentErrors.check_interval_days || currentErrors.duration || null;
+  const firstErrorMsg = currentIntervalError || currentErrors.hours || currentErrors.minutes || null;
 
   // Calculate cycle progress if timestamps are valid
   const cycleProgress = useMemo(() => {
@@ -249,6 +343,14 @@ export default function DMSOverviewPage({
       cycleProgressTitle: 'Tiến trình chu kỳ hiện tại',
       cycleProgressElapsed: 'Đã trôi qua',
       daysUnit: 'ngày',
+      hoursUnit: 'giờ',
+      minutesUnit: 'phút',
+      daysLabel: 'Số ngày',
+      hoursLabel: 'Số giờ',
+      minutesLabel: 'Số phút',
+      savingFeedback: 'Đang lưu cấu hình…',
+      subDayNoteLive: 'Cấu hình chu kỳ theo giờ và phút đang chờ máy chủ hỗ trợ (PS-91). Phiên đăng nhập hiện tại chỉ lưu chu kỳ ngày nguyên.',
+      demoNotice: 'Dữ liệu minh họa — chưa lưu lên máy chủ',
       actionCardTitle: 'Xác nhận hiện diện trực tuyến',
       actionCardSub: 'Gửi tín hiệu xác nhận để làm mới bộ đếm thời gian chu kỳ tiếp theo',
       checkInBtn: 'Xác nhận còn hoạt động',
@@ -262,9 +364,9 @@ export default function DMSOverviewPage({
       configCardSub:
         'Tùy chỉnh khoảng thời gian giữa các lần hệ thống yêu cầu bạn gửi tín hiệu xác nhận.',
       presetsLabel: 'Gợi ý chu kỳ đề xuất:',
-      presetsHelper: 'Các mức ngày trên là gợi ý nhanh; bạn có thể tùy chọn số ngày bất kỳ phù hợp.',
-      inputLabel: 'Số ngày chu kỳ:',
-      inputHelper: 'Nhập số nguyên ngày (lớn hơn 0) giữa các lần kiểm tra.',
+      presetsHelper: 'Các mức ngày trên là gợi ý nhanh; bạn có thể tùy chọn số ngày phù hợp từ 1 đến 180 ngày.',
+      inputLabel: 'Thời lượng chu kỳ:',
+      inputHelper: 'Nhập ngày, giờ và phút nguyên; tổng lớn hơn 0 và tối đa 180 ngày. Giờ/phút chỉ mô phỏng khi máy chủ chưa hỗ trợ.',
       saveBtn: 'Lưu cấu hình chu kỳ',
       savingBtn: 'Đang lưu cấu hình…',
       resetBtn: 'Đặt lại',
@@ -297,6 +399,14 @@ export default function DMSOverviewPage({
       cycleProgressTitle: 'Current Cycle Progress',
       cycleProgressElapsed: 'Elapsed',
       daysUnit: 'days',
+      hoursUnit: 'hours',
+      minutesUnit: 'minutes',
+      daysLabel: 'Days',
+      hoursLabel: 'Hours',
+      minutesLabel: 'Minutes',
+      savingFeedback: 'Saving configuration…',
+      subDayNoteLive: 'Hour and minute intervals are awaiting backend support (PS-91). The current session only saves whole days.',
+      demoNotice: 'Demo data — not saved to the server',
       actionCardTitle: 'Online Vitality Confirmation',
       actionCardSub: 'Transmit an active presence signal to refresh your upcoming check-in timer',
       checkInBtn: "Confirm Vitality (I'm active)",
@@ -310,9 +420,9 @@ export default function DMSOverviewPage({
       configCardSub:
         'Customize the duration between required activity check-in confirmations.',
       presetsLabel: 'Suggested Presets:',
-      presetsHelper: 'The presets above are quick suggestions; you can enter any custom day count.',
-      inputLabel: 'Interval in Days:',
-      inputHelper: 'Enter a positive integer number of days (> 0) between checks.',
+      presetsHelper: 'The presets above are quick suggestions; you can enter any custom day count from 1 to 180 days.',
+      inputLabel: 'Check-in interval:',
+      inputHelper: 'Enter whole days, hours and minutes; total must exceed zero and not exceed 180 days. Sub-day intervals are demo-only pending server support.',
       saveBtn: 'Save Interval Settings',
       savingBtn: 'Saving Settings…',
       resetBtn: 'Reset',
@@ -469,8 +579,8 @@ export default function DMSOverviewPage({
                   <div className="lv-dms-status-badge-wrap">
                     <StatusBadge status={dmsData.status} lang={lang} />
                   </div>
-                  {dmsData.isSimulation && (
-                    <span className="lv-dms-simulation-tag">{lang === 'en' ? 'Sample data' : 'Dữ liệu minh họa'}</span>
+                  {(dmsData.isSimulation || isDevPreviewActive) && (
+                    <span className="lv-dms-simulation-tag">{t.demoNotice}</span>
                   )}
                 </div>
               </div>
@@ -539,8 +649,8 @@ export default function DMSOverviewPage({
                   <span className="lv-dms-metric-label">{t.metricInterval}</span>
                   <div className="lv-dms-metric-value-row">
                     <span className="lv-dms-metric-value">
-                      {dmsData.checkIntervalDays
-                        ? `${dmsData.checkIntervalDays} ${t.daysUnit}`
+                      {dmsData.checkIntervalDays || dmsData.checkIntervalHours || dmsData.checkIntervalMinutes
+                        ? formatDmsInterval(dmsData, lang)
                         : '—'}
                     </span>
                   </div>
@@ -688,40 +798,117 @@ export default function DMSOverviewPage({
               </div>
 
               {/* Custom Input & Action Cluster */}
+              {/* Custom Duration Inputs & Action Cluster */}
               <div className="lv-dms-input-cluster">
-                <div className="lv-dms-input-col">
-                  <label htmlFor="dms-interval-input" className="lv-dms-input-label">
-                    {t.inputLabel}
-                  </label>
-                  <div className="lv-dms-input-wrap">
-                    <input
-                      id="dms-interval-input"
-                      name="check_interval_days"
-                      type="number"
-                      min="1"
-                      step="1"
-                      className={`lv-dms-input ${fieldErrors.check_interval_days ? 'is-invalid' : ''}`}
-                      value={intervalInput}
-                      onChange={handleIntervalInputChange}
-                      disabled={isSaving}
-                      aria-invalid={Boolean(fieldErrors.check_interval_days)}
-                      aria-describedby={
-                        fieldErrors.check_interval_days
-                          ? 'dms-interval-error'
-                          : 'dms-interval-helper'
-                      }
-                    />
-                    <span className="lv-dms-input-unit">{t.daysUnit}</span>
+                <div className="lv-dms-duration-wrapper">
+                  <span className="lv-dms-duration-title">{t.inputLabel}</span>
+                  <div className="lv-dms-duration-grid">
+                    {/* Ô Ngày */}
+                    <div className="lv-dms-input-col">
+                      <label htmlFor="dms-interval-input" className="lv-dms-input-sublabel">
+                        {t.daysLabel}
+                      </label>
+                      <div className="lv-dms-input-wrap">
+                        <input
+                          id="dms-interval-input"
+                          name="check_interval_days"
+                          type="number"
+                          min="0"
+                          max="180"
+                          step="1"
+                          className={`lv-dms-input ${currentErrors.days || currentErrors.check_interval_days || currentErrors.duration ? 'is-invalid' : ''}`}
+                          value={intervalInput}
+                          onChange={handleIntervalInputChange}
+                          disabled={isSaving}
+                          aria-invalid={Boolean(currentErrors.days || currentErrors.check_interval_days || currentErrors.duration)}
+                          aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
+                        />
+                        <span className="lv-dms-input-unit">{t.daysUnit}</span>
+                      </div>
+                    </div>
+
+                    {/* Ô Giờ */}
+                    <div className="lv-dms-input-col">
+                      <label htmlFor="dms-interval-hours-input" className="lv-dms-input-sublabel">
+                        {t.hoursLabel}
+                      </label>
+                      <div className="lv-dms-input-wrap">
+                        <input
+                          id="dms-interval-hours-input"
+                          name="check_interval_hours"
+                          type="number"
+                          min="0"
+                          max="23"
+                          step="1"
+                          className={`lv-dms-input ${currentErrors.hours ? 'is-invalid' : ''}`}
+                          value={hoursInput}
+                          onChange={handleHoursInputChange}
+                          disabled={isSaving}
+                          aria-invalid={Boolean(currentErrors.hours)}
+                          aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
+                        />
+                        <span className="lv-dms-input-unit">{t.hoursUnit}</span>
+                      </div>
+                    </div>
+
+                    {/* Ô Phút */}
+                    <div className="lv-dms-input-col">
+                      <label htmlFor="dms-interval-minutes-input" className="lv-dms-input-sublabel">
+                        {t.minutesLabel}
+                      </label>
+                      <div className="lv-dms-input-wrap">
+                        <input
+                          id="dms-interval-minutes-input"
+                          name="check_interval_minutes"
+                          type="number"
+                          min="0"
+                          max="59"
+                          step="1"
+                          className={`lv-dms-input ${currentErrors.minutes ? 'is-invalid' : ''}`}
+                          value={minutesInput}
+                          onChange={handleMinutesInputChange}
+                          disabled={isSaving}
+                          aria-invalid={Boolean(currentErrors.minutes)}
+                          aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
+                        />
+                        <span className="lv-dms-input-unit">{t.minutesUnit}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {fieldErrors.check_interval_days ? (
+                  {firstErrorMsg ? (
                     <span id="dms-interval-error" className="lv-dms-field-error" role="alert">
-                      {fieldErrors.check_interval_days}
+                      {firstErrorMsg}
                     </span>
                   ) : (
                     <span id="dms-interval-helper" className="lv-dms-input-helper">
                       {t.inputHelper}
                     </span>
+                  )}
+
+                  {/* Cảnh báo chu kỳ dưới 24h / giờ phút lẻ khi dùng phiên thật chờ BE PS-91 */}
+                  {accessToken && (Number(hoursInput) > 0 || Number(minutesInput) > 0) && (
+                    <div className="lv-dms-subday-notice" role="note">
+                      <span aria-hidden="true">ℹ️</span> {t.subDayNoteLive}
+                    </div>
+                  )}
+
+                  {/* Thanh chờ không xác định khi đang lưu cấu hình */}
+                  {isSaving && (
+                    <div
+                      className="lv-dms-save-feedback-area"
+                      role="status"
+                      aria-live="polite"
+                      aria-busy="true"
+                    >
+                      <div className="lv-dms-save-progress-track">
+                        <div className="lv-dms-save-progress-bar" />
+                      </div>
+                      <div className="lv-dms-save-feedback-label">
+                        <span className="lv-btn-spinner" aria-hidden="true" />
+                        <span>{t.savingFeedback}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
 

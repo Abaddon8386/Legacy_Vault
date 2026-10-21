@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { validateRegistration } from '../../utils/registrationValidation.js';
 import './RegisterPageHenedo.css';
 import { registerUser, getRegistrationMessage } from '../../utils/registrationService.js';
+import { authenticateWithGoogle, authStatusMessages } from '../../utils/loginService.js';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 
 const i18nContent = {
   vi: {
@@ -38,6 +41,7 @@ const i18nContent = {
     privacyLink: 'Chính sách bảo vệ dữ liệu di sản',
     submitButton: 'Tạo tài khoản',
     submittingButton: 'Đang khởi tạo tài khoản…',
+    orDivider: 'Hoặc',
     signinPrompt: 'Đã có tài khoản?',
     signinAction: 'Đăng nhập',
     pendingNotice: 'Thông tin đăng ký đã được xác thực hợp lệ. Hệ thống đang tiến hành xử lý yêu cầu tạo tài khoản.',
@@ -86,6 +90,7 @@ const i18nContent = {
     privacyLink: 'Heritage Privacy Policy',
     submitButton: 'Create account',
     submittingButton: 'Creating sanctuary…',
+    orDivider: 'or',
     signinPrompt: 'Already have an account?',
     signinAction: 'Sign in',
     pendingNotice: 'Registration details validated. System is processing your account creation request.',
@@ -111,20 +116,59 @@ const initialForm = {
   agreeTerms: false,
 };
 
-export default function RegisterPageHenedo({ onNavigateToLogin }) {
-  const [lang, setLang] = useState('vi');
+export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation, onRegisterWithInvitation }) {
+  const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState('idle');
   const [statusCode, setStatusCode] = useState('');
-  const statusMessage = getRegistrationMessage(statusCode, lang);
+  const statusMessage = authStatusMessages[lang]?.[statusCode] || getRegistrationMessage(statusCode, lang);
   const pendingRef = useRef(false);
   const controllerRef = useRef(null);
   useEffect(() => () => controllerRef.current?.abort(), []);
   const [policyModal, setPolicyModal] = useState(null);
 
   const t = i18nContent[lang];
+
+  const handleGoogleCredential = async (credentialResponse) => {
+    if (pendingRef.current || invitationMode) return;
+    pendingRef.current = true;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus('submitting');
+    setStatusCode('');
+
+    try {
+      const response = await authenticateWithGoogle(
+        { credential: credentialResponse?.credential },
+        { signal: controller.signal, lang }
+      );
+      if (controller.signal.aborted) return;
+      if (typeof onAuthenticated === 'function') {
+        await onAuthenticated(response, { signal: controller.signal, lang });
+      } else {
+        setStatus('success');
+        setStatusCode('SUCCESS');
+        setTimeout(() => navigateToLogin(), 1000);
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      setStatus('failure');
+      setStatusCode(err?.code || 'GOOGLE_SIGNIN_UNAVAILABLE');
+    } finally {
+      pendingRef.current = false;
+      if (controllerRef.current === controller) controllerRef.current = null;
+    }
+  };
+
+  const handleGoogleError = (err) => {
+    if (status === 'submitting') return;
+    setStatus('failure');
+    setStatusCode(err?.code || 'GOOGLE_SCRIPT_LOAD_ERROR');
+  };
+
 
   useEffect(() => {
     if (!policyModal) return;
@@ -174,7 +218,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (pendingRef.current) return;
+    if (pendingRef.current || (invitationMode && typeof onRegisterWithInvitation !== 'function')) return;
     const validationErrors = validateRegistration(values, lang);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length) { setStatus('idle'); return; }
@@ -182,7 +226,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
     const controller = new AbortController(); controllerRef.current = controller;
     setStatus('submitting'); setStatusCode('');
     try {
-      await registerUser(values, { lang, signal: controller.signal });
+      await (invitationMode ? onRegisterWithInvitation : registerUser)(values, { lang, signal: controller.signal });
       if (controller.signal.aborted) return;
       setValues(initialForm); setStatus('success'); setStatusCode('SUCCESS');
       navigateToLogin();
@@ -553,15 +597,33 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
             <button
               type="submit"
               className="henedo-cta-btn"
-              disabled={status === 'submitting'}
+              disabled={status === 'submitting' || (invitationMode && typeof onRegisterWithInvitation !== 'function')}
             >
               <span>{status === 'submitting' ? t.submittingButton : t.submitButton}</span>
               <span className="hn-arrow" aria-hidden="true">→</span>
             </button>
           </form>
 
+          {/* Divider: Hoặc / or */}
+          <div className="henedo-divider" role="separator" aria-label={t.orDivider}>
+            <span>{t.orDivider}</span>
+          </div>
+
+          {/* Google Sign-in Section */}
+          <div className="henedo-google-section">
+            <GoogleSignInButton
+              id="hn-register-google-btn"
+              disabled={status === 'submitting' || invitationMode}
+              lang={lang}
+              text="continue_with"
+              onCredentialReceived={handleGoogleCredential}
+              onError={handleGoogleError}
+            />
+          </div>
+
           {/* Status Alert Notification */}
           {status !== 'idle' && status !== 'submitting' && (
+
             <div className={`henedo-status-box ${status}`} role="status">
               <div className="henedo-status-icon" aria-hidden="true">
                 {status === 'pending' && 'ℹ'}
@@ -573,6 +635,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
           )}
 
           {/* Footer Info & Signin Prompt (No RBAC note) */}
+          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} registration />
           <footer className="henedo-form-footer">
             {typeof onNavigateToLogin === 'function' && (
               <div className="henedo-signin-prompt">

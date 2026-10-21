@@ -11,8 +11,8 @@ function person(raw,vaultId) {
 }
 export function readTrustee(raw,vaultId) {
  const item=person(raw,vaultId);
- if(!['APPOINTED','REVOKED'].includes(raw.status) || !isUtcDate(raw.appointedAt) || (raw.status==='APPOINTED' ? raw.revokedAt!==null : !isUtcDate(raw.revokedAt))) fail();
- return {...item,status:raw.status,appointedAt:raw.appointedAt,revokedAt:raw.revokedAt};
+ if(!optional(raw.note) || !['APPOINTED','REVOKED'].includes(raw.status) || !isUtcDate(raw.appointedAt) || (raw.status==='APPOINTED' ? raw.revokedAt!==null : !isUtcDate(raw.revokedAt))) fail();
+ return {...item,note:typeof raw.note==='string'?raw.note:null,status:raw.status,appointedAt:raw.appointedAt,revokedAt:raw.revokedAt};
 }
 export function readBeneficiary(raw,vaultId) {
  const item=person(raw,vaultId);
@@ -45,4 +45,17 @@ export async function checkConfigurationReadiness(vaultId,options={}) {
  context(vaultId);const data=await request('/vaults/'+vaultId+'/configuration-check',{...options,expectedStatus:200});
  if(data?.vaultId!==vaultId || typeof data.ready!=='boolean' || !Number.isSafeInteger(data.beneficiaryCount) || data.beneficiaryCount<0 || !Array.isArray(data.issues) || data.issues.some(issue=>typeof issue.code!=='string') || data.ready!==(data.beneficiaryCount>=1) || (data.ready && data.issues.length) || (!data.ready && !data.issues.some(issue=>issue.code==='BENEFICIARY_REQUIRED'))) fail();
  return {isReady:data.ready,beneficiaryCount:data.beneficiaryCount,issues:data.issues.map(issue=>({code:issue.code}))};
+}
+
+export async function updateTrustee(vaultId, trusteeId, data, options = {}) {
+ context(vaultId); if (!isUuid(trusteeId)) throw new ApiError('INVALID_RESPONSE');
+ if (Object.keys(validateTrustee(data)).length) throw new ApiError('VALIDATION_FAILED');
+ const item=readTrustee(await request('/trustees/'+trusteeId,{...options,method:'PUT',expectedStatus:200,body:{...payload(data),note:data.note??null}}),vaultId);
+ if(item.id!==trusteeId || item.status!=='APPOINTED') fail();return item;
+}
+export async function updateBeneficiary(vaultId, beneficiaryId, data, options = {}) {
+ context(vaultId); if (!isUuid(beneficiaryId)) throw new ApiError('INVALID_RESPONSE');
+ if (Object.keys(validateBeneficiary(data)).length) throw new ApiError('VALIDATION_FAILED');
+ const item=readBeneficiary(await request('/vaults/'+vaultId+'/beneficiaries/'+beneficiaryId,{...options,method:'PUT',expectedStatus:200,body:{...payload(data),dateOfBirth:data.dateOfBirth||null}}),vaultId);
+ if(item.id!==beneficiaryId) fail();return item;
 }
