@@ -12,6 +12,7 @@ import {
   validateProfileEditForm,
   isFormDirty,
   resolveInitialProfileData,
+  canEditProfileEmail,
 } from '../../utils/accountEditValidation.js';
 import { accountEditI18n } from './accountEditI18n.js';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
@@ -38,6 +39,7 @@ export default function AccountEditPage({
   const initialData = resolvedSessionData || (isDevPreviewActive
     ? { id: '', fullName: '', email: '', roles: [] }
     : null);
+  const emailPermission = canEditProfileEmail(session);
 
   // State adjustment during render if user account switched or logged out
   const currentUserId = session?.user?.id || (isDevPreviewActive ? 'dev-preview' : null);
@@ -46,6 +48,9 @@ export default function AccountEditPage({
   const [previousName, setPreviousName] = useState(initialData?.fullName || '');
   const [phoneNumber, setPhoneNumber] = useState(initialData?.phoneNumber || '');
   const [previousPhone, setPreviousPhone] = useState(initialData?.phoneNumber || '');
+  const [email, setEmail] = useState(initialData?.email || '');
+  const [previousEmail, setPreviousEmail] = useState(initialData?.email || '');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [validationError, setValidationError] = useState(null);
   const [localPendingCancel, setLocalPendingCancel] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -53,14 +58,14 @@ export default function AccountEditPage({
   const [accessDenied, setAccessDenied] = useState(false);
   const requestRef = useRef(null);
   const pendingRef = useRef(false);
-  const saveScope = `${session?.accessToken || ''}:${initialData?.id || ''}`;
+  const saveScope = JSON.stringify([session?.accessToken || '', initialData?.id || '', emailPermission.canEdit]);
   const activeScope = useRef(saveScope);
   useLayoutEffect(() => {
     activeScope.current = saveScope;
     return () => { requestRef.current?.abort(); requestRef.current = null; pendingRef.current = false; };
   }, [saveScope]);
   const [previousScope, setPreviousScope] = useState(saveScope);
-  if (previousScope !== saveScope) { setPreviousScope(saveScope); setIsSaving(false); setSaveFeedback(null); setAccessDenied(false); }
+  if (previousScope !== saveScope) { setPreviousScope(saveScope); setIsSaving(false); setSaveFeedback(null); setAccessDenied(false); setCurrentPassword(''); }
 
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
@@ -68,6 +73,8 @@ export default function AccountEditPage({
     setPreviousName(initialData?.fullName || '');
     setPhoneNumber(initialData?.phoneNumber || '');
     setPreviousPhone(initialData?.phoneNumber || '');
+    setEmail(initialData?.email || '');
+    setPreviousEmail(initialData?.email || '');
     setValidationError(null);
     setLocalPendingCancel(false);
   } else if (previousName !== (initialData?.fullName || '')) {
@@ -82,8 +89,14 @@ export default function AccountEditPage({
     setPreviousPhone(initialData?.phoneNumber || '');
     if (phoneNumber.trim() === previousPhone) setPhoneNumber(initialData?.phoneNumber || '');
   }
+  if (currentUserId === prevUserId && previousEmail !== (initialData?.email || '')) {
+    setPreviousEmail(initialData?.email || '');
+    setCurrentPassword('');
+    if (email.trim().toLowerCase() === previousEmail.trim().toLowerCase()) setEmail(initialData?.email || '');
+  }
 
-  const dirty = isFormDirty(fullName, initialData?.fullName) || phoneNumber.trim() !== (initialData?.phoneNumber || '');
+  const emailChanged = emailPermission.canEdit && email.trim().toLowerCase() !== (initialData?.email || '').trim().toLowerCase();
+  const dirty = isFormDirty(fullName, initialData?.fullName) || phoneNumber.trim() !== (initialData?.phoneNumber || '') || emailChanged;
 
   // Notify parent of dirty state changes for in-app navigation guard
   useEffect(() => {
@@ -148,11 +161,16 @@ export default function AccountEditPage({
   };
 
   const canSave = typeof saveProfile === 'function' && Boolean(initialData?.id) && !isDevPreviewActive;
-  const fieldErrors = validateProfileEditForm({ fullName, phoneNumber }).errors;
+  const fieldErrors = validateProfileEditForm({ fullName, phoneNumber, email }, { canEditEmail: emailPermission.canEdit }).errors;
+  if (emailChanged && !currentPassword.trim()) fieldErrors.currentPassword = 'REQUIRED';
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSave || !dirty || pendingRef.current || accessDenied) return;
-    if (Object.keys(fieldErrors).length) { setValidationError('INVALID'); document.getElementById(fieldErrors.fullName ? 'lv-edit-fullname' : 'lv-edit-phone')?.focus(); return; }
+    if (Object.keys(fieldErrors).length) {
+      setValidationError('INVALID');
+      const ids = { fullName: 'lv-edit-fullname', phoneNumber: 'lv-edit-phone', email: 'lv-edit-email', currentPassword: 'lv-edit-current-password' };
+      document.getElementById(ids[Object.keys(fieldErrors)[0]])?.focus(); return;
+    }
     pendingRef.current = true; setIsSaving(true); setSaveFeedback(null);
     const controller = new AbortController(); requestRef.current = controller;
     const requestedId = initialData.id;
@@ -160,20 +178,25 @@ export default function AccountEditPage({
       const changes = {};
       if (isFormDirty(fullName, initialData.fullName)) changes.fullName = fullName.trim();
       if (phoneNumber.trim() !== (initialData.phoneNumber || '')) changes.phoneNumber = phoneNumber.trim();
+      if (emailChanged) { changes.email = email.trim().toLowerCase(); changes.currentPassword = currentPassword; }
       const response = await saveProfile(changes, { signal: controller.signal, lang });
       if (controller.signal.aborted || requestRef.current !== controller || activeScope.current !== saveScope) return;
       const user = readUser(response);
       if (user.id !== requestedId) throw new Error('MISMATCHED_PROFILE');
       onProfileSaved?.(user, { accessToken: session.accessToken, userId: requestedId });
-      setFullName(user.fullName); setPhoneNumber(user.phoneNumber || ''); setValidationError(null); setSaveFeedback('success');
+      setFullName(user.fullName); setPhoneNumber(user.phoneNumber || ''); setEmail(user.email); setValidationError(null); setSaveFeedback('success');
     } catch (error) {
       if (!controller.signal.aborted && requestRef.current === controller && activeScope.current === saveScope) {
         if (error.status === 401) onUnauthorized?.();
-        if (error.status === 403) setAccessDenied(true);
-        setSaveFeedback(error.status === 403 ? 'accessDenied' : error.code === 'VALIDATION_FAILED' ? 'validationFailed' : 'error');
+        if (error.status === 403 && error.code !== 'REAUTH_FAILED') setAccessDenied(true);
+        setSaveFeedback(error.code === 'REAUTH_FAILED' ? 'reauthFailed'
+          : error.status === 429 ? 'tooManyAttempts'
+          : error.code === 'EMAIL_ALREADY_EXISTS' ? 'emailAlreadyExists'
+          : error.status === 403 ? 'accessDenied'
+          : error.code === 'VALIDATION_FAILED' ? 'validationFailed' : 'error');
       }
     } finally {
-      if (requestRef.current === controller) { pendingRef.current = false; requestRef.current = null; if (!controller.signal.aborted) setIsSaving(false); }
+      if (requestRef.current === controller) { pendingRef.current = false; requestRef.current = null; if (!controller.signal.aborted) { setIsSaving(false); setCurrentPassword(''); } }
     }
   };
 
@@ -254,26 +277,42 @@ export default function AccountEditPage({
               {validationError && fieldErrors.phoneNumber && <p id="lv-phone-error" className="lv-form-error" role="alert">{t.errorPhoneInvalid}</p>}
             </div>
 
-            {/* Email changes are implemented by the separate role-based email task. */}
+            {/* Only Owner email editing is exposed; sensitive changes require current-password proof. */}
             <div className="lv-form-group">
               <div className="lv-form-label">
-                <span>{t.emailLabel}</span>
-                <span className="lv-readonly-badge">
+                <label htmlFor="lv-edit-email">{t.emailLabel}</label>
+                {!emailPermission.canEdit && <span className="lv-readonly-badge">
                   <Lock size={11} aria-hidden="true" />
                   <span>{t.readOnlyBadge}</span>
-                </span>
+                </span>}
               </div>
               <input
                 id="lv-edit-email"
-                type="text"
-                className="lv-input-text"
-                value={initialData.email || t.noInformation}
-                disabled
-                readOnly
-                aria-readonly="true"
+                type="email"
+                className={`lv-input-text ${validationError && fieldErrors.email ? 'has-error' : ''}`}
+                value={emailPermission.canEdit ? email : initialData.email}
+                onChange={event => { if (!emailPermission.canEdit) return; setEmail(event.target.value); setCurrentPassword(''); setValidationError(null); setSaveFeedback(null); }}
+                disabled={!emailPermission.canEdit || isSaving || accessDenied}
+                readOnly={!emailPermission.canEdit}
+                aria-readonly={!emailPermission.canEdit}
+                autoComplete="email"
+                maxLength={254}
+                aria-invalid={Boolean(validationError && fieldErrors.email)}
+                aria-describedby={validationError && fieldErrors.email ? 'lv-email-error' : 'lv-email-help'}
               />
-              <p className="lv-form-help">{t.emailHelp}</p>
+              {validationError && fieldErrors.email && <p id="lv-email-error" className="lv-form-error" role="alert">{fieldErrors.email === 'REQUIRED' ? t.errorEmailRequired : t.errorEmailInvalid}</p>}
+              <p id="lv-email-help" className="lv-form-help">{emailPermission.canEdit ? t.emailOwnerHelp : emailPermission.hasConflict ? t.emailConflictHelp : t.emailReadOnlyHelp}</p>
             </div>
+
+            {emailChanged && <div className="lv-form-group">
+              <label htmlFor="lv-edit-current-password" className="lv-form-label">{t.currentPasswordLabel}</label>
+              <input id="lv-edit-current-password" className="lv-input-text" type="password" autoComplete="current-password" value={currentPassword}
+                onChange={event => { setCurrentPassword(event.target.value); setValidationError(null); }} disabled={isSaving || accessDenied}
+                aria-invalid={Boolean(validationError && fieldErrors.currentPassword)}
+                aria-describedby={validationError && fieldErrors.currentPassword ? 'lv-current-password-error' : 'lv-current-password-help'} />
+              <p id="lv-current-password-help" className="lv-form-help">{t.currentPasswordHelp}</p>
+              {validationError && fieldErrors.currentPassword && <p id="lv-current-password-error" className="lv-form-error" role="alert">{t.currentPasswordRequired}</p>}
+            </div>}
 
             {/* 3. System Roles (Read-only chips) */}
             <div className="lv-form-group">

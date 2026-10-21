@@ -198,3 +198,117 @@ test('unsaved-change dialog traps keyboard focus; Escape keeps the draft and res
     assert.equal(view.host.querySelector('#lv-edit-fullname').value,'Unsaved draft');assert.equal(document.activeElement,cancel);
   }finally{await view.close();}
 });
+
+test('Owner email PATCH sends normalized email and exact current password together, with no separate verification request', async()=>{
+  const saved=session(); const secret=' current pass ';
+  let calls=0;
+  await withFetch(async(url,options)=>{
+    calls++; assert.equal(url,'/api/v1/auth/me');assert.equal(options.method,'PATCH');
+    assert.deepEqual(JSON.parse(options.body),{email:'new@example.test',currentPassword:secret});
+    return json({...user,email:'new@example.test'});
+  },async()=>{
+    const result=await updateProfile(saved,{email:' NEW@EXAMPLE.TEST ',currentPassword:secret});
+    assert.equal(result.email,'new@example.test');assert.equal(result.currentPassword,undefined);assert.equal(calls,1);
+  });
+});
+
+test('email service rejects forbidden roles, missing proof and unrelated proof before any network request',async()=>{
+  let calls=0;
+  await withFetch(async()=>{calls++;throw Error('Must not send');},async()=>{
+    for(const roles of [['STAFF_EXECUTOR'],['LEGAL_VERIFIER'],['BENEFICIARY'],['ADMIN'],['VAULT_OWNER','STAFF_EXECUTOR'],['VAULT_OWNER','LEGAL_VERIFIER']]){
+      await assert.rejects(updateProfile({...session(),user:{...user,roles}},{email:'new@example.test',currentPassword:'proof'}),{code:'ACCESS_DENIED'});
+    }
+    await assert.rejects(updateProfile(session(),{email:'new@example.test'}),{code:'CURRENT_PASSWORD_REQUIRED'});
+    await assert.rejects(updateProfile(session(),{email:'bad',currentPassword:'proof'}),{code:'VALIDATION_FAILED'});
+    await assert.rejects(updateProfile(session(),{fullName:'Name',currentPassword:'proof'}),{code:'INVALID_PROFILE_PATCH'});
+    await assert.rejects(updateProfile(session(),{email:user.email.toUpperCase(),currentPassword:'proof'}),{code:'INVALID_PROFILE_PATCH'});
+    assert.equal(calls,0);
+  });
+  await withFetch(async(_url,options)=>{
+    assert.deepEqual(JSON.parse(options.body),{fullName:'Name'});return json({...user,fullName:'Name'});
+  },async()=>{await updateProfile(session(),{fullName:'Name',email:user.email.toUpperCase()});});
+});
+
+test('actual Owner App validates proof, performs one PATCH and synchronizes email without storing password',async()=>{
+  const saved=session();let writes=0;
+  const secret=' current password ';
+  await withFetch(async(_url,options)=>{
+    if(options.method!=='PATCH')return json(user);
+    writes++;assert.deepEqual(JSON.parse(options.body),{email:'new@example.test',currentPassword:secret});
+    return json({...user,email:'new@example.test'});
+  },async()=>{
+    storeSession(saved);window.history.replaceState({},'','/account/edit?lang=en');
+    const view=await mount(App,{});
+    try{
+      assert.equal(view.host.querySelector('#lv-edit-email').disabled,false);
+      assert.equal(view.host.querySelector('#lv-edit-current-password'),null);
+      await change(view.host,'lv-edit-email',' NEW@EXAMPLE.TEST ');await submit(view.host);
+      assert.equal(writes,0);assert.equal(document.activeElement.id,'lv-edit-current-password');
+      await change(view.host,'lv-edit-current-password',secret);await submit(view.host);await submit(view.host);
+      assert.equal(writes,1);assert.equal(view.host.querySelector('#lv-edit-email').value,'new@example.test');
+      assert.equal(view.host.querySelector('#lv-edit-current-password'),null);
+      assert.equal(view.host.querySelector('.lv-unsaved-pill'),null);
+      assert.equal(readStoredSession().user.email,'new@example.test');assert.equal(readStoredSession().expiresAt,saved.expiresAt);
+      assert.doesNotMatch(window.sessionStorage.getItem('legacyvault.session.v1'),/current password|currentPassword/);
+      assert.equal(window.localStorage.length,0);
+    }finally{await view.close();}
+  });
+});
+
+for(const roles of [['STAFF_EXECUTOR'],['LEGAL_VERIFIER'],['ADMIN'],['BENEFICIARY'],['VAULT_OWNER','STAFF_EXECUTOR'],['VAULT_OWNER','LEGAL_VERIFIER']]){
+  test(`email UI stays read-only for ${roles.join('+')} and cannot send an email change`,async()=>{
+    let submitted;
+    const ownSession={...session(),user:{...user,roles}};
+    const view=await mount(Page,{session:ownSession,lang:'en',saveProfile:async changes=>{submitted=changes;return {...ownSession.user,...changes};}});
+    try{
+      const email=view.host.querySelector('#lv-edit-email');assert.equal(email.disabled,true);assert.equal(email.readOnly,true);
+      await change(view.host,'lv-edit-email','forged@example.test');
+      await change(view.host,'lv-edit-fullname','Changed name');await submit(view.host);
+      assert.deepEqual(submitted,{fullName:'Changed name'});assert.equal(view.host.querySelector('#lv-edit-current-password'),null);
+    }finally{await view.close();}
+  });
+}
+
+for(const [status,code,pattern] of [[403,'REAUTH_FAILED',/current password is incorrect/],[409,'EMAIL_ALREADY_EXISTS',/already in use/],[429,'TOO_MANY_ATTEMPTS',/Too many attempts/],[503,'INTERNAL_ERROR',/Unable to update/]]){
+  test(`email change ${code}: truthful error, retained email draft and cleared password allow safe retry`,async()=>{
+    let calls=0;
+    const view=await mount(Page,{session:session(),lang:'en',saveProfile:async()=>{calls++;throw {status,code,message:'PRIVATE DATABASE ERROR'};}});
+    try{
+      await change(view.host,'lv-edit-email','new@example.test');await change(view.host,'lv-edit-current-password','wrong-proof');await submit(view.host);
+      assert.match(view.host.querySelector('[role=alert]').textContent,pattern);
+      assert.doesNotMatch(view.host.textContent,/PRIVATE DATABASE ERROR|Profile updated/);
+      assert.equal(view.host.querySelector('#lv-edit-email').value,'new@example.test');
+      assert.equal(view.host.querySelector('#lv-edit-current-password').value,'');
+      assert.equal(view.host.querySelector('#lv-edit-email').disabled,false);
+      await submit(view.host);assert.equal(calls,1);
+      await change(view.host,'lv-edit-current-password','new-proof');await submit(view.host);assert.equal(calls,2);
+    }finally{await view.close();}
+  });
+}
+
+test('email/password drafts clear on account switch; token or role change clears password and aborts pending email save',async()=>{
+  let finish,signal;const receipts=[];
+  const props={session:session(),lang:'en',saveProfile:(_changes,options)=>{signal=options.signal;return new Promise(resolve=>{finish=resolve;});},onProfileSaved:receipt=>receipts.push(receipt)};
+  const view=await mount(Page,props);
+  try{
+    await change(view.host,'lv-edit-email','new@example.test');await change(view.host,'lv-edit-current-password','secret-proof');await submit(view.host);
+    await view.render({...props,session:{...props.session,accessToken:'new-token'}});
+    assert.equal(signal.aborted,true);assert.equal(view.host.querySelector('#lv-edit-current-password').value,'');
+    await act(async()=>finish({...user,email:'new@example.test'}));assert.equal(receipts.length,0);
+    await change(view.host,'lv-edit-current-password','secret-again');
+    await view.render({...props,session:{...props.session,user:{...user,roles:['VAULT_OWNER','LEGAL_VERIFIER']}}});
+    assert.equal(view.host.querySelector('#lv-edit-current-password'),null);assert.equal(view.host.querySelector('#lv-edit-email').disabled,true);
+    await view.render({...props,session:{...props.session,user:{...user,id:'22222222-2222-4222-8222-222222222222',email:'other@example.test'}}});
+    assert.equal(view.host.querySelector('#lv-edit-email').value,'other@example.test');assert.equal(view.host.querySelector('#lv-edit-current-password'),null);
+  }finally{await view.close();}
+});
+
+test('case-only email edits are a no-op and never request current-password proof',async()=>{
+  const view=await mount(Page,{session:session(),lang:'en',saveProfile:async()=>{throw Error('No write expected');}});
+  try{
+    await change(view.host,'lv-edit-email',user.email.toUpperCase());
+    assert.equal(view.host.querySelector('.lv-unsaved-pill'),null);
+    assert.equal(view.host.querySelector('#lv-edit-current-password'),null);
+    assert.equal(view.host.querySelector('button[type=submit]').disabled,true);
+  }finally{await view.close();}
+});
