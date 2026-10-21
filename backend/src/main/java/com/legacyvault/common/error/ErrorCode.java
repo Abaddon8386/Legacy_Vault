@@ -8,6 +8,10 @@ package com.legacyvault.common.error;
  * docs/api-contracts/error-contract.md trong cùng PR.
  */
 public enum ErrorCode {
+    BENEFICIARY_INVITATION_ALREADY_EXISTS(409, "error.invitation.alreadyExists"),
+    BENEFICIARY_INVITATION_ALREADY_USED(409, "error.invitation.alreadyUsed"),
+    BENEFICIARY_INVITATION_STALE(409, "error.invitation.stale"),
+    BENEFICIARY_INVITATION_INVALID(422, "error.invitation.invalid"),
 	ASSET_IMAGE_LIMIT_EXCEEDED(409, "error.asset.imageLimitExceeded"),
 	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
 	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),

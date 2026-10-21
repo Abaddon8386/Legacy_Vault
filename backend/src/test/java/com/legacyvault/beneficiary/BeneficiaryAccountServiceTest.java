@@ -94,6 +94,7 @@ class BeneficiaryAccountServiceTest {
 		when(account.getPublicId()).thenReturn(ACCOUNT_PUBLIC_ID);
 		when(account.getStatus()).thenReturn(status);
 		when(account.getDeletedAt()).thenReturn(deletedAt);
+		when(users.findActiveAccountForUpdate(ACCOUNT_ID)).thenReturn(Optional.of(account));
 		return account;
 	}
 
@@ -116,7 +117,8 @@ class BeneficiaryAccountServiceTest {
 		assertThat(response.beneficiaryId()).isEqualTo(BENEFICIARY_ID);
 		assertThat(response.accountId()).isEqualTo(ACCOUNT_PUBLIC_ID);
 		assertThat(response.accountStatus()).isEqualTo("ACCOUNT_CREATED");
-		InOrder order = inOrder(cases, entities, beneficiary, beneficiaries);
+		InOrder order = inOrder(users, cases, entities, beneficiary, beneficiaries);
+		order.verify(users).findActiveAccountForUpdate(ACCOUNT_ID);
 		order.verify(cases).requireOpenForWrite(VAULT_ID, STAFF_ID);
 		order.verify(entities).refresh(beneficiary);
 		order.verify(beneficiary).linkAccount(ACCOUNT_ID);
@@ -234,7 +236,7 @@ class BeneficiaryAccountServiceTest {
 	@Test
 	void caseGuardFailureStopsEverythingAndHidesTheRecord() {
 		org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
-				.when(cases).requireOpenForWrite(VAULT_ID, STAFF_ID);
+				.when(cases).requireOpenForRead(VAULT_ID, STAFF_ID);
 
 		assertThat(expect(() -> service.create(BENEFICIARY_ID,
 				new BeneficiaryAccountDtos.CreateRequest("a@example.com", "S3cret-pass", null))).getErrorCode())
@@ -306,5 +308,15 @@ class BeneficiaryAccountServiceTest {
 		var request = new BeneficiaryAccountDtos.CreateRequest("a@example.com", "S3cret-pass", null);
 		assertThatThrownBy(() -> { throw new IllegalStateException(request.toString()); })
 				.hasMessageNotContaining("S3cret");
+	}
+
+	@Test
+	void readCaseAuthorizationMustPrecedeAnyTargetAccountLookupOrLock() {
+		org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
+				.when(cases).requireOpenForRead(VAULT_ID, STAFF_ID);
+		assertThat(expect(() -> service.link(BENEFICIARY_ID, new BeneficiaryAccountDtos.LinkRequest("target@example.com")))
+				.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+		verifyNoInteractions(users, audit);
+		verify(cases, never()).requireOpenForWrite(any(), any());
 	}
 }

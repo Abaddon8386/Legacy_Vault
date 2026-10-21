@@ -1,5 +1,12 @@
 # Auth & RBAC — PS-9, PS-10, PS-11 (ST-01)
 
+**PS-86, policy 20/10/2026:** xem [beneficiary-invitations.md](beneficiary-invitations.md).
+Owner có API quản lý mã; service nội bộ `linkAccount(code, accountId)` chỉ chạy trong
+outer transaction PS-87. Chưa có public signup/redeem bằng mã. Khi PS-87 tích hợp,
+accountId phải do BE xác thực, thêm limiter dùng chung, không gán Owner cho signup
+bằng mã, giữ role cũ và cấp JWT phản ánh role thật. Dùng mã làm bằng chứng lời mời,
+không ràng buộc/xác minh email hay OTP; không cấp quyền xem tài sản sớm.
+
 Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật & lỗi chung đã có từ PS-74).
 
 ## POST /api/v1/auth/register — PS-9

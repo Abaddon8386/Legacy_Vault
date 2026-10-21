@@ -29,6 +29,104 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/BeneficiaryId"
+    get:
+      tags: [Beneficiaries]
+      summary: Owner reads current invitation metadata, never the code or hash
+      description: Owner of this Vault only. NOT_ISSUED when no generation exists. Cache-Control no-store.
+      x-status: implemented
+      responses:
+        "200":
+          description: Current metadata, including for frozen or archived Vaults owned by caller
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationMetadata" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Beneficiaries]
+      summary: Owner issues the first invitation for an unlinked Beneficiary in an ACTIVE Vault
+      description: No body required. Code possession proves acceptance, not legal identity. 128-bit CSPRNG, 7 days UTC. Plaintext returned once. Existing generation is a conflict; never auto-rotate on retry.
+      x-status: implemented
+      responses:
+        "201":
+          description: Invitation issued atomically with audit; no Location containing the code
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationIssued" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_ALREADY_EXISTS, BENEFICIARY_ACCOUNT_ALREADY_LINKED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+    delete:
+      tags: [Beneficiaries]
+      summary: Owner revokes the current unused invitation in an ACTIVE Vault
+      description: Repeated revocation of the same generation returns 204 without replacing evidence or audit. Stale generation is 409 and cannot revoke a newer code. No invitation is 404; consumed invitation is 409. Account linkage is never removed.
+      x-status: implemented
+      parameters:
+        - name: generation
+          in: query
+          required: true
+          description: Current generation displayed to Owner; prevents a delayed or repeated request from revoking a reissued code
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        "204": { description: Revoked or already revoked; Cache-Control no-store }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_STALE, BENEFICIARY_INVITATION_ALREADY_USED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation/reissue:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/BeneficiaryId"
+    post:
+      tags: [Beneficiaries]
+      summary: Owner explicitly replaces an unused invitation with a new generation
+      description: ACTIVE owned Vault only. Atomically revokes and retires the old generation. Client generation prevents concurrent or repeated rotation. Read metadata and explicitly reissue after losing a success response; code cannot be recovered.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [generation]
+              properties:
+                generation: { type: integer, format: int32, minimum: 1 }
+      responses:
+        "201":
+          description: New code returned once; Cache-Control no-store
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BeneficiaryInvitationIssued" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: BENEFICIARY_INVITATION_STALE, BENEFICIARY_INVITATION_ALREADY_USED, BENEFICIARY_ACCOUNT_ALREADY_LINKED or VAULT_NOT_EDITABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -2448,6 +2546,29 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    BeneficiaryInvitationMetadata:
+      type: object
+      required: [invitationId, beneficiaryId, state, generation, issuedAt, expiresAt, revokedAt, consumedAt]
+      properties:
+        invitationId: { type: string, format: uuid, nullable: true }
+        beneficiaryId: { type: string, format: uuid }
+        state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
+        generation: { type: integer, format: int32, minimum: 1, nullable: true }
+        issuedAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        revokedAt: { type: string, format: date-time, nullable: true }
+        consumedAt: { type: string, format: date-time, nullable: true }
+    BeneficiaryInvitationIssued:
+      type: object
+      required: [invitation, code]
+      properties:
+        invitation: { $ref: "#/components/schemas/BeneficiaryInvitationMetadata" }
+        code:
+          type: string
+          minLength: 22
+          maxLength: 22
+          pattern: '^[A-Za-z0-9_-]{21}[AQgw]$'
+          description: Server-generated 128-bit base64url code, 7-day lifetime. Only in issue/reissue success; never in logs, GET or URLs.
     HandoverArchiveResponse:
       type: object
       properties:
@@ -2712,6 +2833,10 @@ components:
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE
+            - BENEFICIARY_INVITATION_ALREADY_EXISTS
+            - BENEFICIARY_INVITATION_ALREADY_USED
+            - BENEFICIARY_INVITATION_STALE
+            - BENEFICIARY_INVITATION_INVALID
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
@@ -3244,7 +3369,7 @@ components:
         phone: { type: string, nullable: true }
         email: { type: string, nullable: true }
         hasIdentityNumber: { type: boolean }
-        hasAccount: { type: boolean, description: Luôn false ở Sprint 1 }
+        hasAccount: { type: boolean, description: True when this Beneficiary is linked to a real User account through the counter workflow or invitation service }
         status: { type: string, enum: [DESIGNATED] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }

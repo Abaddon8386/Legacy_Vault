@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
+import { beneficiaryAge } from '../../utils/beneficiaryAge.js';
 import { validateTrustee } from '../../utils/trusteeValidation.js';
 import { validateBeneficiary } from '../../utils/beneficiaryValidation.js';
 import { updateTrustee, updateBeneficiary } from '../../utils/trusteeBeneficiaryService.js';
@@ -7,6 +8,10 @@ import { updateTrustee, updateBeneficiary } from '../../utils/trusteeBeneficiary
 export default function RelatedPersonEditDialog({ person, kind, vaultId, accessToken, lang, labels, onClose, onUpdated, onUnauthorized }) {
  const isTrustee=kind==='trustee', en=lang==='en';
  const [form,setForm]=useState(()=>({fullName:person.fullName,relationship:person.relationship||'',phone:person.phone||'',email:person.email||'',dateOfBirth:person.dateOfBirth||'',note:person.note??null}));
+ const age=beneficiaryAge(form.dateOfBirth);
+ const needsGuardian=!isTrustee && age!==null && age<18;
+ const blockedBirthdateChange=needsGuardian && form.dateOfBirth!==person.dateOfBirth;
+ const guardianNotice=en?'This beneficiary is under 18 and needs a guardian. Guardian registration is not available yet.':'Người thụ hưởng chưa đủ 18 tuổi, cần bổ sung người giám hộ. Hiện chưa thể đăng ký thông tin người giám hộ.';
  const [touched,setTouched]=useState({}),[busy,setBusy]=useState(false),[error,setError]=useState(false);
  const request=useRef(null),pending=useRef(false);
  const dialog=useModalFocus(true,onClose);
@@ -16,7 +21,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
  async function submit(event){
   event.preventDefault();if(pending.current)return;
   setTouched(Object.fromEntries(fields.map(([key])=>[key,true])));
-  if(Object.keys(errors).length)return;
+  if(Object.keys(errors).length || blockedBirthdateChange)return;
   pending.current=true;setBusy(true);setError(false);
   const controller=new AbortController();request.current=controller;
   try {
@@ -34,11 +39,12 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
     <div className="lv-tb-form-grid">{fields.map(([key,label,type,maxLength])=><div className="lv-tb-field-group" key={key}>
      <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'?' *':''}</label>
      <input id={'related-edit-'+key} className={`lv-tb-input ${touched[key]&&errors[key]?'has-error':''}`} type={type} maxLength={maxLength} disabled={busy} value={form[key]}
-      max={type==='date'?new Date().toISOString().slice(0,10):undefined} aria-invalid={Boolean(touched[key]&&errors[key])} aria-describedby={touched[key]&&errors[key]?'related-error-'+key:undefined}
+      max={type==='date'?new Date().toISOString().slice(0,10):undefined} aria-invalid={Boolean(touched[key]&&errors[key])} aria-describedby={[touched[key]&&errors[key]?'related-error-'+key:null,key==='dateOfBirth'&&needsGuardian?'related-guardian-notice':null].filter(Boolean).join(' ')||undefined}
       onBlur={()=>setTouched(prev=>({...prev,[key]:true}))} onChange={event=>{setForm(prev=>({...prev,[key]:event.target.value}));setError(false);}} />
+     {key==='dateOfBirth' && needsGuardian && <p id="related-guardian-notice" className="lv-tb-age-warning" role="status">{guardianNotice}</p>}
      {touched[key]&&errors[key]&&<span id={'related-error-'+key} className="lv-tb-error-text" role="alert">{errors[key]}</span>}
     </div>)}</div>
-    <div className="lv-tb-actions-row"><button type="button" className="lv-tb-btn-secondary" onClick={onClose}>{en?'Cancel':'Hủy'}</button><button type="submit" className="lv-tb-btn-primary" disabled={busy}>{busy?(en?'Saving…':'Đang lưu…'):(en?'Save changes':'Lưu thay đổi')}</button></div>
+    <div className="lv-tb-actions-row"><button type="button" className="lv-tb-btn-secondary" onClick={onClose}>{en?'Cancel':'Hủy'}</button><button type="submit" className="lv-tb-btn-primary" disabled={busy || blockedBirthdateChange}>{busy?(en?'Saving…':'Đang lưu…'):(en?'Save changes':'Lưu thay đổi')}</button></div>
    </form>
   </div>
  </div>;

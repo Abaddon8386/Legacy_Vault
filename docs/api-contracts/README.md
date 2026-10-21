@@ -23,6 +23,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [wills.md](wills.md) | Upload bản số hóa di chúc, SHA-256, version | PS-17, PS-18 |
 | [trustees.md](trustees.md) | Trustee (tùy chọn) | PS-19 |
 | [beneficiaries.md](beneficiaries.md) | Beneficiary + kiểm tra điều kiện cấu hình | PS-20, PS-21 |
+| [beneficiary-invitations.md](beneficiary-invitations.md) | Vòng đời mã mời Owner và seam transaction cho BE auth; policy 20/10 | PS-86, PS-87, PS-89 |
 | [dms.md](dms.md) | Cấu hình/check-in DMS, scheduler TRIGGERED + Grace | PS-22, PS-23 |
 | [staff-verification.md](staff-verification.md) | Ca xác minh của Staff: hàng đợi, nhận ca, ghi nhận giấy tờ khai tử và di chúc gốc | PS-34, PS-35, PS-38, PS-39 |
 | [handover-sessions.md](handover-sessions.md) | Staff mở, xem và đóng handover session cho Vault đã mở khóa | PS-60 |
