@@ -33,13 +33,16 @@ Trạng thái: **focused service/controller/OpenAPI tests pass trên working tre
   | Trường | Kiểu | Bắt buộc | Validation / mặc định |
   |---|---|---|---|
   | `status` | string | Không | Null/rỗng thì không lọc; giá trị được `trim()` và chuyển thành chữ hoa. Service chấp nhận `OPEN`, `CANCELLED` hoặc `CLOSED`. |
+  | `q` | string | Không | PS-88: từ khóa tìm hồ sơ/kho (D-API-46). Rỗng/chỉ khoảng trắng thì không tìm; được `trim()`, tối đa 100 ký tự, không chứa ký tự điều khiển (vi phạm → 400 `VALIDATION_FAILED`). Khớp không phân biệt hoa thường theo: **tên kho** (chứa), **tên chủ kho** (chứa), **tên người thụ hưởng** của kho (chứa), **mã hồ sơ** `HS-YYYY-NNNNNN` (khớp đúng năm và số), **UUID công khai của hồ sơ hoặc kho** (khớp đúng). `%`, `_`, `[` là ký tự thường, không phải wildcard. Không khớp theo email, điện thoại, số giấy tờ. |
   | `page` | integer | Không | Mặc định `0`; `@Min(0)`. |
   | `size` | integer | Không | Mặc định `20`; `@Min(1)`, `@Max(100)`. |
+
+  `q` chỉ thu hẹp kết quả trong phạm vi hàng chờ của Staff (hồ sơ đã gán cho mình hoặc `OPEN` chưa gán); không bao giờ mở rộng. Hồ sơ gán cho Staff khác không xuất hiện kể cả khi nhập đúng UUID. Kết hợp với `status` theo phép AND. Không ghi audit (chỉ đọc), `q` không được ghi log.
 
   Ví dụ:
 
   ```http
-  GET /api/v1/staff/verification-cases?status=OPEN&page=0&size=20
+  GET /api/v1/staff/verification-cases?status=OPEN&q=Nguy%E1%BB%85n&page=0&size=20
   ```
 
 - **Repository:** `VerificationCaseRepository.findQueueByStaff(staffUserId, status, pageable)` chọn case đã gán cho Staff hiện tại hoặc case chưa gán có trạng thái `OPEN`; filter status được áp dụng nếu có. Thứ tự mặc định là `triggeredAt DESC`.

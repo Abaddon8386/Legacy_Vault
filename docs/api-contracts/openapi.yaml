@@ -46,6 +46,7 @@ paths:
       x-status: implemented
       parameters:
         - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, CANCELLED, CLOSED] } }
+        - { name: q, in: query, required: false, description: "PS-88 (D-API-46). Case-insensitive search by Vault name, owner name or Beneficiary name (contains), case reference HS-YYYY-NNNNNN, or case/Vault public UUID (exact). Trimmed, max 100 chars, no control characters. Only narrows the Staff queue.", schema: { type: string, maxLength: 100 } }
         - { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       responses:
@@ -4776,7 +4777,7 @@ components:
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
     CounterBeneficiary:
       type: object
-      required: [beneficiaryId, caseId, fullName, identityVerificationStatus, accountStatus, accountLinked, invitation, counterStep, actions]
+      required: [beneficiaryId, caseId, fullName, identityVerificationStatus, accountStatus, accountLinked, invitation, counterAttestation, counterStep, actions]
       properties:
         beneficiaryId: { type: string, format: uuid }
         caseId: { type: string, format: uuid }
@@ -4787,10 +4788,19 @@ components:
         accountLinked: { type: boolean }
         invitation:
           type: object
-          required: [state]
+          required: [state, generation]
           properties:
             state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
             expiresAt: { type: string, format: date-time, nullable: true }
+            generation: { type: integer, minimum: 0, description: "0 khi chưa phát mã. Là expectedGeneration của POST …/invitation-email." }
+        counterAttestation:
+          type: object
+          description: Staff đã ghi nhận đối chiếu tại quầy hay chưa (POST …/identity-attestations). Không trả bằng chứng hay email. Đây là ghi nhận trách nhiệm của Staff, không phải hệ thống tự xác minh danh tính.
+          required: [recorded, confirmedEmailRecorded]
+          properties:
+            recorded: { type: boolean }
+            recordedAt: { type: string, format: date-time, nullable: true }
+            confirmedEmailRecorded: { type: boolean }
         counterStep:
           type: string
           enum: [AWAITING_IDENTITY_VERIFICATION, AWAITING_ACCOUNT_DECISION, ACCOUNT_LINKED]
@@ -4798,11 +4808,12 @@ components:
         actions:
           type: object
           description: Gợi ý hiển thị. Server kiểm tra lại mọi điều kiện khi thực hiện thao tác.
-          required: [canLinkAccount, canCreateAccount, canHandOverWithoutAccount]
+          required: [canLinkAccount, canCreateAccount, canHandOverWithoutAccount, canRequestInvitationEmail]
           properties:
             canLinkAccount: { type: boolean }
             canCreateAccount: { type: boolean }
             canHandOverWithoutAccount: { type: boolean, description: "Chỉ cần xác minh tại quầy, không cần tài khoản" }
+            canRequestInvitationEmail: { type: boolean, description: "Đã xác minh tại quầy, chưa liên kết, có email Staff đã xác nhận và chưa có mã gắn email. Server vẫn kiểm tra lại phê duyệt Legal, mở khóa và phạm vi phân bổ." }
     StaffAssetCatalogItem:
       type: object
       additionalProperties: false
