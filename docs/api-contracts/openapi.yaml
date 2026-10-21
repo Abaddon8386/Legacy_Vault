@@ -2294,6 +2294,31 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations:
+    post:
+      tags: [Staff]
+      summary: Staff attests in-person document check (PS-106)
+      description: Requires ROLE_STAFF_EXECUTOR and the exact assigned OPEN case containing the Beneficiary. The server records the authenticated Staff actor and UTC time. evidenceReference is a reference only; no document upload, OCR, client-supplied MATCH, or automatic asset access. This append-only attestation does not itself mark the existing identity-verification status or authorize invitation delivery.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CounterIdentityAttestationRequest' }
+      responses:
+        '201':
+          description: Append-only Staff attestation recorded; the evidence reference is not echoed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterIdentityAttestation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
       tags: [Beneficiaries]
@@ -3876,6 +3901,20 @@ components:
             id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
             fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
         verifiedAt: { type: string, format: date-time }
+    CounterIdentityAttestationRequest:
+      type: object
+      required: [evidenceReference]
+      properties:
+        evidenceReference: { type: string, minLength: 1, maxLength: 200, description: Reference to the off-system counter evidence; do not include document numbers or document contents }
+    CounterIdentityAttestation:
+      type: object
+      required: [attestationId, caseId, beneficiaryId, recordedBy, recordedAt]
+      properties:
+        attestationId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        recordedBy: { type: string, format: uuid, description: Authenticated Staff public ID }
+        recordedAt: { type: string, format: date-time, description: Server-generated UTC timestamp }
     BeneficiaryResponse:
       type: object
       required: [id, vaultId, fullName, hasAccount, hasIdentityNumber, status]

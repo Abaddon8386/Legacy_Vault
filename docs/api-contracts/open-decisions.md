@@ -184,25 +184,27 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
 - Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.
 
-## PS-106 — Staff email invitation orchestration (pending contract)
+## PS-106 — Staff email invitation orchestration
 
-Status: **BLOCKED for invitation-email orchestration**. The repository does not yet define a safe,
-end-to-end contract for selecting the recipient address, proving counter verification, or sending
-the one-time PS-86 code. Do not add a Staff send endpoint, generate another code, or send mail until
-the decisions below are approved and the required infrastructure exists.
+**User-selected implementation directions (2026-10-21; not represented as group approval):**
+record a backend Staff attestation with server UTC time and an evidence reference; send only to a
+verified email on the linked account; use an encrypted transactional outbox; use a sandbox mail
+provider. No secret or provider credentials are to be stored in Git.
 
-| Concern | Current source and behavior | Missing decision / constraint |
+Implementation remains blocked on the following contract details. Do not add a delivery endpoint,
+change PS-86 lifecycle, or emit mail until these are resolved.
+
+| Concern | Verified source behavior | Remaining decision / constraint |
 |---|---|---|
-| Requester and scope | PS-88 Staff beneficiary reads require the authenticated `STAFF_EXECUTOR`, an assigned `OPEN` case, and the matching vault. | Reuse the server-side case/vault guard; never accept role, case, or beneficiary authority from the request body. |
-| Beneficiary | PS-88 returns case-scoped beneficiary summaries and server-derived action hints. | Define the exact eligibility predicate tying the selected beneficiary to the current COURT allocation and invitation. |
-| In-person verification | The existing identity-verification route accepts a result from the client and persists `MATCH`/`VERIFIED_AT_COUNTER`; that is not independent evidence of physical verification. | Approve an authoritative staff-recorded counter-verification source and evidence/audit contract. Do not treat client-supplied `verified`, `MATCH`, or linked-account state as proof. |
-| Recipient email | Beneficiary email is distinct from a linked account's email; PS-86 explicitly does not verify or match email. `User.emailVerifiedAt` exists, but invitation issuance does not use it. | Decide which address is authoritative and how it is proven to belong to this beneficiary. Do not allow a caller-selected destination or infer binding from matching email. |
-| Court/legal gate | PS-102 establishes court-only intake; Legal approval guards compare current dossier version/hash/allocation scope. | The send operation must reuse the applicable current approval/hold guard and verify the beneficiary is within the approved scope; no NOTARIAL bypass. |
-| Invitation/code | PS-86 Owner issue/reissue returns the raw code once, stores only its hash, and defines a fixed 7-day lifetime. There is no Staff API to retrieve an existing raw code. | Decide whether/how Staff can initiate delivery without issuing a second code or exposing a code after its one-time response. Do not change PS-86 lifecycle or invent TTL/resend rules. |
-| Mail and delivery state | No mail sender/provider, outbox, queue, or transport-status model was found in backend source, dependencies, or API docs. PS-86 explicitly says the system does not send email/SMS. | Select/configure approved provider, sender, test recipient, transport semantics, retry/idempotency and failure policy before implementing delivery. `accepted` must not be described as delivered/read/linked. |
-| Audit and transaction | PS-86 writes invitation lifecycle audit with its issuance/reissue/revoke transaction; it does not audit mail delivery. | Define delivery audit events and atomicity/outbox behavior with the chosen mail architecture. Never log raw codes or sensitive beneficiary data. |
+| Staff and case scope | `StaffCaseBeneficiaryController` requires `ROLE_STAFF_EXECUTOR`; `CounterBeneficiaryService.authorize()` loads the exact public case assigned to the principal and requires it OPEN. `StaffVaultCaseGuard` rechecks the assigned OPEN case for the vault. | An attestation/delivery operation must take the exact case and beneficiary and repeat the same server-side scope checks. Never trust caller-supplied role or assignment. |
+| In-person attestation | New PS-106 endpoint records authenticated Staff, server UTC time and an evidence reference in a separate append-only record scoped to the exact assigned OPEN case and Beneficiary. It does not accept client `MATCH`, alter legacy `VERIFIED_AT_COUNTER`, or upload documents. | Decide whether this attestation becomes the sole eligibility source for PS-106 delivery and whether PS-62/63 should consume it instead of the legacy client-result state. No ID upload/OCR. |
+| Recipient email | `Beneficiary.email` is independent of `User.email`; `User.emailVerifiedAt` exists. | User selected verified linked-account email, but this conflicts with PS-86: `issue()` and `reissue()` call `requireUnlinked()`, and PS-62/63 counter linking revokes a pending invitation. Thus an already-linked account cannot have a new PS-86 invitation issued, while an unlinked Beneficiary has no linked-account email. Select the intended workflow before implementation. |
+| Court/legal gate | PS-102 code has `LegalWorkflowGuard`, `CourtRouteGuard`, and `LegalApprovalGuard.currentApprovalBlocker()` comparing current dossier approval state. | Delivery eligibility must be tied to a Beneficiary within the current approved allocation/scope and fail closed on non-COURT, stale approval or hold. Reuse existing guard/source; no new NOTARIAL path. |
+| Code and encrypted outbox | PS-86 issues one raw code in the Owner response, persists only its hash, has fixed 7-day TTL, and offers no code recovery API. Existing `EncryptionService` provides AES-256-GCM using configured `LEGACYVAULT_ENCRYPTION_KEY` and key version. | User selected encrypted transactional outbox. Decide the atomic PS-86 seam that supplies the current raw code to the outbox once, plus ciphertext retention/deletion and key-version handling. Never decrypt from the PS-86 hash or create a second code. |
+| Mail provider | No mail sender/provider, outbox, queue, or transport-state model exists in backend source/dependencies/docs; PS-86 says no automatic email/SMS. | User selected sandbox, but provider, sender identity, and test recipient are unspecified. No real/test delivery can be claimed until configured. |
+| Delivery and audit policy | PS-86 audits issue/reissue/revoke/consume, not email delivery. No retry, idempotency, resend, timeout or delivery-audit policy exists. | Decide accepted/queued/sent/failed semantics, timeout, retry, request idempotency/duplicate concurrency, resend behavior and delivery audit. Do not call provider acceptance “delivered”, “read”, or “linked”. |
 
-PS-86 remains the only invitation-code lifecycle. PS-87 redemption/linking remains distinct from delivery:
-email or code possession grants no asset access; only the existing beneficiary authorization for
-that beneficiary's `DELIVERED` items may do so. No PS-106 API/OpenAPI operation is published until
-the recipient-binding, verification-evidence, and mail-transport contracts are approved.
+PS-87 redemption/linking remains distinct from delivery: email or code possession grants no asset access;
+only existing Beneficiary authorization for that Beneficiary's `DELIVERED` items may do so. The
+attestation operation is documented above; no invitation-delivery API is published until the
+email/invitation lifecycle and transport questions above are resolved.
