@@ -174,3 +174,11 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - PS-58 derives stale approval by comparing the current dossier snapshot in `LegalApprovalGuard`; it does not append a separate invalidation event. Confirm whether an explicit invalidation record is required for audit/reporting. Do not treat the derived guard as a persisted invalidation event.
 - Main Flow ST-28 requires a completed handover record signed by Staff and every Beneficiary. PS-61 `STAFF_ATTESTATION` represents Staff confirmation only. The group must decide the evidence/signature model and whether the receipt is issued before or after PS-71 closes the session. No electronic signature or Beneficiary signature is claimed by the current schema.
 - Main Flow ST-23 lists `IN_PERSON_PRESENT`, while PS-60 V24/runtime session states are `OPEN`, `COMPLETED`, and `CANCELLED`. Confirm whether this is a workflow milestone or a required persisted session status before changing the enum or migration.
+
+## PS-85 — Google account onboarding and linking
+
+- `POST /api/v1/auth/google` accepts only an ID token whose verified `sub` already maps to a LegacyVault account in `dbo.external_auth_identities`.
+- Unknown `sub` is rejected with generic `401 INVALID_CREDENTIALS`; no account is created and a matching email never links accounts.
+- `POST /api/v1/auth/google/link` lets an authenticated active user link a verified Google `sub` to their own account. It never links by email or creates an account; a subject already mapped to any account is rejected. This is the approved self-service linking path implemented in PS-85.
+- First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
+- Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.

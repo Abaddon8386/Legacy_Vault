@@ -57,6 +57,10 @@ legacyvault:
   jwt:
     secret: ${JWT_SECRET_BASE64}
     expiration-seconds: 3600
+  auth:
+    google:
+      # GIS ID-token audience. Configure the same Web OAuth client ID used by the PS-83 frontend.
+      client-id: ${GOOGLE_CLIENT_ID:}
   encryption:
     # Khóa AES-256 mã hóa payload tài sản, file di chúc và số định danh Beneficiary (PS-15, PS-17, PS-20): base64 của đúng 32 byte.
     # Không có giá trị mặc định, không commit khóa thật; thiếu khóa thì ứng dụng không khởi động (giống JWT_SECRET_BASE64).
