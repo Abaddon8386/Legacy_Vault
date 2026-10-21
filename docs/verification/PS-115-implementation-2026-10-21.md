@@ -1,6 +1,6 @@
 # PS-115 implementation checkpoint
 
-Base: develop `15a9cc6`. Read live Jira PS-113/115 and related PS-80/82/86/87/92/104/106/109/114/116/117. Older monthly pricing in PS-80/82 descriptions conflicts with the later approved lifetime decision; implementation follows the current V32/V35 snapshot model and PS-92 clarification. No Jira fields changed.
+Initial base: develop `15a9cc6`; integrated updated develop `f07d69b` after PS-112/#182 and PS-84/#148 merged. Read live Jira PS-113/115 and related PS-80/82/86/87/92/104/106/109/114/116/117. Older monthly pricing in PS-80/82 descriptions conflicts with the later approved lifetime decision; implementation follows the current V32/V35 snapshot model and PS-92 clarification. No Jira fields changed.
 
 Implemented: existing Admin transactions placeholder now returns real SQL Server pages; additional detail route; exact account/email/payment/gateway reference search, account/status/UTC-range filters, deterministic order and bounded page size. Whitelisted public DTO and fixture/OpenAPI are in admin-payment-transactions.md/admin-payments.openapi.yaml. No new migration or changes to checkout/IPN/catalog/quota/user-admin behavior.
 
