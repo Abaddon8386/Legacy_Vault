@@ -2,10 +2,13 @@
 
 **PS-86, policy 20/10/2026:** xem [beneficiary-invitations.md](beneficiary-invitations.md).
 Owner có API quản lý mã; service nội bộ `linkAccount(code, accountId)` chỉ chạy trong
-outer transaction PS-87. Chưa có public signup/redeem bằng mã. Khi PS-87 tích hợp,
-accountId phải do BE xác thực, thêm limiter dùng chung, không gán Owner cho signup
-bằng mã, giữ role cũ và cấp JWT phản ánh role thật. Dùng mã làm bằng chứng lời mời,
-không ràng buộc/xác minh email hay OTP; không cấp quyền xem tài sản sớm.
+outer transaction PS-87. PS-87 hiện có `POST /api/v1/auth/invitations/redeem` sau đăng nhập;
+account lấy từ principal và bị kiểm tra ACTIVE. Chỉ invitation generation được Staff PS-106
+gắn với email đã xác nhận tại quầy mới được redeem khi normalized email tài khoản khớp chính xác;
+`email_verified_at` có thể NULL riêng cho flow này. Đây không phải xác minh mailbox và không
+ghi cột đó. Invitation legacy/Owner không binding vẫn fail closed. Mã chỉ liên kết Beneficiary,
+không cấp quyền đọc tài sản; PS-104 exact-recipient item `DELIVERED` vẫn là gate duy nhất.
+Không có signup+redeem công khai, không nhận role/account ID từ client, không đổi Google login.
 
 Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật & lỗi chung đã có từ PS-74).
 

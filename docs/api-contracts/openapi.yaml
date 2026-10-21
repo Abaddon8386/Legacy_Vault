@@ -974,15 +974,16 @@ paths:
       summary: Redeem a beneficiary invitation for the authenticated account (PS-87)
       description: |
         Requires an existing authenticated account. Signup+redeem is intentionally not supported. The backend
-        derives the account from the principal, requires users.email_verified_at, matches the invitation's bound
-        recipient email to the verified account email, requires the existing Beneficiary VERIFIED_AT_COUNTER state,
-        and calls the PS-86 transaction seam. The PS-106 attestation does not set that state. Legacy unbound codes
-        fail closed. Linking grants no asset-read access; PS-104 delivered-item authorization remains authoritative.
-        The API is implemented, but end-to-end invitation issuance remains blocked until Staff can revoke/reissue a
-        counter-confirmed email-bound generation and email verification is available for the receiving account.
+        derives the account from the principal and calls the PS-86 transaction seam. A current PS-106 Staff-bound
+        generation requires an exact normalized match between the account email and the Staff-confirmed recipient
+        email; users.email_verified_at may be NULL for this scoped flow. Staff attestation does not set that field or
+        prove mailbox control. Legacy unbound/Owner-issued invitations do not receive this exception and fail closed.
+        The existing Beneficiary VERIFIED_AT_COUNTER state is still required; PS-106 attestation does not set it.
+        Linking grants no asset-read access; PS-104 exact-recipient DELIVERED authorization remains authoritative.
+        Email transport remains disabled, so the outbox does not prove mail delivery or provide an E2E path.
       x-status: implemented
       x-integration-status: blocked
-      x-blockers: [staff-email-bound-invitation-issuance, account-email-verification-source]
+      x-blockers: [approved-mail-transport, ps104-delivered-item-read-api]
       security:
         - bearerAuth: []
       requestBody:
@@ -1000,7 +1001,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409':
-          description: BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED when account email is not verified, or BENEFICIARY_IDENTITY_NOT_VERIFIED when legacy counter verification is absent.
+          description: BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED may apply to unbound/legacy invitation attempts from an account without a verified email; PS-106-bound redemption uses the bound-email match instead. BENEFICIARY_IDENTITY_NOT_VERIFIED is returned when legacy counter verification is absent.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
@@ -3527,6 +3528,8 @@ components:
             - BENEFICIARY_INVITATION_ALREADY_USED
             - BENEFICIARY_INVITATION_STALE
             - BENEFICIARY_INVITATION_INVALID
+            - BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED
+            - BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }

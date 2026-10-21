@@ -90,7 +90,21 @@ class BeneficiaryInvitationEmailBindingTest {
     }
 
     @Test
+    void legacyUnboundInvitationStillRequiresVerifiedAccountEmail() {
+        when(account.getEmailVerifiedAt()).thenReturn(null);
+        var invitation = invitation(null);
+        when(invitations.findByCodeHash(tokens.hash(CODE))).thenReturn(Optional.of(invitation));
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.redeemBoundAccount(CODE, USER_ID));
+
+        assertEquals(ErrorCode.BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED, error.getErrorCode());
+        verify(userRoles, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void rejectsInvitationBoundToAnotherEmail() {
+        when(account.getEmailVerifiedAt()).thenReturn(null);
         var invitation = invitation("other@example.test");
         when(invitations.findByCodeHash(tokens.hash(CODE))).thenReturn(Optional.of(invitation));
 
@@ -102,7 +116,8 @@ class BeneficiaryInvitationEmailBindingTest {
     }
 
     @Test
-    void linksWhenDatabaseVerifiedEmailMatchesBoundInvitation() {
+    void linksStaffBoundInvitationWhenEmailMatchesEvenIfAccountEmailIsNotMarkedVerified() {
+        when(account.getEmailVerifiedAt()).thenReturn(null);
         var invitation = invitation(" RECIPIENT@example.test ");
         when(invitations.findByCodeHash(tokens.hash(CODE))).thenReturn(Optional.of(invitation));
 

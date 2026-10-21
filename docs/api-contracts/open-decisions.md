@@ -48,17 +48,20 @@ invitations as email-bound and does not alter the existing `VERIFIED_AT_COUNTER`
   through an atomic encrypted outbox. Transport must remain disabled by default until provider/sender/test recipient
   and transport policies are approved. Linking never unlocks content; PS-104 exact-recipient DELIVERED authorization
   remains the only read gate.
-- Redeem requires a non-null `users.email_verified_at` on the authenticated account. Staff-confirmed address alone
-  does not prove mailbox control for that account. Redeem also retains the existing `VERIFIED_AT_COUNTER` beneficiary
-  status; the new attestation does not write or substitute for that status. Legacy invitations without email binding
-  must be confirmed by Staff and revoked/reissued through the existing PS-86 lifecycle with audit; no silent trust promotion.
+- For a current PS-106 invitation generation bound to the email Staff confirmed in person for the correct Beneficiary,
+  redeem requires the authenticated account's normalized email to equal that generation's bound address;
+  `users.email_verified_at` may be NULL. This narrow exception does not write that column or claim Staff attestation
+  proves mailbox control. It does not apply to unbound/legacy or Owner-issued invitations. The existing
+  `VERIFIED_AT_COUNTER` beneficiary status remains required; the new attestation does not write or substitute for it.
+  Legacy invitations without email binding must be confirmed by Staff and revoked/reissued through the existing PS-86
+  lifecycle with audit; no silent trust promotion.
 - Redeem limits retain five failed attempts/account/15 minutes and add five failed attempts/account+invitation/15
   minutes. A pessimistic lock on the authenticated User row serializes checks across instances; failed-attempt rows
   are written in a separate transaction so rollback cannot erase them. Invalid-format inputs consume only the account
   bucket because they have no canonical invitation hash. No trusted IP/X-Forwarded-For policy is introduced.
-- Route: `POST /api/v1/auth/invitations/redeem` with bearer authentication and `{ "code": "..." }`. The controller
-  and service exist, but operational FE integration remains blocked until the Staff flow can issue an email-bound
-  generation and the account email-verification source is available. Signup+redeem remains excluded.
+- Route: `POST /api/v1/auth/invitations/redeem` with bearer authentication and `{ "code": "..." }`. Staff-bound
+  issuance and authenticated redeem are implemented. Signup+redeem remains excluded; real email delivery and the
+  PS-104 delivered-item read API remain separate integration blockers.
 
 Source-backed blockers still open:
 
@@ -69,9 +72,9 @@ Source-backed blockers still open:
 - Durable redeem limiting is implemented with SQL Server failure rows and the locked authenticated User row. SQL
   Server concurrency/rollback behavior still needs a real SQL Server integration run.
 - The Staff counter attestation has a nullable `confirmed_email` snapshot; this records the address Staff confirmed
-  at the counter, but does not prove mailbox control. The chosen account-side proof is `users.email_verified_at`.
-  Source search found no email-verification flow that populates it, so affected accounts remain blocked until a
-  verified-email flow or trusted pre-existing data is available.
+  at the counter, but does not prove mailbox control. The approved PS-106 flow binds that address to the invitation
+  generation and permits the matching authenticated account to redeem even while `users.email_verified_at` is NULL.
+  No email-verification flow currently populates that column; no general email-verification policy is inferred.
 - No mail provider/sandbox, sender, test recipient, transport adapter, or worker exists. The outbox is persisted but
   transport remains hard-disabled. Provider acceptance,
   timeout/retry/backoff, resend/idempotency semantics, audit events, and ciphertext/key-version deletion/retention

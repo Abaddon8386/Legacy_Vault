@@ -32,9 +32,6 @@ public class InvitationRedeemService {
     public InvitationDtos.Linked redeem(Long authenticatedAccountId, String code) {
         User account = users.findActiveAccountForUpdate(authenticatedAccountId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BENEFICIARY_INVITATION_INVALID));
-        if (account.getEmailVerifiedAt() == null) {
-            throw new BusinessException(ErrorCode.BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED);
-        }
 
         String codeHash = tokens.validFormat(code) ? tokens.hash(code) : null;
         limiter.requireAllowed(authenticatedAccountId, codeHash);

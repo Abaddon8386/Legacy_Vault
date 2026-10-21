@@ -62,14 +62,15 @@ class InvitationRedeemServiceTest {
     }
 
     @Test
-    void unverifiedAccountCannotRedeemAndDoesNotProbeInvitation() {
+    void unverifiedAccountIsDelegatedToStaffBoundInvitationValidation() {
         account.setEmailVerifiedAt(null);
+        InvitationDtos.Linked linked = new InvitationDtos.Linked(UUID.randomUUID(), UUID.randomUUID(), "LINKED");
+        when(invitations.redeemBoundAccount(CODE, ACCOUNT_ID)).thenReturn(linked);
 
-        BusinessException error = assertThrows(BusinessException.class, () -> service.redeem(ACCOUNT_ID, CODE));
+        assertEquals(linked, service.redeem(ACCOUNT_ID, CODE));
 
-        assertEquals(ErrorCode.BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED, error.getErrorCode());
-        verify(limiter, never()).requireAllowed(eq(ACCOUNT_ID), Mockito.any());
-        verify(invitations, never()).redeemBoundAccount(Mockito.any(), Mockito.any());
+        verify(limiter).requireAllowed(ACCOUNT_ID, tokens.hash(CODE));
+        verify(invitations).redeemBoundAccount(CODE, ACCOUNT_ID);
     }
 
     @Test

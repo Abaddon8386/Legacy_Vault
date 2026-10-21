@@ -12,7 +12,10 @@ PS-86 bổ sung mã lỗi cùng envelope VI/EN:
   trả chung cho mã sai/hết hạn/thu hồi/đã dùng bởi account khác, invitation legacy chưa bind email,
   email binding không khớp hoặc account không đủ điều kiện. PS-87 authenticated redeem dùng mã này.
 - 409 `BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED` —
-  `error.invitation.emailVerificationRequired`; authenticated account must have a verified email before PS-87 redeem.
+  `error.invitation.emailVerificationRequired`; retained for redeem attempts against unbound/legacy invitations when
+  the authenticated account has no verified database email. A current PS-106 Staff-bound invitation instead requires
+  exact normalized account-email match to that generation's Staff-confirmed address; this does not set
+  `email_verified_at` or prove mailbox control.
 - 409 `BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED` — `error.invitation.counterEmailRequired`; no confirmed email
   was recorded on the Staff's latest in-person attestation for this case and recipient.
 - 429 `TOO_MANY_ATTEMPTS` — `error.auth.tooManyAttempts`; either the account bucket or the account+invitation

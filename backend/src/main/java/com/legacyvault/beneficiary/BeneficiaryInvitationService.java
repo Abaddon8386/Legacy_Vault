@@ -141,8 +141,9 @@ public class BeneficiaryInvitationService {
         return linkAccountInternal(code, accountId, false);
     }
 
-    /** Authenticated PS-87 redeem. Only a current invitation explicitly bound to the account's
-     * verified database email may be linked. Legacy unbound invitations fail closed. */
+    /** Authenticated PS-87 redeem. A Staff-bound PS-106 invitation may be redeemed when the
+     * authenticated account email exactly matches the counter-confirmed binding. Legacy unbound
+     * invitations retain the existing verified-account-email requirement and fail closed. */
     @Transactional(propagation = Propagation.MANDATORY)
     public InvitationDtos.Linked redeemBoundAccount(String code, Long accountId) {
         return linkAccountInternal(code, accountId, true);
@@ -155,9 +156,6 @@ public class BeneficiaryInvitationService {
         // Never wait for a User while holding a Vault: Owner/quota writers already use User -> Vault.
         User account = users.findActiveAccountForUpdate(accountId).orElseThrow(this::invalid);
         entities.refresh(account);
-        if (requireEmailBinding && account.getEmailVerifiedAt() == null) {
-            throw error(ErrorCode.BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED);
-        }
         Vault vault = vaults.findByIdForUpdate(vaultId).orElseThrow(this::invalid);
         entities.refresh(vault);
         // Freeze/archive never opens a new self-service path; Staff fallback remains separate.
@@ -165,9 +163,14 @@ public class BeneficiaryInvitationService {
         Beneficiary beneficiary = invitation.getBeneficiary();
         entities.refresh(beneficiary);
         entities.refresh(invitation);
-        if (requireEmailBinding && (invitation.getRecipientEmail() == null
-                || !invitation.getRecipientEmail().equals(EmailNormalizer.normalize(account.getEmail())))) {
-            throw invalid();
+        if (requireEmailBinding) {
+            String recipientEmail = EmailNormalizer.normalize(invitation.getRecipientEmail());
+            if ((recipientEmail == null || recipientEmail.isBlank()) && account.getEmailVerifiedAt() == null) {
+                throw error(ErrorCode.BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED);
+            }
+            if (recipientEmail == null || !recipientEmail.equals(EmailNormalizer.normalize(account.getEmail()))) {
+                throw invalid();
+            }
         }
         if (requireEmailBinding && !Beneficiary.VERIFIED_AT_COUNTER.equals(beneficiary.getIdentityVerificationStatus())) {
             throw error(ErrorCode.BENEFICIARY_IDENTITY_NOT_VERIFIED);

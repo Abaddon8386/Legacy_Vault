@@ -12,13 +12,14 @@ chưa push/merge. Nguồn Jira: [PS-86](https://thaithai9785.atlassian.net/brows
 > old unbound codes must not be redeemed through the new PS-87 route. The current PS-86 Owner issue/reissue API is
 > unchanged and does not yet create an email-bound invitation or encrypted mail outbox.
 
-> **User decision, 21/10/2026:** Redeem also requires the authenticated account's `email_verified_at` to be present;
-> the Staff-confirmed address does not substitute for mailbox verification. Existing `VERIFIED_AT_COUNTER` remains
-> required; the PS-106 attestation does not set or replace it. Existing unbound generations must be
-> confirmed by Staff, then revoked/reissued through PS-86 with audit. Failed redeem limits remain 5/account/15 minutes
-> and add 5/account+invitation/15 minutes; the second bucket prevents one account's guesses from locking an invitation
-> for other accounts. Both decisions are implemented in the PS-87 redeem service; Staff issuance and a verified-email
-> writer is implemented for invitation issuance, while the account-side email verification writer remains pending.
+> **User decision, 21/10/2026 (clarified):** For a current PS-106 generation bound to the email Staff confirmed
+> in person for the correct Beneficiary, redeem requires the authenticated account's normalized email to match that
+> invitation binding; `users.email_verified_at` may be NULL. This scoped exception does not write that column and does
+> not claim Staff attestation proves mailbox control. It does not apply to legacy/unbound invitations, Owner-issued
+> invitations, or other account flows. Existing `VERIFIED_AT_COUNTER` remains required; the PS-106 attestation does
+> not set or replace it. Existing unbound generations must be confirmed by Staff, then revoked/reissued through PS-86
+> with audit. Failed redeem limits remain 5/account/15 minutes and add 5/account+invitation/15 minutes; the second
+> bucket prevents one account's guesses from locking an invitation for other accounts.
 
 ## PS-106 Staff email queue
 

@@ -48,7 +48,8 @@ class CounterIdentityAttestationOpenApiContractTest {
         Map<?, ?> redeemPost = (Map<?, ?>) redeem.get("post");
         assertEquals("implemented", redeemPost.get("x-status"));
         assertEquals("blocked", redeemPost.get("x-integration-status"));
-        assertTrue(((java.util.List<?>) redeemPost.get("x-blockers")).contains("staff-email-bound-invitation-issuance"));
+        assertTrue(((java.util.List<?>) redeemPost.get("x-blockers")).contains("approved-mail-transport"));
+        assertTrue(((java.util.List<?>) redeemPost.get("x-blockers")).contains("ps104-delivered-item-read-api"));
         Map<?, ?> redeemResponses = (Map<?, ?>) redeemPost.get("responses");
         assertTrue(redeemResponses.containsKey("409"));
         assertTrue(redeemResponses.containsKey("422"));
