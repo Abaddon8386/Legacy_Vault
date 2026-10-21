@@ -138,3 +138,29 @@ for (const role of ['VAULT_OWNER', 'BENEFICIARY']) {
     });
   }
 }
+
+test('real App admin users route loads PS-109 automatically and requests detail by public UUID', async () => {
+  const admin = { ...user, roles: ['ADMIN'] };
+  const record = { publicId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', fullName: 'Directory account',
+    email: 'directory@example.test', roles: ['ROLE_BENEFICIARY'], status: 'ACTIVE', createdAt: '2026-10-20T10:00:00Z' };
+  storeSession({ ...candidate(), user: admin });
+  window.history.replaceState({}, '', '/admin/users?lang=en');
+  const original = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(url);
+    const payload = url.endsWith('/auth/me') ? admin : url.endsWith('/' + record.publicId) ? { ...record, fullName: 'Fresh detail' }
+      : { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 };
+    return new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+  };
+  const host = document.createElement('div'); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(App)));
+    assert.match(host.querySelector('tbody').textContent, /Directory account/);
+    assert.ok(urls.some(url => /\/admin\/users\?/.test(url)));
+    await act(async () => [...host.querySelectorAll('button')].find(button => /view details/i.test(button.textContent)).click());
+    assert.ok(urls.some(url => url.endsWith('/admin/users/' + record.publicId)));
+    assert.match(host.querySelector('[role="dialog"]').textContent, /Fresh detail/);
+  } finally { await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = original; }
+});

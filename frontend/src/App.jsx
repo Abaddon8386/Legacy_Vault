@@ -719,7 +719,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       {currentTab === 'admin-subscriptions'
         ? <AdminSubscriptionPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onNavigateHome={() => navigateTo('/admin')} />
         : currentTab === 'admin-users'
-        ? <AdminUsersPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
+        ? <AdminUsersPage fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
         : currentTab === 'admin-logs'
         ? <AdminLogsPage fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} />
         : <AdminHome fetchOnMount lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onOpenProfile={() => navigateTo('/account/profile')} onOpenSubscriptions={() => navigateTo('/admin/subscriptions')} onNavigate={target => navigateTo(target === 'users' ? '/admin/users' : target === 'logs' ? '/admin/logs' : '/admin/subscriptions')} />}

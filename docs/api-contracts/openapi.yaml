@@ -1121,8 +1121,11 @@ paths:
       summary: Cập nhật một phần Asset (PS-16, D-API-24)
       description: |
         Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+        PS-111 (D-API-40): mọi lần sửa phải kèm `password` là mật khẩu đăng nhập hiện tại; server tự xác thực lại, không có cờ
+        "đã xác nhận" từ client. Thứ tự: ownership (404) -> trạng thái Vault (409) -> mật khẩu/giới hạn (403 `REAUTH_FAILED` / 429
+        `TOO_MANY_ATTEMPTS`). Bộ đếm thử sai dùng chung với `reveal`.
         Chỉ khi bật quota prototype PS-77: payload tính chênh lệch byte UTF-8; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED. Mặc định không áp quota đề xuất.
-      x-status: designed
+      x-status: implemented
       parameters:
         - $ref: '#/components/parameters/VaultId'
         - $ref: '#/components/parameters/AssetId'
@@ -1131,7 +1134,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/UpdateAssetRequest' }
-            example: { description: Cập nhật ghi chú }
+            example: { description: Cập nhật ghi chú, password: '<mật khẩu đăng nhập hiện tại>' }
       responses:
         '200':
           description: Đã cập nhật
@@ -1143,6 +1146,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '429': { description: TOO_MANY_ATTEMPTS - quá số lần nhập sai mật khẩu xác nhận trong cửa sổ thời gian (kể cả khi lần sau đúng) }
 
   /api/v1/vaults/{vaultId}/assets/{assetId}/reveal:
     post:
@@ -3504,11 +3508,13 @@ components:
         payload: { type: string, writeOnly: true, description: Nội dung bí mật; mã hóa phía server; không bao giờ trả lại }
     UpdateAssetRequest:
       type: object
-      minProperties: 1
+      required: [password]
+      description: Cần ít nhất một trong name, description, payload cùng với password (PS-111, D-API-40)
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
         description: { type: string, maxLength: 1000 }
         payload: { type: string, writeOnly: true }
+        password: { type: string, minLength: 1, maxLength: 72, writeOnly: true, description: Mật khẩu đăng nhập hiện tại của Owner; không bao giờ được log hoặc trả lại }
     AssetResponse:
       type: object
       required: [id, vaultId, name, assetType, hasPayload, createdAt, updatedAt]

@@ -41,11 +41,22 @@ Giới hạn kích thước `payload`: mặc định 64 KB, cấu hình qua prop
 
 ## PATCH /api/v1/vaults/{vaultId}/assets/{assetId} — PS-16 **[D-API-24]**
 
-- **Request:** các trường tùy chọn `name`, `description`, `payload`. Trường vắng = không đổi. **Chỉ các trường này được đổi**;
-  `assetType`, `vaultId`, `id` bị bỏ qua. Body phải có ít nhất một trường hợp lệ, nếu không `400 VALIDATION_FAILED`.
-- **Response 200:** `AssetResponse` đã cập nhật (`updatedAt` mới).
-- **Lỗi:** `400` · `401` · `403` · `404` · `409 VAULT_NOT_EDITABLE`.
-- **Audit:** `ASSET_UPDATED` (danh sách tên trường đã đổi; không ghi giá trị `payload`).
+- **Request:** các trường tùy chọn `name`, `description`, `payload` và **bắt buộc `password`** (PS-111, D-API-40). Trường vắng = không
+  đổi. **Chỉ các trường này được đổi**; `assetType`, `vaultId`, `id` bị bỏ qua. Body phải có ít nhất một trong ba trường dữ liệu,
+  nếu không `400 VALIDATION_FAILED`.
+- **`password`** (PS-111): mật khẩu đăng nhập hiện tại, không rỗng, tối đa 72 ký tự. Server tự xác thực lại trong chính request PATCH
+  (cùng cơ chế và cùng bộ đếm với `reveal`); không có cờ hoặc token "đã xác nhận" do client gửi. Mọi lần sửa đều cần, kể cả khi chỉ
+  đổi tên/mô tả. Thiếu hoặc rỗng: `400 VALIDATION_FAILED` (không tính là lần nhập sai).
+- **Response 200:** `AssetResponse` đã cập nhật (`updatedAt` mới). Không trả lại `password` hay `payload`.
+- **Thứ tự kiểm tra:** role (403) → ownership (404) → trạng thái Vault (409) → giới hạn/mật khẩu (429/403) → quota/ghi. Người lạ
+  nhận 404 và kho đóng băng nhận 409 trước khi mật khẩu bị kiểm tra nên không bị tính lần sai.
+- **Lỗi:** `400` · `401` · `403 ACCESS_DENIED` (thiếu role) · `403 REAUTH_FAILED` (sai mật khẩu; không dùng 401) · `404` ·
+  `409 VAULT_NOT_EDITABLE` · `429 TOO_MANY_ATTEMPTS` (quá `legacyvault.reauth.max-failed-attempts` lần sai trong
+  `legacyvault.reauth.window-minutes` phút, kể cả khi lần sau đúng).
+- **Audit:** `ASSET_UPDATED` (danh sách tên trường đã đổi; không ghi giá trị `payload` hay mật khẩu); mỗi lần sai ghi `REAUTH_FAILED`
+  trong giao dịch riêng nên vẫn được lưu khi request bị từ chối.
+- **Tương thích:** client cũ gửi PATCH không có `password` nhận `400`. FE (PR #141) gửi `password` trong body PATCH thay cho bước xác
+  thực riêng; không lưu mật khẩu vào `localStorage`/log.
 
 ## POST /api/v1/vaults/{vaultId}/assets/{assetId}/reveal — PS-16 **[D-API-32]**
 

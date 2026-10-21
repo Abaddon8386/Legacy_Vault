@@ -322,3 +322,6 @@ const PS6_I18N = {
   }
 };
 for (const lang of ["vi","en"]) { Object.assign(ASSET_I18N[lang].assets,PS6_I18N[lang]); Object.assign(ASSET_I18N[lang].assets.alerts,{editSuccess:lang==="vi"?"Đã cập nhật tài sản.":"Asset updated.",editError:lang==="vi"?"Không thể cập nhật tài sản.":"Unable to update asset."}); }
+
+Object.assign(ASSET_I18N.vi.assets.editModal, {confirmPasswordLabel: 'Xác nhận mật khẩu đăng nhập trước khi lưu', passwordRequired: 'Vui lòng nhập mật khẩu hiện tại.', passwordFailed: 'Không thể xác nhận mật khẩu. Vui lòng thử lại.'});
+Object.assign(ASSET_I18N.en.assets.editModal, {confirmPasswordLabel: 'Confirm your current password before saving', passwordRequired: 'Enter your current password.', passwordFailed: 'Unable to verify your password. Please try again.'});
