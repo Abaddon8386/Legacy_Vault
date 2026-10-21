@@ -42,8 +42,9 @@ class StaffCaseBeneficiaryControllerTest {
 
 	private CounterBeneficiaryDtos.Item item() {
 		return new CounterBeneficiaryDtos.Item(beneficiaryId, caseId, "Nguyen Van A", "Con", "VERIFIED_AT_COUNTER",
-				"NOT_CREATED", false, new CounterBeneficiaryDtos.InvitationSummary("NOT_ISSUED", null),
-				CounterBeneficiaryDtos.STEP_AWAITING_ACCOUNT_DECISION, new CounterBeneficiaryDtos.Actions(true, true, true));
+				"NOT_CREATED", false, new CounterBeneficiaryDtos.InvitationSummary("NOT_ISSUED", null, 0),
+				new CounterBeneficiaryDtos.CounterAttestationSummary(false, null, false),
+				CounterBeneficiaryDtos.STEP_AWAITING_ACCOUNT_DECISION, new CounterBeneficiaryDtos.Actions(true, true, true, false));
 	}
 
 	@Test

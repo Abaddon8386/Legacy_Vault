@@ -31,14 +31,17 @@ public class CounterBeneficiaryService {
 	private final StaffVaultCaseGuard guard;
 	private final BeneficiaryRepository beneficiaries;
 	private final BeneficiaryInvitationRepository invitations;
+	private final BeneficiaryCounterAttestationRepository attestations;
 	private final StaffContextService staff;
 
 	public CounterBeneficiaryService(VerificationCaseRepository cases, StaffVaultCaseGuard guard,
-			BeneficiaryRepository beneficiaries, BeneficiaryInvitationRepository invitations, StaffContextService staff) {
+			BeneficiaryRepository beneficiaries, BeneficiaryInvitationRepository invitations,
+			BeneficiaryCounterAttestationRepository attestations, StaffContextService staff) {
 		this.cases = cases;
 		this.guard = guard;
 		this.beneficiaries = beneficiaries;
 		this.invitations = invitations;
+		this.attestations = attestations;
 		this.staff = staff;
 	}
 
@@ -48,9 +51,13 @@ public class CounterBeneficiaryService {
 		Long vaultId = verificationCase.getVaultId();
 		Map<Long, BeneficiaryInvitation> current = invitations.findAllByBeneficiary_Vault_VaultIdAndCurrentTrue(vaultId)
 				.stream().collect(Collectors.toMap(i -> i.getBeneficiary().getId(), Function.identity(), (a, b) -> a));
+		// Newest first, so the first entry per Beneficiary is the attestation that counts.
+		Map<Long, BeneficiaryCounterAttestation> latest = attestations.findAllByVerificationCase_PublicIdOrderByIdDesc(caseId)
+				.stream().collect(Collectors.toMap(a -> a.getBeneficiary().getId(), Function.identity(), (a, b) -> a));
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 		return beneficiaries.findAllByVault_VaultIdOrderByIdAsc(vaultId).stream()
-				.map(b -> CounterBeneficiaryDtos.Item.from(b, caseId, current.get(b.getId()), now)).toList();
+				.map(b -> CounterBeneficiaryDtos.Item.from(b, caseId, current.get(b.getId()), latest.get(b.getId()), now))
+				.toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -59,7 +66,10 @@ public class CounterBeneficiaryService {
 		Beneficiary beneficiary = beneficiaries.findByPublicIdAndVault_VaultId(beneficiaryId, verificationCase.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 		BeneficiaryInvitation invitation = invitations.findByBeneficiary_IdAndCurrentTrue(beneficiary.getId()).orElse(null);
-		return CounterBeneficiaryDtos.Item.from(beneficiary, caseId, invitation, LocalDateTime.now(ZoneOffset.UTC));
+		BeneficiaryCounterAttestation attestation = attestations
+				.findFirstByVerificationCase_PublicIdAndBeneficiary_PublicIdOrderByIdDesc(caseId, beneficiaryId).orElse(null);
+		return CounterBeneficiaryDtos.Item.from(beneficiary, caseId, invitation, attestation,
+				LocalDateTime.now(ZoneOffset.UTC));
 	}
 
 	private VerificationCase authorize(UUID caseId) {
