@@ -56,6 +56,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Nhóm | `action` | Ticket nguồn |
 |---|---|---|
 | Auth | `AUTH_REGISTERED`, `AUTH_LOGIN_SUCCEEDED`, `AUTH_LOGIN_FAILED` | PS-9, PS-10 |
+| Auth profile | `AUTH_PROFILE_UPDATED` (chỉ tên trường đã đổi), `AUTH_EMAIL_CHANGED`, `AUTH_PASSWORD_CHANGED` (không lưu giá trị email/password hoặc hash) | PS-79 |
 | Vault | `VAULT_CREATED`, `VAULT_ALERT_CANCELLED` | PS-12, PS-33 |
 | Asset | `ASSET_CREATED`, `ASSET_UPDATED`, `ASSET_REVEALED` | PS-15, PS-16 |
 | Xác nhận lại mật khẩu | `REAUTH_FAILED` (mỗi lần sai; là bộ đếm cho giới hạn thử, D-API-32) | PS-16 |

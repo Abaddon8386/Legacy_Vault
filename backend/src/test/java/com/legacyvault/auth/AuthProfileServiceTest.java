@@ -10,6 +10,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.legacyvault.auth.dto.ProfileUpdateRequest;
+import com.legacyvault.audit.AuditAction;
+import com.legacyvault.audit.AuditActorType;
+import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
@@ -46,6 +49,7 @@ class AuthProfileServiceTest {
         when(user.getPublicId()).thenReturn(publicId);
         when(user.getStatus()).thenReturn("ACTIVE");
         when(user.getEmail()).thenReturn("before@example.com");
+        when(user.getPhoneNumber()).thenReturn("0900000000");
         when(userRoles.findByUserIdWithRole(userId)).thenReturn(List.of());
     }
 
@@ -81,6 +85,29 @@ class AuthProfileServiceTest {
         verify(user).setPasswordHash("bcrypt-hash");
         verify(encoder, never()).encode("bcrypt-hash");
         verify(users).flush();
+
+        var events = org.mockito.ArgumentCaptor.forClass(AuditEvent.class);
+        verify(audit, times(3)).record(events.capture());
+        assertThat(events.getAllValues()).extracting(AuditEvent::action).containsExactly(
+                AuditAction.AUTH_PROFILE_UPDATED,
+                AuditAction.AUTH_EMAIL_CHANGED,
+                AuditAction.AUTH_PASSWORD_CHANGED);
+        for (AuditEvent event : events.getAllValues()) {
+            assertThat(event.actorType()).isEqualTo(AuditActorType.USER);
+            assertThat(event.actorUserId()).isEqualTo(userId);
+            assertThat(event.entityType()).isEqualTo("USER");
+            assertThat(event.entityId()).isEqualTo(userId);
+            assertThat(event.ruleId()).isEqualTo("LV-AUD-001");
+            assertThat(event.context()).containsEntry("result", "SUCCESS");
+            assertThat(event.context().toString()).doesNotContain(
+                    "NEW@example.com", "new@example.com", "NewPass123", "bcrypt-hash");
+        }
+        assertThat(events.getAllValues().get(0).context())
+                .containsEntry("changedFields", List.of("fullName", "phoneNumber"));
+        assertThat(events.getAllValues().get(1).context())
+                .containsEntry("changedFields", List.of("email"));
+        assertThat(events.getAllValues().get(2).context())
+                .containsEntry("changedFields", List.of("password"));
     }
 
     @Test
@@ -88,6 +115,7 @@ class AuthProfileServiceTest {
         service.updateCurrentUser(auth, new ProfileUpdateRequest());
         verify(user, never()).setPasswordHash(any());
         verifyNoInteractions(encoder);
+        verifyNoInteractions(audit);
     }
 
     @Test
@@ -116,6 +144,19 @@ class AuthProfileServiceTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.EMAIL_ALREADY_EXISTS);
         verify(users, never()).flush();
+        verifyNoInteractions(audit);
+    }
+
+    @Test
+    void auditFailurePropagatesInsteadOfReturningSuccessfulProfileUpdate() {
+        ProfileUpdateRequest request = new ProfileUpdateRequest();
+        request.setFullName("Updated Name");
+        doThrow(new IllegalStateException("audit persistence failed"))
+                .when(audit).record(any(AuditEvent.class));
+
+        assertThatThrownBy(() -> service.updateCurrentUser(auth, request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("audit persistence failed");
     }
 
     @Test

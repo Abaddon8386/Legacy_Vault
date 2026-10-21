@@ -64,7 +64,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 - Email được chuẩn hóa chữ thường và uniqueness áp dụng trong DB. Khi đổi email, `email_verified_at` được xóa; endpoint không xác minh email mới. Theo D-API-16 hiện tại, xác minh email không phải điều kiện đăng nhập.
 - Password mới không làm mất hiệu lực JWT đã cấp; token hiện hành tiếp tục theo TTL hiện có (mặc định 3600 giây), do hệ thống chưa có credential-version/revocation policy.
 - **Lỗi:** `400 VALIDATION_FAILED` (payload sai/field không được phép), `401 UNAUTHENTICATED`, `409 EMAIL_ALREADY_EXISTS`.
-- Audit policy hiện chưa định nghĩa sự kiện cập nhật hồ sơ; endpoint không ghi audit nghiệp vụ mới cho tới khi nhóm chốt action/payload cần ghi.
+- Cập nhật tên/số điện thoại ghi `AUTH_PROFILE_UPDATED`; đổi email ghi `AUTH_EMAIL_CHANGED`; đổi mật khẩu ghi `AUTH_PASSWORD_CHANGED`. Actor lấy từ principal đã xác thực. Metadata chỉ ghi kết quả và tên trường thay đổi, không ghi giá trị email, mật khẩu, hash hoặc request body. Các sự kiện được ghi trong transaction cập nhật theo `LV-AUD-001`; lỗi ghi audit làm rollback cập nhật.
 
 ## Bảo mật & RBAC — PS-11
 

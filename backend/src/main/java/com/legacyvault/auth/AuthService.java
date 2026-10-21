@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -190,9 +191,16 @@ public class AuthService {
     @Transactional
     public ProfileResponse updateCurrentUser(Authentication authentication, ProfileUpdateRequest request) {
         User user = requireCurrentUser(authentication, true);
+        List<String> profileFieldsChanged = new ArrayList<>();
+        boolean emailChanged = false;
+        boolean passwordChanged = false;
 
         if (request.getFullName() != null) {
-            user.setFullName(request.getFullName().trim());
+            String fullName = request.getFullName().trim();
+            if (!Objects.equals(fullName, user.getFullName())) {
+                user.setFullName(fullName);
+                profileFieldsChanged.add("fullName");
+            }
         }
         if (request.getEmail() != null) {
             String email = EmailNormalizer.normalize(request.getEmail());
@@ -203,14 +211,20 @@ public class AuthService {
                 user.setEmail(email);
                 // A changed address is not verified by this API.
                 user.setEmailVerifiedAt(null);
+                emailChanged = true;
             }
         }
         if (request.getPhoneNumber() != null) {
             String phone = request.getPhoneNumber().trim();
-            user.setPhoneNumber(phone.isEmpty() ? null : phone);
+            String phoneNumber = phone.isEmpty() ? null : phone;
+            if (!Objects.equals(phoneNumber, user.getPhoneNumber())) {
+                user.setPhoneNumber(phoneNumber);
+                profileFieldsChanged.add("phoneNumber");
+            }
         }
         if (request.getPassword() != null) {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            passwordChanged = true;
         }
 
         try {
@@ -221,7 +235,37 @@ public class AuthService {
             }
             throw ex;
         }
+
+        if (!profileFieldsChanged.isEmpty()) {
+            recordProfileAudit(AuditAction.AUTH_PROFILE_UPDATED, user.getUserId(),
+                    Map.of("result", "SUCCESS", "changedFields", List.copyOf(profileFieldsChanged)));
+        }
+        if (emailChanged) {
+            recordProfileAudit(AuditAction.AUTH_EMAIL_CHANGED, user.getUserId(),
+                    Map.of("result", "SUCCESS", "changedFields", List.of("email")));
+        }
+        if (passwordChanged) {
+            recordProfileAudit(AuditAction.AUTH_PASSWORD_CHANGED, user.getUserId(),
+                    Map.of("result", "SUCCESS", "changedFields", List.of("password")));
+        }
         return toProfileResponse(user);
+    }
+
+    private void recordProfileAudit(AuditAction action, Long userId, Map<String, Object> context) {
+        auditService.record(new AuditEvent(
+                action,
+                AuditActorType.USER,
+                userId,
+                null,
+                "USER",
+                userId,
+                null,
+                null,
+                null,
+                context,
+                "PS-79",
+                "LV-AUD-001"
+        ));
     }
 
     private User requireCurrentUser(Authentication authentication, boolean lock) {
