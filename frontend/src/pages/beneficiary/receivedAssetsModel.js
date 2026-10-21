@@ -51,3 +51,18 @@ export function receivedActions(actions, options = {}) {
   if (!options.accessToken) return null;
   return actions && ['list', 'detail', 'content', 'image'].every(key => typeof actions[key] === 'function') ? actions : null;
 }
+
+export function formatDeliveredDate(value, lang = 'vi') {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '—';
+  try {
+    return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+}
