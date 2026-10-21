@@ -764,14 +764,23 @@ for (const lang of ['vi', 'en']) {
     } finally { await view.close(); }
   });
   test(`Beneficiary phone ${lang}: auth projection without phone does not claim the profile is incomplete`, async () => {
-    const projected = readUser({ ...refreshUser, phoneNumber: '0901234567' });
-    assert.equal(Object.hasOwn(projected, 'phoneNumber'), false, 'The current auth contract does not expose profile phone');
+    const { phoneNumber: _phoneNumber, ...withoutPhone } = refreshUser;
+    const projected = readUser(withoutPhone);
+    assert.equal(Object.hasOwn(projected, 'phoneNumber'), false, 'An absent phone stays absent; do not invent a value');
     const view = await mount(BeneficiaryHome, { user: projected, lang });
     try {
       const detail = [...view.host.querySelectorAll('.lv-ben-detail-item')].find(item => item.textContent.includes(lang === 'en' ? 'Phone Number' : 'Số điện thoại'));
       assert.ok(detail);
       assert.match(detail.textContent, lang === 'en' ? /Information unavailable/ : /Thông tin chưa khả dụng/);
       assert.doesNotMatch(detail.textContent, /Not provided|Chưa cập nhật/);
+    } finally { await view.close(); }
+  });
+  test(`Beneficiary phone ${lang}: PS-79 profile phone is preserved and displayed`, async () => {
+    const projected = readUser({ ...refreshUser, phoneNumber: '0901234567' });
+    const view = await mount(BeneficiaryHome, { user: projected, lang });
+    try {
+      const detail = [...view.host.querySelectorAll('.lv-ben-detail-item')].find(item => item.textContent.includes(lang === 'en' ? 'Phone Number' : 'Số điện thoại'));
+      assert.match(detail.textContent, /0901234567/);
     } finally { await view.close(); }
   });
   for (const path of ['/admin', '/admin/subscriptions']) {

@@ -14,6 +14,7 @@ import {
   resolveInitialProfileData,
 } from '../../utils/accountEditValidation.js';
 import { accountEditI18n } from './accountEditI18n.js';
+import { useModalFocus } from '../../components/common/useModalFocus.js';
 import './AccountEditPage.css';
 
 export default function AccountEditPage({
@@ -27,6 +28,7 @@ export default function AccountEditPage({
   preview = false,
   saveProfile,
   onProfileSaved,
+  onUnauthorized,
 }) {
   const t = accountEditI18n[lang] || accountEditI18n.vi;
 
@@ -42,10 +44,13 @@ export default function AccountEditPage({
   const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [fullName, setFullName] = useState(initialData?.fullName || '');
   const [previousName, setPreviousName] = useState(initialData?.fullName || '');
+  const [phoneNumber, setPhoneNumber] = useState(initialData?.phoneNumber || '');
+  const [previousPhone, setPreviousPhone] = useState(initialData?.phoneNumber || '');
   const [validationError, setValidationError] = useState(null);
   const [localPendingCancel, setLocalPendingCancel] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState(null);
+  const [accessDenied, setAccessDenied] = useState(false);
   const requestRef = useRef(null);
   const pendingRef = useRef(false);
   const saveScope = `${session?.accessToken || ''}:${initialData?.id || ''}`;
@@ -55,12 +60,14 @@ export default function AccountEditPage({
     return () => { requestRef.current?.abort(); requestRef.current = null; pendingRef.current = false; };
   }, [saveScope]);
   const [previousScope, setPreviousScope] = useState(saveScope);
-  if (previousScope !== saveScope) { setPreviousScope(saveScope); setIsSaving(false); setSaveFeedback(null); }
+  if (previousScope !== saveScope) { setPreviousScope(saveScope); setIsSaving(false); setSaveFeedback(null); setAccessDenied(false); }
 
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
     setFullName(initialData?.fullName || '');
     setPreviousName(initialData?.fullName || '');
+    setPhoneNumber(initialData?.phoneNumber || '');
+    setPreviousPhone(initialData?.phoneNumber || '');
     setValidationError(null);
     setLocalPendingCancel(false);
   } else if (previousName !== (initialData?.fullName || '')) {
@@ -71,8 +78,12 @@ export default function AccountEditPage({
       setValidationError(null);
     }
   }
+  if (currentUserId === prevUserId && previousPhone !== (initialData?.phoneNumber || '')) {
+    setPreviousPhone(initialData?.phoneNumber || '');
+    if (phoneNumber.trim() === previousPhone) setPhoneNumber(initialData?.phoneNumber || '');
+  }
 
-  const dirty = isFormDirty(fullName, initialData?.fullName);
+  const dirty = isFormDirty(fullName, initialData?.fullName) || phoneNumber.trim() !== (initialData?.phoneNumber || '');
 
   // Notify parent of dirty state changes for in-app navigation guard
   useEffect(() => {
@@ -136,29 +147,38 @@ export default function AccountEditPage({
     }
   };
 
-  const canSave = typeof saveProfile === 'function' && Boolean(initialData?.id);
+  const canSave = typeof saveProfile === 'function' && Boolean(initialData?.id) && !isDevPreviewActive;
+  const fieldErrors = validateProfileEditForm({ fullName, phoneNumber }).errors;
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canSave || !dirty || pendingRef.current) return;
-    if (!validateProfileEditForm({ fullName }).isValid) { setValidationError('REQUIRED'); return; }
+    if (!canSave || !dirty || pendingRef.current || accessDenied) return;
+    if (Object.keys(fieldErrors).length) { setValidationError('INVALID'); document.getElementById(fieldErrors.fullName ? 'lv-edit-fullname' : 'lv-edit-phone')?.focus(); return; }
     pendingRef.current = true; setIsSaving(true); setSaveFeedback(null);
     const controller = new AbortController(); requestRef.current = controller;
     const requestedId = initialData.id;
     try {
-      const response = await saveProfile({ fullName: fullName.trim() }, { signal: controller.signal });
+      const changes = {};
+      if (isFormDirty(fullName, initialData.fullName)) changes.fullName = fullName.trim();
+      if (phoneNumber.trim() !== (initialData.phoneNumber || '')) changes.phoneNumber = phoneNumber.trim();
+      const response = await saveProfile(changes, { signal: controller.signal, lang });
       if (controller.signal.aborted || requestRef.current !== controller || activeScope.current !== saveScope) return;
       const user = readUser(response);
       if (user.id !== requestedId) throw new Error('MISMATCHED_PROFILE');
-      setFullName(user.fullName); setSaveFeedback('success');
-      onProfileSaved?.(user);
-    } catch {
-      if (!controller.signal.aborted && requestRef.current === controller && activeScope.current === saveScope) setSaveFeedback('error');
+      onProfileSaved?.(user, { accessToken: session.accessToken, userId: requestedId });
+      setFullName(user.fullName); setPhoneNumber(user.phoneNumber || ''); setValidationError(null); setSaveFeedback('success');
+    } catch (error) {
+      if (!controller.signal.aborted && requestRef.current === controller && activeScope.current === saveScope) {
+        if (error.status === 401) onUnauthorized?.();
+        if (error.status === 403) setAccessDenied(true);
+        setSaveFeedback(error.status === 403 ? 'accessDenied' : error.code === 'VALIDATION_FAILED' ? 'validationFailed' : 'error');
+      }
     } finally {
       if (requestRef.current === controller) { pendingRef.current = false; requestRef.current = null; if (!controller.signal.aborted) setIsSaving(false); }
     }
   };
 
   const isModalOpen = Boolean(pendingNavigation || localPendingCancel);
+  const modalRef = useModalFocus(isModalOpen, handleModalStay);
 
   return (
     <div className="lv-account-edit-view">
@@ -187,7 +207,7 @@ export default function AccountEditPage({
       </div>
 
       }
-      {saveFeedback && <p role={saveFeedback === 'error' ? 'alert' : 'status'}>{saveFeedback === 'success' ? t.saveSuccess : t.saveError}</p>}
+      {saveFeedback && <p role={saveFeedback === 'success' ? 'status' : 'alert'}>{saveFeedback === 'success' ? t.saveSuccess : t[saveFeedback] || t.saveError}</p>}
 
       {/* Main Form Content */}
       {initialData ? (
@@ -197,7 +217,7 @@ export default function AccountEditPage({
           </h2>
           <p className="lv-edit-card__desc">{t.personalInfoDesc}</p>
 
-          <form className="lv-form" onSubmit={handleSubmit} noValidate>
+          <form className="lv-form" onSubmit={handleSubmit} noValidate aria-busy={isSaving}>
             {/* 1. Full Name */}
             <div className="lv-form-group">
               <label htmlFor="lv-edit-fullname" className="lv-form-label">
@@ -206,23 +226,35 @@ export default function AccountEditPage({
               <input
                 id="lv-edit-fullname"
                 type="text"
-                className={`lv-input-text ${validationError ? 'has-error' : ''}`}
+                className={`lv-input-text ${validationError && fieldErrors.fullName ? 'has-error' : ''}`}
                 value={fullName}
                 onChange={handleNameChange}
                 placeholder={t.fullNamePlaceholder}
-                disabled={isSaving}
+                disabled={isSaving || accessDenied}
                 autoComplete="name"
-                aria-invalid={Boolean(validationError)}
-                aria-describedby={validationError ? 'lv-fullname-error' : undefined}
+                maxLength={150}
+                aria-invalid={Boolean(validationError && fieldErrors.fullName)}
+                aria-describedby={validationError && fieldErrors.fullName ? 'lv-fullname-error' : undefined}
               />
-              {validationError && (
+              {validationError && fieldErrors.fullName && (
                 <p id="lv-fullname-error" className="lv-form-error" role="alert">
-                  {t.errorFullNameRequired}
+                  {fieldErrors.fullName === 'REQUIRED' ? t.errorFullNameRequired : t.errorFullNameInvalid}
                 </p>
               )}
             </div>
 
-            {/* 2. Email Address (Read-only) */}
+            <div className="lv-form-group">
+              <label htmlFor="lv-edit-phone" className="lv-form-label">{t.phoneLabel}</label>
+              <input id="lv-edit-phone" type="tel" className="lv-input-text" value={phoneNumber}
+                onChange={event => { setPhoneNumber(event.target.value); setValidationError(null); setSaveFeedback(null); }}
+                autoComplete="tel" maxLength={16} disabled={isSaving || accessDenied}
+                aria-invalid={Boolean(validationError && fieldErrors.phoneNumber)}
+                aria-describedby={validationError && fieldErrors.phoneNumber ? 'lv-phone-error' : 'lv-phone-help'} />
+              <p id="lv-phone-help" className="lv-form-help">{t.phoneHelp}</p>
+              {validationError && fieldErrors.phoneNumber && <p id="lv-phone-error" className="lv-form-error" role="alert">{t.errorPhoneInvalid}</p>}
+            </div>
+
+            {/* Email changes are implemented by the separate role-based email task. */}
             <div className="lv-form-group">
               <div className="lv-form-label">
                 <span>{t.emailLabel}</span>
@@ -285,7 +317,7 @@ export default function AccountEditPage({
               <button
                 type="submit"
                 className="lv-btn lv-btn-primary"
-                disabled={!canSave || !dirty || isSaving}
+                disabled={!canSave || !dirty || isSaving || accessDenied}
                 title={!canSave ? t.unavailableNotice : undefined}
                 aria-label={canSave ? t.btnSave : t.unavailableNotice}
               >
@@ -312,6 +344,8 @@ export default function AccountEditPage({
         <div
           className="lv-modal-overlay"
           role="dialog"
+          ref={modalRef}
+          tabIndex={-1}
           aria-modal="true"
           aria-labelledby="unsaved-modal-title"
           aria-describedby="unsaved-modal-desc"
@@ -333,7 +367,6 @@ export default function AccountEditPage({
                 type="button"
                 className="lv-btn lv-modal-btn-stay"
                 onClick={handleModalStay}
-                autoFocus
               >
                 {t.btnStay}
               </button>

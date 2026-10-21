@@ -85,7 +85,11 @@ export function validateProfileEditForm(values) {
   const fullName = typeof values?.fullName === 'string' ? values.fullName.trim() : '';
   if (!fullName) {
     errors.fullName = 'REQUIRED';
+  } else if (fullName.length > 150 || /[\r\n]/.test(fullName)) {
+    errors.fullName = 'INVALID_FORMAT';
   }
+  if (values?.phoneNumber !== undefined && (typeof values.phoneNumber !== 'string' ||
+      (values.phoneNumber.trim() && !/^\+?[0-9]{8,15}$/.test(values.phoneNumber.trim())))) errors.phoneNumber = 'INVALID_FORMAT';
 
   return {
     isValid: Object.keys(errors).length === 0,
@@ -127,6 +131,7 @@ export function resolveInitialProfileData(session) {
     fullName: user.fullName,
     email: user.email,
     roles: [...user.roles],
+    ...(Object.hasOwn(user, 'phoneNumber') ? { phoneNumber: user.phoneNumber } : {}),
   };
 }
 

@@ -137,3 +137,7 @@ test('PS-103 attachment audit actions do not invalidate the Admin log after an e
     assert.equal(validateAdminAuditLog({ ...event, action }).action, action);
   assert.throws(() => validateAdminAuditLog({ ...event, action: 'UNREVIEWED_ACTION' }));
 });
+
+test('PS-79 profile updates remain readable in the Admin audit log', () => {
+  assert.equal(validateAdminAuditLog({ ...event, action: 'AUTH_PROFILE_UPDATED' }).action, 'AUTH_PROFILE_UPDATED');
+});

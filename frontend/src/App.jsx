@@ -7,7 +7,7 @@ import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
 import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
 import AdminLogsPage from './pages/admin/AdminLogsPage.jsx';
 import { previewRoute } from './utils/previewState.js';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
@@ -52,6 +52,7 @@ import AccountProfilePage from './pages/account/AccountProfilePage.jsx';
 import { canAccessAccountProfile } from './utils/accountProfileValidation.js';
 import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
+import { updateProfile } from './services/profileService.js';
 
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
@@ -393,6 +394,9 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const [session, setSession] = useState(readStoredSession);
+  const profileSessionRef = useRef(session);
+  const profileWriteRef = useRef(null);
+  useLayoutEffect(() => { profileSessionRef.current = session; }, [session]);
   // Invitation codes live only in this mounted application, never URLs or storage.
   const [invitationIntent, setInvitationIntent] = useState(() => new URLSearchParams(window.location.search).get('invitation') === 'true');
   const [pendingInvitationCode, setPendingInvitationCode] = useState('');
@@ -502,6 +506,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }, []);
 
   const logout = useCallback(() => {
+    profileSessionRef.current = null;
     restoreControllerRef.current?.abort();
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
@@ -601,6 +606,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
   const handleRefresh = async () => {
+    if (profileWriteRef.current && !profileWriteRef.current.aborted) return;
     if (refreshControllerRef.current) return;
     const currentSession = session;
     if (!currentSession?.accessToken) {
@@ -650,6 +656,37 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         setIsRefreshing(false);
       }
     }
+  };
+  const saveAccountProfile = async (changes, options) => {
+    const snapshot = session;
+    const active = profileSessionRef.current;
+    if (!isSessionActive(active) || active.accessToken !== snapshot?.accessToken || active.user.id !== snapshot.user.id) throw new ApiError('UNAUTHENTICATED', 401);
+    refreshControllerRef.current?.abort();
+    refreshControllerRef.current = null;
+    setIsRefreshing(false);
+    setRefreshError(null);
+    profileWriteRef.current = options.signal;
+    try {
+      const user = await updateProfile(snapshot, changes, options);
+      const current = profileSessionRef.current;
+      if (options.signal.aborted || !isSessionActive(current) || current.accessToken !== snapshot.accessToken || current.user.id !== snapshot.user.id) throw new DOMException('Session changed', 'AbortError');
+      return user;
+    } finally {
+      if (profileWriteRef.current === options.signal) profileWriteRef.current = null;
+    }
+  };
+  const applySavedProfile = (user, context) => {
+    const current = profileSessionRef.current;
+    if (!isSessionActive(current) || current.accessToken !== context.accessToken || current.user.id !== context.userId || user.id !== context.userId) throw new Error('SESSION_CHANGED');
+    refreshControllerRef.current?.abort();
+    refreshControllerRef.current = null;
+    const next = { ...current, user };
+    profileSessionRef.current = next;
+    storeSession(next);
+    setSession(next);
+    isEditFormDirtyRef.current = false;
+    setIsEditFormDirty(false);
+    setPendingNavigationTarget(null);
   };
   const path = location.split('?')[0];
   const isSharedWithMeRoute = path === '/shared-with-me';
@@ -1218,6 +1255,9 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             session={session}
             preview={preview}
             lang={lang}
+            saveProfile={!preview ? saveAccountProfile : undefined}
+            onProfileSaved={applySavedProfile}
+            onUnauthorized={logout}
             onDirtyChange={setIsEditFormDirty}
             pendingNavigation={pendingNavigationTarget}
             onConfirmNavigation={() => {
