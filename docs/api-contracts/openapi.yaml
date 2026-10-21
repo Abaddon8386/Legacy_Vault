@@ -2136,6 +2136,61 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem Beneficiary của ca đang phục vụ tại quầy (PS-88, ST-14/ST-24)
+      description: |
+        Read only. Requires ROLE_STAFF_EXECUTOR and an OPEN case of the Vault assigned to the actor; any other case, a
+        closed case or an unknown id returns 404 RESOURCE_NOT_FOUND. Lists every Beneficiary of the case Vault with
+        public ids only: identity verification status, account status, a summary of the current invitation
+        (NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED), the counter step and UI hints. No email, phone, identity
+        number or invitation secret is returned. Response is Cache-Control: no-store.
+      x-status: implemented
+      responses:
+        '200':
+          description: Beneficiaries of the case
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CounterBeneficiary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: beneficiaryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem một Beneficiary của ca (PS-88)
+      description: Same authorization and data as the list. A Beneficiary of another Vault returns 404.
+      x-status: implemented
+      responses:
+        '200':
+          description: The Beneficiary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterBeneficiary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
     post:
       tags: [Staff]
@@ -3747,6 +3802,35 @@ components:
         phone: { type: string }
         email: { type: string, format: email }
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    CounterBeneficiary:
+      type: object
+      required: [beneficiaryId, caseId, fullName, identityVerificationStatus, accountStatus, accountLinked, invitation, counterStep, actions]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        fullName: { type: string }
+        relationship: { type: string, nullable: true }
+        identityVerificationStatus: { type: string, enum: [NOT_VERIFIED, VERIFIED_AT_COUNTER] }
+        accountStatus: { type: string, enum: [NOT_CREATED, ACCOUNT_CREATED] }
+        accountLinked: { type: boolean }
+        invitation:
+          type: object
+          required: [state]
+          properties:
+            state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
+            expiresAt: { type: string, format: date-time, nullable: true }
+        counterStep:
+          type: string
+          enum: [AWAITING_IDENTITY_VERIFICATION, AWAITING_ACCOUNT_DECISION, ACCOUNT_LINKED]
+          description: Bước tại quầy suy ra từ dữ liệu server
+        actions:
+          type: object
+          description: Gợi ý hiển thị. Server kiểm tra lại mọi điều kiện khi thực hiện thao tác.
+          required: [canLinkAccount, canCreateAccount, canHandOverWithoutAccount]
+          properties:
+            canLinkAccount: { type: boolean }
+            canCreateAccount: { type: boolean }
+            canHandOverWithoutAccount: { type: boolean, description: "Chỉ cần xác minh tại quầy, không cần tài khoản" }
     BeneficiaryAccountLinkRequest:
       type: object
       required: [accountEmail]

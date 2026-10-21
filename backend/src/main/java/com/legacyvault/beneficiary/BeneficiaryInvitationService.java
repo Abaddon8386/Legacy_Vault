@@ -104,6 +104,12 @@ public class BeneficiaryInvitationService {
         record(actor, invitation, "BENEFICIARY_INVITATION_REVOKED");
     }
 
+    /** PS-88: Staff linked an account at the counter, so a still-pending shared code must not stay usable. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void revokeForCounterLink(Beneficiary beneficiary, Long actor) {
+        revokeForEmailChange(beneficiary, actor);
+    }
+
     /** Internal PS-87 integration seam, NOT an HTTP API. Caller resolves accountId from a verified
      * authenticated principal, or a new account created inside the SAME transaction. Caller must
      * enforce a durable/shared failed-attempt limit before calling; never accept a client accountId.

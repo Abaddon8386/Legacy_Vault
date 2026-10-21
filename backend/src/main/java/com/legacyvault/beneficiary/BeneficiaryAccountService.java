@@ -51,10 +51,12 @@ public class BeneficiaryAccountService {
 	private final UserRoleRepository userRoles;
 	private final PasswordEncoder passwordEncoder;
 	private final AuditService audit;
+	private final BeneficiaryInvitationService invitations;
 
 	public BeneficiaryAccountService(BeneficiaryRepository beneficiaries, StaffContextService staff,
 			StaffVaultCaseGuard cases, EntityManager entities, UserRepository users, RoleRepository roles,
-			UserRoleRepository userRoles, PasswordEncoder passwordEncoder, AuditService audit) {
+			UserRoleRepository userRoles, PasswordEncoder passwordEncoder, AuditService audit,
+			BeneficiaryInvitationService invitations) {
 		this.beneficiaries = beneficiaries;
 		this.staff = staff;
 		this.cases = cases;
@@ -64,6 +66,7 @@ public class BeneficiaryAccountService {
 		this.userRoles = userRoles;
 		this.passwordEncoder = passwordEncoder;
 		this.audit = audit;
+		this.invitations = invitations;
 	}
 
 	/** PS-62: link an existing active account. */
@@ -168,6 +171,8 @@ public class BeneficiaryAccountService {
 		String before = beneficiary.getAccountStatus();
 		beneficiary.linkAccount(account.getUserId());
 		beneficiaries.save(beneficiary);
+		// PS-88: once linked at the counter, a pending invitation code would only be a dead end for the Owner.
+		invitations.revokeForCounterLink(beneficiary, actor.getUserId());
 		// Audit never records the email, password or any identity data.
 		Map<String, Object> details = new LinkedHashMap<>();
 		details.put("stepId", STEP_ID);
