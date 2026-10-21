@@ -179,4 +179,4 @@ Bản báo cáo Anti trước khi chỉnh được giữ ngoài checkout ở art
 
 ### 5. Ranh giới kỹ thuật & Kế hoạch tiếp theo
 - Chưa nối HTTP API backend thực tế (PS-104); hai màn hình Staff và Beneficiary là các màn độc lập, chưa liên thông dữ liệu.
-- PR được tạo ở trạng thái Draft PR vào nhánh `develop` để Codex review; không tự ý merge và không đổi trạng thái Jira.
+- Draft PR #171 (https://github.com/Abaddon8386/Legacy_Vault/pull/171) đã được tạo vào nhánh `develop` để Codex review; không tự ý merge và không đổi trạng thái Jira.
