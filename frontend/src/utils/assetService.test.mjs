@@ -470,7 +470,7 @@ describe('PS-5 Asset Service & Contract Validation Tests', () => {
     it('getAssetTranslations provides complete Vietnamese dictionary by default', () => {
       const t = getAssetTranslations(undefined, 'vi');
       assert.ok(t.assets);
-      assert.equal(t.assets.title, 'Danh sách Tài sản');
+      assert.equal(t.assets.title, 'Danh mục tài sản');
       assert.equal(t.assets.types.TEXT, 'Ghi chú văn bản bảo mật');
       assert.equal(t.assets.types.CREDENTIAL, 'Thông tin xác thực');
       assert.ok(t.assets.alerts.UNAUTHENTICATED);
@@ -484,7 +484,7 @@ describe('PS-5 Asset Service & Contract Validation Tests', () => {
     it('getAssetTranslations provides complete English dictionary when lang="en"', () => {
       const t = getAssetTranslations(undefined, 'en');
       assert.ok(t.assets);
-      assert.equal(t.assets.title, 'Asset Inventory');
+      assert.equal(t.assets.title, 'Heritage Assets');
       assert.equal(t.assets.types.TEXT, 'Secured Text Note');
       assert.equal(t.assets.types.CREDENTIAL, 'Credentials');
       assert.ok(t.assets.alerts.UNAUTHENTICATED);

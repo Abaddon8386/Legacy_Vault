@@ -1,3 +1,5 @@
+import LiveHandoverPage from './LiveHandoverPage.jsx';
+import { isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
 import { Clock, ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut } from 'lucide-react';
@@ -12,6 +14,10 @@ import {
 import './CounterHandoverPage.css';
 
 export default function CounterHandoverPage(props) {
+  return isCounterHandoverSimulationPermitted(props) ? <CounterHandoverPreview {...props} /> : <LiveHandoverPage {...props} mode="sessions" />;
+}
+
+function CounterHandoverPreview(props) {
   const [scenario, setScenario] = useState(() => {
     if (typeof window !== 'undefined') {
       try {

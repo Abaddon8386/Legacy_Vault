@@ -1,3 +1,5 @@
+import { AssetCredentialFields } from './AssetCredentialFields.jsx'
+import { credentialPayload } from '../../utils/credentialPayload.js'
 import { AssetImagePicker } from './AssetImagePicker.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
@@ -28,6 +30,8 @@ export function AssetFormModal({
   }
 
   const [formData, setFormData] = useState(emptyForm)
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const secretPayload = formData.assetType === 'CREDENTIAL' ? credentialPayload(credentials.username, credentials.password) : formData.payload
   const [errors, setErrors] = useState({})
   const [images, setImages] = useState([])
 
@@ -49,7 +53,7 @@ export function AssetFormModal({
       errs.description = 'descMax'
     }
 
-    if (!formData.payload || !formData.payload.trim()) {
+    if (!secretPayload || !secretPayload.trim()) {
       errs.payload = 'payloadRequired'
     }
 
@@ -72,7 +76,7 @@ export function AssetFormModal({
       name: formData.name.trim(),
       assetType: formData.assetType,
       description: formData.description.trim(),
-      payload: formData.payload,
+      payload: secretPayload,
       images,
     })
   }
@@ -80,6 +84,7 @@ export function AssetFormModal({
   function handleResetAndClose() {
     if (isSubmitting) return
     setFormData(emptyForm)
+    setCredentials({ username: '', password: '' })
     setImages([])
     setErrors({})
     onClose()
@@ -178,9 +183,13 @@ export function AssetFormModal({
 
           {/* Confidential Payload (Write-Only) */}
           <div className="lv-form-group">
-            <label htmlFor="asset-payload" className="lv-form-label">
+            <label htmlFor={formData.assetType === 'CREDENTIAL' ? 'asset-credential-username' : 'asset-payload'} className="lv-form-label">
               {t.assets.addModal.payloadLabel} <span className="lv-required">*</span>
             </label>
+            {formData.assetType === 'CREDENTIAL' ? (
+              <AssetCredentialFields idPrefix="asset-credential" {...credentials} labels={t.assets.addModal} disabled={isSubmitting}
+                onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, payload: undefined })); }} />
+            ) : (
             <textarea
               id="asset-payload"
               rows={4}
@@ -190,6 +199,7 @@ export function AssetFormModal({
               onChange={(e) => handleChange('payload', e.target.value)}
               disabled={isSubmitting}
             />
+            )}
             {errors.payload ? (
               <p className="lv-form-error" role="alert">
                 <AlertCircle size={14} /> {t.assets.validation[errors.payload]}

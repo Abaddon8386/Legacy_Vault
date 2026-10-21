@@ -68,3 +68,17 @@ test('Bug 14: save failure keeps input; late result after switching account is d
  }finally{await view.close();}
 });
 
+
+test('profile save discards previous-token response and permits retry for the same user', async () => {
+  let complete, signal; const saved=[];
+  const props={session,lang:'en',saveProfile:(_changes,options)=>{signal=options.signal;return new Promise(resolve=>{complete=resolve;});},onProfileSaved:user=>saved.push(user)};
+  const view=await mount(EditProfile,props);
+  try {
+    await change(view.host,'lv-edit-fullname','Draft name');await submit(view.host);
+    await view.render({...props,session:{...session,accessToken:'new-token'}});
+    assert.equal(signal.aborted,true);
+    await act(async()=>complete({...profile,fullName:'Old receipt'}));
+    assert.equal(saved.length,0);assert.equal(view.host.querySelector('#lv-edit-fullname').value,'Draft name');
+    assert.equal(view.host.querySelector('button[type="submit"]').disabled,false);
+  } finally {await view.close();}
+});

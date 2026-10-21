@@ -1,5 +1,5 @@
 import { readUser } from '../../api/contracts.js';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   User,
   Shield,
@@ -49,7 +49,11 @@ export default function AccountEditPage({
   const requestRef = useRef(null);
   const pendingRef = useRef(false);
   const saveScope = `${session?.accessToken || ''}:${initialData?.id || ''}`;
-  useEffect(() => () => { requestRef.current?.abort(); pendingRef.current = false; }, [saveScope]);
+  const activeScope = useRef(saveScope);
+  useLayoutEffect(() => {
+    activeScope.current = saveScope;
+    return () => { requestRef.current?.abort(); requestRef.current = null; pendingRef.current = false; };
+  }, [saveScope]);
   const [previousScope, setPreviousScope] = useState(saveScope);
   if (previousScope !== saveScope) { setPreviousScope(saveScope); setIsSaving(false); setSaveFeedback(null); }
 
@@ -139,7 +143,7 @@ export default function AccountEditPage({
     const requestedId = initialData.id;
     try {
       const user = readUser(await saveProfile({ fullName: fullName.trim() }, { signal: controller.signal }));
-      if (controller.signal.aborted || requestRef.current !== controller) return;
+      if (controller.signal.aborted || requestRef.current !== controller || activeScope.current !== saveScope) return;
       if (user.id !== requestedId) throw new Error('MISMATCHED_PROFILE');
       setFullName(user.fullName); setSaveFeedback('success');
       onProfileSaved?.(user);

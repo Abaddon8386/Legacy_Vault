@@ -5,6 +5,10 @@
 
 export const closeAndArchiveI18n = {
   vi: {
+    demo: 'Dữ liệu minh họa', loading: 'Đang tải…', retry: 'Thử lại',
+    loadFailed: 'Chưa tải được thông tin phiên. Vui lòng thử lại.', contextRequired: 'Vui lòng chọn hồ sơ và phiên bàn giao.',
+    saved: 'Đã ghi nhận. Đang tải lại dữ liệu.', cancelled: 'Đã hủy',
+    recipientLabel: 'Người nhận biên bản', selectRecipient: 'Chọn người nhận', receiptScope: 'Tài sản đã giao trong phiên',
     pageTitle: 'Đóng & Lưu trữ hồ sơ',
     pageSubtitle: 'Tóm tắt biên nhận, thẩm định điều kiện hoàn tất và lưu trữ hồ sơ di sản.',
 
@@ -13,6 +17,9 @@ export const closeAndArchiveI18n = {
     sessionStatusLabel: 'Phiên bàn giao',
     vaultStatusLabel: 'Kho di sản',
     caseStatusLabel: 'Hồ sơ pháp lý',
+    labelSessionStatus: 'Phiên bàn giao',
+    labelVaultStatus: 'Kho di sản',
+    labelCaseStatus: 'Hồ sơ pháp lý',
 
     // Server status values
     statusSessionCompleted: 'Đã hoàn thành',
@@ -34,6 +41,12 @@ export const closeAndArchiveI18n = {
     preconditionsDesc: 'Hồ sơ chỉ đủ điều kiện đóng khi cả hai tiêu chí đạt 100%:',
     assetDeliveryCondition: 'Bàn giao tài sản: 100%',
     beneficiaryConfirmationCondition: 'Xác nhận của người thụ hưởng: 100%',
+    condAssetGateTitle: 'Cổng bàn giao tài sản (100%)',
+    condAssetGateMet: 'Đã hoàn tất bàn giao 100% tài sản trong phạm vi được duyệt.',
+    condAssetGateUnmet: 'Chưa hoàn tất bàn giao tài sản (yêu cầu đạt 100%).',
+    condBeneficiaryGateTitle: 'Cổng xác nhận người thụ hưởng (100%)',
+    condBeneficiaryGateMet: 'Toàn bộ người thụ hưởng đã xác nhận tại quầy.',
+    condBeneficiaryGateUnmet: 'Chưa đủ xác nhận từ người thụ hưởng (yêu cầu đạt 100%).',
 
     // Condition evaluation results
     statusEligibleTitle: 'Đủ điều kiện đóng & lưu trữ',
@@ -72,8 +85,21 @@ export const closeAndArchiveI18n = {
     actionHeading: 'Thực hiện đóng & lưu trữ',
     btnExecuteCloseArchive: 'Đóng & Lưu trữ hồ sơ',
     functionUnavailableNotice: 'Chức năng hiện chưa khả dụng',
+    step1Title: 'Bước 1: Đóng phiên bàn giao',
+    step1DescPending: 'Yêu cầu hoàn tất 2 cổng nghiệm thu kép (Bàn giao tài sản 100% & Xác nhận thụ hưởng 100%).',
+    step1DescDone: 'Phiên đã được đóng thành công với bằng chứng kiểm toán.',
+    step1Btn: 'Đóng phiên bàn giao',
+    step1BtnDone: 'Phiên đã đóng',
+    receiptBtnText: 'Lập biên bản xác nhận',
+    step2Title: 'Bước 2: Lưu trữ kho di sản & Đóng ca',
+    step2Desc: 'Lưu trữ vĩnh viễn kho di sản và hoàn tất đóng ca xác minh sau khi có biên bản.',
+    step2Btn: 'Lưu trữ kho di sản & Đóng ca',
   },
   en: {
+    demo: 'Illustrative data', loading: 'Loading…', retry: 'Retry',
+    loadFailed: 'Session information could not be loaded. Please retry.', contextRequired: 'Select a case and handover session.',
+    saved: 'Recorded. Refreshing data.', cancelled: 'Cancelled',
+    recipientLabel: 'Receipt recipient', selectRecipient: 'Select a recipient', receiptScope: 'Assets delivered in this session',
     pageTitle: 'Close & Archive Case',
     pageSubtitle: 'Review receipt summary, verify completion criteria, and archive heritage dossier.',
 
@@ -82,6 +108,9 @@ export const closeAndArchiveI18n = {
     sessionStatusLabel: 'Handover Session',
     vaultStatusLabel: 'Heritage Vault',
     caseStatusLabel: 'Legal Dossier',
+    labelSessionStatus: 'Handover Session',
+    labelVaultStatus: 'Heritage Vault',
+    labelCaseStatus: 'Legal Dossier',
 
     // Server status values
     statusSessionCompleted: 'Completed',
@@ -103,6 +132,12 @@ export const closeAndArchiveI18n = {
     preconditionsDesc: 'Case closure is permitted ONLY when both criteria achieve 100%:',
     assetDeliveryCondition: 'Asset Delivery: 100%',
     beneficiaryConfirmationCondition: 'Beneficiary Confirmation: 100%',
+    condAssetGateTitle: 'Asset Delivery Gate (100%)',
+    condAssetGateMet: 'All approved assets delivered (100%).',
+    condAssetGateUnmet: 'Asset deliveries not yet complete (100% required).',
+    condBeneficiaryGateTitle: 'Beneficiary Confirmation Gate (100%)',
+    condBeneficiaryGateMet: 'All beneficiaries confirmed in person (100%).',
+    condBeneficiaryGateUnmet: 'Beneficiary confirmations not yet complete (100% required).',
 
     // Condition evaluation results
     statusEligibleTitle: 'Eligible for Closure & Archive',
@@ -141,5 +176,14 @@ export const closeAndArchiveI18n = {
     actionHeading: 'Execute Case Closure',
     btnExecuteCloseArchive: 'Close & Archive Case',
     functionUnavailableNotice: 'This function is currently unavailable',
+    step1Title: 'Step 1: Close Handover Session',
+    step1DescPending: 'Requires dual completion gates (Asset delivery 100% & Beneficiary confirmation 100%).',
+    step1DescDone: 'Session successfully closed with audit proof.',
+    step1Btn: 'Close Handover Session',
+    step1BtnDone: 'Session Completed',
+    receiptBtnText: 'Generate Staff Receipt',
+    step2Title: 'Step 2: Archive Vault & Close Case',
+    step2Desc: 'Permanently archive vault and close verification case once receipts are issued.',
+    step2Btn: 'Archive Vault & Close Case',
   },
 };
