@@ -119,6 +119,8 @@ public class AssetImageService {
         catch (Exception ex) { throw new BusinessException(ErrorCode.UNSUPPORTED_MEDIA_TYPE); }
         return file;
     }
+    /** PS-104: the received-asset read path decrypts with the same associated data as the Owner path. */
+    public static byte[] associatedData(UUID asset, UUID image) { return aad(asset, image); }
     private static byte[] aad(UUID asset, UUID image) { return ("asset-image:"+asset+":"+image).getBytes(StandardCharsets.UTF_8); }
     private void record(AuditAction action, Long owner, Long vault, Long asset, UUID image) {
         audit.record(new AuditEvent(action, AuditActorType.USER, owner, vault, "ASSET_IMAGE", asset,

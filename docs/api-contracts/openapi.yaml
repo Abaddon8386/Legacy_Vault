@@ -570,6 +570,147 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { description: VAULT_NOT_EDITABLE }
+  /api/v1/received-assets:
+    get:
+      tags: [Beneficiary]
+      summary: Beneficiary account lists the assets Staff delivered to it (PS-104)
+      description: |
+        Role BENEFICIARY only. The account is taken from the principal; only handover items DELIVERED or
+        VERIFIED_BY_BENEFICIARY to a Beneficiary linked to this account are returned, from every source Vault, newest first.
+        Undelivered allocations are never listed. Still readable after the Vault is archived. See received-assets.md.
+      x-status: implemented
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Page of received items (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content, page, size, totalElements, totalPages]
+                properties:
+                  content: { type: array, items: { $ref: "#/components/schemas/ReceivedAsset" } }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalElements: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/received-assets/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Beneficiary]
+      summary: Beneficiary account reads one received item, metadata only (PS-104)
+      x-status: implemented
+      responses:
+        "200":
+          description: The item; never content
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceivedAsset" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/received-assets/{itemId}/images:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Beneficiary]
+      summary: Metadata of the images of a received asset (PS-104)
+      x-status: implemented
+      responses:
+        "200":
+          description: Image metadata, no bytes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, fileName, contentType, sizeBytes, createdAt]
+                  properties:
+                    id: { type: string, format: uuid }
+                    fileName: { type: string }
+                    contentType: { type: string, enum: [image/jpeg, image/png] }
+                    sizeBytes: { type: integer, format: int64 }
+                    createdAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/received-assets/{itemId}/content:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Beneficiary]
+      summary: Beneficiary account reads the decrypted content of a received asset after re-entering the password (PS-104)
+      description: Shares the attempt limit with reveal. Wrong password 403 REAUTH_FAILED (not 401); over the limit 429. Never cached.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: Decrypted content (Cache-Control no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itemId, assetId, payload]
+                properties:
+                  itemId: { type: string, format: uuid }
+                  assetId: { type: string, format: uuid }
+                  payload: { type: string, writeOnly: true }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { description: TOO_MANY_ATTEMPTS }
+  /api/v1/received-assets/{itemId}/images/{imageId}/download:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: imageId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Beneficiary]
+      summary: Beneficiary account reads one image of a received asset after re-entering the password (PS-104)
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevealAssetRequest" }
+      responses:
+        "200":
+          description: Decrypted bytes. Always attachment, nosniff, no-store, CSP sandbox.
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { description: TOO_MANY_ATTEMPTS }
   /api/v1/subscriptions/me/upgrade-quote:
     post:
       tags: [Subscriptions]
@@ -4199,6 +4340,23 @@ components:
         sizeBytes: { type: integer, format: int64 }
         sha256: { type: string, description: SHA-256 hex of the original bytes }
         createdAt: { type: string, format: date-time }
+    ReceivedAsset:
+      type: object
+      required: [itemId, assetId, vaultId, vaultName, name, assetType, deliveredAt, status, imageCount, hasContent]
+      description: A handover item delivered to the authenticated account; never content, other recipients or undelivered assets
+      properties:
+        itemId: { type: string, format: uuid, description: Handover item public id; key of the other received-asset endpoints }
+        assetId: { type: string, format: uuid }
+        vaultId: { type: string, format: uuid, description: Source Vault (an account may receive from several) }
+        vaultName: { type: string }
+        name: { type: string }
+        assetType: { type: string, enum: [TEXT, CREDENTIAL, FILE] }
+        description: { type: string, nullable: true }
+        allocationNote: { type: string, nullable: true, description: Note of the approved allocation line }
+        deliveredAt: { type: string, format: date-time }
+        status: { type: string, enum: [DELIVERED, VERIFIED_BY_BENEFICIARY] }
+        imageCount: { type: integer }
+        hasContent: { type: boolean }
     AssetSecretResponse:
       type: object
       required: [id, payload]
