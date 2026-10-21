@@ -30,6 +30,12 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian:
+    $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian"
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/revoke:
+    $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian~1revoke"
+  /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/history:
+    $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian~1history"
   /api/v1/staff/verification-cases:
     get:
       tags: [Staff]

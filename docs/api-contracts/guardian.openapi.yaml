@@ -1,0 +1,434 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PS-113 guardian extension",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian": {
+      "parameters": [
+        {
+          "name": "vaultId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "beneficiaryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readGuardian",
+        "tags": [
+          "Beneficiaries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianContext"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "401": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "403": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "404": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "409": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          }
+        }
+      },
+      "put": {
+        "operationId": "replaceGuardian",
+        "tags": [
+          "Beneficiaries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianContext"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "401": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "403": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "404": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "409": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianUpsert"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/revoke": {
+      "parameters": [
+        {
+          "name": "vaultId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "beneficiaryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "revokeGuardian",
+        "tags": [
+          "Beneficiaries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianContext"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "401": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "403": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "404": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "409": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianRevoke"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/history": {
+      "parameters": [
+        {
+          "name": "vaultId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "beneficiaryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "guardianHistory",
+        "tags": [
+          "Beneficiaries"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "401": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "403": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "404": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          },
+          "409": {
+            "description": "Repository ApiError; see beneficiary-guardians.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "maximum": 100
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GuardianUpsert": {
+        "type": "object",
+        "required": [
+          "expectedRevision",
+          "fullName",
+          "relationship"
+        ],
+        "description": "At least one nonblank email or phone is required.",
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "relationship": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "nullable": true,
+            "maxLength": 254
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 20
+          }
+        }
+      },
+      "GuardianRevoke": {
+        "type": "object",
+        "required": [
+          "expectedRevision"
+        ],
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "Guardian": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "relationship": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "nullable": true,
+            "maxLength": 254
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "endReason": {
+            "type": "string",
+            "enum": [
+              "REPLACED",
+              "REVOKED"
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GuardianContext": {
+        "type": "object",
+        "properties": {
+          "beneficiaryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "evaluatedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "timeZone": {
+            "type": "string",
+            "enum": [
+              "Asia/Ho_Chi_Minh"
+            ]
+          },
+          "ageStatus": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "MINOR",
+              "ADULT"
+            ]
+          },
+          "guardianRecommended": {
+            "type": "boolean"
+          },
+          "warningCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "guardian": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Guardian"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GuardianPage": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Guardian"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "totalElements": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
