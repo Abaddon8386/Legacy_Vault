@@ -37,21 +37,23 @@ public class LegalApprovalGuard {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void requireCurrentApproval(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
+        ErrorCode blocker = currentApprovalBlocker(dossier, currentVersion);
+        if (blocker != null) throw new BusinessException(blocker);
+    }
+
+    /** Same rules as the write guard, without throwing through a transactional proxy during GET. */
+    public ErrorCode currentApprovalBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
         String currentAllocationHash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
-        if (!"FRESH".equals(dossier.getReviewStatus())
-                || !Objects.equals(dossier.getLastReviewedVersionNo(), currentVersion.version())
-                || !sameHash(dossier.getLastReviewedSha256Hash(), currentVersion.sha256())
-                || !Objects.equals(dossier.getLastReviewedDisputeStatus(), dossier.getDisputeStatus())
-                || !sameHash(dossier.getLastReviewedAllocationHash(), currentAllocationHash)) {
-            throw new BusinessException(ErrorCode.LEGAL_DECISION_STALE);
+        if (!reviewMatches(dossier, currentVersion, currentAllocationHash)) {
+            return ErrorCode.LEGAL_DECISION_STALE;
         }
 
         LegalBasisReviewHistory decision = history
                 .findFirstByDossierIdAndVersionNoAndReviewStatusInOrderByIdDesc(
                         dossier.getLegalBasisDossierId(), currentVersion.version(), List.of(APPROVED, REJECTED))
-                .orElseThrow(() -> new BusinessException(ErrorCode.LEGAL_APPROVAL_REQUIRED));
-        if (REJECTED.equals(decision.getReviewStatus())) {
-            throw new BusinessException(ErrorCode.LEGAL_APPROVAL_REQUIRED);
+                .orElse(null);
+        if (decision == null || REJECTED.equals(decision.getReviewStatus())) {
+            return ErrorCode.LEGAL_APPROVAL_REQUIRED;
         }
         if (!APPROVED.equals(decision.getReviewStatus())
                 || !APPROVE_REASON_CODE.equals(decision.getReasonCode())
@@ -59,8 +61,24 @@ public class LegalApprovalGuard {
                 || !sameHash(decision.getSha256Hash(), currentVersion.sha256())
                 || !Objects.equals(decision.getDisputeStatus(), dossier.getDisputeStatus())
                 || !sameHash(decision.getAllocationHash(), currentAllocationHash)) {
-            throw new BusinessException(ErrorCode.LEGAL_DECISION_STALE);
+            return ErrorCode.LEGAL_DECISION_STALE;
         }
+        return null;
+    }
+
+    public ErrorCode reviewBlocker(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion) {
+        String hash = allocationHash(dossier.getLegalBasisDossierId(), currentVersion.version());
+        return reviewMatches(dossier, currentVersion, hash) ? null : ErrorCode.LEGAL_DECISION_STALE;
+    }
+
+    private static boolean reviewMatches(LegalBasisDossier dossier, CourtEvidenceVersion currentVersion, String hash) {
+        return LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())
+            && currentVersion.version() >= dossier.getRequiredVersionNo()
+            && "FRESH".equals(dossier.getReviewStatus())
+            && Objects.equals(dossier.getLastReviewedVersionNo(), currentVersion.version())
+            && sameHash(dossier.getLastReviewedSha256Hash(), currentVersion.sha256())
+            && Objects.equals(dossier.getLastReviewedDisputeStatus(), dossier.getDisputeStatus())
+            && sameHash(dossier.getLastReviewedAllocationHash(), hash);
     }
 
     private String allocationHash(Long dossierId, int versionNo) {

@@ -6,6 +6,7 @@
 
 import { uploadEvidenceMultipart } from '../../utils/staffEvidenceUpload.js';
 import { isStaffSimulationPermitted } from './staffCasePreview.js';
+import { readStaffBasisVersionContent } from './staffLiveService.js';
 
 export const SYNTHETIC_DOSSIERS = {
   'case-notarial': {
@@ -336,4 +337,41 @@ export async function forwardBasisVersion(caseId, version, options = {}) {
   }
 
   return res.json();
+}
+
+/**
+ * Đọc nội dung file số hóa của phiên bản căn cứ pháp lý (GET .../versions/{versionNo}/content - PS-103)
+ */
+export async function readBasisVersionContent(caseId, versionNo, options = {}) {
+  const { signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const abortErr = new Error('Request aborted');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  if (!caseId || typeof versionNo !== 'number' || versionNo < 1) {
+    const err = new Error(lang === 'en' ? 'Case ID and valid version number are required.' : 'Thiếu mã hồ sơ hoặc số phiên bản hợp lệ.');
+    err.code = 'INVALID_CONTENT_PARAMS';
+    throw err;
+  }
+
+  if (isStaffSimulationPermitted(options)) {
+    const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
+    if (!isTest) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (signal?.aborted) {
+      const abortErr = new Error('Request aborted');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
+    return new Blob([`Simulated COURT Basis Document Content for Version ${versionNo}`], {
+      type: 'application/pdf',
+    });
+  }
+
+  const token = options.accessToken || options.session?.accessToken;
+  return readStaffBasisVersionContent(caseId, versionNo, { ...options, accessToken: token });
 }

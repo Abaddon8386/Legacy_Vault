@@ -24,11 +24,72 @@ tags:
   - name: Beneficiaries
   - name: DMS
   - name: Subscriptions
+  - name: Admin
 
 security:
   - bearerAuth: []
 
 paths:
+  /api/v1/admin/subscriptions/transactions/{paymentId}:
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions~1{paymentId}"
+  /api/v1/staff/verification-cases:
+    get:
+      tags: [Staff]
+      summary: Read cases assigned to the current Staff and OPEN unassigned claimable cases
+      x-status: implemented
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, CANCELLED, CLOSED] } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200":
+          description: Queue; trustee is null in list items and returned only by case detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCasePage" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/staff/verification-cases/{caseId}:
+    get:
+      tags: [Staff]
+      summary: Read case context available to the current Staff
+      description: An OPEN unassigned case is claimable and viewable; a case assigned to another Staff is hidden as 404. Trustee summary contains only current APPOINTED contact fields, never notes or identity-document data.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Case, Vault state, assignment state, owner summary and optional current Trustee contact
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCase" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/staff/verification-cases/{caseId}/claim:
+    post:
+      tags: [Staff]
+      summary: Claim an OPEN unassigned case for the current Staff
+      description: Conditional assignment and audit are atomic. The success response includes the same case detail context; caller identity comes from the authenticated principal.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Claimed case and current Trustee contact summary, if present
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffVerificationCase" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: VERIFICATION_CASE_NOT_CLAIMABLE
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/invitation:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -188,6 +249,61 @@ paths:
                 properties:
                   RspCode: { type: string, enum: ['00', '01', '02', '04', '97', '99'] }
                   Message: { type: string }
+  /api/v1/legal-verifications/verification-cases:
+    get:
+      tags: [Legal]
+      summary: Paginated Legal discovery using the existing global Legal case scope (PS-102)
+      description: LEGAL_VERIFIER only. Metadata, no assignment changes or asset content. See legal-read-context.md.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        - in: query
+          name: route
+          schema: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+      responses:
+        '200':
+          description: Stable openedAt DESC / internal tie-break, no-store; not a cross-request snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content, page, size, totalElements, totalPages]
+                properties:
+                  content: { type: array, items: { $ref: '#/components/schemas/LegalQueueItem' } }
+                  page: { type: integer }
+                  size: { type: integer }
+                  totalElements: { type: integer, format: int64 }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/legal-verifications/verification-cases/{caseId}/context:
+    get:
+      tags: [Legal]
+      summary: Locked metadata/snapshot/capability read for Legal (PS-102)
+      description: No writes, unlock, file download or decryption. Capabilities are advisory; mutations always recheck current guards.
+      parameters:
+        - in: path
+          name: caseId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: No-store. Missing dossier is null, never inferred as approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalReadContext' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Case or associated Vault not found }
   /api/v1/vaults/{vaultId}/assets/with-images:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -411,6 +527,60 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: Tra cứu tài khoản (PS-109, chỉ đọc)
+      description: Yêu cầu ROLE_ADMIN. Chỉ trả publicId, fullName, email, roles, createdAt và trạng thái hiệu lực; không trả khóa DB hoặc credential.
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
+        - { name: role, in: query, schema: { type: string, maxLength: 50 } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, DELETED] } }
+      responses:
+        '200':
+          description: Trang tài khoản theo envelope phân trang chung.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/users/{publicId}:
+    get:
+      tags: [Admin]
+      summary: Tra cứu chi tiết tài khoản theo public ID (PS-109, chỉ đọc)
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Tài khoản; chỉ trả các trường allow-list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Admin overview from real SQL counts (PS-107)
+      description: ROLE_ADMIN only. Nondeleted accounts including locked; non-ARCHIVED vaults; OPEN cases; per-role assignments on nondeleted accounts. READ_COMMITTED_COLLECTION_WINDOW is explicitly not an atomic cross-table snapshot. No content or private account fields.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Real counts and UTC collection interval; Cache-Control no-store
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminOverview' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /api/v1/admin/subscriptions/plans:
     get:
       tags: [Admin, Subscriptions]
@@ -566,16 +736,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/admin/subscriptions/transactions:
-    get:
-      tags: [Admin, Subscriptions]
-      summary: Tra cứu giao dịch thanh toán (PS-82)
-      description: Phụ thuộc phân hệ PS-80. Trả 409 khi nguồn thanh toán chưa sẵn sàng.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '409':
-          description: PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE
-
+    $ref: "./admin-payments.openapi.yaml#/paths/~1api~1v1~1admin~1subscriptions~1transactions"
   /api/v1/subscriptions/me:
     get:
       tags: [Subscriptions]
@@ -653,6 +814,59 @@ paths:
               example: { database: UP }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/auth/password-recovery/requests:
+    post:
+      tags: [Auth]
+      summary: Yêu cầu khôi phục mật khẩu (PS-112)
+      x-status: implemented
+      security: []
+      description: Neutral durable acceptance; no proof of email delivery or account existence. Email delivery disabled by default. See password-recovery.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordRecoveryRequest' }
+      responses:
+        '202':
+          description: Accepted or neutrally suppressed by per-email limits
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messageKey]
+                properties:
+                  messageKey: { type: string, enum: [auth.recovery.requestAccepted] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503': { $ref: '#/components/responses/RecoveryUnavailable' }
+
+  /api/v1/auth/password-recovery/reset:
+    post:
+      tags: [Auth]
+      summary: Đổi mật khẩu bằng credential một lần (PS-112)
+      x-status: implemented
+      security: []
+      description: Atomically consumes purpose-bound credential, changes BCrypt password, revokes links and all LegacyVault JWTs. Never unlocks accounts, changes roles or creates provider links. No automatic login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordRecoveryReset' }
+      responses:
+        '204':
+          description: Password reset committed; sign in again
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+        '400':
+          description: RECOVERY_INVALID or password/input validation; no expired/used/account-status oracle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503': { $ref: '#/components/responses/RecoveryUnavailable' }
+
   /api/v1/auth/register:
     post:
       tags: [Auth]
@@ -714,6 +928,77 @@ paths:
                 user: { id: 3f2b8c1e-0a4d-4c8e-9b1a-6a1d2f3e4b5c, fullName: Nguyen Van A, email: user@example.com, roles: [VAULT_OWNER] }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/InvalidCredentials' }
+
+  /api/v1/auth/google:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng Google GIS ID credential (PS-85)
+      description: Backend xác minh OIDC/JWKS. Chỉ subject đã được liên kết tường minh với tài khoản LegacyVault mới đăng nhập được; không tạo tài khoản hoặc ghép theo email.
+      x-status: implemented
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+            example: { credential: '<Google ID token>' }
+      responses:
+        '200':
+          description: JWT LegacyVault với role lấy từ database; cùng cấu trúc với đăng nhập mật khẩu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Credential Google sai/hết hạn/đã dùng lại, hoặc danh tính chưa liên kết/tài khoản không đủ điều kiện.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                invalidGoogleCredential:
+                  value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_GOOGLE_CREDENTIAL, messageKey: error.auth.googleCredentialInvalid, message: 'Thông tin xác thực Google không hợp lệ, đã hết hạn hoặc đã được sử dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+                unlinkedIdentity:
+                  value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_CREDENTIALS, messageKey: error.auth.invalidCredentials, message: 'Email hoặc mật khẩu không đúng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '503':
+          description: Backend thiếu Google Client ID hoặc không truy cập được Google JWKS.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+
+  /api/v1/auth/google/link:
+    post:
+      tags: [Auth]
+      summary: Liên kết Google vào tài khoản đang đăng nhập (PS-85)
+      description: Yêu cầu JWT LegacyVault. Backend xác minh Google ID token và lấy sub đã xác minh; chỉ liên kết vào tài khoản hiện tại, không tạo tài khoản hoặc liên kết theo email.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginRequest' }
+            example: { credential: '<Google ID token>' }
+      responses:
+        '200':
+          description: Google identity đã liên kết vào tài khoản hiện tại.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoogleIdentityLinkResponse' }
+              example: { linked: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: Google subject đã liên kết với một tài khoản.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 409, code: GOOGLE_IDENTITY_ALREADY_LINKED, messageKey: error.auth.googleIdentityAlreadyLinked, message: 'Danh tính Google này đã được liên kết với một tài khoản.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '503':
+          description: Google Client ID is not configured or Google JWKS is unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
 
   /api/v1/auth/me:
     get:
@@ -905,8 +1190,11 @@ paths:
       summary: Cập nhật một phần Asset (PS-16, D-API-24)
       description: |
         Chỉ `name`, `description`, `payload` được đổi; trường khác bị bỏ qua.
+        PS-111 (D-API-40): mọi lần sửa phải kèm `password` là mật khẩu đăng nhập hiện tại; server tự xác thực lại, không có cờ
+        "đã xác nhận" từ client. Thứ tự: ownership (404) -> trạng thái Vault (409) -> mật khẩu/giới hạn (403 `REAUTH_FAILED` / 429
+        `TOO_MANY_ATTEMPTS`). Bộ đếm thử sai dùng chung với `reveal`.
         Chỉ khi bật quota prototype PS-77: payload tính chênh lệch byte UTF-8; vượt storage trả 409 STORAGE_QUOTA_EXCEEDED. Mặc định không áp quota đề xuất.
-      x-status: designed
+      x-status: implemented
       parameters:
         - $ref: '#/components/parameters/VaultId'
         - $ref: '#/components/parameters/AssetId'
@@ -915,7 +1203,7 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/UpdateAssetRequest' }
-            example: { description: Cập nhật ghi chú }
+            example: { description: Cập nhật ghi chú, password: '<mật khẩu đăng nhập hiện tại>' }
       responses:
         '200':
           description: Đã cập nhật
@@ -927,6 +1215,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '429': { description: TOO_MANY_ATTEMPTS - quá số lần nhập sai mật khẩu xác nhận trong cửa sổ thời gian (kể cả khi lần sau đúng) }
 
   /api/v1/vaults/{vaultId}/assets/{assetId}/reveal:
     post:
@@ -1435,6 +1724,346 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/death-documents/{recordId}/attachments:
+    post:
+      tags: [Staff]
+      summary: Staff attaches a file or image to a received death document (PS-103, ST-11)
+      description: |
+        Only the Staff assigned to the OPEN case. multipart/form-data with one `file` part (PDF/JPEG/PNG detected by content).
+        Append-only and encrypted; the server computes SHA-256. Not an identity-document upload: CCCD/passport are checked in person
+        outside the system. An attachment does not prove the document valid; Legal decides.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Metadata only, never the content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntakeAttachment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: VERIFICATION_CASE_NOT_OPEN or INTAKE_ATTACHMENT_LIMIT_EXCEEDED }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+    get:
+      tags: [Staff]
+      summary: Staff lists attachment metadata of a received death document (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/death-documents/{recordId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Staff]
+      summary: Staff reads one attachment of a received death document (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/staff/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments:
+    post:
+      tags: [Staff]
+      summary: Staff attaches a file or image to the original paper will (PS-103, ST-13)
+      description: |
+        Only the Staff assigned to the OPEN case. multipart/form-data with one `file` part (PDF/JPEG/PNG detected by content).
+        Append-only and encrypted; the server computes SHA-256. Not an identity-document upload: CCCD/passport are checked in person
+        outside the system. An attachment does not prove the document valid; Legal decides.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Metadata only, never the content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntakeAttachment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: VERIFICATION_CASE_NOT_OPEN or INTAKE_ATTACHMENT_LIMIT_EXCEEDED }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+    get:
+      tags: [Staff]
+      summary: Staff lists attachment metadata of the original paper will (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Staff]
+      summary: Staff reads one attachment of the original paper will (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/staff/verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content:
+    get:
+      tags: [Staff]
+      summary: Staff reads the file of a legal-basis version of an assigned case (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionNo
+          in: path
+          required: true
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentId}/attachments:
+    get:
+      tags: [Legal]
+      summary: Legal lists attachment metadata of a death document (PS-103, ST-12)
+      description: Read only, existing global Legal scope.
+      x-status: implemented
+      parameters:
+        - name: deathDocumentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/death-documents/{deathDocumentId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Legal]
+      summary: Legal reads one death-document attachment (PS-103, ST-12)
+      x-status: implemented
+      parameters:
+        - name: deathDocumentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments:
+    get:
+      tags: [Legal]
+      summary: Legal lists attachment metadata of an original-will intake (PS-103, ST-15)
+      description: Read only, existing global Legal scope.
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/IntakeAttachment' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/original-will-intakes/{intakeId}/attachments/{attachmentId}/content:
+    get:
+      tags: [Legal]
+      summary: Legal reads one original-will attachment (PS-103, ST-15)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intakeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: attachmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/versions/{versionNo}/content:
+    get:
+      tags: [Legal]
+      summary: Legal reads the file of a FORWARDED legal-basis version (unforwarded versions are 404) (PS-103)
+      x-status: implemented
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: versionNo
+          in: path
+          required: true
+          schema: { type: integer, format: int32, minimum: 1 }
+      responses:
+        '200':
+          description: Decrypted file bytes. Always attachment, nosniff, no-store, CSP sandbox; every read is audited (EVIDENCE_FILE_READ).
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/legal-verifications/death-documents/{deathDocumentPublicId}/decision:
     post:
       tags: [Legal]
@@ -1545,8 +2174,8 @@ paths:
       tags: [Legal]
       summary: Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ (PS-41, ST-16)
       description: |
-        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `WILL_VERIFICATION` và kết quả đối chiếu di chúc mới
-        nhất là MATCH. Mỗi ca một hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD.
+        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION` sau xác minh tử vong.
+        Chỉ COURT hoặc ON_HOLD; không yêu cầu di chúc/MATCH. COURT chuyển Vault sang AWAITING_LEGAL_BASIS.
       x-status: implemented
       parameters:
         - name: caseId
@@ -1593,7 +2222,7 @@ paths:
       tags: [Legal]
       summary: Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (PS-43, ST-16, LV-HOLD-001)
       description: |
-        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `NOTARIAL` hoặc `COURT`; Vault
+        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `COURT`; Vault
         `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. `NOTARIAL` và `COURT` không đổi lẫn nhau. Phân loại cũ được lưu vào lịch sử.
       x-status: implemented
       parameters:
@@ -1912,7 +2541,7 @@ paths:
       description: |
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
         và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
-        có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+        có nhánh COURT. NOTARIAL lịch sử chỉ đọc, mọi ghi mới bị chặn. Tiếp nhận không đồng nghĩa đã duyệt.
         Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
       x-status: implemented
       parameters:
@@ -1974,6 +2603,61 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem Beneficiary của ca đang phục vụ tại quầy (PS-88, ST-14/ST-24)
+      description: |
+        Read only. Requires ROLE_STAFF_EXECUTOR and an OPEN case of the Vault assigned to the actor; any other case, a
+        closed case or an unknown id returns 404 RESOURCE_NOT_FOUND. Lists every Beneficiary of the case Vault with
+        public ids only: identity verification status, account status, a summary of the current invitation
+        (NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED), the counter step and UI hints. No email, phone, identity
+        number or invitation secret is returned. Response is Cache-Control: no-store.
+      x-status: implemented
+      responses:
+        '200':
+          description: Beneficiaries of the case
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CounterBeneficiary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}:
+    parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: beneficiaryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Staff]
+      summary: Staff xem một Beneficiary của ca (PS-88)
+      description: Same authorization and data as the list. A Beneficiary of another Vault returns 404.
+      x-status: implemented
+      responses:
+        '200':
+          description: The Beneficiary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterBeneficiary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
     post:
@@ -2224,7 +2908,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RecordLegalBasisReviewRequest' }
+            schema: { $ref: '#/components/schemas/CompleteLegalBasisReviewRequest' }
             example: { reason: "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan." }
       responses:
         '200':
@@ -2580,6 +3264,21 @@ components:
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
 
   responses:
+    RecoveryRateLimited:
+      description: RATE_LIMITED; only IP/credential limits are exposed
+      headers:
+        Retry-After: { schema: { type: integer, example: 900 } }
+        Cache-Control: { schema: { type: string, enum: [no-store] } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RecoveryUnavailable:
+      description: RECOVERY_UNAVAILABLE; configuration or infrastructure unavailable, independent of account eligibility
+      headers:
+        Cache-Control: { schema: { type: string, enum: [no-store] } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
     ValidationError:
       description: VALIDATION_FAILED, có `errors[]` theo trường
       content:
@@ -2670,6 +3369,60 @@ components:
           schema: { $ref: '#/components/schemas/ApiError' }
 
   schemas:
+    AdminUser:
+      type: object
+      required: [publicId, fullName, email, roles, createdAt, status]
+      properties:
+        publicId: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        roles: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time, description: UTC }
+        status: { type: string, enum: [PENDING, ACTIVE, DELETED] }
+    AdminUserPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/AdminUser' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    StaffVerificationCasePage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: "#/components/schemas/StaffVerificationCase" } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    StaffVerificationCase:
+      type: object
+      required: [caseId, caseNumber, status, triggeredAt, closedAt, vaultId, vaultStatus, vaultName, ownerId, ownerName, assignmentStatus, trustee]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        status: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        triggeredAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time, nullable: true }
+        vaultId: { type: string, format: uuid }
+        vaultStatus: { type: string, description: Current workflow state; not an authorization to unlock or hand over assets }
+        vaultName: { type: string }
+        ownerId: { type: string, format: uuid }
+        ownerName: { type: string }
+        assignmentStatus: { type: string, enum: [UNASSIGNED_CLAIMABLE, ASSIGNED_TO_CURRENT_STAFF] }
+        trustee:
+          type: object
+          nullable: true
+          description: Present only for GET case detail; null for queue items or when there is no APPOINTED Trustee
+          required: [trusteeId, fullName, phone, email, relationship]
+          properties:
+            trusteeId: { type: string, format: uuid }
+            fullName: { type: string }
+            phone: { type: string, nullable: true }
+            email: { type: string, format: email, nullable: true }
+            relationship: { type: string, nullable: true }
     BeneficiaryInvitationMetadata:
       type: object
       required: [invitationId, beneficiaryId, state, generation, issuedAt, expiresAt, revokedAt, consumedAt]
@@ -2707,6 +3460,83 @@ components:
         createdAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time, description: Checkout expiry only; paid plan has no expiry }
         checkoutUrl: { type: string, nullable: true, description: Signed sandbox URL only on create/replay before expiry }
+    LegalQueueItem:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, route, dossierStatus, reviewStatus, openedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string, enum: [OPEN, CLOSED, CANCELLED] }
+        vaultStatus: { type: string }
+        route: { type: string, nullable: true }
+        dossierStatus: { type: string, nullable: true }
+        reviewStatus: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time }
+    LegalActionCapability:
+      type: object
+      required: [allowed, blockedReason]
+      properties:
+        allowed: { type: boolean }
+        blockedReason: { type: string, nullable: true, description: Existing shared ErrorCode, or null }
+    LegalReadSnapshot:
+      type: object
+      nullable: true
+      required: [dossierId, currentVersion, requiredVersion, sha256Hash, allocationHash, disputeStatus, reviewStatus, reviewFresh, approvalCurrent, latestDecision, courtResult]
+      properties:
+        dossierId: { type: string, format: uuid }
+        currentVersion: { type: integer, minimum: 0 }
+        requiredVersion: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, nullable: true }
+        allocationHash: { type: string }
+        disputeStatus: { type: string }
+        reviewStatus: { type: string }
+        reviewFresh: { type: boolean }
+        approvalCurrent: { type: boolean }
+        courtResult: { type: string, nullable: true }
+        latestDecision:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            versionNo: { type: integer, nullable: true, description: Historical evidence may lack a snapshot }
+            sha256Hash: { type: string, nullable: true }
+            allocationHash: { type: string, nullable: true }
+            disputeStatus: { type: string, nullable: true }
+            result: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+            reviewedBy: { type: string, format: uuid, nullable: true }
+            reviewedAt: { type: string, format: date-time, nullable: true }
+    LegalReadContext:
+      type: object
+      required: [caseId, caseNumber, vaultId, caseStatus, vaultStatus, deathDocuments, willComparison, basisDossier, snapshot, capabilities, evaluatedAt]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseNumber: { type: string }
+        vaultId: { type: string, format: uuid }
+        caseStatus: { type: string }
+        vaultStatus: { type: string }
+        deathDocuments:
+          type: array
+          items:
+            type: object
+            required: [id, documentType, receivedAt]
+            properties:
+              id: { type: string, format: uuid }
+              documentType: { type: string }
+              receivedAt: { type: string, format: date-time }
+        willComparison: { $ref: '#/components/schemas/WillComparisonOverviewResponse' }
+        basisDossier:
+          allOf:
+            - $ref: '#/components/schemas/BasisDossierResponse'
+          nullable: true
+        snapshot: { $ref: '#/components/schemas/LegalReadSnapshot' }
+        capabilities:
+          type: object
+          required: [approval, unlock]
+          properties:
+            approval: { $ref: '#/components/schemas/LegalActionCapability' }
+            unlock: { $ref: '#/components/schemas/LegalActionCapability' }
+        evaluatedAt: { type: string, format: date-time }
     HandoverArchiveResponse:
       type: object
       properties:
@@ -2774,6 +3604,15 @@ components:
         allocationHash: { type: string, minLength: 64, maxLength: 64 }
         decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
         decidedAt: { type: string, format: date-time }
+    CompleteLegalBasisReviewRequest:
+      type: object
+      required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        versionNo: { type: integer, minimum: 1 }
+        sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        disputeStatus: { type: string, enum: [NONE, DISPUTED, UNDETERMINED] }
     RecordLegalBasisReviewRequest:
       type: object
       required: [reason]
@@ -2911,6 +3750,10 @@ components:
           type: string
           description: Mã ổn định để FE phân loại. Xem error-contract.md
           enum:
+            - RECOVERY_INVALID
+            - RECOVERY_UNAVAILABLE
+            - RATE_LIMITED
+            - PASSWORD_POLICY
             - REAUTH_FAILED
             - TRUSTEE_REVOKED
             - ALERT_NOT_CANCELLABLE
@@ -2944,6 +3787,9 @@ components:
             - MALFORMED_REQUEST
             - UNAUTHENTICATED
             - INVALID_CREDENTIALS
+            - INVALID_GOOGLE_CREDENTIAL
+            - GOOGLE_SIGNIN_UNAVAILABLE
+            - GOOGLE_IDENTITY_ALREADY_LINKED
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
@@ -2957,6 +3803,7 @@ components:
             - VAULT_NOT_EDITABLE
             - DMS_NOT_MONITORING
             - VERIFICATION_CASE_NOT_OPEN
+            - INTAKE_ATTACHMENT_LIMIT_EXCEEDED
             - HANDOVER_SESSION_ALREADY_OPEN
             - HANDOVER_SESSION_INVALID_STATE
             - HANDOVER_RECEIPT_INVALID_STATE
@@ -3009,6 +3856,19 @@ components:
       properties:
         database: { type: string, enum: [UP, DOWN] }
 
+    PasswordRecoveryRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254, writeOnly: true }
+        locale: { type: string, enum: [vi, en], default: vi }
+    PasswordRecoveryReset:
+      type: object
+      required: [credential, password]
+      properties:
+        credential: { type: string, maxLength: 128, writeOnly: true, description: Canonical base64url 256-bit reset secret; never an access JWT }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true, description: Shared password policy also limits UTF-8 to 72 bytes; no trimming }
+
     RegisterRequest:
       type: object
       required: [fullName, email, password]
@@ -3023,6 +3883,17 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string, format: password, writeOnly: true }
+    GoogleLoginRequest:
+      type: object
+      required: [credential]
+      additionalProperties: false
+      properties:
+        credential: { type: string, minLength: 1, maxLength: 8192, writeOnly: true, description: GIS ID token; backend verifies the signature and claims. }
+    GoogleIdentityLinkResponse:
+      type: object
+      required: [linked]
+      properties:
+        linked: { type: boolean, enum: [true] }
     UserResponse:
       type: object
       required: [id, fullName, email, roles]
@@ -3098,11 +3969,13 @@ components:
         payload: { type: string, writeOnly: true, description: Nội dung bí mật; mã hóa phía server; không bao giờ trả lại }
     UpdateAssetRequest:
       type: object
-      minProperties: 1
+      required: [password]
+      description: Cần ít nhất một trong name, description, payload cùng với password (PS-111, D-API-40)
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
         description: { type: string, maxLength: 1000 }
         payload: { type: string, writeOnly: true }
+        password: { type: string, minLength: 1, maxLength: 72, writeOnly: true, description: Mật khẩu đăng nhập hiện tại của Owner; không bao giờ được log hoặc trả lại }
     AssetResponse:
       type: object
       required: [id, vaultId, name, assetType, hasPayload, createdAt, updatedAt]
@@ -3136,6 +4009,21 @@ components:
         issuedDate: { type: string, format: date, description: Không ở tương lai }
         evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu hồ sơ giấy, không phải file }
         notes: { type: string, maxLength: 1000, nullable: true }
+    IntakeAttachment:
+      type: object
+      required: [id, caseId, subjectType, subjectId, fileName, contentType, sizeBytes, sha256, uploadedBy, uploadedAt]
+      description: Metadata of a file attached to a received document; never content, path or internal key
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        subjectType: { type: string, enum: [DEATH_DOCUMENT, ORIGINAL_WILL] }
+        subjectId: { type: string, format: uuid, description: Public id of the death document record or original-will intake }
+        fileName: { type: string, description: Sanitized display name only }
+        contentType: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: SHA-256 hex of the original bytes }
+        uploadedBy: { type: string, format: uuid, nullable: true }
+        uploadedAt: { type: string, format: date-time }
     DeathDocumentRecordResponse:
       type: object
       required: [id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt]
@@ -3284,13 +4172,13 @@ components:
       type: object
       required: [route, routeReason]
       properties:
-        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        route: { type: string, enum: [COURT, ON_HOLD] }
         routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
     BasisIntakeMetadata:
       type: object
       required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
       properties:
-        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
+        legalBasisType: { type: string, enum: [COURT_JUDGMENT, COURT_DECISION] }
         issuingAuthority: { type: string, maxLength: 255 }
         documentNumber: { type: string, maxLength: 100 }
         issueDate: { type: string, format: date }
@@ -3470,6 +4358,35 @@ components:
         phone: { type: string }
         email: { type: string, format: email }
         identityNumber: { type: string, writeOnly: true, description: Chỉ ghi; response không bao giờ trả số này (D-API-26) }
+    CounterBeneficiary:
+      type: object
+      required: [beneficiaryId, caseId, fullName, identityVerificationStatus, accountStatus, accountLinked, invitation, counterStep, actions]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        fullName: { type: string }
+        relationship: { type: string, nullable: true }
+        identityVerificationStatus: { type: string, enum: [NOT_VERIFIED, VERIFIED_AT_COUNTER] }
+        accountStatus: { type: string, enum: [NOT_CREATED, ACCOUNT_CREATED] }
+        accountLinked: { type: boolean }
+        invitation:
+          type: object
+          required: [state]
+          properties:
+            state: { type: string, enum: [NOT_ISSUED, PENDING, EXPIRED, REVOKED, CONSUMED] }
+            expiresAt: { type: string, format: date-time, nullable: true }
+        counterStep:
+          type: string
+          enum: [AWAITING_IDENTITY_VERIFICATION, AWAITING_ACCOUNT_DECISION, ACCOUNT_LINKED]
+          description: Bước tại quầy suy ra từ dữ liệu server
+        actions:
+          type: object
+          description: Gợi ý hiển thị. Server kiểm tra lại mọi điều kiện khi thực hiện thao tác.
+          required: [canLinkAccount, canCreateAccount, canHandOverWithoutAccount]
+          properties:
+            canLinkAccount: { type: boolean }
+            canCreateAccount: { type: boolean }
+            canHandOverWithoutAccount: { type: boolean, description: "Chỉ cần xác minh tại quầy, không cần tài khoản" }
     BeneficiaryAccountLinkRequest:
       type: object
       required: [accountEmail]
@@ -3596,6 +4513,20 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+
+    AdminOverview:
+      type: object
+      required: [totalAccounts, activeVaults, processingCases, roleAssignments, startedAt, completedAt, consistency]
+      properties:
+        totalAccounts: { type: integer, format: int64, minimum: 0 }
+        activeVaults: { type: integer, format: int64, minimum: 0 }
+        processingCases: { type: integer, format: int64, minimum: 0 }
+        roleAssignments:
+          type: object
+          additionalProperties: { type: integer, format: int64, minimum: 0 }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        consistency: { type: string, enum: [READ_COMMITTED_COLLECTION_WINDOW] }
 
     SubscriptionUpgradeRequest:
       type: object

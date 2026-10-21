@@ -336,10 +336,27 @@ class AdminSubscriptionServiceTest {
     }
 
     @Test
-    @DisplayName("lookupTransactions throws PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE (409)")
-    void lookupTransactions_throwsPendingIntegration() {
+    @DisplayName("lookupTransactions distinguishes a source failure from an empty result")
+    void lookupTransactions_sourceFailure() {
+        when(payments.adminList(any(),any())).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("fixture failure"));
         assertThatThrownBy(() -> service.lookupTransactions("test"))
             .isInstanceOf(BusinessException.class)
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PAYMENT_TRANSACTION_SOURCE_UNAVAILABLE);
+    }
+
+    @Test void transactionFiltersValidateBeforeQueryAndPreserveEmptyPage() {
+        assertThatThrownBy(()->service.lookupTransactions(null,null,"CANCELLED",null,null,0,20)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(()->service.lookupTransactions(null,null,null,Instant.EPOCH,Instant.EPOCH,0,20)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(()->service.lookupTransactions(null,null,null,null,null,0,101)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(()->service.lookupTransactions("x".repeat(255))).isInstanceOf(BusinessException.class);
+        verifyNoInteractions(payments);
+        var empty=new com.legacyvault.common.api.PageEnvelope<com.legacyvault.subscription.dto.AdminPaymentDtos.Transaction>(List.of(),0,20,0,0);
+        when(payments.adminList(any(),any())).thenReturn(empty);
+        assertThat(service.lookupTransactions(" ")).isEqualTo(empty);
+    }
+
+    @Test void transactionDetailMissingIs404() {
+        when(payments.adminDetail(any(),any())).thenReturn(Optional.empty());
+        assertThatThrownBy(()->service.transactionDetail(UUID.randomUUID())).hasFieldOrPropertyWithValue("errorCode",ErrorCode.RESOURCE_NOT_FOUND);
     }
 }

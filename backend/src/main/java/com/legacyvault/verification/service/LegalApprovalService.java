@@ -38,17 +38,19 @@ public class LegalApprovalService {
     private final LegalBasisVersionAllocationRepository allocations;
     private final LegalBasisReviewHistoryRepository history;
     private final AuditService audit;
+    private final CourtRouteGuard court;
 
     public LegalApprovalService(LegalBasisCaseAccess access,
             LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations,
             LegalBasisReviewHistoryRepository history,
-            AuditService audit) {
+            AuditService audit, CourtRouteGuard court) {
         this.access = access;
         this.versions = versions;
         this.allocations = allocations;
         this.history = history;
         this.audit = audit;
+        this.court = court;
     }
 
     @Transactional
@@ -72,6 +74,8 @@ public class LegalApprovalService {
                 || !dossier.acceptsIntake()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
+
+        court.requireValidDecision(dossier);
 
         List<BasisVersionRow> rows = versions.findRows(dossier.getLegalBasisDossierId());
         BasisVersionRow current = rows.isEmpty() ? null : rows.get(0);

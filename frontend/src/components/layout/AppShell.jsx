@@ -54,6 +54,13 @@ const NAVIGATION_REGISTRY = [
     status: 'ACTIVE',
   },
   {
+    id: 'shared-with-me',
+    jiraTicket: 'PS-105',
+    labelVi: 'Được chia sẻ với tôi',
+    labelEn: 'Shared with me',
+    status: 'ACTIVE',
+  },
+  {
     id: 'subscription',
     jiraTicket: 'CR-01',
     labelVi: 'Gói sử dụng',
@@ -293,23 +300,34 @@ export default function AppShell({
     t.brandTag = lang === 'en' ? 'Administrator account' : 'Tài khoản quản trị';
     t.navSectionTitle = lang === 'en' ? 'ADMINISTRATION' : 'QUẢN TRỊ';
     t.breadcrumbHome = lang === 'en' ? 'Administration' : 'Quản trị';
-    t.breadcrumbCurrent = currentTab === 'admin-subscriptions' ? (lang === 'en' ? 'Subscription management' : 'Quản lý gói sử dụng') : (lang === 'en' ? 'Overview' : 'Tổng quan');
+    t.breadcrumbCurrent = currentTab === 'admin-subscriptions'
+      ? (lang === 'en' ? 'Subscription management' : 'Quản lý gói sử dụng')
+      : currentTab === 'admin-users'
+      ? (lang === 'en' ? 'Users' : 'Người dùng')
+      : currentTab === 'admin-logs'
+      ? (lang === 'en' ? 'Audit logs' : 'Nhật ký')
+      : (lang === 'en' ? 'Administration overview' : 'Tổng quan quản trị');
     t.roleBadge = lang === 'en' ? 'Administrator' : 'Quản trị viên';
   }
   if (isBeneficiary) {
     t.brandTag = lang === 'en' ? 'Beneficiary account' : 'Tài khoản người thụ hưởng';
     t.navSectionTitle = lang === 'en' ? 'BENEFICIARY' : 'NGƯỜI THỤ HƯỞNG';
     t.breadcrumbHome = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
-    t.breadcrumbCurrent = lang === 'en' ? 'Account information' : 'Thông tin tài khoản';
+    t.breadcrumbCurrent = currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : (lang === 'en' ? 'Account information' : 'Thông tin tài khoản');
     t.roleBadge = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
   }
   const navList = isAdmin
     ? [
         { id: 'admin-home', labelVi: 'Tổng quan quản trị', labelEn: 'Administration overview', status: 'ACTIVE' },
+        { id: 'admin-users', labelVi: 'Người dùng', labelEn: 'Users', status: 'ACTIVE' },
         { id: 'admin-subscriptions', labelVi: 'Quản lý gói sử dụng', labelEn: 'Subscription management', status: 'ACTIVE' },
+        { id: 'admin-logs', labelVi: 'Nhật ký', labelEn: 'Audit logs', status: 'ACTIVE' },
       ]
     : isBeneficiary
-    ? [{ id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary information', status: 'ACTIVE' }]
+      ? [
+          { id: 'shared-with-me', labelVi: 'Được chia sẻ với tôi', labelEn: 'Shared with me', status: 'ACTIVE' },
+          { id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary Information', status: 'ACTIVE' },
+        ]
     : isStaff
     ? STAFF_NAVIGATION_REGISTRY
     : isLegal
@@ -846,7 +864,7 @@ export default function AppShell({
                           : currentTab === 'death-verification'
                             ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
                             : t.breadcrumbCurrent
-                  : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
+                  : currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người thi hành bên ngoài')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')

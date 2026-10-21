@@ -274,11 +274,11 @@ class SubscriptionSqlServerTest {
                     .orElseThrow();
             assertEquals(20, cached.getPayloadSizeBytes());
             loaded.countDown(); await(release);
-            return assets.updateAsset(vaultId, initial.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(30)));
+            return assets.updateAsset(vaultId, initial.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(30), OWNER_PASSWORD));
         }));
         try {
             assertTrue(loaded.await(10, TimeUnit.SECONDS));
-            assets.updateAsset(vaultId, initial.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(40)));
+            assets.updateAsset(vaultId, initial.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(40), OWNER_PASSWORD));
             assertEquals(BASIC_BYTES, quotas.current(owner.id()).usage().storageBytes());
             release.countDown(); shrink.get(20, TimeUnit.SECONDS);
             assertEquals(BASIC_BYTES - 10, quotas.current(owner.id()).usage().storageBytes());
@@ -439,11 +439,11 @@ class SubscriptionSqlServerTest {
         jdbc.update("UPDATE av SET file_size_bytes = ? FROM dbo.asset_versions av JOIN dbo.assets a ON a.asset_id = av.asset_id WHERE a.public_id = ?",
                 BASIC_BYTES, will.id().toString());
         assertTrue(quotas.current(owner.id()).overQuota().storage());
-        assets.updateAsset(vault, asset.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(20)));
+        assets.updateAsset(vault, asset.id(), owner.id(), new UpdateAssetRequest(null, null, "x".repeat(20), OWNER_PASSWORD));
         assertEquals(BASIC_BYTES + 20, quotas.current(owner.id()).usage().storageBytes());
         assertEquals(ErrorCode.STORAGE_QUOTA_EXCEEDED, businessError(() -> assets.updateAsset(vault, asset.id(), owner.id(),
-                new UpdateAssetRequest(null, null, "x".repeat(21)))));
-        assets.updateAsset(vault, asset.id(), owner.id(), new UpdateAssetRequest("Renamed", null, null));
+                new UpdateAssetRequest(null, null, "x".repeat(21), OWNER_PASSWORD))));
+        assets.updateAsset(vault, asset.id(), owner.id(), new UpdateAssetRequest("Renamed", null, null, OWNER_PASSWORD));
         assertEquals(2, quotas.current(owner.id()).usage().assetCount());
         assertEquals(1, versionCount(owner));
     }
@@ -560,11 +560,16 @@ class SubscriptionSqlServerTest {
         } finally { release.countDown(); }
     }
 
+    // PS-111: Asset updates re-verify the login password, so fixture owners need a real BCrypt hash.
+    private static final String OWNER_PASSWORD = "PS77-owner-password";
+    private static final String OWNER_PASSWORD_HASH =
+            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(OWNER_PASSWORD);
+
     private static Owner newOwner() {
         UUID publicId = UUID.randomUUID();
         String email = publicId + "@example.test";
-        jdbc.update("INSERT INTO dbo.users(public_id, full_name, email, password_hash, status) VALUES (?, 'PS77 Owner', ?, 'unused', 'ACTIVE')",
-                publicId.toString(), email);
+        jdbc.update("INSERT INTO dbo.users(public_id, full_name, email, password_hash, status) VALUES (?, 'PS77 Owner', ?, ?, 'ACTIVE')",
+                publicId.toString(), email, OWNER_PASSWORD_HASH);
         long id = jdbc.queryForObject("SELECT user_id FROM dbo.users WHERE email = ?", Long.class, email);
         return new Owner(id, publicId, email);
     }

@@ -82,6 +82,7 @@ public class BasisDossierViewService {
         Set<Long> userIds = new HashSet<>();
         userIds.add(dossier.getClassifiedByUserId());
         rows.forEach(r -> userIds.add(r.createdByUserId()));
+        userIds.remove(null); // Historical dossiers may not have a classified-by reference.
         Map<Long, UUID> publicIds = users.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getUserId, User::getPublicId, (a, b) -> a));
 

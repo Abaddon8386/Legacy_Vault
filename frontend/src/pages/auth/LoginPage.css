@@ -382,6 +382,8 @@
 }
 
 /* Primary Sand Gold CTA Button */
+.hn-login-page .hn-login-forgot-password { align-self: flex-end; min-height: 44px; display: inline-flex; align-items: center; color: var(--lv-brand-forest); font-size: 14px; }
+.hn-login-page .hn-login-forgot-password:focus-visible { outline: 2px solid var(--lv-border-focus); outline-offset: 3px; }
 .hn-login-cta-btn {
   width: 100%;
   padding: 13px 20px;

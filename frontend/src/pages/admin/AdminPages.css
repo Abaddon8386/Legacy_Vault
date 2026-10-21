@@ -1,0 +1,557 @@
+/* ==========================================================================
+   LegacyVault Admin Pages Stylesheet (PS-110)
+   Designed with Henedo tokens: Forest Green, Sand Gold, Cream Canvas, Warm Accents
+   ========================================================================== */
+
+.lv-admin-container {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 8px 0 40px 0;
+  color: var(--lv-text-ink, #1f2421);
+  font-family: inherit;
+}
+
+/* Page Header */
+.lv-admin-header {
+  margin-bottom: 24px;
+}
+
+.lv-admin-header-title {
+  margin: 0 0 6px 0;
+  font-family: var(--lv-font-editorial, 'Cormorant Garamond', serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  line-height: 1.25;
+}
+
+.lv-admin-header-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.5;
+}
+
+/* Badges & Notices */
+.lv-admin-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  background-color: #fef7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.lv-admin-pending-banner {
+  background: #fffbf5;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid var(--lv-accent-gold, #c5a059);
+  border-radius: var(--lv-radius-md, 10px);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.lv-admin-pending-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.lv-admin-pending-banner-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #9a3412;
+}
+
+.lv-admin-pending-banner-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #7c2d12;
+}
+
+/* Overview Cards Grid */
+.lv-admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.lv-admin-metric-card {
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lv-admin-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(22, 70, 57, 0.08);
+}
+
+.lv-admin-metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lv-text-muted, #6b726b);
+  margin-bottom: 8px;
+}
+
+.lv-admin-metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: var(--lv-font-editorial, 'Cormorant Garamond', serif);
+  color: var(--lv-brand-forest, #164639);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.lv-admin-metric-subtext {
+  font-size: 12px;
+  color: var(--lv-text-light, #8c918b);
+}
+
+/* Role Distribution Section */
+.lv-admin-card-section {
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.lv-admin-card-title {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-admin-card-help {
+  margin: 0 0 20px 0;
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.6;
+}
+
+.lv-admin-role-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lv-admin-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border-radius: var(--lv-radius-sm, 6px);
+  background: var(--lv-bg-canvas, #f7f5f0);
+}
+
+.lv-admin-role-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lv-text-body, #2b302c);
+}
+
+.lv-admin-role-count {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  background: #ffffff;
+  padding: 4px 12px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+/* Quick Action Cards */
+.lv-admin-action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.lv-admin-action-card {
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.lv-admin-action-card-title {
+  margin: 0 0 8px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-admin-action-card-desc {
+  margin: 0 0 20px 0;
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+  line-height: 1.6;
+  flex-grow: 1;
+}
+
+/* Filters & Controls Bar */
+.lv-admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+}
+
+.lv-admin-toolbar-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.lv-admin-input,
+.lv-admin-select {
+  height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: var(--lv-text-body, #2b302c);
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  border-radius: var(--lv-radius-md, 10px);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lv-admin-input:focus,
+.lv-admin-select:focus {
+  border-color: var(--lv-border-focus, #c5a059);
+  box-shadow: 0 0 0 2px var(--lv-accent-gold-border, rgba(197, 160, 89, 0.28));
+}
+
+.lv-admin-search-input {
+  min-width: 240px;
+  flex-grow: 1;
+}
+
+/* Buttons */
+.lv-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--lv-radius-md, 10px);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.lv-admin-btn:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+  outline-offset: 2px;
+}
+
+.lv-admin-btn-primary {
+  background: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+}
+
+.lv-admin-btn-primary:hover:not(:disabled) {
+  background: var(--lv-brand-forest-dark, #0c2b22);
+}
+
+.lv-admin-btn-secondary {
+  background: transparent;
+  border-color: var(--lv-border-medium, #ded9ce);
+  color: var(--lv-text-body, #2b302c);
+}
+
+.lv-admin-btn-secondary:hover:not(:disabled) {
+  background: var(--lv-bg-canvas, #f7f5f0);
+  border-color: var(--lv-accent-gold, #c5a059);
+}
+
+.lv-admin-btn-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.lv-admin-btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.lv-admin-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Data Table */
+.lv-admin-table-container {
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-lg, 12px);
+  overflow-x: auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  margin-bottom: 20px;
+}
+
+.lv-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.lv-admin-table th {
+  background: var(--lv-bg-canvas, #f7f5f0);
+  color: var(--lv-brand-forest, #164639);
+  font-weight: 700;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  white-space: nowrap;
+}
+
+.lv-admin-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  color: var(--lv-text-body, #2b302c);
+  vertical-align: middle;
+}
+
+.lv-admin-table tbody tr:hover {
+  background-color: #faf8f5;
+}
+
+.lv-admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Table Badges */
+.lv-admin-role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  font-size: 11px;
+  font-weight: 600;
+  background: #eef6f6;
+  color: var(--lv-brand-forest, #164639);
+  border: 1px solid #cbe3e4;
+  margin-right: 4px;
+  margin-bottom: 2px;
+}
+
+.lv-admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--lv-radius-pill, 9999px);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.lv-admin-status-active {
+  background: var(--lv-status-success-bg, #f4fbf7);
+  color: var(--lv-status-success-text, #1d724f);
+  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+}
+
+.lv-admin-status-locked {
+  background: var(--lv-status-error-bg, #fff8f7);
+  color: var(--lv-status-error-text, #c25149);
+  border: 1px solid var(--lv-status-error-border, #f9d3cf);
+}
+
+.lv-admin-status-pending {
+  background: var(--lv-status-await-bg, #fff8eb);
+  color: var(--lv-status-await-text, #b46b18);
+  border: 1px solid var(--lv-status-await-border, #f9e2b8);
+}
+
+/* Pagination */
+.lv-admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--lv-bg-surface, #ffffff);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: var(--lv-radius-md, 10px);
+  margin-top: 16px;
+}
+
+.lv-admin-pagination-info {
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-admin-pagination-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* Modal / Dialog Backdrops */
+.lv-admin-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(12, 43, 34, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.lv-admin-modal-card {
+  background: var(--lv-bg-surface, #ffffff);
+  border-radius: var(--lv-radius-lg, 12px);
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: lvAdminModalFadeIn 0.2s ease-out;
+}
+
+@keyframes lvAdminModalFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.lv-admin-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--lv-bg-canvas, #f7f5f0);
+}
+
+.lv-admin-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-admin-modal-close-btn {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--lv-text-muted, #6b726b);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.lv-admin-modal-close-btn:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+}
+
+.lv-admin-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.lv-admin-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  background: var(--lv-bg-canvas, #f7f5f0);
+}
+
+/* Detail key-value list */
+.lv-admin-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lv-admin-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-admin-detail-item:last-child {
+  border-bottom: 0;
+}
+
+.lv-admin-detail-key {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--lv-text-muted, #6b726b);
+}
+
+.lv-admin-detail-val {
+  font-size: 14px;
+  color: var(--lv-text-ink, #1f2421);
+  word-break: break-all;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .lv-admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lv-admin-toolbar-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lv-admin-search-input {
+    min-width: 100%;
+  }
+  .lv-admin-action-cards {
+    grid-template-columns: 1fr;
+  }
+}

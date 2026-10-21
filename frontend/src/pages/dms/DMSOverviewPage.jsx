@@ -109,10 +109,13 @@ export default function DMSOverviewPage({
             syncedRefreshKeyRef.current !== refreshKey;
 
           if (needsSync) {
-            if (data && data.checkIntervalDays !== undefined && data.checkIntervalDays !== null) {
-              setIntervalInput(data.checkIntervalDays);
-              setHoursInput(String(data.checkIntervalHours ?? 0));
-              setMinutesInput(String(data.checkIntervalMinutes ?? 0));
+            if (data) {
+              const d = data.days !== undefined ? data.days : (data.checkIntervalDays != null ? data.checkIntervalDays : Math.floor((data.checkIntervalMinutes || 0) / 1440));
+              const h = data.hours !== undefined ? data.hours : (data.checkIntervalHours != null ? data.checkIntervalHours : Math.floor(((data.checkIntervalMinutes || 0) % 1440) / 60));
+              const m = data.minutes !== undefined ? data.minutes : (data.checkIntervalHours != null ? data.checkIntervalMinutes : ((data.checkIntervalMinutes || 0) % 60));
+              setIntervalInput(d);
+              setHoursInput(String(h));
+              setMinutesInput(String(m));
             }
             syncedContextRef.current = currentContextKey;
             syncedRefreshTriggerRef.current = onRefreshTrigger;
@@ -217,9 +220,14 @@ export default function DMSOverviewPage({
       syncedRefreshTriggerRef.current = onRefreshTrigger;
       syncedRefreshKeyRef.current = refreshKey;
       setDmsData(updated ? { ...updated, snapshotTimestamp: Date.now() } : null);
-      if (updated?.checkIntervalDays != null) setIntervalInput(updated.checkIntervalDays);
-      if (updated?.checkIntervalHours != null) setHoursInput(String(updated.checkIntervalHours));
-      if (updated?.checkIntervalMinutes != null) setMinutesInput(String(updated.checkIntervalMinutes));
+      if (updated) {
+        const d = updated.days !== undefined ? updated.days : (updated.checkIntervalDays != null ? updated.checkIntervalDays : Math.floor((updated.checkIntervalMinutes || 0) / 1440));
+        const h = updated.hours !== undefined ? updated.hours : (updated.checkIntervalHours != null ? updated.checkIntervalHours : Math.floor(((updated.checkIntervalMinutes || 0) % 1440) / 60));
+        const m = updated.minutes !== undefined ? updated.minutes : (updated.checkIntervalHours != null ? updated.checkIntervalMinutes : ((updated.checkIntervalMinutes || 0) % 60));
+        setIntervalInput(d);
+        setHoursInput(String(h));
+        setMinutesInput(String(m));
+      }
       setIsConfiguringNew(false);
       setSaveSuccess('SAVED');
     } catch (err) {
@@ -259,9 +267,14 @@ export default function DMSOverviewPage({
       syncedRefreshTriggerRef.current = onRefreshTrigger;
       syncedRefreshKeyRef.current = refreshKey;
       setDmsData(result ? { ...result, snapshotTimestamp: Date.now() } : null);
-      if (result?.checkIntervalDays != null) setIntervalInput(result.checkIntervalDays);
-      if (result?.checkIntervalHours != null) setHoursInput(String(result.checkIntervalHours));
-      if (result?.checkIntervalMinutes != null) setMinutesInput(String(result.checkIntervalMinutes));
+      if (result) {
+        const d = result.days !== undefined ? result.days : (result.checkIntervalDays != null ? result.checkIntervalDays : Math.floor((result.checkIntervalMinutes || 0) / 1440));
+        const h = result.hours !== undefined ? result.hours : (result.checkIntervalHours != null ? result.checkIntervalHours : Math.floor(((result.checkIntervalMinutes || 0) % 1440) / 60));
+        const m = result.minutes !== undefined ? result.minutes : (result.checkIntervalHours != null ? result.checkIntervalMinutes : ((result.checkIntervalMinutes || 0) % 60));
+        setIntervalInput(d);
+        setHoursInput(String(h));
+        setMinutesInput(String(m));
+      }
       setCheckInNotice('CHECKED_IN');
     } catch (err) {
       if (active.current && !controller.signal.aborted) {
@@ -335,7 +348,6 @@ export default function DMSOverviewPage({
       hoursLabel: 'Số giờ',
       minutesLabel: 'Số phút',
       savingFeedback: 'Đang lưu cấu hình…',
-      subDayNoteLive: 'Cấu hình chu kỳ theo giờ và phút đang chờ máy chủ hỗ trợ (PS-91). Phiên đăng nhập hiện tại chỉ lưu chu kỳ ngày nguyên.',
       demoNotice: 'Dữ liệu minh họa — chưa lưu lên máy chủ',
       actionCardTitle: 'Xác nhận hiện diện trực tuyến',
       actionCardSub: 'Gửi tín hiệu xác nhận để làm mới bộ đếm thời gian chu kỳ tiếp theo',
@@ -352,7 +364,7 @@ export default function DMSOverviewPage({
       presetsLabel: 'Gợi ý chu kỳ đề xuất:',
       presetsHelper: 'Các mức ngày trên là gợi ý nhanh; bạn có thể tùy chọn số ngày phù hợp từ 1 đến 180 ngày.',
       inputLabel: 'Thời lượng chu kỳ:',
-      inputHelper: 'Nhập ngày, giờ và phút nguyên; tổng lớn hơn 0 và tối đa 180 ngày. Giờ/phút chỉ mô phỏng khi máy chủ chưa hỗ trợ.',
+      inputHelper: 'Nhập số nguyên; tổng thời gian từ 1 phút đến 180 ngày.',
       saveBtn: 'Lưu cấu hình chu kỳ',
       savingBtn: 'Đang lưu cấu hình…',
       emptyBadge: 'CHƯA CẤU HÌNH',
@@ -390,7 +402,6 @@ export default function DMSOverviewPage({
       hoursLabel: 'Hours',
       minutesLabel: 'Minutes',
       savingFeedback: 'Saving configuration…',
-      subDayNoteLive: 'Hour and minute intervals are awaiting backend support (PS-91). The current session only saves whole days.',
       demoNotice: 'Demo data — not saved to the server',
       actionCardTitle: 'Online Vitality Confirmation',
       actionCardSub: 'Transmit an active presence signal to refresh your upcoming check-in timer',
@@ -407,7 +418,7 @@ export default function DMSOverviewPage({
       presetsLabel: 'Suggested Presets:',
       presetsHelper: 'The presets above are quick suggestions; you can enter any custom day count from 1 to 180 days.',
       inputLabel: 'Check-in interval:',
-      inputHelper: 'Enter whole days, hours and minutes; total must exceed zero and not exceed 180 days. Sub-day intervals are demo-only pending server support.',
+      inputHelper: 'Enter whole numbers; total duration must be 1 minute to 180 days.',
       saveBtn: 'Save Interval Settings',
       savingBtn: 'Saving Settings…',
       emptyBadge: 'NOT CONFIGURED',
@@ -633,7 +644,7 @@ export default function DMSOverviewPage({
                   <span className="lv-dms-metric-label">{t.metricInterval}</span>
                   <div className="lv-dms-metric-value-row">
                     <span className="lv-dms-metric-value">
-                      {dmsData.checkIntervalDays || dmsData.checkIntervalHours || dmsData.checkIntervalMinutes
+                      {dmsData.checkIntervalDays != null || dmsData.checkIntervalHours != null || dmsData.checkIntervalMinutes != null || dmsData.days != null
                         ? formatDmsInterval(dmsData, lang)
                         : '—'}
                     </span>
@@ -868,13 +879,6 @@ export default function DMSOverviewPage({
                     <span id="dms-interval-helper" className="lv-dms-input-helper">
                       {t.inputHelper}
                     </span>
-                  )}
-
-                  {/* Cảnh báo chu kỳ dưới 24h / giờ phút lẻ khi dùng phiên thật chờ BE PS-91 */}
-                  {accessToken && (Number(hoursInput) > 0 || Number(minutesInput) > 0) && (
-                    <div className="lv-dms-subday-notice" role="note">
-                      <span aria-hidden="true">ℹ️</span> {t.subDayNoteLive}
-                    </div>
                   )}
 
                   {/* Thanh chờ không xác định khi đang lưu cấu hình */}

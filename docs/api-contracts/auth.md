@@ -49,6 +49,39 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 - **Nghiệp vụ:** chỉ user active được xác thực; `deleted_at != null` bị từ chối.
 - **Audit:** `AUTH_LOGIN_SUCCEEDED` / `AUTH_LOGIN_FAILED` (ghi email đã che hoặc userId nếu có; không ghi mật khẩu).
 
+## POST /api/v1/auth/google — PS-85
+
+- **Quyền:** công khai; nhận Google Identity Services (GIS) ID credential từ callback PS-83.
+- **Request:** `{ "credential": "<Google ID token>" }`. Backend xác minh chữ ký RS256 qua JWKS chính thức Google,
+  issuer (`accounts.google.com` hoặc `https://accounts.google.com`), audience bằng `GOOGLE_CLIENT_ID`, thời hạn,
+  `iat` và `sub`. Client không gửi profile/email/role để định danh tài khoản.
+- **Response 200:** cùng `LoginResponse` với đăng nhập mật khẩu; JWT, thời hạn và role đều lấy từ LegacyVault.
+- **Lỗi:** `400 VALIDATION_FAILED`; `401 INVALID_GOOGLE_CREDENTIAL` cho token không hợp lệ/hết hạn/dùng lại;
+  `401 INVALID_CREDENTIALS` cho subject chưa liên kết hoặc tài khoản không `ACTIVE`/đã xóa;
+  `503 GOOGLE_SIGNIN_UNAVAILABLE` khi thiếu cấu hình client ID hoặc không truy cập được Google JWKS.
+- Credential hợp lệ chỉ được đổi lấy phiên thành công một lần. Database lưu fingerprint SHA-256 (không lưu credential);
+  các fingerprint hết hạn được dọn ở lần đăng nhập Google tiếp theo. Endpoint stateless, nhận JSON và không dùng cookie;
+  CORS vẫn giới hạn browser origin theo cấu hình.
+- Bảng `dbo.external_auth_identities` ánh xạ chính xác `provider_code=GOOGLE` + Google `sub` sang tài khoản. PS-85
+  không đăng ký Google, không liên kết theo email, không tự tạo tài khoản và không cấp role. Subject chưa có mapping bị
+  từ chối bằng lỗi chung `INVALID_CREDENTIALS`.
+- **Audit:** dùng `AUTH_LOGIN_SUCCEEDED`/`AUTH_LOGIN_FAILED` hiện có, không ghi credential, token, subject hoặc profile.
+
+## POST /api/v1/auth/google/link — PS-85
+
+- **Quyền:** JWT LegacyVault hợp lệ của tài khoản đang đăng nhập. Tài khoản được tải lại từ database và phải `ACTIVE`,
+  chưa bị xóa. Không nhận user ID, role hoặc Google `sub` từ request.
+- **Request:** `{ "credential": "<Google ID token>" }`; backend xác minh token như endpoint đăng nhập Google và chỉ dùng
+  `sub` từ kết quả xác minh. Không dùng email để tìm/liên kết tài khoản.
+- **Response 200:** `{ "linked": true }`. Sau đó cùng Google ID token mới (mỗi credential chỉ dùng một lần) có thể đăng nhập
+  qua mapping `GOOGLE + sub` vừa tạo.
+- **Lỗi:** `400 VALIDATION_FAILED`; `401 UNAUTHENTICATED` khi không có principal hợp lệ hoặc tài khoản hiện tại không còn
+  đủ điều kiện; `401 INVALID_GOOGLE_CREDENTIAL` cho credential sai/hết hạn/đã dùng; `409 GOOGLE_IDENTITY_ALREADY_LINKED`
+  nếu subject đã có mapping. Cạnh tranh tạo mapping được bảo vệ thêm bằng unique constraint `(provider_code, subject)`;
+  toàn bộ thao tác mapping, đánh dấu credential đã dùng và audit nằm trong một transaction.
+- Chỉ liên kết vào chính tài khoản của JWT hiện tại; không hỗ trợ link tài khoản khác, email matching, Google signup,
+  role assignment hay tự động khôi phục tài khoản. Audit chỉ ghi actor/action/provider, không ghi `sub`, credential hoặc email.
+
 ## GET /api/v1/auth/me — **[D-API-23]**
 
 - **Quyền:** đã đăng nhập. **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles" }`; roles đọc từ DB. Không trả trạng thái nội bộ, mật khẩu/hash hay token.
@@ -89,3 +122,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 Success/validation/401/403: `ErrorContractTest` (khung). PS-9/10/11 bổ sung: đăng ký thành công, trùng email 409, mật khẩu
 được băm (không bằng plaintext), đăng nhập đúng/sai/đã xóa, token hợp lệ vs thiếu token vs sai role.
+
+## PS-112
+
+Recovery contract and session-version deployment/rollback policy: [password-recovery.md](password-recovery.md). Password login and password reauth reject explicitly password-disabled accounts; unclassified legacy accounts keep existing login but cannot recover. Legacy JWTs without authVersion must sign in again. New JWT claims are checked against the DB on every protected request.

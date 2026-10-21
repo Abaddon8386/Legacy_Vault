@@ -30,6 +30,8 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [handover-receipts.md](handover-receipts.md) | Staff xác nhận bàn giao và truy xuất receipt bất biến | PS-61 |
 | [handover-deliveries.md](handover-deliveries.md) | Phạm vi tài sản được bàn giao, guard bàn giao và ghi nhận từng lần giao | PS-64, PS-65, PS-66 |
 | [beneficiary-accounts.md](beneficiary-accounts.md) | Staff liên kết hoặc tạo tài khoản Beneficiary tại quầy | PS-62, PS-63 |
+| [counter-beneficiaries.md](counter-beneficiaries.md) | Staff xem Beneficiary của ca, bước tại quầy và trạng thái mã mời/tài khoản | PS-88 |
+| [intake-attachments.md](intake-attachments.md) | Staff đính kèm file/ảnh vào giấy tờ tử vong và di chúc giấy gốc; Staff/Legal đọc file và file căn cứ theo quyền | PS-103 |
 | [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
 | [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [legal-basis-dossier.md](legal-basis-dossier.md) | Hồ sơ căn cứ phân chia: Legal phân loại nhánh, Staff tiếp nhận và chuyển văn bản | PS-41, PS-42, PS-43 |
@@ -37,6 +39,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [audit.md](audit.md) | Audit log append-only (nội bộ) | PS-13 |
 | [subscriptions.md](subscriptions.md) | PS-77 prototype chờ duyệt; self-grant bị chặn, quota mặc định tắt, một Vault/Owner | PS-77 |
 | [openapi.yaml](openapi.yaml) | Bản máy đọc được của toàn bộ contract | tất cả |
+| [admin-user-management.md](admin-user-management.md) | Tra cứu tài khoản Admin PS-109; policy khóa/mở khóa còn chờ xác nhận | PS-109 |
 
 ## Cách đọc một endpoint
 
@@ -61,3 +64,5 @@ Mỗi endpoint ghi: **quyền** (ai gọi được) · **ownership** (dữ liệ
 2. Nếu thêm mã lỗi: thêm vào `ErrorCode.java`, `messages.properties`, `messages_en.properties`, `error-contract.md`.
 3. Nếu đổi hành vi đã chốt: ghi vào `open-decisions.md` (ai quyết, ngày) và báo FE.
 4. Có test bám contract (success/validation/401/403 khi áp dụng).
+
+- [PS-115 Admin VNPay lookup](admin-payment-transactions.md) — real read-only SQL source; [OpenAPI](admin-payments.openapi.yaml), synthetic fixture in fixtures/admin-payments.json.

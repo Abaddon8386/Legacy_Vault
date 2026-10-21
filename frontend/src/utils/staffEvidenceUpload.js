@@ -37,6 +37,16 @@ export const EVIDENCE_UPLOAD_I18N = Object.freeze({
     uploadSuccess: 'Tải tệp và tạo phiên bản thành công.',
     uploadAborted: 'Quá trình tải tệp đã bị hủy.',
     uploadFailed: 'Tải tệp thất bại. Vui lòng thử lại.',
+    attachmentSuccess: 'Đính kèm tệp chứng cứ thành công.',
+    attachmentFailed: 'Tải lên tệp đính kèm thất bại.',
+    attachmentsTitle: 'Tệp đính kèm',
+    noAttachments: 'Chưa có tệp đính kèm nào.',
+    attachFile: 'Đính kèm tệp',
+    uploadAttachment: 'Tải lên đính kèm',
+    viewAttachment: 'Xem tệp',
+    downloadAttachment: 'Tải về',
+    closePreview: 'Đóng xem trước',
+    loadingFile: 'Đang tải nội dung tệp...',
     bytesUnit: 'B',
     kbUnit: 'KB',
     mbUnit: 'MB',
@@ -58,6 +68,16 @@ export const EVIDENCE_UPLOAD_I18N = Object.freeze({
     uploadSuccess: 'File uploaded and version created successfully.',
     uploadAborted: 'File upload was aborted.',
     uploadFailed: 'File upload failed. Please try again.',
+    attachmentSuccess: 'Evidence file attached successfully.',
+    attachmentFailed: 'Evidence file attachment failed.',
+    attachmentsTitle: 'Attached files',
+    noAttachments: 'No attached files yet.',
+    attachFile: 'Attach file',
+    uploadAttachment: 'Upload attachment',
+    viewAttachment: 'View file',
+    downloadAttachment: 'Download',
+    closePreview: 'Close preview',
+    loadingFile: 'Loading file content...',
     bytesUnit: 'B',
     kbUnit: 'KB',
     mbUnit: 'MB',
@@ -316,8 +336,10 @@ export function uploadEvidenceMultipart({
     xhr.setRequestHeader('Accept-Language', lang);
 
     const formData = new FormData();
-    const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
-    formData.append('metadata', metadataBlob, 'metadata.json');
+    if (metadata !== undefined && metadata !== null) {
+      const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+      formData.append('metadata', metadataBlob, 'metadata.json');
+    }
 
     const fileToAppend = (typeof Blob !== 'undefined' && file instanceof Blob)
       ? file
@@ -339,4 +361,34 @@ export function uploadEvidenceMultipart({
 
     xhr.send(formData);
   });
+}
+
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function validateIntakeAttachmentReceipt(receipt, expected = {}) {
+  const { caseId, recordId, kind } = expected;
+  const expectedSubject = kind === 'death-documents' ? 'DEATH_DOCUMENT' : (kind === 'original-will-intakes' ? 'ORIGINAL_WILL' : expected.subjectType);
+
+  if (
+    !receipt ||
+    typeof receipt !== 'object' ||
+    !UUID_REGEX.test(receipt.id || '') ||
+    (caseId && receipt.caseId !== caseId) ||
+    (recordId && receipt.subjectId !== recordId) ||
+    (expectedSubject && receipt.subjectType !== expectedSubject) ||
+    !UUID_REGEX.test(receipt.uploadedBy || '') ||
+    typeof receipt.fileName !== 'string' ||
+    !receipt.fileName.trim() ||
+    typeof receipt.sha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/i.test(receipt.sha256) ||
+    !['application/pdf', 'image/jpeg', 'image/png'].includes(receipt.contentType) ||
+    !Number.isSafeInteger(receipt.sizeBytes) || receipt.sizeBytes <= 0 ||
+    !Number.isFinite(Date.parse(receipt.uploadedAt))
+  ) {
+    const error = new Error('Invalid intake attachment receipt');
+    error.code = 'INVALID_RECEIPT';
+    throw error;
+  }
+  return receipt;
 }
