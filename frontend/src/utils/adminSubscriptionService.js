@@ -11,7 +11,7 @@ export const adminSubscriptionMessages = {
     planVersionConflict: 'Cấu hình gói đã bị thay đổi bởi quản trị viên khác. Vui lòng tải lại dữ liệu trước khi tiếp tục.',
     planVersionNotEditable: 'Chỉ có thể chỉnh sửa bản nháp (DRAFT). Phiên bản đã công bố hoặc ngừng áp dụng là bất biến.',
     planVersionAlreadyExists: 'Đã tồn tại một bản nháp cho gói này. Vui lòng chỉnh sửa bản nháp hiện có hoặc công bố trước khi tạo bản mới.',
-    paymentUnavailable: 'Nguồn dữ liệu giao dịch thanh toán phụ thuộc phân hệ PS-80 (chưa tích hợp). Chức năng tra cứu giao dịch hiện chưa khả dụng trên môi trường này.',
+    paymentUnavailable: 'Tra cứu giao dịch tạm thời chưa khả dụng. Vui lòng thử lại.',
     validationFailed: 'Dữ liệu không hợp lệ. Giới hạn tệp phải cố định đúng 10 MB, dung lượng lưu trữ phải đủ chứa tệp và các trường bắt buộc không được để trống.',
     networkError: 'Không thể kết nối đến máy chủ backend. Vui lòng kiểm tra kết nối mạng.',
     genericError: 'Đã xảy ra lỗi khi xử lý yêu cầu quản trị gói sử dụng. Vui lòng thử lại sau.',
@@ -24,7 +24,7 @@ export const adminSubscriptionMessages = {
     planVersionConflict: 'Plan configuration was modified by another administrator. Please reload data before proceeding.',
     planVersionNotEditable: 'Only draft (DRAFT) versions can be edited. Published or deprecated versions are immutable.',
     planVersionAlreadyExists: 'A draft version already exists for this plan. Please edit the existing draft or publish it first.',
-    paymentUnavailable: 'Payment transaction data source depends on PS-80 (not yet integrated). Transaction lookup is unavailable in this environment.',
+    paymentUnavailable: 'Transaction lookup is temporarily unavailable. Please retry.',
     validationFailed: 'Invalid configuration data. File limit must be strictly 10 MB, storage must be at least 10 MB, and required fields cannot be blank.',
     networkError: 'Cannot connect to backend server. Please verify network connection.',
     genericError: 'An error occurred while processing subscription management request. Please try again.',
@@ -120,7 +120,9 @@ export async function deprecateAdminPlanVersion(planCode, version, options = {})
 }
 
 export async function lookupAdminAccount(query, options = {}) {
-  return request(`/admin/subscriptions/accounts?query=${encodeURIComponent(query)}`, options);
+  const data=await request(`/admin/subscriptions/accounts?query=${encodeURIComponent(query)}`, options);
+  if(!data || !['assetCount','assetLimit','storageBytes','storageBytesLimit'].every(k=>Number.isSafeInteger(data[k]) && data[k]>=0)) throw new ApiError('INVALID_RESPONSE');
+  return data;
 }
 
 export async function lookupAdminTransactions(query = '', options = {}) {

@@ -1,0 +1,14 @@
+.lv-payments{min-width:0}.lv-payment-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:20px}
+.lv-payment-filters label{display:flex;flex-direction:column;gap:6px;flex:1 1 180px;min-width:0}
+.lv-payments input,.lv-payments select{box-sizing:border-box;max-width:100%;padding:10px;border:1px solid #ddd8cc;border-radius:8px;background:#fff;color:#173e35}
+.lv-payment-table-wrap{overflow-x:auto}.lv-payments td{overflow-wrap:anywhere}.lv-payment-pagination{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.lv-payments table{width:100%;border-collapse:collapse;text-align:left}
+.lv-payments th,.lv-payments td{padding:12px;border-bottom:1px solid #e6e1d7;vertical-align:top}
+.lv-payments th{background:#f0eee7}.lv-payments td:nth-child(4){white-space:nowrap}
+.lv-payments button{padding:9px 12px;border:1px solid #c5cfc7;border-radius:8px;background:#fff;color:#164639}
+.lv-payments button{cursor:pointer}.lv-payments button:disabled{cursor:default;opacity:.5}
+.lv-payment-overlay{position:fixed;inset:0;background:#142c2399;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.lv-payment-detail{box-sizing:border-box;background:#fff;border-radius:16px;padding:24px;width:620px;max-width:100%;max-height:90vh;overflow:auto}
+.lv-payment-detail dl>div{display:grid;grid-template-columns:1fr 2fr;gap:12px;padding:8px 0;border-bottom:1px solid #eee}
+.lv-payment-detail dd{margin:0;overflow-wrap:anywhere}.lv-payment-detail dt{color:#68756d}
+@media(max-width:600px){.lv-payment-filters label{flex-basis:100%}.lv-payment-detail{padding:16px}.lv-payment-detail dl>div{grid-template-columns:1fr}.lv-admin-sub-tabs{flex-wrap:wrap}}

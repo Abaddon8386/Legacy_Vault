@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import AdminPaymentTransactions from './AdminPaymentTransactions.jsx';
 import './AdminSubscriptionPage.css';
 import {
   fetchAdminPlans,
@@ -13,7 +14,11 @@ import {
   adminSubscriptionErrorMessage,
 } from '../../utils/adminSubscriptionService.js';
 
-export default function AdminSubscriptionPage({
+export default function AdminSubscriptionPage(props) {
+  return <ScopedAdminSubscriptionPage key={props.accessToken || 'anonymous'} {...props} />;
+}
+
+function ScopedAdminSubscriptionPage({
   lang = 'vi',
   accessToken,
   onUnauthorized,
@@ -54,6 +59,8 @@ export default function AdminSubscriptionPage({
   const [accountData, setAccountData] = useState(null);
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [accountError, setAccountError] = useState(null);
+  const accountController=useRef(null);
+  useEffect(()=>()=>accountController.current?.abort(),[activeTab]);
 
   const t = {
     title: en ? 'Subscription Plan Catalog' : 'Quản lý gói sử dụng & Danh mục',
@@ -82,9 +89,6 @@ export default function AdminSubscriptionPage({
     billingMonthlyOnly: en ? 'One-time purchase / Lifetime' : 'Mua một lần / Trọn đời',
     lookupPlaceholder: en ? 'Enter account ID, email, username or public UUID' : 'Nhập mã tài khoản, email, username hoặc public UUID',
     lookupBtn: en ? 'Look up' : 'Tra cứu',
-    paymentUnavailableNotice: en
-      ? 'Payment transaction subsystem is currently pending PS-80 integration. Real transaction queries are not available in this environment.'
-      : 'Nguồn dữ liệu giao dịch thanh toán phụ thuộc phân hệ PS-80 (chưa tích hợp). Chức năng tra cứu giao dịch hiện chưa khả dụng trên môi trường này.',
     conflictBanner: en
       ? 'Plan configuration was modified by another administrator. Please reload data.'
       : 'Cấu hình gói đã bị thay đổi bởi quản trị viên khác. Vui lòng tải lại dữ liệu.',
@@ -293,16 +297,22 @@ export default function AdminSubscriptionPage({
     e.preventDefault();
     const q = accountQuery.trim();
     if (!q) return;
+    if (accountController.current && !accountController.current.signal.aborted) return;
+    const c=new AbortController();accountController.current=c;
     setLoadingAccount(true);
     setAccountError(null);
     setAccountData(null);
     try {
-      const res = await lookupAdminAccount(q, { accessToken, lang });
+      const res = await lookupAdminAccount(q, { accessToken, lang, signal:c.signal });
+      if(c.signal.aborted) return;
       setAccountData(res);
     } catch (err) {
+      if(c.signal.aborted) return;
+      if(err.status===401) onUnauthorized?.();
       setAccountError(err);
     } finally {
-      setLoadingAccount(false);
+      if(accountController.current===c) accountController.current=null;
+      if(!c.signal.aborted) setLoadingAccount(false);
     }
   };
 
@@ -746,8 +756,9 @@ export default function AdminSubscriptionPage({
             <input
               type="text"
               placeholder={t.lookupPlaceholder}
+              aria-label={en?'Account lookup':'Tra cứu tài khoản'}
               value={accountQuery}
-              onChange={(e) => setAccountQuery(e.target.value)}
+              onChange={(e) => {accountController.current?.abort();setLoadingAccount(false);setAccountData(null);setAccountError(null);setAccountQuery(e.target.value);}}
               className="lv-admin-sub-search-input"
             />
             <button
@@ -806,6 +817,8 @@ export default function AdminSubscriptionPage({
               </div>
 
               <div className="lv-admin-sub-gauges">
+                {(accountData.assetCount > accountData.assetLimit || accountData.storageBytes > accountData.storageBytesLimit) &&
+                  <p role="status" className="lv-admin-sub-quota-warning">{en?'Over quota':'Vượt hạn mức'}</p>}
                 <div className="lv-admin-sub-gauge">
                   <div className="lv-admin-sub-gauge-title">
                     <span>{t.assetsLimit}</span>
@@ -813,8 +826,8 @@ export default function AdminSubscriptionPage({
                   </div>
                   <div className="lv-admin-sub-bar">
                     <div
-                      className="lv-admin-sub-bar-fill"
-                      style={{ width: `${Math.min(100, (accountData.assetCount / accountData.assetLimit) * 100)}%` }}
+                      className={`lv-admin-sub-bar-fill ${accountData.assetCount > accountData.assetLimit ? 'over' : ''}`}
+                      style={{ width: `${Math.min(100, (accountData.assetCount / Math.max(1,accountData.assetLimit)) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -826,8 +839,8 @@ export default function AdminSubscriptionPage({
                   </div>
                   <div className="lv-admin-sub-bar">
                     <div
-                      className="lv-admin-sub-bar-fill"
-                      style={{ width: `${Math.min(100, (accountData.storageBytes / accountData.storageBytesLimit) * 100)}%` }}
+                      className={`lv-admin-sub-bar-fill ${accountData.storageBytes > accountData.storageBytesLimit ? 'over' : ''}`}
+                      style={{ width: `${Math.min(100, (accountData.storageBytes / Math.max(1,accountData.storageBytesLimit)) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -837,21 +850,10 @@ export default function AdminSubscriptionPage({
         </div>
       )}
 
-      {/* TAB 3: PAYMENT TRANSACTIONS (DEPENDENCY STATUS) */}
+      {/* TAB 3: READ-ONLY PAYMENT TRANSACTIONS */}
       {activeTab === 'transactions' && (
         <div className="lv-admin-sub-content">
-          <div className="lv-admin-sub-warning-panel" role="region" aria-label="Payment Subsystem Status">
-            <div className="lv-admin-sub-warning-icon">⏳</div>
-            <div className="lv-admin-sub-warning-body">
-              <h3>{en ? 'Payment Transactions Dependency (PS-80)' : 'Phụ thuộc phân hệ thanh toán (PS-80)'}</h3>
-              <p>{t.paymentUnavailableNotice}</p>
-              <ul>
-                <li>{en ? 'Admin catalog management functions independently.' : 'Phân hệ quản lý danh mục gói Admin hoạt động độc lập.'}</li>
-                <li>{en ? 'No synthetic or simulated transaction history is fabricated.' : 'Tuyệt đối không giả mạo giao dịch thanh toán hoặc trả danh sách rỗng 200.'}</li>
-                <li>{en ? 'Integration with VNPay/MoMo gateways will provide live transaction streams once PS-80 is merged.' : 'Kết nối với cổng thanh toán VNPay/MoMo sẽ tự động cung cấp luồng giao dịch thật khi PS-80 hoàn tất tích hợp.'}</li>
-              </ul>
-            </div>
-          </div>
+          <AdminPaymentTransactions accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized}/>
         </div>
       )}
     </div>
