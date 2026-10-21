@@ -1,0 +1,222 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { JSDOM } from 'jsdom';
+import { build } from 'vite';
+import * as api from '../pages/legal/legalLiveService.js';
+import { createSession, storeSession } from './session.js';
+
+// Isolated HTTP fixtures only: never imported by the application or used as real legal evidence.
+const a = '11111111-1111-4111-8111-111111111111', b = '22222222-2222-4222-8222-222222222222';
+const sha = 'a'.repeat(64), allocation = 'b'.repeat(64), now = '2026-10-21T10:00:00Z';
+const user = { id: a, fullName: 'Legal fixture', email: 'legal@example.test', roles: ['LEGAL_VERIFIER'] };
+const session = { accessToken: 'fixture-token', expiresAt: Date.now() + 3600000, user };
+function contextFixture(caseId = a, approved = false) {
+  return { caseId, caseNumber: 'CASE-' + (caseId === a ? 'A' : 'B'), vaultId: b, caseStatus: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION',
+    deathDocuments: [{ id: caseId, documentType: 'DEATH_CERTIFICATE', receivedAt: now }],
+    willComparison: { caseId, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: true, originalWillIntakes: [], wills: [], comparisons: [] },
+    basisDossier: { id: a, caseId, route: 'COURT', status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
+      versions: [{ version: 1, sha256: sha, forwardStatus: 'FORWARDED' }] },
+    snapshot: { dossierId: a, currentVersion: 1, requiredVersion: 1, sha256Hash: sha, allocationHash: allocation, disputeStatus: 'NONE',
+      reviewStatus: 'FRESH', reviewFresh: true, approvalCurrent: approved, latestDecision: null, courtResult: 'VALID' },
+    capabilities: { approval: { allowed: true, blockedReason: null }, unlock: { allowed: approved, blockedReason: approved ? null : 'LEGAL_APPROVAL_REQUIRED' } }, evaluatedAt: now };
+}
+function pageFixture(page = 0) {
+  const caseId = page ? b : a;
+  return { content: [{ caseId, caseNumber: page ? 'CASE-B' : 'CASE-A', vaultId: b, caseStatus: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION',
+    route: 'COURT', dossierStatus: 'LEGAL_BASIS_FORWARDED', reviewStatus: 'FRESH', openedAt: now }], page, size: 20, totalElements: 21, totalPages: 2 };
+}
+const options = { accessToken: session.accessToken, roles: user.roles, lang: 'en' };
+const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+const dom = new JSDOM('<body></body>', { url: 'http://localhost/legal/approval-review' });
+globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+const originalFetch = globalThis.fetch;
+test.afterEach(() => { globalThis.fetch = originalFetch; storeSession(null); });
+async function component(entry) {
+  const built = await build({ configFile: false, logLevel: 'silent', define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true' },
+    build: { write: false, minify: false, lib: { entry, formats: ['es'] }, rollupOptions: { external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'] } } });
+  let code = (Array.isArray(built) ? built[0] : built).output.find(item => item.type === 'chunk' && item.isEntry).code;
+  for (const name of ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime']) code = code.replaceAll(`from "${name}"`, `from "${import.meta.resolve(name)}"`);
+  return (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
+}
+const Screen = await component('src/pages/legal/LegalLiveWorkflow.jsx');
+const base = { session, lang: 'en', caseId: a, step: 'approval-review' };
+async function mount(props = base, Component = Screen) {
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  const render = async next => act(async () => root.render(React.createElement(Component, next)));
+  await render(props);
+  return { host, render, close: async () => { await act(async () => root.unmount()); host.remove(); } };
+}
+const change = (element, value) => act(async () => element[Object.keys(element).find(key => key.startsWith('__reactProps'))].onChange({ target: { value, checked: value } }));
+const submit = host => act(async () => host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+const click = (host, text) => act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === text).click());
+function transport(readContext = () => contextFixture(), write = () => assert.fail('Unexpected mutation')) {
+  return async (url, init) => {
+    if (url.endsWith('/auth/me')) return json(user);
+    if (init.method === 'POST') return write(url, init);
+    if (url.endsWith('/context')) return readContext(url, init);
+    if (url.includes('verification-cases?')) return json(pageFixture(Number(new URL(url, 'http://local').searchParams.get('page'))));
+    assert.fail('Unexpected endpoint: ' + url);
+  };
+}
+
+test('PS-102 queue uses Legal endpoint, paging and headers; invalid envelopes fail closed', async () => {
+  let url;
+  const result = await api.loadLegalQueue({ ...options, page: 1, route: 'COURT', fetchFn: async (target, init) => {
+    url = target; assert.equal(init.headers.Authorization, 'Bearer fixture-token'); assert.equal(init.headers['Accept-Language'], 'en'); return json(pageFixture(1));
+  } });
+  assert.match(url, /page=1&size=20&route=COURT/); assert.equal(result.items[0].caseId, b);
+  for (const value of [{}, [], { ...pageFixture(), content: [{ caseId: a }] }, { ...pageFixture(), totalPages: 9 }])
+    await assert.rejects(api.loadLegalQueue({ ...options, fetchFn: async () => json(value) }), { code: 'INVALID_RESPONSE' });
+});
+
+test('PS-102 context validates case, document references, snapshot hashes and capabilities', async () => {
+  assert.equal((await api.loadLegalContext(a, { ...options, fetchFn: async () => json(contextFixture()) })).snapshot.allocationHash, allocation);
+  for (const alter of [value => { value.caseId = b; }, value => { value.snapshot.sha256Hash = allocation; },
+    value => { value.capabilities.approval.allowed = 'true'; }, value => { value.basisDossier.route = 'NOTARIAL'; },
+    value => { value.deathDocuments = [{ id: 'internal-id' }]; }, value => { value.snapshot = null; }]) {
+    const value = contextFixture(); alter(value);
+    await assert.rejects(api.loadLegalContext(a, { ...options, fetchFn: async () => json(value) }), { code: 'INVALID_RESPONSE' });
+  }
+});
+
+for (const decision of ['APPROVE', 'REJECT']) test(`final ${decision} reads context again and submits the displayed snapshot only`, async () => {
+  let reads = 0, writes = 0, body;
+  globalThis.fetch = transport(() => { reads++; return json(contextFixture()); }, (url, init) => {
+    writes++; assert.ok(url.endsWith('/basis-dossier/decision')); body = JSON.parse(init.body);
+    return json({ dossierId: a, decision: decision === 'APPROVE' ? 'LEGAL_APPROVED' : 'LEGAL_REJECTED', versionNo: 1,
+      sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now });
+  });
+  const view = await mount();
+  try {
+    await change(view.host.querySelector('form select'), decision);
+    if (decision === 'REJECT') assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    await change(view.host.querySelector('textarea'), 'Reviewed scope');
+    await submit(view.host); await submit(view.host);
+    assert.equal(reads, 2); assert.equal(writes, 1);
+    assert.deepEqual(body, { decision, versionNo: 1, sha256Hash: sha, allocationHash: allocation, reason: 'Reviewed scope' });
+    assert.match(view.host.textContent, /server confirmed/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+  } finally { await view.close(); }
+});
+
+for (const field of ['allocationHash', 'sha256Hash', 'disputeStatus', 'courtResult']) test(`changed ${field} prevents POST and requires reload`, async () => {
+  let reads = 0, writes = 0;
+  globalThis.fetch = transport(() => {
+    const value = contextFixture();
+    if (++reads > 1) {
+      value.snapshot[field] = field.includes('Hash') ? 'c'.repeat(64) : field === 'courtResult' ? 'INVALID' : 'DISPUTED';
+      if (field === 'sha256Hash') value.basisDossier.versions[0].sha256 = value.snapshot[field];
+      if (field === 'disputeStatus') value.basisDossier.disputeStatus = 'DISPUTED';
+      if (field === 'courtResult') value.capabilities.approval = { allowed: false, blockedReason: 'COURT_DECISION_REQUIRED' };
+    }
+    return json(value);
+  }, () => { writes++; return json({}); });
+  const view = await mount();
+  try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+    assert.equal(writes, 0); assert.match(view.host.textContent, /record changed/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+  } finally { await view.close(); }
+});
+
+test('controlled unlock is a separate confirmed request, never implicit after approval', async () => {
+  let writes = 0;
+  globalThis.fetch = transport(() => json(contextFixture(a, true)), (url, init) => {
+    writes++; assert.ok(url.endsWith('/unlock')); assert.equal(init.body, undefined);
+    return json({ caseId: a, vaultId: b, status: 'UNLOCKED', unlockedBy: a, unlockedAt: now });
+  });
+  const view = await mount({ ...base, step: 'controlled-unlock' });
+  try { assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    await change(view.host.querySelector('[type=checkbox]'), true); await submit(view.host); await submit(view.host);
+    assert.equal(writes, 1); assert.match(view.host.textContent, /server confirmed/);
+  } finally { await view.close(); }
+});
+
+for (const status of [403, 409, 500]) test(`mutation HTTP ${status} cannot show success or permit blind retry`, async () => {
+  globalThis.fetch = transport(() => json(contextFixture()), () => json({ code: 'CONFLICT' }, status));
+  const view = await mount();
+  try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /server confirmed/);
+    if (status === 403) assert.equal(view.host.querySelector('form'), null);
+    else assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+  } finally { await view.close(); }
+});
+
+test('a pending context for a previous case is aborted and cannot populate the new case', async () => {
+  let resolveOld, signal;
+  globalThis.fetch = transport((url, init) => url.includes('/' + a + '/') ? new Promise(resolve => { resolveOld = resolve; signal = init.signal; }) : json(contextFixture(b)));
+  const view = await mount();
+  try { await view.render({ ...base, caseId: b }); assert.equal(signal.aborted, true);
+    await act(async () => resolveOld(json(contextFixture())));
+    assert.match(view.host.textContent, /CASE-B/); assert.doesNotMatch(view.host.querySelector('form').textContent, /CASE-A/);
+  } finally { await view.close(); }
+});
+
+test('queue reload 403 removes active forms, context and pending mutation receipts', async () => {
+  let deny = false, finish, signal;
+  const fetch = transport(() => json(contextFixture()), (_url, init) => new Promise(resolve => { finish = resolve; signal = init.signal; }));
+  globalThis.fetch = (url, init) => deny && url.includes('verification-cases?') ? json({ code: 'ACCESS_DENIED' }, 403) : fetch(url, init);
+  const view = await mount();
+  try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+    deny = true; await click(view.host, 'Reload cases'); assert.equal(signal.aborted, true);
+    await act(async () => finish(json({}))); assert.equal(view.host.querySelector('form'), null);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /server confirmed/);
+  } finally { await view.close(); }
+});
+
+test('legacy NOTARIAL and missing dossier remain read-only with no fabricated eligibility', async () => {
+  for (const legacy of [true, false]) {
+    const value = contextFixture(); value.capabilities = { approval: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' }, unlock: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' } };
+    if (legacy) value.basisDossier.route = 'NOTARIAL'; else { value.basisDossier = null; value.snapshot = null; }
+    globalThis.fetch = transport(() => json(value));
+    const view = await mount();
+    try { assert.equal(view.host.querySelector('[type=submit]').disabled, true); } finally { await view.close(); }
+  }
+});
+
+test('actual App Legal route uses default queue/context adapters without injected callbacks', async () => {
+  const App = await component('src/App.jsx');
+  storeSession(createSession({ accessToken: session.accessToken, tokenType: 'Bearer', expiresInSeconds: 3600, user }));
+  window.history.replaceState({}, '', '/legal/approval-review?caseId=' + a + '&lang=en');
+  globalThis.fetch = transport(() => json(contextFixture()));
+  const view = await mount({}, App);
+  try { assert.match(view.host.textContent, /Final approval/); assert.ok(view.host.querySelector('form select'));
+    await change(view.host.querySelector('form select'), 'APPROVE'); assert.equal(view.host.querySelector('[type=submit]').disabled, false);
+  } finally { await view.close(); }
+});
+
+test('COURT classification is available after death verification without a will or synthetic MATCH', async () => {
+  const value = contextFixture(); value.basisDossier = null; value.snapshot = null; value.vaultStatus = 'DOCUMENT_VERIFICATION';
+  value.willComparison.vaultStatus = value.vaultStatus;
+  value.capabilities = { approval: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' }, unlock: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' } };
+  let writes = 0;
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/context')) return json(value);
+    if (url.includes('verification-cases?')) return json(pageFixture());
+    if (url.endsWith('will-comparisons')) return json(value.willComparison);
+    if (init.method === 'POST') {
+      writes++; assert.deepEqual(JSON.parse(init.body), { route: 'COURT', routeReason: 'Court evidence expected' });
+      return json({ ...contextFixture().basisDossier, classifiedBy: a }, 201);
+    }
+    return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+  const view = await mount({ ...base, step: 'basis-route-selection' });
+  try {
+    assert.equal([...view.host.querySelectorAll('form option')].some(option => option.value === 'NOTARIAL'), false);
+    await change(view.host.querySelector('form select'), 'COURT'); await change(view.host.querySelector('textarea'), 'Court evidence expected');
+    assert.equal(view.host.querySelector('[type=submit]').disabled, false);
+    await submit(view.host); assert.equal(writes, 1); assert.match(view.host.textContent, /server confirmed/);
+  } finally { await view.close(); }
+});
+
+test('queue paging requests the next server page rather than treating the first page as all cases', async () => {
+  const pages = [], destinations = [];
+  globalThis.fetch = async url => {
+    const page = Number(new URL(url, 'http://local').searchParams.get('page')); pages.push(page); return json(pageFixture(page));
+  };
+  const view = await mount({ ...base, caseId: '', onNavigate: destination => destinations.push(destination) });
+  try { await click(view.host, 'Next'); assert.deepEqual(pages, [0, 1]);
+    assert.match(view.host.querySelector('select').textContent, /CASE-B/);
+    assert.doesNotMatch(view.host.querySelector('select').textContent, /CASE-A/);
+    assert.equal(destinations[0], '/legal/approval-review?lang=en');
+  } finally { await view.close(); }
+});

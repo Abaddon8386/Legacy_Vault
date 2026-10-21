@@ -488,3 +488,90 @@ test('vault widget explains subscription policy pending without inventing plan o
     globalThis.fetch = originalFetch;
   }
 });
+
+test('TASK #22: vault widget renders Upgrade plan / Nâng cấp gói button and navigates to subscription', async () => {
+  const originalFetch = globalThis.fetch;
+  const subPayload = {
+    planCode: 'BASIC',
+    planNameVi: 'Gói Cơ bản',
+    planNameEn: 'Basic Plan',
+    status: 'ACTIVE',
+    isTrialGrant: false,
+    assetsUsed: 2,
+    maxAssets: 5,
+    storageUsedBytes: 10485760,
+    maxStorageBytes: 104857600,
+    expiresAt: null,
+    vaultsCreatedLifetime: 1,
+    maxVaultsLifetime: 1,
+  };
+  globalThis.fetch = async (url) =>
+    url.includes('/subscriptions/me') ? json(subPayload, 200) : json({});
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  let navigatedTab = null;
+  const onNavigate = (tab) => { navigatedTab = tab; };
+
+  try {
+    // Test Vietnamese
+    await act(async () => root.render(React.createElement(Summary, {
+      vaultId,
+      ownerId: vaultId,
+      accessToken: 'synthetic',
+      lang: 'vi',
+      onNavigate,
+    })));
+    const btnVi = host.querySelector('.lv-summary-sub-right button');
+    assert.ok(btnVi, 'Upgrade plan button must exist in VI');
+    assert.match(btnVi.textContent, /Nâng cấp gói/);
+    await act(async () => btnVi.click());
+    assert.equal(navigatedTab, 'subscription', 'Clicking Upgrade plan must navigate to subscription tab');
+
+    // Test English
+    await act(async () => root.render(React.createElement(Summary, {
+      vaultId,
+      ownerId: vaultId,
+      accessToken: 'synthetic',
+      lang: 'en',
+      onNavigate,
+    })));
+    const btnEn = host.querySelector('.lv-summary-sub-right button');
+    assert.ok(btnEn, 'Upgrade plan button must exist in EN');
+    assert.match(btnEn.textContent, /Upgrade plan/);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+for (const lang of ['vi', 'en']) test(`minor warning ${lang}: follows the entered date and cannot silently save without guardian support`, async () => {
+  const originalFetch = globalThis.fetch;
+  let writes = 0;
+  globalThis.fetch = async (url, options) => {
+    if (options?.method === 'POST') writes++;
+    return url.includes('configuration-check') ? json({ vaultId, ready: false, beneficiaryCount: 0, issues: [{ code: 'BENEFICIARY_REQUIRED' }] }) : json(page([]));
+  };
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  const change = async (id, value) => {
+    const field = host.querySelector(id);
+    const key = Object.keys(field).find(key => key.startsWith('__reactProps$'));
+    await act(async () => { field[key].onChange({ target: { value } }); });
+  };
+  try {
+    await act(async () => root.render(React.createElement(People, { vaultId, accessToken: 'synthetic', lang })));
+    const dialog = host.querySelector('section[aria-labelledby="beneficiary-heading"] dialog');
+    await change('#ben-fullname', 'Beneficiary');
+    await change('#ben-dob', `${new Date().getFullYear() - 10}-01-01`);
+    assert.match(host.querySelector('#ben-guardian-notice').textContent, lang === 'en' ? /under 18/ : /chưa đủ 18/);
+    assert.equal(dialog.querySelector('button[type="submit"]').disabled, true);
+    await act(async () => dialog.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+    assert.equal(writes, 0);
+    await change('#ben-dob', '1990-01-01');
+    assert.equal(host.querySelector('#ben-guardian-notice'), null);
+    assert.equal(dialog.querySelector('button[type="submit"]').disabled, false);
+    await change('#ben-dob', '');
+    assert.equal(host.querySelector('#ben-guardian-notice'), null);
+  } finally { await act(async () => root.unmount()); host.remove(); globalThis.fetch = originalFetch; }
+});

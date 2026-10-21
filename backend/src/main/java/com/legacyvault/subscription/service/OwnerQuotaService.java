@@ -15,15 +15,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
-/** Proposed quota algorithm, disabled by default; no paid entitlement is trusted or granted. */
+/** Quota enforcement remains opt-in; paid access comes only from verified payment snapshots. */
 @Service
 public class OwnerQuotaService {
     private final OwnerWriteLockRepository ownerLocks;
     private final SubscriptionPlanRepository plans;
     private final OwnerUsageRepository usage;
     private final VaultRepository vaults;
-    @org.springframework.beans.factory.annotation.Value("${legacyvault.subscription.quota-enforcement-enabled:false}")
-    private boolean enforcementEnabled;
+    private final com.legacyvault.subscription.repository.PaymentRepository payments;
+    /** PS-92 (D-API-42): the lifetime catalog limits are enforced by default; the flag is an operational kill switch only. */
+    @org.springframework.beans.factory.annotation.Value("${legacyvault.subscription.quota-enforcement-enabled:true}")
+    private boolean enforcementEnabled = true;
 
     public void requirePrototypeEnabled() {
         if (!enforcementEnabled) throw new BusinessException(ErrorCode.SUBSCRIPTION_POLICY_PENDING);
@@ -32,11 +34,13 @@ public class OwnerQuotaService {
     private final QuotaPolicy policy = new QuotaPolicy();
 
     public OwnerQuotaService(OwnerWriteLockRepository ownerLocks, SubscriptionPlanRepository plans,
-                             OwnerUsageRepository usage, VaultRepository vaults) {
+                             OwnerUsageRepository usage, VaultRepository vaults,
+                             com.legacyvault.subscription.repository.PaymentRepository payments) {
         this.ownerLocks = ownerLocks;
         this.plans = plans;
         this.usage = usage;
         this.vaults = vaults;
+        this.payments = payments;
     }
 
     /** Must precede any resource write lock and remain held through the caller's commit. */
@@ -73,14 +77,15 @@ public class OwnerQuotaService {
         lockOwner(ownerUserId);
         Plan plan = effective(ownerUserId);
         Usage observed = usage.read(ownerUserId);
-        return new Current(plan, null, UsageView.from(observed),
+        long wills = usage.willCount(ownerUserId);
+        return new Current(plan, null, UsageView.from(observed, wills),
                 new OverQuota(observed.assets() > plan.limits().assetCount(), observed.bytes() > plan.limits().storageBytes()),
                 vaults.existsByOwnerUserId(ownerUserId), Instant.now());
     }
 
     private Plan effective(Long ownerUserId) {
         // Never trust pre-review self-granted rows as proof of payment/authorization.
-        return Plan.from(basic());
+        return payments.effective(ownerUserId).orElseGet(() -> Plan.from(basic()));
     }
 
     private SubscriptionPlan basic() {

@@ -46,6 +46,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        // Recovery authenticates only its purpose-bound credential, never a stale tab JWT.
+        String path=request.getRequestURI().substring(request.getContextPath().length());
+        if ("POST".equals(request.getMethod()) && (path.equals("/api/v1/auth/password-recovery/requests")
+                || path.equals("/api/v1/auth/password-recovery/reset"))) {
+            filterChain.doFilter(request, response); return;
+        }
         String authorization = request.getHeader("Authorization");
 
         // Không có Bearer token: để Spring Security quyết định endpoint có public không.
@@ -68,7 +74,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             User user = userRepository.findByPublicId(publicUserId).orElseThrow(()
                     -> new InsufficientAuthenticationException("Invalid authentication"));
 
-            if (!"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
+            Object version = claims.get("authVersion");
+            if (!(version instanceof Number number) || number.longValue() != user.getAuthVersion()
+                    || number.doubleValue() != number.longValue()
+                    || !"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
                 reject(request, response);
                 return;
             }

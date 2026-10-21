@@ -141,6 +141,24 @@ public class LegalBasisDossierVersion {
         this.encryptionKeyVersion = data.keyVersion();
     }
 
+    /** PS-103: ciphertext of the stored file; only the read service decrypts it, always with the version id as AAD. */
+    public EncryptedData encryptedContent() {
+        return new EncryptedData(encryptedFileContent, encryptionIv, encryptionKeyVersion);
+    }
+
+    public boolean hasStoredFile() {
+        return encryptedFileContent != null && encryptionIv != null && encryptionKeyVersion != null
+                && fileSizeBytes != null && fileSizeBytes > 0;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public String getOriginalFileName() {
+        return originalFileName;
+    }
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now(ZoneOffset.UTC);

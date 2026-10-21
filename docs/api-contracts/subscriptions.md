@@ -8,6 +8,13 @@ trọn đời hoặc tác động lên evidence pháp lý trong ba tài liệu n
 
 ## Hành vi mặc định
 
+> **Cập nhật PS-92 (D-API-42, đề xuất chờ nhóm xác nhận):** `legacyvault.subscription.quota-enforcement-enabled` mặc định **true**.
+> Hạn mức của catalog hiện hành (BASIC 5 / STANDARD 50 / EXTENDED 200 tài sản, 100 MiB / 1 GiB / 5 GiB) được thực thi; di chúc chiếm một chỗ
+> trong số tài sản. Chi tiết cách đếm và xử lý Owner đang vượt giới hạn: [assets.md](assets.md#quota-nội-dung--ps-77-ps-92-d-api-42).
+> Phần mô tả "mặc định tắt" bên dưới là lịch sử PS-77; cờ nay chỉ là công tắc vận hành (`QUOTA_ENFORCEMENT_ENABLED=false`).
+
+### Lịch sử PS-77 (trước PS-92)
+
 `legacyvault.subscription.quota-enforcement-enabled=false`. Các mức 5/50/200 Asset,
 100 MiB/1 GiB/5 GiB và giá 0/199000/499000 VND trong catalog migration là dữ liệu prototype,
 không phải chính sách đang áp dụng. Không xóa/sửa checksum migration đã push để thay lịch sử.

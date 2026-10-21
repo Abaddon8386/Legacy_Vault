@@ -86,3 +86,81 @@ for (const status of [401, 503]) test(`restore HTTP ${status}: invalid session c
     await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = originalFetch;
   }
 });
+
+for (const role of ['VAULT_OWNER', 'BENEFICIARY']) {
+  for (const failure of ['unauthorized', 'forbidden', 'unavailable', 'network', 'malformed']) {
+    test(`homepage ${role}: ${failure} verification never exposes stored Dashboard; retry requires server success`, async () => {
+      const saved = { ...candidate(), user: { ...user, roles: [role] } };
+      storeSession(saved);
+      window.history.replaceState({}, '', '/?lang=en');
+      const originalFetch = globalThis.fetch;
+      let finish;
+      globalThis.fetch = () => new Promise(resolve => { finish = resolve; });
+      const host = document.createElement('div'); document.body.append(host);
+      const root = createRoot(host);
+      try {
+        await act(async () => root.render(React.createElement(App)));
+        assert.equal(host.querySelector('.lv-landing-dashboard'), null);
+        assert.match(host.textContent, /Restoring your session/);
+        await act(async () => finish({ ok: failure === 'malformed', status: failure === 'malformed' ? 200 : failure === 'unauthorized' ? 401 : failure === 'forbidden' ? 403 : 503,
+          headers: { get: () => 'application/json' }, json: async () => failure === 'malformed' ? {} : { code: 'INTERNAL_ERROR' } }));
+        assert.equal(host.querySelector('.lv-landing-dashboard'), null);
+        if (failure === 'malformed' || failure === 'unauthorized') {
+          assert.equal(readStoredSession(), null);
+          assert.equal(window.location.pathname, '/login');
+          return;
+        }
+        assert.match(host.textContent, /Unable to verify your session/);
+        assert.ok(readStoredSession(), 'An outage does not silently discard recoverable credentials');
+        if (failure === 'network') {
+          globalThis.fetch = async () => { throw new TypeError('offline'); };
+          await act(async () => host.querySelector('button').click());
+          assert.equal(host.querySelector('.lv-landing-dashboard'), null);
+          assert.match(host.textContent, /Unable to verify your session/);
+        }
+        let retryFinish;
+        globalThis.fetch = () => new Promise(resolve => { retryFinish = resolve; });
+        await act(async () => host.querySelector('button').click());
+        assert.equal(host.querySelector('.lv-landing-dashboard'), null);
+        await act(async () => retryFinish({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => saved.user }));
+        assert.ok(host.querySelector('.lv-landing-dashboard'));
+        assert.equal(host.querySelector('.lv-landing-register'), null);
+        assert.equal(host.querySelector('.lv-landing-login'), null);
+        assert.match(host.querySelector('.lv-landing-dashboard').textContent, /Dashboard/);
+        // Navigation uses the verified user's existing role destination and keeps English.
+        globalThis.fetch = async () => ({ ok: false, status: 503, headers: { get: () => 'application/json' }, json: async () => ({ code: 'INTERNAL_ERROR' }) });
+        await act(async () => host.querySelector('.lv-landing-dashboard').click());
+        assert.equal(window.location.pathname, role === 'VAULT_OWNER' ? '/vault' : '/beneficiary');
+        assert.equal(new URLSearchParams(window.location.search).get('lang'), 'en');
+      } finally {
+        await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = originalFetch;
+      }
+    });
+  }
+}
+
+test('real App admin users route loads PS-109 automatically and requests detail by public UUID', async () => {
+  const admin = { ...user, roles: ['ADMIN'] };
+  const record = { publicId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', fullName: 'Directory account',
+    email: 'directory@example.test', roles: ['ROLE_BENEFICIARY'], status: 'ACTIVE', createdAt: '2026-10-20T10:00:00Z' };
+  storeSession({ ...candidate(), user: admin });
+  window.history.replaceState({}, '', '/admin/users?lang=en');
+  const original = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(url);
+    const payload = url.endsWith('/auth/me') ? admin : url.endsWith('/' + record.publicId) ? { ...record, fullName: 'Fresh detail' }
+      : { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 };
+    return new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+  };
+  const host = document.createElement('div'); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(App)));
+    assert.match(host.querySelector('tbody').textContent, /Directory account/);
+    assert.ok(urls.some(url => /\/admin\/users\?/.test(url)));
+    await act(async () => [...host.querySelectorAll('button')].find(button => /view details/i.test(button.textContent)).click());
+    assert.ok(urls.some(url => url.endsWith('/admin/users/' + record.publicId)));
+    assert.match(host.querySelector('[role="dialog"]').textContent, /Fresh detail/);
+  } finally { await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = original; }
+});

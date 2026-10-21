@@ -3,6 +3,8 @@
  * Handles validation, role formatting, dirty-state tracking, and session isolation.
  */
 
+import { EMAIL_REGEX } from './registrationValidation.js';
+export { EMAIL_REGEX };
 export const APP_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
 
 export const ROLE_LABELS = {
@@ -73,7 +75,6 @@ export function formatRoleName(role, lang = 'vi') {
   return normalized;
 }
 
-export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Checks whether an email string satisfies standard email formatting.
@@ -90,9 +91,9 @@ export function isValidEmail(email) {
 /**
  * Determines whether the user session allows editing email.
  * - Vault Owner (without Staff/Legal roles) is permitted to edit email.
- * - Staff Executor and Legal Verifier must keep email read-only for audit compliance.
- * - Multi-role conflict: If an account holds both VAULT_OWNER and STAFF_EXECUTOR/LEGAL_VERIFIER,
- *   audit trail integrity takes precedence, locking the email.
+ * - Staff/Legal email stays read-only under the agreed frontend requirement.
+ * - A mixed Owner + Staff/Legal account retains the existing read-only policy.
+ * This is presentation policy; backend authorization remains server-owned.
  *
  * @param {Object|null|undefined} session
  * @returns {{ canEdit: boolean, reason: string, hasConflict: boolean }}
@@ -152,7 +153,11 @@ export function validateProfileEditForm(values, options = {}) {
   const fullName = typeof values?.fullName === 'string' ? values.fullName.trim() : '';
   if (!fullName) {
     errors.fullName = 'REQUIRED';
+  } else if (fullName.length > 150 || /[\r\n]/.test(fullName)) {
+    errors.fullName = 'INVALID_FORMAT';
   }
+  if (values?.phoneNumber !== undefined && (typeof values.phoneNumber !== 'string' ||
+      (values.phoneNumber.trim() && !/^\+?[0-9]{8,15}$/.test(values.phoneNumber.trim())))) errors.phoneNumber = 'INVALID_FORMAT';
 
   if (canEditEmail) {
     const email = typeof values?.email === 'string' ? values.email.trim() : '';
@@ -186,8 +191,8 @@ export function isFormDirty(current, initial, options = {}) {
   if (options.canEditEmail) {
     const currentEmail = typeof current === 'object' && current !== null ? current.email : '';
     const initialEmail = typeof initial === 'object' && initial !== null ? initial.email : '';
-    const emailDirty = (typeof currentEmail === 'string' ? currentEmail.trim() : '') !==
-                       (typeof initialEmail === 'string' ? initialEmail.trim() : '');
+    const emailDirty = (typeof currentEmail === 'string' ? currentEmail.trim().toLowerCase() : '') !==
+                       (typeof initialEmail === 'string' ? initialEmail.trim().toLowerCase() : '');
     return nameDirty || emailDirty;
   }
 
@@ -215,6 +220,7 @@ export function resolveInitialProfileData(session) {
     fullName: user.fullName,
     email: user.email,
     roles: [...user.roles],
+    ...(Object.hasOwn(user, 'phoneNumber') ? { phoneNumber: user.phoneNumber } : {}),
   };
 }
 

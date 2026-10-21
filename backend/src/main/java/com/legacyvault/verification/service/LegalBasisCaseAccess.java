@@ -33,16 +33,26 @@ public class LegalBasisCaseAccess {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public LockedCase lock(UUID publicCaseId) {
+        var context = lockContext(publicCaseId);
+        if (context.dossier() == null) throw missing();
+        return new LockedCase(context.vault(), context.verificationCase(), context.dossier());
+    }
+
+    /** Same authorization/lock order, also usable before a dossier has been classified. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public LockedContext lockContext(UUID publicCaseId) {
         VerificationCase initial = lookup.findByPublicId(publicCaseId).orElseThrow(LegalBasisCaseAccess::missing);
         Vault vault = vaults.findByIdForUpdate(initial.getVaultId()).orElseThrow(LegalBasisCaseAccess::missing);
         state.refresh(vault);
         VerificationCase verificationCase = cases.findByIdForUpdate(initial.getVerificationCaseId()).orElseThrow(LegalBasisCaseAccess::missing);
         state.refresh(verificationCase);
         if (!Objects.equals(vault.getVaultId(), verificationCase.getVaultId())) throw missing();
-        LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId()).orElseThrow(LegalBasisCaseAccess::missing);
-        state.refresh(dossier);
-        return new LockedCase(vault, verificationCase, dossier);
+        LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId()).orElse(null);
+        if (dossier != null) state.refresh(dossier);
+        return new LockedContext(vault, verificationCase, dossier);
     }
+
+    public record LockedContext(Vault vault, VerificationCase verificationCase, LegalBasisDossier dossier) { }
 
     private static BusinessException missing() { return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND); }
 

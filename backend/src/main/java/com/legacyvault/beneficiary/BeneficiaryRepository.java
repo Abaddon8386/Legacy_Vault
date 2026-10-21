@@ -13,5 +13,6 @@ public interface BeneficiaryRepository extends JpaRepository<Beneficiary, Long> 
 	Optional<Beneficiary> findByPublicIdAndVault_VaultId(UUID publicId, Long vaultId);
 	Optional<Beneficiary> findByPublicId(UUID publicId);
 	boolean existsByPublicId(UUID publicId);
+	java.util.List<Beneficiary> findAllByVault_VaultIdOrderByIdAsc(Long vaultId);
 	boolean existsByVault_VaultIdAndLinkedUserId(Long vaultId, Long linkedUserId);
 }

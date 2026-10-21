@@ -1,0 +1,282 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PS-115 Admin payment lookup",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/admin/subscriptions/transactions": {
+      "get": {
+        "operationId": "adminPaymentTransactions",
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "401": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "403": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "404": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "409": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 254
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "EXPIRED",
+                "SUCCEEDED",
+                "FAILED"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/subscriptions/transactions/{paymentId}": {
+      "get": {
+        "operationId": "adminPaymentTransactionDetail",
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "401": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "403": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "404": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          },
+          "409": {
+            "description": "Repository ApiError; see admin-payment-transactions.md"
+          }
+        },
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountEmail": {
+            "type": "string"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "catalogVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "amountVnd": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "billingModel": {
+            "type": "string"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "assetCount": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "storageBytes": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "fileBytes": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "EXPIRED",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "persistedStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "gatewayReference": {
+            "type": "string",
+            "nullable": true
+          },
+          "checkoutReference": {
+            "type": "string"
+          }
+        }
+      },
+      "TransactionPage": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "totalElements": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

@@ -47,7 +47,6 @@ export const legalDossierReviewI18n = {
     // Các nút hành động
     btnSubmitDecision: 'Xác nhận kết quả',
     btnSubmitDisabledHelper: 'Chức năng hiện chưa khả dụng',
-    btnReset: 'Làm mới',
 
     // Mã lỗi validation (dynamic i18n)
     decisionRequired: 'Vui lòng chọn một kết quả thẩm định.',
@@ -103,7 +102,6 @@ export const legalDossierReviewI18n = {
     // Action buttons
     btnSubmitDecision: 'Confirm Review Result',
     btnSubmitDisabledHelper: 'Function is currently unavailable',
-    btnReset: 'Reset',
 
     // Validation error codes (dynamic i18n)
     decisionRequired: 'Please select a review decision.',

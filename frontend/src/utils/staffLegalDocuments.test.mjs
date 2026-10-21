@@ -11,6 +11,7 @@ import {
   fetchBasisDossier,
   uploadBasisVersion,
   forwardBasisVersion,
+  readBasisVersionContent,
   SYNTHETIC_DOSSIERS,
 } from '../pages/staff/staffLegalDocumentsService.js';
 import { staffLegalDocumentsI18n } from '../pages/staff/staffLegalDocumentsI18n.js';
@@ -205,4 +206,29 @@ test('PS-96: staffLegalDocumentsI18n contains all key bilingual strings without 
     assert.ok(staffLegalDocumentsI18n.vi[key], `Missing VI key: ${key}`);
     assert.ok(staffLegalDocumentsI18n.en[key], `Missing EN key: ${key}`);
   }
+});
+
+test('PS-96/PS-103: readBasisVersionContent returns simulated Blob in Dev Preview', async () => {
+  const blob = await readBasisVersionContent('case-court', 1, { isDevPreview: true });
+  assert.ok(blob instanceof Blob);
+  assert.equal(blob.type, 'application/pdf');
+  const text = await blob.text();
+  assert.match(text, /Simulated COURT Basis Document Content/);
+});
+
+test('PS-96/PS-103: readBasisVersionContent calls real endpoint in live session', async () => {
+  const calls = [];
+  const testBlob = new Blob(['live-court-pdf'], { type: 'application/pdf' });
+  const options = {
+    isDevPreview: false,
+    session: { accessToken: 'live-staff-token' },
+    fetchFn: async (url, init) => {
+      calls.push({ url, init });
+      return new Response(testBlob, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
+    },
+  };
+  const blob = await readBasisVersionContent('12345678-1234-4234-8234-123456789012', 1, options);
+  assert.ok(blob instanceof Blob);
+  assert.equal(calls[0].url, '/api/v1/staff/verification-cases/12345678-1234-4234-8234-123456789012/basis-dossier/versions/1/content');
+  assert.equal(calls[0].init.headers.Authorization, 'Bearer live-staff-token');
 });

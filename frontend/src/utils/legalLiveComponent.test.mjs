@@ -16,7 +16,7 @@ const session = { accessToken: 'synthetic-test-only', expiresAt: Date.now() + 36
 const queue = [{ caseId: a, label: 'Case A', deathDocumentIds: [a] }, { caseId: b, label: 'Case B', deathDocumentIds: [b] }];
 const props = element => element[Object.keys(element).find(key => key.startsWith('__reactProps'))];
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
-const base = { session, lang: 'en', caseId: a, discovery: async () => queue };
+const base = { session, lang: 'en', caseId: a, discovery: async () => queue, contextLoader: async caseId => ({ caseId, deathDocuments: [{ id: caseId }], capabilities: { approval: { allowed: false }, unlock: { allowed: false } } }) };
 async function mount(options = base) {
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
   const render = async value => { await act(async () => root.render(React.createElement(Screen, value))); };
@@ -31,9 +31,9 @@ const detail = (id = a, changes = {}) => ({ deathDocumentPublicId: id, verificat
 const originalFetch = globalThis.fetch;
 test.afterEach(() => { globalThis.fetch = originalFetch; });
 
-test('No PS-102 contract means unavailable, no guessed requests, manual UUIDs or mock success', async () => {
+test('Explicitly disabled discovery remains unavailable without requests or fabricated success', async () => {
   globalThis.fetch = async () => assert.fail('No discovery endpoint may be invented');
-  const view = await mount({ ...base, discovery: undefined });
+  const view = await mount({ ...base, discovery: null });
   try { assert.match(view.host.textContent, /case list is not available/); assert.equal(view.host.querySelector('select').disabled, true); assert.equal(view.host.querySelector('input'), null); assert.equal(view.host.querySelector('form'), null); }
   finally { await view.close(); }
 });
@@ -104,22 +104,22 @@ test('Will picks original/version/hash from authorized overview, sends only cont
     await submit(view.host); assert.deepEqual(body, { originalWillIntakeId: a, willId: a, version: 2, result: 'MATCH', reason: '' }); assert.match(view.host.textContent, /server confirmed/);
   } finally { await view.close(); }
 });
-test('Context is retained in navigation; final approval/unlock stay unavailable without PS-102 snapshot', async () => {
+test('Context is retained in navigation; blocked capability fixtures cannot approve or unlock', async () => {
   let destination;
-  globalThis.fetch = async () => assert.fail('No guessed GET approval/unlock');
+  globalThis.fetch = async () => assert.fail('Injected context should not trigger additional reads before a decision');
   for (const step of ['approval-review', 'controlled-unlock']) {
     const view = await mount({ ...base, step, onNavigate: path => { destination = path; } });
     try {
-      assert.match(view.host.textContent, /latest approval and eligibility information is not available/);
-      assert.equal([...view.host.querySelectorAll('button')].find(item => item.disabled && /Final approval|Controlled unlock/.test(item.textContent)).disabled, true);
+      assert.match(view.host.textContent, /does not currently meet/);
+      assert.equal([...view.host.querySelectorAll('button')].find(item => item.disabled && /Record decision|Unlock vault/.test(item.textContent)).disabled, true);
       await click(view.host, 'Will comparison'); assert.match(destination, new RegExp(`caseId=${a}`)); assert.match(destination, /lang=en/);
     } finally { await view.close(); }
   }
 });
 
-const makeDossier = (route = 'NOTARIAL') => ({ id: a, caseId: a, route, status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
+const makeDossier = (route = 'COURT') => ({ id: a, caseId: a, route, status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
   versions: [{ version: 1, sha256: digest, forwardStatus: 'FORWARDED', documentNumber: 'Basis 1' }], classifiedBy: a });
-for (const route of ['NOTARIAL', 'COURT', 'ON_HOLD']) test(`Classification ${route} sends only route/reason and uses a real receipt`, async () => {
+for (const route of ['COURT', 'ON_HOLD']) test(`Classification ${route} sends only route/reason and uses a real receipt`, async () => {
   let body;
   globalThis.fetch = async (url, init) => {
     if (init.method === 'POST') { body = JSON.parse(init.body); return json({ ...makeDossier(route), status: 'DRAFT' }, 201); }
@@ -140,6 +140,7 @@ for (const action of ['review', 'request-supplementation', 'court', 'hold']) tes
       return json({ dossierId: a, reviewStatus: action === 'review' ? 'FRESH' : 'REVIEW_REQUIRED', reviewRequired: action !== 'review', checkedAt: now,
         currentVersionNo: 1, currentSha256Hash: digest, currentAllocationHash: digest, currentDisputeStatus: 'NONE' });
     }
+    if (url.endsWith('/context')) return json({ caseId: a, basisDossier: makeDossier('COURT'), snapshot: { dossierId: a, currentVersion: 1, sha256Hash: digest, allocationHash: digest, disputeStatus: 'NONE' } });
     if (url.endsWith('court-decisions')) return json([]);
     if (url.endsWith('will-comparisons')) return json({ caseId: a, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: false, originalWillIntakes: [], wills: [], comparisons: [] });
     return json(makeDossier('COURT'));
@@ -159,6 +160,8 @@ test('Dossier changed since display blocks POST and retains reason; ON_HOLD/not-
   globalThis.fetch = async (url, init) => {
     assert.notEqual(init.method, 'POST');
     if (url.endsWith('will-comparisons')) return json({ caseId: a, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: false, originalWillIntakes: [], wills: [], comparisons: [] });
+    if (url.endsWith('court-decisions')) return json([]);
+    if (url.endsWith('/context')) { const basisDossier = ++loads === 1 ? makeDossier() : { ...makeDossier(), route: 'ON_HOLD', status: 'DRAFT' }; return json({ caseId: a, basisDossier, snapshot: { dossierId: a, currentVersion: 1, sha256Hash: digest, allocationHash: digest, disputeStatus: 'NONE' } }); }
     return json(++loads === 1 ? makeDossier() : { ...makeDossier(), route: 'ON_HOLD', status: 'DRAFT' });
   };
   const view = await mount({ ...base, step: 'dossier-review' });
@@ -216,7 +219,7 @@ test('Session revalidation aborts pending decision and late success cannot resto
 test('Removing discovery while case is open clears the old case and disables selection immediately', async () => {
   globalThis.fetch = async () => json(detail());
   const view = await mount();
-  try { await change(getSelect(view.host, 'Death document'), a); await view.render({ ...base, discovery: undefined });
+  try { await change(getSelect(view.host, 'Death document'), a); await view.render({ ...base, discovery: null });
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('select').disabled, true); assert.doesNotMatch(view.host.textContent, /Authority A/); }
   finally { await view.close(); }
 });

@@ -97,7 +97,6 @@ export const staffLegalDocumentsI18n = {
     btnForwardToLegal: 'Chuyển Ban Pháp lý thẩm định',
     forwardingToLegal: 'Đang chuyển cho Ban Pháp lý...',
     btnForwardHelper: 'Chỉ khả dụng khi hồ sơ đã có phiên bản mới nhất chưa chuyển',
-    btnResetForm: 'Làm mới biểu mẫu',
 
     // Phản hồi hành động
     uploadSuccessNotice: 'Tiếp nhận văn bản thành công. Phiên bản số hóa đã được lưu trữ an toàn.',
@@ -149,8 +148,8 @@ export const staffLegalDocumentsI18n = {
     // NOTARIAL read-only & Blocker PS-88/93/102
     notarialReadOnlyBannerTitle: 'Hồ sơ Công chứng (NOTARIAL) chỉ đọc',
     notarialReadOnlyBannerDesc: 'Hồ sơ thuộc nhánh Công chứng là dữ liệu lịch sử chỉ đọc. Nhân viên quầy không thể tiếp nhận phiên bản mới hoặc chuyển Ban Pháp lý cho nhánh này (Chờ BE COURT-only PS-102).',
-    metadataBlockerLiveNotice: 'Danh mục tài sản và người thừa kế của hồ sơ đang chờ Backend cung cấp API metadata (Blocker PS-88/93/102). Chưa thể tạo phân bổ hoặc tải lên văn bản mới trong phiên trực tiếp.',
-    metadataBlockedTooltip: 'Chờ API metadata tài sản và người nhận từ Backend (PS-88/93/102)',
+    metadataBlockerLiveNotice: 'Chưa có danh mục tài sản để lập phân bổ. Chưa thể tiếp nhận phiên bản mới.',
+    metadataBlockedTooltip: 'Chờ danh mục tài sản của hồ sơ',
   },
 
   en: {
@@ -251,7 +250,6 @@ export const staffLegalDocumentsI18n = {
     btnForwardToLegal: 'Send to Legal Department',
     forwardingToLegal: 'Forwarding to Legal Department...',
     btnForwardHelper: 'Only available when the dossier has a latest version that has not yet been forwarded',
-    btnResetForm: 'Reset Form',
 
     // Feedback
     uploadSuccessNotice: 'Document intake successful. The digitized version has been securely stored.',
@@ -303,7 +301,7 @@ export const staffLegalDocumentsI18n = {
     // NOTARIAL read-only & Blocker PS-88/93/102
     notarialReadOnlyBannerTitle: 'Notarial Dossier is Read-Only',
     notarialReadOnlyBannerDesc: 'This dossier belongs to the legacy Notarial route and is read-only. Staff cannot upload new versions or forward to Legal for this route (COURT route only per PS-102).',
-    metadataBlockerLiveNotice: 'The asset catalog and beneficiary list for this case are awaiting Backend metadata APIs (Blocker PS-88/93/102). New allocations or document uploads are blocked in live sessions.',
-    metadataBlockedTooltip: 'Awaiting asset and beneficiary metadata API from Backend (PS-88/93/102)',
+    metadataBlockerLiveNotice: 'The asset catalog is unavailable. A new allocation and document version cannot be recorded yet.',
+    metadataBlockedTooltip: 'Awaiting the case asset catalog',
   },
 };

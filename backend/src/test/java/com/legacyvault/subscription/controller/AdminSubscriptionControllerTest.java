@@ -207,4 +207,17 @@ class AdminSubscriptionControllerTest {
             .andExpect(jsonPath("$.entitlementStatus").value("DEFAULT_BASIC_FREE"))
             .andExpect(jsonPath("$.assetCount").value(3));
     }
+
+    @Test void transactionsReadOnlyRoleBoundaryAndPublicDetail() throws Exception {
+        String path="/api/v1/admin/subscriptions/transactions";
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+        for(String role:List.of("VAULT_OWNER","STAFF_EXECUTOR","LEGAL_VERIFIER","BENEFICIARY"))
+            mockMvc.perform(get(path).with(asRole(OWNER_USER,role))).andExpect(status().isForbidden());
+        when(adminService.lookupTransactions(isNull(),isNull(),isNull(),isNull(),isNull(),eq(0),eq(20)))
+            .thenReturn(new com.legacyvault.common.api.PageEnvelope<>(List.of(),0,20,0,0));
+        mockMvc.perform(get(path).with(admin())).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mockMvc.perform(get(path+"/not-a-uuid").with(admin())).andExpect(status().isBadRequest());
+        mockMvc.perform(get(path).param("from","not-a-date").with(admin())).andExpect(status().isBadRequest());
+        mockMvc.perform(post(path).with(admin()).with(csrf())).andExpect(status().isMethodNotAllowed());
+    }
 }

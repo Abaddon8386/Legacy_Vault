@@ -87,12 +87,13 @@ class HandoverReceiptSqlServerTest extends LegalBasisSqlServerSupport {
     private FixtureWithSession completedHandover() {
         var f = fixture(true);
         context.getBean(BasisClassificationService.class).classify(f.publicCaseId(), f.legal(),
-                new ClassifyBasisRequest(ClassifyBasisRequest.Route.NOTARIAL, "Fixture classification"));
-        var intake = intakeVersion(f, "NOTARIAL_PARTITION");
+                new ClassifyBasisRequest(ClassifyBasisRequest.Route.COURT, "Fixture classification"));
+        var intake = intakeVersion(f, "COURT_JUDGMENT");
         var allocation = intake.versions().getFirst().allocations().getFirst();
         context.getBean(BasisForwardService.class).forward(f.publicCaseId(), 1, f.legal());
         var review = context.getBean(LegalBasisReviewService.class)
                 .recordCompletedReviewByCasePublicId(f.publicCaseId(), f.userId(), "Fixture review");
+        context.getBean(com.legacyvault.verification.service.CourtDecisionService.class).record(f.publicCaseId(),f.legal(),new com.legacyvault.verification.dto.CourtDecisionRequest(1,com.legacyvault.verification.dto.CourtDecisionRequest.Result.VALID,"Fixture court"));
         context.getBean(LegalApprovalService.class).decide(f.publicCaseId(), f.legal(),
                 new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, review.currentVersionNo(),
                         review.currentSha256Hash(), review.currentAllocationHash(), "Fixture approval"));
