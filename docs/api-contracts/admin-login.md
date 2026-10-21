@@ -1,6 +1,6 @@
 # Trang đích Admin — 19/10/2026
 
-Đã tra Jira theo Admin/quản trị/ROLE_ADMIN và đọc PS-10, PS-11, PS-76, PS-77, PS-80. Chưa có ticket chốt màn quản trị người dùng, xem mọi kho hay quyền cấp gói cho Admin. PS-77 không cho mặc định Admin là người cấp gói; PS-80 chưa mở màn quản trị cấp gói. Audit không được sửa/xóa, kể cả Admin.
+Đã tra Jira theo Admin/quản trị/ROLE_ADMIN và đọc PS-10, PS-11, PS-76, PS-77, PS-80. PS-109 bổ sung contract tra cứu tài khoản chỉ đọc; các thao tác quản trị dữ liệu khác, xem mọi kho hay quyền cấp gói không thuộc phạm vi này. PS-77 không cho mặc định Admin là người cấp gói; PS-80 chưa mở màn quản trị cấp gói. Audit không được sửa/xóa, kể cả Admin.
 
 - Dùng auth hiện hữu; Admin thuần được đưa tới `/admin`, yêu cầu phiên hợp lệ và vai trò `ADMIN` từ `/auth/me`; preview không bỏ qua guard.
 - Giữ ưu tiên vai trò đã có: Owner/Legal/Staff vẫn vào trang nghiệp vụ tương ứng nếu tài khoản đồng thời có các vai trò đó; Admin ưu tiên hơn Beneficiary.
