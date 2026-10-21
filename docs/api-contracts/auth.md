@@ -51,9 +51,20 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 ## GET /api/v1/auth/me — **[D-API-23]**
 
-- **Quyền:** đã đăng nhập. **Response 200:** như `user` ở trên. **Lỗi:** `401 UNAUTHENTICATED`.
+- **Quyền:** đã đăng nhập. **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles" }`; roles đọc từ DB. Không trả trạng thái nội bộ, mật khẩu/hash hay token.
+- Danh tính chỉ lấy từ principal đã xác thực.
 - Để FE khởi tạo trạng thái đăng nhập mà không giải mã JWT phía client.
-- D-API-04 cập nhật 2026-10-19: FE khôi phục phiên từ `sessionStorage` của tab sau reload và xác minh qua endpoint này trước khi hiển thị trang bảo vệ. Không gia hạn token; lỗi mạng cho phép thử lại, 401 xóa phiên. API request/response không đổi.
+- D-API-04 cập nhật 2026-10-19: FE khôi phục phiên từ `sessionStorage` của tab sau reload và xác minh qua endpoint này trước khi hiển thị trang bảo vệ. Không gia hạn token; lỗi mạng cho phép thử lại, 401 xóa phiên.
+
+## PATCH /api/v1/auth/me — PS-79
+
+- **Quyền:** đã đăng nhập; chỉ cập nhật tài khoản trong principal hiện hành, không nhận ID/role từ request.
+- **Request:** partial JSON; chỉ chấp nhận `fullName`, `email`, `phoneNumber`, `password`. Trường bỏ qua hoặc `null` không đổi. `phoneNumber: ""` xóa số điện thoại. Tên 1–150 ký tự; email định dạng hợp lệ, tối đa 254; phone theo quy ước đăng ký (8–15 chữ số, `+` tùy chọn); password mới 8–72 ký tự.
+- **Response 200:** cùng whitelist với GET `/me`; password chỉ được BCrypt hash, không bao giờ trả lại.
+- Email được chuẩn hóa chữ thường và uniqueness áp dụng trong DB. Khi đổi email, `email_verified_at` được xóa; endpoint không xác minh email mới. Theo D-API-16 hiện tại, xác minh email không phải điều kiện đăng nhập.
+- Password mới không làm mất hiệu lực JWT đã cấp; token hiện hành tiếp tục theo TTL hiện có (mặc định 3600 giây), do hệ thống chưa có credential-version/revocation policy.
+- **Lỗi:** `400 VALIDATION_FAILED` (payload sai/field không được phép), `401 UNAUTHENTICATED`, `409 EMAIL_ALREADY_EXISTS`.
+- Audit policy hiện chưa định nghĩa sự kiện cập nhật hồ sơ; endpoint không ghi audit nghiệp vụ mới cho tới khi nhóm chốt action/payload cần ghi.
 
 ## Bảo mật & RBAC — PS-11
 

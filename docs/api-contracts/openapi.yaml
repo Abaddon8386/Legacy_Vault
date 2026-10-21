@@ -718,15 +718,38 @@ paths:
   /api/v1/auth/me:
     get:
       tags: [Auth]
-      summary: Thông tin người đăng nhập (đề xuất D-API-23)
-      x-status: designed
+      summary: Thông tin người đăng nhập
+      x-status: implemented
       responses:
         '200':
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/UserResponse' }
+              schema: { $ref: '#/components/schemas/ProfileResponse' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+    patch:
+      tags: [Auth]
+      summary: Cập nhật hồ sơ của người đăng nhập (PS-79)
+      description: >
+        Cập nhật partial chỉ các trường fullName, email, phoneNumber, password. Danh tính lấy từ
+        principal. Email mới chưa được xác minh; password được hash và không thu hồi JWT hiện hành.
+        Field ngoài whitelist bị từ chối.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
+            example: { fullName: Nguyen Van A, email: user@example.com, phoneNumber: '+84900000000', password: NewExample123 }
+      responses:
+        '200':
+          description: Hồ sơ đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/vaults:
     post:
@@ -3012,6 +3035,25 @@ components:
           items: { type: string, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, ADMIN, BENEFICIARY] }
         status: { type: string, example: ACTIVE }
         createdAt: { type: string, format: date-time }
+    ProfileUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 254 }
+        phoneNumber: { type: string, pattern: '^$|^\\+?[0-9]{8,15}$', nullable: true }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+    ProfileResponse:
+      type: object
+      required: [id, fullName, email, roles]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        phoneNumber: { type: string, nullable: true }
+        roles:
+          type: array
+          items: { type: string, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, ADMIN, BENEFICIARY] }
     LoginResponse:
       type: object
       required: [accessToken, tokenType, expiresInSeconds, user]

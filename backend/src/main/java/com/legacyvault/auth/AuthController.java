@@ -5,6 +5,8 @@ import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
 import com.legacyvault.auth.dto.RegisterResponse;
+import com.legacyvault.auth.dto.ProfileResponse;
+import com.legacyvault.auth.dto.ProfileUpdateRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,9 +37,16 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<LoginResponse.AuthUserResponse> me(
+    public ResponseEntity<ProfileResponse> me(
             org.springframework.security.core.Authentication authentication) {
-        LoginResponse.AuthUserResponse response = authService.getCurrentUser(authentication);
+        ProfileResponse response = authService.getCurrentUser(authentication);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<ProfileResponse> updateMe(
+            org.springframework.security.core.Authentication authentication,
+            @Valid @RequestBody ProfileUpdateRequest request) {
+        return ResponseEntity.ok(authService.updateCurrentUser(authentication, request));
     }
 }

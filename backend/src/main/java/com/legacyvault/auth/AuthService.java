@@ -9,6 +9,8 @@ import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
 import com.legacyvault.auth.dto.RegisterResponse;
+import com.legacyvault.auth.dto.ProfileResponse;
+import com.legacyvault.auth.dto.ProfileUpdateRequest;
 
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
@@ -24,6 +26,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.ZoneOffset;
 import java.util.List;
@@ -177,21 +180,67 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public LoginResponse.AuthUserResponse getCurrentUser(
+    public ProfileResponse getCurrentUser(
             Authentication authentication
     ) {
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal()
-                instanceof CustomUserPrincipal principal)) {
-            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        User user = requireCurrentUser(authentication, false);
+        return toProfileResponse(user);
+    }
+
+    @Transactional
+    public ProfileResponse updateCurrentUser(Authentication authentication, ProfileUpdateRequest request) {
+        User user = requireCurrentUser(authentication, true);
+
+        if (request.getFullName() != null) {
+            user.setFullName(request.getFullName().trim());
+        }
+        if (request.getEmail() != null) {
+            String email = EmailNormalizer.normalize(request.getEmail());
+            if (!email.equals(user.getEmail())) {
+                if (userRepository.existsByEmailAndUserIdNot(email, user.getUserId())) {
+                    throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+                }
+                user.setEmail(email);
+                // A changed address is not verified by this API.
+                user.setEmailVerifiedAt(null);
+            }
+        }
+        if (request.getPhoneNumber() != null) {
+            String phone = request.getPhoneNumber().trim();
+            user.setPhoneNumber(phone.isEmpty() ? null : phone);
+        }
+        if (request.getPassword() != null) {
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
-        User user = userRepository.findByPublicId(principal.publicId())
-                .filter(foundUser -> "ACTIVE".equals(foundUser.getStatus()))
-                .filter(foundUser -> foundUser.getDeletedAt() == null)
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.UNAUTHENTICATED));
+        try {
+            userRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            if (isEmailUniqueViolation(ex)) {
+                throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            throw ex;
+        }
+        return toProfileResponse(user);
+    }
+
+    private User requireCurrentUser(Authentication authentication, boolean lock) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof CustomUserPrincipal principal)) {
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        }
+        if (lock) {
+            return userRepository.findActiveAccountForUpdate(principal.userId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
+        }
+        return userRepository.findByPublicId(principal.publicId())
+                .filter(user -> principal.userId().equals(user.getUserId()))
+                .filter(user -> "ACTIVE".equals(user.getStatus()))
+                .filter(user -> user.getDeletedAt() == null)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
+    }
+
+    private ProfileResponse toProfileResponse(User user) {
 
         List<String> apiRoles = userRoleRepository
                 .findByUserIdWithRole(user.getUserId())
@@ -205,12 +254,24 @@ public class AuthService {
                 .sorted()
                 .toList();
 
-        return new LoginResponse.AuthUserResponse(
+        return new ProfileResponse(
                 user.getPublicId(),
                 user.getFullName(),
                 user.getEmail(),
+                user.getPhoneNumber(),
                 apiRoles
         );
+    }
+
+    private boolean isEmailUniqueViolation(DataIntegrityViolationException exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException sql
+                    && (sql.getErrorCode() == 2601 || sql.getErrorCode() == 2627)
+                    && String.valueOf(sql.getMessage()).contains("UQ_users_email")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
