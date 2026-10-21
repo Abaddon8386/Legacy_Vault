@@ -2,7 +2,18 @@
 
 # Staff Verification Case — PS-34, PS-35 (ST-09)
 
-Trạng thái: **đối chiếu theo source `Legacy_Vault(7).zip`; unit/integration runtime cần được xác nhận bằng kết quả test mới nhất**. Base path: `/api/v1/staff/verification-cases`. Controller yêu cầu role `STAFF_EXECUTOR` bằng `@PreAuthorize("hasRole('STAFF_EXECUTOR')")`.
+## PS-106 — Attestation xác minh trực tiếp
+
+`POST /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations`
+ghi nhận Staff đang đăng nhập, thời gian UTC do server tạo và `evidenceReference` (tham chiếu chứng từ bên ngoài hệ thống).
+Chỉ Staff được giao đúng case `OPEN` và Beneficiary thuộc Vault của case mới được ghi. Endpoint không nhận `MATCH`,
+không tải giấy tờ lên, không trả lại evidence reference và không thay đổi trạng thái `VERIFIED_AT_COUNTER` cũ.
+Request có thể kèm `confirmedEmail` (email Staff đối chiếu trực tiếp với người nhận tại quầy). Backend chuẩn hóa và lưu
+snapshot này trong attestation bất biến; response và audit không chứa email rõ. Đây là bằng chứng ghi nhận nghiệp vụ
+của Staff, không phải xác minh quyền kiểm soát mailbox. Attestation chưa tự cấp điều kiện gửi invitation; PS-106
+delivery vẫn cần gắn email này với generation PS-86 trong transaction outbox và áp dụng các guard Legal hiện hành.
+
+Trạng thái: **focused service/controller/OpenAPI tests pass trên working tree ngày 2026-10-21; SQL Server migration chưa được chạy**. Base path: `/api/v1/staff/verification-cases`. Controller yêu cầu role `STAFF_EXECUTOR` bằng `@PreAuthorize("hasRole('STAFF_EXECUTOR')")`.
 
 ## Quy tắc nghiệp vụ và phạm vi truy cập
 

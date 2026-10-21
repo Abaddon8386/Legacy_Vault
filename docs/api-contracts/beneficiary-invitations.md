@@ -6,6 +6,35 @@ Policy được người dùng chốt trong chat ngày **20/10/2026**: đồng �
 chưa push/merge. Nguồn Jira: [PS-86](https://thaithai9785.atlassian.net/browse/PS-86),
 [PS-87](https://thaithai9785.atlassian.net/browse/PS-87).
 
+> **PS-87/PS-106 amendment, 21/10/2026:** The integration decision now requires an invitation email binding to the
+> Staff-confirmed Beneficiary address. This supersedes the no-email-match rule only for new PS-87/PS-106 integration;
+> it does not retroactively trust old invitations. Until PS-86 persists a binding for the exact invitation generation,
+> old unbound codes must not be redeemed through the new PS-87 route. The current PS-86 Owner issue/reissue API is
+> unchanged and does not yet create an email-bound invitation or encrypted mail outbox.
+
+> **User decision, 21/10/2026:** Redeem also requires the authenticated account's `email_verified_at` to be present;
+> the Staff-confirmed address does not substitute for mailbox verification. Existing `VERIFIED_AT_COUNTER` remains
+> required; the PS-106 attestation does not set or replace it. Existing unbound generations must be
+> confirmed by Staff, then revoked/reissued through PS-86 with audit. Failed redeem limits remain 5/account/15 minutes
+> and add 5/account+invitation/15 minutes; the second bucket prevents one account's guesses from locking an invitation
+> for other accounts. Both decisions are implemented in the PS-87 redeem service; Staff issuance and a verified-email
+> writer is implemented for invitation issuance, while the account-side email verification writer remains pending.
+
+## PS-106 Staff email queue
+
+`POST /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/invitation-email` requires
+`ROLE_STAFF_EXECUTOR`, the assigned OPEN case, existing `VERIFIED_AT_COUNTER`, current COURT/legal approval, and the
+Beneficiary in the current approved allocation. Body: `{ "expectedGeneration": 0 }`; `0` means no current generation.
+The email comes only from the latest append-only Staff counter attestation for this case and Beneficiary; a request
+cannot choose a different recipient. An existing unbound PS-86 invitation is revoked and replaced through PS-86's
+generation lifecycle with the address bound to the new generation. The current generation is used as an idempotency
+key, so retrying the same request returns the same outbox result instead of creating another code.
+
+HTTP `202` means the encrypted payload was committed to the local outbox. Response includes only outbox/invitation
+public IDs, generation, `queueStatus=QUEUED`, and `transportStatus=DISABLED`; it never includes the code or email.
+No mail provider or worker is configured, so this is not evidence that a provider accepted or delivered email. See
+[`../configuration/beneficiary-invitation-mail.md`](../configuration/beneficiary-invitation-mail.md).
+
 ## Policy và giới hạn quyền
 
 - Server sinh 16 byte bằng CSPRNG (128 bit), base64url không padding, **22 ký tự phân

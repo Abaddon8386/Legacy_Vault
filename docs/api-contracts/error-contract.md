@@ -9,8 +9,14 @@ PS-86 bổ sung mã lỗi cùng envelope VI/EN:
 - 409 `BENEFICIARY_INVITATION_STALE` — `error.invitation.stale`;
   request reissue hoặc DELETE dùng generation cũ; tải metadata trước khi thử lại.
 - 422 `BENEFICIARY_INVITATION_INVALID` — `error.invitation.invalid`;
-  seam consume nội bộ trả chung cho mã sai/hết hạn/thu hồi/đã dùng bởi account khác
-  và account không đủ điều kiện. Chưa có endpoint redeem công khai ở PS-86.
+  trả chung cho mã sai/hết hạn/thu hồi/đã dùng bởi account khác, invitation legacy chưa bind email,
+  email binding không khớp hoặc account không đủ điều kiện. PS-87 authenticated redeem dùng mã này.
+- 409 `BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED` —
+  `error.invitation.emailVerificationRequired`; authenticated account must have a verified email before PS-87 redeem.
+- 409 `BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED` — `error.invitation.counterEmailRequired`; no confirmed email
+  was recorded on the Staff's latest in-person attestation for this case and recipient.
+- 429 `TOO_MANY_ATTEMPTS` — `error.auth.tooManyAttempts`; either the account bucket or the account+invitation
+  bucket has five failed redeem attempts in the previous fifteen minutes.
 
 Owner sai kho vẫn dùng 404 `RESOURCE_NOT_FOUND`, Vault không ACTIVE dùng 409
 `VAULT_NOT_EDITABLE`; hồ sơ đã link dùng `BENEFICIARY_ACCOUNT_ALREADY_LINKED`.
@@ -106,7 +112,7 @@ Lỗi validation:
 | `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
 | `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
 | `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
-| `TOO_MANY_ATTEMPTS` | 429 | Nhập sai mật khẩu xác nhận quá số lần cho phép trong cửa sổ thời gian (D-API-32) |
+| `TOO_MANY_ATTEMPTS` | 429 | Quá số lần sai cho phép: mật khẩu xác nhận (D-API-32), hoặc PS-87 redeem theo bucket account và account+invitation trong 15 phút |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
 
