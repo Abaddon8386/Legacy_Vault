@@ -2,7 +2,7 @@ import { request, ApiError } from '../../api/http.js';
 import { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
 export { SYNTHETIC_STAFF_CASES, isStaffSimulationPermitted } from './staffCasePreview.js';
 export async function fetchStaffCases(options = {}) {
-  const { page = 0, size = 5, status = 'ALL', signal } = options;
+  const { page = 0, size = 5, status = 'ALL', q, signal } = options;
 
   if (signal?.aborted) {
     const abortErr = new Error('Request aborted');
@@ -32,6 +32,14 @@ export async function fetchStaffCases(options = {}) {
     if (status && status !== 'ALL') {
       filtered = filtered.filter((c) => c.status === status);
     }
+    if (q && typeof q === 'string' && q.trim()) {
+      const lower = q.trim().toLowerCase();
+      filtered = filtered.filter((c) =>
+        (c.caseNumber && c.caseNumber.toLowerCase().includes(lower)) ||
+        (c.vaultName && c.vaultName.toLowerCase().includes(lower)) ||
+        (c.ownerName && c.ownerName.toLowerCase().includes(lower))
+      );
+    }
 
     const totalElements = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalElements / size));
@@ -53,6 +61,7 @@ export async function fetchStaffCases(options = {}) {
     || !['ALL', 'OPEN', 'CANCELLED'].includes(status)) throw new ApiError('VALIDATION_FAILED', 400);
   const query = new URLSearchParams({ page: String(page), size: String(size) });
   if (status !== 'ALL') query.set('status', status);
+  if (q && typeof q === 'string' && q.trim()) query.set('q', q.trim());
   const raw = await request(`/staff/verification-cases?${query}`, { ...options, expectedStatus: 200 });
   const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
   if (!raw || !Array.isArray(raw.content) || raw.content.length > size) invalid();

@@ -86,7 +86,7 @@ test('Bug 5: create form validates email and phone on blur, not only after submi
  }finally{await view.close();globalThis.fetch=oldFetch;}
 });
 
-test('editing a birthdate into minority warns and cannot bypass pending guardian support',async()=>{
+test('editing a birthdate into minority recommends guardian without blocking save',async()=>{
  const oldFetch=globalThis.fetch;let writes=0;
  globalThis.fetch=async(url,options={})=>{if(options.method==='PUT')writes++;return listResponse(url);};
  const view=await mount();try{
@@ -94,10 +94,10 @@ test('editing a birthdate into minority warns and cannot bypass pending guardian
   await act(async()=>section.querySelector('.lv-tb-entity-header button').click());
   await change(view.host,'related-edit-dateOfBirth',`${new Date().getFullYear()-10}-01-01`);
   const form=view.host.querySelector('.lv-tb-edit-backdrop form');
-  assert.match(view.host.querySelector('#related-guardian-notice').textContent,/under 18/);
-  assert.equal(form.querySelector('button[type="submit"]').disabled,true);
+  assert.match(view.host.querySelector('#related-guardian-notice').textContent,/guardian is recommended/);
+  assert.equal(form.querySelector('button[type="submit"]').disabled,false);
   await act(async()=>form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
-  assert.equal(writes,0);
+  assert.equal(writes,1);
   await change(view.host,'related-edit-dateOfBirth','1995-05-20');
   assert.equal(view.host.querySelector('#related-guardian-notice'),null);
   assert.equal(form.querySelector('button[type="submit"]').disabled,false);

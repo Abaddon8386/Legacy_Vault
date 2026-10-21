@@ -488,6 +488,8 @@ test('PS-96/97/98 Integration: Auto-load reads document and asset lists by permi
   const recordedReads = [];
 
   globalThis.fetch = async (url, init = {}) => {
+    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
     const method = (init.method || 'GET').toUpperCase();
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
@@ -638,6 +640,8 @@ test('PS-96/97/98 Integration: Finding A - Real token with preview=true and defe
   let resolveGetCases = null;
 
   globalThis.fetch = async (url) => {
+    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
     if (String(url).includes('/staff/verification-cases') && !String(url).includes('/basis-dossier')) {
       return new Promise((resolve) => {
@@ -708,6 +712,8 @@ test('PS-96/97/98 Integration: Finding B - Upload form blocks submit when alloca
   let posted = false;
 
   globalThis.fetch = async (url, init = {}) => {
+    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
     if (init.method === 'POST') {
       posted = true;
@@ -808,6 +814,8 @@ test('PS-96/97/98 Integration: Finding C - Deferred forward response from Case A
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url, init = {}) => {
+    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
     if (init.method === 'POST' && url.includes(`/staff/verification-cases/${ids.caseId}/basis-dossier/versions/1/forward`)) {
       forwardPostCount++;
@@ -943,6 +951,8 @@ test('PS-96/97/98 Integration: Legacy NOTARIAL route is strictly read-only with 
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url) => {
+    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
     if (url.includes('/basis-dossier')) {
       return json({
@@ -1027,6 +1037,8 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
   ];
 
   globalThis.fetch = async (url, init = {}) => {
+    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
+    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
     if (url.includes('/eligible-assets')) {
       return json(mockEligibleAssets);

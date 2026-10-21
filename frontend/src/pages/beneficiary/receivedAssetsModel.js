@@ -9,13 +9,26 @@ export function assertSubject(value, subjectId) {
 }
 export function readReceivedItem(value) {
   if (!uuid(value?.itemId) || typeof value.title !== 'string' || !value.title.trim()
-    || typeof value.sourceLabel !== 'string' || value.deliveryStatus !== 'DELIVERED'
-    || typeof value.deliveredAt !== 'string' || !Number.isFinite(Date.parse(value.deliveredAt))
-    || !['OPEN', 'COMPLETED', 'CANCELLED'].includes(value.sessionStatus)
-    || !['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(value.vaultStatus)
-    || !['OPEN', 'CLOSED'].includes(value.caseStatus)) fail();
-  // Deliberately copy display fields only: a list cannot expose a secret payload.
-  return Object.fromEntries(['itemId', 'title', 'sourceLabel', 'deliveryStatus', 'deliveredAt', 'sessionStatus', 'vaultStatus', 'caseStatus'].map(key => [key, value[key]]));
+    || typeof value.sourceLabel !== 'string') fail();
+  if (value.deliveredAt !== undefined && value.deliveredAt !== null) {
+    if (typeof value.deliveredAt !== 'string' || !Number.isFinite(Date.parse(value.deliveredAt))) fail();
+  }
+  if (value.deliveryStatus !== undefined && value.deliveryStatus !== 'DELIVERED') fail();
+  if (value.status !== undefined && !['DELIVERED', 'VERIFIED_BY_BENEFICIARY'].includes(value.status)) fail();
+  if (value.sessionStatus !== undefined && !['OPEN', 'COMPLETED', 'CANCELLED'].includes(value.sessionStatus)) fail();
+  if (value.vaultStatus !== undefined && !['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(value.vaultStatus)) fail();
+  if (value.caseStatus !== undefined && !['OPEN', 'CLOSED'].includes(value.caseStatus)) fail();
+
+  const allowedKeys = [
+    'itemId', 'assetId', 'vaultId', 'title', 'sourceLabel', 'deliveredAt',
+    'status', 'assetType', 'description', 'allocationNote', 'imageCount', 'hasContent',
+    'deliveryStatus', 'sessionStatus', 'vaultStatus', 'caseStatus'
+  ];
+  const item = {};
+  for (const k of allowedKeys) {
+    if (value[k] !== undefined) item[k] = value[k];
+  }
+  return item;
 }
 export function readReceivedPage(value, subjectId, page, size) {
   assertSubject(value, subjectId);

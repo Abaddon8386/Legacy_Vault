@@ -1,6 +1,7 @@
 import { AssetCredentialFields } from './AssetCredentialFields.jsx'
 import { credentialPayload } from '../../utils/credentialPayload.js'
 import { AssetImagePicker } from './AssetImagePicker.jsx'
+import { DocumentPicker } from './AssetDocuments.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
@@ -20,6 +21,7 @@ export function AssetFormModal({
   t: externalT,
   lang = 'vi',
   isSubmitting = false,
+  assetSaved = false,
 }) {
   const t = getAssetTranslations(externalT, lang)
   const emptyForm = {
@@ -34,6 +36,7 @@ export function AssetFormModal({
   const secretPayload = formData.assetType === 'CREDENTIAL' ? credentialPayload(credentials.username, credentials.password) : formData.payload
   const [errors, setErrors] = useState({})
   const [images, setImages] = useState([])
+  const [documents, setDocuments] = useState([])
 
   function validate() {
     const errs = {}
@@ -70,7 +73,7 @@ export function AssetFormModal({
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (isSubmitting || !validate()) return
+    if (isSubmitting || (!assetSaved && !validate())) return
 
     onSubmit({
       name: formData.name.trim(),
@@ -78,6 +81,7 @@ export function AssetFormModal({
       description: formData.description.trim(),
       payload: secretPayload,
       images,
+      documents,
     })
   }
 
@@ -86,6 +90,7 @@ export function AssetFormModal({
     setFormData(emptyForm)
     setCredentials({ username: '', password: '' })
     setImages([])
+    setDocuments([])
     setErrors({})
     onClose()
   }
@@ -129,6 +134,7 @@ export function AssetFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
+          <fieldset disabled={assetSaved} style={{border:0,padding:0,margin:0,minWidth:0}}>
           {/* Asset Name */}
           <div className="lv-form-group">
             <label htmlFor="asset-name" className="lv-form-label">
@@ -251,6 +257,9 @@ export function AssetFormModal({
           </div>
 
           <AssetImagePicker files={images} onChange={setImages} disabled={isSubmitting} lang={lang} />
+          </fieldset>
+          {assetSaved && <p role="status">{lang==='en'?'Asset saved. Retry documents only; no duplicate asset will be created.':'Tài sản đã lưu. Thử lại chỉ tải tài liệu, không tạo tài sản trùng.'}</p>}
+          <DocumentPicker files={documents} onChange={setDocuments} disabled={isSubmitting} lang={lang} />
 
           {/* Actions */}
           <div className="lv-form-actions">

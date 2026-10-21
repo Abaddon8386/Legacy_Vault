@@ -1,0 +1,10 @@
+.lv-tb-guardian,.lv-asset-documents{margin-top:16px;padding:16px;border:1px solid #d5e2dc;border-radius:12px;background:#f7faf8;overflow-wrap:anywhere}
+.lv-tb-guardian p,.lv-asset-documents p{line-height:1.5;margin:10px 0}
+.lv-tb-guardian button,.lv-asset-documents button{padding:8px 12px;margin:4px;border:1px solid #bed0c5;border-radius:8px;background:white;color:#164639;cursor:pointer}
+.lv-tb-guardian button:disabled,.lv-asset-documents button:disabled{opacity:.55;cursor:default}
+.lv-tb-guardian label,.lv-asset-documents label{display:block;margin:10px 0}
+.lv-tb-guardian input,.lv-asset-documents input{display:block;box-sizing:border-box;width:100%;max-width:420px;padding:9px;margin-top:5px;border:1px solid #a9bdb1;border-radius:6px}
+.lv-tb-guardian [role=alert],.lv-asset-documents [role=alert]{color:#a62e27}
+.lv-tb-guardian ul,.lv-asset-documents ul{padding-left:20px}
+.lv-tb-guardian :focus-visible,.lv-asset-documents :focus-visible{outline:2px solid #287456;outline-offset:3px}
+@media(max-width:600px){.lv-tb-guardian,.lv-asset-documents{padding:12px}.lv-tb-guardian button,.lv-asset-documents button{max-width:100%;white-space:normal}}

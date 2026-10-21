@@ -50,7 +50,7 @@ for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs i
   const menuLabel = accountRole === 'ADMIN' ? 'Tổng quan quản trị' : 'Thông tin thụ hưởng';
   globalThis.__beneficiaryUser = currentUser;
   const originalFetch = globalThis.fetch; const urls = [];
-  globalThis.fetch = async url => { urls.push(url); return new Response(JSON.stringify(currentUser), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  globalThis.fetch = async url => { urls.push(url); return new Response(JSON.stringify(url.includes('/received-assets?') ? { content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 } : currentUser), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
   const view = await mount(App);
   try {
     await act(async () => view.host.querySelector('button').click());
@@ -66,7 +66,7 @@ for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs i
     await act(async () => view.host.querySelector('.lv-user-badge-card').click());
     await act(async () => view.host.querySelector('.lv-account-menu-item--logout').click());
     assert.equal(window.location.pathname, '/login');
-    assert.ok(urls.every(url => url.endsWith('/auth/me') || (accountRole === 'ADMIN' && url.endsWith('/admin/overview'))));
+    assert.ok(urls.every(url => url.endsWith('/auth/me') || (accountRole === 'ADMIN' && url.endsWith('/admin/overview')) || (accountRole === 'BENEFICIARY' && url.startsWith('/api/v1/received-assets?'))));
   } finally { await view.close(); globalThis.fetch = originalFetch; delete globalThis.__beneficiaryUser; }
 });
 for (const targetRole of ['BENEFICIARY', 'ADMIN']) for (const roles of [null, ['VAULT_OWNER'], ['STAFF_EXECUTOR'], ['LEGAL_VERIFIER'], [targetRole === 'ADMIN' ? 'BENEFICIARY' : 'ADMIN']]) test(`${targetRole} direct route rejects ${roles || 'anonymous'} even with preview`, async () => {

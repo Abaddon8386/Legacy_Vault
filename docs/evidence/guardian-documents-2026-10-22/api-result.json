@@ -1,0 +1,30 @@
+{
+  "checkedOn": "2026-10-22",
+  "email": "codex-8338a4ba-13e4-48cc-9be5-38f8cf7b5f36@example.test",
+  "vaultId": "defec64f-e0c9-4f20-924e-3f9fe3c37a28",
+  "beneficiaryId": "e8747ec2-f568-44fe-8d4e-c0ecbc63628a",
+  "assetId": "0e7cab26-57eb-4922-aecf-ed89d6979289",
+  "checks": [
+    "register/login",
+    "minor creation without guardian gate",
+    "guardian create/replace/revoke/history/reload",
+    "stale revision rejected",
+    "PDF and DOCX upload/list/download byte equality",
+    "wrong password rejected",
+    "invalid PDF rejected without partial save"
+  ],
+  "documents": [
+    {
+      "id": "8f064e65-0451-4fe5-b189-c2f568c1c1b3",
+      "fileName": "synthetic.pdf",
+      "sha256": "b32e6157264685fc801c04579aeb0f69102b4421cb64305db9fd7c65c46e0208",
+      "sizeBytes": 90
+    },
+    {
+      "id": "9ee7595d-c338-4d24-8cff-9a9b66302df9",
+      "fileName": "synthetic.docx",
+      "sha256": "90be9fc1cf9369f1e8ef28d8403693e8a27202e68c486b910c009861792db09b",
+      "sizeBytes": 690
+    }
+  ]
+}

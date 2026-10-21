@@ -546,7 +546,7 @@ test('TASK #22: vault widget renders Upgrade plan / Nâng cấp gói button and 
   }
 });
 
-for (const lang of ['vi', 'en']) test(`minor warning ${lang}: follows the entered date and cannot silently save without guardian support`, async () => {
+for (const lang of ['vi', 'en']) test(`minor warning ${lang}: follows the entered date and allows saving a minor while recommending a guardian`, async () => {
   const originalFetch = globalThis.fetch;
   let writes = 0;
   globalThis.fetch = async (url, options) => {
@@ -564,10 +564,10 @@ for (const lang of ['vi', 'en']) test(`minor warning ${lang}: follows the entere
     const dialog = host.querySelector('section[aria-labelledby="beneficiary-heading"] dialog');
     await change('#ben-fullname', 'Beneficiary');
     await change('#ben-dob', `${new Date().getFullYear() - 10}-01-01`);
-    assert.match(host.querySelector('#ben-guardian-notice').textContent, lang === 'en' ? /under 18/ : /chưa đủ 18/);
-    assert.equal(dialog.querySelector('button[type="submit"]').disabled, true);
+    assert.match(host.querySelector('#ben-guardian-notice').textContent, lang === 'en' ? /guardian is recommended/ : /Nên bổ sung người giám hộ/);
+    assert.equal(dialog.querySelector('button[type="submit"]').disabled, false);
     await act(async () => dialog.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
-    assert.equal(writes, 0);
+    assert.equal(writes, 1);
     await change('#ben-dob', '1990-01-01');
     assert.equal(host.querySelector('#ben-guardian-notice'), null);
     assert.equal(dialog.querySelector('button[type="submit"]').disabled, false);

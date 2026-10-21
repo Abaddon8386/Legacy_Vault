@@ -82,3 +82,46 @@ test('Query restoration verifies session against case and return link keeps both
  const calls=[];globalThis.fetch=async(url)=>{calls.push(url);return json(url.endsWith(sid)?receipt:[receipt]);};
  const v=await mount({mode:'accounts'},'/staff/beneficiary-accounts?caseId='+cid+'&sessionId='+sid);assert.ok(calls.some(url=>url.endsWith('/'+sid)));const back=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/handover');assert.equal(back.search,'?caseId='+cid+'&sessionId='+sid);await v.close();
 });
+test('Counter beneficiary list and email invitation actions render and trigger in accounts mode',async()=>{
+ const calls=[];
+ const testBen={beneficiaryId:'33333333-3333-4333-8333-333333333333',caseId:cid,fullName:'Nguyễn Văn A',relationship:'Con trai',identityVerificationStatus:'VERIFIED_AT_COUNTER',accountStatus:'PENDING',accountLinked:false,invitation:{state:'PENDING',expiresAt:'2026-10-25T00:00:00Z',generation:1},counterAttestation:{recorded:true,recordedAt:'2026-10-21T10:00:00Z',confirmedEmailRecorded:true},counterStep:'AWAITING_ACCOUNT_DECISION',actions:{canLinkAccount:true,canCreateAccount:true,canHandOverWithoutAccount:true,canRequestInvitationEmail:true}};
+ globalThis.fetch=async(url,init)=>{
+  calls.push({url,init});
+  if(init?.method==='POST'&&url.includes('invitation-email')) return json({status:'QUEUED'},202);
+  if(url.includes('/beneficiaries')) return json([testBen]);
+  return json(url.endsWith(sid)?receipt:[receipt]);
+ };
+ const v=await mount({mode:'accounts'},'/staff/beneficiary-accounts?caseId='+cid+'&sessionId='+sid);
+ assert.match(v.host.textContent,/Nguyễn Văn A/);
+ assert.match(v.host.textContent,/Con trai/);
+ const inviteBtn=btn(v.host,'Gửi email lời mời');
+ assert.ok(inviteBtn);
+ await act(async()=>inviteBtn.click());
+ assert.ok(calls.some(c=>c.url.includes('/invitation-email')&&c.init.method==='POST'));
+ await v.close();
+});
+
+
+test('Counter writes reject duplicate clicks, abort on case switch and ignore late receipts', async () => {
+  const ben = { beneficiaryId: '33333333-3333-4333-8333-333333333333', fullName: 'Old recipient', invitation: { generation: 1, state: 'PENDING' }, actions: { canRequestInvitationEmail: true } };
+  let release, writeSignal, writes = 0;
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'POST') {
+      writes++; writeSignal = init.signal;
+      return new Promise(resolve => { release = resolve; });
+    }
+    if (url.includes('/beneficiaries')) return json([ben]);
+    if (url.includes('/handover-sessions')) return json([]);
+    return json({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 });
+  };
+  const v = await mount({ mode: 'accounts' });
+  try {
+    const invite = btn(v.host, 'Gửi email lời mời');
+    await act(async () => { invite.click(); invite.click(); });
+    assert.equal(writes, 1);
+    await act(async () => btn(v.host, 'Chọn hồ sơ khác').click());
+    assert.equal(writeSignal.aborted, true);
+    await act(async () => release(json({ status: 'QUEUED' }, 202)));
+    assert.doesNotMatch(v.host.textContent, /Old recipient|Đã xếp hàng/);
+  } finally { await v.close(); }
+});

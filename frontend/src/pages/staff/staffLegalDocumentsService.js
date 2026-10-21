@@ -375,3 +375,133 @@ export async function readBasisVersionContent(caseId, versionNo, options = {}) {
   const token = options.accessToken || options.session?.accessToken;
   return readStaffBasisVersionContent(caseId, versionNo, { ...options, accessToken: token });
 }
+
+/**
+ * Tải danh mục tài sản trước thời điểm mở khóa (PS-118, PR #190)
+ * GET /api/v1/staff/verification-cases/{caseId}/assets?page=0&size=100
+ */
+export async function fetchStaffAssetCatalog(caseId, options = {}) {
+  const { accessToken, signal, lang = 'vi', page = 0, size = 100, fetchAll = true } = options;
+
+  if (signal?.aborted) {
+    const abortErr = new Error('Request aborted');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  if (!caseId) {
+    const err = new Error(lang === 'en' ? 'Case ID is required.' : 'Thiếu mã hồ sơ xác minh.');
+    err.code = 'CASE_ID_REQUIRED';
+    throw err;
+  }
+
+  if (isStaffSimulationPermitted(options)) {
+    return [
+      { assetId: '11111111-1111-4111-8111-111111111111', assetType: 'REAL_ESTATE', name: lang === 'en' ? 'Penthouse Apartment Landmark 81' : 'Căn hộ Penthouse Landmark 81' },
+      { assetId: '33333333-3333-4333-8333-333333333333', assetType: 'BANK_ACCOUNT', name: lang === 'en' ? 'Vietcombank Savings Account' : 'Tài khoản tiết kiệm Vietcombank' },
+      { assetId: '55555555-5555-4555-8555-555555555555', assetType: 'CRYPTOCURRENCY', name: lang === 'en' ? 'Bitcoin Vault Storage' : 'Kho lưu trữ Bitcoin' },
+    ];
+  }
+
+  const fetchPage = async (p, s) => {
+    const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/assets?page=${p}&size=${s}`, {
+      method: 'GET',
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        'Accept-Language': lang,
+      },
+      signal,
+    });
+
+    if (!res.ok) {
+      let errBody;
+      try { errBody = await res.json(); } catch { errBody = null; }
+      const error = new Error(errBody?.message || (lang === 'en' ? 'Failed to fetch asset catalog.' : 'Không thể tải danh mục tài sản.'));
+      error.status = res.status;
+      error.code = errBody?.code || (res.status === 404 ? 'RESOURCE_NOT_FOUND' : 'ASSET_CATALOG_FAILED');
+      throw error;
+    }
+
+    const pageData = await res.json();
+    if (!pageData || !Array.isArray(pageData.content)
+      || pageData.page !== p || pageData.size !== s
+      || !Number.isSafeInteger(pageData.totalPages) || pageData.totalPages < 0
+      || !Number.isSafeInteger(pageData.totalElements) || pageData.totalElements < 0) {
+      const error = new Error(lang === 'en' ? 'Invalid asset catalog response.' : 'Dữ liệu danh mục tài sản không hợp lệ.');
+      error.code = 'INVALID_RESPONSE';
+      throw error;
+    }
+    return pageData;
+  };
+
+  if (!fetchAll) {
+    const firstPage = await fetchPage(page, size);
+    return firstPage.content;
+  }
+
+  let currentPage = 0;
+  const pageSize = Math.min(size, 100);
+  let allAssets = [];
+  while (true) {
+    const pageData = await fetchPage(currentPage, pageSize);
+    allAssets = allAssets.concat(pageData.content);
+    currentPage++;
+    if (currentPage >= pageData.totalPages || pageData.content.length === 0) {
+      break;
+    }
+  }
+  return allAssets;
+}
+
+/**
+ * Tải danh sách người thụ hưởng của ca tại quầy (PS-88, PR #193)
+ * GET /api/v1/staff/verification-cases/{caseId}/beneficiaries
+ */
+export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
+  const { accessToken, signal, lang = 'vi' } = options;
+
+  if (signal?.aborted) {
+    const abortErr = new Error('Request aborted');
+    abortErr.name = 'AbortError';
+    throw abortErr;
+  }
+
+  if (!caseId) {
+    const err = new Error(lang === 'en' ? 'Case ID is required.' : 'Thiếu mã hồ sơ xác minh.');
+    err.code = 'CASE_ID_REQUIRED';
+    throw err;
+  }
+
+  if (isStaffSimulationPermitted(options)) {
+    return [
+      { beneficiaryId: '22222222-2222-4222-8222-222222222222', fullName: 'Trần Minh Quang', relationship: lang === 'en' ? 'Son' : 'Con trai' },
+      { beneficiaryId: '44444444-4444-4444-8444-444444444444', fullName: 'Trần Thảo Ly', relationship: lang === 'en' ? 'Daughter' : 'Con gái' },
+    ];
+  }
+
+  const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/beneficiaries`, {
+    method: 'GET',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      'Accept-Language': lang,
+    },
+    signal,
+  });
+
+  if (!res.ok) {
+    let errBody;
+    try { errBody = await res.json(); } catch { errBody = null; }
+    const error = new Error(errBody?.message || (lang === 'en' ? 'Failed to fetch beneficiaries.' : 'Không thể tải danh sách người thụ hưởng.'));
+    error.status = res.status;
+    error.code = errBody?.code || (res.status === 404 ? 'RESOURCE_NOT_FOUND' : 'BENEFICIARIES_FAILED');
+    throw error;
+  }
+
+  const data = await res.json();
+  if (!Array.isArray(data)) {
+    const error = new Error(lang === 'en' ? 'Invalid beneficiaries response.' : 'Dữ liệu người thụ hưởng không hợp lệ.');
+    error.code = 'INVALID_RESPONSE';
+    throw error;
+  }
+  return data;
+}

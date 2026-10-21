@@ -1,3 +1,4 @@
+import GuardianPanel from './GuardianPanel.jsx';
 import RelatedPersonEditDialog from './RelatedPersonEditDialog.jsx';
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -183,8 +184,8 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  const age = beneficiaryAge(beneficiaryForm.dateOfBirth);
  const needsGuardian = age !== null && age < 18;
  const guardianNotice = lang === 'en'
-  ? 'This beneficiary is under 18 and needs a guardian. Guardian registration is not available yet.'
-  : 'Người thụ hưởng chưa đủ 18 tuổi, cần bổ sung người giám hộ. Hiện chưa thể đăng ký thông tin người giám hộ.';
+  ? 'A guardian is recommended. Save this beneficiary, then open Guardian to add the contact.'
+  : 'Nên bổ sung người giám hộ. Lưu người thụ hưởng rồi mở mục Người giám hộ để thêm thông tin.';
  const [trusteeErrors,setTrusteeErrors]=useState({}),[beneficiaryErrors,setBeneficiaryErrors]=useState({});
  const [isSubmittingTrustee,setIsSubmittingTrustee]=useState(false),[isSubmittingBeneficiary,setIsSubmittingBeneficiary]=useState(false);
  const pending=useRef(false),alive=useRef(true),mutation=useRef(null),loadRequest=useRef(null);
@@ -345,7 +346,6 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
   const isTrustee=kind==='trustee',data=isTrustee?trusteeForm:beneficiaryForm;
   const errors=isTrustee?validateTrustee(data,lang):validateBeneficiary(data,lang);
   (isTrustee?setTrusteeErrors:setBeneficiaryErrors)(errors);if(Object.keys(errors).length)return;
-  if (!isTrustee && needsGuardian) return;
   pending.current=true;const controller=new AbortController();mutation.current=controller;
   (isTrustee?setIsSubmittingTrustee:setIsSubmittingBeneficiary)(true);
   try{
@@ -559,6 +559,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                         {b.relationship || (lang === 'vi' ? 'Người thụ hưởng' : 'Beneficiary')}
                       </span>
                     </div>
+                    {!isDevPreviewActive && <GuardianPanel vaultId={vaultId} beneficiaryId={b.id} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} />}
                     {!isDevPreviewActive && <BeneficiaryInvitationCode vaultId={vaultId} beneficiaryId={b.id}
                       accessToken={accessToken} lang={lang} loadInvitation={onLoadInvitation} />}
                     <div className="lv-tb-entity-grid">
@@ -711,7 +712,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                 <button
                   type="submit"
                   className="lv-tb-btn-primary"
-                  disabled={isSubmittingTrustee || isSubmittingBeneficiary || needsGuardian}
+                  disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                   title={needsGuardian ? guardianNotice : undefined}
                 >
                   {isSubmittingBeneficiary ? t.submitting : t.addBeneficiaryBtn}

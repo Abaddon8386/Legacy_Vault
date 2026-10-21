@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { fetchStaffCases } from './staffCaseService.js';
 import { useStaffSessionExpiry, staffAuthFeedback } from './staffFeedback.js';
-import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, isHandoverId, handoverUrl } from './liveHandoverService.js';
+import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, isHandoverId, handoverUrl, fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail } from './liveHandoverService.js';
 import './LiveHandoverPage.css';
 
 function errorText(error, en) {
@@ -23,31 +23,275 @@ function CasePicker({ accessToken, lang, onChoose, onError }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);
   const [retry, setRetry] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeQuery, setActiveQuery] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const errorRef = useRef(onError);
   useEffect(() => { errorRef.current = onError; }, [onError]);
   useEffect(() => {
     const c = new AbortController();
-    fetchStaffCases({ accessToken, lang, page, size: 5, signal: c.signal }).then(value => {
-      if (!c.signal.aborted) { setResult({ ...value, requestPage: page, retry }); setError(null); }
-    }).catch(err => { if (!c.signal.aborted) { setError({ err, page, retry }); errorRef.current(err); } });
+    fetchStaffCases({ accessToken, lang, page, size: 5, q: activeQuery, signal: c.signal }).then(value => {
+      if (!c.signal.aborted) { setResult({ ...value, requestPage: page, retry, query: activeQuery }); setError(null); }
+    }).catch(err => { if (!c.signal.aborted) { setError({ err, page, retry, query: activeQuery }); errorRef.current(err); } });
     return () => c.abort();
-  }, [accessToken, lang, page, retry]);
-  const current = result?.requestPage === page && result?.retry === retry ? result : null;
-  const failed = error?.page === page && error?.retry === retry ? error.err : null;
+  }, [accessToken, lang, page, retry, activeQuery]);
+  const current = result?.requestPage === page && result?.retry === retry && result?.query === activeQuery ? result : null;
+  const failed = error?.page === page && error?.retry === retry && error?.query === activeQuery ? error.err : null;
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setPage(0);
+    setActiveQuery(searchQuery.trim());
+  };
+
   return <section>
     <h2>{en ? 'Select a case' : 'Chọn hồ sơ'}</h2>
     <p>{en ? 'Select from the staff queue. Sessions are available only for cases assigned to you.' : 'Chọn từ danh sách staff. Chỉ hồ sơ đã giao cho bạn mới tải được phiên bàn giao.'}</p>
+    <form onSubmit={handleSearch} style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder={en ? 'Search case number, vault, owner…' : 'Tìm số hồ sơ, tên kho, chủ sở hữu…'}
+      />
+      <button type="submit">{en ? 'Search' : 'Tìm kiếm'}</button>
+      {activeQuery && (
+        <button type="button" onClick={() => { setSearchQuery(''); setActiveQuery(''); setPage(0); }}>
+          {en ? 'Clear' : 'Xóa tìm kiếm'}
+        </button>
+      )}
+    </form>
     {failed ? <p role="alert">{errorText(failed, en)}</p> : !current ? <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p> : <ul>{current.content.map(item => <li key={item.caseId}>
       <button type="button" onClick={() => onChoose(item.caseId)}>{item.caseNumber} — {item.vaultName} — {item.ownerName}</button>
     </li>)}</ul>}
-    {current?.content.length === 0 && <p>{en ? 'No cases on this page.' : 'Không có hồ sơ ở trang này.'}</p>}
+    {current?.content.length === 0 && <p>{en ? 'No cases found.' : 'Không tìm thấy hồ sơ nào.'}</p>}
     <button disabled={page === 0} onClick={() => setPage(p => p - 1)}>{en ? 'Previous' : 'Trước'}</button>
     <span>{page + 1}</span>
     <button disabled={!current || page + 1 >= current.totalPages} onClick={() => setPage(p => p + 1)}>{en ? 'Next' : 'Sau'}</button>
     <button onClick={() => setRetry(v => v + 1)}>{en ? 'Reload cases' : 'Tải lại danh sách'}</button>
   </section>;
+}
+
+function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, lang, mode, onError }) {
+  const en = lang === 'en';
+  const [expanded, setExpanded] = useState(() => mode === 'accounts');
+  const [loading, setLoading] = useState(false);
+  const [beneficiaries, setBeneficiaries] = useState([]);
+  const [error, setError] = useState(null);
+  const [attestTarget, setAttestTarget] = useState(null);
+  const [evidenceRef, setEvidenceRef] = useState('');
+  const [confirmedEmail, setConfirmedEmail] = useState('');
+  const [submittingAttest, setSubmittingAttest] = useState(false);
+  const [requestingEmailId, setRequestingEmailId] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [beneficiaryRevision, setBeneficiaryRevision] = useState(0);
+  const mutation = useRef(null);
+  useEffect(() => () => { mutation.current?.abort(); }, []);
+
+  useEffect(() => {
+    if (!expanded || !caseId || !accessToken) return;
+    const c = new AbortController();
+    let cancelled = false;
+
+    fetchStaffCaseBeneficiaries(caseId, { accessToken, lang, signal: c.signal })
+      .then((data) => {
+        if (!cancelled) {
+          setBeneficiaries(data);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled && err.name !== 'AbortError') {
+          setError(err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      c.abort();
+    };
+  }, [caseId, accessToken, expanded, lang, beneficiaryRevision]);
+
+  const handleAttest = async (e) => {
+    e.preventDefault();
+    if (!attestTarget || !evidenceRef.trim() || mutation.current) return;
+    const c = new AbortController();
+    mutation.current = c;
+    setSubmittingAttest(true);
+    setNotice('');
+    try {
+      await recordCounterAttestation(caseId, attestTarget.beneficiaryId, {
+        evidenceReference: evidenceRef.trim(),
+        confirmedEmail: confirmedEmail.trim() || undefined,
+      }, { accessToken, lang, signal: c.signal });
+      if (c.signal.aborted) return;
+      setNotice(en ? 'Counter attestation recorded successfully.' : 'Đã ghi nhận đối chiếu giấy tờ tại quầy thành công.');
+      setAttestTarget(null);
+      setEvidenceRef('');
+      setConfirmedEmail('');
+      setBeneficiaryRevision(r => r + 1);
+    } catch (err) {
+      if (c.signal.aborted) return;
+      setError(err);
+      if (onError) onError(err);
+    } finally {
+      if (!c.signal.aborted) { mutation.current = null; setSubmittingAttest(false); }
+    }
+  };
+
+  const handleRequestInvitationEmail = async (ben) => {
+    if (mutation.current || !Number.isSafeInteger(ben.invitation?.generation)) return;
+    const c = new AbortController();
+    mutation.current = c;
+    setRequestingEmailId(ben.beneficiaryId);
+    setNotice('');
+    try {
+      await requestInvitationEmail(caseId, ben.beneficiaryId, ben.invitation.generation, { accessToken, lang, signal: c.signal });
+      if (c.signal.aborted) return;
+      setNotice(en ? `Invitation email queued for ${ben.fullName}.` : `Đã xếp hàng gửi email lời mời cho ${ben.fullName}.`);
+      setBeneficiaryRevision(r => r + 1);
+    } catch (err) {
+      if (c.signal.aborted) return;
+      setError(err);
+      if (onError) onError(err);
+    } finally {
+      if (!c.signal.aborted) { mutation.current = null; setRequestingEmailId(null); }
+    }
+  };
+
+  const stepLabels = en ? {
+    AWAITING_IDENTITY_VERIFICATION: 'Awaiting in-person identity check',
+    AWAITING_ACCOUNT_DECISION: 'Identity checked · Awaiting account decision',
+    ACCOUNT_LINKED: 'Account linked',
+  } : {
+    AWAITING_IDENTITY_VERIFICATION: 'Chờ đối chiếu căn cước tại quầy',
+    AWAITING_ACCOUNT_DECISION: 'Đã đối chiếu căn cước · Chờ quyết định tài khoản',
+    ACCOUNT_LINKED: 'Đã liên kết tài khoản',
+  };
+
+  return (
+    <aside role="note" className="lv-counter-beneficiaries">
+      <h3>{en ? 'Counter beneficiary context & identity — PS-88' : 'Dữ liệu người thụ hưởng tại quầy & đối chiếu — PS-88'}</h3>
+      <p>
+        {en
+          ? 'Staff verifies beneficiary identity in person at the counter (responsibility record, not an automated OCR). A recipient who declines an account follows the offline process with required evidence. No account is automatically created.'
+          : 'Nhân viên trực tiếp đối chiếu CCCD/giấy tờ tùy thân của người thụ hưởng tại quầy (ghi nhận trách nhiệm nghiệp vụ, không dùng OCR tự động). Người nhận từ chối tài khoản vẫn tiếp tục nhận tài sản bằng biên bản ngoài đời. Không tự tạo tài khoản.'}
+      </p>
+
+      {!expanded && (
+        <p>
+          <button type="button" onClick={() => setExpanded(true)}>
+            {en ? 'Load counter beneficiaries' : 'Tải danh sách người thụ hưởng tại quầy'}
+          </button>
+        </p>
+      )}
+      {notice && <p role="status">{notice}</p>}
+      {error && <p role="alert">{errorText(error, en)}</p>}
+      {loading && <p role="status">{en ? 'Loading beneficiaries…' : 'Đang tải danh sách người thụ hưởng…'}</p>}
+
+      {beneficiaries.length > 0 && (
+        <ul className="lv-beneficiary-list">
+          {beneficiaries.map((ben) => (
+            <li key={ben.beneficiaryId} className="lv-beneficiary-item">
+              <strong>{ben.fullName}</strong> ({ben.relationship})
+              <div>
+                <em>{stepLabels[ben.counterStep] || ben.counterStep}</em>
+                {' · '}
+                <span>{ben.accountLinked ? (en ? 'Account active' : 'Đã có tài khoản') : (en ? 'No account linked' : 'Chưa liên kết tài khoản')}</span>
+              </div>
+              {ben.counterAttestation?.recorded && (
+                <p>
+                  ✓ {en ? 'Attested at counter: ' : 'Đã đối chiếu tại quầy lúc: '}
+                  {ben.counterAttestation.recordedAt}
+                  {ben.counterAttestation.confirmedEmailRecorded ? (en ? ' (Email confirmed)' : ' (Đã lưu email xác nhận)') : ''}
+                </p>
+              )}
+              {ben.invitation && ben.invitation.state !== 'NOT_ISSUED' && (
+                <p>
+                  {en ? 'Invitation: ' : 'Thư mời: '}
+                  <strong>{ben.invitation.state}</strong> (Gen: {ben.invitation.generation})
+                </p>
+              )}
+
+              <div className="lv-beneficiary-actions" style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setAttestTarget(ben)}
+                >
+                  {en ? 'Record counter ID attestation' : 'Ghi nhận đối chiếu CCCD tại quầy'}
+                </button>
+
+                {ben.actions?.canRequestInvitationEmail && (
+                  <button
+                    type="button"
+                    disabled={requestingEmailId === ben.beneficiaryId}
+                    onClick={() => handleRequestInvitationEmail(ben)}
+                  >
+                    {requestingEmailId === ben.beneficiaryId
+                      ? (en ? 'Queueing email…' : 'Đang yêu cầu gửi…')
+                      : (en ? 'Request invitation email' : 'Gửi email lời mời')}
+                  </button>
+                )}
+
+                {ben.actions?.canLinkAccount && (
+                  <a
+                    href={handoverUrl('/staff/beneficiary-accounts', caseId, selectedSessionId) + `&beneficiaryId=${ben.beneficiaryId}`}
+                  >
+                    {en ? 'Link existing account' : 'Liên kết tài khoản'}
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {attestTarget && (
+        <form onSubmit={handleAttest} style={{ marginTop: '0.5rem', padding: '0.5rem', border: '1px solid #ccc' }}>
+          <h4>{en ? `Record in-person attestation: ${attestTarget.fullName}` : `Ghi nhận đối chiếu tại quầy: ${attestTarget.fullName}`}</h4>
+          <div>
+            <label>
+              {en ? 'Counter document reference: ' : 'Số tham chiếu chứng từ tại quầy: '}
+              <input
+                type="text"
+                required
+                maxLength={200}
+                value={evidenceRef}
+                onChange={(e) => setEvidenceRef(e.target.value)}
+                placeholder={en ? 'Counter record reference' : 'Mã biên bản đối chiếu'}
+              />
+            </label>
+          </div>
+          <div style={{ marginTop: '0.25rem' }}>
+            <label>
+              {en ? 'Confirmed email (for invite): ' : 'Email xác nhận (gửi mã mời): '}
+              <input
+                type="email"
+                maxLength={254}
+                value={confirmedEmail}
+                onChange={(e) => setConfirmedEmail(e.target.value)}
+                placeholder="email@example.com"
+              />
+            </label>
+          </div>
+          <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+            <button type="submit" disabled={submittingAttest || !evidenceRef.trim()}>
+              {submittingAttest ? (en ? 'Saving…' : 'Đang lưu…') : (en ? 'Save attestation' : 'Lưu ghi nhận đối chiếu')}
+            </button>
+            <button type="button" onClick={() => setAttestTarget(null)}>
+              {en ? 'Cancel' : 'Hủy'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <button disabled>{en ? 'Create / link beneficiary account' : 'Tạo / liên kết tài khoản người thụ hưởng'}</button>
+    </aside>
+  );
 }
 
 function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, onError, mode, reload }) {
@@ -123,13 +367,17 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
         <button onClick={() => setConfirmCancel(false)}>{en ? 'Keep session' : 'Giữ phiên'}</button>
       </div>}
     </div>}
-    <aside role="note"><h3>{en ? 'Awaiting counter data — PS-88' : 'Chờ dữ liệu tại quầy — PS-88'}</h3>
-      <p>{en ? 'The server has account creation/linking APIs, but the authorized beneficiary list, identity and invitation context are not available yet. These actions remain disabled; no fabricated recipient or UUID entry is used.' : 'Máy chủ đã có API tạo/liên kết tài khoản, nhưng chưa bàn giao danh sách người thụ hưởng, trạng thái xác minh và mã mời theo quyền. Các thao tác này chưa mở; không dùng người nhận giả hoặc yêu cầu nhập UUID.'}</p>
-      <p>{en ? 'A recipient who declines an account follows the offline process with required evidence. No account is automatically created.' : 'Người nhận không muốn tài khoản vẫn theo quy trình bên ngoài với bằng chứng bắt buộc. Không tự tạo tài khoản.'}</p>
-      <button disabled>{en ? 'Create / link beneficiary account' : 'Tạo / liên kết tài khoản người thụ hưởng'}</button>
-    </aside>
+    <CounterBeneficiariesSection
+      caseId={caseId}
+      selectedSessionId={selected?.sessionId}
+      accessToken={accessToken}
+      lang={lang}
+      mode={mode}
+      onError={onError}
+    />
   </section>;
 }
+
 
 export default function LiveHandoverPage(props) {
   // Replacing the authenticated token discards every state/request from the old session.
