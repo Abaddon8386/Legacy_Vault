@@ -11,21 +11,23 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** SQL Server integration proof that PS-79 profile updates and audit rows share a transaction. */
+/** SQL Server integration proof that scoped PS-79 profile updates and audit rows share a transaction. */
 @EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class ProfileAuditSqlServerTest extends LegalBasisSqlServerSupport {
 
     @Test
-    void profileChangesPersistSafeAuditRowsInAuditLogs() {
+    void profileChangesPersistSafeAuditRowsWithoutChangingEmailPasswordOrAuthVersion() {
         Fixture fixture = fixture(false);
         String oldEmail = fixture.legal().email();
+        String oldPasswordHash = jdbc.queryForObject(
+                "SELECT password_hash FROM dbo.users WHERE user_id = ?", String.class, fixture.userId());
+        long oldAuthVersion = jdbc.queryForObject(
+                "SELECT auth_version FROM dbo.users WHERE user_id = ?", Long.class, fixture.userId());
         var authentication = UsernamePasswordAuthenticationToken.authenticated(
                 fixture.legal(), null, List.of());
         ProfileUpdateRequest request = new ProfileUpdateRequest();
         request.setFullName("Updated Profile Name");
-        request.setEmail("updated-profile@example.test");
         request.setPhoneNumber("+84901234567");
-        request.setPassword("NewProfilePass123");
 
         context.getBean(AuthService.class).updateCurrentUser(authentication, request);
 
@@ -33,8 +35,8 @@ class ProfileAuditSqlServerTest extends LegalBasisSqlServerSupport {
                 SELECT action, actor_user_id, entity_type, entity_id, details
                 FROM dbo.audit_logs WHERE actor_user_id = ? ORDER BY audit_log_id
                 """, fixture.userId());
-        assertEquals(3, rows.size());
-        assertEquals(List.of("AUTH_PROFILE_UPDATED", "AUTH_EMAIL_CHANGED", "AUTH_PASSWORD_CHANGED"),
+        assertEquals(1, rows.size());
+        assertEquals(List.of("AUTH_PROFILE_UPDATED"),
                 rows.stream().map(row -> row.get("action").toString()).toList());
         for (var row : rows) {
             assertEquals(fixture.userId(), ((Number) row.get("actor_user_id")).longValue());
@@ -43,17 +45,17 @@ class ProfileAuditSqlServerTest extends LegalBasisSqlServerSupport {
             String details = row.get("details").toString();
             assertTrue(details.contains("SUCCESS"));
             assertFalse(details.contains(oldEmail));
-            assertFalse(details.contains("updated-profile@example.test"));
             assertFalse(details.contains("Updated Profile Name"));
-            assertFalse(details.contains("NewProfilePass123"));
+            assertTrue(details.contains("fullName"));
+            assertTrue(details.contains("phoneNumber"));
         }
 
-        String storedHash = jdbc.queryForObject(
-                "SELECT password_hash FROM dbo.users WHERE user_id = ?", String.class, fixture.userId());
-        assertNotEquals("NewProfilePass123", storedHash);
-        for (var row : rows) {
-            assertFalse(row.get("details").toString().contains(storedHash));
-        }
+        assertEquals(oldEmail, jdbc.queryForObject(
+                "SELECT email FROM dbo.users WHERE user_id = ?", String.class, fixture.userId()));
+        assertEquals(oldPasswordHash, jdbc.queryForObject(
+                "SELECT password_hash FROM dbo.users WHERE user_id = ?", String.class, fixture.userId()));
+        assertEquals(oldAuthVersion, jdbc.queryForObject(
+                "SELECT auth_version FROM dbo.users WHERE user_id = ?", Long.class, fixture.userId()));
     }
 
     @Test

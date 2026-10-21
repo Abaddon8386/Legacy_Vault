@@ -92,12 +92,13 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 ## PATCH /api/v1/auth/me — PS-79
 
 - **Quyền:** đã đăng nhập; chỉ cập nhật tài khoản trong principal hiện hành, không nhận ID/role từ request.
-- **Request:** partial JSON; chỉ chấp nhận `fullName`, `email`, `phoneNumber`, `password`. Trường bỏ qua hoặc `null` không đổi. `phoneNumber: ""` xóa số điện thoại. Tên 1–150 ký tự; email định dạng hợp lệ, tối đa 254; phone theo quy ước đăng ký (8–15 chữ số, `+` tùy chọn); password mới 8–72 ký tự.
-- **Response 200:** cùng whitelist với GET `/me`; password chỉ được BCrypt hash, không bao giờ trả lại.
-- Email được chuẩn hóa chữ thường và uniqueness áp dụng trong DB. Khi đổi email, `email_verified_at` được xóa; endpoint không xác minh email mới. Theo D-API-16 hiện tại, xác minh email không phải điều kiện đăng nhập.
-- Password mới không làm mất hiệu lực JWT đã cấp; token hiện hành tiếp tục theo TTL hiện có (mặc định 3600 giây), do hệ thống chưa có credential-version/revocation policy.
-- **Lỗi:** `400 VALIDATION_FAILED` (payload sai/field không được phép), `401 UNAUTHENTICATED`, `409 EMAIL_ALREADY_EXISTS`.
-- Cập nhật tên/số điện thoại ghi `AUTH_PROFILE_UPDATED`; đổi email ghi `AUTH_EMAIL_CHANGED`; đổi mật khẩu ghi `AUTH_PASSWORD_CHANGED`. Actor lấy từ principal đã xác thực. Metadata chỉ ghi kết quả và tên trường thay đổi, không ghi giá trị email, mật khẩu, hash hoặc request body. Các sự kiện được ghi trong transaction cập nhật theo `LV-AUD-001`; lỗi ghi audit làm rollback cập nhật.
+- **Phạm vi PS-79:** chỉ cập nhật `fullName` và `phoneNumber`. Email/password và mọi field ngoài whitelist bị từ chối; không có endpoint đổi email hoặc đổi password trong PS-79. Thay đổi này có thể khiến client cũ gửi email/password nhận `400 MALFORMED_REQUEST`.
+- **Request:** partial JSON; trường bỏ qua hoặc `null` không đổi. `phoneNumber: ""` xóa số điện thoại. Tên 1–150 ký tự; phone theo quy ước đăng ký (8–15 chữ số, `+` tùy chọn).
+- **Response 200:** cùng whitelist với GET `/me`; response không chứa credential.
+- Email/password không được đổi qua PS-79. Nếu bổ sung luồng đổi email/password, cần task riêng và xác nhận mật khẩu hiện tại qua `PasswordReauthService` (bộ đếm `REAUTH_FAILED`, giới hạn 5 lần/15 phút). Google-only với `password_login_enabled=0` không được cấp password login qua reauthentication; recovery PS-112 loại trừ tài khoản này.
+- Password recovery PS-112 tăng `authVersion` trong cùng transaction với cập nhật password. JWT mới mang version hiện hành; `JwtAuthenticationFilter` đối chiếu version với DB ở mỗi request, vì vậy JWT cũ bị từ chối. PS-79 không đổi password và không thay đổi `authVersion`.
+- **Lỗi:** `400 VALIDATION_FAILED` (vi phạm validation của `fullName`/`phoneNumber`), `400 MALFORMED_REQUEST` (email/password hoặc field không được phép), `401 UNAUTHENTICATED`.
+- Cập nhật tên/số điện thoại ghi `AUTH_PROFILE_UPDATED` với tên trường thay đổi, không ghi giá trị. Actor lấy từ principal đã xác thực. Audit nằm trong transaction cập nhật theo `LV-AUD-001`; lỗi ghi audit làm rollback cập nhật.
 
 ## Bảo mật & RBAC — PS-11
 

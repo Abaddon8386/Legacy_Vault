@@ -1016,25 +1016,28 @@ paths:
       tags: [Auth]
       summary: Cập nhật hồ sơ của người đăng nhập (PS-79)
       description: >
-        Cập nhật partial chỉ các trường fullName, email, phoneNumber, password. Danh tính lấy từ
-        principal. Email mới chưa được xác minh; password được hash và không thu hồi JWT hiện hành.
-        Field ngoài whitelist bị từ chối.
+        PS-79 chỉ cập nhật partial các trường fullName và phoneNumber. Danh tính lấy từ principal.
+        email và password cùng mọi field ngoài whitelist bị từ chối. API này không đổi email/password;
+        các luồng tương ứng cần reauthentication và task/flow riêng. Password recovery dùng PS-112.
       x-status: implemented
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
-            example: { fullName: Nguyen Van A, email: user@example.com, phoneNumber: '+84900000000', password: NewExample123 }
+            example: { fullName: Nguyen Van A, phoneNumber: '+84900000000' }
       responses:
         '200':
           description: Hồ sơ đã cập nhật
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProfileResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
+        '400':
+          description: VALIDATION_FAILED for field constraints; MALFORMED_REQUEST for email, password or unknown fields
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
-        '409': { $ref: '#/components/responses/Conflict' }
 
   /api/v1/vaults:
     post:
@@ -3911,9 +3914,7 @@ components:
       additionalProperties: false
       properties:
         fullName: { type: string, minLength: 1, maxLength: 150 }
-        email: { type: string, format: email, maxLength: 254 }
         phoneNumber: { type: string, pattern: '^$|^\\+?[0-9]{8,15}$', nullable: true }
-        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
     ProfileResponse:
       type: object
       required: [id, fullName, email, roles]

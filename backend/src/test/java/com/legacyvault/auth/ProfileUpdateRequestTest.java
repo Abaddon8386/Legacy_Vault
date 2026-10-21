@@ -19,16 +19,23 @@ class ProfileUpdateRequestTest {
 
         ProfileUpdateRequest bad = new ProfileUpdateRequest();
         bad.setFullName("  ");
-        bad.setEmail("not-an-email");
         bad.setPhoneNumber("abc");
-        bad.setPassword("short");
-        assertThat(validator.validate(bad)).hasSize(4);
+        assertThat(validator.validate(bad)).hasSize(2);
     }
 
     @Test
-    void rejectsFieldsOutsideWhitelist() {
+    void acceptsOnlyFullNameAndPhoneNumberAndRejectsEmailPasswordAndOtherFields() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        assertThatThrownBy(() -> mapper.readValue("{\"role\":\"ADMIN\"}", ProfileUpdateRequest.class))
-                .isInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+        ProfileUpdateRequest request = mapper.readValue(
+                "{\"fullName\":\"New Name\",\"phoneNumber\":\"+84900000000\"}", ProfileUpdateRequest.class);
+        assertThat(request.getFullName()).isEqualTo("New Name");
+        assertThat(request.getPhoneNumber()).isEqualTo("+84900000000");
+
+        for (String forbidden : new String[] {"email", "password", "role", "userId"}) {
+            assertThatThrownBy(() -> mapper.readValue("{\"" + forbidden + "\":\"attacker-value\"}",
+                    ProfileUpdateRequest.class))
+                    .as("reject %s from PS-79", forbidden)
+                    .isInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+        }
     }
 }

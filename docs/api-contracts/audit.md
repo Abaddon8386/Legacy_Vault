@@ -56,7 +56,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Nhóm | `action` | Ticket nguồn |
 |---|---|---|
 | Auth | `AUTH_REGISTERED`, `AUTH_LOGIN_SUCCEEDED`, `AUTH_LOGIN_FAILED` | PS-9, PS-10 |
-| Auth profile | `AUTH_PROFILE_UPDATED` (chỉ tên trường đã đổi), `AUTH_EMAIL_CHANGED`, `AUTH_PASSWORD_CHANGED` (không lưu giá trị email/password hoặc hash) | PS-79 |
+| Auth profile | `AUTH_PROFILE_UPDATED` (chỉ tên trường đã đổi; PS-79 hiện giới hạn ở `fullName`, `phoneNumber`) | PS-79. `AUTH_EMAIL_CHANGED`/`AUTH_PASSWORD_CHANGED` không được PS-79 phát ra; nếu cần, thêm trong task có reauthentication riêng |
 | Vault | `VAULT_CREATED`, `VAULT_ALERT_CANCELLED` | PS-12, PS-33 |
 | Asset | `ASSET_CREATED`, `ASSET_UPDATED`, `ASSET_REVEALED` | PS-15, PS-16 |
 | Tệp đính kèm giấy tờ tiếp nhận | `INTAKE_ATTACHMENT_UPLOADED`; `EVIDENCE_FILE_READ` (mỗi lần đọc nội dung tệp đính kèm hoặc file phiên bản căn cứ; không ghi tên file/nội dung) | PS-103 |

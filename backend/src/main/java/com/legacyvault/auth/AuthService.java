@@ -26,7 +26,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -201,26 +200,12 @@ public class AuthService {
     public ProfileResponse updateCurrentUser(Authentication authentication, ProfileUpdateRequest request) {
         User user = requireCurrentUser(authentication, true);
         List<String> profileFieldsChanged = new ArrayList<>();
-        boolean emailChanged = false;
-        boolean passwordChanged = false;
 
         if (request.getFullName() != null) {
             String fullName = request.getFullName().trim();
             if (!Objects.equals(fullName, user.getFullName())) {
                 user.setFullName(fullName);
                 profileFieldsChanged.add("fullName");
-            }
-        }
-        if (request.getEmail() != null) {
-            String email = EmailNormalizer.normalize(request.getEmail());
-            if (!email.equals(user.getEmail())) {
-                if (userRepository.existsByEmailAndUserIdNot(email, user.getUserId())) {
-                    throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
-                }
-                user.setEmail(email);
-                // A changed address is not verified by this API.
-                user.setEmailVerifiedAt(null);
-                emailChanged = true;
             }
         }
         if (request.getPhoneNumber() != null) {
@@ -231,31 +216,11 @@ public class AuthService {
                 profileFieldsChanged.add("phoneNumber");
             }
         }
-        if (request.getPassword() != null) {
-            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-            passwordChanged = true;
-        }
-
-        try {
-            userRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            if (isEmailUniqueViolation(ex)) {
-                throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
-            }
-            throw ex;
-        }
+        userRepository.flush();
 
         if (!profileFieldsChanged.isEmpty()) {
             recordProfileAudit(AuditAction.AUTH_PROFILE_UPDATED, user.getUserId(),
                     Map.of("result", "SUCCESS", "changedFields", List.copyOf(profileFieldsChanged)));
-        }
-        if (emailChanged) {
-            recordProfileAudit(AuditAction.AUTH_EMAIL_CHANGED, user.getUserId(),
-                    Map.of("result", "SUCCESS", "changedFields", List.of("email")));
-        }
-        if (passwordChanged) {
-            recordProfileAudit(AuditAction.AUTH_PASSWORD_CHANGED, user.getUserId(),
-                    Map.of("result", "SUCCESS", "changedFields", List.of("password")));
         }
         return toProfileResponse(user);
     }
@@ -314,17 +279,6 @@ public class AuthService {
                 user.getPhoneNumber(),
                 apiRoles
         );
-    }
-
-    private boolean isEmailUniqueViolation(DataIntegrityViolationException exception) {
-        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
-            if (cause instanceof java.sql.SQLException sql
-                    && (sql.getErrorCode() == 2601 || sql.getErrorCode() == 2627)
-                    && String.valueOf(sql.getMessage()).contains("UQ_users_email")) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
