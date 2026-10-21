@@ -82,3 +82,46 @@ test('profile save discards previous-token response and permits retry for the sa
     assert.equal(view.host.querySelector('button[type="submit"]').disabled,false);
   } finally {await view.close();}
 });
+
+test('profile refresh updates a clean form but preserves an unsaved draft for the same account', async () => {
+  const props = { session, lang: 'en' };
+  const view = await mount(EditProfile, props);
+  try {
+    await view.render({ ...props, session: { ...session, user: { ...profile, fullName: 'Refreshed name' } } });
+    assert.equal(view.host.querySelector('#lv-edit-fullname').value, 'Refreshed name');
+    assert.equal(view.host.querySelector('.lv-unsaved-pill'), null);
+    await change(view.host, 'lv-edit-fullname', 'My unsaved draft');
+    await view.render({ ...props, session: { ...session, user: { ...profile, fullName: 'Another refresh' } } });
+    assert.equal(view.host.querySelector('#lv-edit-fullname').value, 'My unsaved draft');
+    assert.ok(view.host.querySelector('.lv-unsaved-pill'));
+  } finally { await view.close(); }
+});
+
+test('profile save aborts on unmount and ignores a late response', async () => {
+  let finish, signal;
+  const saved = [];
+  const view = await mount(EditProfile, { session, lang: 'en',
+    saveProfile: (_changes, options) => { signal = options.signal; return new Promise(resolve => { finish = resolve; }); },
+    onProfileSaved: user => saved.push(user) });
+  await change(view.host, 'lv-edit-fullname', 'Pending draft');
+  await submit(view.host);
+  await view.close();
+  assert.equal(signal.aborted, true);
+  await act(async () => finish({ ...profile, fullName: 'Late response' }));
+  assert.deepEqual(saved, []);
+});
+
+test('profile save rejects a receipt for another account without replacing the draft', async () => {
+  const saved = [];
+  const view = await mount(EditProfile, { session, lang: 'en',
+    saveProfile: async () => ({ ...profile, id: '33333333-3333-4333-8333-333333333333', fullName: 'Other user' }),
+    onProfileSaved: user => saved.push(user) });
+  try {
+    await change(view.host, 'lv-edit-fullname', 'My draft');
+    await submit(view.host);
+    assert.deepEqual(saved, []);
+    assert.equal(view.host.querySelector('#lv-edit-fullname').value, 'My draft');
+    assert.ok(view.host.querySelector('[role="alert"]'));
+    assert.equal(view.host.querySelector('button[type="submit"]').disabled, false);
+  } finally { await view.close(); }
+});

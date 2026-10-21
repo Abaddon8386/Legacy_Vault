@@ -4,7 +4,6 @@ import {
   User,
   Shield,
   AlertTriangle,
-  RotateCcw,
   Info,
   Lock,
 } from 'lucide-react';
@@ -42,6 +41,7 @@ export default function AccountEditPage({
   const currentUserId = session?.user?.id || (isDevPreviewActive ? 'dev-preview' : null);
   const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [fullName, setFullName] = useState(initialData?.fullName || '');
+  const [previousName, setPreviousName] = useState(initialData?.fullName || '');
   const [validationError, setValidationError] = useState(null);
   const [localPendingCancel, setLocalPendingCancel] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,8 +60,16 @@ export default function AccountEditPage({
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
     setFullName(initialData?.fullName || '');
+    setPreviousName(initialData?.fullName || '');
     setValidationError(null);
     setLocalPendingCancel(false);
+  } else if (previousName !== (initialData?.fullName || '')) {
+    // Refresh a clean form, but retain an unsaved draft for the same account.
+    setPreviousName(initialData?.fullName || '');
+    if (!isFormDirty(fullName, previousName)) {
+      setFullName(initialData?.fullName || '');
+      setValidationError(null);
+    }
   }
 
   const dirty = isFormDirty(fullName, initialData?.fullName);
@@ -99,11 +107,6 @@ export default function AccountEditPage({
     }
   };
 
-  // Reset form to initial session values (revert modifications, stay on page)
-  const handleReset = () => {
-    setFullName(initialData?.fullName || '');
-    setValidationError(null);
-  };
 
   // Cancel action: leave the page, prompt if dirty
   const handleCancelClick = () => {
@@ -142,13 +145,14 @@ export default function AccountEditPage({
     const controller = new AbortController(); requestRef.current = controller;
     const requestedId = initialData.id;
     try {
-      const user = readUser(await saveProfile({ fullName: fullName.trim() }, { signal: controller.signal }));
+      const response = await saveProfile({ fullName: fullName.trim() }, { signal: controller.signal });
       if (controller.signal.aborted || requestRef.current !== controller || activeScope.current !== saveScope) return;
+      const user = readUser(response);
       if (user.id !== requestedId) throw new Error('MISMATCHED_PROFILE');
       setFullName(user.fullName); setSaveFeedback('success');
       onProfileSaved?.(user);
     } catch {
-      if (!controller.signal.aborted) setSaveFeedback('error');
+      if (!controller.signal.aborted && requestRef.current === controller && activeScope.current === saveScope) setSaveFeedback('error');
     } finally {
       if (requestRef.current === controller) { pendingRef.current = false; requestRef.current = null; if (!controller.signal.aborted) setIsSaving(false); }
     }
@@ -266,7 +270,7 @@ export default function AccountEditPage({
               <p className="lv-form-help">{t.rolesHelp}</p>
             </div>
 
-            {/* Actions Bar: Cancel (Exit) vs Reset (Revert) vs Save (Disabled) */}
+            {/* Saving stays unavailable until a real save handler is supplied. */}
             <div className="lv-form-actions">
               <button
                 type="button"
@@ -276,17 +280,6 @@ export default function AccountEditPage({
                 aria-label={t.btnCancel}
               >
                 <span>{t.btnCancel}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn lv-btn-secondary"
-                onClick={handleReset}
-                disabled={!dirty || isSaving}
-                aria-label={t.btnReset}
-              >
-                <RotateCcw size={15} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
 
               <button

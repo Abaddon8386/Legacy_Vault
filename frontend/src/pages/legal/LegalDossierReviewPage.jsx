@@ -7,7 +7,6 @@ import {
   PauseCircle,
   RotateCcw,
   FileText,
-  RefreshCw,
   Clock,
 } from 'lucide-react';
 import {
@@ -68,12 +67,6 @@ export default function LegalDossierReviewPage({
 
   const handleNoteChange = (val) => {
     setNote(val);
-  };
-
-  const handleReset = () => {
-    setDecision('');
-    setNote('');
-    setErrors({});
   };
 
   const decisionOptions = [
@@ -270,15 +263,6 @@ export default function LegalDossierReviewPage({
               >
                 <CheckCircle2 size={16} aria-hidden="true" />
                 <span>{t.btnSubmitDecision}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 

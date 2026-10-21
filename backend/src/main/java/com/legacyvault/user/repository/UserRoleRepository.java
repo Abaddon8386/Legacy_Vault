@@ -18,4 +18,12 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UserRole.Use
     WHERE ur.user.userId = :userId
     """)
     List<UserRole> findByUserIdWithRole(@Param("userId") Long userId);
+
+    @Query("""
+    SELECT ur
+    FROM UserRole ur
+    JOIN FETCH ur.role
+    WHERE ur.user.userId IN :userIds
+    """)
+    List<UserRole> findByUserIdsWithRole(@Param("userIds") List<Long> userIds);
 }

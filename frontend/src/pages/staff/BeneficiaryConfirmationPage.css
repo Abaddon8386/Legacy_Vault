@@ -156,25 +156,7 @@
   background-color: #ffffff;
 }
 
-.lv-beneficiary-confirmation-view .lv-confirm-btn-reset {
-  height: 42px;
-  padding: 0 18px;
-  background-color: var(--lv-bg-muted, #efece6);
-  border: 1px solid var(--lv-border-subtle, #eae5dc);
-  border-radius: var(--lv-radius-md, 10px);
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--lv-text-body, #2b302c);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 0.2s ease;
-}
 
-.lv-beneficiary-confirmation-view .lv-confirm-btn-reset:hover {
-  background-color: #e4dfd7;
-}
 
 /* Table Design */
 .lv-beneficiary-confirmation-view .lv-confirm-table-wrapper {
@@ -338,8 +320,4 @@
     align-items: stretch;
   }
 
-  .lv-beneficiary-confirmation-view .lv-confirm-btn-reset {
-    width: 100%;
-    justify-content: center;
-  }
 }

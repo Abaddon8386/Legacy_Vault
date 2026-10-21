@@ -1,5 +1,36 @@
 # Quyết định API (Decision Log)
 
+## PS-86 — quyết định người dùng ngày 20/10/2026
+
+Người dùng xác nhận trong chat: đồng ý đề xuất mã mời; **dùng mã làm bằng chứng
+nhận lời mời, chưa thêm xác minh email hay OTP**. Ưu tiên PS-86, PS-80 chờ quyết định;
+triển khai/kiểm thử local, chưa push hoặc merge. Đây không phải biên bản nhóm phê duyệt
+payment hoặc cập nhật trạng thái Jira.
+
+- 128-bit CSPRNG, base64url 22 ký tự, 7 ngày UTC; DB hash-only, raw code chỉ ở response
+  cấp/cấp lại; Owner có thể thu hồi/cấp lại mã chưa dùng trong Vault ACTIVE.
+- Code possession không chứng minh danh tính pháp lý. Email không bắt buộc, không
+  so khớp/verify email; không thêm OTP, guest portal hay quyền đọc tài sản sớm.
+- Tạo Beneficiary rồi cấp mã theo ID đã lưu; không tạo lại người khi riêng bước cấp
+  mã thất bại. Cấp lại gửi generation hiện tại để chặn request stale/rotate hai lần.
+  Review 20/10 bổ sung generation bắt buộc cho DELETE để retry thu hồi không hủy mã vừa cấp lại.
+- Tài khoản mới theo mã chỉ thêm Beneficiary (PS-87); account cũ giữ role hợp lệ.
+  Không nhận role/accountId từ client. Account/link/role/consume/audit chung transaction.
+- Sau freeze không mở tự phục vụ mới; làm việc với Staff theo workflow hiện có.
+  Đổi email thu hồi mã chưa dùng; không tự hủy liên kết account.
+- Public signup/redeem và limiter do PS-87 tích hợp; trước khi mở phải có bộ đếm
+  dùng chung (5 lỗi/account/15 phút) và chốt trusted-source limit cho signup. PS-86
+  không mở route redeem hoặc tự thay Google login/FE.
+- Review 20/10 đồng bộ thứ tự khóa nhận mã và Staff link account có sẵn thành target
+  User → Vault (→ Case với Staff), theo User → Vault của Owner/quota writers. Recheck
+  Vault/Beneficiary/invitation sau khi chờ khóa; không giữ resource write lock trước seam.
+  Staff create cũng preflight rồi kiểm tra/tạo User trước Vault/Case, tránh đảo khóa
+  trên email unique index với signup-by-invitation; mọi lỗi final guard/audit rollback User mới.
+
+Contract và scope kiểm chứng: [beneficiary-invitations.md](beneficiary-invitations.md).
+Quyết định này mở rộng hạn chế onboarding "chỉ tại quầy" cũ của PS-20/PS-62/63,
+không thay các yêu cầu xác minh trực tiếp, Legal, handover, confirmation hoặc archive.
+
 > **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
 
 > **Cách đọc:** mục **ĐÃ CHỐT** là quyết định để FE/BE triển khai Sprint 1, do **Dương (điều phối PS-74) chốt ngày 2026-10-11**
@@ -55,6 +86,7 @@
 | D-API-36 | PS-41 / PS-42 / PS-43 | Hồ sơ căn cứ phân chia | **Giải quyết theo Main Flow v4.2 (ST-16..19) và D-LEGAL-002; chờ nhóm xác nhận.** (1) Hồ sơ do **Legal** tạo ở ST-16 kèm nhánh; Staff không bao giờ chọn nhánh (AC-L04). (2) "Chưa đủ thông tin" là `ON_HOLD`; hồ sơ `ON_HOLD` chưa nhận văn bản. (3) Tiến độ hồ sơ ở `legal_basis_dossiers.status`: `DRAFT` → `LEGAL_BASIS_PROVIDED` (ST-18) → `LEGAL_BASIS_FORWARDED` (ST-19). (4) ST-18 yêu cầu văn bản **được số hóa và có hash**: Staff tải file, server tính SHA-256, mã hóa, sinh `file_reference`; migration V14 thêm cột lưu file và `legal_basis_type`. (5) Mỗi ca một hồ sơ. (6) Vault: ST-15 `MATCH` → `WILL_VERIFICATION`; ST-16 → `AWAITING_LEGAL_BASIS`/`ON_HOLD`; ST-19 → `LEGAL_BASIS_VERIFICATION`. (7) Tranh chấp suy từ nhánh: NOTARIAL=`NONE`, COURT=`DISPUTED`, ON_HOLD=`UNDETERMINED`. (8) PS-43: chỉ hồ sơ `ON_HOLD` được phân loại lại sang NOTARIAL/COURT; NOTARIAL↔COURT không đổi lẫn nhau; lịch sử phân loại lưu ở `legal_basis_classification_history` (V15). (9) Văn bản NOTARIAL bắt buộc tổ chức, số và ngày công chứng. |
 | D-API-38 | PS-64 / PS-65 / PS-66 | Bàn giao tài sản tại quầy (ST-25) | **Giải quyết theo Main Flow v4.2 (ST-25, LV-HANDOVER-001); chờ nhóm xác nhận.** (1) Đơn vị bàn giao là dòng phân bổ (tài sản - người nhận) đã được Legal duyệt của phiên bản hồ sơ hiện tại; mỗi dòng chỉ giao một lần (`handover_items`). (2) Một tài sản có nhiều người nhận chỉ được coi là đã giao hết khi mọi dòng của tài sản đó đã giao; PS-68 cần roll-up theo quy tắc này. (3) Người nhận phải `VERIFIED_AT_COUNTER`; tài khoản (ST-24) chưa bắt buộc ở bước giao. (4) Lần giao đầu tiên chuyển Vault `UNLOCKED` → `HANDOVER_IN_PROGRESS`; mở phiên mới và lập biên nhận chấp nhận cả hai trạng thái. (5) Mọi thao tác bàn giao đi qua `HandoverAuthorizationGuard` (PS-66), không dựa riêng vào `UNLOCKED`. (6) `VERIFIED_BY_BENEFICIARY` chỉ dành cho PS-67; PS-64..66 không đặt giá trị này. |
 | D-API-37 | PS-62 / PS-63 | Tài khoản Beneficiary tại quầy (ST-24) | **Giải quyết theo Main Flow v4.2 (ST-24, LV-ID-001); chờ nhóm xác nhận.** (1) Chỉ Staff đã nhận ca `OPEN` của đúng kho; chỉ làm sau khi Beneficiary `VERIFIED_AT_COUNTER` (ST-14). (2) Liên kết: Staff nhập email của tài khoản có sẵn; tạo mới: Beneficiary tự chọn mật khẩu tại quầy, tài khoản `ACTIVE` ngay vì danh tính đã đối chiếu trực tiếp; không OTP/Claim Link/Guest Portal. (3) Cấp `ROLE_BENEFICIARY` cho tài khoản được liên kết (giữ vai trò khác như Owner nếu có). (4) Từ chối tài khoản Staff/Legal/Admin, Owner của chính kho, hoặc đã liên kết Beneficiary khác của cùng kho. (5) Hồ sơ Beneficiary độc lập với tài khoản; chưa có API hủy/đổi liên kết, chờ yêu cầu. |
+| D-API-39 | PS-88 | Dữ liệu tại quầy cho Beneficiary (ST-14, ST-24) | **Giải quyết theo Main Flow v4.2; chờ nhóm xác nhận.** (1) Staff chỉ đọc Beneficiary của ca `OPEN` được giao cho mình; không trả email, số điện thoại, số giấy tờ hay mã mời. (2) `counterStep` suy ra từ dữ liệu server: chờ xác minh tại quầy → chờ quyết định tài khoản → đã liên kết; `actions` chỉ là gợi ý, server kiểm tra lại. (3) Tài khoản không bắt buộc: bàn giao chỉ cần `VERIFIED_AT_COUNTER` (D-API-38), nên người nhận chọn xử lý offline không cần bản ghi riêng; chưa có API ghi nhận lựa chọn này. (4) Liên kết/tạo tại quầy thu hồi mã mời `PENDING` của Beneficiary đó. (5) Chưa idempotent khi liên kết lại cùng tài khoản: vẫn trả `BENEFICIARY_ACCOUNT_ALREADY_LINKED`. |
 
 ## C. Câu hỏi mở kế thừa từ tài liệu nghiệp vụ — **TẠM HOÃN** (2026-10-12)
 
@@ -143,3 +175,11 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 - PS-58 derives stale approval by comparing the current dossier snapshot in `LegalApprovalGuard`; it does not append a separate invalidation event. Confirm whether an explicit invalidation record is required for audit/reporting. Do not treat the derived guard as a persisted invalidation event.
 - Main Flow ST-28 requires a completed handover record signed by Staff and every Beneficiary. PS-61 `STAFF_ATTESTATION` represents Staff confirmation only. The group must decide the evidence/signature model and whether the receipt is issued before or after PS-71 closes the session. No electronic signature or Beneficiary signature is claimed by the current schema.
 - Main Flow ST-23 lists `IN_PERSON_PRESENT`, while PS-60 V24/runtime session states are `OPEN`, `COMPLETED`, and `CANCELLED`. Confirm whether this is a workflow milestone or a required persisted session status before changing the enum or migration.
+
+## PS-85 — Google account onboarding and linking
+
+- `POST /api/v1/auth/google` accepts only an ID token whose verified `sub` already maps to a LegacyVault account in `dbo.external_auth_identities`.
+- Unknown `sub` is rejected with generic `401 INVALID_CREDENTIALS`; no account is created and a matching email never links accounts.
+- `POST /api/v1/auth/google/link` lets an authenticated active user link a verified Google `sub` to their own account. It never links by email or creates an account; a subject already mapped to any account is rejected. This is the approved self-service linking path implemented in PS-85.
+- First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
+- Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.

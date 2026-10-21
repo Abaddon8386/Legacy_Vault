@@ -87,7 +87,7 @@ class LegalHoldSqlServerTest extends LegalBasisSqlServerSupport {
     void holdBeforeAnyDocumentRequiresFirstVersionAndRepeatedHoldDoesNotDuplicateHistory() {
         var f = fixture(true);
         context.getBean(BasisClassificationService.class).classify(f.publicCaseId(), f.legal(),
-                new ClassifyBasisRequest(ClassifyBasisRequest.Route.NOTARIAL, "No dispute at classification"));
+                new ClassifyBasisRequest(ClassifyBasisRequest.Route.COURT, "No dispute at classification"));
         var response = context.getBean(LegalBasisHoldService.class).hold(f.publicCaseId(), f.legal(),
                 new HoldBasisRequest(HoldBasisRequest.Cause.INSUFFICIENT_EVIDENCE, "More evidence needed"));
         assertEquals(1, response.requiredVersion());
