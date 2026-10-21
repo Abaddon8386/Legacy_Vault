@@ -4,6 +4,22 @@
 
 ## 1. Mô hình
 
+### Quyết định người dùng ngày 20/10/2026 — PS-88/95/96/97/100/101/102/104/105
+
+Legal duyệt phân bổ trước; approval và controlled unlock vẫn là hai bước riêng.
+Staff và người nhận bắt buộc gặp trực tiếp tại quầy, đối chiếu danh tính và ghi nhận
+chứng từ ký nhận; Legal không bắt buộc cùng có mặt. Mã/email chỉ liên kết tài khoản,
+không thay thế bàn giao hoặc ký nhận trực tiếp. Người nhận offline vẫn dùng chứng từ giấy.
+Staff không sửa phân bổ lúc giao. Căn cứ mới làm thay đổi phạm vi phải được Legal
+review/duyệt lại; giữ lịch sử nếu đã giao, không sửa ngầm hoặc tự thu hồi.
+
+FE không thêm field/checkbox làm bằng chứng thay BE. Contract hiện có dùng
+`VERIFIED_AT_COUNTER`, current approval/scope và `receiptReference` ở bước xác nhận;
+policy xác minh lại theo từng buổi và bằng chứng bổ sung chưa được chốt nên không tự đặt.
+Thứ tự kỹ thuật giữ nguyên: delivery → confirmation → đủ hai gate → close → Staff receipt → archive.
+Staff receipt sau close không phải bước ký nhận trực tiếp trước đó.
+Tài khoản chỉ đọc item đã DELIVERED đúng người; không thấy toàn kho, vẫn đọc sau archive.
+
 ST-25: Staff giao **đúng người, đúng tài sản** theo căn cứ (công chứng hoặc Tòa án) mà Legal đã duyệt. Trước mỗi lần giao hệ thống kiểm tra phê duyệt còn hiệu lực
 và không có hold; không bao giờ chỉ dựa vào trạng thái Vault `UNLOCKED` (AC-L07).
 

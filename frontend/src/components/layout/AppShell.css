@@ -664,7 +664,8 @@
 
 .lv-header-home-btn {
   width: auto;
-  min-width: 36px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 12px;
   gap: 8px;
   display: inline-flex;
@@ -683,7 +684,7 @@
     display: none;
   }
   .lv-header-home-btn {
-    width: 36px;
+    width: 44px;
     padding: 0;
     justify-content: center;
   }

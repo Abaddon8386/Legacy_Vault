@@ -4,7 +4,7 @@ import { SUBSCRIPTION_PLANS } from '../../utils/subscriptionPlans.js';
 import './LandingPage.css';
 
 export default function LandingPage({ onLogin, onRegister }) {
-  const [lang, setLang] = useState('vi');
+  const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const en = lang === 'en';
   return <div className="lv-landing">
     <header className="lv-landing-nav">

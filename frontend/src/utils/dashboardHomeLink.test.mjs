@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
+import { createSession, storeSession, readStoredSession } from './session.js';
 
 const dom = new JSDOM('<html><body></body></html>', { url: 'http://localhost:5195/vault' });
 globalThis.window = dom.window;
@@ -22,11 +23,11 @@ async function component(entry = 'src/components/layout/AppShell.jsx') {
       write: false,
       minify: false,
       lib: { entry, formats: ['es'] },
-      rollupOptions: { external: ['react', 'react/jsx-runtime'] }
+      rollupOptions: { external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'] }
     }
   });
   let code = (Array.isArray(result) ? result[0] : result).output.find(item => item.type === 'chunk' && item.isEntry).code;
-  for (const name of ['react', 'react/jsx-runtime']) {
+  for (const name of ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime']) {
     code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
   }
   return (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
@@ -172,4 +173,22 @@ test('Task 27: Staff and Legal portals MUST NOT contain Back to home link (regre
       await view.close();
     }
   }
+});
+
+test('App home navigation preserves authenticated session and landing language', async () => {
+  const App = await component('src/App.jsx');
+  const previous = globalThis.fetch;
+  const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Owner', email: 'owner@example.test', roles: ['VAULT_OWNER'] };
+  storeSession(createSession({ accessToken: 'isolated-fixture', tokenType: 'Bearer', expiresInSeconds: 3600, user }));
+  window.history.replaceState({}, '', '/account/profile?lang=en');
+  globalThis.fetch = async () => new Response(JSON.stringify(user), { headers: { 'Content-Type': 'application/json' } });
+  let view;
+  try {
+    view = await mount(App);
+    const home = view.host.querySelector('.lv-header-home-btn'); assert.ok(home);
+    await act(async () => home.click());
+    assert.equal(window.location.pathname, '/'); assert.equal(new URLSearchParams(window.location.search).get('lang'), 'en');
+    assert.match(view.host.querySelector('h1').textContent, /A lifetime of stories/);
+    assert.equal(readStoredSession().accessToken, 'isolated-fixture');
+  } finally { if (view) await view.close(); storeSession(null); globalThis.fetch = previous; }
 });
