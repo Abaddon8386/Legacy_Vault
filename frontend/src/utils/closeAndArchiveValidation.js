@@ -100,8 +100,12 @@ export function evaluateCloseArchivePreconditions(assetData = {}, beneficiaryDat
   const unmetConditions = [];
 
   // 1. Process Asset Delivery
-  const assetDelivered = normalizeSafeIntegerCount(assetData?.delivered);
-  const assetTotal = normalizeSafeIntegerCount(assetData?.total);
+  const assetDelivered = normalizeSafeIntegerCount(
+    assetData?.delivered ?? assetData?.deliveredCount ?? assetData?.completed
+  );
+  const assetTotal = normalizeSafeIntegerCount(
+    assetData?.total ?? assetData?.totalCount
+  );
 
   let isAssetValid = false;
   let isAssetComplete = false;
@@ -122,8 +126,12 @@ export function evaluateCloseArchivePreconditions(assetData = {}, beneficiaryDat
   }
 
   // 2. Process Beneficiary Confirmation
-  const benConfirmed = normalizeSafeIntegerCount(beneficiaryData?.confirmed);
-  const benTotal = normalizeSafeIntegerCount(beneficiaryData?.total);
+  const benConfirmed = normalizeSafeIntegerCount(
+    beneficiaryData?.confirmed ?? beneficiaryData?.confirmedCount ?? beneficiaryData?.completed
+  );
+  const benTotal = normalizeSafeIntegerCount(
+    beneficiaryData?.total ?? beneficiaryData?.totalCount
+  );
 
   let isBenValid = false;
   let isBenComplete = false;

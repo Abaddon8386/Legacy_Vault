@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useLayoutEffect, useRef } from 'react'
+import { AssetCredentialFields } from './AssetCredentialFields.jsx'
+import { credentialPayload } from '../../utils/credentialPayload.js'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
 import { AlertCircle, Lock, KeyRound, FileText } from 'lucide-react'
@@ -28,11 +30,20 @@ export function AssetEditModal({
   const [name, setName] = useState(asset?.name || '')
   const [description, setDescription] = useState(asset?.description || '')
   const [payload, setPayload] = useState('')
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const replacementPayload = asset?.assetType === 'CREDENTIAL' ? credentialPayload(credentials.username, credentials.password) : payload
   const [errors, setErrors] = useState({})
   const [password, setPassword] = useState('')
   const [verifying, setVerifying] = useState(false)
   const verification = useRef(null), pending = useRef(false)
-  useEffect(() => () => { verification.current?.abort() }, [asset?.id, isOpen])
+  useLayoutEffect(() => () => { verification.current?.abort(); verification.current = null; pending.current = false }, [asset?.id, isOpen, verifyPassword])
+  const [previous, setPrevious] = useState({ id: asset?.id, isOpen, verifyPassword })
+  if (previous.id !== asset?.id || previous.isOpen !== isOpen || previous.verifyPassword !== verifyPassword) {
+    if (previous.id !== asset?.id || previous.isOpen !== isOpen) {
+      setName(asset?.name || ''); setDescription(asset?.description || ''); setPayload(''); setCredentials({ username: '', password: '' })
+    }
+    setPrevious({ id: asset?.id, isOpen, verifyPassword }); setPassword(''); setVerifying(false); setErrors({})
+  }
   const busy = isSubmitting || verifying
   const canVerify = typeof verifyPassword === 'function'
 
@@ -61,7 +72,7 @@ export function AssetEditModal({
     const patchData = {}
     if (name.trim() !== asset.name) patchData.name = name.trim()
     if (description.trim() !== (asset.description || '')) patchData.description = description.trim()
-    if (payload.length) patchData.payload = payload
+    if (replacementPayload.length) patchData.payload = replacementPayload
     if (!Object.keys(patchData).length) {
       setErrors({ noChanges: true })
       return
@@ -71,17 +82,21 @@ export function AssetEditModal({
     if (!password) { setErrors({ password: 'required' }); return }
     pending.current = true; setVerifying(true)
     const controller = new AbortController(); verification.current = controller
+    let verified = false
     try {
       const confirmed = await verifyPassword(password, { signal: controller.signal })
       if (controller.signal.aborted) return
       if (confirmed !== true) throw new Error('REAUTH_FAILED')
+      verified = true
       setPassword('')
       await onSubmit(asset.id, patchData)
     } catch {
-      if (!controller.signal.aborted) { setErrors({ password: 'failed' }); setPassword('') }
+      if (!controller.signal.aborted) { setErrors(verified ? { save: true } : { password: 'failed' }); setPassword('') }
     } finally {
-      pending.current = false
-      if (!controller.signal.aborted) setVerifying(false)
+      if (verification.current === controller) {
+        verification.current = null; pending.current = false
+        if (!controller.signal.aborted) setVerifying(false)
+      }
     }
   }
 
@@ -89,6 +104,7 @@ export function AssetEditModal({
     if (busy) return
     setPayload('')
     setPassword('')
+    setCredentials({ username: '', password: '' })
     setErrors({})
     onClose()
   }
@@ -132,6 +148,7 @@ export function AssetEditModal({
 
         <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
+          {errors.save && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
           {errors.noChanges && <p className="lv-form-error" role="alert">{t.assets.editModal.noChangesError}</p>}
           {/* Read-only Asset Type */}
           <div className="lv-form-group">
@@ -186,9 +203,13 @@ export function AssetEditModal({
 
           {/* Confidential Payload (Write-Only, starts empty) */}
           <div className="lv-form-group">
-            <label htmlFor="edit-asset-payload" className="lv-form-label">
+            <label htmlFor={isCredential ? 'edit-credential-username' : 'edit-asset-payload'} className="lv-form-label">
               {t.assets.editModal.payloadLabel}
             </label>
+            {isCredential ? (
+              <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={isSubmitting}
+                onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, noChanges: false })); }} />
+            ) : (
             <textarea
               id="edit-asset-payload"
               rows={3}
@@ -198,6 +219,7 @@ export function AssetEditModal({
               onChange={(e) => { setPayload(e.target.value); if (errors.noChanges) setErrors(prev => ({ ...prev, noChanges: false })) }}
               disabled={busy}
             />
+            )}
             <span className="lv-form-hint">
               <Lock size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
               {t.assets.editModal.payloadHint}

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { validateLogin } from '../../utils/loginValidation.js';
-import { authenticateUser, getAuthMessage } from '../../utils/loginService.js';
+import { authenticateUser, authenticateWithGoogle, getAuthMessage } from '../../utils/loginService.js';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 import './LoginPage.css';
 
 const i18nContent = {
@@ -27,6 +29,8 @@ const i18nContent = {
     hidePassword: 'Ẩn mật khẩu',
     submitButton: 'Đăng nhập',
     submittingButton: 'Đang đăng nhập…',
+    orDivider: 'Hoặc',
+    googleSigningIn: 'Đang xác thực tài khoản Google…',
     signupPrompt: 'Chưa có tài khoản?',
     signupAction: 'Khởi tạo tài khoản cá nhân',
   },
@@ -53,18 +57,21 @@ const i18nContent = {
     hidePassword: 'Hide password',
     submitButton: 'Sign in',
     submittingButton: 'Signing in…',
+    orDivider: 'or',
+    googleSigningIn: 'Authenticating with Google…',
     signupPrompt: "Don't have an account?",
     signupAction: 'Create personal account',
   },
 };
+
 
 const initialForm = {
   email: '',
   password: '',
 };
 
-export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
-  const [lang, setLang] = useState('vi');
+export default function LoginPage({ onNavigateToRegister, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation }) {
+  const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -154,6 +161,48 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
       pendingRef.current = false;
       if (controllerRef.current === controller) controllerRef.current = null;
     }
+  };
+
+  const handleGoogleCredential = async (credentialResponse) => {
+    if (pendingRef.current || invitationMode) return;
+    pendingRef.current = true;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus('submitting');
+    setStatusMessage('');
+    setLastStatusCode(null);
+
+    try {
+      const response = await authenticateWithGoogle(
+        { credential: credentialResponse?.credential },
+        { signal: controller.signal, lang }
+      );
+      if (controller.signal.aborted) return;
+      await onAuthenticated?.(response, { signal: controller.signal, lang });
+      if (controller.signal.aborted) return;
+      setValues(initialForm);
+      setStatus('success');
+      setLastStatusCode(response.code || 'SUCCESS');
+      setStatusMessage(response.message);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      setStatus('failure');
+      const errCode = err?.code || 'GOOGLE_SIGNIN_UNAVAILABLE';
+      setLastStatusCode(errCode);
+      setStatusMessage(err.message || getAuthMessage(errCode, lang));
+    } finally {
+      pendingRef.current = false;
+      if (controllerRef.current === controller) controllerRef.current = null;
+    }
+  };
+
+  const handleGoogleError = (err) => {
+    if (status === 'submitting') return;
+    setStatus('failure');
+    const errCode = err?.code || 'GOOGLE_SCRIPT_LOAD_ERROR';
+    setLastStatusCode(errCode);
+    setStatusMessage(err.message || getAuthMessage(errCode, lang));
   };
 
   const handleRegisterClick = (e) => {
@@ -413,6 +462,24 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
             </button>
           </form>
 
+          {/* Divider: Hoặc / or */}
+          <div className="hn-login-divider hn-login-entrance-3" role="separator" aria-label={t.orDivider}>
+            <span>{t.orDivider}</span>
+          </div>
+
+          {/* Google Sign-in Section */}
+          <div className="hn-login-google-section hn-login-entrance-3">
+            <GoogleSignInButton
+              id="hn-login-google-btn"
+              disabled={status === 'submitting' || invitationMode}
+              lang={lang}
+              text="continue_with"
+              onCredentialReceived={handleGoogleCredential}
+              onError={handleGoogleError}
+            />
+          </div>
+
+
           {/* Status Alert Box */}
           {status !== 'idle' && status !== 'submitting' && (
             <div className={`hn-login-status-box ${status}`} role="status">
@@ -424,6 +491,7 @@ export default function LoginPage({ onNavigateToRegister, onAuthenticated }) {
           )}
 
           {/* Footer Info & Sign-up Link (Customer-facing, no RBAC note) */}
+          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} />
           <footer className="hn-login-form-footer hn-login-entrance-4">
             <div className="hn-login-signin-prompt">
               {t.signupPrompt}{' '}

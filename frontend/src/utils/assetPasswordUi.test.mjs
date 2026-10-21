@@ -67,3 +67,20 @@ test('Bug 11: duplicate clicks and late password verification after unmount cann
  await change(view.host,'edit-asset-name','New asset');await change(view.host,'edit-confirm-password','correct');await submit(view.host);await submit(view.host);assert.equal(calls,1);await view.close();assert.equal(signal.aborted,true);await act(async()=>finish(true));assert.equal(patches,0);
 });
 
+
+test('successful reauthentication followed by a save error is not reported as a password failure',async()=>{
+ const view=await mount(AssetEditModal,{isOpen:true,asset,t:ASSET_I18N.en,onClose(){},verifyPassword:async()=>true,onSubmit:async()=>{throw Error('offline');}});
+ try{await change(view.host,'edit-asset-name','Changed');await change(view.host,'edit-confirm-password','correct');await submit(view.host);
+ assert.match(view.host.querySelector('[role=alert]').textContent,/Unable to update asset/);
+ assert.doesNotMatch(view.host.querySelector('[role=alert]').textContent,/verify your password/);
+ }finally{await view.close();}
+});
+test('replacing the verification handler aborts old approval and clears the password',async()=>{
+ let finish,signal,patches=0;
+ const props={isOpen:true,asset,t:ASSET_I18N.en,onClose(){},verifyPassword:(_password,opts)=>{signal=opts.signal;return new Promise(resolve=>{finish=resolve;});},onSubmit:()=>patches++};
+ const view=await mount(AssetEditModal,props);
+ try{await change(view.host,'edit-asset-name','Changed');await change(view.host,'edit-confirm-password','correct');await submit(view.host);
+ await view.render({...props,verifyPassword:async()=>true});assert.equal(signal.aborted,true);
+ await act(async()=>finish(true));assert.equal(patches,0);assert.equal(view.host.querySelector('#edit-confirm-password').value,'');
+ }finally{await view.close();}
+});

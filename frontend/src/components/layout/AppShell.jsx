@@ -35,7 +35,7 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'assets',
     jiraTicket: 'PS-5',
-    labelVi: 'Danh mục tài sản di sản',
+    labelVi: 'Danh mục tài sản',
     labelEn: 'Heritage Assets',
     status: 'ACTIVE',
   },
@@ -78,7 +78,7 @@ const STAFF_NAVIGATION_REGISTRY = [
     labelEn: 'Asset Handover',
     status: 'ACTIVE',
   },
-  { id: 'beneficiary-confirmation', jiraTicket: 'PS-54', labelVi: 'Xác nhận người thụ hưởng', labelEn: 'Beneficiary Confirmation', status: 'ACTIVE' },
+  { id: 'beneficiary-confirmation', jiraTicket: 'PS-54', labelVi: 'Xác nhận đã nhận tài sản', labelEn: 'Asset receipt confirmation', status: 'ACTIVE' },
   { id: 'completion-progress', jiraTicket: 'PS-55', labelVi: 'Tiến độ hoàn tất', labelEn: 'Completion Progress', status: 'ACTIVE' },
   { id: 'close-and-archive', jiraTicket: 'PS-56', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive', status: 'ACTIVE' },
 ];
@@ -223,7 +223,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận người thụ hưởng' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
+        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận đã nhận tài sản' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -257,7 +257,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Beneficiary Confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
+        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Asset receipt confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
@@ -594,6 +594,73 @@ export default function AppShell({
                   </button>
                 </li>
 
+                {hasSession && <li role="none"><a role="menuitem" className="lv-account-menu-item"
+                  href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
+                  {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
+                </a></li>}
+                {hasSession && resolvedUser?.roles && (
+                  <>
+                    {!isBeneficiary && (resolvedUser.roles.includes('BENEFICIARY') || resolvedUser.roles.includes('ROLE_BENEFICIARY')) && (
+                      <li role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="lv-account-menu-item"
+                          onClick={() => {
+                            setIsAccountMenuOpen(false);
+                            setMobileMenuOpen(false);
+                            if (typeof onNavigateTab === 'function') onNavigateTab('beneficiary-home');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                          <span>{lang === 'en' ? 'Beneficiary Portal' : 'Cổng Người thụ hưởng'}</span>
+                        </button>
+                      </li>
+                    )}
+                    {isBeneficiary && resolvedUser.roles.includes('VAULT_OWNER') && (
+                      <li role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="lv-account-menu-item"
+                          onClick={() => {
+                            setIsAccountMenuOpen(false);
+                            setMobileMenuOpen(false);
+                            if (typeof onNavigateTab === 'function') onNavigateTab('vault');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <path d="M7 7h10v10H7z" />
+                          </svg>
+                          <span>{lang === 'en' ? 'Heritage Vault' : 'Kho di sản'}</span>
+                        </button>
+                      </li>
+                    )}
+                    {isBeneficiary && resolvedUser.roles.includes('STAFF_EXECUTOR') && (
+                      <li role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="lv-account-menu-item"
+                          onClick={() => {
+                            setIsAccountMenuOpen(false);
+                            setMobileMenuOpen(false);
+                            if (typeof onNavigateTab === 'function') onNavigateTab('cases');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                            <rect x="8" y="2" width="8" height="4" rx="1" />
+                          </svg>
+                          <span>{lang === 'en' ? 'Staff Portal' : 'Cổng Nhân viên'}</span>
+                        </button>
+                      </li>
+                    )}
+                  </>
+                )}
                 <li role="separator" className="lv-account-popover-divider" />
                 <li role="none">
                   <button

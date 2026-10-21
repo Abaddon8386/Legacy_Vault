@@ -1,0 +1,16 @@
+.lv-legal-live { max-width: 1040px; margin: 0 auto; color: var(--lv-text-body, #2b302c); display: grid; gap: 24px; min-width: 0; }
+.lv-legal-live h1, .lv-legal-live h2 { font-family: 'Playfair Display', Georgia, serif; color: var(--lv-brand-forest, #164639); }
+.lv-legal-live h1 { margin: 0; font-size: 28px; }
+.lv-legal-live h2 { font-size: 20px; }
+.lv-legal-live .lv-legal-live__card { background: var(--lv-bg-surface, white); padding: 24px; border: 1px solid var(--lv-border-subtle, #eae5dc); border-radius: 12px; min-width: 0; }
+.lv-legal-live label { display: grid; gap: 8px; margin: 16px 0; font-weight: 600; }
+.lv-legal-live select, .lv-legal-live textarea { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; padding: 12px; border: 1px solid var(--lv-border-medium, #ded9ce); border-radius: 8px; background: var(--lv-bg-surface, white); color: inherit; }
+.lv-legal-live textarea { min-height: 110px; resize: vertical; }
+.lv-legal-live button { font: inherit; min-height: 44px; border-radius: 8px; border: 1px solid var(--lv-border-medium, #ded9ce); padding: 10px 16px; cursor: pointer; color: var(--lv-brand-forest, #164639); background: var(--lv-bg-surface, white); }
+.lv-legal-live button[type=submit], .lv-legal-live [aria-current=step] { background: var(--lv-brand-forest, #164639); color: white; }
+.lv-legal-live button:disabled { opacity: .55; cursor: not-allowed; }
+.lv-legal-live :focus-visible { outline: 2px solid var(--lv-accent-gold, #c5a059); outline-offset: 3px; }
+.lv-legal-live nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.lv-legal-live p { line-height: 1.65; overflow-wrap: anywhere; }
+.lv-legal-live [role=alert], .lv-legal-live .lv-legal-live__notice { background: #fdf2f0; border-left: 4px solid #b5473f; border-radius: 8px; padding: 16px; }
+@media(max-width: 600px) { .lv-legal-live .lv-legal-live__card { padding: 16px; } .lv-legal-live h1 { font-size: 24px; } .lv-legal-live nav button { flex: 1 1 45%; } }

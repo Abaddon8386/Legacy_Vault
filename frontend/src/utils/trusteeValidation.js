@@ -70,10 +70,10 @@ export function validateTrustee(values = {}, lang = 'vi') {
     errors.phone = msgs.contactRequired;
     errors.email = msgs.contactRequired;
   } else {
-    if (trimmedEmail && !EMAIL_REGEX.test(trimmedEmail)) {
+    if (trimmedEmail && (trimmedEmail.length > 254 || !EMAIL_REGEX.test(trimmedEmail))) {
       errors.email = msgs.emailInvalid;
     }
-    if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
+    if (trimmedPhone && (trimmedPhone.length > 20 || !PHONE_REGEX.test(trimmedPhone))) {
       errors.phone = msgs.phoneInvalid;
     }
   }
