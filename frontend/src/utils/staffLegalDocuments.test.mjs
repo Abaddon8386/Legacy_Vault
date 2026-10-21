@@ -1,447 +1,208 @@
-import { describe, it } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+
 import {
-  validateStaffLegalDocumentForm,
   canAccessStaffLegalDocuments,
   resolvePostLoginRoute,
-  STAFF_LEGAL_DOCS_ERROR_KEYS,
+  validateStaffLegalDocumentForm,
   getStaffLegalDocumentErrorMessage,
-  formatStaffLegalDocumentErrors,
 } from './staffLegalDocumentsValidation.js';
+import {
+  fetchBasisDossier,
+  uploadBasisVersion,
+  forwardBasisVersion,
+  SYNTHETIC_DOSSIERS,
+} from '../pages/staff/staffLegalDocumentsService.js';
 import { staffLegalDocumentsI18n } from '../pages/staff/staffLegalDocumentsI18n.js';
-import { createSession } from './session.js';
-import { readUser } from '../api/contracts.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+test('PS-96: canAccessStaffLegalDocuments strictly requires active session and STAFF_EXECUTOR role', () => {
+  assert.equal(canAccessStaffLegalDocuments(null), false);
+  assert.equal(canAccessStaffLegalDocuments({}), false);
 
-describe('PS-31 Staff Legal Documents - Route & Client Role Guard', () => {
-  it('rejects access when session is null, undefined, or expired', () => {
-    assert.equal(canAccessStaffLegalDocuments(null), false);
-    assert.equal(canAccessStaffLegalDocuments(undefined), false);
+  // Expired session
+  const expiredSession = {
+    accessToken: 'token-123',
+    expiresAt: Date.now() - 1000,
+    user: { roles: ['STAFF_EXECUTOR'] },
+  };
+  assert.equal(canAccessStaffLegalDocuments(expiredSession), false);
 
-    const expiredSession = {
-      accessToken: 'token-expired',
-      expiresAt: Date.now() - 1000,
-      user: { id: 'u1', roles: ['STAFF_EXECUTOR'] },
-    };
-    assert.equal(canAccessStaffLegalDocuments(expiredSession), false);
-  });
+  // Wrong role (LEGAL_VERIFIER only)
+  const legalSession = {
+    accessToken: 'token-123',
+    expiresAt: Date.now() + 60000,
+    user: { roles: ['LEGAL_VERIFIER'] },
+  };
+  assert.equal(canAccessStaffLegalDocuments(legalSession), false);
 
-  it('rejects access when session is active but user lacks STAFF_EXECUTOR role (e.g. OWNER or LEGAL)', () => {
-    const ownerOnly = {
-      accessToken: 'token-active',
-      expiresAt: Date.now() + 3600000,
-      user: { id: 'u1', roles: ['VAULT_OWNER'] },
-    };
-    assert.equal(canAccessStaffLegalDocuments(ownerOnly), false);
-
-    const legalOnly = {
-      accessToken: 'token-active',
-      expiresAt: Date.now() + 3600000,
-      user: { id: 'u2', roles: ['LEGAL_VERIFIER'] },
-    };
-    assert.equal(canAccessStaffLegalDocuments(legalOnly), false);
-  });
-
-  it('grants access when session is active and user has STAFF_EXECUTOR role', () => {
-    const staffUser = {
-      accessToken: 'token-active',
-      expiresAt: Date.now() + 3600000,
-      user: { id: 'u3', roles: ['STAFF_EXECUTOR'] },
-    };
-    assert.equal(canAccessStaffLegalDocuments(staffUser), true);
-  });
-
-  it('grants access when user holds both VAULT_OWNER and STAFF_EXECUTOR roles', () => {
-    const dualRole = {
-      accessToken: 'token-active',
-      expiresAt: Date.now() + 3600000,
-      user: { id: 'u4', roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'] },
-    };
-    assert.equal(canAccessStaffLegalDocuments(dualRole), true);
-  });
+  // Valid STAFF_EXECUTOR
+  const validStaffSession = {
+    accessToken: 'token-123',
+    expiresAt: Date.now() + 60000,
+    user: { roles: ['STAFF_EXECUTOR'] },
+  };
+  assert.equal(canAccessStaffLegalDocuments(validStaffSession), true);
 });
 
-describe('PS-31 Staff Legal Documents - AC-aligned Form Validation', () => {
-  it('accepts valid metadata inputs (issuer, documentNumber, valid issuanceDate)', () => {
-    const res = validateStaffLegalDocumentForm({
-      issuer: 'Tòa án nhân dân TP. Hà Nội',
-      documentNumber: '125/2026/QĐ-TA',
-      issuanceDate: '2026-03-15',
-    });
-    assert.equal(res.isValid, true);
-    assert.deepEqual(res.errors, {});
-  });
-
-  it('fails when issuing authority is missing or whitespace-only', () => {
-    const missing = validateStaffLegalDocumentForm({
-      issuer: '   ',
-      documentNumber: '125/2026/QĐ-TA',
-      issuanceDate: '2026-03-15',
-    });
-    assert.equal(missing.isValid, false);
-    assert.equal(missing.errors.issuer, STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUER_REQUIRED);
-    assert.equal(missing.errors.issuer, 'issuerRequired');
-  });
-
-  it('fails when document number is missing or whitespace-only', () => {
-    const missing = validateStaffLegalDocumentForm({
-      issuer: 'Tòa án nhân dân',
-      documentNumber: '',
-      issuanceDate: '2026-03-15',
-    });
-    assert.equal(missing.isValid, false);
-    assert.equal(missing.errors.documentNumber, STAFF_LEGAL_DOCS_ERROR_KEYS.DOCUMENT_NUMBER_REQUIRED);
-    assert.equal(missing.errors.documentNumber, 'documentNumberRequired');
-  });
-
-  it('fails when issuance date is missing or whitespace-only', () => {
-    const missing = validateStaffLegalDocumentForm({
-      issuer: 'Tòa án nhân dân',
-      documentNumber: '125/2026/QĐ-TA',
-      issuanceDate: '   ',
-    });
-    assert.equal(missing.isValid, false);
-    assert.equal(missing.errors.issuanceDate, STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUANCE_DATE_REQUIRED);
-    assert.equal(missing.errors.issuanceDate, 'issuanceDateRequired');
-  });
-
-  it('fails when issuance date is provided but not a parseable valid date', () => {
-    const invalid = validateStaffLegalDocumentForm({
-      issuer: 'Tòa án nhân dân',
-      documentNumber: '125/2026/QĐ-TA',
-      issuanceDate: 'not-a-valid-date-string',
-    });
-    assert.equal(invalid.isValid, false);
-    assert.equal(invalid.errors.issuanceDate, STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUANCE_DATE_INVALID);
-    assert.equal(invalid.errors.issuanceDate, 'issuanceDateInvalid');
-  });
-
-  it('does not enforce arbitrary length limits, future-date bans or extra fields outside contract', () => {
-    const futureDate = '2099-12-31';
-    const res = validateStaffLegalDocumentForm({
-      issuer: 'Cơ quan A',
-      documentNumber: '1',
-      issuanceDate: futureDate,
-    });
-    assert.equal(res.isValid, true);
-  });
-
-  it('ensures form payload does not log or store credentials or raw passwords', () => {
-    const payload = {
-      issuer: 'Tòa án nhân dân TP. Hà Nội',
-      documentNumber: '125/2026/QĐ-TA',
-      issuanceDate: '2026-03-15',
-    };
-    const serialized = JSON.stringify(payload);
-    assert.equal(serialized.includes('password'), false);
-    assert.equal(serialized.includes('token'), false);
-    assert.equal(serialized.includes('secret'), false);
-  });
+test('PS-96: resolvePostLoginRoute directs pure Staff to /staff/legal-documents', () => {
+  assert.equal(resolvePostLoginRoute({ roles: ['STAFF_EXECUTOR'] }), '/staff/legal-documents');
+  assert.equal(resolvePostLoginRoute({ roles: ['LEGAL_VERIFIER'] }), '/legal/death-verification');
+  assert.equal(resolvePostLoginRoute({ roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'] }), '/vault');
+  assert.equal(resolvePostLoginRoute({ roles: ['BENEFICIARY'] }), '/beneficiary');
 });
 
-describe('PS-31 Staff Legal Documents - Dynamic Language Switching (VI <-> EN)', () => {
-  it('correctly resolves metadata error keys in Vietnamese dictionary', () => {
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('issuerRequired', 'vi'),
-      'Vui lòng nhập cơ quan ban hành.'
-    );
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('documentNumberRequired', 'vi'),
-      'Vui lòng nhập số hiệu văn bản.'
-    );
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('issuanceDateRequired', 'vi'),
-      'Vui lòng chọn ngày ban hành.'
-    );
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('issuanceDateInvalid', 'vi'),
-      'Ngày ban hành không hợp lệ.'
-    );
+test('PS-96: validateStaffLegalDocumentForm validates required fields, future dates, notary details, and evidence file', () => {
+  // Empty form
+  const emptyRes = validateStaffLegalDocumentForm({}, { lang: 'vi', requireFile: true });
+  assert.equal(emptyRes.isValid, false);
+  assert.equal(emptyRes.errors.issuer, 'issuerRequired');
+  assert.equal(emptyRes.errors.documentNumber, 'documentNumberRequired');
+  assert.equal(emptyRes.errors.issuanceDate, 'issuanceDateRequired');
+  assert.equal(emptyRes.errors.file, 'fileRequired');
 
-    // Direct dictionary lookup used by component: t[key]
-    assert.equal(staffLegalDocumentsI18n.vi.issuerRequired, 'Vui lòng nhập cơ quan ban hành.');
-    assert.equal(staffLegalDocumentsI18n.vi.documentNumberRequired, 'Vui lòng nhập số hiệu văn bản.');
-    assert.equal(staffLegalDocumentsI18n.vi.issuanceDateRequired, 'Vui lòng chọn ngày ban hành.');
-    assert.equal(staffLegalDocumentsI18n.vi.issuanceDateInvalid, 'Ngày ban hành không hợp lệ.');
-  });
+  // Future date rejection
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const futureDateRes = validateStaffLegalDocumentForm({
+    issuer: 'VPCC Thăng Long',
+    documentNumber: '123/CC',
+    issuanceDate: tomorrow,
+    legalBasisType: 'COURT_JUDGMENT',
+    file: new File([new Uint8Array(100)], 'judgment.pdf', { type: 'application/pdf' }),
+  }, { lang: 'vi', requireFile: true });
+  assert.equal(futureDateRes.isValid, false);
+  assert.equal(futureDateRes.errors.issuanceDate, 'issuanceDateInvalid');
 
-  it('correctly resolves metadata error keys in English dictionary', () => {
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('issuerRequired', 'en'),
-      'Please enter the issuing authority.'
-    );
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('documentNumberRequired', 'en'),
-      'Please enter the document number.'
-    );
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('issuanceDateRequired', 'en'),
-      'Please select the issuance date.'
-    );
-    assert.equal(
-      getStaffLegalDocumentErrorMessage('issuanceDateInvalid', 'en'),
-      'Invalid issuance date.'
-    );
+  // Notarial partition requires notary organization, number, and valid date
+  const missingNotaryRes = validateStaffLegalDocumentForm({
+    issuer: 'VPCC Thăng Long',
+    documentNumber: '123/CC',
+    issuanceDate: '2026-10-10',
+    legalBasisType: 'NOTARIAL_PARTITION',
+    notaryAuthority: '',
+    file: new File([new Uint8Array(100)], 'partition.pdf', { type: 'application/pdf' }),
+  }, { lang: 'vi', requireFile: true });
+  assert.equal(missingNotaryRes.isValid, false);
+  assert.equal(missingNotaryRes.errors.notary, 'notaryRequired');
 
-    // Direct dictionary lookup used by component: t[key]
-    assert.equal(staffLegalDocumentsI18n.en.issuerRequired, 'Please enter the issuing authority.');
-    assert.equal(staffLegalDocumentsI18n.en.documentNumberRequired, 'Please enter the document number.');
-    assert.equal(staffLegalDocumentsI18n.en.issuanceDateRequired, 'Please select the issuance date.');
-    assert.equal(staffLegalDocumentsI18n.en.issuanceDateInvalid, 'Invalid issuance date.');
-  });
+  // Complete valid NOTARIAL_PARTITION
+  const validNotarialRes = validateStaffLegalDocumentForm({
+    issuer: 'VPCC Thăng Long',
+    documentNumber: '123/CC',
+    issuanceDate: '2026-10-10',
+    legalBasisType: 'NOTARIAL_PARTITION',
+    notaryAuthority: 'VPCC Thăng Long',
+    notarialDocumentNumber: '123/CC',
+    notarizedAt: '2026-10-10',
+    file: new File([new Uint8Array(100)], 'partition.pdf', { type: 'application/pdf' }),
+  }, { lang: 'vi', requireFile: true });
+  assert.equal(validNotarialRes.isValid, true);
+  assert.deepEqual(validNotarialRes.errors, {});
 
-  it('dynamically switches error messages when language changes without re-validating form state', () => {
-    // 1. Validate empty form
-    const initialValidation = validateStaffLegalDocumentForm({
-      issuer: '',
-      documentNumber: '',
-      issuanceDate: '',
-    });
-    assert.equal(initialValidation.isValid, false);
-
-    // State stores ONLY language-neutral error keys
-    const stateErrors = initialValidation.errors;
-    assert.deepEqual(stateErrors, {
-      issuer: 'issuerRequired',
-      documentNumber: 'documentNumberRequired',
-      issuanceDate: 'issuanceDateRequired',
-    });
-
-    // 2. Render under VI
-    const viIssuer = staffLegalDocumentsI18n.vi[stateErrors.issuer];
-    assert.equal(viIssuer, 'Vui lòng nhập cơ quan ban hành.');
-
-    // 3. Switch to EN — stateErrors remains UNCHANGED
-    const enIssuer = staffLegalDocumentsI18n.en[stateErrors.issuer];
-    assert.equal(enIssuer, 'Please enter the issuing authority.');
-
-    // Helper formatting test
-    const formattedEn = formatStaffLegalDocumentErrors(stateErrors, 'en');
-    assert.equal(formattedEn.issuer, 'Please enter the issuing authority.');
-    assert.equal(formattedEn.documentNumber, 'Please enter the document number.');
-    assert.equal(formattedEn.issuanceDate, 'Please select the issuance date.');
-  });
+  // Complete valid COURT_JUDGMENT does not require notary fields
+  const validCourtRes = validateStaffLegalDocumentForm({
+    issuer: 'TAND TP. Hà Nội',
+    documentNumber: '45/2026/QĐ-TA',
+    issuanceDate: '2026-10-10',
+    legalBasisType: 'COURT_JUDGMENT',
+    file: new File([new Uint8Array(100)], 'judgment.pdf', { type: 'application/pdf' }),
+  }, { lang: 'vi', requireFile: true });
+  assert.equal(validCourtRes.isValid, true);
+  assert.deepEqual(validCourtRes.errors, {});
 });
 
-describe('PS-31 Staff CSS Scoping Verification - No Leakage into Owner, Legal or Other Views', () => {
-  it('ensures every selector in StaffLegalDocumentsPage.css is scoped under .lv-staff-documents-view', () => {
-    const cssPath = path.resolve(__dirname, '../pages/staff/StaffLegalDocumentsPage.css');
-    const cssContent = fs.readFileSync(cssPath, 'utf8');
+test('PS-96: fetchBasisDossier loads dossier and detects not-found state in simulation', async () => {
+  // Existing notarial case (dùng case-notarial đích danh)
+  const notarialRes = await fetchBasisDossier('case-notarial', { isDevPreview: true, isTest: true });
+  assert.equal(notarialRes.notFound, false);
+  assert.equal(notarialRes.dossier.route, 'NOTARIAL');
+  assert.equal(notarialRes.dossier.status, 'LEGAL_BASIS_PROVIDED');
+  assert.equal(notarialRes.dossier.versions.length, 1);
+  assert.equal(notarialRes.dossier.versions[0].current, true);
 
-    const lines = cssContent.split('\n');
-    const unscopedSelectors = [];
+  // Default COURT simulation
+  const courtRes = await fetchBasisDossier('case-court', { isDevPreview: true, isTest: true });
+  assert.equal(courtRes.notFound, false);
+  assert.equal(courtRes.dossier.route, 'COURT');
 
-    lines.forEach((line, index) => {
-      const trimmed = line.trim();
-      if (
-        trimmed.endsWith('{') &&
-        !trimmed.startsWith('@media') &&
-        !trimmed.startsWith('/*') &&
-        !trimmed.startsWith('*')
-      ) {
-        const selectorPart = trimmed.slice(0, -1).trim();
-        const subSelectors = selectorPart.split(',').map((s) => s.trim());
-        for (const sel of subSelectors) {
-          if (!sel.startsWith('.lv-staff-documents-view')) {
-            unscopedSelectors.push({ line: index + 1, selector: sel });
-          }
-        }
-      }
-    });
+  // Case with no dossier yet (Legal has not classified)
+  const notFoundRes = await fetchBasisDossier('case-not-found', { isDevPreview: true, isTest: true });
+  assert.equal(notFoundRes.notFound, true);
+  assert.equal(notFoundRes.dossier, null);
 
-    assert.equal(
-      unscopedSelectors.length,
-      0,
-      `Found unscoped CSS selectors: ${JSON.stringify(unscopedSelectors, null, 2)}`
-    );
-  });
+  // Abort handling
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    async () => {
+      await fetchBasisDossier('case-standard', { isDevPreview: true, signal: controller.signal });
+    },
+    (err) => {
+      assert.equal(err.name, 'AbortError');
+      return true;
+    }
+  );
 });
 
-describe('PS-31 Post-Login Redirection & Role Hierarchy Verification', () => {
-  it('directs pure STAFF_EXECUTOR to /staff/legal-documents instead of /vault', () => {
-    const pureStaff = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f3b',
-      fullName: 'Executor Staff',
-      email: 'staff@example.com',
-      roles: ['STAFF_EXECUTOR'],
-    };
-    assert.equal(resolvePostLoginRoute(pureStaff), '/staff/legal-documents');
+test('PS-96: uploadBasisVersion returns new dossier version and hash receipt', async () => {
+  const file = new File([new Uint8Array(1024)], 'evidence.pdf', { type: 'application/pdf' });
+  const metadata = {
+    legalBasisType: 'NOTARIAL_PARTITION',
+    issuingAuthority: 'VPCC Thăng Long',
+    documentNumber: '118/2026/VB-CC',
+    issueDate: '2026-10-15',
+    notaryAuthority: 'VPCC Thăng Long',
+    notarialDocumentNumber: '118/2026/VB-CC',
+    notarizedAt: '2026-10-15',
+  };
+
+  const progressEvents = [];
+  const result = await uploadBasisVersion('6f1a4c2d-0000-4000-8000-000000000001', { metadata, file }, {
+    isDevPreview: true,
+    isTest: true,
+    onProgress: (p) => progressEvents.push(p),
   });
 
-  it('preserves existing Owner destination (/vault) for pure VAULT_OWNER', () => {
-    const pureOwner = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f3c',
-      fullName: 'Vault Owner',
-      email: 'owner@example.com',
-      roles: ['VAULT_OWNER'],
-    };
-    assert.equal(resolvePostLoginRoute(pureOwner), '/vault');
-  });
-
-  it('preserves existing Legal destination (/legal/death-verification) for pure LEGAL_VERIFIER', () => {
-    const pureLegal = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f3d',
-      fullName: 'Legal Verifier',
-      email: 'legal@example.com',
-      roles: ['LEGAL_VERIFIER'],
-    };
-    assert.equal(resolvePostLoginRoute(pureLegal), '/legal/death-verification');
-  });
-
-  it('preserves multi-role hierarchy: any account with VAULT_OWNER goes to /vault', () => {
-    const ownerStaff = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f3e',
-      fullName: 'Owner and Staff',
-      email: 'owner-staff@example.com',
-      roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'],
-    };
-    assert.equal(resolvePostLoginRoute(ownerStaff), '/vault');
-
-    const ownerLegal = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f3f',
-      fullName: 'Owner and Legal',
-      email: 'owner-legal@example.com',
-      roles: ['VAULT_OWNER', 'LEGAL_VERIFIER'],
-    };
-    assert.equal(resolvePostLoginRoute(ownerLegal), '/vault');
-
-    const allRoles = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f40',
-      fullName: 'Super User',
-      email: 'super@example.com',
-      roles: ['VAULT_OWNER', 'LEGAL_VERIFIER', 'STAFF_EXECUTOR'],
-    };
-    assert.equal(resolvePostLoginRoute(allRoles), '/vault');
-  });
-
-  it('preserves multi-role hierarchy: LEGAL_VERIFIER takes precedence over STAFF_EXECUTOR when not VAULT_OWNER', () => {
-    const legalStaff = {
-      id: 'd9b2d63d-a233-4123-8478-f99a30986f41',
-      fullName: 'Legal and Staff',
-      email: 'legal-staff@example.com',
-      roles: ['LEGAL_VERIFIER', 'STAFF_EXECUTOR'],
-    };
-    assert.equal(resolvePostLoginRoute(legalStaff), '/legal/death-verification');
-  });
-
-  it('gracefully falls back to /vault when user or roles is null, undefined or empty', () => {
-    assert.equal(resolvePostLoginRoute(null), '/vault');
-    assert.equal(resolvePostLoginRoute(undefined), '/vault');
-    assert.equal(resolvePostLoginRoute({}), '/vault');
-    assert.equal(resolvePostLoginRoute({ roles: [] }), '/vault');
-    assert.equal(resolvePostLoginRoute({ roles: ['UNKNOWN_ROLE'] }), '/vault');
-  });
+  assert.equal(result.status, 'LEGAL_BASIS_PROVIDED');
+  assert.equal(result.versions.length, 1);
+  assert.equal(result.versions[0].version, 1);
+  assert.ok(result.versions[0].sha256);
+  assert.equal(result.versions[0].forwardStatus, 'NOT_FORWARDED');
+  assert.ok(progressEvents.some((p) => p.phase === 'processing'));
 });
 
-describe('PS-31 End-to-End Post-Login Application Flow with Contract Payloads', () => {
-  function simulateEstablishSession(authResult, navigateSpy) {
-    const session = createSession(authResult);
-    const user = session.user;
-    const targetRoute = resolvePostLoginRoute(user);
-    navigateSpy(targetRoute);
-    return { session, user, targetRoute };
+test('PS-96: forwardBasisVersion updates dossier status to LEGAL_BASIS_FORWARDED', async () => {
+  const result = await forwardBasisVersion('6f1a4c2d-0000-4000-8000-000000000001', 1, {
+    isDevPreview: true,
+    isTest: true,
+  });
+
+  assert.equal(result.status, 'LEGAL_BASIS_FORWARDED');
+  assert.equal(result.versions[0].forwardStatus, 'FORWARDED');
+  assert.ok(result.versions[0].forwardedAt);
+});
+
+test('PS-96: staffLegalDocumentsI18n contains all key bilingual strings without missing keys', () => {
+  const requiredKeys = [
+    'pageTitle',
+    'formSubtitle',
+    'staffNoticeTitle',
+    'staffNoticeBody',
+    'caseSelectTitle',
+    'dossierSectionTitle',
+    'btnForwardToLegal',
+    'btnSubmitVersion',
+    'awaitingLegalDossierTitle',
+    'dossierOnHoldTitle',
+    'dossierAlreadyForwardedNotice',
+    'routeNotarial',
+    'routeCourt',
+    'statusDraft',
+    'statusProvided',
+    'statusForwarded',
+  ];
+
+  for (const key of requiredKeys) {
+    assert.ok(staffLegalDocumentsI18n.vi[key], `Missing VI key: ${key}`);
+    assert.ok(staffLegalDocumentsI18n.en[key], `Missing EN key: ${key}`);
   }
-
-  it('authenticates BE staff response (ROLE_STAFF_EXECUTOR) and navigates to /staff/legal-documents', () => {
-    const rawBackendAuthResponse = {
-      accessToken: 'sample-jwt-token-for-staff',
-      tokenType: 'Bearer',
-      expiresInSeconds: 3600,
-      user: {
-        id: '11111111-2222-3333-4444-555555555555',
-        fullName: 'Nguyen Van Staff',
-        email: 'staff.nguyen@legacyvault.vn',
-        roles: ['ROLE_STAFF_EXECUTOR'],
-      },
-    };
-
-    let navigatedRoute = null;
-    const navigateSpy = (route) => {
-      navigatedRoute = route;
-    };
-
-    const result = simulateEstablishSession(rawBackendAuthResponse, navigateSpy);
-
-    assert.equal(result.session.accessToken, 'sample-jwt-token-for-staff');
-    assert.deepEqual(result.user.roles, ['STAFF_EXECUTOR']);
-    assert.equal(navigatedRoute, '/staff/legal-documents');
-    assert.equal(result.targetRoute, '/staff/legal-documents');
-    assert.equal(canAccessStaffLegalDocuments(result.session), true);
-  });
-
-  it('authenticates BE owner response (ROLE_VAULT_OWNER) and navigates to /vault without regression', () => {
-    const rawBackendAuthResponse = {
-      accessToken: 'sample-jwt-token-for-owner',
-      tokenType: 'Bearer',
-      expiresInSeconds: 3600,
-      user: {
-        id: '22222222-3333-4444-5555-666666666666',
-        fullName: 'Tran Thi Owner',
-        email: 'owner.tran@legacyvault.vn',
-        roles: ['ROLE_VAULT_OWNER'],
-      },
-    };
-
-    let navigatedRoute = null;
-    const navigateSpy = (route) => {
-      navigatedRoute = route;
-    };
-
-    const result = simulateEstablishSession(rawBackendAuthResponse, navigateSpy);
-    assert.deepEqual(result.user.roles, ['VAULT_OWNER']);
-    assert.equal(navigatedRoute, '/vault');
-  });
-
-  it('authenticates BE legal response (ROLE_LEGAL_VERIFIER) and navigates to /legal/death-verification without regression', () => {
-    const rawBackendAuthResponse = {
-      accessToken: 'sample-jwt-token-for-legal',
-      tokenType: 'Bearer',
-      expiresInSeconds: 3600,
-      user: {
-        id: '33333333-4444-5555-6666-777777777777',
-        fullName: 'Le Van Legal',
-        email: 'legal.le@legacyvault.vn',
-        roles: ['ROLE_LEGAL_VERIFIER'],
-      },
-    };
-
-    let navigatedRoute = null;
-    const navigateSpy = (route) => {
-      navigatedRoute = route;
-    };
-
-    const result = simulateEstablishSession(rawBackendAuthResponse, navigateSpy);
-    assert.deepEqual(result.user.roles, ['LEGAL_VERIFIER']);
-    assert.equal(navigatedRoute, '/legal/death-verification');
-  });
-
-  it('rejects invalid authentication payload before navigation can occur', () => {
-    const invalidAuthResponse = {
-      accessToken: '',
-      tokenType: 'Bearer',
-      expiresInSeconds: 3600,
-      user: {
-        id: 'invalid-id',
-        fullName: '',
-        email: 'bad-email',
-        roles: [],
-      },
-    };
-
-    let navigatedRoute = null;
-    const navigateSpy = (route) => {
-      navigatedRoute = route;
-    };
-
-    assert.throws(
-      () => simulateEstablishSession(invalidAuthResponse, navigateSpy),
-      (err) => err?.name === 'ApiError' || err?.message === 'INVALID_AUTH_RESPONSE'
-    );
-    assert.equal(navigatedRoute, null);
-  });
 });

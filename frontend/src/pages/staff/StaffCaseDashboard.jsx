@@ -51,6 +51,8 @@ export default function StaffCaseDashboard({
   initialVerifyCase = null,
   onSelectIntakeCase,
   onSelectVerifyCase,
+  caseId: propCaseId = null,
+  onSelectCase,
 }) {
   const t = getStaffCaseTranslations(lang);
   const simulation = isStaffSimulationPermitted({ accessToken, isDevPreview });
@@ -68,15 +70,29 @@ export default function StaffCaseDashboard({
   const [totalPages, setTotalPages] = useState(1);
   const [selectedCase, setSelectedCase] = useState(null);
   const [liveCaseId, setLiveCaseId] = useState(() => {
+    if (propCaseId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propCaseId)) {
+      return propCaseId;
+    }
     if (typeof window === 'undefined') return null;
     const id = new URLSearchParams(window.location.search).get('caseId');
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '') ? id : null;
   });
-  const openLiveCase = (id) => {
+
+  const [prevPropCaseId, setPrevPropCaseId] = useState(propCaseId);
+  if (propCaseId !== prevPropCaseId) {
+    setPrevPropCaseId(propCaseId);
+    if (propCaseId !== undefined && propCaseId !== null) {
+      const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propCaseId || '');
+      setLiveCaseId(valid ? propCaseId : null);
+    }
+  }
+
+  const openLiveCase = (id, caseItem = null) => {
     setLiveCaseId(id);
     const url = new URL(window.location.href);
     if (id) url.searchParams.set('caseId', id); else url.searchParams.delete('caseId');
     window.history.replaceState({}, '', url.pathname + url.search);
+    onSelectCase?.(caseItem || id || null);
   };
   const [activeIntakeCase, setActiveIntakeCase] = useState(() => {
     if (initialIntakeCase) return initialIntakeCase;
@@ -230,7 +246,7 @@ export default function StaffCaseDashboard({
   const authFeedback = staffAuthFeedback(error, lang);
   const isBackendNotReady = error?.code === 'BACKEND_NOT_READY';
 
-  if (!simulation && liveCaseId) return <StaffLiveCase key={`${accessToken}:${liveCaseId}`} caseId={liveCaseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} onBack={() => { openLiveCase(null); setRetry(r => r + 1); }} />;
+  if (!simulation && liveCaseId) return <StaffLiveCase key={`${accessToken}:${liveCaseId}`} caseId={liveCaseId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} onBack={() => { openLiveCase(null, null); setRetry(r => r + 1); }} />;
 
   if (activeIntakeCase && IntakePage) {
     return (
@@ -497,7 +513,7 @@ export default function StaffCaseDashboard({
                           variant="secondary"
                           size="sm"
                           className="lv-staff-view-btn"
-                          onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id)}
+                          onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id, c)}
                           aria-label={`${t.table.viewAction} ${c.caseNumber}`}
                         >
                           <Eye size={14} aria-hidden="true" />
@@ -593,7 +609,7 @@ export default function StaffCaseDashboard({
                       variant="secondary"
                       size="sm"
                       className="lv-staff-card__view-btn"
-                      onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id)}
+                      onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id, c)}
                       aria-label={`${t.table.viewAction} ${c.caseNumber}`}
                     >
                       <Eye size={15} aria-hidden="true" />

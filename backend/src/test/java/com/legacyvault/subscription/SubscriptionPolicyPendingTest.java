@@ -16,7 +16,7 @@ class SubscriptionPolicyPendingTest {
         var plans=mock(SubscriptionPlanRepository.class);
         var usage=mock(OwnerUsageRepository.class);
         var vaults=mock(VaultRepository.class);
-        var quotas=new OwnerQuotaService(locks,plans,usage,vaults);
+        var quotas=new OwnerQuotaService(locks,plans,usage,vaults,mock(com.legacyvault.subscription.repository.PaymentRepository.class));
         assertEquals(ErrorCode.SUBSCRIPTION_POLICY_PENDING,
             assertThrows(BusinessException.class,quotas::requirePrototypeEnabled).getErrorCode());
         assertDoesNotThrow(()->quotas.requireGrowth(1L,new QuotaPolicy.Delta(1,1)));

@@ -54,6 +54,8 @@ class AdminSubscriptionServiceTest {
 
     @Mock
     private AuditService auditService;
+    @Mock
+    private com.legacyvault.subscription.repository.PaymentRepository payments;
 
     private AdminSubscriptionService service;
 
@@ -65,7 +67,8 @@ class AdminSubscriptionServiceTest {
             userRepository,
             ownerUsageRepository,
             vaultRepository,
-            auditService
+            auditService,
+            payments
         );
     }
 

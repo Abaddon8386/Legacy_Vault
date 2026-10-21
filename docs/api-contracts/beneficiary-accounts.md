@@ -2,6 +2,12 @@
 
 # Tài khoản Beneficiary tại quầy — PS-62, PS-63 (ST-24, LV-ID-001)
 
+**Mở rộng 20/10/2026:** [PS-86](beneficiary-invitations.md) thêm mã mời do Owner cấp
+để onboarding trước khi tới quầy. Sở hữu mã là bằng chứng nhận lời mời, không thay
+identity verification hoặc quyền bàn giao. API quầy bên dưới giữ điều kiện cũ;
+PS-87 tích hợp auth riêng, không tự reuse luồng Staff cho self-service. Cả hai đường
+ghi đều khóa Vault và recheck `linked_user_id`, không ghi đè liên kết đã có.
+
 **Trạng thái:** đã triển khai. Các quyết định thiết kế ghi ở [D-API-37](open-decisions.md); đó là cách đọc Main Flow v4.2 và chờ nhóm xác nhận.
 
 ## 1. Mô hình
@@ -60,7 +66,12 @@ Staff chỉ thao tác khi đã nhận một ca `OPEN` của **đúng kho** chứ
 ## 4. Audit, khóa và dữ liệu
 
 - `BENEFICIARY_ACCOUNT_LINKED` (PS-62) hoặc `BENEFICIARY_ACCOUNT_CREATED` (PS-63), Step `ST-24`, Rule `LV-ID-001`; ghi ID công khai của Beneficiary và tài khoản, trạng thái trước/sau (`NOT_CREATED` → `ACCOUNT_CREATED`). **Không** ghi email, mật khẩu, số điện thoại hay số giấy tờ.
-- Thứ tự khóa: Vault → ca → Beneficiary (đọc lại sau khóa). Tạo tài khoản, cấp vai trò, liên kết và audit cùng một giao dịch.
+- Liên kết account có sẵn: preflight ca/identity, sau đó khóa target User → Vault → ca →
+  Beneficiary (đọc lại sau khóa); cùng User lock với PS-86 để tuần tự hóa cấp role.
+  Tạo account mới cũng preflight ca/identity trước, rồi kiểm tra/cấp User trước Vault →
+  ca → Beneficiary để không giữ Vault trong lúc chờ email unique index của signup khác.
+  Mọi điều kiện được recheck sau khóa; lỗi sau khi cấp User rollback cả User mới.
+  Tạo tài khoản, cấp vai trò, liên kết và audit cùng một giao dịch.
 - Migration `V26__beneficiary_account_link_uniqueness.sql`: chỉ mục duy nhất `(vault_id, linked_user_id)` khi đã liên kết (cùng tài khoản vẫn có thể là Beneficiary của kho khác) và ràng buộc giá trị `account_status`. Migration dừng với lỗi nếu dữ liệu hiện có vi phạm, không sửa hay xóa dòng nào.
 
 ## 5. Kiểm chứng và giới hạn

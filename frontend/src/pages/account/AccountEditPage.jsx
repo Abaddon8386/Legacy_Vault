@@ -3,7 +3,6 @@ import {
   User,
   Shield,
   AlertTriangle,
-  RotateCcw,
   Info,
   Lock,
 } from 'lucide-react';
@@ -83,11 +82,6 @@ export default function AccountEditPage({
     }
   };
 
-  // Reset form to initial session values (revert modifications, stay on page)
-  const handleReset = () => {
-    setFullName(initialData?.fullName || '');
-    setValidationError(null);
-  };
 
   // Cancel action: leave the page, prompt if dirty
   const handleCancelClick = () => {
@@ -242,16 +236,6 @@ export default function AccountEditPage({
                 <span>{t.btnCancel}</span>
               </button>
 
-              <button
-                type="button"
-                className="lv-btn lv-btn-secondary"
-                onClick={handleReset}
-                disabled={!dirty}
-                aria-label={t.btnReset}
-              >
-                <RotateCcw size={15} aria-hidden="true" />
-                <span>{t.btnReset}</span>
-              </button>
 
               <button
                 type="submit"

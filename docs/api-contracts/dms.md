@@ -1,5 +1,17 @@
 # Dead Man's Switch — PS-22, PS-23 (ST-06, ST-07, LV-DEATH-001)
 
+## PS-91 — quyết định người dùng 20/10/2026
+
+Cho phép chu kỳ **1–259.200 phút (180 ngày), kể cả phiên thật/production**. PUT `/api/v1/dms` nhận đúng một trong `{ "checkIntervalMinutes": 90 }` hoặc legacy `{ "checkIntervalDays": 30 }` (1–180 ngày, vẫn tôn trọng min/max ngày server nếu hẹp hơn). Không gửi cả hai, kể cả khi tương đương. Không nhận đơn vị khác, field lạ, key trùng, chuỗi, số thập phân hoặc overflow: 400 `MALFORMED_REQUEST`; thiếu/cả hai/âm/0/vượt ngưỡng: 400 `VALIDATION_FAILED`. Lỗi VI/EN dùng shared contract. Các phần mô tả chỉ dùng ngày bên dưới là contract lịch sử trước PS-91.
+
+Response thêm `checkIntervalMinutes` luôn là thời lượng chính xác. `checkIntervalDays` giữ số nguyên khi chia hết cho 1440, nếu không là **null**, không làm tròn. Ví dụ sau PUT 90 phút: `{ "status":"MONITORING", "checkIntervalDays":null, "checkIntervalMinutes":90, "gracePeriodDays":1, "nextCheckAt":"2026-10-20T09:30:00Z" }` nếu giờ server lúc lưu là 08:00Z; đây chỉ là trích response, các field owner/timestamps hiện hữu vẫn có. Client mới phải đọc phút; client cũ gửi ngày vẫn nhận ngày chính xác, nhưng không được ép null thành 0/1 ngày khi hồ sơ đã được client khác cấu hình phút.
+
+Cấu hình, check-in và Cancel Alert đều đặt lại deadline bằng **giờ server + đúng số phút**. Scheduler giữ nhịp quét hiện hành (mặc định 60 giây), xử lý tại/qua `nextCheckAt`, có thể trễ một nhịp quét hoặc lâu hơn khi backlog; không hứa timer đến đúng từng giây. Grace period, quyền, khóa Vault→DMS, audit/rollback và nguyên tắc quá hạn không xác nhận chết/không unlock không đổi.
+
+V36 chỉ ALTER schema, không UPDATE/backfill: giữ nguyên toàn bộ hàng cũ, cả archived và timestamps. Minutes NULL trong DB được đọc bằng ngày cũ ×1440; dữ liệu cũ trên 180 ngày vẫn đọc/check-in/cancel đúng thời lượng, chỉ request cấu hình mới chịu trần 180 ngày. Ràng buộc DB giữ đường insert legacy và chặn cặp ngày/phút bất nhất. Không sửa migration/checksum/history. V34 PS-86 và V35 PS-80 đang ở PR riêng; triển khai các version thấp trước V36, hoặc điều phối migration version mới, không bật out-of-order/repair tự động. Rollback phải giữ reader biết cột phút và ngày nullable, không quay về binary chỉ biết ngày khi đã có chu kỳ lẻ.
+
+PR BE bàn giao contract cho FE PS-91; không đổi mock thành live hoặc tự nối UI của người phụ trách khác.
+
 Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **tài khoản Owner** (mỗi Owner một DMS), nên đường dẫn là `/api/v1/dms` — Owner luôn lấy từ người đăng nhập, không có `ownerId`/`vaultId` trên URL hay trong request (trừ scheduler PS-23: tác vụ nội bộ).
 
 ## Nguyên tắc nghiệp vụ

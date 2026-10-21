@@ -1,5 +1,7 @@
 # Quyết định người dùng ngày 19/10/2026
 
+> PS-80 cập nhật 20/10/2026: giữ giá Free/499.000đ/999.000đ, tích hợp mua một lần qua VNPay sandbox theo [payments-vnpay.md](payments-vnpay.md). Phần payment chưa tích hợp bên dưới là lịch sử trước PS-80; `paymentAvailable` nay phụ thuộc cấu hình sandbox.
+
 Tài liệu này thay các quyết định giá tháng/prototype trước đó cho thay đổi đang triển khai; không cập nhật Jira theo yêu cầu người dùng.
 
 | Gói | Giá mua một lần | Số tài sản | Dung lượng |
