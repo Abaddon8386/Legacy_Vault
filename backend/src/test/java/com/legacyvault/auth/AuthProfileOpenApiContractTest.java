@@ -15,7 +15,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 class AuthProfileOpenApiContractTest {
 	@Test
-	void profilePatchContractOnlyAllowsNameAndPhoneAndDocumentsRejectedCredentialFields() throws Exception {
+	void profilePatchContractAllowsFourFieldsAndDocumentsReauthentication() throws Exception {
 		Path file = Path.of("docs/api-contracts/openapi.yaml");
 		if (!Files.exists(file)) file = Path.of("../docs/api-contracts/openapi.yaml");
 		LoaderOptions options = new LoaderOptions();
@@ -24,7 +24,7 @@ class AuthProfileOpenApiContractTest {
 		Map<?, ?> paths = (Map<?, ?>) root.get("paths");
 		Map<?, ?> authMe = (Map<?, ?>) paths.get("/api/v1/auth/me");
 		Map<?, ?> patch = (Map<?, ?>) authMe.get("patch");
-		assertTrue(((String) patch.get("description")).contains("không đổi email/password"));
+		assertTrue(((String) patch.get("description")).contains("reauthentication"));
 		Map<?, ?> requestBody = (Map<?, ?>) patch.get("requestBody");
 		Map<?, ?> content = (Map<?, ?>) requestBody.get("content");
 		Map<?, ?> json = (Map<?, ?>) content.get("application/json");
@@ -34,18 +34,20 @@ class AuthProfileOpenApiContractTest {
 		Map<?, ?> schemas = (Map<?, ?>) ((Map<?, ?>) root.get("components")).get("schemas");
 		Map<?, ?> update = (Map<?, ?>) schemas.get("ProfileUpdateRequest");
 		Map<?, ?> properties = (Map<?, ?>) update.get("properties");
-		assertEquals(Set.of("fullName", "phoneNumber"), properties.keySet());
+		assertEquals(Set.of("fullName", "phoneNumber", "email", "password", "currentPassword"), properties.keySet());
 		assertEquals(Boolean.FALSE, update.get("additionalProperties"));
 		Map<?, ?> responses = (Map<?, ?>) patch.get("responses");
 		Map<?, ?> badRequest = (Map<?, ?>) responses.get("400");
 		assertTrue(((String) badRequest.get("description")).contains("MALFORMED_REQUEST"));
-		assertTrue(!responses.containsKey("409"));
+		assertTrue(responses.containsKey("403"));
+		assertTrue(responses.containsKey("409"));
+		assertTrue(responses.containsKey("429"));
 
 		Path authDoc = Path.of("docs/api-contracts/auth.md");
 		if (!Files.exists(authDoc)) authDoc = Path.of("../docs/api-contracts/auth.md");
 		String authContract = Files.readString(authDoc);
-		assertTrue(authContract.contains("chỉ cập nhật `fullName` và `phoneNumber`"));
-		assertTrue(authContract.contains("JwtAuthenticationFilter` đối chiếu version với DB"));
+		assertTrue(authContract.contains("`fullName`, `email`, `phoneNumber`, `password`"));
+		assertTrue(authContract.contains("theo `JwtAuthenticationFilter`"));
 		assertTrue(authContract.contains("JWT cũ bị từ chối"));
 		assertTrue(!authContract.contains("Password mới không làm mất hiệu lực JWT"));
 	}

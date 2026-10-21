@@ -21,17 +21,24 @@ class ProfileUpdateRequestTest {
         bad.setFullName("  ");
         bad.setPhoneNumber("abc");
         assertThat(validator.validate(bad)).hasSize(2);
+
+        ProfileUpdateRequest badEmail = new ProfileUpdateRequest();
+        badEmail.setEmail("not-an-email");
+        assertThat(validator.validate(badEmail)).isNotEmpty();
     }
 
     @Test
-    void acceptsOnlyFullNameAndPhoneNumberAndRejectsEmailPasswordAndOtherFields() throws Exception {
+    void acceptsFourMutableFieldsAndReauthenticationProofButRejectsInternalFields() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         ProfileUpdateRequest request = mapper.readValue(
-                "{\"fullName\":\"New Name\",\"phoneNumber\":\"+84900000000\"}", ProfileUpdateRequest.class);
+                "{\"fullName\":\"New Name\",\"phoneNumber\":\"+84900000000\",\"email\":\"new@example.test\",\"password\":\"NewPassword123\",\"currentPassword\":\"CurrentPass123\"}", ProfileUpdateRequest.class);
         assertThat(request.getFullName()).isEqualTo("New Name");
         assertThat(request.getPhoneNumber()).isEqualTo("+84900000000");
+        assertThat(request.getEmail()).isEqualTo("new@example.test");
+        assertThat(request.getPassword()).isEqualTo("NewPassword123");
+        assertThat(request.getCurrentPassword()).isEqualTo("CurrentPass123");
 
-        for (String forbidden : new String[] {"email", "password", "role", "userId"}) {
+        for (String forbidden : new String[] {"id", "roles", "authVersion", "password_login_enabled", "status"}) {
             assertThatThrownBy(() -> mapper.readValue("{\"" + forbidden + "\":\"attacker-value\"}",
                     ProfileUpdateRequest.class))
                     .as("reject %s from PS-79", forbidden)

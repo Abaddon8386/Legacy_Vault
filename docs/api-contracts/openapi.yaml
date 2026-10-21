@@ -1016,16 +1016,20 @@ paths:
       tags: [Auth]
       summary: Cập nhật hồ sơ của người đăng nhập (PS-79)
       description: >
-        PS-79 chỉ cập nhật partial các trường fullName và phoneNumber. Danh tính lấy từ principal.
-        email và password cùng mọi field ngoài whitelist bị từ chối. API này không đổi email/password;
-        các luồng tương ứng cần reauthentication và task/flow riêng. Password recovery dùng PS-112.
+        PS-79 cập nhật partial fullName, email, phoneNumber và password. Danh tính lấy từ principal.
+        currentPassword chỉ là bằng chứng reauthentication, không được lưu; chỉ gửi field này khi email hoặc password
+        thực sự thay đổi. Dùng PasswordReauthService và giới hạn REAUTH_FAILED hiện hành.
+        Email mới được chuẩn hóa chữ thường và email_verified_at bị xóa vì repository chưa có email verification flow.
+        Password phải theo PasswordPolicy, được hash và tăng authVersion trong cùng transaction; JWT cũ bị từ chối
+        ở request kế tiếp. Tài khoản password_login_enabled=0 không thể reauthenticate bằng password. Mọi field khác
+        ngoài whitelist bị từ chối bằng MALFORMED_REQUEST.
       x-status: implemented
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
-            example: { fullName: Nguyen Van A, phoneNumber: '+84900000000' }
+            example: { fullName: Nguyen Van A, phoneNumber: '+84900000000', email: new@example.test, password: 'NewPassword123', currentPassword: 'CurrentPassword123' }
       responses:
         '200':
           description: Hồ sơ đã cập nhật
@@ -1033,11 +1037,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ProfileResponse' }
         '400':
-          description: VALIDATION_FAILED for field constraints; MALFORMED_REQUEST for email, password or unknown fields
+          description: VALIDATION_FAILED for profile constraints/password policy; MALFORMED_REQUEST for unsupported fields or missing reauthentication proof
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ReauthenticationFailed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /api/v1/vaults:
     post:
@@ -3335,6 +3342,11 @@ components:
             path: /api/v1/vaults
             traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10
             errors: []
+    ReauthenticationFailed:
+      description: REAUTH_FAILED — mật khẩu hiện tại không hợp lệ cho thao tác nhạy cảm
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
     NotFound:
       description: RESOURCE_NOT_FOUND — không tồn tại hoặc không thuộc quyền người gọi (D-API-07)
       content:
@@ -3346,7 +3358,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
     Conflict:
-      description: Xung đột trạng thái/dữ liệu (VAULT_NOT_EDITABLE, TRUSTEE_ALREADY_EXISTS, DMS_NOT_MONITORING, ASSET_QUOTA_EXCEEDED, STORAGE_QUOTA_EXCEEDED)
+      description: Xung đột trạng thái/dữ liệu (gồm EMAIL_ALREADY_EXISTS)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
@@ -3915,6 +3927,9 @@ components:
       properties:
         fullName: { type: string, minLength: 1, maxLength: 150 }
         phoneNumber: { type: string, pattern: '^$|^\\+?[0-9]{8,15}$', nullable: true }
+        email: { type: string, format: email, maxLength: 254, nullable: true }
+        password: { type: string, minLength: 8, maxLength: 72, nullable: true, description: New password; must meet PasswordPolicy and is never returned. }
+        currentPassword: { type: string, writeOnly: true, description: Required only when email or password changes; used only for PasswordReauthService. }
     ProfileResponse:
       type: object
       required: [id, fullName, email, roles]

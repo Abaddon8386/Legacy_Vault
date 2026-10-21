@@ -91,14 +91,15 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 
 ## PATCH /api/v1/auth/me — PS-79
 
-- **Quyền:** đã đăng nhập; chỉ cập nhật tài khoản trong principal hiện hành, không nhận ID/role từ request.
-- **Phạm vi PS-79:** chỉ cập nhật `fullName` và `phoneNumber`. Email/password và mọi field ngoài whitelist bị từ chối; không có endpoint đổi email hoặc đổi password trong PS-79. Thay đổi này có thể khiến client cũ gửi email/password nhận `400 MALFORMED_REQUEST`.
-- **Request:** partial JSON; trường bỏ qua hoặc `null` không đổi. `phoneNumber: ""` xóa số điện thoại. Tên 1–150 ký tự; phone theo quy ước đăng ký (8–15 chữ số, `+` tùy chọn).
-- **Response 200:** cùng whitelist với GET `/me`; response không chứa credential.
-- Email/password không được đổi qua PS-79. Nếu bổ sung luồng đổi email/password, cần task riêng và xác nhận mật khẩu hiện tại qua `PasswordReauthService` (bộ đếm `REAUTH_FAILED`, giới hạn 5 lần/15 phút). Google-only với `password_login_enabled=0` không được cấp password login qua reauthentication; recovery PS-112 loại trừ tài khoản này.
-- Password recovery PS-112 tăng `authVersion` trong cùng transaction với cập nhật password. JWT mới mang version hiện hành; `JwtAuthenticationFilter` đối chiếu version với DB ở mỗi request, vì vậy JWT cũ bị từ chối. PS-79 không đổi password và không thay đổi `authVersion`.
-- **Lỗi:** `400 VALIDATION_FAILED` (vi phạm validation của `fullName`/`phoneNumber`), `400 MALFORMED_REQUEST` (email/password hoặc field không được phép), `401 UNAUTHENTICATED`.
-- Cập nhật tên/số điện thoại ghi `AUTH_PROFILE_UPDATED` với tên trường thay đổi, không ghi giá trị. Actor lấy từ principal đã xác thực. Audit nằm trong transaction cập nhật theo `LV-AUD-001`; lỗi ghi audit làm rollback cập nhật.
+- **Quyền:** đã đăng nhập; chỉ cập nhật tài khoản trong principal hiện hành. Không nhận ID, role hay trạng thái từ request.
+- **Trường cập nhật:** partial JSON nhận `fullName`, `email`, `phoneNumber`, `password`. Field khác (kể cả `id`, `roles`, `authVersion`, `password_login_enabled`, `status`) bị từ chối với `400 MALFORMED_REQUEST`. Trường bỏ qua/null không đổi; object không có thay đổi là no-op. `phoneNumber: ""` xóa số điện thoại.
+- **Validation:** tên 1–150 ký tự; phone 8–15 chữ số, `+` tùy chọn; email hợp lệ tối đa 254 ký tự và chuẩn hóa lowercase; password theo `PasswordPolicy` (8–72 ký tự/byte UTF-8, không NUL, Unicode hợp lệ).
+- **Reauthentication:** khi email thực sự đổi hoặc có password mới, request phải kèm `currentPassword`. Nếu không đổi email/password thì không gửi field này. Server dùng `PasswordReauthService`; sai mật khẩu ghi `REAUTH_FAILED` và áp dụng giới hạn hiện hành (mặc định 5 lần/15 phút, 429 `TOO_MANY_ATTEMPTS`). Thiếu bằng chứng trả `400 MALFORMED_REQUEST`; sai trả `403 REAUTH_FAILED`. Không cần reauth cho tên/số điện thoại. `currentPassword` chỉ được dùng xác minh, không lưu hoặc trả về.
+- **Email:** kiểm tra trùng trước cập nhật và unique constraint `UQ_users_email` là chốt cuối khi có request đồng thời; trùng trả `409 EMAIL_ALREADY_EXISTS`. Codebase hiện không có email verification flow; khi đổi địa chỉ, `email_verified_at` được xóa để không mang bằng chứng cũ sang địa chỉ mới.
+- **Password:** mã hóa bằng encoder hiện hành. Tài khoản `password_login_enabled=0` không vượt qua reauthentication bằng password và không bị bật password login. Đổi password tăng `authVersion` trong cùng transaction với cập nhật password/audit; JWT cũ bị từ chối tại request kế tiếp theo `JwtAuthenticationFilter`. Không thay đổi recovery flow PS-112.
+- **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles" }`; không chứa password, hash, currentPassword hay token.
+- **Lỗi:** `400 VALIDATION_FAILED` hoặc `MALFORMED_REQUEST`, `401 UNAUTHENTICATED`, `403 REAUTH_FAILED`, `409 EMAIL_ALREADY_EXISTS`, `429 TOO_MANY_ATTEMPTS`.
+- Cập nhật ghi `AUTH_PROFILE_UPDATED` với kết quả và tên trường thay đổi, không ghi giá trị. Actor lấy từ principal. Audit và thay đổi profile cùng transaction theo `LV-AUD-001`; lỗi audit làm rollback cập nhật.
 
 ## Bảo mật & RBAC — PS-11
 
