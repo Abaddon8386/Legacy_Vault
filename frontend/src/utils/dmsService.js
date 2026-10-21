@@ -214,9 +214,17 @@ export function validateDmsInterval(intervalInput, lang = 'vi') {
 
 export function formatDmsInterval(dmsData, lang = 'vi') {
   if (!dmsData) return lang === 'vi' ? 'Chưa cấu hình' : 'Not configured';
-  const d = dmsData.checkIntervalDays || 0;
-  const h = dmsData.checkIntervalHours || 0;
-  const m = dmsData.checkIntervalMinutes || 0;
+  let d = dmsData.days ?? (dmsData.checkIntervalDays || 0);
+  let h = dmsData.hours ?? (dmsData.checkIntervalHours || 0);
+  let m = dmsData.minutes !== undefined ? dmsData.minutes : (dmsData.checkIntervalMinutes || 0);
+
+  if (dmsData.minutes === undefined && dmsData.checkIntervalHours === undefined && dmsData.checkIntervalMinutes != null && m >= 60) {
+    const total = dmsData.checkIntervalMinutes;
+    d = Math.floor(total / 1440);
+    const rem = total % 1440;
+    h = Math.floor(rem / 60);
+    m = rem % 60;
+  }
 
   const parts = [];
   if (d > 0) {
@@ -466,26 +474,73 @@ export const mockDmsAdapter = {
 // LIVE ADAPTER (Connects to Spring Boot Backend API)
 // ============================================================================
 export function readDms(raw, options = {}) {
+  const hasMinutes = Object.hasOwn(raw ?? {}, 'checkIntervalMinutes');
+  const validDays = Number.isSafeInteger(raw?.checkIntervalDays) && raw.checkIntervalDays > 0;
+  const totalMinutes = hasMinutes ? raw.checkIntervalMinutes : (validDays ? raw.checkIntervalDays * 1440 : NaN);
+  const validDuration = Number.isSafeInteger(totalMinutes) && totalMinutes > 0 &&
+    (hasMinutes
+      ? (totalMinutes % 1440 === 0
+        ? validDays && raw.checkIntervalDays === totalMinutes / 1440
+        : raw.checkIntervalDays === null)
+      : validDays);
   if (!isUuid(raw?.ownerId) || (options.ownerId && raw.ownerId !== options.ownerId) ||
-      !['MONITORING', 'TRIGGERED', 'GRACE_PERIOD_EXCEEDED'].includes(raw.status) ||
-      !Number.isSafeInteger(raw.checkIntervalDays) || raw.checkIntervalDays <= 0 ||
+      !['MONITORING', 'TRIGGERED', 'GRACE_PERIOD_EXCEEDED'].includes(raw.status) || !validDuration ||
       !Number.isSafeInteger(raw.gracePeriodDays) || raw.gracePeriodDays <= 0 || !isUtcDate(raw.nextCheckAt) ||
       ['lastCheckInAt', 'triggeredAt', 'graceDeadline', 'updatedAt'].some(key => raw[key] != null && !isUtcDate(raw[key]))) {
     throw new ApiError('INVALID_RESPONSE');
   }
-  return { ownerId: raw.ownerId, status: raw.status, checkIntervalDays: raw.checkIntervalDays,
-    gracePeriodDays: raw.gracePeriodDays, nextCheckAt: raw.nextCheckAt,
-    lastCheckInAt: raw.lastCheckInAt ?? null, triggeredAt: raw.triggeredAt ?? null,
-    graceDeadline: raw.graceDeadline ?? null, updatedAt: raw.updatedAt ?? null, isSimulation: false };
+
+  const days = Math.floor(totalMinutes / 1440);
+  const rem = totalMinutes % 1440;
+  const hours = Math.floor(rem / 60);
+  const minutes = rem % 60;
+
+  return {
+    ownerId: raw.ownerId,
+    status: raw.status,
+    checkIntervalDays: raw.checkIntervalDays !== undefined ? raw.checkIntervalDays : (rem === 0 ? days : null),
+    checkIntervalHours: hours,
+    checkIntervalMinutes: minutes,
+    checkIntervalTotalMinutes: totalMinutes,
+    days,
+    hours,
+    minutes,
+    gracePeriodDays: raw.gracePeriodDays,
+    nextCheckAt: raw.nextCheckAt,
+    lastCheckInAt: raw.lastCheckInAt ?? null,
+    triggeredAt: raw.triggeredAt ?? null,
+    graceDeadline: raw.graceDeadline ?? null,
+    updatedAt: raw.updatedAt ?? null,
+    isSimulation: false,
+  };
 }
 export const liveDmsAdapter = {
   async fetch(options = {}) {
     try { return readDms(await request('/dms', { ...options, expectedStatus: 200 }), options); }
     catch (error) { if (error.status === 404 && error.code === 'RESOURCE_NOT_FOUND') return null; throw error; }
   },
-  async save(days, options = {}) {
-    const result = readDms(await request('/dms', { ...options, method: 'PUT', expectedStatus: 200,
-      body: { checkIntervalDays: days } }), options);
+  async save(payloadOrDays, options = {}) {
+    let body;
+    if (typeof payloadOrDays === 'object' && payloadOrDays !== null) {
+      if ('checkIntervalMinutes' in payloadOrDays) {
+        body = { checkIntervalMinutes: payloadOrDays.checkIntervalMinutes };
+      } else if ('checkIntervalDays' in payloadOrDays) {
+        body = { checkIntervalDays: payloadOrDays.checkIntervalDays };
+      } else {
+        const d = Number(payloadOrDays.days || 0);
+        const h = Number(payloadOrDays.hours || 0);
+        const m = Number(payloadOrDays.minutes || 0);
+        const total = d * 1440 + h * 60 + m;
+        if (h > 0 || m > 0 || total % 1440 !== 0) {
+          body = { checkIntervalMinutes: total };
+        } else {
+          body = { checkIntervalDays: d };
+        }
+      }
+    } else {
+      body = { checkIntervalDays: Number(payloadOrDays) };
+    }
+    const result = readDms(await request('/dms', { ...options, method: 'PUT', expectedStatus: 200, body }), options);
     if (result.status !== 'MONITORING') throw new ApiError('INVALID_RESPONSE');
     return result;
   },
@@ -540,7 +595,6 @@ export async function fetchDmsConfig(options = {}) {
  */
 export async function saveDmsConfig(input = {}, options = {}) {
   const lang = options.lang || 'vi';
-  const msgs = dmsStatusMessages[lang] || dmsStatusMessages.vi;
 
   const isDurationObject =
     typeof input === 'object' &&
@@ -586,17 +640,14 @@ export async function saveDmsConfig(input = {}, options = {}) {
     return options.isTest ? updated : writePreviewSchedule(scenario, updated);
   }
 
-  // Live adapter: Backend contract (PS-22) currently accepts only whole checkIntervalDays.
-  // Sub-day durations (hours/minutes) are pending backend ticket PS-91.
-  if (hasSubDay) {
-    const err = new ApiError('BACKEND_SUBDAY_PENDING');
-    err.status = 400;
-    err.code = 'BACKEND_SUBDAY_PENDING';
-    err.message = msgs.backendSubDayPending;
-    throw err;
-  }
+  // Live adapter: Backend contract (PS-91) supports checkIntervalMinutes (1 to 259200) for sub-day durations,
+  // or checkIntervalDays (1 to 180) for whole days.
+  const totalMinutes = days * 1440 + hours * 60 + minutes;
+  const payload = hasSubDay
+    ? { checkIntervalMinutes: totalMinutes }
+    : { checkIntervalDays: days };
 
-  return liveDmsAdapter.save(days, options);
+  return liveDmsAdapter.save(payload, options);
 }
 
 /**
