@@ -30,6 +30,7 @@ phải cập nhật thư mục này và [openapi.yaml](openapi.yaml) trong cùng
 | [handover-receipts.md](handover-receipts.md) | Staff xác nhận bàn giao và truy xuất receipt bất biến | PS-61 |
 | [handover-deliveries.md](handover-deliveries.md) | Phạm vi tài sản được bàn giao, guard bàn giao và ghi nhận từng lần giao | PS-64, PS-65, PS-66 |
 | [beneficiary-accounts.md](beneficiary-accounts.md) | Staff liên kết hoặc tạo tài khoản Beneficiary tại quầy | PS-62, PS-63 |
+| [counter-beneficiaries.md](counter-beneficiaries.md) | Staff xem Beneficiary của ca, bước tại quầy và trạng thái mã mời/tài khoản | PS-88 |
 | [legal-death-verification.md](legal-death-verification.md) | Legal thẩm định giấy tờ khai tử (ST-12), xem chi tiết | PS-36 |
 | [legal-will-comparison.md](legal-will-comparison.md) | Legal đối chiếu di chúc giấy gốc với bản scan (ST-15), cổng chặn duyệt | PS-40 |
 | [legal-basis-dossier.md](legal-basis-dossier.md) | Hồ sơ căn cứ phân chia: Legal phân loại nhánh, Staff tiếp nhận và chuyển văn bản | PS-41, PS-42, PS-43 |
