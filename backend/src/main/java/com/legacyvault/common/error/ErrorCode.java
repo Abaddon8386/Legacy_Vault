@@ -20,6 +20,7 @@ public enum ErrorCode {
     BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED(409, "error.invitation.emailVerificationRequired"),
     BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED(409, "error.invitation.counterEmailRequired"),
 	ASSET_IMAGE_LIMIT_EXCEEDED(409, "error.asset.imageLimitExceeded"),
+	ASSET_DOCUMENT_LIMIT_EXCEEDED(409, "error.asset.documentLimitExceeded"),
 	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
 	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),
 	HANDOVER_CONFIRMATION_CONFLICT(409, "error.handoverConfirmation.conflict"),
