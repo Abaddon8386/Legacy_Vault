@@ -11,6 +11,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** Real Spring/Flyway/JPA/API SQL tests, fresh randomized disposable DB via inherited fixture. */
+@EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
 class BeneficiaryInvitationSqlServerTest extends LegalBasisSqlServerSupport {
     record F(long owner, UUID ownerPublic, long vault, UUID vaultPublic, long beneficiary, UUID beneficiaryPublic) { }
     private F ready() {

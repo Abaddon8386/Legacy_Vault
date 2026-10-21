@@ -31,6 +31,57 @@ Contract và scope kiểm chứng: [beneficiary-invitations.md](beneficiary-invi
 Quyết định này mở rộng hạn chế onboarding "chỉ tại quầy" cũ của PS-20/PS-62/63,
 không thay các yêu cầu xác minh trực tiếp, Legal, handover, confirmation hoặc archive.
 
+## PS-87 / PS-106 — approved direction and implementation blockers
+
+The following direction is approved in the user's 2026-10-21 instruction for this feature branch and supersedes
+conflicting legacy wording only for PS-87/PS-106 integration. It does not retroactively mark existing PS-86
+invitations as email-bound and does not alter the existing `VERIFIED_AT_COUNTER` workflow:
+
+- PS-87 is authenticated-only redemption for an existing account. New users use ordinary signup/login first; no
+  public signup+redeem route. Preserve existing roles and add only the Beneficiary role through PS-86. Email is bound
+  to the Beneficiary/invitation after Staff confirms the recipient and address at the counter. Backend must reject
+  missing/mismatched/unproven binding; no email, account ID, role, or verification flag from FE is authoritative.
+- PS-106 targets the Staff-confirmed email before account linking. Counter evidence records authenticated Staff,
+  server UTC time, case/Beneficiary and evidence reference. The optional `confirmedEmail` snapshot is stored in the
+  append-only attestation but is not returned or logged as plaintext. It does not change legacy identity status.
+- PS-86 code/lifecycle remains authoritative. No new generator or plaintext recovery. Raw code may reach mail only
+  through an atomic encrypted outbox. Transport must remain disabled by default until provider/sender/test recipient
+  and transport policies are approved. Linking never unlocks content; PS-104 exact-recipient DELIVERED authorization
+  remains the only read gate.
+- For a current PS-106 invitation generation bound to the email Staff confirmed in person for the correct Beneficiary,
+  redeem requires the authenticated account's normalized email to equal that generation's bound address;
+  `users.email_verified_at` may be NULL. This narrow exception does not write that column or claim Staff attestation
+  proves mailbox control. It does not apply to unbound/legacy or Owner-issued invitations. The existing
+  `VERIFIED_AT_COUNTER` beneficiary status remains required; the new attestation does not write or substitute for it.
+  Legacy invitations without email binding must be confirmed by Staff and revoked/reissued through the existing PS-86
+  lifecycle with audit; no silent trust promotion.
+- Redeem limits retain five failed attempts/account/15 minutes and add five failed attempts/account+invitation/15
+  minutes. A pessimistic lock on the authenticated User row serializes checks across instances; failed-attempt rows
+  are written in a separate transaction so rollback cannot erase them. Invalid-format inputs consume only the account
+  bucket because they have no canonical invitation hash. No trusted IP/X-Forwarded-For policy is introduced.
+- Route: `POST /api/v1/auth/invitations/redeem` with bearer authentication and `{ "code": "..." }`. Staff-bound
+  issuance and authenticated redeem are implemented. Signup+redeem remains excluded; real email delivery and the
+  PS-104 delivered-item read API remain separate integration blockers.
+
+Source-backed blockers still open:
+
+- `BeneficiaryInvitation.recipient_email` is now nullable and legacy rows remain null. Migration V41 adds this field.
+  The Staff PS-106 endpoint now confirms the current generation, applies the existing PS-86 issue/reissue lifecycle,
+  binds the last counter-confirmed email, and writes the generation's code+recipient encrypted in V43 outbox in the
+  same transaction. Legacy rows stay unbound until this explicit flow reissues them.
+- Durable redeem limiting is implemented with SQL Server failure rows and the locked authenticated User row. SQL
+  Server concurrency/rollback behavior still needs a real SQL Server integration run.
+- The Staff counter attestation has a nullable `confirmed_email` snapshot; this records the address Staff confirmed
+  at the counter, but does not prove mailbox control. The approved PS-106 flow binds that address to the invitation
+  generation and permits the matching authenticated account to redeem even while `users.email_verified_at` is NULL.
+  No email-verification flow currently populates that column; no general email-verification policy is inferred.
+- No mail provider/sandbox, sender, test recipient, transport adapter, or worker exists. The outbox is persisted but
+  transport remains hard-disabled. Provider acceptance,
+  timeout/retry/backoff, resend/idempotency semantics, audit events, and ciphertext/key-version deletion/retention
+  policy are not configured. Transport remains disabled; do not claim delivery.
+- Current develop has no beneficiary-scoped delivered-item content/image endpoint from PS-104. Linking does not
+  grant asset reads, and no replacement access mechanism is implemented.
+
 > **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
 
 > **Cách đọc:** mục **ĐÃ CHỐT** là quyết định để FE/BE triển khai Sprint 1, do **Dương (điều phối PS-74) chốt ngày 2026-10-11**

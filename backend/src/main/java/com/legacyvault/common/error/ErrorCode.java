@@ -17,6 +17,8 @@ public enum ErrorCode {
     BENEFICIARY_INVITATION_ALREADY_USED(409, "error.invitation.alreadyUsed"),
     BENEFICIARY_INVITATION_STALE(409, "error.invitation.stale"),
     BENEFICIARY_INVITATION_INVALID(422, "error.invitation.invalid"),
+    BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED(409, "error.invitation.emailVerificationRequired"),
+    BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED(409, "error.invitation.counterEmailRequired"),
 	ASSET_IMAGE_LIMIT_EXCEEDED(409, "error.asset.imageLimitExceeded"),
 	HANDOVER_COMPLETION_PENDING(409, "error.handoverCompletion.pending"),
 	HANDOVER_CONFIRMATION_PENDING_DELIVERY(409, "error.handoverConfirmation.pendingDelivery"),

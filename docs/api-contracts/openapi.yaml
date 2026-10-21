@@ -5,6 +5,7 @@ info:
   description: |
     Contract Sprint 1 (PS-9 → PS-23). Quyết định đã chốt ngày 2026-10-11 (xem open-decisions.md), chờ FE/BE review.
     `x-status: designed` = đã chốt contract, chưa triển khai. `x-status: implemented` = đã có code Backend trong workspace.
+    `x-status: blocked` = contract draft, chưa có runtime endpoint. `x-integration-status: blocked` = endpoint đã tồn tại nhưng flow chưa đủ điều kiện tích hợp end-to-end.
     Mọi lỗi dùng cùng hình dạng `ApiError` (kể cả 401/403). FE phân loại lỗi bằng `code`, không bằng `message`.
     Ví dụ dùng dữ liệu giả; không chứa token hay mật khẩu thật.
 servers:
@@ -1012,6 +1013,54 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/UserResponse' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/auth/invitations/redeem:
+    post:
+      tags: [Auth, Beneficiaries]
+      summary: Redeem a beneficiary invitation for the authenticated account (PS-87)
+      description: |
+        Requires an existing authenticated account. Signup+redeem is intentionally not supported. The backend
+        derives the account from the principal and calls the PS-86 transaction seam. A current PS-106 Staff-bound
+        generation requires an exact normalized match between the account email and the Staff-confirmed recipient
+        email; users.email_verified_at may be NULL for this scoped flow. Staff attestation does not set that field or
+        prove mailbox control. Legacy unbound/Owner-issued invitations do not receive this exception and fail closed.
+        The existing Beneficiary VERIFIED_AT_COUNTER state is still required; PS-106 attestation does not set it.
+        Linking grants no asset-read access; PS-104 exact-recipient DELIVERED authorization remains authoritative.
+        Email transport remains disabled, so the outbox does not prove mail delivery or provide an E2E path.
+      x-status: implemented
+      x-integration-status: blocked
+      x-blockers: [approved-mail-transport, ps104-delivered-item-read-api]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BeneficiaryInvitationRedeemRequest' }
+      responses:
+        '200':
+          description: Account linked to the invited Beneficiary; this does not authorize reading undelivered assets.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BeneficiaryInvitationLinked' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED may apply to unbound/legacy invitation attempts from an account without a verified email; PS-106-bound redemption uses the bound-email match instead. BENEFICIARY_IDENTITY_NOT_VERIFIED is returned when legacy counter verification is absent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '422':
+          description: BENEFICIARY_INVITATION_INVALID for unknown, expired, revoked, consumed, legacy unbound, or email-mismatched invitations.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429':
+          description: TOO_MANY_ATTEMPTS when five failed attempts occurred for the account or the account+invitation pair in the previous fifteen minutes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
   /api/v1/vaults:
     post:
@@ -2739,6 +2788,67 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations:
+    post:
+      tags: [Staff]
+      summary: Staff attests in-person document check (PS-106)
+      description: Requires ROLE_STAFF_EXECUTOR and the exact assigned OPEN case containing the Beneficiary. The server records the authenticated Staff actor and UTC time. evidenceReference is a reference only; no document upload, OCR, client-supplied MATCH, or automatic asset access. Optional confirmedEmail is a Staff-attested snapshot of the address directly confirmed with this Beneficiary at the counter; it is not returned or audited as plaintext and is not equivalent to mailbox verification. This append-only attestation does not mark the legacy identity-verification status or by itself authorize invitation delivery.
+      x-status: implemented
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CounterIdentityAttestationRequest' }
+      responses:
+        '201':
+          description: Append-only Staff attestation recorded; evidence reference and confirmed email are not echoed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CounterIdentityAttestation' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/invitation-email:
+    post:
+      tags: [Staff, Beneficiaries]
+      summary: Reissue or create a PS-86 invitation bound to the counter-confirmed email and queue it (PS-106)
+      description: |
+        ROLE_STAFF_EXECUTOR and the assigned OPEN case only. The body supplies only expectedGeneration (0 means no
+        current invitation); email and recipient are loaded from the latest append-only counter attestation. Requires
+        existing VERIFIED_AT_COUNTER, current COURT decision/legal approval, and the Beneficiary to occur in the
+        approved current allocation. Existing unbound PS-86 codes are revoked and replaced through PS-86 generation
+        rules. The new code and recipient are encrypted into the transactional outbox; code/email are never returned.
+        HTTP 202 means stored in the local outbox only. Transport is disabled; no provider accepted/sent/delivered claim.
+      x-status: implemented
+      x-integration-status: blocked
+      x-blockers: [approved-mail-provider-sender-sandbox, transport-retry-and-ciphertext-retention-policy]
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffInvitationEmailRequest' }
+      responses:
+        '202':
+          description: Stored as QUEUED in the encrypted local outbox; transportStatus is DISABLED.
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffInvitationEmailQueued' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
       tags: [Beneficiaries]
@@ -3423,6 +3533,34 @@ components:
           maxLength: 22
           pattern: '^[A-Za-z0-9_-]{21}[AQgw]$'
           description: Server-generated 128-bit base64url code, 7-day lifetime. Only in issue/reissue success; never in logs, GET or URLs.
+    BeneficiaryInvitationRedeemRequest:
+      type: object
+      required: [code]
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 1, maxLength: 128, description: PS-86 code; valid values are canonical 22-character base64url strings. Malformed attempts are counted in the account bucket. Never accept account ID, email, role, or verification flags from the client. }
+    BeneficiaryInvitationLinked:
+      type: object
+      required: [beneficiaryId, accountId, accountStatus]
+      properties:
+        beneficiaryId: { type: string, format: uuid }
+        accountId: { type: string, format: uuid, description: Public ID of the authenticated account }
+        accountStatus: { type: string, enum: [ACCOUNT_CREATED] }
+    StaffInvitationEmailRequest:
+      type: object
+      required: [expectedGeneration]
+      additionalProperties: false
+      properties:
+        expectedGeneration: { type: integer, minimum: 0, description: Current generation read by Staff; 0 means no invitation. Used to prevent stale or duplicate rotation. }
+    StaffInvitationEmailQueued:
+      type: object
+      required: [outboxId, invitationId, invitationGeneration, queueStatus, transportStatus]
+      properties:
+        outboxId: { type: string, format: uuid }
+        invitationId: { type: string, format: uuid }
+        invitationGeneration: { type: integer, minimum: 1 }
+        queueStatus: { type: string, enum: [QUEUED] }
+        transportStatus: { type: string, enum: [DISABLED] }
     SubscriptionPayment:
       type: object
       required: [paymentId, planCode, catalogVersion, amountVnd, currency, billingModel, status, createdAt, expiresAt, checkoutUrl]
@@ -3800,6 +3938,8 @@ components:
             - BENEFICIARY_INVITATION_ALREADY_USED
             - BENEFICIARY_INVITATION_STALE
             - BENEFICIARY_INVITATION_INVALID
+            - BENEFICIARY_INVITATION_EMAIL_VERIFICATION_REQUIRED
+            - BENEFICIARY_INVITATION_COUNTER_EMAIL_REQUIRED
             - HANDOVER_RECEIPT_REISSUE_INVALID
             - BASIS_DOSSIER_INVALID_STATE
         messageKey: { type: string }
@@ -4390,6 +4530,21 @@ components:
             id: { type: string, format: uuid, description: Public ID của tài khoản Staff đã kiểm tra }
             fullName: { type: string, description: Tên hiện tại của Staff để hiển thị }
         verifiedAt: { type: string, format: date-time }
+    CounterIdentityAttestationRequest:
+      type: object
+      required: [evidenceReference]
+      properties:
+        evidenceReference: { type: string, minLength: 1, maxLength: 200, description: Reference to the off-system counter evidence; do not include document numbers or document contents }
+        confirmedEmail: { type: string, format: email, maxLength: 254, nullable: true, description: Optional address directly confirmed by Staff with the Beneficiary at the counter; not a client claim of email ownership and not returned in the response }
+    CounterIdentityAttestation:
+      type: object
+      required: [attestationId, caseId, beneficiaryId, recordedBy, recordedAt]
+      properties:
+        attestationId: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid }
+        recordedBy: { type: string, format: uuid, description: Authenticated Staff public ID }
+        recordedAt: { type: string, format: date-time, description: Server-generated UTC timestamp }
     BeneficiaryResponse:
       type: object
       required: [id, vaultId, fullName, hasAccount, hasIdentityNumber, status]
