@@ -1048,7 +1048,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const isLegalWillRoute = path === '/legal/will-document-verification';
   const isLegalBasisRoute = path === '/legal/basis-route-selection';
 
-  const handleExecuteNavigation = (targetTab) => {
+  function handleExecuteNavigation(targetTab) {
     if (targetTab === 'home') {
       navigateTo(`/?lang=${lang}`);
     } else if (targetTab === 'shared-with-me') {
