@@ -6,18 +6,25 @@ import {
   AlertTriangle,
   HelpCircle,
   Award,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   evaluateCompletionProgress,
   COMPLETION_PROGRESS_STATUS,
 } from '../../utils/completionProgressValidation.js';
+import {
+  fetchCompletionProgress,
+} from './handoverSessionService.js';
 import { completionProgressI18n } from './completionProgressI18n.js';
+import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CompletionProgressPage.css';
 
 export default function CompletionProgressPage({
   lang = 'vi',
   caseId: propCaseId,
   caseReference: propCaseReference,
+  caseItem: propCaseItem = null,
   initialCaseId = '',
   initialCaseReference = '',
   initialAssetData = null,
@@ -27,16 +34,30 @@ export default function CompletionProgressPage({
   onFetchProgress,
   loadProgress,
   onCaseChange,
+  accessToken = null,
+  session = null,
+  preview = false,
+  isDevPreview = false,
+  sessionId: propSessionId = '',
+  onUnauthorized = null,
+  onNavigateCases = null,
 }) {
   const t = completionProgressI18n[lang] || completionProgressI18n.vi;
   const caseInputId = useId();
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  const effectiveIsDevPreview = Boolean(isDevPreview || preview);
+  const effectiveAccessToken = accessToken || session?.accessToken || null;
+
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const effectiveSessionId = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
   const initialEffectiveCase =
     propCaseId !== undefined
       ? (propCaseId || '')
       : propCaseReference !== undefined
         ? (propCaseReference || '')
-        : (initialCaseId || initialCaseReference || '');
+        : (initialCaseId || initialCaseReference || searchParams?.get('caseId') || (effectiveIsDevPreview ? 'CASE-2026-0001' : ''));
 
   const initialEffectiveTrimmed = initialEffectiveCase.trim();
   const hasInitialData =
@@ -147,32 +168,62 @@ export default function CompletionProgressPage({
     }
   };
 
+
   // Asynchronously fetch progress if fetcher is provided and case is not yet loaded
   useEffect(() => {
     const trimmed = caseReference.trim();
     const fetcher = onFetchProgress || loadProgress;
-    if (typeof fetcher === 'function' && trimmed && loadedCaseId !== trimmed) {
-      Promise.resolve(fetcher(trimmed))
-        .then((res) => {
-          if (activeCaseRef.current !== trimmed) return;
-          if (res) {
-            setAssetData(res.assetData ?? null);
-            setBeneficiaryData(res.beneficiaryData ?? null);
-            setLoadedCaseId(trimmed);
-          } else {
+    if (trimmed && loadedCaseId !== trimmed) {
+      if (typeof fetcher === 'function') {
+        Promise.resolve(fetcher(trimmed))
+          .then((res) => {
+            if (activeCaseRef.current !== trimmed) return;
+            if (res) {
+              setAssetData(res.assetData ?? null);
+              setBeneficiaryData(res.beneficiaryData ?? null);
+              setLoadedCaseId(trimmed);
+            } else {
+              setAssetData(null);
+              setBeneficiaryData(null);
+              setLoadedCaseId(trimmed);
+            }
+          })
+          .catch(() => {
+            if (activeCaseRef.current !== trimmed) return;
             setAssetData(null);
             setBeneficiaryData(null);
             setLoadedCaseId(trimmed);
-          }
+          });
+      } else if (effectiveSessionId) {
+        // Calling real backend / simulated completion progress API
+        fetchCompletionProgress(trimmed, effectiveSessionId, {
+          accessToken: effectiveAccessToken,
+          isDevPreview: effectiveIsDevPreview,
+          lang,
         })
-        .catch(() => {
-          if (activeCaseRef.current !== trimmed) return;
-          setAssetData(null);
-          setBeneficiaryData(null);
-          setLoadedCaseId(trimmed);
-        });
+          .then((res) => {
+            if (activeCaseRef.current !== trimmed) return;
+            if (res) {
+              const mappedAsset = res.assets
+                ? { totalCount: res.assets.total, deliveredCount: res.assets.completed, isComplete: res.assets.complete }
+                : (res.assetCompletion ?? null);
+              const mappedBeneficiary = res.beneficiaries
+                ? { totalCount: res.beneficiaries.total, confirmedCount: res.beneficiaries.completed, isComplete: res.beneficiaries.complete }
+                : (res.beneficiaryCompletion ?? null);
+              setAssetData(mappedAsset);
+              setBeneficiaryData(mappedBeneficiary);
+              setLoadedCaseId(trimmed);
+            }
+          })
+          .catch(() => {
+            if (activeCaseRef.current !== trimmed) return;
+            setAssetData(null);
+            setBeneficiaryData(null);
+            setLoadedCaseId(trimmed);
+          });
+      }
     }
-  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress]);
+  }, [caseReference, loadedCaseId, onFetchProgress, loadProgress, lang, effectiveSessionId, effectiveAccessToken, effectiveIsDevPreview]);
 
   // Evaluate metrics strictly for the active case
   const activeTrimmed = caseReference.trim();
@@ -188,11 +239,115 @@ export default function CompletionProgressPage({
 
   return (
     <div className="lv-completion-progress-view">
+      {/* Context navigation back */}
+      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {activeTrimmed && effectiveSessionId && (
+          <a
+            href={`/staff/handover?caseId=${encodeURIComponent(activeTrimmed)}&sessionId=${encodeURIComponent(effectiveSessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#164639',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
+          </a>
+        )}
+        {onNavigateCases && (
+          <button
+            type="button"
+            onClick={onNavigateCases}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#6b7280',
+              padding: 0,
+            }}
+          >
+            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Warning when context is missing in real mode */}
+      {!activeTrimmed && !effectiveIsDevPreview && (
+        <section className="lv-progress-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} aria-hidden="true" />
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
+                {lang === 'en' ? 'No Handover Case Selected' : 'Chưa chọn ca bàn giao'}
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+                {lang === 'en'
+                  ? 'Please select a verification case and open a counter handover session to track completion progress.'
+                  : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy để theo dõi tiến độ hai cổng hoàn tất.'}
+              </p>
+              {onNavigateCases && (
+                <button
+                  type="button"
+                  className="lv-btn lv-btn-primary"
+                  onClick={onNavigateCases}
+                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                >
+                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Header */}
       <div className="lv-progress-header">
         <h1 className="lv-progress-title">{t.pageTitle}</h1>
         <p className="lv-progress-subtitle">{t.pageSubtitle}</p>
       </div>
+
+      {/* Staff Case Context Bar */}
+      <StaffCaseContextBar
+        caseId={caseReference}
+        caseItem={propCaseItem}
+        sessionId={propSessionId}
+        onOpenSelector={() => setIsSelectorOpen(true)}
+        onChangeCase={() => setIsSelectorOpen(true)}
+        lang={lang}
+      />
+
+      {/* Staff Case Selector Modal */}
+      <StaffCaseSelectorModal
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelectCase={(item) => {
+          const newId = item.caseId || item.id;
+          setCaseReference(newId);
+          setAssetData(null);
+          setBeneficiaryData(null);
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('caseId', newId);
+            url.searchParams.delete('sessionId');
+            window.history.replaceState({}, '', url.pathname + url.search);
+          }
+          onCaseChange?.(newId, item);
+        }}
+        accessToken={effectiveAccessToken}
+        isDevPreview={effectiveIsDevPreview}
+        lang={lang}
+        currentCaseId={caseReference}
+        onUnauthorized={onUnauthorized}
+      />
 
       {/* Critical Rule Banner */}
       <section className="lv-progress-notice-banner" role="alert" aria-labelledby="rule-notice-heading">
@@ -221,6 +376,25 @@ export default function CompletionProgressPage({
               onChange={(e) => handleCaseChange(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="lv-progress-btn-select-case"
+            onClick={() => setIsSelectorOpen(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid #164639',
+              backgroundColor: '#164639',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
+          </button>
+
         </div>
       </section>
 

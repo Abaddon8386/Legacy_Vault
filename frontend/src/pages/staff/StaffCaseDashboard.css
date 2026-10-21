@@ -284,12 +284,14 @@
   background-color: #ffffff;
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 1px 3px rgba(22, 70, 57, 0.03);
 }
 
 .lv-staff-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   text-align: left;
   font-size: 13.5px;
@@ -331,10 +333,16 @@
   border-bottom: none;
 }
 
+.lv-staff-td-ref {
+  white-space: nowrap;
+  min-width: 145px;
+}
+
 /* Case Code Box */
 .lv-staff-ref-box {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
 
 .lv-staff-ref-code {
@@ -347,6 +355,9 @@
   padding: 3px 8px;
   border-radius: 6px;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  word-break: keep-all;
+  display: inline-block;
 }
 
 /* Vault and Owner */
