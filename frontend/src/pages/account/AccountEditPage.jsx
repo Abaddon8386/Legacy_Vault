@@ -91,7 +91,7 @@ export default function AccountEditPage({
       { canEditEmail: emailPermission.canEdit }
     );
     if (!validation.isValid && validation.errors.fullName) {
-      setValidationError(t.errorFullNameRequired);
+      setValidationError('REQUIRED');
     } else {
       setValidationError(null);
     }
@@ -109,7 +109,7 @@ export default function AccountEditPage({
     );
     if (!validation.isValid && validation.errors.email) {
       setEmailValidationError(
-        validation.errors.email === 'REQUIRED' ? t.errorEmailRequired : t.errorEmailInvalid
+        validation.errors.email
       );
     } else {
       setEmailValidationError(null);
@@ -213,7 +213,7 @@ export default function AccountEditPage({
               />
               {validationError && (
                 <p id="lv-fullname-error" className="lv-form-error" role="alert">
-                  {validationError}
+                  {t.errorFullNameRequired}
                 </p>
               )}
             </div>
@@ -245,7 +245,7 @@ export default function AccountEditPage({
               />
               {emailValidationError && (
                 <p id="lv-email-error" className="lv-form-error" role="alert">
-                  {emailValidationError}
+                  {emailValidationError === 'REQUIRED' ? t.errorEmailRequired : t.errorEmailInvalid}
                 </p>
               )}
               <p className="lv-form-help">
