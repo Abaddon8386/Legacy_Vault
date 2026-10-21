@@ -148,10 +148,7 @@ public class LegalBasisDossier {
         this.status = STATUS_PROVIDED;
     }
 
-    /**
-     * LV-HOLD-001: Legal phân loại lại hồ sơ đang ON_HOLD sang NOTARIAL/COURT. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và
-     * COURT không đổi trực tiếp lẫn nhau (D-LEGAL-002). Người phân loại hiện hành được cập nhật.
-     */
+    /** PS-102: ON_HOLD draft dossiers may only be reclassified to COURT; legacy NOTARIAL is read-only. */
     public void reclassify(
             String newRoute,
             String newReason,
@@ -160,10 +157,9 @@ public class LegalBasisDossier {
 
         if (!ROUTE_ON_HOLD.equals(route)
                 || !STATUS_DRAFT.equals(status)
-                || !(ROUTE_NOTARIAL.equals(newRoute)
-                || ROUTE_COURT.equals(newRoute))) {
+                || !ROUTE_COURT.equals(newRoute)) {
             throw new IllegalStateException(
-                    "Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
+                    "Only an ON_HOLD draft dossier can be reclassified to COURT");
         }
 
         this.route = newRoute;
@@ -173,7 +169,7 @@ public class LegalBasisDossier {
     }
 
     public boolean acceptsIntake() {
-        return ROUTE_NOTARIAL.equals(route) || ROUTE_COURT.equals(route);
+        return ROUTE_COURT.equals(route);
     }
 
     /** A hold invalidates earlier clearance while preserving all versions and assessment history. */

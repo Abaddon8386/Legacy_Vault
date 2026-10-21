@@ -70,6 +70,7 @@ class LegalBasisReviewServiceTest {
             when(dossier.getVerificationCaseId()).thenReturn(CASE_DB_ID);
             when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
             when(dossier.getRoute()).thenReturn("COURT");
+            when(dossier.acceptsIntake()).thenReturn(true);
             when(dossier.getDisputeStatus()).thenReturn("NONE");
             when(dossier.getReviewStatus()).thenReturn("FRESH");
             when(dossier.getLastReviewedVersionNo()).thenReturn(1);
@@ -105,7 +106,7 @@ class LegalBasisReviewServiceTest {
 
     private static BasisVersionRow row(int version, String hash) {
         return new BasisVersionRow(
-                version, "NOTARIAL_PARTITION", "Authority", "DOC-1",
+                version, "COURT_JUDGMENT", "Authority", "DOC-1",
                 null, null, null, null, null, null, "application/pdf",
                 100L, hash, "FORWARDED", REVIEWER_ID, null, null);
     }
@@ -117,6 +118,19 @@ class LegalBasisReviewServiceTest {
         String second = LegalBasisReviewService.allocationHashFromCanonicalValues(
                 List.of("asset-B|beneficiary-Y|scope-2", "asset-A|beneficiary-X|scope-1"));
         assertThat(first).isEqualTo(second);
+    }
+
+    @Test
+    void evaluate_notarialHistoryUsesPs102CourtDecisionError() {
+        Fixture f = new Fixture();
+        when(f.dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_NOTARIAL);
+        when(f.dossier.acceptsIntake()).thenReturn(false);
+
+        assertThatThrownBy(f::evaluate)
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.COURT_DECISION_REQUIRED);
+        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit);
     }
 
     @Test

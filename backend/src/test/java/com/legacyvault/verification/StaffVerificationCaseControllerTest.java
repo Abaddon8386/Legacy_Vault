@@ -2,6 +2,7 @@ package com.legacyvault.verification;
 
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.controller.StaffVerificationCaseController;
+import com.legacyvault.verification.dto.StaffCaseWorkContextResponse;
 import com.legacyvault.verification.service.StaffVerificationCaseService;
 import com.legacyvault.verification.service.StaffCaseWorkContextService;
 import jakarta.validation.Validator;
@@ -22,9 +23,13 @@ import org.springframework.web.bind.support.WebDataBinderFactory;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
+import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.when;
 
 
 class StaffVerificationCaseControllerTest {
@@ -105,6 +110,20 @@ class StaffVerificationCaseControllerTest {
                         || exception.getCause().getCause()
                         instanceof jakarta.validation.ConstraintViolationException
         );
+    }
+
+    @Test
+    void workContextReturnsOkWithApprovalBlockerInBody() throws Exception {
+        UUID caseId = UUID.randomUUID();
+        StaffCaseWorkContextResponse response = new StaffCaseWorkContextResponse(
+                caseId, "HS-1", "OPEN", "ASSIGNED", staff.publicId(), UUID.randomUUID(),
+                "LEGAL_BASIS_VERIFICATION", "LEGAL_BASIS_VERIFICATION", "COURT", "FORWARDED", "FRESH",
+                false, List.of(), List.of(), List.of(), List.of("LEGAL_APPROVAL_REQUIRED"));
+        when(context.getBean(StaffCaseWorkContextService.class).get(caseId, staff)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/staff/verification-cases/{caseId}/work-context", caseId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unmetConditions[0]").value("LEGAL_APPROVAL_REQUIRED"));
     }
 
 

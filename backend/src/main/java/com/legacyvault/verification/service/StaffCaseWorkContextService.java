@@ -87,22 +87,24 @@ public class StaffCaseWorkContextService {
             if (latest < dossier.getRequiredVersionNo()) conditions.add("CURRENT_REQUIRED_BASIS_VERSION_MISSING");
             else {
                 var current = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), latest).orElse(null);
-                if (current == null || !current.isReviewable()) conditions.add("COURT_DOCUMENT_NOT_REVIEWABLE");
-                else if (courtDecisions.findFirstByDossierVersionIdOrderByIdDesc(current.id())
-                        .filter(d -> "VALID".equals(d.getResult())).isEmpty()) conditions.add("COURT_DECISION_NOT_VALID");
-                var currentRows = allocations.findRowsByDossier(dossier.getLegalBasisDossierId()).stream()
-                        .filter(row -> row.versionNo() == latest).toList();
-                currentRows.forEach(row -> {
-                    var asset = assets.findByPublicIdAndVaultIdAndAssetTypeNot(row.assetId(), vault.getVaultId(),
-                            com.legacyvault.asset.entity.AssetType.DOCUMENT);
-                    byBeneficiary.computeIfAbsent(row.beneficiaryId(), ignored -> new ArrayList<>())
-                            .add(new StaffCaseWorkContextResponse.AssetItem(row.assetId(),
-                                    asset.map(a -> a.getName()).orElse(null), row.description()));
-                });
-                try {
-                    approvalGuard.requireCurrentApproval(dossier, current);
-                } catch (BusinessException ex) {
-                    conditions.add("LEGAL_REVIEW_STALE_OR_REQUIRED");
+                if (current == null || !current.isReviewable()) {
+                    conditions.add("COURT_DOCUMENT_NOT_REVIEWABLE");
+                } else {
+                    if (courtDecisions.findFirstByDossierVersionIdOrderByIdDesc(current.id())
+                            .filter(d -> "VALID".equals(d.getResult())).isEmpty()) {
+                        conditions.add("COURT_DECISION_NOT_VALID");
+                    }
+                    var currentRows = allocations.findRowsByDossier(dossier.getLegalBasisDossierId()).stream()
+                            .filter(row -> row.versionNo() == latest).toList();
+                    currentRows.forEach(row -> {
+                        var asset = assets.findByPublicIdAndVaultIdAndAssetTypeNot(row.assetId(), vault.getVaultId(),
+                                com.legacyvault.asset.entity.AssetType.DOCUMENT);
+                        byBeneficiary.computeIfAbsent(row.beneficiaryId(), ignored -> new ArrayList<>())
+                                .add(new StaffCaseWorkContextResponse.AssetItem(row.assetId(),
+                                        asset.map(a -> a.getName()).orElse(null), row.description()));
+                    });
+                    var approvalBlocker = approvalGuard.currentApprovalBlocker(dossier, current);
+                    if (approvalBlocker != null) conditions.add(approvalBlocker.name());
                 }
             }
             if (!LegalBasisDossier.STATUS_FORWARDED.equals(dossierStatus)) conditions.add("DOSSIER_NOT_FORWARDED");

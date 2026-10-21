@@ -40,7 +40,7 @@ import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.WillComparisonService;
 
-/** PS-41 (ST-16, LV-BASIS-001): chỉ Legal phân loại; cần MATCH; một hồ sơ mỗi ca; chuyển Vault đúng nhánh. */
+/** PS-102: Legal writes use COURT only; one dossier per case; will matching is not the legal basis gate. */
 class BasisClassificationServiceTest {
 
     private static final Long LEGAL_ID = 20L;
@@ -78,14 +78,13 @@ class BasisClassificationServiceTest {
         return ((BusinessException) ex).getErrorCode();
     }
 
-    /** Dữ liệu hợp lệ: ca mở, Vault WILL_VERIFICATION, chưa có hồ sơ, kết quả đối chiếu mới nhất là MATCH. */
+    /** PS-102: classification uses court evidence; a will MATCH is not a prerequisite. */
     private Vault happyPath() {
         Vault vault = vault("WILL_VERIFICATION");
         when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.of(openCase()));
         when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
         when(caseRepository.findByIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(openCase()));
         when(dossiers.findByVerificationCaseId(CASE_DB_ID)).thenReturn(Optional.empty());
-        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(false);
         when(dossiers.saveAndFlush(any(LegalBasisDossier.class))).thenAnswer(inv -> {
             LegalBasisDossier d = inv.getArgument(0);
             ReflectionTestUtils.setField(d, "legalBasisDossierId", 900L);
@@ -100,22 +99,22 @@ class BasisClassificationServiceTest {
     }
 
     @Test
-    void notarial_createsDossierWithNoDispute_movesVaultToAwaitingLegalBasis_andAuditsWithoutReason() {
+    void court_createsDossier_movesVaultToAwaitingLegalBasis_andAuditsWithoutReason() {
         Vault vault = happyPath();
         BasisDossierResponse expected = mock(BasisDossierResponse.class);
         when(views.view(any(VerificationCase.class), org.mockito.ArgumentMatchers.eq(true))).thenReturn(expected);
 
         BasisDossierResponse response = service.classify(CASE_ID, legal,
-                request(Route.NOTARIAL, "  Không tranh chấp, đủ điều kiện công chứng  "));
+                request(Route.COURT, "  Có căn cứ theo quyết định của tòa án  "));
 
         assertThat(response).isSameAs(expected);
         ArgumentCaptor<LegalBasisDossier> saved = ArgumentCaptor.forClass(LegalBasisDossier.class);
         verify(dossiers).saveAndFlush(saved.capture());
         LegalBasisDossier d = saved.getValue();
-        assertThat(d.getRoute()).isEqualTo("NOTARIAL");
-        assertThat(d.getDisputeStatus()).isEqualTo("NONE");
+        assertThat(d.getRoute()).isEqualTo("COURT");
+        assertThat(d.getDisputeStatus()).isEqualTo("DISPUTED");
         assertThat(d.getStatus()).isEqualTo("DRAFT");
-        assertThat(d.getRouteReason()).isEqualTo("Không tranh chấp, đủ điều kiện công chứng");
+        assertThat(d.getRouteReason()).isEqualTo("Có căn cứ theo quyết định của tòa án");
         assertThat(d.getCreatedByUserId()).isEqualTo(LEGAL_ID);
         assertThat(vault.getStatus()).isEqualTo("AWAITING_LEGAL_BASIS");
 
@@ -127,8 +126,8 @@ class BasisClassificationServiceTest {
         assertThat(event.ruleId()).isEqualTo("LV-BASIS-001");
         assertThat(event.stateBefore()).isEqualTo("WILL_VERIFICATION");
         assertThat(event.stateAfter()).isEqualTo("AWAITING_LEGAL_BASIS");
-        assertThat(event.context()).containsEntry("route", "NOTARIAL").containsEntry("disputeStatus", "NONE");
-        assertThat(event.context().toString()).doesNotContain("công chứng");
+        assertThat(event.context()).containsEntry("route", "COURT").containsEntry("disputeStatus", "DISPUTED");
+        assertThat(event.context().toString()).doesNotContain("quyết định");
     }
 
     @Test
@@ -147,7 +146,7 @@ class BasisClassificationServiceTest {
 
     @Test
     void blankOrMissingReason_isRejected_andNothingIsRead() {
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "   ")))
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, "   ")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
         assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, null)))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
@@ -157,10 +156,17 @@ class BasisClassificationServiceTest {
     }
 
     @Test
+    void notarialRouteIsRejectedAsValidationFailure() {
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "Legacy route")))
+                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        verifyNoInteractions(caseLookup, dossiers, auditService);
+    }
+
+    @Test
     void unknownCase_isNotFound() {
         when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
@@ -170,13 +176,13 @@ class BasisClassificationServiceTest {
         VerificationCase cancelled = openCase();
         cancelled.cancel(LocalDateTime.of(2026, 10, 2, 8, 0));
         when(caseRepository.findByIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(cancelled));
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
 
-        for (String status : new String[] { "DOCUMENT_VERIFICATION", "AWAITING_LEGAL_BASIS", "ON_HOLD", "ACTIVE" }) {
+        for (String status : new String[] { "AWAITING_LEGAL_BASIS", "ON_HOLD", "ACTIVE" }) {
             happyPath();
             when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault(status)));
-            assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+            assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, "x")))
                     .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
         }
         verify(dossiers, never()).saveAndFlush(any());
@@ -188,28 +194,23 @@ class BasisClassificationServiceTest {
         happyPath();
         when(dossiers.findByVerificationCaseId(CASE_DB_ID)).thenReturn(Optional.of(mock(LegalBasisDossier.class)));
 
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_ALREADY_EXISTS));
         verify(dossiers, never()).saveAndFlush(any());
     }
 
     @Test
-    void withoutMatchingWillComparison_classificationIsBlocked() {
-        Vault vault = happyPath();
-        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(true);
-
-        assertThatThrownBy(() -> service.classify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
-                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.WILL_NOT_VERIFIED));
-        assertThat(vault.getStatus()).isEqualTo("WILL_VERIFICATION");
-        verify(dossiers, never()).saveAndFlush(any());
-        verifyNoInteractions(auditService);
+    void classificationDoesNotUseWillComparisonAsSubstituteForCourtBasis() {
+        happyPath();
+        service.classify(CASE_ID, legal, request(Route.COURT, "Court basis available"));
+        verifyNoInteractions(willComparisons);
     }
 
     @Test
     void locksVaultThenCase() {
         happyPath();
 
-        service.classify(CASE_ID, legal, request(Route.NOTARIAL, "x"));
+        service.classify(CASE_ID, legal, request(Route.COURT, "x"));
 
         InOrder order = inOrder(caseLookup, vaultRepository, caseRepository, dossiers);
         order.verify(caseLookup).findByPublicId(CASE_ID);

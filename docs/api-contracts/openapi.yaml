@@ -1389,8 +1389,9 @@ paths:
       tags: [Legal]
       summary: Legal phân loại căn cứ phân chia và tạo hồ sơ căn cứ (PS-41, ST-16)
       description: |
-        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `WILL_VERIFICATION` và kết quả đối chiếu di chúc mới
-        nhất là MATCH. Mỗi ca một hồ sơ. NOTARIAL/COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD.
+        Chỉ `LEGAL_VERIFIER`. Staff không chọn nhánh. Cần ca `OPEN`, Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION` sau xác minh tử vong.
+        Mỗi ca một hồ sơ. Luồng ghi mới chỉ phân loại COURT hoặc ON_HOLD; không yêu cầu di chúc/MATCH.
+        COURT chuyển Vault sang AWAITING_LEGAL_BASIS; ON_HOLD sang ON_HOLD. NOTARIAL chỉ còn là dữ liệu lịch sử đọc được.
       x-status: implemented
       parameters:
         - name: caseId
@@ -1437,8 +1438,8 @@ paths:
       tags: [Legal]
       summary: Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (PS-43, ST-16, LV-HOLD-001)
       description: |
-        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại, sang `NOTARIAL` hoặc `COURT`; Vault
-        `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. `NOTARIAL` và `COURT` không đổi lẫn nhau. Phân loại cũ được lưu vào lịch sử.
+        Chỉ hồ sơ `ON_HOLD` (chưa đủ thông tin) và còn `DRAFT` mới được phân loại lại sang `COURT`; Vault
+        `ON_HOLD` chuyển `AWAITING_LEGAL_BASIS`. Dữ liệu NOTARIAL cũ được giữ nguyên và chỉ đọc; phân loại cũ được lưu vào lịch sử.
       x-status: implemented
       parameters:
         - name: caseId
@@ -1756,7 +1757,7 @@ paths:
       description: |
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
         và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
-        có nhánh NOTARIAL/COURT. Tiếp nhận không đồng nghĩa đã duyệt.
+        có nhánh COURT. NOTARIAL lịch sử chỉ đọc; yêu cầu ghi mới trả `409 COURT_DECISION_REQUIRED`. Tiếp nhận không đồng nghĩa đã duyệt.
         Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
       x-status: implemented
       parameters:
@@ -2497,7 +2498,10 @@ components:
           type: array
           items: { $ref: '#/components/schemas/StaffCaseBeneficiaryItem' }
         readReferences: { type: array, items: { type: string } }
-        unmetConditions: { type: array, items: { type: string } }
+        unmetConditions:
+          type: array
+          description: Includes LEGAL_APPROVAL_REQUIRED when no matching approval exists, or LEGAL_DECISION_STALE when the approved snapshot no longer matches.
+          items: { type: string }
     StaffCaseTrusteeContact:
       type: object
       properties:
@@ -3075,13 +3079,13 @@ components:
       type: object
       required: [route, routeReason]
       properties:
-        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
+        route: { type: string, enum: [COURT, ON_HOLD] }
         routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
     BasisIntakeMetadata:
       type: object
       required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
       properties:
-        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
+        legalBasisType: { type: string, enum: [COURT_JUDGMENT, COURT_DECISION] }
         issuingAuthority: { type: string, maxLength: 255 }
         documentNumber: { type: string, maxLength: 100 }
         issueDate: { type: string, format: date }

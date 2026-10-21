@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class LegalApprovalGuardTest {
     private static final Long DOSSIER_ID = 50L;
@@ -60,6 +61,21 @@ class LegalApprovalGuardTest {
 
         verify(history).findFirstByDossierIdAndVersionNoAndReviewStatusInOrderByIdDesc(
                 DOSSIER_ID, VERSION_NO, List.of("LEGAL_APPROVED", "LEGAL_REJECTED"));
+    }
+
+    @Test
+    void currentApprovalBlockerDistinguishesMissingStaleAndCurrent() {
+        when(history.findFirstByDossierIdAndVersionNoAndReviewStatusInOrderByIdDesc(
+                DOSSIER_ID, VERSION_NO, List.of("LEGAL_APPROVED", "LEGAL_REJECTED")))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(decision(VERSION_NO, VERSION_ID, "b".repeat(64), "NONE", ALLOCATION_HASH,
+                        "LEGAL_APPROVED", "APPROVE")))
+                .thenReturn(Optional.of(decision(VERSION_NO, VERSION_ID, HASH, "NONE", ALLOCATION_HASH,
+                        "LEGAL_APPROVED", "APPROVE")));
+
+        assertThat(guard.currentApprovalBlocker(dossier, current)).isEqualTo(ErrorCode.LEGAL_APPROVAL_REQUIRED);
+        assertThat(guard.currentApprovalBlocker(dossier, current)).isEqualTo(ErrorCode.LEGAL_DECISION_STALE);
+        assertThat(guard.currentApprovalBlocker(dossier, current)).isNull();
     }
 
     @Test
