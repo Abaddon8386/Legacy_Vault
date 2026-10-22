@@ -30,7 +30,7 @@ public interface LegalBasisVersionAllocationRepository extends JpaRepository<Leg
     @Query("""
         select new com.legacyvault.verification.repository.ReceiptAllocationRow(
             v.versionNo, al.allocationId, a.assetId, a.publicId, b.id, b.publicId, b.identityVerificationStatus,
-            al.status, al.allocationDescription)
+            al.status, al.allocationDescription, a.name, b.fullName)
         from LegalBasisVersionAllocation al, LegalBasisDossierVersion v, Asset a, Beneficiary b
         where v.legalBasisDossierId = :dossierId
           and al.dossierVersionId = v.dossierVersionId

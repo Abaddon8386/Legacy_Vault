@@ -57,6 +57,9 @@ class FinalCourtHandoverHttpSqlServerTest extends LegalBasisSqlServerSupport {
         String sessions="/staff/verification-cases/"+f.publicCaseId()+"/handover-sessions";
         String session=call("POST",sessions,null,staff,201).get("sessionId").asText();
         String root=sessions+"/"+session;
+        var eligible=call("GET",root+"/eligible-assets",null,staff,200).get(0);
+        assertEquals(jdbc.queryForObject("SELECT title FROM dbo.assets WHERE asset_id=?",String.class,assetId),eligible.get("assetName").asText());
+        assertEquals(jdbc.queryForObject("SELECT full_name FROM dbo.beneficiaries WHERE vault_id=?",String.class,f.vaultId()),eligible.get("recipientName").asText());
         call("POST",root+"/close",null,staff,409);
         String item=call("POST",root+"/deliveries",Map.of("recipientId",recipient,"assetIds",List.of(asset)),staff,201).get(0).get("itemId").asText();
         assertEquals("synthetic received content",call("POST","/received-assets/"+item+"/content",Map.of("password",password),beneficiary,200).get("payload").asText());

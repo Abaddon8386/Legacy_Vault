@@ -412,9 +412,6 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
       mode={mode}
       onError={onError}
     />
-    {selected?.status === 'OPEN' && <div className="lv-handover-next-step">
-      <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
-    </div>}
   </section>;
 }
 

@@ -53,7 +53,7 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  await act(async()=>release(json(receipt,201)));assert.match(v.host.textContent,/Máy chủ đã xác nhận/);
  assert.equal(new URLSearchParams(window.location.search).get('sessionId'),sid);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
  const assetLinks=[...v.host.querySelectorAll('a.lv-handover-primary-action')];
- assert.equal(assetLinks.length,2);
+ assert.equal(assetLinks.length,1);
  for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
  assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng').disabled,true);
  const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);

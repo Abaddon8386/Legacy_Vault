@@ -377,6 +377,37 @@ test('PS-55 CSS Scoping Verification - No Leakage', () => {
   }
 });
 
+test('live completion DTO renders real counts and changing session clears the previous verdict', async () => {
+  const originalFetch = globalThis.fetch;
+  const caseId = '11111111-1111-4111-8111-111111111111';
+  const firstSession = '22222222-2222-4222-8222-222222222222';
+  const secondSession = '33333333-3333-4333-8333-333333333333';
+  const response = data => new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  let releaseSecond;
+  globalThis.fetch = async url => String(url).includes(secondSession)
+    ? new Promise(resolve => { releaseSecond = data => resolve(response(data)); })
+    : response({ assets: { completed: 2, total: 2, pending: 0, complete: true },
+      beneficiaries: { completed: 1, total: 1, pending: 0, complete: true }, ready: true });
+  let view;
+  try {
+    view = await mount(CompletionProgressPage, { caseId, sessionId: firstSession, accessToken: 'synthetic-live-token' });
+    assert.match(view.host.textContent, /2 \/ 2/);
+    assert.match(view.host.textContent, /1 \/ 1/);
+    assert.match(view.host.textContent, /Đủ điều kiện hoàn tất hồ sơ/);
+    await view.render({ caseId, sessionId: secondSession, accessToken: 'synthetic-live-token' });
+    assert.doesNotMatch(view.host.textContent, /Đủ điều kiện hoàn tất hồ sơ/);
+    assert.match(view.host.textContent, /— \/ —/);
+    await act(async () => releaseSecond({ assets: { completed: 1, total: 2, pending: 1, complete: false },
+      beneficiaries: { completed: 0, total: 1, pending: 1, complete: false }, ready: false }));
+    assert.match(view.host.textContent, /1 \/ 2/);
+    assert.match(view.host.textContent, /0 \/ 1/);
+    assert.match(view.host.textContent, /Chưa đủ điều kiện hoàn tất/);
+  } finally {
+    if (view) await view.close();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('PS-55 Component Regression: Case Switching Isolation & Stale Response Discard', async (t) => {
   await t.test('switching case via input wipes case A data, resets metrics to indeterminate, and avoids retaining A progress', async () => {
     const wrapper = await mount(CompletionProgressPage, {

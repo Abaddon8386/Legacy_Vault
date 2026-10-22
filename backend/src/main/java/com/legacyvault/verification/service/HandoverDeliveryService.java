@@ -71,7 +71,8 @@ public class HandoverDeliveryService {
                 .map(line -> new EligibleHandoverAssetResponse(line.row().assetPublicId(),
                         line.row().beneficiaryPublicId(), line.row().description(),
                         line.delivered() ? EligibleHandoverAssetResponse.DELIVERED
-                                : EligibleHandoverAssetResponse.ELIGIBLE))
+                                : EligibleHandoverAssetResponse.ELIGIBLE,
+                        line.row().assetName(), line.row().beneficiaryName()))
                 .toList();
     }
 

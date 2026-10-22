@@ -14,6 +14,7 @@ export function staffFixture({status = 'OPEN', closed = false, deliveries = [], 
     if (url.endsWith('/completion-progress')) return json({assets:{completed:ready?1:0,total:1}, beneficiaries:{completed:ready?1:0,total:1},ready,reason:ready?'READY':'PENDING'});
     if (url.endsWith('/deliveries')) return json(deliveries);
     if (url.endsWith('/receipts')) return json(receipts);
+    if (url.endsWith('/beneficiaries')) return json([{beneficiaryId:ids.recipient,fullName:'Synthetic recipient'}]);
     if (url.includes('/handover-sessions/')) return json({...session,caseId:url.match(/verification-cases\/([^/]+)/)[1],sessionId:url.split('/').at(-1)});
     if (url.includes('/verification-cases/')) return json({caseId:url.split('/').at(-1),status:closed?'CLOSED':'OPEN'});
     throw Error('Unexpected fixture request: '+url);

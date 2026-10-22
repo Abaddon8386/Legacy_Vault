@@ -129,16 +129,18 @@ function ScopedAssetHandoverPageContext({
       setShowReviewModal(false);
 
       try {
-        const assets = await fetchEligibleAssets(caseReference, sessionId, {
+        const options = {
           accessToken: effectiveAccessToken,
           isDevPreview: effectiveIsDevPreview,
           lang,
           signal: controller.signal,
-        });
+        };
+        const assets = await fetchEligibleAssets(caseReference, sessionId, options);
+        if (!Array.isArray(assets)) throw new Error(en ? 'Invalid handover data.' : 'Dữ liệu bàn giao không hợp lệ.');
 
-        if (active) {
+        if (active && !controller.signal.aborted) {
           // Chuẩn hóa candidates format từ BE EligibleHandoverAssetResponse
-          const formattedCandidates = (Array.isArray(assets) ? assets : []).map((a) => {
+          const formattedCandidates = assets.map((a) => {
             const isDelivered = a.deliveryStatus === 'DELIVERED' || a.status === 'DELIVERED';
             return {
               assetId: a.assetId,
