@@ -73,6 +73,8 @@ class CounterIdentityAttestationServiceTest {
         assertEquals(beneficiaryId, response.beneficiaryId());
         assertEquals(staffPublicId, response.recordedBy());
         assertNotNull(response.recordedAt());
+        verify(beneficiary).verifyAtCounter();
+        verify(beneficiaries).save(beneficiary);
         verify(attestations).saveAndFlush(argThat(saved -> saved.getEvidenceReference().equals("COUNTER-RECEIPT-17")
                 && saved.getConfirmedEmail().equals("recipient@example.com")
                 && saved.getStaffUserId().equals(7L)
