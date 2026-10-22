@@ -47,9 +47,19 @@ export default function GoogleSignInButton({
   text = 'continue_with',
   onCredentialReceived,
   onError,
+  customUnavailableNotice = null,
 }) {
   const containerRef = useRef(null);
   const isPendingRef = useRef(false);
+  const onCredentialReceivedRef = useRef(onCredentialReceived);
+  const onErrorRef = useRef(onError);
+  const disabledRef = useRef(disabled);
+
+  useEffect(() => {
+    onCredentialReceivedRef.current = onCredentialReceived;
+    onErrorRef.current = onError;
+    disabledRef.current = disabled;
+  }, [onCredentialReceived, onError, disabled]);
 
   const clientId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_CLIENT_ID) || '';
   const isConfigured = Boolean(clientId.trim());
@@ -58,10 +68,16 @@ export default function GoogleSignInButton({
   const [hasError, setHasError] = useState(false);
 
   const labelText = lang === 'en' ? 'Continue with Google' : 'Tiếp tục với Google';
-  const unavailableNotice =
-    lang === 'en'
+  const unconfiguredNotice =
+    customUnavailableNotice ||
+    (lang === 'en'
       ? 'Google sign-in is currently unavailable'
-      : 'Đăng nhập Google hiện chưa khả dụng';
+      : 'Đăng nhập Google hiện chưa khả dụng');
+  const errorNotice =
+    lang === 'en'
+      ? 'Unable to connect to Google services. Please try again later.'
+      : 'Không thể kết nối đến dịch vụ Google. Vui lòng thử lại sau.';
+  const activeNotice = hasError ? errorNotice : unconfiguredNotice;
 
   useEffect(() => {
     let isMounted = true;
@@ -75,7 +91,7 @@ export default function GoogleSignInButton({
         if (!isMounted) return;
         if (!window.google?.accounts?.id) {
           setHasError(true);
-          onError?.({
+          onErrorRef.current?.({
             code: 'GOOGLE_SCRIPT_LOAD_ERROR',
             message: getAuthMessage('GOOGLE_SCRIPT_LOAD_ERROR', lang),
           });
@@ -85,11 +101,11 @@ export default function GoogleSignInButton({
         window.google.accounts.id.initialize({
           client_id: clientId.trim(),
           callback: (response) => {
-            if (!isMounted || disabled || isPendingRef.current) return;
+            if (!isMounted || disabledRef.current || isPendingRef.current) return;
             if (response?.credential) {
-              onCredentialReceived?.(response);
+              onCredentialReceivedRef.current?.(response);
             } else {
-              onError?.({
+              onErrorRef.current?.({
                 code: 'INVALID_GOOGLE_CREDENTIAL',
                 message: getAuthMessage('INVALID_GOOGLE_CREDENTIAL', lang),
               });
@@ -118,7 +134,7 @@ export default function GoogleSignInButton({
       .catch((err) => {
         if (!isMounted) return;
         setHasError(true);
-        onError?.({
+        onErrorRef.current?.({
           code: 'GOOGLE_SCRIPT_LOAD_ERROR',
           message: getAuthMessage('GOOGLE_SCRIPT_LOAD_ERROR', lang),
           originalError: err,
@@ -128,7 +144,7 @@ export default function GoogleSignInButton({
     return () => {
       isMounted = false;
     };
-  }, [clientId, isConfigured, lang, text, disabled, onCredentialReceived, onError]);
+  }, [clientId, isConfigured, lang, text]);
 
   const showGis = isConfigured && gisLoaded && !hasError;
   const isButtonDisabled = disabled || !isConfigured || hasError;
@@ -158,7 +174,7 @@ export default function GoogleSignInButton({
             disabled={isButtonDisabled}
             onClick={handleCustomClick}
             aria-label={labelText}
-            title={!isConfigured || hasError ? unavailableNotice : labelText}
+            title={!isConfigured || hasError ? activeNotice : labelText}
           >
             <span className="lv-google-btn-icon">
               <GoogleGIcon size={18} />
@@ -167,7 +183,7 @@ export default function GoogleSignInButton({
           </button>
           {(!isConfigured || hasError) && (
             <div className="lv-google-unavailable-notice" role="status">
-              {unavailableNotice}
+              {activeNotice}
             </div>
           )}
         </>
