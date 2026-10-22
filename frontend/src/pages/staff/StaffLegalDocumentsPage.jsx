@@ -25,6 +25,8 @@ import {
   uploadBasisVersion,
   forwardBasisVersion,
   readBasisVersionContent,
+  fetchStaffAssetCatalog,
+  fetchStaffCaseBeneficiaries,
 } from './staffLegalDocumentsService.js';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
@@ -97,6 +99,8 @@ export default function StaffLegalDocumentsPage({
 
   // Allocations State (Finding B)
   const [allocations, setAllocations] = useState([]);
+  const [availableAssets, setAvailableAssets] = useState([]);
+  const [availableBeneficiaries, setAvailableBeneficiaries] = useState([]);
 
   // Action / Feedback State
   const [uploadProgress, setUploadProgress] = useState(null);
@@ -209,14 +213,30 @@ export default function StaffLegalDocumentsPage({
       setActionError(null);
 
       try {
-        const result = await fetchBasisDossier(selectedCaseId, {
-          accessToken: effectiveAccessToken,
-          isDevPreview: effectiveIsDevPreview,
-          lang,
-          signal: controller.signal,
-        });
+        const [result, assets, beneficiaries] = await Promise.all([
+          fetchBasisDossier(selectedCaseId, {
+            accessToken: effectiveAccessToken,
+            isDevPreview: effectiveIsDevPreview,
+            lang,
+            signal: controller.signal,
+          }),
+          fetchStaffAssetCatalog(selectedCaseId, {
+            accessToken: effectiveAccessToken,
+            isDevPreview: effectiveIsDevPreview,
+            lang,
+            signal: controller.signal,
+          }),
+          fetchStaffCaseBeneficiaries(selectedCaseId, {
+            accessToken: effectiveAccessToken,
+            isDevPreview: effectiveIsDevPreview,
+            lang,
+            signal: controller.signal,
+          }),
+        ]);
 
         if (active && currentCaseIdRef.current === selectedCaseId) {
+          setAvailableAssets(assets || []);
+          setAvailableBeneficiaries(beneficiaries || []);
           if (result.notFound || !result.dossier) {
             setDossier(null);
             setDossierNotFound(true);
@@ -338,7 +358,7 @@ export default function StaffLegalDocumentsPage({
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
   const isLatestForwarded = latestVersion?.forwardStatus === 'FORWARDED';
-  const isLiveWithoutMetadataSource = Boolean(effectiveAccessToken);
+  const isLiveWithoutMetadataSource = Boolean(effectiveAccessToken) && (availableAssets.length === 0 || availableBeneficiaries.length === 0);
 
   // Submit phiên bản mới (Finding B & C & Lỗi A/B/C)
   const handleSubmitVersion = async (e) => {
@@ -1123,24 +1143,60 @@ export default function StaffLegalDocumentsPage({
                         {allocations.map((item, index) => (
                           <tr key={item.id}>
                             <td>
-                              <input
-                                type="text"
-                                className="lv-alloc-input"
-                                placeholder="00000000-0000-0000-0000-000000000000"
-                                value={item.assetId}
-                                onChange={(e) => handleUpdateAllocation(index, 'assetId', e.target.value)}
-                                disabled={isSubmitting || isRouteOnHold}
-                              />
+                              {availableAssets.length > 0 ? (
+                                <select
+                                  className="lv-alloc-input lv-alloc-select"
+                                  value={item.assetId}
+                                  onChange={(e) => handleUpdateAllocation(index, 'assetId', e.target.value)}
+                                  disabled={isSubmitting || isRouteOnHold}
+                                  aria-label={t.allocationAssetId}
+                                >
+                                  <option value="">{en ? '-- Select asset --' : '-- Chọn tài sản --'}</option>
+                                  {availableAssets.map((ast) => (
+                                    <option key={ast.assetId} value={ast.assetId}>
+                                      {ast.name} ({ast.assetType})
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  className="lv-alloc-input"
+                                  placeholder="00000000-0000-0000-0000-000000000000"
+                                  value={item.assetId}
+                                  onChange={(e) => handleUpdateAllocation(index, 'assetId', e.target.value)}
+                                  disabled={isSubmitting || isRouteOnHold}
+                                  aria-label={t.allocationAssetId}
+                                />
+                              )}
                             </td>
                             <td>
-                              <input
-                                type="text"
-                                className="lv-alloc-input"
-                                placeholder="00000000-0000-0000-0000-000000000000"
-                                value={item.beneficiaryId}
-                                onChange={(e) => handleUpdateAllocation(index, 'beneficiaryId', e.target.value)}
-                                disabled={isSubmitting || isRouteOnHold}
-                              />
+                              {availableBeneficiaries.length > 0 ? (
+                                <select
+                                  className="lv-alloc-input lv-alloc-select"
+                                  value={item.beneficiaryId}
+                                  onChange={(e) => handleUpdateAllocation(index, 'beneficiaryId', e.target.value)}
+                                  disabled={isSubmitting || isRouteOnHold}
+                                  aria-label={t.allocationBeneficiaryId}
+                                >
+                                  <option value="">{en ? '-- Select beneficiary --' : '-- Chọn người nhận --'}</option>
+                                  {availableBeneficiaries.map((ben) => (
+                                    <option key={ben.beneficiaryId} value={ben.beneficiaryId}>
+                                      {ben.fullName} ({ben.relationship})
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  className="lv-alloc-input"
+                                  placeholder="00000000-0000-0000-0000-000000000000"
+                                  value={item.beneficiaryId}
+                                  onChange={(e) => handleUpdateAllocation(index, 'beneficiaryId', e.target.value)}
+                                  disabled={isSubmitting || isRouteOnHold}
+                                  aria-label={t.allocationBeneficiaryId}
+                                />
+                              )}
                             </td>
                             <td>
                               <input

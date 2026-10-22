@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import { assetService } from '../../services/assetService'
+import { assetDocumentService } from '../../services/assetDocumentService.js'
 import { Button } from '../../components/common/Button'
 import { Modal } from '../../components/common/Modal'
 import { AssetListTable } from '../../components/assets/AssetListTable'
@@ -39,6 +40,8 @@ export function AssetManagementPage({
   const [totalElements, setTotalElements] = useState(0)
   const [retry, setRetry] = useState(0)
   const submittingRef = useRef(false)
+  const createdAssetRef = useRef(null)
+  const [assetSaved,setAssetSaved] = useState(false)
   const mutationRef = useRef(null)
   const selectionRef = useRef(null)
   const [selection, setSelection] = useState(null)
@@ -130,8 +133,16 @@ export function AssetManagementPage({
     const controller = new AbortController(); mutationRef.current = controller
     setIsSubmitting(true)
     try {
-      await assetService.createAsset(vaultId, formData, { lang, accessToken, signal: controller.signal })
-      if (!aliveRef.current) return
+      const context = `${vaultId}:${accessToken}`
+      let created = createdAssetRef.current?.context === context ? createdAssetRef.current.asset : null
+      if (!created) {
+        created = await assetService.createAsset(vaultId, formData, { lang, accessToken, signal: controller.signal })
+        if (controller.signal.aborted || !aliveRef.current) return
+        createdAssetRef.current = {context,asset:created}; setAssetSaved(true)
+      }
+      if (formData.documents?.length) await assetDocumentService.upload(vaultId,created.id,formData.documents,{lang,accessToken,signal:controller.signal})
+      if (!aliveRef.current || controller.signal.aborted) return
+      createdAssetRef.current=null;setAssetSaved(false)
       setIsAddModalOpen(false)
       setSearchQuery('')
       setSelectedAssetType('ALL')
@@ -480,11 +491,12 @@ export function AssetManagementPage({
       {/* Add Asset Modal */}
       {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
         isOpen={true}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {setIsAddModalOpen(false);createdAssetRef.current=null;setAssetSaved(false);setRetry(v=>v+1)}}
         onSubmit={handleAddAsset}
         t={t}
         lang={lang}
         isSubmitting={isSubmitting}
+        assetSaved={assetSaved}
       />}
     </div>
   )

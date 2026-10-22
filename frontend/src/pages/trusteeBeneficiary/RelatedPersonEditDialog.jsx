@@ -10,8 +10,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
  const [form,setForm]=useState(()=>({fullName:person.fullName,relationship:person.relationship||'',phone:person.phone||'',email:person.email||'',dateOfBirth:person.dateOfBirth||'',note:person.note??null}));
  const age=beneficiaryAge(form.dateOfBirth);
  const needsGuardian=!isTrustee && age!==null && age<18;
- const blockedBirthdateChange=needsGuardian && form.dateOfBirth!==person.dateOfBirth;
- const guardianNotice=en?'This beneficiary is under 18 and needs a guardian. Guardian registration is not available yet.':'Người thụ hưởng chưa đủ 18 tuổi, cần bổ sung người giám hộ. Hiện chưa thể đăng ký thông tin người giám hộ.';
+ const guardianNotice=en?'A guardian is recommended. Save, then open Guardian to add the contact.':'Nên bổ sung người giám hộ. Lưu rồi mở mục Người giám hộ để thêm thông tin.';
  const [touched,setTouched]=useState({}),[busy,setBusy]=useState(false),[error,setError]=useState(false);
  const request=useRef(null),pending=useRef(false);
  const dialog=useModalFocus(true,onClose);
@@ -21,7 +20,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
  async function submit(event){
   event.preventDefault();if(pending.current)return;
   setTouched(Object.fromEntries(fields.map(([key])=>[key,true])));
-  if(Object.keys(errors).length || blockedBirthdateChange)return;
+  if(Object.keys(errors).length)return;
   pending.current=true;setBusy(true);setError(false);
   const controller=new AbortController();request.current=controller;
   try {
@@ -44,7 +43,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
      {key==='dateOfBirth' && needsGuardian && <p id="related-guardian-notice" className="lv-tb-age-warning" role="status">{guardianNotice}</p>}
      {touched[key]&&errors[key]&&<span id={'related-error-'+key} className="lv-tb-error-text" role="alert">{errors[key]}</span>}
     </div>)}</div>
-    <div className="lv-tb-actions-row"><button type="button" className="lv-tb-btn-secondary" onClick={onClose}>{en?'Cancel':'Hủy'}</button><button type="submit" className="lv-tb-btn-primary" disabled={busy || blockedBirthdateChange}>{busy?(en?'Saving…':'Đang lưu…'):(en?'Save changes':'Lưu thay đổi')}</button></div>
+    <div className="lv-tb-actions-row"><button type="button" className="lv-tb-btn-secondary" onClick={onClose}>{en?'Cancel':'Hủy'}</button><button type="submit" className="lv-tb-btn-primary" disabled={busy}>{busy?(en?'Saving…':'Đang lưu…'):(en?'Save changes':'Lưu thay đổi')}</button></div>
    </form>
   </div>
  </div>;

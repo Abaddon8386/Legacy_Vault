@@ -71,7 +71,8 @@ for (const failure of ['401', 'wrong-user']) {
     const originalFetch = globalThis.fetch;
     globalThis.__testUser = refreshUser;
     let calls = 0;
-    globalThis.fetch = async () => {
+    globalThis.fetch = async url => {
+      if (url.includes('/received-assets?')) return refreshJson({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 });
       if (++calls === 2) return failure === '401' ? refreshJson({ code: 'UNAUTHENTICATED' }, 401) : refreshJson({ ...refreshUser, id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' });
       return refreshJson(refreshUser);
     };
@@ -98,6 +99,7 @@ for (const action of ['unmount', 'logout-and-relogin']) {
     const nextUser = { ...refreshUser, id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Next Account' };
     let calls = 0, signal, finish;
     globalThis.fetch = async (_url, options) => {
+      if (_url.includes('/received-assets?')) return refreshJson({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 });
       if (++calls === 2) return new Promise(resolve => { signal = options.signal; finish = resolve; });
       return refreshJson(calls === 1 ? refreshUser : nextUser);
     };
@@ -135,7 +137,7 @@ test('Refresh network failure keeps expiry and supports retry', async () => {
   storeSession(session);
   const originalFetch = globalThis.fetch;
   let calls = 0;
-  globalThis.fetch = async () => { if (++calls === 2) throw new Error('Network unavailable'); return refreshJson(refreshUser); };
+  globalThis.fetch = async url => { if (url.includes('/received-assets?')) return refreshJson({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 }); if (++calls === 2) throw new Error('Network unavailable'); return refreshJson(refreshUser); };
   const view = await mount(App);
   try {
     await act(async () => refreshButton(view.host).click());

@@ -4,9 +4,18 @@ import { PREVIEW_SUBJECT, previewReceivedActions } from './receivedAssetsPreview
 import { Modal } from '../../components/common/Modal.jsx';
 import './ReceivedAssets.css';
 
+function isPasswordOrReauthError(err) {
+  if (!err) return false;
+  if (err.code === 'REAUTH_FAILED' || err.code === 'PASSWORD_REQUIRED' || err.code === 'INVALID_PASSWORD') return true;
+  if (err.code === 'TOO_MANY_ATTEMPTS' || err.status === 429) return true;
+  return false;
+}
+
 function errorMessage(error, en) {
+  if (error?.status === 429) return en ? 'Too many attempts. Please try again later.' : 'Quá nhiều lần thử. Vui lòng thử lại sau.';
+  if (error?.status === 403 && !isPasswordOrReauthError(error)) return en ? 'Access denied. You do not have permission to view this item.' : 'Truy cập bị từ chối. Bạn không có quyền xem mục này.';
+  if (isPasswordOrReauthError(error)) return en ? 'Password verification failed. Please try again.' : 'Xác thực mật khẩu không đúng. Vui lòng thử lại.';
   if (error?.status === 401) return en ? 'Your session has expired. Please sign in again.' : 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-  if (error?.status === 403) return en ? 'You are not authorized to view this received asset.' : 'Bạn không có quyền xem tài sản đã nhận này.';
   if (error?.status === 404) return en ? 'Received asset not found.' : 'Không tìm thấy tài sản đã nhận.';
   return en ? 'Could not load data. Please retry.' : 'Không thể tải dữ liệu. Vui lòng thử lại.';
 }
@@ -14,6 +23,8 @@ function errorMessage(error, en) {
 function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
   const en = lang === 'en';
   const [state, setState] = useState({ busy: false, blobUrl: null, error: null });
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [imagePassword, setImagePassword] = useState('');
   const blobRef = useRef(null);
   const controller = useRef(null);
   const errorRef = useRef(onError);
@@ -23,6 +34,38 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
     controller.current?.abort();
     if (blobRef.current) { URL.revokeObjectURL(blobRef.current); blobRef.current = null; }
   }, []);
+
+  const loadImage = async (pwd) => {
+    const c = new AbortController();
+    controller.current = c;
+    setState({ busy: true, blobUrl: null, error: null });
+    try {
+      const blob = await actions.image(itemId, image.imageId, { ...options, password: pwd, signal: c.signal });
+      if (!c.signal.aborted) {
+        const url = URL.createObjectURL(blob);
+        blobRef.current = url;
+        setState({ busy: false, blobUrl: url, error: null });
+        setShowPasswordPrompt(false);
+        setImagePassword('');
+      }
+    } catch (error) {
+      if (!c.signal.aborted) {
+        setImagePassword('');
+        if (isPasswordOrReauthError(error)) {
+          setShowPasswordPrompt(true);
+          setState({ busy: false, blobUrl: null, error });
+        } else {
+          if (blobRef.current) {
+            URL.revokeObjectURL(blobRef.current);
+            blobRef.current = null;
+          }
+          setState({ busy: false, blobUrl: null, error: null });
+          errorRef.current(error);
+        }
+      }
+    }
+  };
+
   const toggle = async () => {
     if (state.blobUrl) {
       URL.revokeObjectURL(state.blobUrl);
@@ -30,23 +73,15 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
       setState({ busy: false, blobUrl: null, error: null });
       return;
     }
-    const c = new AbortController();
-    controller.current = c;
-    setState({ busy: true, blobUrl: null, error: null });
-    try {
-      const blob = await actions.image(itemId, image.imageId, { ...options, signal: c.signal });
-      if (!c.signal.aborted) {
-        const url = URL.createObjectURL(blob);
-        blobRef.current = url;
-        setState({ busy: false, blobUrl: url, error: null });
-      }
-    } catch (error) {
-      if (!c.signal.aborted) {
-        setState({ busy: false, blobUrl: null, error });
-        errorRef.current(error);
-      }
-    }
+    await loadImage(imagePassword || undefined);
   };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!imagePassword.trim()) return;
+    await loadImage(imagePassword);
+  };
+
   return (
     <div className="lv-received-image">
       <div className="lv-received-image__header">
@@ -55,6 +90,21 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
           {state.blobUrl ? (en ? 'Hide image' : 'Ẩn ảnh') : (state.busy ? (en ? 'Loading…' : 'Đang tải…') : (en ? 'View image' : 'Xem ảnh'))}
         </button>
       </div>
+      {showPasswordPrompt && !state.blobUrl && (
+        <form onSubmit={handlePasswordSubmit} style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="password"
+            maxLength={72}
+            value={imagePassword}
+            onChange={(e) => setImagePassword(e.target.value)}
+            placeholder={en ? 'Account password to decrypt' : 'Mật khẩu tài khoản để giải mã'}
+            aria-label={en ? 'Password for image' : 'Mật khẩu xem ảnh'}
+          />
+          <button type="submit" disabled={state.busy || !imagePassword.trim()}>
+            {en ? 'Decrypt & View' : 'Giải mã & Xem'}
+          </button>
+        </form>
+      )}
       {state.error && <p role="alert" className="lv-received-detail__error">{errorMessage(state.error, en)}</p>}
       {state.blobUrl && <img src={state.blobUrl} alt={image.label} className="lv-received-image__img" />}
     </div>
@@ -65,6 +115,8 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
   const en = lang === 'en';
   const [result, setResult] = useState({ loading: true, data: null, error: null });
   const [content, setContent] = useState({ busy: false, text: null, error: null });
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
   const [retry, setRetry] = useState(0);
   const controller = useRef(null);
   const locked = useRef(false);
@@ -81,18 +133,46 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
       controller.current?.abort();
     };
   }, [actions, subjectId, itemId, accessToken, lang, retry]);
-  const showContent = async () => {
+
+  const loadContent = async (pwd) => {
     if (locked.current) return;
     locked.current = true;
     const c = new AbortController();
     controller.current = c;
     setContent({ busy: true, text: null, error: null });
     try {
-      const res = await actions.content(itemId, { accessToken, lang, signal: c.signal });
-      if (!c.signal.aborted) setContent({ busy: false, text: readReceivedContent(res, subjectId, itemId), error: null });
-    } catch (error) { if (!c.signal.aborted) { setContent({ busy: false, text: null, error }); errorRef.current(error); } }
-    finally { if (!c.signal.aborted) locked.current = false; }
+      const res = await actions.content(itemId, { accessToken, lang, password: pwd, signal: c.signal });
+      if (!c.signal.aborted) {
+        setContent({ busy: false, text: readReceivedContent(res, subjectId, itemId), error: null });
+        setShowPasswordForm(false);
+        setPasswordInput('');
+      }
+    } catch (error) {
+      if (!c.signal.aborted) {
+        setPasswordInput('');
+        if (isPasswordOrReauthError(error)) {
+          setShowPasswordForm(true);
+          setContent({ busy: false, text: null, error });
+        } else {
+          setContent({ busy: false, text: null, error: null });
+          errorRef.current(error);
+        }
+      }
+    } finally {
+      if (!c.signal.aborted) locked.current = false;
+    }
   };
+
+  const showContent = async () => {
+    await loadContent(passwordInput || undefined);
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) return;
+    await loadContent(passwordInput);
+  };
+
   const item = result.data;
   return (
     <Modal
@@ -140,6 +220,21 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
                   {content.busy ? (en ? 'Loading…' : 'Đang tải…') : (en ? 'View content' : 'Xem nội dung')}
                 </button>
               )}
+              {showPasswordForm && content.text === null && (
+                <form onSubmit={handlePasswordSubmit} style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    type="password"
+                    maxLength={72}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder={en ? 'Account password to decrypt' : 'Mật khẩu tài khoản để giải mã'}
+                    aria-label={en ? 'Password for content' : 'Mật khẩu xem nội dung'}
+                  />
+                  <button type="submit" disabled={content.busy || !passwordInput.trim()}>
+                    {en ? 'Decrypt & View' : 'Giải mã & Xem'}
+                  </button>
+                </form>
+              )}
               {content.error && <p role="alert" className="lv-received-detail__error">{errorMessage(content.error, en)}</p>}
               {content.text !== null && (
                 <div className="lv-received-detail__content-wrap">
@@ -179,6 +274,7 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
   );
 }
 
+
 function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, onError }) {
   const en = lang === 'en';
   const [state, setState] = useState({ loading: true, data: null, error: null });
@@ -195,6 +291,7 @@ function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, 
   }, [actions, subjectId, accessToken, page, size, retry]);
   const data = state.data;
   const handleDetailError = error => {
+    if (isPasswordOrReauthError(error)) return;
     if ([401, 403, 404].includes(error?.status)) {
       setSelected(null);
       setState({ loading: false, data: null, error });

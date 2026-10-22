@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { paymentCatalog, paymentQuote, createPayment, readPayment } from '../../utils/paymentService.js';
+import { Button } from '../../components/common/Button.jsx';
+import './PaymentCheckout.css';
 
 export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid }) {
   const [plans, setPlans] = useState([]);
@@ -77,18 +79,22 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     finally { inFlight.current = false; if (alive.current) setBusy(false); }
   };
   const tier = ['BASIC', 'STANDARD', 'EXTENDED'];
-  return <section aria-label={en ? 'Buy a lifetime plan' : 'Mua gói trọn đời'}>
+  const planName = code => ({ BASIC: en ? 'Basic' : 'Cơ bản', STANDARD: en ? 'Standard' : 'Tiêu chuẩn', EXTENDED: en ? 'Extended' : 'Mở rộng' }[code] || code);
+  return <section className="lv-payment-checkout" aria-label={en ? 'Buy a lifetime plan' : 'Mua gói trọn đời'} aria-busy={busy}>
     <h2>{en ? 'Buy once, use for life' : 'Mua một lần, dùng trọn đời'}</h2>
     <p>{en ? 'Free remains available. Upgrades cost the full target price. Payment takes place at VNPay sandbox.'
       : 'Gói Free vẫn miễn phí. Nâng cấp trả đủ giá gói đích. Thanh toán tại VNPay sandbox.'}</p>
-    {plans.filter(p => tier.indexOf(p.code) > tier.indexOf(currentPlan)).map(plan => <button
-      key={plan.code} type="button" disabled={busy} onClick={() => choose(plan)}>
-      {plan.code} — {plan.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND
-    </button>)}
-    {selection && <div role="group" aria-label={en ? 'Confirm purchase' : 'Xác nhận mua gói'}>
-      <p>{selection.code}: {selection.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND — {en ? 'one-time payment, no recurring charge' : 'trả một lần, không tự động gia hạn'}</p>
-      <button type="button" disabled={busy} onClick={pay}>{en ? 'Continue to VNPay' : 'Tiếp tục đến VNPay'}</button>
+    <div className="lv-payment-checkout__actions">
+      {plans.filter(p => tier.indexOf(p.code) > tier.indexOf(currentPlan)).map(plan => <Button
+        key={plan.code} type="button" disabled={busy} onClick={() => choose(plan)}>
+        {en ? 'Upgrade to' : 'Nâng cấp lên'} {planName(plan.code)} · {plan.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND
+      </Button>)}
+    </div>
+    {selection && <div className="lv-payment-checkout__confirmation" role="group" aria-label={en ? 'Confirm purchase' : 'Xác nhận mua gói'}>
+      <h3>{en ? 'Confirm purchase' : 'Xác nhận mua gói'}</h3>
+      <p>{planName(selection.code)}: <strong>{selection.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND</strong> — {en ? 'one-time payment, no recurring charge' : 'trả một lần, không tự động gia hạn'}</p>
+      <Button type="button" isLoading={busy} onClick={pay}>{en ? 'Continue to VNPay' : 'Tiếp tục đến VNPay'}</Button>
     </div>}
-    {message && <p role="status">{message}</p>}
+    {message && <p className="lv-payment-checkout__message" role="status">{message}</p>}
   </section>;
 }

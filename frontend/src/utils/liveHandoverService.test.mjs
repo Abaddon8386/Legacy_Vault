@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {listLiveSessions,getLiveSession,openLiveSession,cancelLiveSession,handoverUrl} from '../pages/staff/liveHandoverService.js';
-const id='11111111-1111-4111-8111-111111111111',sid='22222222-2222-4222-8222-222222222222';
+import {listLiveSessions,getLiveSession,openLiveSession,cancelLiveSession,handoverUrl,fetchStaffCaseBeneficiaries,recordCounterAttestation,requestInvitationEmail} from '../pages/staff/liveHandoverService.js';
+const id='11111111-1111-4111-8111-111111111111',sid='22222222-2222-4222-8222-222222222222',bid='33333333-3333-4333-8333-333333333333';
 const record={caseId:id,sessionId:sid,vaultId:id,staffId:id,status:'OPEN',openedAt:'2026-10-20T06:00:00',closedAt:null};
 const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}});
 test('Session contract: list/get/open/cancel use scoped paths, auth, locale, signals and exact methods',async()=>{
@@ -12,7 +12,29 @@ test('Session contract: list/get/open/cancel use scoped paths, auth, locale, sig
  for(const c of calls){assert.ok(c.url.startsWith(`/api/v1/staff/verification-cases/${id}/handover-sessions`));assert.equal(c.init.headers.Authorization,'Bearer synthetic');assert.equal(c.init.headers['Accept-Language'],'en');assert.equal(c.init.signal,signal);}
  assert.equal(calls[2].init.body,undefined);assert.deepEqual(JSON.parse(calls[3].init.body),{status:'CANCELLED'});
 });
+test('Beneficiary counter and invitation contract PS-95/88/106',async()=>{
+ const calls=[];
+ const options={accessToken:'token-123',lang:'vi',fetchFn:async(url,init)=>{calls.push({url,init});return json(init.method==='POST'?(url.includes('identity-attestations')?{attestationId:id,caseId:id,beneficiaryId:bid}:{status:'QUEUED'}):[{beneficiaryId:bid}],init.method==='POST'?(url.includes('identity-attestations')?201:202):200);}};
+ const list=await fetchStaffCaseBeneficiaries(id,options);
+ assert.equal(list.length,1);
+ assert.equal(calls[0].url,`/api/v1/staff/verification-cases/${id}/beneficiaries`);
+ assert.equal(calls[0].init.method,'GET');
+
+ await recordCounterAttestation(id,bid,{evidenceReference:'CCCD 012345678901',confirmedEmail:'test@example.com'},options);
+ assert.equal(calls[1].url,`/api/v1/staff/verification-cases/${id}/beneficiaries/${bid}/identity-attestations`);
+ assert.equal(calls[1].init.method,'POST');
+ assert.deepEqual(JSON.parse(calls[1].init.body),{evidenceReference:'CCCD 012345678901',confirmedEmail:'test@example.com'});
+
+ await requestInvitationEmail(id,bid,2,options);
+ assert.equal(calls[2].url,`/api/v1/staff/verification-cases/${id}/beneficiaries/${bid}/invitation-email`);
+ assert.equal(calls[2].init.method,'POST');
+ assert.deepEqual(JSON.parse(calls[2].init.body),{expectedGeneration:2});
+
+ await assert.rejects(recordCounterAttestation(id,bid,{evidenceReference:''},options),{code:'VALIDATION_FAILED'});
+ await assert.rejects(recordCounterAttestation('bad',bid,{evidenceReference:'ok'},options),{code:'VALIDATION_FAILED'});
+});
 test('Invalid IDs cannot trigger requests; completion cannot be forged through cancel endpoint',async()=>{
+
  let calls=0;const options={fetchFn:async()=>{calls++;return json(record);}};
  await assert.rejects(listLiveSessions('bad',options),{code:'VALIDATION_FAILED'});await assert.rejects(getLiveSession(id,'bad',options),{code:'VALIDATION_FAILED'});assert.equal(calls,0);
  await assert.rejects(cancelLiveSession(id,sid,{fetchFn:async()=>json({...record,status:'COMPLETED',closedAt:'2026-10-20T07:00:00'})}),{code:'INVALID_RESPONSE'});

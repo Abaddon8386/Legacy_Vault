@@ -1,4 +1,5 @@
 import { AssetImageGallery } from './AssetImageGallery.jsx'
+import AssetDocuments from './AssetDocuments.jsx'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
@@ -426,6 +427,7 @@ export function AssetDetailModal({
         )}
 
         {/* Actions */}
+        {asset && <AssetDocuments vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} />}
         <div className="lv-modal-actions-right">
           <Button variant="primary" onClick={handleClose}>
             {t.assets.closeBtn}

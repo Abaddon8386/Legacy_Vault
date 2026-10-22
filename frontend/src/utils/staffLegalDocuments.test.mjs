@@ -232,3 +232,147 @@ test('PS-96/PS-103: readBasisVersionContent calls real endpoint in live session'
   assert.equal(calls[0].url, '/api/v1/staff/verification-cases/12345678-1234-4234-8234-123456789012/basis-dossier/versions/1/content');
   assert.equal(calls[0].init.headers.Authorization, 'Bearer live-staff-token');
 });
+
+test('PS-96/PS-118: fetchStaffAssetCatalog requests pre-unlock catalog and maps items using PageResponse.content', async () => {
+  const oldFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return new Response(JSON.stringify({
+      content: [
+        { assetId: '11111111-1111-4111-8111-111111111111', assetType: 'REAL_ESTATE', name: 'Landmark 81 Apartment' },
+      ],
+      page: 0,
+      size: 100,
+      totalElements: 1,
+      totalPages: 1,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const assets = await { ...await import('../pages/staff/staffLegalDocumentsService.js') }.fetchStaffAssetCatalog(
+      'case-123',
+      { accessToken: 'test-token', lang: 'vi' }
+    );
+    assert.equal(calls[0].url, '/api/v1/staff/verification-cases/case-123/assets?page=0&size=100');
+    assert.equal(calls[0].init.headers.Authorization, 'Bearer test-token');
+    assert.equal(assets.length, 1);
+    assert.equal(assets[0].name, 'Landmark 81 Apartment');
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('PS-96/PS-118: fetchStaffAssetCatalog fetches all pages beyond 100 items when totalPages > 1', async () => {
+  const oldFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (url, init) => {
+    requestedUrls.push(url);
+    const parsedUrl = new URL(url, 'http://localhost');
+    const page = parseInt(parsedUrl.searchParams.get('page'), 10);
+    if (page === 0) {
+      return new Response(JSON.stringify({
+        content: Array.from({ length: 100 }, (_, i) => ({
+          assetId: `asset-page-0-${i}`,
+          assetType: 'REAL_ESTATE',
+          name: `Property #${i + 1}`,
+        })),
+        page: 0,
+        size: 100,
+        totalElements: 105,
+        totalPages: 2,
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({
+      content: Array.from({ length: 5 }, (_, i) => ({
+        assetId: `asset-page-1-${i + 100}`,
+        assetType: 'BANK_ACCOUNT',
+        name: `Bank Account #${i + 101}`,
+      })),
+      page: 1,
+      size: 100,
+      totalElements: 105,
+      totalPages: 2,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const assets = await { ...await import('../pages/staff/staffLegalDocumentsService.js') }.fetchStaffAssetCatalog(
+      'case-large',
+      { accessToken: 'test-token', lang: 'vi', fetchAll: true }
+    );
+    assert.equal(requestedUrls.length, 2);
+    assert.match(requestedUrls[0], /page=0&size=100/);
+    assert.match(requestedUrls[1], /page=1&size=100/);
+    assert.equal(assets.length, 105);
+    assert.equal(assets[104].name, 'Bank Account #105');
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('PS-96/PS-118: fetchStaffAssetCatalog does not convert 404 or invalid responses to empty array', async () => {
+  const oldFetch = globalThis.fetch;
+  try {
+    // 404 response
+    globalThis.fetch = async () => new Response(JSON.stringify({ code: 'RESOURCE_NOT_FOUND', message: 'Case not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await assert.rejects(
+      async () => {
+        await { ...await import('../pages/staff/staffLegalDocumentsService.js') }.fetchStaffAssetCatalog('invalid-case', {
+          accessToken: 'token',
+        });
+      },
+      (err) => {
+        assert.equal(err.status, 404);
+        assert.equal(err.code, 'RESOURCE_NOT_FOUND');
+        return true;
+      }
+    );
+
+    // Invalid response body (items instead of content or missing array)
+    globalThis.fetch = async () => new Response(JSON.stringify({ items: [] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await assert.rejects(
+      async () => {
+        await { ...await import('../pages/staff/staffLegalDocumentsService.js') }.fetchStaffAssetCatalog('case-invalid-shape', {
+          accessToken: 'token',
+        });
+      },
+      (err) => {
+        assert.equal(err.code, 'INVALID_RESPONSE');
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test('PS-96/PS-88: fetchStaffCaseBeneficiaries requests beneficiaries and returns array', async () => {
+  const oldFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return new Response(JSON.stringify([
+      { beneficiaryId: '22222222-2222-4222-8222-222222222222', fullName: 'Nguyen Van B', relationship: 'Con trai' },
+    ]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const bens = await { ...await import('../pages/staff/staffLegalDocumentsService.js') }.fetchStaffCaseBeneficiaries(
+      'case-123',
+      { accessToken: 'test-token', lang: 'vi' }
+    );
+    assert.equal(calls[0].url, '/api/v1/staff/verification-cases/case-123/beneficiaries');
+    assert.equal(calls[0].init.headers.Authorization, 'Bearer test-token');
+    assert.equal(bens.length, 1);
+    assert.equal(bens[0].fullName, 'Nguyen Van B');
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});

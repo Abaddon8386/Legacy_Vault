@@ -68,7 +68,7 @@ test('Partial delivery only displays returned items; paging and expired session 
  const w=await mount({actions:adapter({list:async()=>{throw Object.assign(new Error('Expired'),{status:401});}}),onUnauthorized:()=>{expired++;}});assert.ok(expired>0);assert.match(w.host.textContent,/hết hạn/);assert.doesNotMatch(w.host.textContent,/Chưa có tài sản được bàn giao/);await w.close();
 });
 test('403 while reading content removes private detail and does not fallback to fixture',async()=>{
- const v=await mount({actions:adapter({content:async()=>{throw Object.assign(new Error('Denied'),{status:403});}})});const dialog=await open(v);await act(async()=>button(dialog,'Xem nội dung').click());assert.equal(document.querySelector('[role=dialog]'),null);assert.ok(v.host.querySelector('[role=alert]'));assert.equal(v.host.textContent.includes('Synthetic received item'),false);await v.close();
+ const v=await mount({actions:adapter({content:async()=>{throw Object.assign(new Error('Denied'),{status:403,code:'ACCESS_DENIED'});}})});const dialog=await open(v);await act(async()=>button(dialog,'Xem nội dung').click());assert.equal(document.querySelector('[role=dialog]'),null);assert.ok(v.host.querySelector('[role=alert]'));assert.equal(v.host.textContent.includes('Synthetic received item'),false);await v.close();
 });
 const {default:ProductionReceived}=await loadComponentModule('src/pages/beneficiary/ReceivedAssets.jsx',true);
 test('Production cannot show demo with query/preview flags; authenticated preview uses only injected live adapter',async()=>{

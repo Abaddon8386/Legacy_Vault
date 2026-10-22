@@ -45,3 +45,41 @@ export function handoverUrl(path, caseId, sessionId) {
   if (isHandoverId(caseId) && isHandoverId(sessionId)) query.set('sessionId', sessionId);
   return path + (query.size ? `?${query}` : '');
 }
+
+export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
+  if (!isHandoverId(caseId)) throw new ApiError('VALIDATION_FAILED', 400);
+  const data = await request(`/staff/verification-cases/${caseId}/beneficiaries`, {
+    ...options,
+    method: 'GET',
+    expectedStatus: 200,
+  });
+  if (!Array.isArray(data)) throw new ApiError('INVALID_RESPONSE');
+  return data;
+}
+
+export async function recordCounterAttestation(caseId, beneficiaryId, payload = {}, options = {}) {
+  if (!isHandoverId(caseId) || !isHandoverId(beneficiaryId)) throw new ApiError('VALIDATION_FAILED', 400);
+  const evidenceReference = String(payload.evidenceReference || '').trim();
+  if (!evidenceReference) throw new ApiError('VALIDATION_FAILED', 400);
+  const body = { evidenceReference };
+  if (payload.confirmedEmail && typeof payload.confirmedEmail === 'string' && payload.confirmedEmail.trim()) {
+    body.confirmedEmail = payload.confirmedEmail.trim();
+  }
+  return await request(`/staff/verification-cases/${caseId}/beneficiaries/${beneficiaryId}/identity-attestations`, {
+    ...options,
+    method: 'POST',
+    body,
+    expectedStatus: 201,
+  });
+}
+
+export async function requestInvitationEmail(caseId, beneficiaryId, expectedGeneration, options = {}) {
+  if (!isHandoverId(caseId) || !isHandoverId(beneficiaryId)) throw new ApiError('VALIDATION_FAILED', 400);
+  const gen = Number.isInteger(expectedGeneration) ? expectedGeneration : 0;
+  return await request(`/staff/verification-cases/${caseId}/beneficiaries/${beneficiaryId}/invitation-email`, {
+    ...options,
+    method: 'POST',
+    body: { expectedGeneration: gen },
+    expectedStatus: 202,
+  });
+}

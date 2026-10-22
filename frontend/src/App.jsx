@@ -7,7 +7,8 @@ import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
 import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
 import AdminLogsPage from './pages/admin/AdminLogsPage.jsx';
 import { previewRoute } from './utils/previewState.js';
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import { createLiveReceivedAssetActions } from './services/receivedAssetService.js';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
@@ -422,6 +423,17 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const refreshControllerRef = useRef(null);
   const [refreshError, setRefreshError] = useState(null);
 
+  const effectiveBeneficiaryAssetActions = useMemo(() => {
+    if (beneficiaryAssetActions !== undefined) return beneficiaryAssetActions;
+    if (!isSessionActive(session)) return null;
+    return createLiveReceivedAssetActions({
+      accessToken: session.accessToken,
+      userId: session.user?.id,
+      lang,
+    });
+  }, [beneficiaryAssetActions, session, lang]);
+
+
   useEffect(() => () => {
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
@@ -804,7 +816,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           <SharedWithMePage
             key={`${session?.user?.id || 'anon'}:${session?.accessToken || ''}`}
             lang={lang}
-            receivedAssetActions={beneficiaryAssetActions}
+            receivedAssetActions={effectiveBeneficiaryAssetActions}
             invitationActions={invitationActions}
             isDevPreview={preview}
             previewScenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'unlinked'}
@@ -875,7 +887,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           }}
         >
           <BeneficiaryHome
-            receivedAssetActions={beneficiaryAssetActions}
+            receivedAssetActions={effectiveBeneficiaryAssetActions}
             receivedRefreshKey={refreshTrigger}
             lang={lang}
             isDevPreview={preview}

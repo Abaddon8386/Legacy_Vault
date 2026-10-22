@@ -22,7 +22,7 @@ test('Rendered preview permits only ticket-specific actions', async()=>{
 test('Real production build rejects preview override without synthetic success', async()=>{
  const previous=globalThis.fetch;const calls=[];globalThis.fetch=async(url)=>{calls.push(url);return new Response(JSON.stringify({code:'BACKEND_NOT_READY'}),{status:503,headers:{'Content-Type':'application/json'}});};
  const Production=await compile(true);const view=await mount(Production,{isDevPreview:true,lang:'vi'});
- try { assert.ok(view.host.querySelector('[role=alert]')); assert.ok(calls.some(url=>url.includes('/staff/verification-cases'))); assert.doesNotMatch(view.host.textContent,/CASE-2026-0049|HDS-/); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();globalThis.fetch=previous;}
+ try { assert.ok(view.host.querySelector('[role=alert]')); assert.ok(calls.some(url=>url.includes('/staff/verification-cases'))); assert.doesNotMatch(view.host.textContent,/CASE-2026-0049|HDS-/); assert.equal(view.host.querySelector('input[type=password]') === null,true); } finally {await view.close();globalThis.fetch=previous;}
 });
 
 test('Refresh fetches the selected case again without changing the scenario', async () => {

@@ -177,6 +177,8 @@ test('COURT preview aborts when case changes; late file cannot enter the new cas
   const dossier={caseId:id,route:'COURT',status:'LEGAL_BASIS_PROVIDED',versions:[{version:1,contentType:'application/pdf',sha256:'a'.repeat(64),allocations:[]}]};
   globalThis.fetch=async(url,init)=>{
     if(url.endsWith('/content')){signal=init.signal;return new Promise(r=>{release=r;});}
+    if(url.includes('/assets?')) return json({content:[],page:0,size:100,totalElements:0,totalPages:0});
+    if(url.endsWith('/beneficiaries')) return json([]);
     return json(dossier);
   };
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
