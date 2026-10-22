@@ -7,10 +7,9 @@
 .lv-legal-live select, .lv-legal-live textarea { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; padding: 12px; border: 1px solid var(--lv-border-medium, #ded9ce); border-radius: 8px; background: var(--lv-bg-surface, white); color: inherit; }
 .lv-legal-live textarea { min-height: 110px; resize: vertical; }
 .lv-legal-live button { font: inherit; min-height: 44px; border-radius: 8px; border: 1px solid var(--lv-border-medium, #ded9ce); padding: 10px 16px; cursor: pointer; color: var(--lv-brand-forest, #164639); background: var(--lv-bg-surface, white); }
-.lv-legal-live button[type=submit], .lv-legal-live [aria-current=step] { background: var(--lv-brand-forest, #164639); color: white; }
+.lv-legal-live button[type=submit] { background: var(--lv-brand-forest, #164639); color: white; }
 .lv-legal-live button:disabled { opacity: .55; cursor: not-allowed; }
 .lv-legal-live :focus-visible { outline: 2px solid var(--lv-accent-gold, #c5a059); outline-offset: 3px; }
-.lv-legal-live nav { display: flex; gap: 8px; flex-wrap: wrap; }
 .lv-legal-live p { line-height: 1.65; overflow-wrap: anywhere; }
 .lv-legal-evidence { margin: 16px 0; border-top: 1px solid var(--lv-border-subtle); padding-top: 12px; min-width: 0; }
 .lv-legal-evidence__row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 8px 0; }
@@ -20,4 +19,4 @@
 .lv-legal-evidence__preview img { display: block; max-width: 100%; max-height: 65vh; object-fit: contain; margin: auto; }
 .lv-legal-evidence__preview a { display: inline-flex; align-items: center; min-height: 44px; color: var(--lv-brand-forest); }
 .lv-legal-live [role=alert], .lv-legal-live .lv-legal-live__notice { background: #fdf2f0; border-left: 4px solid #b5473f; border-radius: 8px; padding: 16px; }
-@media(max-width: 600px) { .lv-legal-live .lv-legal-live__card { padding: 16px; } .lv-legal-live h1 { font-size: 24px; } .lv-legal-live nav button { flex: 1 1 45%; } }
+@media(max-width: 600px) { .lv-legal-live .lv-legal-live__card { padding: 16px; } .lv-legal-live h1 { font-size: 24px; } }

@@ -8,6 +8,7 @@ import {
   resolveAccountInitials,
 } from '../../utils/accountProfileValidation.js';
 import './AppShell.css';
+import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 
 /**
  * Extensible Navigation Registry for LegacyVault AppShell
@@ -90,35 +91,6 @@ const STAFF_NAVIGATION_REGISTRY = [
   { id: 'close-and-archive', jiraTicket: 'PS-56', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive', status: 'ACTIVE' },
 ];
 
-const LEGAL_NAVIGATION_REGISTRY = [
-  {
-    id: 'death-verification',
-    labelVi: 'Xác minh tử vong',
-    labelEn: 'Death Verification',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'will-document-verification',
-    jiraTicket: 'PS-29',
-    labelVi: 'Đối chiếu di chúc',
-    labelEn: 'Will Verification',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'basis-route-selection',
-    jiraTicket: 'PS-30',
-    labelVi: 'Thẩm định căn cứ',
-    labelEn: 'Basis Adjudication',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'dossier-review',
-    jiraTicket: 'PS-32',
-    labelVi: 'Thẩm định hồ sơ',
-    labelEn: 'Dossier Review',
-    status: 'ACTIVE',
-  },
-];
 
 export default function AppShell({
   children,
@@ -473,6 +445,17 @@ export default function AppShell({
                         <line x1="16" y1="13" x2="8" y2="13" />
                         <line x1="16" y1="17" x2="8" y2="17" />
                         <polyline points="10 9 9 9 8 9" />
+                      </svg>
+                    ) : item.id === 'approval-review' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8 12 3 3 5-6" />
+                      </svg>
+                    ) : item.id === 'controlled-unlock' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <rect x="4" y="10" width="16" height="11" rx="2" />
+                        <path d="M8 10V6a4 4 0 0 1 8 0" />
+                        <path d="M12 14v3" />
                       </svg>
                     ) : item.id === 'dms' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -855,15 +838,7 @@ export default function AppShell({
                     ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
                     : t.breadcrumbCurrent
                   : isLegal
-                    ? currentTab === 'dossier-review'
-                      ? (lang === 'en' ? 'Dossier Review' : 'Thẩm định hồ sơ')
-                      : currentTab === 'basis-route-selection'
-                        ? (lang === 'en' ? 'Basis Adjudication' : 'Thẩm định căn cứ')
-                        : currentTab === 'will-document-verification'
-                          ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
-                          : currentTab === 'death-verification'
-                            ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
-                            : t.breadcrumbCurrent
+                    ? LEGAL_NAVIGATION_REGISTRY.find(item => item.id === currentTab)?.[lang === 'en' ? 'labelEn' : 'labelVi'] || t.breadcrumbCurrent
                   : currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người thi hành bên ngoài')
                     : currentTab === 'wills'

@@ -25,6 +25,7 @@ import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficia
 import SubscriptionPage from './pages/subscription/SubscriptionPage.jsx';
 import LegalDossierReviewPage from './pages/legal/LegalDossierReviewPage.jsx';
 import LegalLiveWorkflow from './pages/legal/LegalLiveWorkflow.jsx';
+import { LEGAL_ROUTE_STEPS as legalLiveTabs } from './utils/legalNavigation.js';
 import LegalApprovalReviewPage from './pages/legal/LegalApprovalReviewPage.jsx';
 import { canAccessLegalDossierReview } from './utils/legalDossierReviewValidation.js';
 import StaffLegalDocumentsPage from './pages/staff/StaffLegalDocumentsPage.jsx';
@@ -1006,12 +1007,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     );
   }
 
-  const legalLiveTabs = {
-    '/legal': 'death-verification', '/legal/death-verification': 'death-verification',
-    '/legal/will-document-verification': 'will-document-verification',
-    '/legal/basis-route-selection': 'basis-route-selection', '/legal/dossier-review': 'dossier-review',
-    '/legal/approval-review': 'approval-review', '/legal/controlled-unlock': 'controlled-unlock',
-  };
   if (legalLiveTabs[path] && isSessionActive(session) && session.user.roles.includes('LEGAL_VERIFIER')) {
     const selectedCaseId = new URLSearchParams(location.split('?')[1] || '').get('caseId') || '';
     const navigateLegalTab = tab => {

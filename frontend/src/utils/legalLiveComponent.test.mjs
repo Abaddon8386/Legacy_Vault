@@ -104,15 +104,14 @@ test('Will picks original/version/hash from authorized overview, sends only cont
     await submit(view.host); assert.deepEqual(body, { originalWillIntakeId: a, willId: a, version: 2, result: 'MATCH', reason: '' }); assert.match(view.host.textContent, /server confirmed/);
   } finally { await view.close(); }
 });
-test('Context is retained in navigation; blocked capability fixtures cannot approve or unlock', async () => {
-  let destination;
+test('Blocked capability fixtures cannot approve or unlock after removing duplicate content navigation', async () => {
   globalThis.fetch = async () => assert.fail('Injected context should not trigger additional reads before a decision');
   for (const step of ['approval-review', 'controlled-unlock']) {
-    const view = await mount({ ...base, step, onNavigate: path => { destination = path; } });
+    const view = await mount({ ...base, step });
     try {
       assert.match(view.host.textContent, /does not currently meet/);
       assert.equal([...view.host.querySelectorAll('button')].find(item => item.disabled && /Record decision|Unlock vault/.test(item.textContent)).disabled, true);
-      await click(view.host, 'Will comparison'); assert.match(destination, new RegExp(`caseId=${a}`)); assert.match(destination, /lang=en/);
+      assert.equal(view.host.querySelector('nav'), null);
     } finally { await view.close(); }
   }
 });

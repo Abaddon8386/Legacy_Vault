@@ -6,6 +6,7 @@ import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import * as api from '../pages/legal/legalLiveService.js';
 import { createSession, storeSession } from './session.js';
+import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from './legalNavigation.js';
 
 // Isolated HTTP fixtures only: never imported by the application or used as real legal evidence.
 const a = '11111111-1111-4111-8111-111111111111', b = '22222222-2222-4222-8222-222222222222';
@@ -182,6 +183,47 @@ test('actual App Legal route uses default queue/context adapters without injecte
   try { assert.match(view.host.textContent, /Final approval/); assert.ok(view.host.querySelector('form select'));
     await change(view.host.querySelector('form select'), 'APPROVE'); assert.equal(view.host.querySelector('[type=submit]').disabled, false);
   } finally { await view.close(); }
+});
+
+test('actual App Legal navigation is sidebar-only, covers six steps and retains case/language on desktop and mobile', async () => {
+  const App = await component('src/App.jsx');
+  let writes = 0;
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'POST') { writes++; assert.fail('Navigation must not submit a legal decision'); }
+    if (url.endsWith('/auth/me')) return json(user);
+    if (url.endsWith('/context')) return json(contextFixture());
+    if (url.includes('verification-cases?')) return json({ ...pageFixture(), totalElements: 1, totalPages: 1 });
+    return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+  for (const lang of ['vi', 'en']) {
+    storeSession(createSession({ accessToken: session.accessToken, tokenType: 'Bearer', expiresInSeconds: 3600, user }));
+    window.history.replaceState({}, '', `/legal/approval-review?caseId=${a}&lang=${lang}`);
+    const view = await mount({}, App);
+    try {
+      const items = () => [...view.host.querySelectorAll('.lv-sidebar-nav .lv-nav-item')];
+      assert.equal(items().length, 6);
+      assert.equal(new Set(items().map(item => item.textContent)).size, 6);
+      assert.equal(view.host.querySelector('.lv-legal-live nav'), null);
+      assert.equal(items().filter(item => item.getAttribute('aria-current') === 'page').length, 1);
+      assert.equal(items().find(item => item.getAttribute('aria-current') === 'page').textContent.trim(), lang === 'en' ? 'Final approval' : 'Phê duyệt hồ sơ');
+      for (const item of LEGAL_NAVIGATION_REGISTRY) {
+        const label = item[lang === 'en' ? 'labelEn' : 'labelVi'];
+        await act(async () => view.host.querySelector('.lv-mobile-menu-trigger').click());
+        assert.ok(view.host.querySelector('.lv-shell-sidebar').classList.contains('is-open'));
+        await act(async () => items().find(button => button.textContent.trim() === label).click());
+        assert.equal(window.location.pathname, item.path);
+        const params = new URLSearchParams(window.location.search);
+        assert.equal(params.get('caseId'), a); assert.equal(params.get('lang'), lang);
+        assert.equal(view.host.querySelector('.lv-legal-live h1').textContent, legalStepTitle(item.id, lang));
+        assert.ok(view.host.querySelector('.lv-header-breadcrumbs').textContent.includes(label));
+        assert.equal(items().filter(button => button.getAttribute('aria-current') === 'page').length, 1);
+        assert.equal(items().find(button => button.getAttribute('aria-current') === 'page').textContent.trim(), label);
+        assert.equal(view.host.querySelector('.lv-shell-sidebar').classList.contains('is-open'), false);
+        assert.equal(view.host.querySelector('.lv-legal-live nav'), null);
+      }
+    } finally { await view.close(); }
+  }
+  assert.equal(writes, 0);
 });
 
 test('COURT classification is available after death verification without a will or synthetic MATCH', async () => {
