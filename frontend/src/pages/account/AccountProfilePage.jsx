@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   User,
   Mail,
@@ -8,6 +8,7 @@ import {
   AlertCircle,
   HelpCircle,
   Edit3,
+  Link2,
 } from 'lucide-react';
 import { request } from '../../api/http.js';
 import { readUser } from '../../api/contracts.js';
@@ -18,6 +19,9 @@ import {
   canApplyProfileRefresh,
 } from '../../utils/accountProfileValidation.js';
 import { accountProfileI18n } from './accountProfileI18n.js';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import { linkGoogleAccount } from '../../utils/googleLinkService.js';
+import { getAuthMessage } from '../../utils/loginService.js';
 import './AccountProfilePage.css';
 
 export default function AccountProfilePage({
@@ -31,22 +35,57 @@ export default function AccountProfilePage({
 
   const sessionRef = useRef(session);
   const refreshRequestRef = useRef(null);
-  useEffect(() => {
-    sessionRef.current = session;
-    return () => {
-      sessionRef.current = null;
-      refreshRequestRef.current?.abort();
-      refreshRequestRef.current = null;
-    };
-  }, [session]);
+  const linkRequestRef = useRef(null);
+  const isLinkingRef = useRef(false);
+  const prevUserIdRef = useRef(session?.user?.id);
+  const prevTokenRef = useRef(session?.accessToken);
 
   const [refreshedData, setRefreshedData] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkedInSession, setLinkedInSession] = useState(false);
+  const [linkFeedback, setLinkFeedback] = useState(null);
+
+  useEffect(() => {
+    sessionRef.current = session;
+    const tokenChanged = session?.accessToken !== prevTokenRef.current;
+    const userChanged = session?.user?.id !== prevUserIdRef.current;
+
+    if (tokenChanged || userChanged) {
+      prevTokenRef.current = session?.accessToken;
+      prevUserIdRef.current = session?.user?.id;
+
+      // Abort old request and ensure button is never stuck in linking state
+      refreshRequestRef.current?.abort();
+      refreshRequestRef.current = null;
+      linkRequestRef.current?.abort();
+      linkRequestRef.current = null;
+      isLinkingRef.current = false;
+      setIsLinking(false);
+
+      if (userChanged) {
+        setLinkedInSession(false);
+        setLinkFeedback(null);
+      }
+    }
+
+  }, [session]);
+
+  useEffect(() => () => {
+      sessionRef.current = null;
+      refreshRequestRef.current?.abort();
+      refreshRequestRef.current = null;
+      linkRequestRef.current?.abort();
+      linkRequestRef.current = null;
+      isLinkingRef.current = false;
+  }, []);
+
   const profileUser = resolveActiveProfileUser(refreshedData, session);
   const activeToken = session?.accessToken || null;
   const activeFeedback = feedback?.token === activeToken ? feedback : null;
+  const activeLinkFeedback = linkFeedback?.token === activeToken ? linkFeedback : null;
 
   // Fetch fresh profile from GET /auth/me
   const handleRefresh = async () => {
@@ -112,6 +151,94 @@ export default function AccountProfilePage({
       }
     }
   };
+
+  const handleGoogleCredential = useCallback(
+    async (credentialResponse) => {
+      const currentToken = sessionRef.current?.accessToken;
+      const currentUserId = sessionRef.current?.user?.id;
+
+      if (!currentToken || !currentUserId || isLinkingRef.current) {
+        return;
+      }
+
+      const credential = credentialResponse?.credential;
+      if (!credential) {
+        setLinkFeedback({
+          type: 'error',
+          message: getAuthMessage('INVALID_GOOGLE_CREDENTIAL', lang),
+          token: currentToken,
+        });
+        return;
+      }
+
+      isLinkingRef.current = true;
+      linkRequestRef.current?.abort();
+      const controller = new AbortController();
+      linkRequestRef.current = controller;
+      setIsLinking(true);
+      setLinkFeedback(null);
+
+      try {
+        const res = await linkGoogleAccount(
+          { credential, accessToken: currentToken },
+          { signal: controller.signal, lang }
+        );
+
+        if (controller.signal.aborted || linkRequestRef.current !== controller) return;
+
+        const latestSession = sessionRef.current;
+        if (
+          latestSession?.accessToken !== currentToken ||
+          latestSession?.user?.id !== currentUserId
+        ) {
+          return;
+        }
+
+        setLinkedInSession(true);
+        setLinkFeedback({
+          type: 'success',
+          message: res.message || t.googleLinkSuccess,
+          token: currentToken,
+        });
+      } catch (err) {
+        if (controller.signal.aborted || linkRequestRef.current !== controller) return;
+
+        const latestSession = sessionRef.current;
+        if (
+          latestSession?.accessToken === currentToken &&
+          latestSession?.user?.id === currentUserId
+        ) {
+          const errCode = err?.code || 'GOOGLE_LINK_FAILED';
+          setLinkFeedback({
+            type: 'error',
+            message: err.message || getAuthMessage(errCode, lang),
+            token: currentToken,
+          });
+        }
+      } finally {
+        if (linkRequestRef.current === controller) {
+          linkRequestRef.current = null;
+          isLinkingRef.current = false;
+          setIsLinking(false);
+        }
+      }
+    },
+    [lang, t.googleLinkSuccess]
+  );
+
+  const handleGoogleError = useCallback(
+    (err) => {
+      const currentToken = sessionRef.current?.accessToken;
+      if (!currentToken || isLinkingRef.current) return;
+      const errCode = err?.code || 'GOOGLE_SCRIPT_LOAD_ERROR';
+      setLinkFeedback({
+        type: 'error',
+        message: err.message || getAuthMessage(errCode, lang),
+        token: currentToken,
+      });
+    },
+    [lang]
+  );
 
   const hasValidProfile = isValidUserProfile(profileUser);
   const isDevPreviewActive = Boolean(typeof import.meta !== 'undefined' && import.meta.env?.DEV && preview);
@@ -231,7 +358,82 @@ export default function AccountProfilePage({
             </ul>
           </section>
 
+          {/* 3. Google Account Linking (PS-85) */}
+          <section className="lv-profile-card lv-profile-google-card" aria-labelledby="google-link-heading">
+            <div className="lv-profile-google-header">
+              <div className="lv-profile-google-icon-badge" aria-hidden="true">
+                <Link2 size={20} />
+              </div>
+              <div>
+                <h2 id="google-link-heading" className="lv-profile-card__title">
+                  {t.googleLinkSection}
+                </h2>
+                <p className="lv-profile-card__desc">{t.googleLinkDesc}</p>
+              </div>
+            </div>
 
+            {/* Current Session Link Status */}
+            <div className="lv-profile-google-status-row">
+              <span className="lv-profile-field-label">{t.googleLinkSection}</span>
+              <div className="lv-profile-field-value">
+                {linkedInSession ? (
+                  <span className="lv-profile-google-badge lv-profile-google-badge--linked">
+                    <CheckCircle2 size={14} aria-hidden="true" />
+                    <span>{t.googleStatusLinkedCurrentSession}</span>
+                  </span>
+                ) : (
+                  <span className="lv-profile-google-badge lv-profile-google-badge--unlinked">
+                    <span>{t.googleStatusUnlinked}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Reload Limitation Notice */}
+            <div className="lv-profile-google-limitation" role="note">
+              <AlertCircle size={15} aria-hidden="true" className="lv-profile-google-limitation__icon" />
+              <span>{t.googleReloadLimitationNotice}</span>
+            </div>
+
+            {/* Link Feedback Alert */}
+            {activeLinkFeedback && (
+              <div
+                className={`lv-profile-feedback ${
+                  activeLinkFeedback.type === 'success'
+                    ? 'lv-profile-feedback--success'
+                    : 'lv-profile-feedback--error'
+                }`}
+                role="status"
+              >
+                {activeLinkFeedback.type === 'success' ? (
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                ) : (
+                  <AlertCircle size={16} aria-hidden="true" />
+                )}
+                <span>{activeLinkFeedback.message}</span>
+              </div>
+            )}
+
+            {/* Action Area */}
+            <div className="lv-profile-google-action">
+              <GoogleSignInButton
+                key={`${session?.user?.id || ''}:${activeToken || ''}`}
+                id="lv-profile-google-link-btn"
+                disabled={isLinking || !session?.accessToken}
+                lang={lang}
+                text="continue_with"
+                onCredentialReceived={handleGoogleCredential}
+                onError={handleGoogleError}
+                customUnavailableNotice={t.googleMissingClientIdNotice}
+              />
+              {isLinking && (
+                <div className="lv-profile-google-linking-indicator" role="status">
+                  <RotateCw size={14} className="is-spinning" aria-hidden="true" />
+                  <span>{t.googleLinkingButtonLabel}</span>
+                </div>
+              )}
+            </div>
+          </section>
         </>
       ) : (
         /* Empty / Unavailable State (Truthful presentation when no real user data is present) */

@@ -288,4 +288,104 @@
   .lv-account-profile-view .lv-profile-session-grid {
     grid-template-columns: 1fr;
   }
+  .lv-account-profile-view .lv-profile-google-status-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Google Account Linking (PS-85) */
+.lv-account-profile-view .lv-profile-google-card {
+  border-left: 4px solid var(--lv-color-gold, #c5a059);
+}
+
+.lv-account-profile-view .lv-profile-google-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.lv-account-profile-view .lv-profile-google-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(197, 160, 89, 0.12);
+  color: var(--lv-color-primary, #164639);
+  flex-shrink: 0;
+}
+
+.lv-account-profile-view .lv-profile-google-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--lv-color-surface-subtle, #f9f7f4);
+  border: 1px solid var(--lv-color-border, #e6ded1);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lv-account-profile-view .lv-profile-google-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.lv-account-profile-view .lv-profile-google-badge--linked {
+  background: rgba(30, 122, 69, 0.12);
+  color: #1e7a45;
+  border: 1px solid rgba(30, 122, 69, 0.25);
+}
+
+.lv-account-profile-view .lv-profile-google-badge--unlinked {
+  background: rgba(96, 104, 99, 0.1);
+  color: #606863;
+  border: 1px solid rgba(96, 104, 99, 0.2);
+}
+
+.lv-account-profile-view .lv-profile-google-limitation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fdfbf7;
+  border: 1px dashed var(--lv-color-border, #e6ded1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--lv-color-text-muted, #606863);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.lv-account-profile-view .lv-profile-google-limitation__icon {
+  color: var(--lv-color-gold, #c5a059);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-account-profile-view .lv-profile-google-action {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.lv-account-profile-view .lv-profile-google-linking-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--lv-color-primary, #164639);
+  font-weight: 500;
+  padding: 6px 10px;
 }
