@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +32,7 @@ class StaffInvitationEmailControllerTest {
     @MockitoBean UserRepository users;
     @MockitoBean UserRoleRepository userRoles;
     @MockitoBean StaffInvitationEmailService service;
+    @MockitoBean InvitationMailStatusService statuses;
 
     private static final UUID CASE_ID = UUID.randomUUID();
     private static final UUID BENEFICIARY_ID = UUID.randomUUID();
@@ -61,5 +63,16 @@ class StaffInvitationEmailControllerTest {
                     .andExpect(status().isForbidden());
         }
         verifyNoInteractions(service);
+    }
+    @Test void statusUsesSameStaffScopeAndNeverExposesRecipientOrCode() throws Exception {
+        UUID outbox=UUID.randomUUID(),invitation=UUID.randomUUID();
+        when(statuses.get(CASE_ID,BENEFICIARY_ID,null)).thenReturn(new InvitationEmailDtos.Queued(outbox,invitation,2,"ACCEPTED","ENABLED"));
+        mvc.perform(get(PATH).with(user("staff").roles("STAFF_EXECUTOR")))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(jsonPath("$.queueStatus").value("ACCEPTED"))
+            .andExpect(jsonPath("$.email").doesNotExist()).andExpect(jsonPath("$.code").doesNotExist());
+        mvc.perform(get(PATH)).andExpect(status().isUnauthorized());
+        for(String role:java.util.List.of("VAULT_OWNER","BENEFICIARY","LEGAL_VERIFIER","ADMIN"))
+            mvc.perform(get(PATH).with(user("other").roles(role))).andExpect(status().isForbidden());
     }
 }

@@ -38,13 +38,14 @@ public class StaffInvitationEmailService {
     private final InvitationMailOutboxService outboxService;
     private final AuditService audit;
     private final EntityManager entities;
+    private final InvitationMailConfiguration mailConfig;
 
     public StaffInvitationEmailService(VerificationCaseRepository cases, StaffCaseLockRepository caseLocks,
             BeneficiaryRepository beneficiaries, BeneficiaryCounterAttestationRepository attestations,
             BeneficiaryInvitationRepository invitations, StaffContextService staff, StaffVaultCaseGuard caseGuard,
             LegalWorkflowGuard legalGuard, LegalBasisDossierVersionRepository versions,
             HandoverScopeResolver handoverScope, BeneficiaryInvitationService invitationService,
-            InvitationMailOutboxService outboxService, AuditService audit, EntityManager entities) {
+            InvitationMailOutboxService outboxService, AuditService audit, EntityManager entities, InvitationMailConfiguration mailConfig) {
         this.cases = cases;
         this.caseLocks = caseLocks;
         this.beneficiaries = beneficiaries;
@@ -59,6 +60,7 @@ public class StaffInvitationEmailService {
         this.outboxService = outboxService;
         this.audit = audit;
         this.entities = entities;
+        this.mailConfig = mailConfig;
     }
 
     @Transactional
@@ -101,19 +103,19 @@ public class StaffInvitationEmailService {
         BeneficiaryInvitation invitation = invitations.findByBeneficiary_IdAndGeneration(
                 beneficiary.getId(), issued.invitation().generation())
                 .orElseThrow(() -> new IllegalStateException("Issued invitation was not persisted"));
-        BeneficiaryInvitationOutbox outbox = outboxService.enqueue(invitation, beneficiary.getId(),
-                expectedGeneration, attestation.getConfirmedEmail(), issued.code());
+        BeneficiaryInvitationOutbox outbox = outboxService.enqueueForCase(invitation, beneficiary.getId(),
+                expectedGeneration, attestation.getConfirmedEmail(), issued.code(), lockedCase.getVerificationCaseId(), actor.getUserId());
         audit.record(actor.getUserId(), lockedCase.getVaultId(), "BENEFICIARY_INVITATION_EMAIL_QUEUED",
                 "BENEFICIARY_INVITATION_OUTBOX", outbox.getId(), "USER",
                 Map.of("caseId", caseId.toString(), "beneficiaryId", beneficiaryId.toString(),
                         "invitationGeneration", invitation.getGeneration(), "queueStatus", "QUEUED",
-                        "transportStatus", "DISABLED"));
+                        "transportStatus", mailConfig.transportStatus()));
         return queued(outbox);
     }
 
-    private static InvitationEmailDtos.Queued queued(BeneficiaryInvitationOutbox row) {
+    private InvitationEmailDtos.Queued queued(BeneficiaryInvitationOutbox row) {
         return new InvitationEmailDtos.Queued(row.getPublicId(), row.getInvitationPublicId(),
-                row.getInvitationGeneration(), row.getTransportStatus(), "DISABLED");
+                row.getInvitationGeneration(), row.getTransportStatus(), mailConfig.transportStatus());
     }
 
     private static BusinessException notFound() { return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND); }

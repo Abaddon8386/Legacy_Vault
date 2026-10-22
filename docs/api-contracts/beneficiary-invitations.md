@@ -32,9 +32,19 @@ generation lifecycle with the address bound to the new generation. The current g
 key, so retrying the same request returns the same outbox result instead of creating another code.
 
 HTTP `202` means the encrypted payload was committed to the local outbox. Response includes only outbox/invitation
-public IDs, generation, `queueStatus=QUEUED`, and `transportStatus=DISABLED`; it never includes the code or email.
-No mail provider or worker is configured, so this is not evidence that a provider accepted or delivered email. See
+public IDs, generation, `queueStatus` and `transportStatus`; it never includes the code or email. First acceptance is
+`QUEUED`; an idempotent retry returns the existing outbox state. `transportStatus` is `ENABLED` only when the opt-in
+Resend transport is configured, otherwise `DISABLED`. This is not proof of email delivery. See
 [`../configuration/beneficiary-invitation-mail.md`](../configuration/beneficiary-invitation-mail.md).
+
+`GET` on the same scoped path returns the current invitation's mail metadata; appending `/{outboxId}` restricts it to
+that outbox as well. Both require the assigned Staff and an OPEN case, matching Beneficiary/vault and request case.
+Wrong role is 403, wrong scope/missing outbox is 404; responses are no-store and contain the same public fields as POST.
+
+State progression: `QUEUED -> CLAIMED -> SENDING -> ACCEPTED`. `ACCEPTED` means Resend accepted the submission, not that
+Gmail placed it in the inbox. Definitive rejection is `FAILED`; timeout/ambiguous acceptance or abandoned jobs become
+`UNKNOWN`; no-longer-eligible invitations/configured recipient exclusions become `SKIPPED`. The worker does not retry
+terminal or abandoned jobs. It never issues another code, changes account linkage, or bypasses Legal/handover gates.
 
 ## Policy và giới hạn quyền
 

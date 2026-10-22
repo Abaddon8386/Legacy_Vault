@@ -58,6 +58,12 @@ legacyvault:
   jwt:
     secret: ${JWT_SECRET_BASE64}
     expiration-seconds: 3600
+  invitation-mail:
+    enabled: ${INVITATION_EMAIL_ENABLED:false}
+    resend-api-key: ${RESEND_API_KEY:}
+    sender: ${INVITATION_EMAIL_FROM:${RECOVERY_EMAIL_FROM:}}
+    recipient-allowlist: ${INVITATION_RECIPIENT_ALLOWLIST:${RECOVERY_RECIPIENT_ALLOWLIST:}}
+    poll-ms: ${INVITATION_EMAIL_POLL_MS:1000}
   auth:
     recovery:
       email-enabled: ${RECOVERY_EMAIL_ENABLED:false}

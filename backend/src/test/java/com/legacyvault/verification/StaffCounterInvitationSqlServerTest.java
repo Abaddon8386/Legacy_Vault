@@ -3,6 +3,7 @@ package com.legacyvault.verification;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,6 +11,7 @@ import com.legacyvault.beneficiary.CounterBeneficiaryService;
 import com.legacyvault.beneficiary.CounterIdentityAttestationDtos;
 import com.legacyvault.beneficiary.CounterIdentityAttestationService;
 import com.legacyvault.beneficiary.StaffInvitationEmailService;
+import com.legacyvault.beneficiary.InvitationTokens;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.CustomUserPrincipal;
@@ -34,6 +36,60 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * email request never replaces Legal approval, and that handover without account/invitation still works.
  */
 class StaffCounterInvitationSqlServerTest extends HandoverCompletionSqlSupport {
+
+    private com.legacyvault.beneficiary.InvitationMailDeliveryService mailDelivery() {
+        return new com.legacyvault.beneficiary.InvitationMailDeliveryService(jdbc,
+            context.getBean(com.legacyvault.common.crypto.EncryptionService.class),context.getBean(com.fasterxml.jackson.databind.ObjectMapper.class),
+            context.getBean(InvitationTokens.class),new com.legacyvault.beneficiary.InvitationMailConfiguration(true,"fixture-key","sender@example.test","recipient@example.test"),
+            context.getBean(com.legacyvault.verification.service.LegalWorkflowGuard.class),
+            context.getBean(com.legacyvault.verification.service.HandoverScopeResolver.class),
+            context.getBean(com.legacyvault.verification.repository.LegalBasisDossierVersionRepository.class));
+    }
+    private Ctx mailContext() {
+        jdbc.update("UPDATE dbo.beneficiary_invitation_mail_outbox SET transport_status='SKIPPED' WHERE transport_status='QUEUED'");
+        var c=ctx();attest(c,"recipient@example.test");request(c,0);return c;
+    }
+    @Test void realSqlDeliveryDecryptsOnlyEligibleJobAndPurgesSecretAfterAcceptance() {
+        var c=mailContext();var delivery=mailDelivery();
+        Long id=tx.execute(s->delivery.claim());assertNotNull(id);
+        var payload=tx.execute(s->delivery.prepare(id));assertNotNull(payload);
+        assertEquals("recipient@example.test",payload.recipientEmail());assertTrue(new InvitationTokens().validFormat(payload.invitationCode()));
+        assertNull(tx.execute(s->delivery.prepare(id)));
+        tx.executeWithoutResult(s->delivery.finish(id,"ACCEPTED"));
+        assertEquals("ACCEPTED",jdbc.queryForObject("SELECT transport_status FROM dbo.beneficiary_invitation_mail_outbox WHERE outbox_id=?",String.class,id));
+        assertEquals(0,jdbc.queryForObject("SELECT DATALENGTH(payload_ciphertext) FROM dbo.beneficiary_invitation_mail_outbox WHERE outbox_id=?",Integer.class,id));
+        var status=asStaff(c.staff(),()->context.getBean(com.legacyvault.beneficiary.InvitationMailStatusService.class).get(c.caseId(),c.recipient(),null));
+        assertEquals("ACCEPTED",status.queueStatus());assertFalse(status.toString().contains(payload.invitationCode()));
+    }
+    @Test void simultaneousSqlClaimsHaveOnlyOneWinner() throws Exception {
+        mailContext();var delivery=mailDelivery();
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var start=new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.Callable<Long> claim=()->{start.await();return tx.execute(s->delivery.claim());};
+            var first=pool.submit(claim);var second=pool.submit(claim);start.countDown();
+            Long a=first.get(20,java.util.concurrent.TimeUnit.SECONDS),b=second.get(20,java.util.concurrent.TimeUnit.SECONDS);
+            assertEquals(1,(a==null?0:1)+(b==null?0:1));
+        }finally{pool.shutdownNow();}
+    }
+    @Test void revokedSqlInvitationIsSkippedAndNeverDecryptedForSending() {
+        var c=mailContext();var delivery=mailDelivery();Long id=tx.execute(s->delivery.claim());
+        jdbc.update("UPDATE dbo.beneficiary_invitations SET revoked_at=SYSUTCDATETIME(),revoked_by_user_id=? WHERE beneficiary_id=?",c.staff().getUserId(),c.recipientId());
+        assertNull(tx.execute(s->delivery.prepare(id)));
+        assertEquals("SKIPPED",jdbc.queryForObject("SELECT transport_status FROM dbo.beneficiary_invitation_mail_outbox WHERE outbox_id=?",String.class,id));
+        assertEquals(0,jdbc.queryForObject("SELECT DATALENGTH(payload_ciphertext) FROM dbo.beneficiary_invitation_mail_outbox WHERE outbox_id=?",Integer.class,id));
+    }
+    @Test void sqlStatusCannotBeReadByAnotherStaffOrForAnotherCase() {
+        var c=mailContext();User other=account("ROLE_STAFF_EXECUTOR");
+        assertThrows(BusinessException.class,()->asStaff(other,()->context.getBean(com.legacyvault.beneficiary.InvitationMailStatusService.class).get(c.caseId(),c.recipient(),null)));
+        assertThrows(BusinessException.class,()->asStaff(c.staff(),()->context.getBean(com.legacyvault.beneficiary.InvitationMailStatusService.class).get(UUID.randomUUID(),c.recipient(),null)));
+    }
+    @Test void crashedSqlSendBecomesUnknownAndIsNeverReclaimed() {
+        mailContext();var delivery=mailDelivery();Long id=tx.execute(s->delivery.claim());
+        jdbc.update("UPDATE dbo.beneficiary_invitation_mail_outbox SET transport_status='SENDING',processed_at=DATEADD(hour,-1,SYSUTCDATETIME()) WHERE outbox_id=?",id);
+        tx.executeWithoutResult(s->delivery.cleanup());assertNull(tx.execute(s->delivery.claim()));
+        assertEquals("UNKNOWN",jdbc.queryForObject("SELECT transport_status FROM dbo.beneficiary_invitation_mail_outbox WHERE outbox_id=?",String.class,id));
+    }
 
     private record Ctx(Ready ready, User staff, UUID caseId, UUID recipient, long recipientId) { }
 

@@ -30,6 +30,11 @@ public class InvitationMailOutboxService {
     @Transactional(propagation = Propagation.MANDATORY)
     public BeneficiaryInvitationOutbox enqueue(BeneficiaryInvitation invitation, Long beneficiaryId,
             int requestGeneration, String recipientEmail, String rawCode) {
+        return create(invitation,beneficiaryId,requestGeneration,recipientEmail,rawCode,null,null);
+    }
+
+    private BeneficiaryInvitationOutbox create(BeneficiaryInvitation invitation, Long beneficiaryId,
+            int requestGeneration, String recipientEmail, String rawCode, Long caseId, Long staffId) {
         String payload;
         try {
             payload = json.writeValueAsString(new MailPayload(recipientEmail, rawCode));
@@ -38,13 +43,21 @@ public class InvitationMailOutboxService {
         }
         byte[] aad = invitation.getPublicId().toString().getBytes(StandardCharsets.UTF_8);
         EncryptedData encrypted = encryption.encrypt(payload, aad);
-        return outbox.saveAndFlush(new BeneficiaryInvitationOutbox(UUID.randomUUID(), beneficiaryId,
+        var row=new BeneficiaryInvitationOutbox(UUID.randomUUID(), beneficiaryId,
                 invitation.getId(), invitation.getPublicId(), requestGeneration, invitation.getGeneration(), encrypted.ciphertext(),
-                encrypted.iv(), encrypted.keyVersion()));
+                encrypted.iv(), encrypted.keyVersion());
+        row.bindRequest(caseId,staffId);
+        return outbox.saveAndFlush(row);
     }
 
     public Optional<BeneficiaryInvitationOutbox> findByRequest(Long beneficiaryId, int requestGeneration) {
         return outbox.findByBeneficiaryIdAndRequestGeneration(beneficiaryId, requestGeneration);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public BeneficiaryInvitationOutbox enqueueForCase(BeneficiaryInvitation invitation, Long beneficiaryId,
+            int requestGeneration, String recipientEmail, String rawCode, Long caseId, Long staffId) {
+        return create(invitation,beneficiaryId,requestGeneration,recipientEmail,rawCode,caseId,staffId);
     }
 
     private record MailPayload(String recipientEmail, String invitationCode) {

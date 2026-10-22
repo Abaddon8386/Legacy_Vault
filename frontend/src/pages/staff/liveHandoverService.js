@@ -1,4 +1,5 @@
 import { request, ApiError } from '../../api/http.js';
+import { readInvitationMail } from './invitationMailService.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isHandoverId = value => typeof value === 'string' && UUID.test(value);
@@ -75,11 +76,11 @@ export async function recordCounterAttestation(caseId, beneficiaryId, payload = 
 
 export async function requestInvitationEmail(caseId, beneficiaryId, expectedGeneration, options = {}) {
   if (!isHandoverId(caseId) || !isHandoverId(beneficiaryId)) throw new ApiError('VALIDATION_FAILED', 400);
-  const gen = Number.isInteger(expectedGeneration) ? expectedGeneration : 0;
-  return await request(`/staff/verification-cases/${caseId}/beneficiaries/${beneficiaryId}/invitation-email`, {
+  if (!Number.isSafeInteger(expectedGeneration) || expectedGeneration < 0) throw new ApiError('VALIDATION_FAILED',400);
+  return readInvitationMail(await request(`/staff/verification-cases/${caseId}/beneficiaries/${beneficiaryId}/invitation-email`, {
     ...options,
     method: 'POST',
-    body: { expectedGeneration: gen },
+    body: { expectedGeneration },
     expectedStatus: 202,
-  });
+  }));
 }

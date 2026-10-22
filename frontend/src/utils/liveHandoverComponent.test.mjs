@@ -87,7 +87,7 @@ test('Counter beneficiary list and email invitation actions render and trigger i
  const testBen={beneficiaryId:'33333333-3333-4333-8333-333333333333',caseId:cid,fullName:'Nguyễn Văn A',relationship:'Con trai',identityVerificationStatus:'VERIFIED_AT_COUNTER',accountStatus:'PENDING',accountLinked:false,invitation:{state:'PENDING',expiresAt:'2026-10-25T00:00:00Z',generation:1},counterAttestation:{recorded:true,recordedAt:'2026-10-21T10:00:00Z',confirmedEmailRecorded:true},counterStep:'AWAITING_ACCOUNT_DECISION',actions:{canLinkAccount:true,canCreateAccount:true,canHandOverWithoutAccount:true,canRequestInvitationEmail:true}};
  globalThis.fetch=async(url,init)=>{
   calls.push({url,init});
-  if(init?.method==='POST'&&url.includes('invitation-email')) return json({status:'QUEUED'},202);
+  if(init?.method==='POST'&&url.includes('invitation-email')) return json({outboxId:'11111111-1111-4111-8111-111111111111',invitationId:'22222222-2222-4222-8222-222222222222',invitationGeneration:2,queueStatus:'QUEUED',transportStatus:'DISABLED'},202);
   if(url.includes('/beneficiaries')) return json([testBen]);
   return json(url.endsWith(sid)?receipt:[receipt]);
  };
@@ -121,7 +121,7 @@ test('Counter writes reject duplicate clicks, abort on case switch and ignore la
     assert.equal(writes, 1);
     await act(async () => btn(v.host, 'Chọn hồ sơ khác').click());
     assert.equal(writeSignal.aborted, true);
-    await act(async () => release(json({ status: 'QUEUED' }, 202)));
+    await act(async () => release(json({outboxId:'11111111-1111-4111-8111-111111111111',invitationId:'22222222-2222-4222-8222-222222222222',invitationGeneration:2,queueStatus:'QUEUED',transportStatus:'DISABLED'}, 202)));
     assert.doesNotMatch(v.host.textContent, /Old recipient|Đã xếp hàng/);
   } finally { await v.close(); }
 });

@@ -4,6 +4,7 @@ import { fetchStaffCases } from './staffCaseService.js';
 import { useStaffSessionExpiry, staffAuthFeedback } from './staffFeedback.js';
 import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, isHandoverId, handoverUrl, fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail } from './liveHandoverService.js';
 import './LiveHandoverPage.css';
+import InvitationMailStatus from './InvitationMailStatus.jsx';
 
 function errorText(error, en) {
   const auth = staffAuthFeedback(error, en ? 'en' : 'vi');
@@ -84,6 +85,7 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
   const [confirmedEmail, setConfirmedEmail] = useState('');
   const [submittingAttest, setSubmittingAttest] = useState(false);
   const [requestingEmailId, setRequestingEmailId] = useState(null);
+  const [emailReceipts, setEmailReceipts] = useState({});
   const [notice, setNotice] = useState('');
   const [beneficiaryRevision, setBeneficiaryRevision] = useState(0);
   const mutation = useRef(null);
@@ -150,8 +152,9 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
     setRequestingEmailId(ben.beneficiaryId);
     setNotice('');
     try {
-      await requestInvitationEmail(caseId, ben.beneficiaryId, ben.invitation.generation, { accessToken, lang, signal: c.signal });
+      const receipt = await requestInvitationEmail(caseId, ben.beneficiaryId, ben.invitation.generation, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
+      setEmailReceipts(previous => ({ ...previous, [ben.beneficiaryId]: receipt }));
       setNotice(en ? `Invitation email queued for ${ben.fullName}.` : `Đã xếp hàng gửi email lời mời cho ${ben.fullName}.`);
       setBeneficiaryRevision(r => r + 1);
     } catch (err) {
@@ -228,7 +231,7 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
                 {ben.actions?.canRequestInvitationEmail && (
                   <button
                     type="button"
-                    disabled={requestingEmailId === ben.beneficiaryId}
+                     disabled={Boolean(requestingEmailId)}
                     onClick={() => handleRequestInvitationEmail(ben)}
                   >
                     {requestingEmailId === ben.beneficiaryId
@@ -245,6 +248,10 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
                   </a>
                 )}
               </div>
+              {(emailReceipts[ben.beneficiaryId] || ben.counterAttestation?.confirmedEmailRecorded) && <InvitationMailStatus
+                key={`${accessToken}:${caseId}:${ben.beneficiaryId}:${emailReceipts[ben.beneficiaryId]?.outboxId || ''}`}
+                caseId={caseId} beneficiaryId={ben.beneficiaryId} accessToken={accessToken} lang={lang}
+                receipt={emailReceipts[ben.beneficiaryId]} onError={onError} />}
             </li>
           ))}
         </ul>
@@ -368,6 +375,7 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
       </div>}
     </div>}
     <CounterBeneficiariesSection
+      key={caseId}
       caseId={caseId}
       selectedSessionId={selected?.sessionId}
       accessToken={accessToken}

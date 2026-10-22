@@ -56,6 +56,13 @@ public class BeneficiaryInvitationOutbox {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "verification_case_id", updatable = false)
+    private Long verificationCaseId;
+    @Column(name = "requested_by_user_id", updatable = false)
+    private Long requestedByUserId;
+
+    void bindRequest(Long caseId, Long staffId) { this.verificationCaseId=caseId; this.requestedByUserId=staffId; }
+
     protected BeneficiaryInvitationOutbox() { }
 
     public BeneficiaryInvitationOutbox(UUID publicId, Long beneficiaryId, Long invitationId, UUID invitationPublicId,

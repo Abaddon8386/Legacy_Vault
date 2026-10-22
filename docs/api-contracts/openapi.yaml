@@ -3136,6 +3136,23 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/invitation-email:
+    get:
+      tags: [Staff, Beneficiaries]
+      summary: Read mail state for the current invitation in the assigned OPEN case
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Delivery metadata only. ACCEPTED is provider acceptance, not inbox delivery.
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffInvitationEmailQueued' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Staff, Beneficiaries]
       summary: Reissue or create a PS-86 invitation bound to the counter-confirmed email and queue it (PS-106)
@@ -3145,10 +3162,9 @@ paths:
         existing VERIFIED_AT_COUNTER, current COURT decision/legal approval, and the Beneficiary to occur in the
         approved current allocation. Existing unbound PS-86 codes are revoked and replaced through PS-86 generation
         rules. The new code and recipient are encrypted into the transactional outbox; code/email are never returned.
-        HTTP 202 means stored in the local outbox only. Transport is disabled; no provider accepted/sent/delivered claim.
+        HTTP 202 means stored in the local outbox only. The opt-in Resend worker updates the state asynchronously.
       x-status: implemented
-      x-integration-status: blocked
-      x-blockers: [approved-mail-provider-sender-sandbox, transport-retry-and-ciphertext-retention-policy]
+      x-integration-status: requires-mail-configuration
       parameters:
         - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -3159,7 +3175,7 @@ paths:
             schema: { $ref: '#/components/schemas/StaffInvitationEmailRequest' }
       responses:
         '202':
-          description: Stored as QUEUED in the encrypted local outbox; transportStatus is DISABLED.
+          description: Current outbox result. First acceptance is QUEUED; idempotent retries return the existing state.
           headers:
             Cache-Control: { schema: { type: string, enum: [no-store] } }
           content:
@@ -3170,6 +3186,26 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/invitation-email/{outboxId}:
+    get:
+      tags: [Staff, Beneficiaries]
+      summary: Read the current invitation mail state restricted to its outbox public ID
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: beneficiaryId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: outboxId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Scoped public delivery metadata; never the recipient or code.
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffInvitationEmailQueued' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}:
     put:
@@ -3886,8 +3922,8 @@ components:
         outboxId: { type: string, format: uuid }
         invitationId: { type: string, format: uuid }
         invitationGeneration: { type: integer, minimum: 1 }
-        queueStatus: { type: string, enum: [QUEUED] }
-        transportStatus: { type: string, enum: [DISABLED] }
+        queueStatus: { type: string, enum: [QUEUED, CLAIMED, SENDING, ACCEPTED, FAILED, UNKNOWN, SKIPPED] }
+        transportStatus: { type: string, enum: [ENABLED, DISABLED] }
     SubscriptionPayment:
       type: object
       required: [paymentId, planCode, catalogVersion, amountVnd, currency, billingModel, status, createdAt, expiresAt, checkoutUrl]

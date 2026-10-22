@@ -57,7 +57,7 @@ class StaffInvitationEmailServiceTest {
     private final EntityManager entities = mock(EntityManager.class);
     private final StaffInvitationEmailService service = new StaffInvitationEmailService(cases, caseLocks,
             beneficiaries, attestations, invitations, staff, caseGuard, legalGuard, versions, scope,
-            invitationService, outboxService, audit, entities);
+            invitationService, outboxService, audit, entities,new InvitationMailConfiguration(false,"","",""));
 
     private final User actor = mock(User.class);
     private final VerificationCase verificationCase = mock(VerificationCase.class);
@@ -104,7 +104,7 @@ class StaffInvitationEmailServiceTest {
         when(row.getInvitationPublicId()).thenReturn(metadata.invitationId());
         when(row.getInvitationGeneration()).thenReturn(2);
         when(row.getTransportStatus()).thenReturn("QUEUED");
-        when(outboxService.enqueue(invitation, BENEFICIARY_DB_ID, 1, "recipient@example.test", "raw-code-never-returned"))
+        when(outboxService.enqueueForCase(invitation, BENEFICIARY_DB_ID, 1, "recipient@example.test", "raw-code-never-returned",CASE_DB_ID,STAFF_ID))
                 .thenReturn(row);
 
         InvitationEmailDtos.Queued response = service.request(CASE_ID, BENEFICIARY_ID, 1);

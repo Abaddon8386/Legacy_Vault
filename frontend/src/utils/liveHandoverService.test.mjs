@@ -14,7 +14,7 @@ test('Session contract: list/get/open/cancel use scoped paths, auth, locale, sig
 });
 test('Beneficiary counter and invitation contract PS-95/88/106',async()=>{
  const calls=[];
- const options={accessToken:'token-123',lang:'vi',fetchFn:async(url,init)=>{calls.push({url,init});return json(init.method==='POST'?(url.includes('identity-attestations')?{attestationId:id,caseId:id,beneficiaryId:bid}:{status:'QUEUED'}):[{beneficiaryId:bid}],init.method==='POST'?(url.includes('identity-attestations')?201:202):200);}};
+ const options={accessToken:'token-123',lang:'vi',fetchFn:async(url,init)=>{calls.push({url,init});return json(init.method==='POST'?(url.includes('identity-attestations')?{attestationId:id,caseId:id,beneficiaryId:bid}:{outboxId:'11111111-1111-4111-8111-111111111111',invitationId:'22222222-2222-4222-8222-222222222222',invitationGeneration:2,queueStatus:'QUEUED',transportStatus:'DISABLED'}):[{beneficiaryId:bid}],init.method==='POST'?(url.includes('identity-attestations')?201:202):200);}};
  const list=await fetchStaffCaseBeneficiaries(id,options);
  assert.equal(list.length,1);
  assert.equal(calls[0].url,`/api/v1/staff/verification-cases/${id}/beneficiaries`);
