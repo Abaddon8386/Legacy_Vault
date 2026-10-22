@@ -3,6 +3,7 @@ import { Archive, CheckCircle2, Clock, AlertTriangle, FileText, Lock, RefreshCw,
 import { evaluateCloseArchivePreconditions, isCaseArchived } from '../../utils/closeAndArchiveValidation.js';
 import { fetchHandoverReceipts, fetchCompletionProgress, fetchHandoverSession, fetchHandoverDeliveries, createHandoverReceipt, closeHandoverSession, archiveHandoverCase, isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import { loadStaffCase } from './staffLiveService.js';
+import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
 import { closeAndArchiveI18n } from './closeAndArchiveI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
@@ -67,11 +68,15 @@ function CloseArchiveContext({
         ]);
         // Progress requires a current workflow and can conflict after archival. History remains readable.
         const closed = caseInfo.status === 'CLOSED' || propVaultStatus === 'ARCHIVED';
-        const progress = closed ? null : assetData && beneficiaryData
-          ? {assets: assetData, beneficiaries: beneficiaryData}
-          : await fetchCompletionProgress(caseId, sessionId, opts);
+        const [progress, people] = await Promise.all([
+          closed ? null : assetData && beneficiaryData
+            ? {assets: assetData, beneficiaries: beneficiaryData}
+            : fetchCompletionProgress(caseId, sessionId, opts),
+          closed || effectiveIsDevPreview ? [] : fetchStaffCaseBeneficiaries(caseId, opts),
+        ]);
         if (controller.signal.aborted) return;
-        setServer({revision, sessionStatus: session.status, caseStatus: caseInfo.status, receipts, deliveries, progress});
+        setServer({revision, sessionStatus: session.status, caseStatus: caseInfo.status,
+          vaultStatus: caseInfo.vaultStatus || propVaultStatus || '', receipts, deliveries, progress, people});
       } catch (error) {
         if (!controller.signal.aborted) { setServer(null); setLoadError(error.message || t.loadFailed); }
       } finally {
@@ -85,9 +90,10 @@ function CloseArchiveContext({
 
   const sessionStatus = server?.sessionStatus || propSessionStatus || '';
   const caseStatus = server?.caseStatus || propCaseStatus || '';
-  const vaultStatus = propVaultStatus || '';
+  const vaultStatus = server?.vaultStatus || propVaultStatus || '';
   const isArchived = isCaseArchived(vaultStatus, caseStatus);
   const receipts = server?.receipts || [];
+  const recipientName = id => server?.people?.find(person => person.beneficiaryId === id)?.fullName || id;
   const {isAssetComplete, isBeneficiaryComplete} = evaluateCloseArchivePreconditions(
     server?.progress?.assets || {}, server?.progress?.beneficiaries || {});
   const groups = new Map();
@@ -361,7 +367,7 @@ function CloseArchiveContext({
           <label htmlFor="staff-receipt-recipient">{t.recipientLabel}</label>
           <select id="staff-receipt-recipient" value={selectedRecipient} onChange={event => setSelectedRecipient(event.target.value)} disabled={loading || !!busy}>
             <option value="">{t.selectRecipient}</option>
-            {[...groups.keys()].map(id => <option key={id} value={id}>{id}</option>)}
+            {[...groups.keys()].map(id => <option key={id} value={id}>{recipientName(id)}</option>)}
           </select>
           <p>{t.receiptScope}: {targetAssetIds.length}</p>
         </div>}
@@ -434,7 +440,7 @@ function CloseArchiveContext({
                     <td>
                       {rc.attestationType || 'STAFF_ATTESTATION'}
                     </td>
-                    <td>{rc.recipientId || t.statusUnavailable}</td>
+                    <td>{recipientName(rc.recipientId) || t.statusUnavailable}</td>
                     <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
                     <td>
                       <span className="lv-ca-tag">

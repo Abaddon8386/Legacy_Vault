@@ -20,7 +20,15 @@ import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModa
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CompletionProgressPage.css';
 
-export default function CompletionProgressPage({
+export default function CompletionProgressPage(props) {
+  const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const context = [props.session?.user?.id, props.accessToken || props.session?.accessToken,
+    props.caseId ?? props.caseReference ?? props.initialCaseId ?? props.initialCaseReference ?? query.get('caseId'),
+    props.sessionId || query.get('sessionId')];
+  return <CompletionProgressContext key={JSON.stringify(context)} {...props} />;
+}
+
+function CompletionProgressContext({
   lang = 'vi',
   caseId: propCaseId,
   caseReference: propCaseReference,
@@ -205,10 +213,10 @@ export default function CompletionProgressPage({
             if (activeCaseRef.current !== trimmed) return;
             if (res) {
               const mappedAsset = res.assets
-                ? { totalCount: res.assets.total, deliveredCount: res.assets.completed, isComplete: res.assets.complete }
+                ? { total: res.assets.total, delivered: res.assets.completed }
                 : (res.assetCompletion ?? null);
               const mappedBeneficiary = res.beneficiaries
-                ? { totalCount: res.beneficiaries.total, confirmedCount: res.beneficiaries.completed, isComplete: res.beneficiaries.complete }
+                ? { total: res.beneficiaries.total, confirmed: res.beneficiaries.completed }
                 : (res.beneficiaryCompletion ?? null);
               setAssetData(mappedAsset);
               setBeneficiaryData(mappedBeneficiary);

@@ -7,8 +7,13 @@ public record EligibleHandoverAssetResponse(
         UUID assetId,
         UUID recipientId,
         String description,
-        String deliveryStatus
+        String deliveryStatus,
+        String assetName,
+        String recipientName
 ) {
+    public EligibleHandoverAssetResponse(UUID assetId, UUID recipientId, String description, String deliveryStatus) {
+        this(assetId, recipientId, description, deliveryStatus, null, null);
+    }
     public static final String ELIGIBLE = "ELIGIBLE";
     public static final String DELIVERED = "DELIVERED";
 }

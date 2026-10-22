@@ -54,6 +54,8 @@ Mọi ID là UUID công khai. Chỉ `STAFF_EXECUTOR`; role khác `403`, chưa đ
 
 `POST` nhận `{ "recipientId": "uuid", "assetIds": ["uuid", ...] }` (1–100 phần tử, không trùng) và trả mảng hạng mục:
 `{ itemId, sessionId, assetId, recipientId, status, deliveredAt, staffId }`.
+
+`GET .../eligible-assets` bổ sung `assetName` và `recipientName` để hiển thị tên trong phạm vi bàn giao đã được cấp quyền. Các trường này không chứa nội dung tài sản hoặc thông tin liên lạc; không thay đổi điều kiện truy cập hiện có.
 Việc ghi là **tất cả hoặc không**: chỉ cần một tài sản không đủ điều kiện thì không ghi gì.
 
 ## 4. Lỗi

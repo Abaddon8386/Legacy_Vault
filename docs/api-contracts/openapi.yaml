@@ -4143,6 +4143,8 @@ components:
         recipientId: { type: string, format: uuid }
         description: { type: string, nullable: true, description: Mô tả dòng phân bổ theo văn bản căn cứ }
         deliveryStatus: { type: string, enum: [ELIGIBLE, DELIVERED] }
+        assetName: { type: string, nullable: true }
+        recipientName: { type: string, nullable: true }
     HandoverDeliveryRequest:
       type: object
       required: [recipientId, assetIds]
