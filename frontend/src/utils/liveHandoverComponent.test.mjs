@@ -52,6 +52,9 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  await act(async()=>{open.click();open.click();});assert.equal(writes,1);assert.ok(v.host.querySelector('progress'));
  await act(async()=>release(json(receipt,201)));assert.match(v.host.textContent,/Máy chủ đã xác nhận/);
  assert.equal(new URLSearchParams(window.location.search).get('sessionId'),sid);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
+ const assetLinks=[...v.host.querySelectorAll('a.lv-handover-primary-action')];
+ assert.equal(assetLinks.length,2);
+ for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
  assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng').disabled,true);
  const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
  await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.ok(v.host.textContent.includes(sid));assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
@@ -101,6 +104,27 @@ test('Counter beneficiary list and email invitation actions render and trigger i
  await v.close();
 });
 
+
+test('Accounts mode links an existing account through the inline email form and reloads context', async () => {
+  const id='33333333-3333-4333-8333-333333333333'; let linked=false, writes=0;
+  globalThis.fetch=async(url,init)=>{
+    if(init.method==='POST' && url.endsWith('/account-link')) {
+      writes++; assert.deepEqual(JSON.parse(init.body),{accountEmail:'linh@example.test'});
+      linked=true; return json({beneficiaryId:id,accountId:cid,accountStatus:'ACCOUNT_CREATED',identityVerificationStatus:'VERIFIED_AT_COUNTER'});
+    }
+    if(url.includes('/beneficiaries')) return json([{beneficiaryId:id,fullName:'Linh',accountLinked:linked,counterStep:linked?'ACCOUNT_LINKED':'AWAITING_ACCOUNT_DECISION',actions:{canLinkAccount:!linked}}]);
+    return json(url.endsWith(sid)?receipt:[receipt]);
+  };
+  const v=await mount({mode:'accounts'},'/staff/beneficiary-accounts?caseId='+cid+'&sessionId='+sid);
+  try {
+    await act(async()=>btn(v.host,'Liên kết tài khoản').click());
+    const input=v.host.querySelector('input[type="email"]'); assert.ok(input);
+    await act(async()=>props(input).onChange({target:{value:'linh@example.test'}}));
+    await act(async()=>props(input.closest('form')).onSubmit({preventDefault(){}}));
+    assert.equal(writes,1); assert.match(v.host.textContent,/Đã liên kết tài khoản thành công/);
+    assert.match(v.host.textContent,/Đã có tài khoản/); assert.equal(v.host.querySelector('input[type="email"]'),null);
+  } finally { await v.close(); }
+});
 
 test('Counter writes reject duplicate clicks, abort on case switch and ignore late receipts', async () => {
   const ben = { beneficiaryId: '33333333-3333-4333-8333-333333333333', fullName: 'Old recipient', invitation: { generation: 1, state: 'PENDING' }, actions: { canRequestInvitationEmail: true } };

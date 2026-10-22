@@ -4,6 +4,7 @@ import { fetchStaffCases } from './staffCaseService.js';
 import { useStaffSessionExpiry, staffAuthFeedback } from './staffFeedback.js';
 import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, isHandoverId, handoverUrl, fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail } from './liveHandoverService.js';
 import './LiveHandoverPage.css';
+import { linkExistingBeneficiaryAccount } from './beneficiaryAccountService.js';
 
 function errorText(error, en) {
   const auth = staffAuthFeedback(error, en ? 'en' : 'vi');
@@ -80,6 +81,9 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [error, setError] = useState(null);
   const [attestTarget, setAttestTarget] = useState(null);
+  const [linkTarget, setLinkTarget] = useState(null);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [linking, setLinking] = useState(false);
   const [evidenceRef, setEvidenceRef] = useState('');
   const [confirmedEmail, setConfirmedEmail] = useState('');
   const [submittingAttest, setSubmittingAttest] = useState(false);
@@ -237,7 +241,12 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
                   </button>
                 )}
 
-                {ben.actions?.canLinkAccount && (
+                {ben.actions?.canLinkAccount && mode === 'accounts' && (
+                  <button type="button" disabled={linking} onClick={() => {
+                    setLinkTarget(ben); setAccountEmail(''); setError(null);
+                  }}>{en ? 'Link existing account' : 'Liên kết tài khoản'}</button>
+                )}
+                {ben.actions?.canLinkAccount && mode !== 'accounts' && (
                   <a
                     href={handoverUrl('/staff/beneficiary-accounts', caseId, selectedSessionId) + `&beneficiaryId=${ben.beneficiaryId}`}
                   >
@@ -250,6 +259,31 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
         </ul>
       )}
 
+      {linkTarget && (
+        <form onSubmit={async (event) => {
+          event.preventDefault();
+          if (mutation.current || !accountEmail.trim()) return;
+          const c = new AbortController(); mutation.current = c; setLinking(true); setError(null); setNotice('');
+          try {
+            await linkExistingBeneficiaryAccount(linkTarget.beneficiaryId, accountEmail.trim(), { accessToken, lang, signal: c.signal });
+            if (c.signal.aborted) return;
+            setNotice(en ? 'Account linked successfully.' : 'Đã liên kết tài khoản thành công.');
+            setLinkTarget(null); setAccountEmail(''); setBeneficiaryRevision(value => value + 1);
+          } catch (err) {
+            if (!c.signal.aborted) { setError(err); onError?.(err); }
+          } finally {
+            if (!c.signal.aborted) { mutation.current = null; setLinking(false); }
+          }
+        }}>
+          <h4>{en ? 'Link existing account: ' : 'Liên kết tài khoản có sẵn: '}{linkTarget.fullName}</h4>
+          <label>{en ? 'Account email' : 'Email tài khoản'}
+            <input type="email" required maxLength={254} value={accountEmail} disabled={linking}
+              onChange={event => setAccountEmail(event.target.value)} autoComplete="off" />
+          </label>
+          <button type="submit" disabled={linking || !accountEmail.trim()}>{linking ? (en ? 'Linking…' : 'Đang liên kết…') : (en ? 'Confirm link' : 'Xác nhận liên kết')}</button>
+          <button type="button" disabled={linking} onClick={() => setLinkTarget(null)}>{en ? 'Cancel' : 'Hủy'}</button>
+        </form>
+      )}
       {attestTarget && (
         <form onSubmit={handleAttest} style={{ marginTop: '0.5rem', padding: '0.5rem', border: '1px solid #ccc' }}>
           <h4>{en ? `Record in-person attestation: ${attestTarget.fullName}` : `Ghi nhận đối chiếu tại quầy: ${attestTarget.fullName}`}</h4>
@@ -359,7 +393,10 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
       <p>{en ? 'Opened (server time)' : 'Mở lúc (giờ máy chủ)'}: {selected.openedAt}</p>
       {selected.closedAt && <p>{en ? 'Closed (server time)' : 'Đóng lúc (giờ máy chủ)'}: {selected.closedAt}</p>}
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
-      {' · '}<a href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Asset handover' : 'Bàn giao tài sản'}</a>
+      {selected.status === 'OPEN' && <div className="lv-handover-next-step">
+        <p>{en ? 'Next: select a recipient and the approved assets to hand over.' : 'Tiếp theo: chọn người nhận và tài sản trong phân bổ đã duyệt để bàn giao.'}</p>
+        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
+      </div>}
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
       {confirmCancel && <div role="group" aria-label={en ? 'Confirm cancellation' : 'Xác nhận hủy phiên'}>
         <p>{en ? 'Cancel this open session?' : 'Hủy phiên đang mở này?'}</p>
@@ -375,6 +412,9 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
       mode={mode}
       onError={onError}
     />
+    {selected?.status === 'OPEN' && <div className="lv-handover-next-step">
+      <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
+    </div>}
   </section>;
 }
 
@@ -383,7 +423,7 @@ export default function LiveHandoverPage(props) {
   // Replacing the authenticated token discards every state/request from the old session.
   return <LiveHandoverContent key={props.accessToken} {...props} />;
 }
-function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onToggleLang, mode = 'sessions' }) {
+function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onToggleLang, onSelectSession, mode = 'sessions' }) {
   const en = lang === 'en';
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const [caseId, setCaseId] = useState(() => isHandoverId(query.get('caseId')) ? query.get('caseId') : null);
@@ -395,6 +435,7 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onToggleLang,
     if (caseId) url.searchParams.set('caseId', caseId); else url.searchParams.delete('caseId');
     if (caseId && sessionId) url.searchParams.set('sessionId', sessionId); else url.searchParams.delete('sessionId');
     window.history.replaceState(window.history.state, '', url.pathname + url.search);
+    onSelectSession?.(caseId ? sessionId : null);
   };
   return <main className="lv-live-handover">
     <header><a href="/staff/cases">{en ? 'Staff cases' : 'Danh sách hồ sơ'}</a><LanguageToggle lang={lang} onToggleLang={onToggleLang} /><button onClick={onLogout}>{en ? 'Sign out' : 'Đăng xuất'}</button></header>

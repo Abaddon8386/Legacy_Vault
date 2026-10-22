@@ -19,6 +19,7 @@ import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModa
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import {
   validateStaffLegalDocumentForm,
+  getStaffLegalDocumentErrorMessage,
 } from '../../utils/staffLegalDocumentsValidation.js';
 import {
   fetchBasisDossier,
@@ -1064,14 +1065,17 @@ export default function StaffLegalDocumentsPage({
                 <label className="lv-form-label">{t.fileUploadLabel}</label>
                 <EvidenceFileUploader
                   file={evidenceFile}
-                  onChange={setEvidenceFile}
+                  onFileChange={(file) => {
+                    setEvidenceFile(file);
+                    setErrors((previous) => ({ ...previous, file: undefined }));
+                  }}
                   disabled={isSubmitting || isRouteOnHold}
                   lang={lang}
                   accept=".pdf,image/jpeg,image/png"
                   maxSizeBytes={10 * 1024 * 1024}
                   hint={t.fileUploadHint}
                 />
-                {errors.file && <span className="lv-field-error" role="alert">{errors.file}</span>}
+                {errors.file && <span className="lv-field-error" role="alert">{getStaffLegalDocumentErrorMessage(errors.file, lang)}</span>}
               </div>
 
               {/* =============================================================

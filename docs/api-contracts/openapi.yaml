@@ -3114,7 +3114,7 @@ paths:
     post:
       tags: [Staff]
       summary: Staff attests in-person document check (PS-106)
-      description: Requires ROLE_STAFF_EXECUTOR and the exact assigned OPEN case containing the Beneficiary. The server records the authenticated Staff actor and UTC time. evidenceReference is a reference only; no document upload, OCR, client-supplied MATCH, or automatic asset access. Optional confirmedEmail is a Staff-attested snapshot of the address directly confirmed with this Beneficiary at the counter; it is not returned or audited as plaintext and is not equivalent to mailbox verification. This append-only attestation does not mark the legacy identity-verification status or by itself authorize invitation delivery.
+      description: Requires ROLE_STAFF_EXECUTOR and the exact assigned OPEN case containing the Beneficiary. The server records the authenticated Staff actor and UTC time. evidenceReference is a reference only; no document upload, OCR, client-supplied MATCH, or automatic asset access. Optional confirmedEmail is a Staff-attested snapshot of the address directly confirmed with this Beneficiary at the counter; it is not returned or audited as plaintext and is not equivalent to mailbox verification. In the same transaction, this append-only Staff attestation sets the compatibility identity-verification status to VERIFIED_AT_COUNTER. This is the recorded in-person Staff check, not automatic identity verification. Legal approval, unlock, allocation, account and invitation guards remain independently enforced.
       x-status: implemented
       parameters:
         - { name: caseId, in: path, required: true, schema: { type: string, format: uuid } }

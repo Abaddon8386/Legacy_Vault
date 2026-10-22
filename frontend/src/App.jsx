@@ -734,8 +734,11 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const buildStaffRoute = (basePath, overrides = {}) => {
     const params = new URLSearchParams();
     if (preview) params.set('preview', 'true');
-    const cId = overrides.caseId !== undefined ? overrides.caseId : staffCaseId;
-    const sId = overrides.sessionId !== undefined ? overrides.sessionId : staffSessionId;
+    // Session selection may update history inside the child before App renders.
+    const currentParams = new URLSearchParams(window.location.search);
+    const cId = overrides.caseId !== undefined ? overrides.caseId : (currentParams.get('caseId') || staffCaseId);
+    const sId = overrides.sessionId !== undefined ? overrides.sessionId
+      : (currentParams.has('caseId') ? currentParams.get('sessionId') || '' : staffSessionId);
     if (cId) params.set('caseId', cId);
     if (sId) params.set('sessionId', sId);
     const qs = params.toString();
@@ -923,10 +926,10 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           isPreview={preview}
-          currentTab="handover"
+          currentTab="asset-handover"
           onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/handover'))}
           onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
           onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
@@ -989,7 +992,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           currentTab="cases"
           onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/handover'))}
           onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
           onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
@@ -1133,7 +1136,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     } else if (targetTab === 'legal-documents') {
       navigateTo(buildStaffRoute('/staff/legal-documents'));
     } else if (targetTab === 'asset-handover') {
-      navigateTo(buildStaffRoute('/staff/asset-handover'));
+      navigateTo(buildStaffRoute('/staff/handover'));
     } else if (targetTab === 'beneficiary-confirmation') {
       navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'));
     } else if (targetTab === 'completion-progress') {
@@ -1369,7 +1372,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           currentTab="asset-handover"
           onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           onNavigateLegalDocuments={() => navigateTo(buildStaffRoute('/staff/legal-documents'))}
-          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/asset-handover'))}
+          onNavigateAssetHandover={() => navigateTo(buildStaffRoute('/staff/handover'))}
           onNavigateCloseAndArchive={() => navigateTo(buildStaffRoute('/staff/close-and-archive'))}
           onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}

@@ -66,6 +66,10 @@ public class CounterIdentityAttestationService {
         BeneficiaryCounterAttestation saved = attestations.saveAndFlush(
                 new BeneficiaryCounterAttestation(lockedCase, beneficiary, actor.getUserId(), reference,
                         request.normalizedConfirmedEmail()));
+        // Compatibility state for existing account/delivery guards. The source is
+        // the assigned Staff's recorded in-person attestation, never a client MATCH flag.
+        beneficiary.verifyAtCounter();
+        beneficiaries.save(beneficiary);
         audit.record(actor.getUserId(), lockedCase.getVaultId(), "BENEFICIARY_COUNTER_ATTESTED",
                 "BENEFICIARY_COUNTER_ATTESTATION", saved.getId(), "USER",
                 Map.of("caseId", caseId.toString(), "beneficiaryId", beneficiaryId.toString(),

@@ -14,12 +14,14 @@ import {
 } from '../../utils/beneficiaryConfirmationValidation.js';
 import {
   fetchBeneficiaryConfirmations,
+  fetchEligibleAssets,
   confirmBeneficiary,
 } from './handoverSessionService.js';
 import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './BeneficiaryConfirmationPage.css';
+import { listLiveSessions, fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
 
 const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
 
@@ -91,6 +93,21 @@ function BeneficiaryConfirmationPageContext({
 
   const [caseReference, setCaseReference] = useState(initialCase);
   const [sessionId, setSessionId] = useState(initialSession);
+  const [availableSessions, setAvailableSessions] = useState([]);
+  const [sessionLoadError, setSessionLoadError] = useState('');
+  useEffect(() => {
+    if (sessionId || !caseReference || !effectiveAccessToken || effectiveIsDevPreview) return;
+    const controller = new AbortController();
+    listLiveSessions(caseReference, { accessToken: effectiveAccessToken, lang, signal: controller.signal })
+      .then(items => { if (!controller.signal.aborted) setAvailableSessions(items); })
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          setSessionLoadError(lang === 'en' ? 'Unable to load handover sessions.' : 'Không tải được danh sách phiên bàn giao.');
+          if (error.status === 401) onUnauthorized?.();
+        }
+      });
+    return () => controller.abort();
+  }, [sessionId, caseReference, effectiveAccessToken, effectiveIsDevPreview, lang, onUnauthorized]);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [loadedCaseId, setLoadedCaseId] = useState(() => {
     if (initialCase && (propBeneficiaries || (initialBeneficiaries && initialBeneficiaries.length > 0))) {
@@ -183,16 +200,31 @@ function BeneficiaryConfirmationPageContext({
     }
 
     const controller = new AbortController();
-    fetchBeneficiaryConfirmations(caseReference, sessionId, {
+    const options = {
       accessToken: effectiveAccessToken,
       isDevPreview: effectiveIsDevPreview,
       lang,
       signal: controller.signal,
-    })
-      .then((list) => {
+    };
+    Promise.all([
+      fetchBeneficiaryConfirmations(caseReference, sessionId, options),
+      effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(caseReference, options),
+      effectiveIsDevPreview ? Promise.resolve([]) : fetchEligibleAssets(caseReference, sessionId, options),
+    ])
+      .then(([list, people, assets]) => {
         if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
           lastFetchedKeyRef.current = currentKey;
-          const normalized = (Array.isArray(list) ? list : []).map((b) => normalizeBeneficiaryItem(b, lang));
+          const normalized = (Array.isArray(list) ? list : []).map((b) => {
+            const person = people.find(item => item.beneficiaryId === b.beneficiaryId);
+            const allocated = assets.filter(item => item.recipientId === b.beneficiaryId);
+            return normalizeBeneficiaryItem({ ...b,
+              fullName: person?.fullName || b.fullName || b.beneficiaryName,
+              relationship: person?.relationship || b.relationship,
+              deliveryStatus: allocated.length > 0
+                ? (allocated.every(item => item.deliveryStatus === 'DELIVERED') ? 'DELIVERED' : 'PENDING')
+                : b.deliveryStatus,
+            }, lang);
+          });
           setBeneficiaries(normalized);
           setLoadedCaseId(caseReference);
         }
@@ -414,6 +446,25 @@ function BeneficiaryConfirmationPageContext({
       />
 
       {/* Warning when context is missing in real mode */}
+      {caseReference && !sessionId && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card">
+          <label>{lang === 'en' ? 'Select handover session' : 'Chọn phiên bàn giao'}
+            <select value="" onChange={event => {
+              const selected = availableSessions.find(item => item.sessionId === event.target.value);
+              if (!selected) return;
+              setSessionId(selected.sessionId);
+              const url = new URL(window.location.href);
+              url.searchParams.set('caseId', caseReference);
+              url.searchParams.set('sessionId', selected.sessionId);
+              window.history.replaceState(window.history.state, '', url.pathname + url.search);
+            }}>
+              <option value="">{lang === 'en' ? 'Select a session' : '-- Chọn phiên đã bàn giao --'}</option>
+              {availableSessions.map(item => <option key={item.sessionId} value={item.sessionId}>{item.status} — {item.openedAt} — {item.sessionId}</option>)}
+            </select>
+          </label>
+          {sessionLoadError && <p role="alert">{sessionLoadError}</p>}
+        </section>
+      )}
       {(!caseReference || !sessionId) && !effectiveIsDevPreview && (
         <section className="lv-confirm-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>

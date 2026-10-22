@@ -65,9 +65,13 @@ Theo quyết định 20/10: xác minh danh tính do Staff làm **ngoài hệ th�
 
 `POST …/invitation-email` (body `{ "expectedGeneration": n }`) kiểm tra lại **trong transaction, không tin cờ từ FE**: (1) Staff được giao ca và ca còn `OPEN`; (2) Legal đã phê duyệt và kho đã mở khóa cho bàn giao; (3) Beneficiary thuộc đúng kho của ca; (4) `VERIFIED_AT_COUNTER`; (5) chưa liên kết tài khoản; (6) Beneficiary nằm trong phân bổ đã duyệt; (7) có attestation kèm email đã xác nhận; (8) `expectedGeneration` khớp mã hiện tại. Email luôn lấy từ attestation, không nhận email tùy ý trong request. Lặp lại cùng `expectedGeneration` trả lại cùng yêu cầu (idempotent). Kết quả `202` chỉ là đã xếp hàng; transport thật chưa bật. Lời mời không thay Legal, mở khóa hay bàn giao tại quầy.
 
-**Chưa chốt (không tự đặt policy):** gửi lại/đổi email sau khi đã có mã gắn email hiện bị `BENEFICIARY_INVITATION_ALREADY_EXISTS`; cách đạt `VERIFIED_AT_COUNTER` khi FE bỏ màn MATCH cũ (BE chưa đổi guard, vẫn cần cả hai điều kiện).
+**Chưa chốt (không tự đặt policy):** gửi lại/đổi email sau khi đã có mã gắn email hiện bị `BENEFICIARY_INVITATION_ALREADY_EXISTS`; đổi email sau khi mã đã gắn email vẫn cần policy riêng.
 
 ## 6. Kiểm chứng và giới hạn
 
 Đã có: test dịch vụ (6), controller (5), SQL Server thật (4 test trong `BeneficiaryInvitationSqlServerTest`: thu hồi mã khi liên kết tại quầy, tạo không cần mã, danh sách theo dữ liệu thật, che dữ liệu với Staff khác, ca đã hủy và kho khác) và `StaffCounterInvitationSqlServerTest` (9 test, SQL Server thật: gửi mã chỉ sau attestation và gắn đúng email; retry idempotent và generation cũ; thiếu attestation/email; chưa xác minh hoặc đã liên kết; Staff khác, ca đóng, kho khác; chưa duyệt Legal và ngoài phân bổ; hai yêu cầu đồng thời chỉ một mã/một outbox; bàn giao không cần tài khoản hay lời mời; gửi lại hiện bị từ chối). Tìm hồ sơ: `StaffCaseSearchSqlServerTest`.
 Giới hạn: danh sách không phân trang (số Beneficiary của một kho nhỏ); ca chờ nhận (`OPEN`, chưa giao) chỉ xem được qua `GET /api/v1/staff/verification-cases/{caseId}` (PS-93); API Beneficiary ở trên chỉ dùng sau khi Staff đã nhận ca; chưa ghi nhận riêng lựa chọn "xử lý offline".
+
+## Cập nhật 22/10/2026 — xác nhận Staff tại quầy
+
+POST identity-attestations lưu biên bản bất biến và cập nhật VERIFIED_AT_COUNTER trong cùng transaction, sau kiểm tra Staff được giao ca OPEN và đúng người/kho. Đây là nguồn trạng thái tương thích cho guard liên kết/giao tài sản hiện có; FE không gửi MATCH hay trạng thái verified. Không tự cập nhật các biên bản cũ; Staff cần ghi nhận lại thao tác tại quầy qua API. Không thay guard Legal/unlock/phân bổ. Menu Staff Bàn giao tài sản mở /staff/handover; vào màn giao chi tiết từ liên kết của phiên để giữ sessionId.

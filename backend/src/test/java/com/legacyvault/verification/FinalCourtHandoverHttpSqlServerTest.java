@@ -47,7 +47,8 @@ class FinalCourtHandoverHttpSqlServerTest extends LegalBasisSqlServerSupport {
         var repo=context.getBean(AssetRepository.class);
         tx.execute(status->{var asset=repo.findById(assetId).orElseThrow();asset.setEncryptedPayload(context.getBean(EncryptionService.class).encrypt("synthetic received content",AssetService.associatedData(asset)));repo.saveAndFlush(asset);return null;});
         String asset=jdbc.queryForObject("SELECT CAST(public_id AS varchar(36)) FROM dbo.assets WHERE asset_id=?",String.class,assetId);
-        jdbc.update("UPDATE dbo.beneficiaries SET id_verification_status='VERIFIED_AT_COUNTER' WHERE vault_id=?",f.vaultId());
+        call("POST","/staff/verification-cases/"+f.publicCaseId()+"/beneficiaries/"+recipient+"/identity-attestations",
+                Map.of("evidenceReference","SYNTHETIC-IN-PERSON-ATTESTATION"),staff,201);
         String email=UUID.randomUUID()+"@example.test", password="Synthetic-Court-2026";
         call("POST","/auth/register",Map.of("fullName","Synthetic recipient","email",email,"password",password),null,201);
         call("POST","/staff/beneficiaries/"+recipient+"/account-link",Map.of("accountEmail",email),staff,200);
