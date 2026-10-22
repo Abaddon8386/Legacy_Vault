@@ -4,20 +4,10 @@ import { isSessionActive } from '../../utils/session.js';
 import * as api from './legalLiveService.js';
 import LegalFinalDecision from './LegalFinalDecision.jsx';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
+import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import './LegalLiveWorkflow.css';
 
-const paths = {
-  'death-verification': '/legal/death-verification', 'will-document-verification': '/legal/will-document-verification',
-  'basis-route-selection': '/legal/basis-route-selection', 'dossier-review': '/legal/dossier-review',
-  'approval-review': '/legal/approval-review', 'controlled-unlock': '/legal/controlled-unlock',
-};
-const titles = {
-  'death-verification': ['Xác minh giấy tờ khai tử', 'Death document verification'],
-  'will-document-verification': ['Đối chiếu di chúc', 'Will comparison'],
-  'basis-route-selection': ['Phân loại căn cứ pháp lý', 'Legal basis classification'],
-  'dossier-review': ['Thẩm định hồ sơ căn cứ', 'Legal dossier review'],
-  'approval-review': ['Phê duyệt hồ sơ', 'Final approval'], 'controlled-unlock': ['Mở khóa có kiểm soát', 'Controlled unlock'],
-};
+const paths = Object.fromEntries(LEGAL_NAVIGATION_REGISTRY.map(item => [item.id, item.path]));
 const choices = {
   APPROVE: ['Chấp thuận', 'Approve'], REJECT: ['Từ chối', 'Reject'], REQUEST_MORE: ['Yêu cầu bổ sung', 'Request more information'],
   MATCH: ['Khớp', 'Match'], MISMATCH: ['Không khớp', 'Mismatch'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
@@ -80,7 +70,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
   if (!isSessionActive(session) || !session.user.roles.includes('LEGAL_VERIFIER')) return <p role="alert">{knownErrors[403][en ? 1 : 0]}</p>;
   return <section className="lv-legal-live">
     <p>{en ? 'Legal Verifier' : 'Chuyên viên thẩm định pháp lý'}</p>
-    <h1>{titles[step]?.[en ? 1 : 0]}</h1>
+    <h1>{legalStepTitle(step, lang)}</h1>
     <section className="lv-legal-live__card">
       <h2>{en ? 'Verification cases' : 'Hồ sơ xác minh'}</h2>
       {typeof discovery !== 'function' && <p role="status">{en ? 'The case list is not available yet. Actions will be available after an authorized case can be selected.' : 'Danh sách hồ sơ hiện chưa khả dụng. Bạn có thể thao tác sau khi chọn được hồ sơ thuộc quyền xử lý.'}</p>}
@@ -101,7 +91,6 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
     {selected && <>
-      <nav aria-label={en ? 'Legal workflow steps' : 'Các bước pháp lý'}>{Object.keys(paths).map(key => <button key={key} type="button" aria-current={step === key ? 'step' : undefined} onClick={() => go(key)}>{titles[key][en ? 1 : 0]}</button>)}</nav>
       <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
         lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
         onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
