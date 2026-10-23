@@ -1,5 +1,5 @@
 .lv-legal-live { max-width: 1180px; margin: 0 auto; color: var(--lv-text-body, #2b302c); font: 400 16px/1.6 var(--lv-font-sans, system-ui, sans-serif); display: grid; gap: 24px; min-width: 0; }
-.lv-legal-live h1, .lv-legal-live h2 { font-family: var(--lv-font-serif, Georgia, serif); color: var(--lv-brand-forest, #164639); }
+.lv-legal-live h1, .lv-legal-live h2 { font-family: var(--lv-font-sans, system-ui, sans-serif); color: var(--lv-brand-forest, #164639); }
 .lv-legal-live h1 { margin: 0; font-size: clamp(28px, 3vw, 36px); line-height: 1.25; }
 .lv-legal-live h2 { font-size: 20px; }
 .lv-legal-live .lv-legal-live__card { background: var(--lv-bg-surface, white); padding: clamp(20px, 3vw, 32px); border: 1px solid var(--lv-border-subtle, #eae5dc); border-radius: var(--lv-radius-2xl, 24px); min-width: 0; box-shadow: var(--lv-shadow-sm); }
