@@ -758,9 +758,13 @@
   display: flex;
   gap: 8px;
   border-bottom: 2px solid var(--lv-border-subtle, #eae5dc);
-  margin-bottom: 8px;
+  margin-bottom: 0;
   overflow-x: auto;
-  padding-bottom: 2px;
+  overflow-y: hidden;
+  padding: 5px;
+  background: #eeefe9;
+  border: 1px solid #e0e4d9;
+  border-radius: 12px;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn {
@@ -776,10 +780,10 @@
   font-weight: 600;
   cursor: pointer;
   border-bottom: 3px solid transparent;
-  margin-bottom: -4px;
+  margin-bottom: 0;
   transition: all 0.2s ease;
   white-space: nowrap;
-  border-radius: 6px 6px 0 0;
+  border-radius: 8px;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn:hover {
@@ -792,10 +796,12 @@
   outline-offset: 2px;
 }
 
-.lv-staff-documents-view .lv-staff-tab-btn--active {
-  color: var(--lv-brand-forest, #164639);
-  border-bottom-color: var(--lv-brand-forest, #164639);
-  background-color: rgba(22, 70, 57, 0.04);
+.lv-staff-documents-view .lv-staff-tab-btn--active,
+.lv-staff-documents-view .lv-staff-tab-btn--active:hover {
+  color: #fff;
+  border-bottom-color: transparent;
+  background-color: #205940;
+  box-shadow: 0 2px 5px #123c2220;
 }
 
 .lv-staff-documents-view .lv-staff-tab-count {
@@ -1245,4 +1251,41 @@
 .lv-staff-documents-view .lv-btn-view-version-file:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Intake uses the same card and control system as the dossier overview. */
+.lv-staff-documents-view { color: #293c31; gap: 22px; }
+.lv-staff-documents-view .lv-staff-form-card { padding: 28px; border-top: 3px solid #37765a; box-shadow: 0 4px 22px #163d2706; }
+.lv-staff-documents-view .lv-staff-form-card__header { padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e8ece5; }
+.lv-staff-documents-view .lv-staff-form-card__header h2 { font-family: inherit; color: #263d2e; font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+.lv-staff-documents-view .lv-staff-form-card__header p { color: #718076; font-size: 13px; margin: 0; line-height: 1.6; }
+.lv-staff-documents-view .lv-intake-form { display: flex; flex-direction: column; gap: 22px; }
+.lv-staff-documents-view .lv-form-row--2cols { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.lv-staff-documents-view .lv-intake-form .lv-form-group { min-width: 0; margin: 0; gap: 7px; }
+.lv-staff-documents-view .lv-intake-form .lv-form-label { color: #344c3d; font-size: 13px; font-weight: 700; margin: 0; }
+.lv-staff-documents-view .lv-intake-form .lv-form-hint { color: #738075; font-size: 12px; line-height: 1.5; margin: 0; }
+.lv-staff-documents-view .lv-form-select,
+.lv-staff-documents-view .lv-form-textarea,
+.lv-staff-documents-view .lv-intake-form .lv-form-input { width: 100%; max-width: 100%; min-height: 46px; font: inherit; font-size: 14px; line-height: 1.5; color: #27382d; background: #fff; border: 1px solid #d8e0d7; border-radius: 9px; padding: 11px 14px; box-sizing: border-box; }
+.lv-staff-documents-view .lv-form-select { cursor: pointer; padding-right: 32px; }
+.lv-staff-documents-view .lv-form-textarea { min-height: 92px; resize: vertical; }
+.lv-staff-documents-view .lv-form-select:focus-visible,
+.lv-staff-documents-view .lv-form-textarea:focus-visible,
+.lv-staff-documents-view .lv-intake-form .lv-form-input:focus { outline: none; border-color: #57846a; box-shadow: 0 0 0 3px #37765a18; }
+.lv-staff-documents-view .lv-intake-form .lv-form-input::placeholder,
+.lv-staff-documents-view .lv-form-textarea::placeholder { color: #859186; font-size: 13px; }
+.lv-staff-documents-view .lv-form-select:disabled,
+.lv-staff-documents-view .lv-form-textarea:disabled,
+.lv-staff-documents-view .lv-intake-form .lv-form-input:disabled { background: #f2f4f0; color: #7b877c; cursor: not-allowed; }
+.lv-staff-documents-view .lv-intake-form .lv-form-input--error { border-color: #bd5b4c; background: #fffafa; }
+.lv-staff-documents-view .lv-field-error { font-size: 12px; font-weight: 600; color: #a83f31; }
+.lv-staff-documents-view .lv-allocations-section { background: #f5f7f2; border-color: #dce5d6; margin-top: 0; padding: 22px; }
+.lv-staff-documents-view .lv-allocations-title { color: #2e5e3e; font-size: 16px; }
+.lv-staff-documents-view .lv-intake-form-actions { border-top: 1px solid #e5eae0; padding-top: 22px; display: flex; justify-content: flex-end; }
+.lv-staff-documents-view .lv-btn-submit-version { min-height: 46px; padding: 12px 22px; border-radius: 9px; }
+@media(max-width:700px) {
+  .lv-staff-documents-view .lv-staff-form-card { padding: 20px 16px; }
+  .lv-staff-documents-view .lv-form-row--2cols { grid-template-columns: 1fr; gap: 22px; }
+  .lv-staff-documents-view .lv-staff-tab-btn { padding: 10px 12px; font-size: 13px; }
+  .lv-staff-documents-view .lv-intake-form-actions > button { width: 100%; }
 }

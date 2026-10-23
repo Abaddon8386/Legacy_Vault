@@ -17,6 +17,7 @@ import {
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
+import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import {
   validateStaffLegalDocumentForm,
   getStaffLegalDocumentErrorMessage,
@@ -66,6 +67,7 @@ export default function StaffLegalDocumentsPage({
   // Case Selection
   const initialCase = propCaseId || '';
   const [selectedCaseId, setSelectedCaseId] = useState(initialCase);
+  const displayCaseItem = useStaffCaseMetadata(selectedCaseId, propCaseItem, effectiveAccessToken, lang, effectiveIsDevPreview);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   // Unsaved changes protection
@@ -640,14 +642,13 @@ export default function StaffLegalDocumentsPage({
             </button>
           )}
           <h1 className="lv-staff-title">{t.pageTitle}</h1>
-          <p className="lv-staff-subtitle">{t.formSubtitle}</p>
         </div>
       </div>
 
       {/* Unified Staff Case Context Bar */}
       <StaffCaseContextBar
         caseId={selectedCaseId}
-        caseItem={propCaseItem}
+        caseItem={displayCaseItem}
         sessionId={propSessionId}
         onOpenSelector={() => setIsSelectorOpen(true)}
         onChangeCase={() => setIsSelectorOpen(true)}
@@ -729,7 +730,7 @@ export default function StaffLegalDocumentsPage({
           ========================================================================= */}
       {selectedCaseId && activeTab === 'overview' && (
         <div id="panel-overview" role="tabpanel" aria-labelledby="tab-btn-overview">
-          <section className="lv-dossier-card" aria-labelledby="dossier-overview-heading">
+          <section className="lv-dossier-card lv-staff-glow" aria-labelledby="dossier-overview-heading">
             <div className="lv-dossier-card__header">
               <h2 id="dossier-overview-heading">{t.dossierSectionTitle}</h2>
               {dossier && dossier.status && (
@@ -810,21 +811,21 @@ export default function StaffLegalDocumentsPage({
 
                 {latestVersion?.documentNumber && (
                   <div className="lv-dossier-row">
-                    <span className="lv-dossier-label">{t.documentNumberLabel}</span>
+                    <span className="lv-dossier-label">{en ? 'Document number' : 'Số hiệu văn bản'}</span>
                     <span className="lv-dossier-value-text">{latestVersion.documentNumber}</span>
                   </div>
                 )}
 
                 {latestVersion?.issuingAuthority && (
                   <div className="lv-dossier-row">
-                    <span className="lv-dossier-label">{t.issuerLabel}</span>
+                    <span className="lv-dossier-label">{en ? 'Issuing authority' : 'Cơ quan ban hành'}</span>
                     <span className="lv-dossier-value-text">{latestVersion.issuingAuthority}</span>
                   </div>
                 )}
 
                 {latestVersion?.notes && (
                   <div className="lv-dossier-row">
-                    <span className="lv-dossier-label">{t.notesLabel || (en ? 'Notes:' : 'Ghi chú:')}</span>
+                    <span className="lv-dossier-label">{en ? 'Notes' : 'Ghi chú'}</span>
                     <span className="lv-dossier-value-text">{latestVersion.notes}</span>
                   </div>
                 )}
@@ -914,10 +915,9 @@ export default function StaffLegalDocumentsPage({
           ========================================================================= */}
       {selectedCaseId && activeTab === 'intake' && (
         <div id="panel-intake" role="tabpanel" aria-labelledby="tab-btn-intake">
-          <section className="lv-staff-form-card" aria-labelledby="form-heading">
-            <div className="lv-staff-form-card__header">
+          <section className="lv-staff-form-card lv-form-card lv-staff-glow" aria-labelledby="form-heading">
+            <div className="lv-staff-form-card__header lv-form-card__header">
               <h2 id="form-heading">{t.formTitle}</h2>
-              <p>{t.formDesc}</p>
             </div>
 
             {isRouteNotarial && (
@@ -1282,7 +1282,7 @@ export default function StaffLegalDocumentsPage({
           ========================================================================= */}
       {selectedCaseId && activeTab === 'history' && (
         <div id="panel-history" role="tabpanel" aria-labelledby="tab-btn-history">
-          <section className="lv-dossier-card" aria-labelledby="history-heading">
+          <section className="lv-dossier-card lv-staff-glow" aria-labelledby="history-heading">
             <div className="lv-dossier-card__header">
               <h2 id="history-heading">{t.tabHistory}</h2>
             </div>

@@ -1,0 +1,63 @@
+@property --owner-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow) {
+  position: relative;
+  isolation: isolate;
+  transition: border-color 240ms ease, box-shadow 240ms ease;
+}
+
+/* The masked layer draws only the outline and never intercepts a control. */
+:is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow)::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  padding: 2px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(from var(--owner-border-angle), transparent 35%, #c5a05955 52%, #b8882e 68%, #f1d78a 75%, #c5a05999 82%, transparent 95%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: .95;
+  animation: lv-owner-border-drift 9s linear infinite;
+}
+:is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow):nth-child(2n)::after { animation-delay: -3s; }
+:is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow):nth-child(3n)::after { animation-delay: -6s; }
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(420px circle at var(--surface-x, 50%) var(--surface-y, 50%), #d7b45d3d, #ead9aa12 48%, transparent 75%);
+    opacity: 0;
+    transition: opacity 240ms ease;
+  }
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow):hover {
+    border-color: #b48a39;
+    box-shadow: 0 8px 28px #715c241c, 0 0 22px #c5a05930;
+  }
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow):hover::before { opacity: 1; }
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow):hover::after {
+    animation: none;
+    opacity: 1;
+    background: radial-gradient(360px circle at var(--surface-x, 50%) var(--surface-y, 50%), #9f7120, #e5bf65 35%, #c5a05944 80%);
+  }
+}
+:is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow):focus-within {
+  border-color: #b08c40;
+  box-shadow: 0 0 0 3px #c5a05940;
+}
+@keyframes lv-owner-border-drift { to { --owner-border-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow) { transition: none; }
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow)::after { animation: none; }
+  :is(.lv-owner-surfaces, .lv-staff-surfaces) :is(.lv-owner-card, .lv-staff-glow)::before { content: none; }
+}

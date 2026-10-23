@@ -19,6 +19,77 @@ function getInitialScenario() {
   return subscriptionScenario(typeof window === 'undefined' ? '' : window.location.search);
 }
 
+function PlanComparison({ data, lang, t, payment }) {
+  return (
+
+      <section className="lv-sub-plans-section" aria-label={lang === 'en' ? 'Compare plans' : 'So sánh các gói cước'}>
+        <div className="lv-sub-section-header">
+          <h2 className="lv-sub-section-title">{lang === 'en' ? 'Compare plans' : 'So sánh các gói'}</h2>
+        </div>
+
+        <div className="lv-sub-cards-grid">
+          {SUBSCRIPTION_PLANS.map((plan) => {
+            const isCurrent = plan.code === data.planCode;
+            const isUpgrade = SUBSCRIPTION_PLANS.findIndex(item => item.code === plan.code) > SUBSCRIPTION_PLANS.findIndex(item => item.code === data.planCode);
+            const purchasePlan = payment?.plans.find(item => item.code === plan.code);
+            const features = (lang === 'en' ? plan.featuresEn : plan.featuresVi).slice(0, 2);
+
+            return (
+              <div
+                key={plan.code}
+                className={`lv-plan-card lv-owner-card ${isCurrent ? 'is-current' : ''}`}
+              >
+                {isCurrent && (
+                  <span className="lv-plan-card-tag is-current-tag">
+                    {t.currentPlanBadge}
+                  </span>
+                )}
+
+                <div className="lv-plan-card-header">
+                  <h3 className="lv-plan-card-name">{lang === 'en' ? plan.nameEn : plan.nameVi}</h3>
+                  <div className="lv-plan-card-price-wrap">
+                    <span className="lv-plan-card-price">
+                      {purchasePlan?.priceVnd > 0
+                        ? `${purchasePlan.priceVnd.toLocaleString(lang === 'en' ? 'en-US' : 'vi-VN')} ${lang === 'en' ? 'VND / lifetime' : 'đ / trọn đời'}`
+                        : (lang === 'en' ? plan.priceEn : plan.priceVi)}
+                    </span>
+                  </div>
+                </div>
+
+                <ul className="lv-plan-card-features">
+                  {features.map((feat, idx) => (
+                    <li key={idx} className="lv-plan-feature-item">
+                      <svg className="lv-plan-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="lv-plan-card-footer">
+                  {payment && isUpgrade ? <button type="button" className="lv-plan-select-btn"
+                    disabled={payment.busy || payment.catalogLoading || !purchasePlan}
+                    onClick={() => payment.onChoose(purchasePlan)}>
+                    {payment.catalogLoading ? (lang === 'en' ? 'Loading price…' : 'Đang tải giá…') : (lang === 'en' ? 'Choose ' : 'Chọn gói ')}{!payment.catalogLoading && (lang === 'en' ? plan.nameEn : plan.nameVi)}
+                    <span aria-hidden="true"> →</span>
+                  </button> : <span className="lv-plan-static-label">{isCurrent ? (lang === 'en' ? 'Your current plan' : 'Bạn đang dùng gói này') : !isUpgrade ? (lang === 'en' ? 'Included in your current plan' : 'Đã có quyền lợi gói này') : (lang === 'en' ? 'Plan information' : 'Thông tin gói')}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {payment?.catalogError && <p className="lv-sub-catalog-error" role="alert">{lang === 'en' ? 'Unable to load current prices.' : 'Chưa tải được bảng giá hiện tại.'} <button type="button" onClick={payment.retryCatalog}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button></p>}
+        <details className="lv-sub-shared-features">
+          <summary>{lang === 'en' ? 'Included in every plan' : 'Quyền lợi chung của các gói'}</summary>
+          <ul>{(lang === 'en' ? SUBSCRIPTION_PLANS[0].featuresEn : SUBSCRIPTION_PLANS[0].featuresVi).slice(2).map(feature => <li key={feature}>{feature}</li>)}</ul>
+        </details>
+
+      </section>
+  );
+}
+
 export default function SubscriptionPage({
   accessToken,
   ownerId,
@@ -197,12 +268,11 @@ export default function SubscriptionPage({
       {/* Page Header */}
       <header className="lv-sub-header">
         <h1 className="lv-sub-title">{lang === 'en' ? 'Your subscription' : 'Gói sử dụng'}</h1>
-        <p className="lv-sub-subtitle">{lang === 'en' ? 'Your plan, usage and storage limits in one place.' : 'Theo dõi gói hiện tại và dung lượng bạn đã sử dụng.'}</p>
       </header>
 
       <p>{lang === 'en' ? 'One payment for lifetime use. Upgrades cost the full target plan price; previous purchases are not credited.' : 'Mua một lần, sử dụng trọn đời. Nâng cấp trả toàn bộ giá gói đích, không trừ tiền gói đã mua.'}</p>
       {/* Hero Card: Current Subscription & Quota Gauges */}
-      <section className="lv-sub-current-card" aria-label={lang === 'en' ? 'Current subscription' : 'Thông tin gói hiện tại'}>
+      <section className="lv-sub-current-card lv-owner-card" aria-label={lang === 'en' ? 'Current subscription' : 'Thông tin gói hiện tại'}>
         <div className="lv-sub-current-top">
           <div className="lv-sub-plan-meta">
             <div className="lv-sub-plan-badge-row">
@@ -295,69 +365,12 @@ export default function SubscriptionPage({
 
 
         </div>
-        <p className="lv-sub-policy">{t.lifetimeRuleNotice}</p>
       </section>
 
-      {/* Plan Comparison Section (Information-Only for Owner) */}
-      <section className="lv-sub-plans-section" aria-label={lang === 'en' ? 'Compare plans' : 'So sánh các gói cước'}>
-        <div className="lv-sub-section-header">
-          <h2 className="lv-sub-section-title">{lang === 'en' ? 'Compare plans' : 'So sánh các gói'}</h2>
-          <p className="lv-sub-section-desc">{lang === 'en' ? 'Choose the capacity that suits your needs.' : 'Ba mức lưu trữ cho nhu cầu của bạn.'}</p>
-        </div>
-
-        <div className="lv-sub-cards-grid">
-          {SUBSCRIPTION_PLANS.map((plan) => {
-            const isCurrent = plan.code === data.planCode;
-            const features = (lang === 'en' ? plan.featuresEn : plan.featuresVi).slice(0, 2);
-
-            return (
-              <div
-                key={plan.code}
-                className={`lv-plan-card ${isCurrent ? 'is-current' : ''}`}
-              >
-                {isCurrent && (
-                  <span className="lv-plan-card-tag is-current-tag">
-                    {t.currentPlanBadge}
-                  </span>
-                )}
-
-                <div className="lv-plan-card-header">
-                  <h3 className="lv-plan-card-name">{lang === 'en' ? plan.nameEn : plan.nameVi}</h3>
-                  <div className="lv-plan-card-price-wrap">
-                    <span className="lv-plan-card-price">
-                      {lang === 'en' ? plan.priceEn : plan.priceVi}
-                    </span>
-                  </div>
-                </div>
-
-                <ul className="lv-plan-card-features">
-                  {features.map((feat, idx) => (
-                    <li key={idx} className="lv-plan-feature-item">
-                      <svg className="lv-plan-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="lv-plan-card-footer">
-                  <span className="lv-plan-static-label">{isCurrent ? (lang === 'en' ? 'Your current plan' : 'Bạn đang dùng gói này') : (lang === 'en' ? 'Plan information' : 'Thông tin gói')}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <details className="lv-sub-shared-features">
-          <summary>{lang === 'en' ? 'Included in every plan' : 'Quyền lợi chung của các gói'}</summary>
-          <ul>{(lang === 'en' ? SUBSCRIPTION_PLANS[0].featuresEn : SUBSCRIPTION_PLANS[0].featuresVi).slice(2).map(feature => <li key={feature}>{feature}</li>)}</ul>
-        </details>
-
-        {/* Informational Policy Footnote */}
-        {accessToken && !canDemo && <PaymentCheckout key={accessToken} accessToken={accessToken}
-          lang={lang} currentPlan={data.planCode} onPaid={loadData} />}
-      </section>
+      {accessToken && !canDemo ? <PaymentCheckout key={accessToken} accessToken={accessToken}
+        lang={lang} currentPlan={data.planCode} onPaid={loadData}
+        PlanView={PlanComparison} planViewProps={{ data, lang, t }} />
+        : <PlanComparison data={data} lang={lang} t={t} />}
     </div>
   );
 }

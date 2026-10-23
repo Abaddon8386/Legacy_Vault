@@ -164,3 +164,4 @@
 .lv-tb-page .lv-tb-edit-backdrop>.lv-tb-dialog{position:relative;inset:auto;margin:0}
 
 .lv-tb-age-warning{padding:12px;border:1px solid var(--lv-status-error-border);background:var(--lv-status-error-bg);color:var(--lv-status-error-text);border-radius:8px;line-height:1.5;font-size:13px}
+.lv-tb-account-status { font-size:12px; padding:5px 9px; border-radius:6px; color:#315c3d; background:#edf4ed; }

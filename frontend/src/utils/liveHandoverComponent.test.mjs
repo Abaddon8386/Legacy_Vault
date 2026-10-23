@@ -53,9 +53,9 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  await act(async()=>release(json(receipt,201)));assert.match(v.host.textContent,/Máy chủ đã xác nhận/);
  assert.equal(new URLSearchParams(window.location.search).get('sessionId'),sid);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
  const assetLinks=[...v.host.querySelectorAll('a.lv-handover-primary-action')];
- assert.equal(assetLinks.length,1);
+ assert.equal(assetLinks.length,1,'Show one clear handover action instead of duplicate links');
  for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
- assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng').disabled,true);
+ assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng'),undefined);
  const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
  await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.ok(v.host.textContent.includes(sid));assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
 });
@@ -74,7 +74,7 @@ test('409 open race requires reload and adopts server session without retrying P
 test('401 notifies logout; no fake account data; closed session is read-only in accounts mode',async()=>{
  let expired=0;globalThis.fetch=async()=>json({code:'UNAUTHENTICATED'},401);let v=await mount({onLogout(){expired++;}});assert.equal(expired,1);assert.match(v.host.textContent,/hết hạn/);await v.close();
  const completed={...receipt,status:'COMPLETED',closedAt:'2026-10-20T07:00:00'};globalThis.fetch=async(url)=>json(url.endsWith(sid)?completed:[completed]);
- v=await mount({mode:'accounts'},'/staff/beneficiary-accounts?caseId='+cid+'&sessionId='+sid);assert.match(v.host.textContent,/Hoàn tất/);assert.match(v.host.textContent,/PS-88/);assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng').disabled,true);assert.equal(btn(v.host,'Hủy phiên…').disabled,true);await v.close();
+ v=await mount({mode:'accounts'},'/staff/beneficiary-accounts?caseId='+cid+'&sessionId='+sid);assert.match(v.host.textContent,/Hoàn tất/);assert.match(v.host.textContent,/Người nhận tại quầy/);assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng'),undefined);assert.equal(btn(v.host,'Hủy phiên…').disabled,true);await v.close();
 });
 test('Switching case aborts previous reads and ignores late responses; unmount aborts writes',async()=>{
  let release,signal;globalThis.fetch=async(url,init)=>{if(url.includes('/handover-sessions')){signal=init.signal;return new Promise(r=>{release=r;});}return json({content:[],page:0,size:5,totalElements:0,totalPages:0});};

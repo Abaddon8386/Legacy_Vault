@@ -43,12 +43,17 @@ test('Review: BE-confirmed beneficiary must be displayed as confirmed',async()=>
   try{const option=[...v.host.querySelectorAll('option')].find(o=>o.value===recipient);assert.ok(option);assert.match(option.textContent,/confirmed/i);}finally{await v.close();}
 });
 test('Review: live confirmation page must not continuously reload its unchanged context',async()=>{
-  let reads=0;globalThis.fetch=async(url)=>{
-    if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:recipient,fullName:'Synthetic recipient'}]);
-    if(url.endsWith('/eligible-assets'))return json([]);
-    if(++reads>1)return new Promise(()=>{});
+  const reads=[];globalThis.fetch=async(url)=>{
+    reads.push(url);
+    if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:recipient,fullName:'Test recipient'}]);
+    if(url.endsWith('/eligible-assets'))return json([{recipientId:recipient,deliveryStatus:'DELIVERED'}]);
     return json([{confirmationId:null,sessionId,beneficiaryId:recipient,status:'PENDING',confirmedBy:null,confirmedAt:null,receiptReference:null}]);
   };
   const v=await mount(Confirm);
-  try{assert.equal(reads,1,'An unchanged case/session must not repeatedly request beneficiary-confirmations');}finally{await v.close();}
+  try{
+    const select=v.host.querySelector('.lv-confirm-select');
+    await act(async()=>{select.value=recipient;select.dispatchEvent(new dom.window.Event('change',{bubbles:true}));});
+    for(const endpoint of ['/beneficiary-confirmations','/beneficiaries','/eligible-assets'])
+      assert.equal(reads.filter(url=>url.endsWith(endpoint)).length,1,'Unchanged context must load each resource only once: '+endpoint);
+  }finally{await v.close();}
 });

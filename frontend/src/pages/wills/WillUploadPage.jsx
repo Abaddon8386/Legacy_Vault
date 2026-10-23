@@ -249,17 +249,8 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
       {/* Header */}
       <div className="hn-will-intro">
         <h1 id="will-title">{t.title}</h1>
-        <p>{t.intro}</p>
       </div>
 
-      {/* Legal Notice Callout */}
-      <aside className="hn-will-notice" aria-label={messages.NOTICE_TITLE}>
-        <span aria-hidden="true">ⓘ</span>
-        <div>
-          <strong>{messages.NOTICE_TITLE}</strong>
-          <p>{messages.NOTICE_CONTENT}</p>
-        </div>
-      </aside>
 
       {/* Actions Bar */}
       <div className="hn-will-header-actions">
@@ -313,7 +304,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
         <div className="hn-will-workspace">
           {/* Will Document Overview & Version History */}
           {selectedWill && (
-            <div className="hn-will-card" style={{ marginBottom: '24px' }}>
+            <div className="hn-will-card lv-owner-card" style={{ marginBottom: '24px' }}>
               <div className="hn-will-detail-header">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -358,7 +349,6 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                         <th scope="col">{t.formatCol}</th>
                         <th scope="col">{t.sizeCol}</th>
                         <th scope="col">{t.dateCol}</th>
-                        <th scope="col">{t.hashCol}</th>
                         <th scope="col" style={{ textAlign: 'right' }}>{t.actionCol}</th>
                       </tr>
                     </thead>
@@ -368,16 +358,13 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                           <td data-label={t.versionCol}>
                             <span className="hn-will-version-badge">v{ver.version}</span>
                           </td>
-                          <td data-label={t.fileNameCol} style={{ fontWeight: 600 }}>{ver.fileName}</td>
+                          <td data-label={t.fileNameCol} style={{ fontWeight: 600 }}>
+                            {ver.fileName}
+                          </td>
                           <td data-label={t.formatCol}>{formatNames[ver.contentType] || ver.contentType}</td>
                           <td data-label={t.sizeCol}>{formatFileSize(ver.sizeBytes)}</td>
                           <td data-label={t.dateCol} style={{ fontSize: '12.5px', color: '#68736b' }}>
                             {formatDateTime(ver.uploadedAt, language)}
-                          </td>
-                          <td data-label={t.hashCol}>
-                            <code className="hn-will-hash-inline" title={ver.sha256}>
-                              {ver.sha256.slice(0, 10)}…{ver.sha256.slice(-8)}
-                            </code>
                           </td>
                           <td data-label={t.actionCol} style={{ textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>

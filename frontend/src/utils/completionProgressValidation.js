@@ -84,8 +84,8 @@ export function evaluateCompletionProgress(assetData = {}, beneficiaryData = {})
   const missingConditions = [];
 
   // 1. Process Asset Delivery Metric
-  const assetDelivered = normalizeSafeIntegerCount(assetData?.delivered);
-  const assetTotal = normalizeSafeIntegerCount(assetData?.total);
+  const assetDelivered = normalizeSafeIntegerCount(assetData?.delivered ?? assetData?.deliveredCount ?? assetData?.completed);
+  const assetTotal = normalizeSafeIntegerCount(assetData?.total ?? assetData?.totalCount);
 
   let assetPercentage = null;
   let isAsset100 = false;
@@ -109,8 +109,8 @@ export function evaluateCompletionProgress(assetData = {}, beneficiaryData = {})
   }
 
   // 2. Process Beneficiary Confirmation Metric
-  const benConfirmed = normalizeSafeIntegerCount(beneficiaryData?.confirmed);
-  const benTotal = normalizeSafeIntegerCount(beneficiaryData?.total);
+  const benConfirmed = normalizeSafeIntegerCount(beneficiaryData?.confirmed ?? beneficiaryData?.confirmedCount ?? beneficiaryData?.completed);
+  const benTotal = normalizeSafeIntegerCount(beneficiaryData?.total ?? beneficiaryData?.totalCount);
 
   let benPercentage = null;
   let isBen100 = false;

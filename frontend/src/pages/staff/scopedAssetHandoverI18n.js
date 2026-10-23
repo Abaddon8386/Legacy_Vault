@@ -36,13 +36,13 @@ export const scopedAssetHandoverI18n = {
     emptyAssets: 'Không có tài sản nào trong phạm vi được duyệt của hồ sơ này.',
 
     // Quy trình 3 bước bàn giao
-    step1Title: 'Bước 1 — Chọn người nhận di sản tại quầy',
+    step1Title: 'Chọn người nhận tại quầy',
     step1Desc: 'Chọn đúng một người nhận có mặt tại buổi bàn giao từ danh sách phân bổ được duyệt.',
     selectRecipientPlaceholder: '-- Chọn người nhận tại quầy --',
     recipientLabel: 'Người nhận di sản:',
     recipientMetadataPending: '(Chờ BE metadata tên)',
 
-    step2Title: 'Bước 2 — Chọn tài sản bàn giao trong lần này',
+    step2Title: 'Chọn tài sản bàn giao',
     step2Desc: 'Chỉ các tài sản thuộc phân bổ của người nhận đang chọn mới được hiển thị. Chọn một hoặc nhiều tài sản chưa bàn giao.',
     step2Prompt: 'Vui lòng chọn người nhận ở Bước 1 để hiển thị danh sách tài sản tương ứng.',
     selectAll: 'Chọn tất cả tài sản chưa giao',
@@ -102,13 +102,13 @@ export const scopedAssetHandoverI18n = {
     emptyAssets: 'No eligible assets found within the approved scope for this case.',
 
     // 3-step handover process
-    step1Title: 'Step 1 — Select heritage recipient at counter',
+    step1Title: 'Select counter recipient',
     step1Desc: 'Select exactly one recipient present at the handover session from approved allocations.',
     selectRecipientPlaceholder: '-- Select recipient at counter --',
     recipientLabel: 'Heritage Recipient:',
     recipientMetadataPending: '(Awaiting BE name metadata)',
 
-    step2Title: 'Step 2 — Select assets to deliver in this batch',
+    step2Title: 'Select assets to hand over',
     step2Desc: 'Only assets allocated to the selected recipient are shown. Select one or more pending assets.',
     step2Prompt: 'Please select a recipient in Step 1 to view their allocated assets.',
     selectAll: 'Select all pending assets',

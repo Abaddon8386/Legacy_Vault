@@ -652,3 +652,25 @@
     background: #ede8de !important;
   }
 }
+.lv-asset-quota-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  border: 1px solid #dbc58b;
+  border-radius: 14px;
+  background: #faf5e9;
+  color: #635024;
+}
+.lv-asset-quota-notice p { margin: 5px 0 0; font-size: 14px; line-height: 1.6; }
+.lv-asset-quota-notice .lv-btn { flex-shrink: 0; border-radius:10px; }
+.lv-asset-page .lv-add-btn,
+.lv-asset-page .lv-legal-notice-banner,
+.lv-asset-page .lv-search-input,
+.lv-asset-page .lv-category-select { border-radius: 12px; }
+@media (max-width: 640px) {
+  .lv-asset-quota-notice { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+.lv-asset-page .lv-stat-card { border-radius:14px; box-shadow:none; }

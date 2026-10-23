@@ -51,13 +51,14 @@ for (const kind of ['beneficiary', 'trustee']) {
       reads++;
       if (reads > 3) return new Promise(() => {}); // A reload would unmount the dialog while waiting.
       if (url.includes('configuration-check')) return json({ vaultId, ready: true, beneficiaryCount: 1, issues: [] });
-      return json(page([url.includes('trustees') ? person : { ...person, status: 'DESIGNATED', hasAccount: false, hasIdentityNumber: false, createdAt: '2026-10-10T00:00:00Z' }]));
+      return json(page([url.includes('trustees') ? person : { ...person, status: 'DESIGNATED', hasAccount: true, hasIdentityNumber: false, createdAt: '2026-10-10T00:00:00Z' }]));
     };
     const host = document.createElement('div'); document.body.append(host);
     const root = createRoot(host);
     const render = (lang) => React.createElement(People, { vaultId, accessToken: 'synthetic', lang });
     try {
       await act(async () => root.render(render('vi')));
+      assert.match(host.textContent, /Đã liên kết tài khoản/);
       if (kind === 'trustee') await act(async () => host.querySelector('#tab-trustee').click());
       const panel = host.querySelector(kind === 'trustee' ? '#panel-trustee' : '#panel-beneficiaries');
       await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent === 'Chỉnh sửa').click());

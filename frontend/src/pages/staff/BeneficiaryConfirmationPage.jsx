@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  UserCheck,
   HelpCircle,
   RefreshCw,
   ArrowLeft,
@@ -21,9 +20,23 @@ import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './BeneficiaryConfirmationPage.css';
+import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
+import { formatStaffSession } from '../../utils/caseReference.js';
 import { listLiveSessions, fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
 
 const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
+
+function confirmationErrorMessage(error, lang) {
+  const en = lang === 'en';
+  if (error.status === 404 || error.code === 'RESOURCE_NOT_FOUND') return en
+    ? 'The case, session or recipient list is unavailable for your account. Check the selected case or retry.'
+    : 'Không tải được hồ sơ, phiên hoặc danh sách người nhận trong phạm vi của bạn. Hãy kiểm tra hồ sơ đã chọn hoặc thử lại.';
+  if (error.status === 403) return en ? 'You do not have permission to confirm this case.' : 'Bạn không có quyền ghi nhận xác nhận cho hồ sơ này.';
+  if (error.status === 401) return en ? 'Your session has expired. Please sign in again.' : 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  if (error.status === 409) return en ? 'The case or session does not currently allow confirmation. Check the handover status.' : 'Hồ sơ hoặc phiên chưa ở trạng thái cho phép xác nhận. Vui lòng kiểm tra trạng thái bàn giao.';
+  if (error.message && !/^[A-Z][A-Z0-9_]+$/.test(error.message)) return error.message;
+  return en ? 'Unable to load confirmation data. Please retry.' : 'Chưa tải được dữ liệu xác nhận. Vui lòng thử lại.';
+}
 
 function normalizeBeneficiaryItem(b, lang = 'vi') {
   if (!b) return null;
@@ -94,6 +107,10 @@ function BeneficiaryConfirmationPageContext({
   const [caseReference, setCaseReference] = useState(initialCase);
   const [sessionId, setSessionId] = useState(initialSession);
   const [availableSessions, setAvailableSessions] = useState([]);
+  const [selectedCaseItem, setSelectedCaseItem] = useState(propCaseItem);
+  const displayCaseItem = useStaffCaseMetadata(caseReference, selectedCaseItem || propCaseItem, effectiveAccessToken, lang, effectiveIsDevPreview);
+  const isReadOnlyCase = displayCaseItem?.status === 'CLOSED' || displayCaseItem?.vaultStatus === 'ARCHIVED';
+  const [reloadRevision, setReloadRevision] = useState(0);
   const [sessionLoadError, setSessionLoadError] = useState('');
   useEffect(() => {
     if (sessionId || !caseReference || !effectiveAccessToken || effectiveIsDevPreview) return;
@@ -141,6 +158,7 @@ function BeneficiaryConfirmationPageContext({
     setPrevPropCase(effectivePropCase);
     setPrevPropBeneficiaries(propBeneficiaries);
     setCaseReference(effectivePropCase);
+    setSelectedCaseItem(propCaseItem);
     // Immediately reset all state from previous case A
     setSelectedBeneficiaryId('');
     setReceiptReference('');
@@ -172,6 +190,7 @@ function BeneficiaryConfirmationPageContext({
   // Handle async fetching when prop case changes or backend session is available
   useEffect(() => {
     activeCaseRef.current = caseReference;
+    if (isReadOnlyCase) return;
     const fetcher = onFetchBeneficiaries || loadBeneficiaries;
     if (fetcher && caseReference.trim()) {
       fetcher(caseReference.trim())
@@ -185,7 +204,7 @@ function BeneficiaryConfirmationPageContext({
           if (activeCaseRef.current !== caseReference) return;
           setBeneficiaries([]);
           setLoadedCaseId('');
-          setErrors({ fetch: err.message || t.informationUnavailable });
+          setErrors({ fetch: confirmationErrorMessage(err, lang) });
         });
       return;
     }
@@ -225,21 +244,25 @@ function BeneficiaryConfirmationPageContext({
                 : b.deliveryStatus,
             }, lang);
           });
+          setErrors({});
           setBeneficiaries(normalized);
           setLoadedCaseId(caseReference);
         }
       })
       .catch((err) => {
         if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
-          lastFetchedKeyRef.current = currentKey;
-          setErrors({ fetch: err.message || t.informationUnavailable });
+          lastFetchedKeyRef.current = '';
+          setBeneficiaries([]);
+          setLoadedCaseId('');
+          setErrors({ fetch: confirmationErrorMessage(err, lang) });
+          if (err.status === 401) onUnauthorized?.();
         }
       });
 
     return () => {
       controller.abort();
     };
-  }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, t.informationUnavailable]);
+  }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, isReadOnlyCase, reloadRevision, onUnauthorized]);
 
   const handleCaseChange = (newCase) => {
     confirmationController.current?.abort();
@@ -280,7 +303,7 @@ function BeneficiaryConfirmationPageContext({
   // Submit xác nhận người thụ hưởng
   const handleSubmitConfirmation = async (e) => {
     e.preventDefault();
-    if (confirmationController.current || isSubmitting || !selectedBeneficiaryId) return;
+    if (isReadOnlyCase || errors.fetch || confirmationController.current || isSubmitting || !selectedBeneficiaryId) return;
 
     setActionSuccess(null);
     setActionError(null);
@@ -341,14 +364,14 @@ function BeneficiaryConfirmationPageContext({
       setErrors({});
     } catch (err) {
       if (controller.signal.aborted) return;
-      setActionError(err.message || (lang === 'en' ? 'Confirmation failed.' : 'Ghi nhận xác nhận thất bại.'));
+      setActionError(confirmationErrorMessage(err, lang));
     } finally {
       if (!controller.signal.aborted) { confirmationController.current = null; setIsSubmitting(false); }
     }
   };
 
   const hasValidData =
-    Boolean(caseReference) &&
+    !isReadOnlyCase && Boolean(caseReference) &&
     loadedCaseId === caseReference &&
     Array.isArray(beneficiaries) &&
     beneficiaries.length > 0;
@@ -367,7 +390,6 @@ function BeneficiaryConfirmationPageContext({
 
   return (
     <div className="lv-beneficiary-confirmation-view">
-      <p role="note">{lang === 'en' ? 'Record the recipient’s in-person signature at the counter. Legal approval is completed beforehand.' : 'Ghi nhận người nhận ký trực tiếp tại quầy. Phân bổ phải được Legal duyệt trước.'}</p>
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         {caseReference && sessionId && (
@@ -412,7 +434,7 @@ function BeneficiaryConfirmationPageContext({
       {/* Staff Case Context Bar */}
       <StaffCaseContextBar
         caseId={caseReference}
-        caseItem={propCaseItem}
+        caseItem={displayCaseItem}
         sessionId={sessionId}
         onOpenSelector={() => setIsSelectorOpen(true)}
         onChangeCase={() => setIsSelectorOpen(true)}
@@ -425,6 +447,7 @@ function BeneficiaryConfirmationPageContext({
         onClose={() => setIsSelectorOpen(false)}
         onSelectCase={(item) => {
           const newId = item.caseId || item.id;
+          setSelectedCaseItem(item);
           setCaseReference(newId);
           setSessionId(''); // Đổi hồ sơ xóa sessionId cũ
           setBeneficiaries([]);
@@ -459,7 +482,7 @@ function BeneficiaryConfirmationPageContext({
               window.history.replaceState(window.history.state, '', url.pathname + url.search);
             }}>
               <option value="">{lang === 'en' ? 'Select a session' : '-- Chọn phiên đã bàn giao --'}</option>
-              {availableSessions.map(item => <option key={item.sessionId} value={item.sessionId}>{item.status} — {item.openedAt} — {item.sessionId}</option>)}
+              {availableSessions.map(item => <option key={item.sessionId} value={item.sessionId}>{formatStaffSession(item, lang)}</option>)}
             </select>
           </label>
           {sessionLoadError && <p role="alert">{sessionLoadError}</p>}
@@ -496,19 +519,7 @@ function BeneficiaryConfirmationPageContext({
       {/* Header */}
       <div className="lv-confirm-header">
         <h1 className="lv-confirm-title">{t.pageTitle}</h1>
-        <p className="lv-confirm-subtitle">{t.pageSubtitle}</p>
       </div>
-
-      {/* Critical Business Rule Banner */}
-      <section className="lv-confirm-notice-banner" role="alert" aria-labelledby="confirm-rule-heading">
-        <UserCheck size={22} className="lv-confirm-notice-banner__icon" aria-hidden="true" />
-        <div className="lv-confirm-notice-banner__body">
-          <h2 id="confirm-rule-heading" className="lv-confirm-notice-banner__title">
-            {t.noticeTitle}
-          </h2>
-          <p>{t.noticeBody}</p>
-        </div>
-      </section>
 
       {/* Feedback Banners */}
       {actionSuccess && (
@@ -525,6 +536,7 @@ function BeneficiaryConfirmationPageContext({
       )}
 
       {/* Case Selection Card */}
+      <details className="lv-confirm-technical"><summary>{lang === 'en' ? 'Technical case reference' : 'Mã kỹ thuật hồ sơ'}</summary>
       <section className="lv-confirm-card" aria-labelledby="case-card-heading">
         <div className="lv-confirm-case-bar">
           <div className="lv-confirm-input-group">
@@ -562,8 +574,36 @@ function BeneficiaryConfirmationPageContext({
         </div>
       </section>
 
+      </details>
+      {isReadOnlyCase && (
+        <section className="lv-confirm-card" aria-labelledby="readonly-heading">
+          <h2 id="readonly-heading" className="lv-confirm-card__title">
+            {lang === 'en' ? 'Closed case — view history' : 'Hồ sơ đã đóng — chỉ xem lịch sử'}
+          </h2>
+          <p>{lang === 'en' ? 'New confirmations cannot be recorded after the case is closed or the vault is archived.' : 'Không thể ghi nhận xác nhận mới khi hồ sơ đã đóng hoặc kho đã lưu trữ.'}</p>
+          <div className="lv-confirm-form-actions">
+            <a className="lv-confirm-btn-select-case" href={`/staff/close-and-archive?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId || '')}`}>
+              {lang === 'en' ? 'View case history' : 'Xem lịch sử hồ sơ'}
+            </a>
+            <button type="button" className="lv-confirm-btn-select-case" onClick={() => setIsSelectorOpen(true)}>
+              {lang === 'en' ? 'Choose an open case' : 'Chọn hồ sơ đang mở'}
+            </button>
+          </div>
+        </section>
+      )}
+      {!isReadOnlyCase && errors.fetch && (
+        <section className="lv-confirm-card">
+          <p className="lv-confirm-error-msg" role="alert"><AlertTriangle size={18} aria-hidden="true" />{errors.fetch}</p>
+          <button type="button" className="lv-confirm-btn-select-case" onClick={() => {
+            lastFetchedKeyRef.current = '';
+            setErrors({});
+            setReloadRevision((revision) => revision + 1);
+          }}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button>
+        </section>
+      )}
+      {!isReadOnlyCase && !errors.fetch && <>
       {/* Beneficiaries Table Card */}
-      <section className="lv-confirm-card" aria-labelledby="table-heading">
+      <section className="lv-confirm-card lv-staff-glow" aria-labelledby="table-heading">
         <div className="lv-confirm-card__header">
           <h2 id="table-heading" className="lv-confirm-card__title">
             {t.cardTitle}
@@ -643,7 +683,7 @@ function BeneficiaryConfirmationPageContext({
       </section>
 
       {/* Staff Record Confirmation Form */}
-      <section className="lv-confirm-card" aria-labelledby="form-heading">
+      <section className="lv-confirm-card lv-staff-glow" aria-labelledby="form-heading">
         <div className="lv-confirm-card__header">
           <h2 id="form-heading" className="lv-confirm-card__title">
             {t.formHeading}
@@ -719,12 +759,6 @@ function BeneficiaryConfirmationPageContext({
                 <span>{t[errors.currentStatus] || errors.currentStatus}</span>
               </div>
             )}
-            {errors.fetch && (
-              <div className="lv-confirm-error-msg" role="alert">
-                <AlertTriangle size={13} aria-hidden="true" />
-                <span>{errors.fetch}</span>
-              </div>
-            )}
           </div>
 
           <div className="lv-confirm-form-actions">
@@ -766,6 +800,7 @@ function BeneficiaryConfirmationPageContext({
           </div>
         </form>
       </section>
+      </>}
     </div>
   );
 }

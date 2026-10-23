@@ -24,7 +24,8 @@ test('PS-8 beneficiary does not require account/contact or allocate shares, hide
  await createBeneficiary(vault,{fullName:'B',userId:id,share:100},{fetchFn:async(url,init)=>{assert.deepEqual(JSON.parse(init.body),{fullName:'B',phone:null,email:null,relationship:null,dateOfBirth:null});return json({...beneficiary,identityNumber:'NEVER-RETURN'},201);}});
  const got=await getBeneficiaries(vault,{page:2,fetchFn:async(url)=>{assert.ok(url.endsWith('?page=2&size=20'));return json({...page([beneficiary]),page:2,totalPages:3});}});assert.equal(got.content[0].hasAccount,false);
  assert.equal(readBeneficiary({...beneficiary,identityNumber:'secret',token:'secret'},vault).identityNumber,undefined);
- assert.throws(()=>readBeneficiary({...beneficiary,hasAccount:true},vault),{code:'INVALID_RESPONSE'});
+ assert.equal(readBeneficiary({...beneficiary,hasAccount:true},vault).hasAccount,true);
+ assert.throws(()=>readBeneficiary({...beneficiary,hasAccount:'true'},vault),{code:'INVALID_RESPONSE'});
  assert.ok(validateBeneficiary({fullName:'B',dateOfBirth:'2026-02-30'}).dateOfBirth);
 });
 test('PS-8 readiness comes only from backend; failed check/list never fabricate ready or empty state',async()=>{

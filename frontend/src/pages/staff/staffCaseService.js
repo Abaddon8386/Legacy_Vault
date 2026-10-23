@@ -58,7 +58,7 @@ export async function fetchStaffCases(options = {}) {
   }
 
   if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100
-    || !['ALL', 'OPEN', 'CANCELLED'].includes(status)) throw new ApiError('VALIDATION_FAILED', 400);
+    || !['ALL', 'OPEN', 'CANCELLED', 'CLOSED'].includes(status)) throw new ApiError('VALIDATION_FAILED', 400);
   const query = new URLSearchParams({ page: String(page), size: String(size) });
   if (status !== 'ALL') query.set('status', status);
   if (q && typeof q === 'string' && q.trim()) query.set('q', q.trim());
@@ -72,7 +72,7 @@ export async function fetchStaffCases(options = {}) {
     || raw.totalPages !== Math.ceil(raw.totalElements / size)) invalid();
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const content = raw.content.map(item => {
-    if (!item || !['OPEN', 'CANCELLED'].includes(item.status)
+    if (!item || !['OPEN', 'CANCELLED', 'CLOSED'].includes(item.status)
       || !['caseId', 'vaultId', 'ownerId'].every(key => uuid.test(item[key]))
       || !['vaultName', 'ownerName'].every(key => typeof item[key] === 'string')
       || typeof item.triggeredAt !== 'string' || !Number.isFinite(Date.parse(item.triggeredAt))

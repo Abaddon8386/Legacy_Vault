@@ -8,7 +8,7 @@
 .lv-hero-eyebrow{font-size:11px;font-weight:600;letter-spacing:.06em;color:#79683e}
 .lv-vault-page .lv-sim-tag{font-size:11px;color:#79683e;line-height:1.5}
 .lv-hero-status-wrap{display:flex;align-items:center}
-.lv-vault-name{font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);font-size:30px;font-weight:600;line-height:1.3;letter-spacing:-.4px;color:#164639;margin:0 0 10px;overflow-wrap:anywhere}
+.lv-vault-name{padding-bottom:12px;font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);font-size:30px;font-weight:600;line-height:1.3;letter-spacing:-.4px;color:#164639;margin:0 0 10px;overflow-wrap:anywhere}
 .lv-vault-description{margin:0 0 22px;font-size:14px;line-height:1.7;color:#637068;overflow-wrap:anywhere}
 .lv-vault-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding-top:18px;border-top:1px solid #ecece5}
 .lv-meta-item{display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -18,7 +18,6 @@
 .lv-vault-page .lv-living-wave-container{min-height:0;height:100%;border-radius:10px;box-shadow:none;border:0}
 .lv-vault-page .lv-living-wave-container::before{content:none}
 .lv-vault-page .lv-wave-ambient-glow{display:none}
-.lv-vault-page .lv-living-wave-container *{animation:none!important}
 .lv-vault-policy-footer{padding:0 2px}
 .lv-vault-policy-footer .lv-policy-text{font-size:12px;color:#637068;line-height:1.7;margin:0}
 .lv-vault-page .lv-toast-alert{display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:24px;background:#f1f6ee;border:1px solid #d5e1d3;border-radius:8px;color:#315c3d;font-size:13px;line-height:1.6}
@@ -27,5 +26,5 @@
 .lv-vault-skeleton>div:last-child{height:300px}
 @keyframes lv-vault-loading{to{opacity:.45}}
 @media(max-width:800px){.lv-vault-hero-card{grid-template-columns:1fr;gap:22px}.lv-hero-artwork-col{height:130px}.lv-vault-page .lv-wave-emblem-wrap{transform:scale(.8);transform-origin:center top}}
-@media(max-width:480px){.lv-vault-view{gap:24px}.lv-vault-hero-card{padding:22px 18px}.lv-vault-name{font-size:27px}.lv-vault-meta-grid{gap:14px}.lv-hero-artwork-col{height:110px}.lv-vault-page .lv-wave-emblem-text{font-size:10px}}
+@media(max-width:480px){.lv-vault-view{gap:24px}.lv-vault-hero-card{padding:22px 18px}.lv-vault-name{padding-bottom:12px;font-size:27px}.lv-vault-meta-grid{gap:14px}.lv-hero-artwork-col{height:110px}.lv-vault-page .lv-wave-emblem-text{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.lv-vault-skeleton>div{animation:none}}

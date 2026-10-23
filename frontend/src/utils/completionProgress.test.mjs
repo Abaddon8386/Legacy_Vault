@@ -396,7 +396,8 @@ test('live completion DTO renders real counts and changing session clears the pr
     assert.match(view.host.textContent, /Đủ điều kiện hoàn tất hồ sơ/);
     await view.render({ caseId, sessionId: secondSession, accessToken: 'synthetic-live-token' });
     assert.doesNotMatch(view.host.textContent, /Đủ điều kiện hoàn tất hồ sơ/);
-    assert.match(view.host.textContent, /— \/ —/);
+    assert.equal(view.host.querySelector('.lv-dual-metrics-grid'), null, 'Do not show stale or placeholder charts while the new session loads');
+    assert.match(view.host.textContent, /Chưa có thông tin/);
     await act(async () => releaseSecond({ assets: { completed: 1, total: 2, pending: 1, complete: false },
       beneficiaries: { completed: 0, total: 1, pending: 1, complete: false }, ready: false }));
     assert.match(view.host.textContent, /1 \/ 2/);
@@ -438,12 +439,12 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.equal(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), false, 'Case A completion verdict must NOT remain');
 
       // VERIFY: B must show INDETERMINATE ("Chưa có thông tin", "— / —", "—")
-      assert.ok(wrapper.host.textContent.includes('— / —'), 'Should show indeterminate ratio — / —');
+      assert.equal(wrapper.host.querySelector('.lv-dual-metrics-grid'), null, 'No placeholder charts without data');
       assert.ok(wrapper.host.textContent.includes('Chưa có thông tin'), 'Should show "Chưa có thông tin" banner/badges');
 
       // Verify trackbar is indeterminate without aria-valuenow="0"
       const progressTracks = wrapper.host.querySelectorAll('.lv-progress-track--indeterminate');
-      assert.equal(progressTracks.length, 2, 'Both tracks should be indeterminate');
+      assert.equal(progressTracks.length, 0, 'Hide both tracks until data is available');
       for (const track of progressTracks) {
         assert.equal(track.getAttribute('aria-valuenow'), null, 'Indeterminate track must NOT have aria-valuenow=0');
         assert.equal(track.getAttribute('aria-valuetext'), 'Chưa có thông tin');
@@ -474,7 +475,7 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.equal(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), false);
       assert.equal(wrapper.host.textContent.includes('4 / 4'), false);
       assert.ok(wrapper.host.textContent.includes('Chưa có thông tin'));
-      assert.ok(wrapper.host.textContent.includes('— / —'));
+      assert.equal(wrapper.host.querySelector('.lv-dual-metrics-grid'), null);
 
       // Now valid Case B data arrives (partially complete: 2/4 assets, 1/2 beneficiaries)
       await wrapper.render({
@@ -557,4 +558,155 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
       await wrapper.close();
     }
   });
+});
+
+test('PS-55 Error Handling: 409 Closed Case and API Errors are NOT swallowed into empty data', async (t) => {
+  await t.test('409 BASIS_DOSSIER_INVALID_STATE displays clear closed context banner and link to archive', async () => {
+    const err409 = new Error('Dossier is in invalid state');
+    err409.status = 409;
+    err409.code = 'BASIS_DOSSIER_INVALID_STATE';
+
+    const failFetcher = () => Promise.reject(err409);
+
+    const wrapper = await mount(CompletionProgressPage, {
+      caseReference: 'HS-2026-000001',
+      sessionId: '14a6bd94-2580-4ef6-bbf3-2c17474ade01',
+      onFetchProgress: failFetcher,
+      caseItem: { status: 'CLOSED' },
+      lang: 'vi',
+    });
+
+    try {
+      // Must NOT be swallowed into generic "Chưa có thông tin"
+      assert.ok(wrapper.host.querySelector('.lv-progress-error-banner--closed'), 'Must render closed error banner');
+      assert.ok(wrapper.host.textContent.includes('Hồ sơ xác minh hoặc phiên bàn giao đã đóng'), 'Must display closed case title');
+      assert.ok(wrapper.host.textContent.includes('Tiến độ chỉ cập nhật khi phiên đang mở'), 'Must explain real-time constraint');
+
+      // Must have navigation action to close-and-archive
+      const archiveLink = wrapper.host.querySelector('a[href*="/staff/close-and-archive"]');
+      assert.ok(archiveLink, 'Must provide link to close-and-archive history');
+      assert.ok(archiveLink.href.includes('HS-2026-000001'));
+      assert.ok(archiveLink.href.includes('14a6bd94-2580-4ef6-bbf3-2c17474ade01'));
+
+      // A failed request must not produce empty, apparently useful progress charts.
+      assert.equal(wrapper.host.querySelector('.lv-dual-metrics-grid'), null);
+    } finally {
+      await wrapper.close();
+    }
+  });
+
+  await t.test('reload progress button is present and triggers re-fetching', async () => {
+    let callCount = 0;
+    const trackingFetcher = () => {
+      callCount++;
+      return Promise.resolve({
+        assetData: { delivered: 2, total: 4 },
+        beneficiaryData: { confirmed: 1, total: 2 },
+      });
+    };
+
+    const wrapper = await mount(CompletionProgressPage, {
+      caseReference: 'HS-2026-000002',
+      sessionId: 'session-002',
+      onFetchProgress: trackingFetcher,
+      lang: 'vi',
+    });
+
+    try {
+      assert.equal(callCount, 1, 'Initial fetch should occur once');
+      const reloadBtn = wrapper.host.querySelector('.lv-progress-btn-reload');
+      assert.ok(reloadBtn, 'Reload button must exist');
+
+      await act(async () => {
+        reloadBtn.click();
+      });
+
+      assert.equal(callCount, 2, 'Clicking reload must trigger refetch');
+    } finally {
+      await wrapper.close();
+    }
+  });
+});
+
+test('changing an external session discards old counts and fetches the new session', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  let release;
+  const first = '22222222-2222-4222-8222-222222222222';
+  const second = '33333333-3333-4333-8333-333333333333';
+  const json = value => new Response(JSON.stringify(value), {headers: {'Content-Type': 'application/json'}});
+  globalThis.fetch = async url => {
+    if (!url.endsWith('/completion-progress')) return json([]);
+    calls.push(url);
+    if (url.includes(second)) return new Promise(resolve => { release = resolve; });
+    return json({assets: {completed: 1, total: 2}, beneficiaries: {completed: 1, total: 2}});
+  };
+  const props = {caseId: '11111111-1111-4111-8111-111111111111', sessionId: first, accessToken: 'synthetic', lang: 'vi'};
+  const wrapper = await mount(CompletionProgressPage, props);
+  try {
+    assert.ok(wrapper.host.textContent.includes('1 / 2'));
+    await wrapper.render({...props, sessionId: second});
+    assert.equal(calls.length, 2);
+    assert.equal(wrapper.host.textContent.includes('1 / 2'), false);
+    await act(async () => release(json({assets: {completed: 3, total: 3}, beneficiaries: {completed: 2, total: 2}})));
+    assert.ok(wrapper.host.textContent.includes('3 / 3'));
+    assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'));
+    assert.equal(wrapper.host.querySelector('.lv-progress-btn-reload').disabled, false);
+  } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
+});
+
+test('an OPEN workflow conflict is not labelled as a closed case', async () => {
+  const error = Object.assign(new Error('Approval requires review'), {status: 409, code: 'BASIS_DOSSIER_INVALID_STATE'});
+  const wrapper = await mount(CompletionProgressPage, {
+    caseId: '11111111-1111-4111-8111-111111111111', sessionId: 'session-a',
+    caseItem: {status: 'OPEN'}, onFetchProgress: () => Promise.reject(error), lang: 'vi',
+  });
+  try {
+    assert.equal(wrapper.host.querySelector('.lv-progress-error-banner--closed'), null);
+    assert.ok(wrapper.host.textContent.includes('Approval requires review'));
+    assert.equal(wrapper.host.querySelector('a[href*="/staff/close-and-archive"]'), null);
+  } finally { await wrapper.close(); }
+});
+
+test('session list failure is visible and retry reloads the list', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async url => {
+    if (!url.endsWith('/handover-sessions')) return new Response('{}', {headers: {'Content-Type': 'application/json'}});
+    calls++;
+    return calls === 1
+      ? new Response(JSON.stringify({code: 'SERVER_ERROR', message: 'Temporary session failure'}), {status: 500})
+      : new Response('[]', {headers: {'Content-Type': 'application/json'}});
+  };
+  window.history.replaceState({}, '', '/staff/completion-progress');
+  const wrapper = await mount(CompletionProgressPage, {caseId: '11111111-1111-4111-8111-111111111111', accessToken: 'synthetic'});
+  try {
+    assert.ok(wrapper.host.textContent.includes('Chưa tải được danh sách phiên bàn giao'));
+    assert.equal(wrapper.host.textContent.includes('Không tìm thấy phiên bàn giao nào'), false);
+    const retry = [...wrapper.host.querySelectorAll('button')].find(button => button.textContent === 'Thử lại');
+    assert.ok(retry);
+    await act(async () => retry.click());
+    assert.equal(calls, 2);
+    assert.equal(wrapper.host.textContent.includes('Chưa tải được danh sách phiên bàn giao'), false);
+  } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
+});
+
+test('direct case links resolve a readable case number and keep UUID input collapsed', async () => {
+  const originalFetch = globalThis.fetch;
+  const caseId = '11111111-1111-4111-8111-111111111111';
+  globalThis.fetch = async url => {
+    const data = url.endsWith('/completion-progress')
+      ? {assets: {completed: 1, total: 2}, beneficiaries: {completed: 1, total: 2}}
+      : url.endsWith('/handover-sessions') ? []
+      : {caseId, caseNumber: 'HS-2026-000007', status: 'OPEN', vaultName: 'Kho kiểm thử'};
+    return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
+  };
+  const wrapper = await mount(CompletionProgressPage, {caseId, sessionId: '22222222-2222-4222-8222-222222222222', accessToken: 'synthetic'});
+  try {
+    assert.equal(wrapper.host.querySelector('.lv-staff-context-bar__code').textContent, 'HS-2026-000007');
+    const technical = wrapper.host.querySelector('.lv-progress-technical');
+    assert.equal(technical.open, false);
+    assert.equal(technical.querySelector('input').value, caseId);
+    assert.ok(wrapper.host.textContent.includes('1 / 2'), 'Real progress still renders when data exists');
+  } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
 });

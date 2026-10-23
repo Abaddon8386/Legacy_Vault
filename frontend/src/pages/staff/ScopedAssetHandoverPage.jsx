@@ -25,7 +25,10 @@ import {
 } from './handoverSessionService.js';
 import { scopedAssetHandoverI18n } from './scopedAssetHandoverI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
+import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
+import { fetchStaffAssetCatalog } from './staffLegalDocumentsService.js';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
+import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import './ScopedAssetHandoverPage.css';
 import { readDeliveryReceiptBatch } from '../../utils/deliveryReceiptValidation.js';
 
@@ -68,6 +71,7 @@ function ScopedAssetHandoverPageContext({
   const initialSession = propSessionId || searchParams?.get('sessionId') || (effectiveIsDevPreview ? 'HDS-2026-001' : '');
 
   const [caseReference, setCaseReference] = useState(initialCase);
+  const displayCaseItem = useStaffCaseMetadata(caseReference, propCaseItem, effectiveAccessToken, lang, effectiveIsDevPreview);
   const [sessionId, setSessionId] = useState(initialSession);
   const [scopeData, setScopeData] = useState(initialScope);
   const [candidates, setCandidates] = useState(initialCandidates);
@@ -135,7 +139,11 @@ function ScopedAssetHandoverPageContext({
           lang,
           signal: controller.signal,
         };
-        const assets = await fetchEligibleAssets(caseReference, sessionId, options);
+        const [assets, people, catalog] = await Promise.all([
+          fetchEligibleAssets(caseReference, sessionId, options),
+          effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(caseReference, options).catch(() => []),
+          effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffAssetCatalog(caseReference, options).catch(() => []),
+        ]);
         if (!Array.isArray(assets)) throw new Error(en ? 'Invalid handover data.' : 'Dữ liệu bàn giao không hợp lệ.');
 
         if (active && !controller.signal.aborted) {
@@ -144,10 +152,10 @@ function ScopedAssetHandoverPageContext({
             const isDelivered = a.deliveryStatus === 'DELIVERED' || a.status === 'DELIVERED';
             return {
               assetId: a.assetId,
-              assetName: a.assetName || a.name || null,
+              assetName: catalog.find(item => item.assetId === a.assetId)?.name || a.assetName || a.name || null,
               description: a.description || '',
               beneficiaryId: a.recipientId || a.beneficiaryId,
-              beneficiaryName: a.recipientName || a.beneficiaryName || null,
+              beneficiaryName: people.find(item => item.beneficiaryId === (a.recipientId || a.beneficiaryId))?.fullName || a.recipientName || a.beneficiaryName || null,
               handoverStatus: isDelivered ? HANDOVER_STATUS.DELIVERED : HANDOVER_STATUS.PENDING,
             };
           });
@@ -173,7 +181,9 @@ function ScopedAssetHandoverPageContext({
         }
       } catch (err) {
         if (active && err.name !== 'AbortError') {
-          setLoadError(err.message || (en ? 'Failed to load eligible assets.' : 'Không thể tải danh sách tài sản đủ điều kiện.'));
+          setLoadError(err.status === 409
+            ? (en ? 'This session no longer allows asset delivery. Return to the session to view its status.' : 'Phiên này không còn cho phép bàn giao tài sản. Quay lại phiên bàn giao để xem trạng thái.')
+            : (en ? 'Unable to load assets. Check the selected case and retry.' : 'Chưa tải được tài sản. Vui lòng kiểm tra hồ sơ đã chọn và thử lại.'));
         }
       } finally {
         if (active) {
@@ -416,13 +426,12 @@ function ScopedAssetHandoverPageContext({
       {/* Page Title & Context Header */}
       <div className="lv-handover-header">
         <h1 className="lv-handover-title">{t.pageTitle}</h1>
-        <p className="lv-handover-subtitle">{t.pageSubtitle}</p>
       </div>
 
       {/* Staff Case Context Bar (Nguồn chọn case duy nhất) */}
       <StaffCaseContextBar
         caseId={caseReference}
-        caseItem={propCaseItem}
+        caseItem={displayCaseItem}
         sessionId={sessionId}
         onOpenSelector={() => setIsSelectorOpen(true)}
         onChangeCase={() => setIsSelectorOpen(true)}
@@ -460,17 +469,6 @@ function ScopedAssetHandoverPageContext({
         onUnauthorized={onUnauthorized}
       />
 
-      {/* Critical Business Rule Banner */}
-      <section className="lv-handover-notice-banner" role="alert" aria-labelledby="handover-rule-title">
-        <ShieldAlert size={22} className="lv-handover-notice-banner__icon" aria-hidden="true" />
-        <div className="lv-handover-notice-banner__body">
-          <h2 id="handover-rule-title" className="lv-handover-notice-banner__title">
-            {t.noticeTitle}
-          </h2>
-          <p>{t.noticeBody}</p>
-        </div>
-      </section>
-
       {/* Action Success / Error Feedback Banners */}
       {actionSuccess && (
         <div className="lv-api-status-banner lv-api-status-banner--success" role="status">
@@ -494,7 +492,7 @@ function ScopedAssetHandoverPageContext({
       {/* =========================================================================
           BƯỚC 1: CHỌN NGƯỜI NHẬN TẠI QUẦY
           ========================================================================= */}
-      <section className="lv-handover-card" aria-labelledby="step1-heading">
+      {!loadError && <><section className="lv-handover-card lv-staff-glow" aria-labelledby="step1-heading">
         <div className="lv-handover-card__header">
           <div className="lv-handover-step-indicator">
             <span className="lv-handover-step-badge">1</span>
@@ -502,7 +500,6 @@ function ScopedAssetHandoverPageContext({
               <h2 id="step1-heading" className="lv-handover-card__title">
                 {t.step1Title}
               </h2>
-              <p className="lv-handover-card__desc">{t.step1Desc}</p>
             </div>
           </div>
           {scopeValidation.isApproved ? (
@@ -551,9 +548,7 @@ function ScopedAssetHandoverPageContext({
               <option value="">{t.selectRecipientPlaceholder}</option>
               {uniqueRecipients.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name
-                    ? `${r.name} (${r.id.substring(0, 8)}...)`
-                    : `${en ? 'Recipient' : 'Người nhận'} (${r.id.substring(0, 8)}...) ${t.recipientMetadataPending}`}
+                  {r.name || `${en ? 'Recipient' : 'Người nhận'} — ${t.recipientMetadataPending}`}
                 </option>
               ))}
             </select>
@@ -564,7 +559,7 @@ function ScopedAssetHandoverPageContext({
       {/* =========================================================================
           BƯỚC 2: CHỌN TÀI SẢN GIAO TRONG LẦN NÀY
           ========================================================================= */}
-      <section className="lv-handover-card" aria-labelledby="step2-heading">
+      <section className="lv-handover-card lv-staff-glow" aria-labelledby="step2-heading">
         <div className="lv-handover-card__header">
           <div className="lv-handover-step-indicator">
             <span className="lv-handover-step-badge">2</span>
@@ -572,7 +567,6 @@ function ScopedAssetHandoverPageContext({
               <h2 id="step2-heading" className="lv-handover-card__title">
                 {t.step2Title}
               </h2>
-              <p className="lv-handover-card__desc">{t.step2Desc}</p>
             </div>
           </div>
           {isLoading && (
@@ -719,6 +713,7 @@ function ScopedAssetHandoverPageContext({
         )}
       </section>
 
+      </>}
       {/* =========================================================================
           BƯỚC 3: DIALOG TÓM TẮT & XÁC NHẬN BÀN GIAO
           ========================================================================= */}

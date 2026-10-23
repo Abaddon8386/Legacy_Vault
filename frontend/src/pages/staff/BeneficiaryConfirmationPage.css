@@ -314,6 +314,16 @@
 }
 
 /* Responsive adjustments */
+.lv-beneficiary-confirmation-view .lv-confirm-technical { font-size: 12px; color: #667385; margin-bottom: 14px; }
+.lv-beneficiary-confirmation-view .lv-confirm-technical > summary { cursor: pointer; width: fit-content; padding: 8px 0; }
+.lv-beneficiary-confirmation-view .lv-confirm-technical .lv-confirm-card { margin-top: 8px; }
+.lv-beneficiary-confirmation-view .lv-confirm-title,
+.lv-beneficiary-confirmation-view .lv-confirm-card__title { color: #243349; }
+.lv-beneficiary-confirmation-view .lv-confirm-subtitle { color: #596778; }
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner { background: #f1f6fc; border-color: #d4e2f1; border-left-color: #5981aa; }
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner__title,
+.lv-beneficiary-confirmation-view .lv-confirm-notice-banner__body p { color: #334c67; }
+.lv-beneficiary-confirmation-view .lv-confirm-label { color: #334155; }
 @media (max-width: 768px) {
   .lv-beneficiary-confirmation-view .lv-confirm-case-bar {
     flex-direction: column;

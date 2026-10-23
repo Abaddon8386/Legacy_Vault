@@ -18,7 +18,7 @@ export function AssetSummaryCards({ assets, t: externalT, lang = 'vi' }) {
   return (
     <div className="lv-summary-cards-grid">
       {/* Card 1: Total Count */}
-      <div className="lv-stat-card">
+      <div className="lv-stat-card lv-owner-card">
         <div className="lv-stat-card__icon lv-stat-card__icon--forest">
           <Layers size={20} />
         </div>
@@ -32,7 +32,7 @@ export function AssetSummaryCards({ assets, t: externalT, lang = 'vi' }) {
       </div>
 
       {/* Card 2: Security & Payload Protection */}
-      <div className="lv-stat-card">
+      <div className="lv-stat-card lv-owner-card">
         <div className="lv-stat-card__icon lv-stat-card__icon--gold">
           <ShieldCheck size={20} />
         </div>
@@ -48,7 +48,7 @@ export function AssetSummaryCards({ assets, t: externalT, lang = 'vi' }) {
       </div>
 
       {/* Card 3: Distribution by Asset Type (TEXT & CREDENTIAL) */}
-      <div className="lv-stat-card lv-stat-card--distribution">
+      <div className="lv-stat-card lv-stat-card--distribution lv-owner-card">
         <div className="lv-stat-card__content lv-distribution-content">
           <span className="lv-stat-card__label">{t.assets.stats.distribution}</span>
 

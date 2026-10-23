@@ -1,14 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { fetchStaffCases } from './staffCaseService.js';
 import { useStaffSessionExpiry, staffAuthFeedback } from './staffFeedback.js';
 import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, isHandoverId, handoverUrl, fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail } from './liveHandoverService.js';
 import './LiveHandoverPage.css';
 import { linkExistingBeneficiaryAccount } from './beneficiaryAccountService.js';
 
-function errorText(error, en) {
+function sessionTime(value, en) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(date);
+}
+
+function errorText(error, en, caseItem) {
   const auth = staffAuthFeedback(error, en ? 'en' : 'vi');
   if (auth) return `${auth.title}. ${auth.description}`;
+  if ((error?.code === 'RESOURCE_NOT_FOUND' || error?.status === 404) && caseItem?.status === 'CLOSED') {
+    return en
+      ? 'This verification case is closed. Counter identity checks and account management are only available for open cases.'
+      : 'Hồ sơ xác minh này đã đóng. Thao tác đối chiếu căn cước và quản lý tài khoản tại quầy chỉ áp dụng cho hồ sơ đang mở.';
+  }
   const texts = {
     HANDOVER_SESSION_ALREADY_OPEN: ['Đã có phiên mở. Tải lại để chọn phiên hiện có.', 'A session is already open. Reload to select it.'],
     HANDOVER_SESSION_INVALID_STATE: ['Hồ sơ/kho chưa đủ điều kiện hoặc phiên đã thay đổi. Tải lại trước khi thao tác.', 'Case/vault is not eligible or the session has changed. Reload before continuing.'],
@@ -46,9 +57,8 @@ function CasePicker({ accessToken, lang, onChoose, onError }) {
     setActiveQuery(searchQuery.trim());
   };
 
-  return <section>
+  return <section className="lv-live-case-picker">
     <h2>{en ? 'Select a case' : 'Chọn hồ sơ'}</h2>
-    <p>{en ? 'Select from the staff queue. Sessions are available only for cases assigned to you.' : 'Chọn từ danh sách staff. Chỉ hồ sơ đã giao cho bạn mới tải được phiên bàn giao.'}</p>
     <form onSubmit={handleSearch} style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
       <input
         type="search"
@@ -64,17 +74,18 @@ function CasePicker({ accessToken, lang, onChoose, onError }) {
       )}
     </form>
     {failed ? <p role="alert">{errorText(failed, en)}</p> : !current ? <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p> : <ul>{current.content.map(item => <li key={item.caseId}>
-      <button type="button" onClick={() => onChoose(item.caseId)}>{item.caseNumber} — {item.vaultName} — {item.ownerName}</button>
+      <button className="lv-live-case-option" type="button" onClick={() => onChoose(item.caseId, item)}><strong>{item.caseNumber}</strong><span>{item.vaultName}</span><small>{item.ownerName}</small></button>
     </li>)}</ul>}
     {current?.content.length === 0 && <p>{en ? 'No cases found.' : 'Không tìm thấy hồ sơ nào.'}</p>}
-    <button disabled={page === 0} onClick={() => setPage(p => p - 1)}>{en ? 'Previous' : 'Trước'}</button>
+    <div className="lv-live-case-pagination"><button disabled={page === 0} onClick={() => setPage(p => p - 1)}>{en ? 'Previous' : 'Trước'}</button>
     <span>{page + 1}</span>
     <button disabled={!current || page + 1 >= current.totalPages} onClick={() => setPage(p => p + 1)}>{en ? 'Next' : 'Sau'}</button>
     <button onClick={() => setRetry(v => v + 1)}>{en ? 'Reload cases' : 'Tải lại danh sách'}</button>
+    </div>
   </section>;
 }
 
-function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, lang, mode, onError }) {
+function CounterBeneficiariesSection({ caseId, caseItem, selectedSessionId, accessToken, lang, mode, onError }) {
   const en = lang === 'en';
   const [expanded, setExpanded] = useState(() => mode === 'accounts');
   const [loading, setLoading] = useState(false);
@@ -93,8 +104,19 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
   const mutation = useRef(null);
   useEffect(() => () => { mutation.current?.abort(); }, []);
 
+  const [previousCaseId, setPreviousCaseId] = useState(caseId);
+  if (previousCaseId !== caseId) {
+    setPreviousCaseId(caseId);
+    setBeneficiaries([]);
+    setError(null);
+    setNotice('');
+    setAttestTarget(null);
+    setLinkTarget(null);
+    setRequestingEmailId(null);
+  }
+
   useEffect(() => {
-    if (!expanded || !caseId || !accessToken) return;
+    if (!expanded || !caseId || !accessToken || caseItem?.status === 'CLOSED') return;
     const c = new AbortController();
     let cancelled = false;
 
@@ -118,7 +140,7 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
       cancelled = true;
       c.abort();
     };
-  }, [caseId, accessToken, expanded, lang, beneficiaryRevision]);
+  }, [caseId, accessToken, expanded, lang, beneficiaryRevision, caseItem?.status]);
 
   const handleAttest = async (e) => {
     e.preventDefault();
@@ -178,15 +200,18 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
   };
 
   return (
-    <aside role="note" className="lv-counter-beneficiaries">
-      <h3>{en ? 'Counter beneficiary context & identity — PS-88' : 'Dữ liệu người thụ hưởng tại quầy & đối chiếu — PS-88'}</h3>
-      <p>
-        {en
-          ? 'Staff verifies beneficiary identity in person at the counter (responsibility record, not an automated OCR). A recipient who declines an account follows the offline process with required evidence. No account is automatically created.'
-          : 'Nhân viên trực tiếp đối chiếu CCCD/giấy tờ tùy thân của người thụ hưởng tại quầy (ghi nhận trách nhiệm nghiệp vụ, không dùng OCR tự động). Người nhận từ chối tài khoản vẫn tiếp tục nhận tài sản bằng biên bản ngoài đời. Không tự tạo tài khoản.'}
-      </p>
+    <aside role="note" className="lv-counter-beneficiaries lv-staff-glow">
+      <h3>{en ? 'Counter recipients' : 'Người nhận tại quầy'}</h3>
 
-      {!expanded && (
+      {caseItem?.status === 'CLOSED' && (
+        <p role="status" className="lv-live-closed-notice">
+          {en
+            ? 'This verification case is closed. Counter identity checks and account operations are only available for open cases.'
+            : 'Hồ sơ xác minh này đã đóng. Thao tác đối chiếu căn cước và quản lý tài khoản tại quầy chỉ áp dụng cho hồ sơ đang mở.'}
+        </p>
+      )}
+
+      {!expanded && caseItem?.status !== 'CLOSED' && (
         <p>
           <button type="button" onClick={() => setExpanded(true)}>
             {en ? 'Load counter beneficiaries' : 'Tải danh sách người thụ hưởng tại quầy'}
@@ -194,8 +219,11 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      {error && <p role="alert">{errorText(error, en)}</p>}
+      {error && !(caseItem?.status === 'CLOSED' && (error.code === 'RESOURCE_NOT_FOUND' || error.status === 404)) && <p role="alert">{errorText(error, en, caseItem)}</p>}
       {loading && <p role="status">{en ? 'Loading beneficiaries…' : 'Đang tải danh sách người thụ hưởng…'}</p>}
+      {caseItem?.status !== 'CLOSED' && expanded && !loading && !error && beneficiaries.length === 0 && (
+        <p role="status">{en ? 'No eligible beneficiaries found for this case.' : 'Không có người thụ hưởng nào đủ điều kiện trong hồ sơ này.'}</p>
+      )}
 
       {beneficiaries.length > 0 && (
         <ul className="lv-beneficiary-list">
@@ -323,12 +351,12 @@ function CounterBeneficiariesSection({ caseId, selectedSessionId, accessToken, l
         </form>
       )}
 
-      <button disabled>{en ? 'Create / link beneficiary account' : 'Tạo / liên kết tài khoản người thụ hưởng'}</button>
+
     </aside>
   );
 }
 
-function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, onError, mode, reload }) {
+function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onSession, onError, mode, reload }) {
   const en = lang === 'en';
   const [state, setState] = useState({ loading: true, sessions: [], selected: null, error: null });
   const [pending, setPending] = useState(false);
@@ -374,27 +402,45 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
   }
   const { selected, sessions, error, loading } = state;
   const openExists = sessions.some(item => item.status === 'OPEN');
+  const isCaseClosed = caseItem?.status === 'CLOSED';
   const statuses = en ? { OPEN: 'Open', COMPLETED: 'Completed', CANCELLED: 'Cancelled' } : { OPEN: 'Đang mở', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy' };
-  return <section aria-busy={loading || pending}>
-    <h2>{en ? 'Handover sessions' : 'Phiên bàn giao'}</h2>
+  return <section className="lv-session-panel" aria-busy={loading || pending}>
+    <div className="lv-session-panel-heading">
+      <div>
+        <h2>{en ? 'Handover sessions' : 'Phiên bàn giao'} <span className="lv-session-count">{sessions.length}</span></h2>
+      </div>
+      <button className="lv-live-secondary" disabled={pending} onClick={reload}>{en ? 'Reload sessions' : 'Tải lại phiên'}</button>
+    </div>
     {(loading || pending) && <p role="status"><progress aria-label={en ? 'Processing' : 'Đang xử lý'} /> {en ? 'Processing…' : 'Đang xử lý…'}</p>}
-    {error && <p role="alert">{errorText(error, en)}</p>}
+    {error && <p role="alert">{errorText(error, en, caseItem)}</p>}
     {notice && <p role="status">{notice}</p>}
-    <button disabled={pending} onClick={reload}>{en ? 'Reload sessions' : 'Tải lại phiên'}</button>
-    <p>{en ? 'Opening a session requires an assigned OPEN case, an eligible unlocked vault and current Legal approval. The server checks these conditions.' : 'Mở phiên cần hồ sơ OPEN được giao cho bạn, kho đã mở khóa đúng trạng thái và phê duyệt Legal còn hiệu lực. Máy chủ kiểm tra các điều kiện này.'}</p>
-    <button disabled={loading || pending || Boolean(error) || openExists || selected?.status === 'COMPLETED' || mode === 'accounts'} onClick={() => act(options => openLiveSession(caseId, options))}>{en ? 'Open handover session' : 'Mở phiên bàn giao'}</button>
+    <details className="lv-session-guidance"><summary>{en ? 'Requirements for a new session' : 'Điều kiện mở phiên mới'}</summary>
+      <p>{en ? 'The case must be open and assigned to you, with the vault unlocked and a current Legal approval.' : 'Hồ sơ đang mở và được giao cho bạn; kho đã mở khóa và phê duyệt pháp lý còn hiệu lực.'}</p>
+    </details>
+    {isCaseClosed && (
+      <p role="note" className="lv-live-closed-notice">
+        {en ? 'This verification case is closed. New handover sessions cannot be opened.' : 'Hồ sơ xác minh này đã đóng. Không thể mở phiên bàn giao mới.'}
+      </p>
+    )}
+    <button className="lv-live-primary" disabled={loading || pending || Boolean(error) || openExists || selected?.status === 'COMPLETED' || mode === 'accounts' || isCaseClosed} onClick={() => act(options => openLiveSession(caseId, options))}>{en ? 'Open handover session' : 'Mở phiên bàn giao'}</button>
     {!loading && !error && sessions.length === 0 && <p>{en ? 'No sessions yet.' : 'Chưa có phiên bàn giao.'}</p>}
-    <ul>{sessions.map(item => <li key={item.sessionId}>
-      <button disabled={pending || loading || Boolean(error)} onClick={() => act(options => getLiveSession(caseId, item.sessionId, options))}>{statuses[item.status]} — {item.openedAt} — {item.sessionId}</button>
+    <ul className="lv-session-list">{sessions.map((item, index) => <li key={item.sessionId}>
+      <button className={`lv-session-choice${selected?.sessionId === item.sessionId ? ' is-selected' : ''}`} aria-pressed={selected?.sessionId === item.sessionId} disabled={pending || loading || Boolean(error)} onClick={() => act(options => getLiveSession(caseId, item.sessionId, options))}>
+        <span className="lv-session-choice-label"><strong>{en ? 'Session' : 'Phiên'} {String(sessions.length - index).padStart(2, '0')}</strong><time dateTime={item.openedAt}>{sessionTime(item.openedAt, en)}</time></span>
+        <span className={`lv-session-status lv-session-status--${item.status.toLowerCase()}`}>{statuses[item.status]}</span>
+        <span className="lv-session-choice-action">{selected?.sessionId === item.sessionId ? (en ? 'Selected' : 'Đang xem') : (en ? 'View details →' : 'Xem chi tiết →')}</span>
+      </button>
     </li>)}</ul>
-    {selected && <div>
+    {selected && <div className="lv-session-detail lv-staff-glow">
       <h3>{en ? 'Selected session' : 'Phiên đang xem'}</h3>
-      <p>{statuses[selected.status]} — {selected.sessionId}</p>
-      <p>{en ? 'Opened (server time)' : 'Mở lúc (giờ máy chủ)'}: {selected.openedAt}</p>
-      {selected.closedAt && <p>{en ? 'Closed (server time)' : 'Đóng lúc (giờ máy chủ)'}: {selected.closedAt}</p>}
+      <div className="lv-session-detail-grid">
+        <p><span>{en ? 'Status' : 'Trạng thái'}</span><strong>{statuses[selected.status]}</strong></p>
+        <p><span>{en ? 'Opened' : 'Thời gian mở'}</span><strong>{sessionTime(selected.openedAt, en)}</strong></p>
+        {selected.closedAt && <p><span>{en ? 'Closed' : 'Thời gian kết thúc'}</span><strong>{sessionTime(selected.closedAt, en)}</strong></p>}
+      </div>
+      <details className="lv-session-guidance"><summary>{en ? 'Session reference' : 'Mã tham chiếu phiên'}</summary><code>{selected.sessionId}</code></details>
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
       {selected.status === 'OPEN' && <div className="lv-handover-next-step">
-        <p>{en ? 'Next: select a recipient and the approved assets to hand over.' : 'Tiếp theo: chọn người nhận và tài sản trong phân bổ đã duyệt để bàn giao.'}</p>
         <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
       </div>}
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
@@ -406,6 +452,7 @@ function Sessions({ caseId, requestedSessionId, accessToken, lang, onSession, on
     </div>}
     <CounterBeneficiariesSection
       caseId={caseId}
+      caseItem={caseItem}
       selectedSessionId={selected?.sessionId}
       accessToken={accessToken}
       lang={lang}
@@ -420,13 +467,27 @@ export default function LiveHandoverPage(props) {
   // Replacing the authenticated token discards every state/request from the old session.
   return <LiveHandoverContent key={props.accessToken} {...props} />;
 }
-function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onToggleLang, onSelectSession, mode = 'sessions' }) {
+function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSession, mode = 'sessions' }) {
   const en = lang === 'en';
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const [caseId, setCaseId] = useState(() => isHandoverId(query.get('caseId')) ? query.get('caseId') : null);
+  const [caseItem, setCaseItem] = useState(null);
   const [requested, setRequested] = useState(() => isHandoverId(query.get('caseId')) && isHandoverId(query.get('sessionId')) ? query.get('sessionId') : null);
   const [revision, setRevision] = useState(0);
   const notify = useStaffSessionExpiry({ accessToken, onUnauthorized: onLogout });
+
+  useEffect(() => {
+    if (!caseId || caseItem) return;
+    const c = new AbortController();
+    fetchStaffCases({ accessToken, lang, size: 50, signal: c.signal })
+      .then(res => {
+        const found = res?.content?.find(it => it.caseId === caseId);
+        if (found && !c.signal.aborted) setCaseItem(found);
+      })
+      .catch(() => {});
+    return () => c.abort();
+  }, [caseId, accessToken, lang, caseItem]);
+
   const keepContext = sessionId => {
     const url = new URL(window.location.href);
     if (caseId) url.searchParams.set('caseId', caseId); else url.searchParams.delete('caseId');
@@ -434,17 +495,39 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onToggleLang,
     window.history.replaceState(window.history.state, '', url.pathname + url.search);
     onSelectSession?.(caseId ? sessionId : null);
   };
-  return <main className="lv-live-handover">
-    <header><a href="/staff/cases">{en ? 'Staff cases' : 'Danh sách hồ sơ'}</a><LanguageToggle lang={lang} onToggleLang={onToggleLang} /><button onClick={onLogout}>{en ? 'Sign out' : 'Đăng xuất'}</button></header>
+  return <section className="lv-live-handover">
+    <header className="lv-live-page-heading"><a href="/staff/cases">← {en ? 'Staff cases' : 'Danh sách hồ sơ'}</a></header>
     <h1>{mode === 'accounts' ? (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy') : (en ? 'Counter handover sessions' : 'Phiên bàn giao tại quầy')}</h1>
-    {!caseId ? <CasePicker accessToken={accessToken} lang={lang} onError={notify} onChoose={id => {
-      setCaseId(id); setRequested(null);
+    {!caseId ? <CasePicker accessToken={accessToken} lang={lang} onError={notify} onChoose={(id, item) => {
+      setCaseId(id); setCaseItem(item || null); setRequested(null);
       window.history.replaceState(window.history.state, '', handoverUrl(window.location.pathname, id));
     }} /> : <>
-      <p>{en ? 'Case' : 'Hồ sơ'}: {caseId}</p>
-      <button onClick={() => { keepContext(null); setCaseId(null); setRequested(null); window.history.replaceState(window.history.state, '', window.location.pathname); }}>{en ? 'Choose another case' : 'Chọn hồ sơ khác'}</button>
-      <Sessions key={`${caseId}:${revision}`} caseId={caseId} requestedSessionId={requested} accessToken={accessToken} lang={lang} mode={mode} onError={notify} onSession={keepContext}
+      <div className="lv-live-case-summary">
+        <div className="lv-live-case-description">
+          <span style={{ fontWeight: 600, color: '#334155' }}>{en ? 'Case' : 'Hồ sơ'}: </span>
+          <span>{caseItem?.caseNumber || caseId}</span>
+          {caseItem?.vaultName && <span className="lv-live-case-vault">{caseItem.vaultName}</span>}
+          {caseItem?.ownerName && <span className="lv-live-case-owner">{en ? 'Owner' : 'Chủ kho'}: {caseItem.ownerName}</span>}
+          {caseItem?.status && (
+            <span style={{
+              marginLeft: '0.5rem',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '12px',
+              fontWeight: 600,
+              background: caseItem.status === 'CLOSED' ? '#fee2e2' : caseItem.status === 'OPEN' ? '#dcfce7' : '#f1f5f9',
+              color: caseItem.status === 'CLOSED' ? '#991b1b' : caseItem.status === 'OPEN' ? '#166534' : '#475569',
+            }}>
+              {caseItem.status === 'CLOSED' ? (en ? 'Closed' : 'Đã đóng') : caseItem.status === 'OPEN' ? (en ? 'Open' : 'Đang mở') : (en ? 'Cancelled' : 'Đã hủy')}
+            </span>
+          )}
+        </div>
+        <button type="button" onClick={() => { keepContext(null); setCaseId(null); setCaseItem(null); setRequested(null); window.history.replaceState(window.history.state, '', window.location.pathname); }}>
+          {en ? 'Choose another case' : 'Chọn hồ sơ khác'}
+        </button>
+      </div>
+      <Sessions key={`${caseId}:${revision}`} caseId={caseId} caseItem={caseItem} requestedSessionId={requested} accessToken={accessToken} lang={lang} mode={mode} onError={notify} onSession={keepContext}
         reload={() => { setRequested(new URLSearchParams(window.location.search).get('sessionId')); setRevision(v => v + 1); }} />
     </>}
-  </main>;
+  </section>;
 }

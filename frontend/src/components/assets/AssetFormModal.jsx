@@ -5,7 +5,7 @@ import { DocumentPicker } from './AssetDocuments.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
-import { AlertCircle, Lock } from 'lucide-react'
+import { AlertCircle, Lock, X } from 'lucide-react'
 import './AssetFormModal.css'
 import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
@@ -22,6 +22,7 @@ export function AssetFormModal({
   lang = 'vi',
   isSubmitting = false,
   assetSaved = false,
+  errorKey,
 }) {
   const t = getAssetTranslations(externalT, lang)
   const emptyForm = {
@@ -129,11 +130,12 @@ export function AssetFormModal({
             aria-label={t.assets.closeBtn}
             disabled={isSubmitting}
           >
-            âœ•
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
+          {errorKey && <p className="lv-form-error" role="alert"><AlertCircle size={16} aria-hidden="true" /> {t.assets.alerts[errorKey] || t.assets.alerts.saveError}</p>}
           <fieldset disabled={assetSaved} style={{border:0,padding:0,margin:0,minWidth:0}}>
           {/* Asset Name */}
           <div className="lv-form-group">

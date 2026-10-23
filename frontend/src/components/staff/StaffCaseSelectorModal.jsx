@@ -143,6 +143,7 @@ export default function StaffCaseSelectorModal({
             <option value="ALL">{en ? 'All statuses' : 'Tất cả trạng thái'}</option>
             <option value="OPEN">{en ? 'Open' : 'Đang mở'}</option>
             <option value="CANCELLED">{en ? 'Cancelled' : 'Đã hủy'}</option>
+            <option value="CLOSED">{en ? 'Closed' : 'Đã đóng'}</option>
           </select>
 
           <button
@@ -209,6 +210,8 @@ export default function StaffCaseSelectorModal({
                         ? (en ? 'Open' : 'Đang mở')
                         : item.status === 'CANCELLED'
                         ? (en ? 'Cancelled' : 'Đã hủy')
+                        : item.status === 'CLOSED'
+                        ? (en ? 'Closed' : 'Đã đóng')
                         : item.status;
 
                     return (

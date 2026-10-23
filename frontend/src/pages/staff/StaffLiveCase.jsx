@@ -7,8 +7,9 @@ import {
   uploadStaffDocumentAttachment,
   readStaffDocumentAttachmentContent,
 } from './staffLiveService.js';
-import { validateEvidenceFile, formatFileSize } from '../../utils/staffEvidenceUpload.js';
+import { validateEvidenceFile, formatFileSize, EVIDENCE_UPLOAD_I18N } from '../../utils/staffEvidenceUpload.js';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
+import { FolderOpen, FileText, Paperclip, RefreshCw, UserRound, Archive } from 'lucide-react';
 import './StaffLiveCase.css';
 
 const labels = {
@@ -22,6 +23,23 @@ const fields = {
   'death-documents': ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'evidenceReference', 'notes'],
   'original-will-intakes': ['deliveredByName', 'deliveredByRelationship', 'evidenceReference', 'conditionNotes'],
 };
+
+function intakeFeedback(value, en) {
+  const code = typeof value === 'string' ? value : value?.code;
+  for (const key of ['fileRequired', 'fileEmpty', 'fileTypeInvalid', 'fileTooLarge']) {
+    if ([EVIDENCE_UPLOAD_I18N.vi[key], EVIDENCE_UPLOAD_I18N.en[key]].includes(code)) return EVIDENCE_UPLOAD_I18N[en ? 'en' : 'vi'][key];
+  }
+  const messages = {
+    VERIFICATION_CASE_NOT_CLAIMABLE: ['Hồ sơ đã có người phụ trách hoặc không còn ở trạng thái tiếp nhận. Vui lòng quay lại danh sách để kiểm tra.', 'This case is assigned or no longer available for intake. Return to the case list to check.'],
+    RESOURCE_NOT_FOUND: ['Không tìm thấy hồ sơ hoặc bạn chưa được phân công xử lý hồ sơ này.', 'This case is unavailable or is not assigned to you.'],
+    ACCESS_DENIED: ['Bạn không có quyền thực hiện thao tác này. Vui lòng liên hệ người quản lý.', 'You cannot perform this action. Please contact your manager.'],
+    UNAUTHENTICATED: ['Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.', 'Your session has expired. Please sign in again.'],
+    VALIDATION_FAILED: ['Vui lòng kiểm tra các thông tin bắt buộc và thử lại.', 'Please check the required information and try again.'],
+    CASE_CONFLICT: ['Hồ sơ vừa được cập nhật. Vui lòng tải lại trước khi tiếp tục.', 'The case has changed. Please reload before continuing.'],
+    NETWORK_ERROR: ['Chưa kết nối được máy chủ. Vui lòng kiểm tra kết nối và thử lại.', 'Unable to connect. Please check your connection and retry.'],
+  };
+  return messages[code]?.[en ? 1 : 0] || (en ? 'Unable to complete this action. Please reload the information and try again. Your entered details are preserved.' : 'Chưa thể hoàn tất thao tác. Vui lòng tải lại thông tin và thử lại. Nội dung bạn đã nhập vẫn được giữ.');
+}
 
 export default function StaffLiveCase(props) {
   return <ScopedStaffLiveCase key={`${props.caseId}:${props.accessToken}`} {...props} />;
@@ -188,7 +206,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const receipt = await uploadStaffDocumentAttachment(caseId, kind, recordId, file, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
       setSelectedRecordFiles(prev => ({ ...prev, [recordId]: null }));
-      setNotice(`${en ? 'File attached successfully' : 'Đính kèm tệp chứng cứ thành công'}: ${receipt.fileName} (SHA-256: ${receipt.sha256.slice(0, 8)}…)`);
+      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}`);
       loadRecordAttachments(recordId);
     } catch (err) {
       if (c.signal.aborted) return;
@@ -247,21 +265,29 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const closed = data?.status !== 'OPEN';
   return <section className="lv-staff-live" aria-busy={busy || recordsLoading}>
     <button type="button" onClick={onBack}>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button>
-    <h1>{en ? 'Case intake' : 'Tiếp nhận hồ sơ'} — {data?.caseNumber || caseId}</h1>
-    <p>{data?.vaultName} · {data?.ownerName} · {data?.status}</p>
+    <header className="lv-intake-heading lv-staff-glow">
+      <div className="lv-intake-hero-mark"><FolderOpen size={30} aria-hidden="true" /></div>
+      <div className="lv-intake-hero-content">
+      <span className="lv-intake-eyebrow">{en ? 'DOCUMENT INTAKE' : 'TIẾP NHẬN GIẤY TỜ'}</span>
+      <h1>{data?.caseNumber || (en ? 'Verification case' : 'Hồ sơ xác minh')}</h1>
+      <div className="lv-intake-context"><strong>{data?.vaultName}</strong><span className="lv-intake-owner"><UserRound size={14} aria-hidden="true" />{data?.ownerName}</span>
+        {data?.status && <span className={`lv-intake-status ${closed ? 'is-closed' : ''}`}>{data.status === 'OPEN' ? (en ? 'Open' : 'Đang mở') : data.status === 'CLOSED' ? (en ? 'Closed' : 'Đã đóng') : data.status}</span>}
+      </div>
+      </div>
+      {closed && <div className="lv-intake-hero-state"><Archive size={20} aria-hidden="true" /><span>{en ? 'Read only' : 'Chỉ đọc'}</span></div>}
+    </header>
     {busy && <div role="status"><progress aria-label={en ? 'Processing' : 'Đang xử lý'} /> {en ? 'Processing…' : 'Đang xử lý…'}</div>}
-    {error && <p role="alert">{en ? 'Request failed' : 'Yêu cầu chưa thực hiện được'}: {error}. {en ? 'Retry or check case assignment and workflow status.' : 'Thử lại hoặc kiểm tra việc nhận hồ sơ và trạng thái nghiệp vụ.'}</p>}
-    {notice && <p role="status">{notice}</p>}
+    {error && <div className="lv-intake-feedback is-error" role="alert"><strong>{en ? 'Action not completed' : 'Chưa thể hoàn tất'}</strong><p>{intakeFeedback(error, en)}</p><button type="button" onClick={onBack}>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button></div>}
+    {notice && <div className="lv-intake-feedback is-success" role="status">{notice}</div>}
     {!data && !busy && <button onClick={() => run(async (options, signal) => {
       const value = await loadStaffCase(caseId, options);
       if (!signal.aborted) setData(value);
     })}>{en ? 'Retry loading case' : 'Thử tải lại hồ sơ'}</button>}
-    <button disabled={busy || closed} onClick={() => run(async (options, signal) => {
+    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={() => run(async (options, signal) => {
       const value = await claimStaffCase(caseId, options);
       if (!signal.aborted) { setData(value); setNotice(en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.'); }
-    })}>{en ? 'Claim unassigned case' : 'Nhận hồ sơ chưa được phân công'}</button>
-    <p>{en ? 'For cases already assigned to you, documents are automatically loaded. A claim conflict does not change the assignee.' : 'Với hồ sơ đã nhận, danh sách giấy tờ được tự động tải. Lỗi nhận hồ sơ không thay đổi người phụ trách.'}</p>
-    <label>{en ? 'Record category' : 'Nhóm giấy tờ'}<select disabled={busy || recordsLoading} value={kind} onChange={e => {
+    })}>{en ? 'Claim case' : 'Nhận hồ sơ'}</button>}
+    <label className="lv-intake-category">{en ? 'Record category' : 'Nhóm giấy tờ'}<select disabled={busy || recordsLoading} value={kind} onChange={e => {
       const nextKind = e.target.value;
       abortAttachments();
       setStagedFile(null);
@@ -278,15 +304,15 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       <option value="original-will-intakes">{en ? 'Original will intake' : 'Tiếp nhận di chúc gốc'}</option>
     </select></label>
 
-    <div className="lv-staff-live__records-section">
+    <div className="lv-staff-live__records-section lv-staff-glow">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <h2>{en ? 'Received documents' : 'Xem giấy tờ đã tiếp nhận'}</h2>
+        <h2><FileText size={20} aria-hidden="true" />{en ? 'Received documents' : 'Giấy tờ đã tiếp nhận'}{recordsLoaded && !recordsError && !recordsLoading && <span className="lv-intake-count">{records.length}</span>}</h2>
         <button
           type="button"
           disabled={busy || recordsLoading || !data}
           onClick={() => loadDocuments(kind)}
         >
-          {en ? 'Refresh document list' : 'Làm mới danh sách giấy tờ'}
+          <RefreshCw size={15} aria-hidden="true" />{en ? 'Refresh document list' : 'Làm mới danh sách giấy tờ'}
         </button>
       </div>
 
@@ -298,7 +324,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
       {recordsError && (
         <p role="alert">
-          {en ? 'Unable to load document list' : 'Chưa tải được danh sách giấy tờ'}: {recordsError}.{' '}
+          {intakeFeedback(recordsError, en)}{' '}
           <button type="button" onClick={() => loadDocuments(kind)}>
             {en ? 'Refresh document list' : 'Làm mới danh sách giấy tờ'}
           </button>
@@ -314,23 +340,23 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           {records.map(item => (
             <li key={item.id} className="lv-staff-record-item">
               <div className="lv-staff-record-summary">
-                <span>{item.documentNumber || item.deliveredByName} — {item.receivedAt}</span>
+                <span className={`lv-intake-document-icon ${kind === 'original-will-intakes' ? 'is-will' : ''}`}><FileText size={22} aria-hidden="true" /></span>
+                <div className="lv-intake-document-meta"><strong>{item.documentNumber || item.deliveredByName}</strong><time dateTime={item.receivedAt}>{en ? 'Received: ' : 'Tiếp nhận: '}{Number.isNaN(new Date(item.receivedAt).getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(item.receivedAt))}</time></div>
                 <button
                   type="button"
                   className="lv-staff-btn-toggle-att"
                   onClick={() => toggleRecordAttachments(item.id)}
                 >
-                  {activeRecordId === item.id ? (en ? 'Hide attachments' : 'Ẩn tệp đính kèm') : (en ? 'Attachments' : 'Tệp đính kèm')}
+                  <Paperclip size={15} aria-hidden="true" />{activeRecordId === item.id ? (en ? 'Hide attachments' : 'Ẩn tệp đính kèm') : (en ? 'Attachments' : 'Tệp đính kèm')}
                 </button>
               </div>
 
               {activeRecordId === item.id && (
                 <div className="lv-staff-attachments-pane" role="region" aria-label={en ? 'Attachments' : 'Tệp đính kèm'}>
-                  <h4>{en ? 'Attached files' : 'Tệp đính kèm'}</h4>
                   {attachmentLoading[item.id] ? (
                     <p>{en ? 'Loading attachments…' : 'Đang tải danh sách tệp đính kèm…'}</p>
                   ) : attachmentErrors[item.id] ? (
-                    <p role="alert">{en ? 'Failed to load attachments' : 'Lỗi tải tệp đính kèm'}: {attachmentErrors[item.id]}</p>
+                    <p role="alert">{intakeFeedback(attachmentErrors[item.id], en)}</p>
                   ) : (recordAttachments[item.id] || []).length === 0 ? (
                     <p className="lv-staff-no-att">{en ? 'No attached files yet.' : 'Chưa có tệp đính kèm nào cho giấy tờ này.'}</p>
                   ) : (
@@ -353,7 +379,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
                   )}
 
                   {/* Upload new attachment for this record */}
-                  <div className="lv-staff-attachment-upload-box">
+                  {!closed && <div className="lv-staff-attachment-upload-box">
                     <label>
                       <span>{en ? 'Attach digitized file (PDF, JPEG, PNG, max 10MB):' : 'Đính kèm tệp số hóa (PDF, JPEG, PNG, tối đa 10MB):'}</span>
                       <input
@@ -387,10 +413,10 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
                     {uploadAttErrors[item.id] && (
                       <p role="alert" className="lv-staff-att-error">
-                        {uploadAttErrors[item.id]}
+                        {intakeFeedback(uploadAttErrors[item.id], en)}
                       </p>
                     )}
-                  </div>
+                  </div>}
                 </div>
               )}
             </li>
@@ -399,7 +425,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       )}
     </div>
 
-    <form onSubmit={e => { e.preventDefault(); run(async (options, signal) => {
+    {data?.status !== 'CLOSED' && <form onSubmit={e => { e.preventDefault(); run(async (options, signal) => {
       const saved = await staffDocuments(caseId, kind, draft, options);
       if (signal.aborted) return;
       setRecords(items => [...items, saved]); setDrafts(values => ({ ...values, [kind]: {} }));
@@ -411,7 +437,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           await uploadStaffDocumentAttachment(caseId, kind, saved.id, file, options);
           if (!signal.aborted) {
             setStagedFile(null);
-            setNotice(`${en ? 'Saved by server' : 'Máy chủ đã ghi nhận'}: ${saved.id} — ${saved.receivedAt}. ${en ? 'Attachment uploaded.' : 'Đã đính kèm tệp.'}`);
+            setNotice(en ? 'Document saved with its attachment.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm.');
             loadRecordAttachments(saved.id);
           }
         } catch (attErr) {
@@ -419,17 +445,17 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
             setActiveRecordId(saved.id);
             setSelectedRecordFiles(prev => ({ ...prev, [saved.id]: file }));
             loadRecordAttachments(saved.id);
-            setError(`${en ? 'Document record was saved, but attachment upload failed' : 'Đã lưu bản ghi giấy tờ, nhưng tải tệp đính kèm thất bại'}: ${attErr.message || attErr.code}. ${en ? 'Please retry uploading attachment in the list above.' : 'Vui lòng thử lại bước đính kèm trong danh sách phía trên.'}`);
-            setNotice(`${en ? 'Saved by server' : 'Máy chủ đã ghi nhận'}: ${saved.id} — ${saved.receivedAt}`);
+            setUploadAttErrors(prev => ({...prev, [saved.id]: attErr.code || 'UPLOAD_FAILED'}));
+            setNotice(en ? 'Document saved. Please retry attaching the file in the document list.' : 'Đã tiếp nhận giấy tờ. Vui lòng tải lại tệp đính kèm tại giấy tờ vừa lưu trong danh sách.');
           }
         }
       } else {
-        setNotice(`${en ? 'Saved by server' : 'Máy chủ đã ghi nhận'}: ${saved.id} — ${saved.receivedAt}`);
+        setNotice(en ? 'Document saved successfully.' : 'Đã tiếp nhận giấy tờ thành công.');
       }
     }); }}>
       <fieldset disabled={busy || closed || !writeReady}>
         <legend>{en ? 'Record new document intake' : 'Tiếp nhận giấy tờ mới'}</legend>
-        {fields[kind].map(key => <label key={key}>{labels[key][en ? 1 : 0]}
+        <div className="lv-intake-fields">{fields[kind].map(key => <label key={key}>{labels[key][en ? 1 : 0]}
           {key === 'documentType' ? <select required value={draft[key] || ''} onChange={e => setDrafts(values => ({ ...values, [kind]: { ...values[kind], [key]: e.target.value } }))}>
             <option value="">{en ? 'Select' : 'Chọn'}</option>
             <option value="DEATH_CERTIFICATE">{en ? 'Death certificate' : 'Giấy chứng tử'}</option>
@@ -437,7 +463,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           </select> : <input type={key === 'issuedDate' ? 'date' : 'text'} required={['issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName'].includes(key)}
             maxLength={({ issuingAuthority: 255, documentNumber: 100, deliveredByName: 150, deliveredByRelationship: 100, evidenceReference: 500 })[key] || 1000}
             value={draft[key] || ''} onChange={e => setDrafts(values => ({ ...values, [kind]: { ...values[kind], [key]: e.target.value } }))} />}
-        </label>)}
+        </label>)}</div>
 
         <label>
           <span>{en ? 'Attach digitized file (optional):' : 'Đính kèm tệp số hóa (tùy chọn):'}</span>
@@ -468,9 +494,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
         <button type="submit">{en ? 'Record intake' : 'Tiếp nhận giấy tờ'}</button>
       </fieldset>
-    </form>
-    <p>{en ? 'Document list is loaded to verify your case access before entry. The server checks every write. Recording intake does not approve death or unlock the vault.' : 'Danh sách giấy tờ được tự động tải để kiểm tra quyền trên hồ sơ trước khi nhập. Máy chủ kiểm tra từng thao tác ghi. Tiếp nhận không xác nhận tử vong hoặc mở khóa kho.'}</p>
-    <p>{en ? 'Contact and identity selection await case data from PS-93.' : 'Chọn người liên hệ và xác minh danh tính đang chờ dữ liệu theo hồ sơ từ PS-93.'}</p>
+    </form>}
 
     <EvidencePreviewModal
       isOpen={Boolean(previewModal?.isOpen)}

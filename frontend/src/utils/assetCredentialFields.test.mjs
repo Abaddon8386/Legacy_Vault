@@ -40,6 +40,19 @@ async function loadComponentModule(entry, production = false) {
 const { AssetFormModal }=await loadComponentModule('src/components/assets/AssetFormModal.jsx');
 const { AssetEditModal }=await loadComponentModule('src/components/assets/AssetEditModal.jsx');
 const { ASSET_I18N }=await import('../pages/assets/assetI18n.js');
+for (const lang of ['vi','en']) test(`asset dialog ${lang}: close icon and Escape close without submitting`, async () => {
+ let closed=0, submitted=0;
+ const view=await mount(AssetFormModal,{isOpen:true,lang,onClose:()=>closed++,onSubmit:()=>submitted++});
+ try {
+  const close=view.host.querySelector('.lv-modal__close-btn');
+  assert.ok(close.querySelector('svg'));
+  assert.equal(close.getAttribute('aria-label'),ASSET_I18N[lang].assets.closeBtn);
+  await act(async()=>close.click());
+  assert.equal(closed,1);
+  await act(async()=>window.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape'})));
+  assert.equal(closed,2); assert.equal(submitted,0);
+ } finally { await view.close(); }
+});
 async function mount(Component,props){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);await act(async()=>root.render(React.createElement(Component,props)));return {host,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 async function change(host,id,value){const field=host.querySelector('#'+id);assert.ok(field,id);const key=Object.keys(field).find(k=>k.startsWith('__reactProps$'));await act(async()=>field[key].onChange({target:{value}}));}
 async function submit(host){await act(async()=>host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));}

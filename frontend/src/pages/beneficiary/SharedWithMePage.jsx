@@ -15,6 +15,8 @@ export default function SharedWithMePage({
   receivedAssetActions,
 }) {
   const en = lang === 'en';
+  const roles = session?.user?.roles || user?.roles || [];
+  const canReadReceivedAssets = isDevPreview || roles.some(value => value === 'BENEFICIARY' || value === 'ROLE_BENEFICIARY');
   const activeToken = session?.accessToken;
   const contextKey = `${user?.id || 'anon'}:${activeToken || 'no-token'}`;
 
@@ -185,7 +187,7 @@ export default function SharedWithMePage({
       </section>
 
       {/* Block 2: Handed-over Digital Assets list & details */}
-      <ReceivedAssets
+      {canReadReceivedAssets ? <ReceivedAssets
         actions={receivedAssetActions}
         userId={user?.id || session?.user?.id}
         accessToken={session?.accessToken}
@@ -195,7 +197,9 @@ export default function SharedWithMePage({
         onUnauthorized={onUnauthorized}
         refreshKey={`${refreshKey}:${linkRevision}`}
         hideTitle
-      />
+      /> : <section className="lv-shared-card" role="note"><p>{en
+        ? 'Shared assets are available to Beneficiary accounts. If you have just linked an invitation, sign in again to update your access.'
+        : 'Tài sản được chia sẻ dành cho tài khoản Người thụ hưởng. Nếu vừa liên kết mã mời, hãy đăng nhập lại để cập nhật quyền.'}</p></section>}
     </div>
   );
 }
