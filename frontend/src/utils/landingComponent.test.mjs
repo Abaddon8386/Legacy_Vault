@@ -30,14 +30,14 @@ test('Landing renders six decorative 3D faces without playback controls, support
   const view = await mount(Landing, { onLogin: () => login++, onRegister: () => register++ });
   try {
     assert.equal(view.host.querySelectorAll('.lv-landing-face').length, 6);
-    assert.match(view.host.querySelector('#plans').textContent, /Các gói đề xuất để tham khảo/);
+    assert.equal(view.host.querySelectorAll('#plans article').length, 3);
     await act(async () => view.host.querySelector('.lv-landing-login').click());
     await act(async () => view.host.querySelector('.lv-landing-primary').click());
     assert.equal(login, 1); assert.equal(register, 1);
     assert.equal(view.host.querySelector('.lv-landing-art-footer button'), null);
     await act(async () => view.host.querySelector('.lv-landing-language').click());
     assert.match(view.host.querySelector('h1').textContent, /A lifetime of stories/);
-    assert.match(view.host.querySelector('#plans').textContent, /Proposed plans for reference/);
+    assert.match(view.host.querySelector('#plans h2').textContent, /One vault/);
   } finally { await view.close(); }
 });
 
