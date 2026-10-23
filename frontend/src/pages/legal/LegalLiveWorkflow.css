@@ -30,6 +30,11 @@
 .lv-legal-stages li[aria-current=step] { border-color: var(--lv-accent-gold); background: var(--lv-bg-surface); font-weight: 600; box-shadow: var(--lv-shadow-sm); }
 .lv-legal-stages__number { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--lv-border-medium); border-radius: 50%; font-size: 16px; }
 .lv-legal-stages [aria-current=step] .lv-legal-stages__number { background: var(--lv-brand-forest); color: var(--lv-text-inverse); border-color: var(--lv-brand-forest); }
+.lv-legal-live .lv-legal-process-toggle { display: none; }
+.lv-legal-process-toggle__current { display: grid; gap: 4px; min-width: 0; text-align: left; }
+.lv-legal-process-toggle__current > span { color: var(--lv-text-muted); font-size: 14px; }
+.lv-legal-process-toggle__action { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.lv-legal-process-toggle[aria-expanded=true] .lv-legal-process-toggle__action svg { transform: rotate(180deg); }
 .lv-legal-live__queue { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 12px 24px; }
 .lv-legal-live__queue h2, .lv-legal-live__queue > p { grid-column: 1 / -1; margin: 0; }
 .lv-legal-live__queue label { margin: 0; }
@@ -57,3 +62,8 @@
 @media (max-width: 600px) { .lv-legal-live__header { align-items: flex-start; gap: 12px; } .lv-legal-live__emblem { width: 44px; height: 44px; border-radius: 12px; } .lv-legal-live__queue { grid-template-columns: 1fr; } .lv-legal-facts > div { grid-template-columns: 1fr; gap: 4px; } .lv-legal-stages { grid-template-columns: 1fr; } .lv-legal-technical > div { grid-template-columns: 1fr; } .lv-legal-technical button { grid-column: 1; grid-row: auto; justify-self: start; } }
 @media (prefers-reduced-motion: reduce) { .lv-legal-live button { transition: none; } }
 @media(max-width: 600px) { .lv-legal-live .lv-legal-live__card { padding: 16px; } .lv-legal-live h1 { font-size: 24px; } }
+@media (max-width: 600px) {
+  .lv-legal-live .lv-legal-process-toggle { display: flex; justify-content: space-between; width: 100%; gap: 12px; padding: 14px 16px; background: var(--lv-bg-surface-subtle); border-color: var(--lv-accent-gold-border); text-align: left; }
+  .lv-legal-process .lv-legal-stages:not(.is-expanded) { display: none; }
+  .lv-legal-process .lv-legal-stages.is-expanded { margin-top: 8px; }
+}

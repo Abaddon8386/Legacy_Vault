@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, FileCheck2, Info, RefreshCw } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { ArrowRight, ChevronDown, FileCheck2, Info, RefreshCw } from 'lucide-react';
 import { legalDate, legalReadOnly } from './legalPresentation.js';
 import { LegalRecordDetails, LegalTechnicalDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
@@ -27,6 +27,25 @@ const knownErrors = {
   409: ['Hồ sơ đã thay đổi hoặc chưa đủ điều kiện. Hãy tải lại trước khi tiếp tục.', 'The record changed or is not eligible. Reload before continuing.'],
 };
 const label = (key, en) => choices[key]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
+
+function LegalProcessingStages({ step, lang }) {
+  const [expanded, setExpanded] = useState(false);
+  const stagesId = useId();
+  const en = lang === 'en';
+  const currentIndex = LEGAL_NAVIGATION_REGISTRY.findIndex(item => item.id === step);
+  return <div className="lv-legal-process">
+    <button type="button" className="lv-legal-process-toggle" aria-expanded={expanded} aria-controls={stagesId}
+      onClick={() => setExpanded(value => !value)}>
+      <span className="lv-legal-process-toggle__current"><span>{en ? 'Step' : 'Bước'} {currentIndex + 1}/{LEGAL_NAVIGATION_REGISTRY.length}</span>
+        <strong>{legalStepTitle(step, lang)}</strong></span>
+      <span className="lv-legal-process-toggle__action">{en ? 'Process' : 'Quy trình'}<ChevronDown size={18} aria-hidden="true" /></span>
+    </button>
+    <ol id={stagesId} className={`lv-legal-stages${expanded ? ' is-expanded' : ''}`} aria-label={en ? 'Legal processing stages' : 'Các bước xử lý pháp lý'}>
+      {LEGAL_NAVIGATION_REGISTRY.map((item, index) => <li key={item.id} aria-current={step === item.id ? 'step' : undefined}>
+        <span className="lv-legal-stages__number">{index + 1}</span><span>{legalStepTitle(item.id, lang)}</span>{step === item.id && <ArrowRight size={16} aria-label={en ? 'Current page' : 'Bước đang xem'} />}</li>)}
+    </ol>
+  </div>;
+}
 
 export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-verification', caseId = '', discovery = api.loadLegalQueue,
   contextLoader = api.loadLegalContext, onNavigate, onUnauthorized }) {
@@ -76,10 +95,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
       <h1>{legalStepTitle(step, lang)}</h1>
       <p>{en ? 'Review supporting documents and record your assessment before moving to the next stage.' : 'Kiểm tra giấy tờ và ghi nhận kết luận trước khi chuyển sang bước tiếp theo.'}</p>
     </div></header>
-    <ol className="lv-legal-stages" aria-label={en ? 'Legal processing stages' : 'Các bước xử lý pháp lý'}>
-      {LEGAL_NAVIGATION_REGISTRY.map((item, index) => <li key={item.id} aria-current={step === item.id ? 'step' : undefined}>
-        <span className="lv-legal-stages__number">{index + 1}</span><span>{legalStepTitle(item.id, lang)}</span>{step === item.id && <ArrowRight size={16} aria-label={en ? 'Current page' : 'Bước đang xem'} />}</li>)}
-    </ol>
+    <LegalProcessingStages key={step} step={step} lang={lang} />
     <section className="lv-legal-live__card lv-legal-live__queue">
       <h2>{en ? 'Verification cases' : 'Hồ sơ xác minh'}</h2>
       {typeof discovery !== 'function' && <p role="status">{en ? 'The case list is not available yet. Actions will be available after an authorized case can be selected.' : 'Danh sách hồ sơ hiện chưa khả dụng. Bạn có thể thao tác sau khi chọn được hồ sơ thuộc quyền xử lý.'}</p>}
