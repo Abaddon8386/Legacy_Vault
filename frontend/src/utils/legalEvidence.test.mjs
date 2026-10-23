@@ -133,8 +133,23 @@ test('closing a pending preview aborts it; a late response creates no Blob URL',
   let finish, signal;
   globalThis.fetch = async (url, init) => url.endsWith('/content') ? new Promise(resolve => { finish = resolve; signal = init.signal; }) : json([meta()]);
   const view = await mount();
-  try { await open(view, false); await act(async () => view.host.querySelector('[aria-label=Close]').click()); assert.equal(signal.aborted, true);
+  try { const trigger = await open(view, false); await act(async () => view.host.querySelector('[aria-label=Close]').click()); assert.equal(signal.aborted, true);
+    assert.equal(document.activeElement, trigger);
     await act(async () => finish(binary())); assert.deepEqual(created, []); assert.equal(view.host.querySelector('[role=dialog]'), null);
+  } finally { await view.close(); }
+});
+
+test('preview restores its explicit trigger when opening did not leave focus on the button', async () => {
+  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
+  const view = await mount();
+  try {
+    const trigger = [...view.host.querySelectorAll('button')].find(item => item.textContent === 'Preview file');
+    assert.equal(document.activeElement, document.body);
+    await act(async () => trigger.click());
+    assert.equal(trigger.disabled, true);
+    await act(async () => window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })));
+    assert.equal(trigger.disabled, false);
+    assert.equal(document.activeElement, trigger);
   } finally { await view.close(); }
 });
 

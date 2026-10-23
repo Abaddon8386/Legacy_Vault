@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-export function useModalFocus(isOpen, onClose, blocked = false) {
+export function useModalFocus(isOpen, onClose, blocked = false, returnFocusRef = null) {
   const dialogRef = useRef(null)
   const closeRef = useRef(onClose)
   const blockedRef = useRef(blocked)
@@ -8,6 +8,7 @@ export function useModalFocus(isOpen, onClose, blocked = false) {
   useEffect(() => {
     if (!isOpen) return
     const previousFocus = document.activeElement
+    const returnTarget = returnFocusRef?.current || previousFocus
     const previousOverflow = document.body.style.overflow
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -29,8 +30,8 @@ export function useModalFocus(isOpen, onClose, blocked = false) {
     return () => {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', onKeyDown)
-      if (previousFocus?.isConnected) previousFocus.focus()
+      if (returnTarget?.isConnected && !returnTarget.disabled) returnTarget.focus()
     }
-  }, [isOpen])
+  }, [isOpen, returnFocusRef])
   return dialogRef
 }

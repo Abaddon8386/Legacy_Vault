@@ -13,6 +13,7 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
   const [result, setResult] = useState(null), [attempt, setAttempt] = useState(0);
   const [preview, setPreview] = useState(null), [fileError, setFileError] = useState(null);
   const opened = useRef(null), request = useRef(null), busy = useRef(false);
+  const previewTrigger = useRef(null);
   const callbacks = useRef({ onUnauthorized, onDenied });
   const locale = useRef(lang);
   useEffect(() => { callbacks.current = { onUnauthorized, onDenied }; locale.current = lang; }, [onUnauthorized, onDenied, lang]);
@@ -40,8 +41,9 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     if (opened.current) { URL.revokeObjectURL(opened.current); opened.current = null; }
     setPreview(null);
   }
-  async function open(item) {
+  async function open(item, trigger) {
     if (busy.current) return;
+    previewTrigger.current = trigger;
     close(); busy.current = true; setFileError(null); setPreview({ fileName: item.fileName });
     const controller = new AbortController(); request.current = controller;
     try {
@@ -66,9 +68,9 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     {files?.length === 0 && <p>{en ? 'No files are attached to this record.' : 'Bản ghi này chưa có tệp đính kèm.'}</p>}
     {files?.map(item => <div key={item.id || versionNo} className="lv-legal-evidence__row"><span>{item.fileName}</span>
       {item.uploadedAt && <time dateTime={item.uploadedAt}>{legalDate(item.uploadedAt)}</time>}
-      <button type="button" onClick={() => open(item)} disabled={Boolean(preview)}>{en ? 'Preview file' : 'Xem tệp'}</button></div>)}
+      <button type="button" onClick={event => open(item, event.currentTarget)} disabled={Boolean(preview)}>{en ? 'Preview file' : 'Xem tệp'}</button></div>)}
     {fileError && <p role="alert">{errorText(fileError)}</p>}
-    {preview && <Modal isOpen onClose={close} title={preview.fileName} closeLabel={en ? 'Close' : 'Đóng'} maxWidth="960px">
+    {preview && <Modal isOpen onClose={close} title={preview.fileName} closeLabel={en ? 'Close' : 'Đóng'} maxWidth="960px" returnFocusRef={previewTrigger}>
       {!preview.url ? <p role="status">{en ? 'Loading file…' : 'Đang tải tệp…'}</p>
         : <div className="lv-legal-evidence__preview">{preview.contentType === 'application/pdf'
           ? <iframe src={preview.url} title={preview.fileName} sandbox="" referrerPolicy="no-referrer" />

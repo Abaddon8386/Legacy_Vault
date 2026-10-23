@@ -10,8 +10,9 @@ export function Modal({
   children,
   maxWidth = '540px',
   closeLabel = 'Đóng',
+  returnFocusRef = null,
 }) {
-  const modalRef = useModalFocus(isOpen, onClose)
+  const modalRef = useModalFocus(isOpen, onClose, false, returnFocusRef)
 
   if (!isOpen) return null
 
