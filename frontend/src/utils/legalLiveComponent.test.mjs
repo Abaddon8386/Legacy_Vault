@@ -60,7 +60,7 @@ test('Death decision requires selected server document; duplicate clicks locked,
     await view.render({ ...base, lang: 'vi' }); assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     await submit(view.host); await submit(view.host); assert.equal(writes, 1);
     await act(async () => finish(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })));
-    assert.match(view.host.textContent, /Máy chủ đã xác nhận/); assert.match(view.host.textContent, /Legal Test/); assert.match(view.host.textContent, /2026-10-20/);
+    assert.match(view.host.textContent, /Đã lưu quyết định/); assert.match(view.host.textContent, /Legal Test/); assert.match(view.host.textContent, /20\/10\/2026, 13:00/);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
   } finally { await view.close(); }
 });
@@ -101,7 +101,7 @@ test('Will picks original/version/hash from authorized overview, sends only cont
   const view = await mount({ ...base, step: 'will-document-verification' });
   try {
     await change(getSelect(view.host, 'Original intake'), a); await change(getSelect(view.host, 'Digitized version'), `${a}:2`); await change(getSelect(view.host, 'Comparison result'), 'MATCH');
-    await submit(view.host); assert.deepEqual(body, { originalWillIntakeId: a, willId: a, version: 2, result: 'MATCH', reason: '' }); assert.match(view.host.textContent, /server confirmed/);
+    await submit(view.host); assert.deepEqual(body, { originalWillIntakeId: a, willId: a, version: 2, result: 'MATCH', reason: '' }); assert.match(view.host.textContent, /Decision saved/);
   } finally { await view.close(); }
 });
 test('Blocked capability fixtures cannot approve or unlock after removing duplicate content navigation', async () => {
@@ -111,9 +111,30 @@ test('Blocked capability fixtures cannot approve or unlock after removing duplic
     try {
       assert.match(view.host.textContent, /does not currently meet/);
       assert.equal([...view.host.querySelectorAll('button')].find(item => item.disabled && /Record decision|Unlock vault/.test(item.textContent)).disabled, true);
-      assert.equal(view.host.querySelector('nav'), null);
+      assert.equal(view.host.querySelector('ol [aria-current=step]')?.textContent.includes(step === 'approval-review' ? 'Final approval' : 'Controlled unlock'), true);
     } finally { await view.close(); }
   }
+});
+
+test('Missing original will shows the next step instead of an empty intake selector; archived cases remain read-only', async () => {
+  globalThis.fetch = async (_url, init) => {
+    assert.equal(init.method, 'GET');
+    return json({ caseId: a, vaultStatus: 'DOCUMENT_VERIFICATION', approvalBlocked: true, originalWillIntakes: [], wills: [], comparisons: [] });
+  };
+  const view = await mount({ ...base, step: 'will-document-verification' });
+  try {
+    assert.match(view.host.textContent, /No original paper will has been received/);
+    assert.match(view.host.textContent, /Staff must record the original paper will/);
+    assert.equal(getSelect(view.host, 'Original intake'), undefined);
+    assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
+    await view.render({ ...base, step: 'will-document-verification', lang: 'vi', contextLoader: async caseId => ({
+      caseId, caseStatus: 'CLOSED', vaultStatus: 'ARCHIVED', deathDocuments: [], capabilities: {},
+    }) });
+    assert.match(view.host.textContent, /chưa có di chúc bản cứng được tiếp nhận/);
+    assert.doesNotMatch(view.host.textContent, /Nhân viên cần ghi nhận tiếp nhận/);
+    assert.equal(getSelect(view.host, 'Bản gốc đã tiếp nhận'), undefined);
+    assert.equal(view.host.querySelector('form'), null);
+  } finally { await view.close(); }
 });
 
 const makeDossier = (route = 'COURT') => ({ id: a, caseId: a, route, status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
@@ -126,7 +147,7 @@ for (const route of ['COURT', 'ON_HOLD']) test(`Classification ${route} sends on
   };
   const view = await mount({ ...base, step: 'basis-route-selection' });
   try { await change(getSelect(view.host, 'Legal basis'), route); await change(view.host.querySelector('textarea'), 'Reason'); await submit(view.host);
-    assert.deepEqual(body, { route, routeReason: 'Reason' }); assert.match(view.host.textContent, /server confirmed/); }
+    assert.deepEqual(body, { route, routeReason: 'Reason' }); assert.match(view.host.textContent, /Decision saved/); }
   finally { await view.close(); }
 });
 for (const action of ['review', 'request-supplementation', 'court', 'hold']) test(`Dossier ${action} uses its separate mutation; no implicit final approval`, async () => {
@@ -151,7 +172,7 @@ for (const action of ['review', 'request-supplementation', 'court', 'hold']) tes
     if (action === 'court') await change(getSelect(view.host, 'Court decision result'), 'VALID');
     await change(view.host.querySelector('textarea'), 'Reviewed'); await submit(view.host);
     assert.ok(destination.endsWith(action === 'court' ? '/court-decisions' : `/${action}`)); assert.equal(body.reason, 'Reviewed');
-    assert.doesNotMatch(destination, /\/decision$|\/unlock$/); assert.match(view.host.textContent, /server confirmed/);
+    assert.doesNotMatch(destination, /\/decision$|\/unlock$/); assert.match(view.host.textContent, /Decision saved/);
   } finally { await view.close(); }
 });
 test('Dossier changed since display blocks POST and retains reason; ON_HOLD/not-forwarded cannot review', async () => {
@@ -212,7 +233,7 @@ test('Session revalidation aborts pending decision and late success cannot resto
     assert.equal(signal.aborted, true); assert.equal(view.host.querySelector('form'), null);
     await act(async () => finishQueue(Object.assign(new Error('denied'), { status: 403 })));
     await act(async () => finishWrite(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })));
-    assert.ok(view.host.querySelector('[role=alert]')); assert.equal(view.host.querySelector('form'), null); assert.doesNotMatch(view.host.textContent, /server confirmed|Authority A/);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.equal(view.host.querySelector('form'), null); assert.doesNotMatch(view.host.textContent, /Decision saved|Authority A/);
   } finally { await view.close(); }
 });
 test('Removing discovery while case is open clears the old case and disables selection immediately', async () => {

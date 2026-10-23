@@ -887,7 +887,7 @@ test('PS-49 App Route: Anonymous redirect, LEGAL_VERIFIER access, Owner/Staff de
 
         if (role === 'LEGAL_VERIFIER') {
           // Allowed
-          assert.match(roleView.host.textContent, /Chuy\u00ean vi\u00ean th\u1ea9m \u0111\u1ecbnh ph\u00e1p l\u00fd/);
+          assert.equal(roleView.host.querySelector('.lv-legal-live h1').textContent, 'Phê duyệt hồ sơ');
           assert.match(roleView.host.textContent, /Phê duyệt hồ sơ/);
         } else {
           // Denied 403
