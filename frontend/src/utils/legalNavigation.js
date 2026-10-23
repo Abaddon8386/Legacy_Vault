@@ -12,5 +12,5 @@ export const LEGAL_ROUTE_STEPS = Object.fromEntries([
 ]);
 export const legalStepTitle = (step, lang) => {
   const item = LEGAL_NAVIGATION_REGISTRY.find(item => item.id === step);
-  return lang === 'en' ? item?.titleEn || item?.labelEn : item?.titleVi || item?.labelVi;
+  return lang === 'en' ? item?.labelEn : item?.labelVi;
 };

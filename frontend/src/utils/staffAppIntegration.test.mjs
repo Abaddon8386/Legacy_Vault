@@ -439,7 +439,7 @@ test('PS-96/97/98 Integration: Flow across all Staff sections preserves case/ses
       await act(async () => {
         assetHandoverBtn.click();
       });
-      assert.equal(window.location.pathname, '/staff/asset-handover');
+      assert.equal(window.location.pathname, '/staff/handover');
       assert.equal(new URLSearchParams(window.location.search).get('caseId'), targetCaseId);
       assert.equal(new URLSearchParams(window.location.search).get('sessionId'), targetSessionId);
     }

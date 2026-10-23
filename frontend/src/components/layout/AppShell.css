@@ -661,6 +661,7 @@
 .lv-header-action-btn.is-spinning svg {
   animation: lv-spin 800ms linear infinite;
 }
+.lv-header-action-btn.lv-header-action-btn--labelled { display: inline-flex; width: auto; height: auto; min-height: 44px; padding: 8px 12px; gap: 8px; white-space: nowrap; font: 500 16px var(--lv-font-sans, sans-serif); }
 
 .lv-header-home-btn {
   width: auto;
@@ -683,6 +684,7 @@
   .lv-header-home-text {
     display: none;
   }
+
   .lv-header-home-btn {
     width: 44px;
     padding: 0;

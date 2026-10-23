@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, FileCheck2, Info, RefreshCw } from 'lucide-react';
+import { legalDate, legalReadOnly } from './legalPresentation.js';
+import { LegalRecordDetails, LegalTechnicalDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
 import { isSessionActive } from '../../utils/session.js';
 import * as api from './legalLiveService.js';
@@ -23,7 +26,7 @@ const knownErrors = {
   404: ['Không tìm thấy hồ sơ được phép truy cập.', 'An accessible record was not found.'],
   409: ['Hồ sơ đã thay đổi hoặc chưa đủ điều kiện. Hãy tải lại trước khi tiếp tục.', 'The record changed or is not eligible. Reload before continuing.'],
 };
-const label = (key, en) => choices[key]?.[en ? 1 : 0] || key || '—';
+const label = (key, en) => choices[key]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
 
 export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-verification', caseId = '', discovery = api.loadLegalQueue,
   contextLoader = api.loadLegalContext, onNavigate, onUnauthorized }) {
@@ -69,9 +72,15 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
   };
   if (!isSessionActive(session) || !session.user.roles.includes('LEGAL_VERIFIER')) return <p role="alert">{knownErrors[403][en ? 1 : 0]}</p>;
   return <section className="lv-legal-live">
-    <p>{en ? 'Legal Verifier' : 'Chuyên viên thẩm định pháp lý'}</p>
-    <h1>{legalStepTitle(step, lang)}</h1>
-    <section className="lv-legal-live__card">
+    <header className="lv-legal-live__header"><div className="lv-legal-live__emblem"><FileCheck2 size={28} aria-hidden="true" /></div><div>
+      <h1>{legalStepTitle(step, lang)}</h1>
+      <p>{en ? 'Review supporting documents and record your assessment before moving to the next stage.' : 'Kiểm tra giấy tờ và ghi nhận kết luận trước khi chuyển sang bước tiếp theo.'}</p>
+    </div></header>
+    <ol className="lv-legal-stages" aria-label={en ? 'Legal processing stages' : 'Các bước xử lý pháp lý'}>
+      {LEGAL_NAVIGATION_REGISTRY.map((item, index) => <li key={item.id} aria-current={step === item.id ? 'step' : undefined}>
+        <span className="lv-legal-stages__number">{index + 1}</span><span>{legalStepTitle(item.id, lang)}</span>{step === item.id && <ArrowRight size={16} aria-label={en ? 'Current page' : 'Bước đang xem'} />}</li>)}
+    </ol>
+    <section className="lv-legal-live__card lv-legal-live__queue">
       <h2>{en ? 'Verification cases' : 'Hồ sơ xác minh'}</h2>
       {typeof discovery !== 'function' && <p role="status">{en ? 'The case list is not available yet. Actions will be available after an authorized case can be selected.' : 'Danh sách hồ sơ hiện chưa khả dụng. Bạn có thể thao tác sau khi chọn được hồ sơ thuộc quyền xử lý.'}</p>}
       {busy && <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p>}
@@ -87,7 +96,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
         <span>{page + 1} / {currentResult.totalPages}</span>
         <button type="button" disabled={busy || page + 1 >= currentResult.totalPages} onClick={() => { setPage(value => value + 1); go(step, ''); }}>{en ? 'Next' : 'Sau'}</button>
       </div>}
-      {!error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Reload cases' : 'Tải lại danh sách'}</button>}
+      {!error && <button type="button" disabled={busy} title={en ? 'Reload cases' : 'Tải lại danh sách hồ sơ'} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{en ? 'Reload cases' : 'Tải lại danh sách'}</button>}
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
     {selected && <>
@@ -95,7 +104,8 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
         lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
         onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
     </>}
-    <p className="lv-legal-live__notice">{en ? 'Document intake, death verification, final approval and vault unlocking are separate steps. This page does not grant Staff permissions or access to encrypted files.' : 'Tiếp nhận giấy tờ, xác minh tử vong, phê duyệt cuối và mở khóa là các bước riêng biệt. Trang này không cấp quyền Nhân viên hoặc quyền xem file mã hóa.'}</p>
+    {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
+    <p className="lv-legal-live__notice"><Info size={20} aria-hidden="true" />{en ? 'Approval and unlocking are separate decisions. Complete each required review before proceeding.' : 'Phê duyệt và mở khóa là hai thao tác riêng biệt. Hoàn tất từng bước thẩm định trước khi tiếp tục.'}</p>
   </section>;
 }
 
@@ -126,10 +136,10 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   if (['approval-review', 'controlled-unlock'].includes(step)) return <LegalFinalDecision session={session} context={current.data} step={step} lang={lang}
     onReload={() => setAttempt(value => value + 1)} onUnauthorized={onUnauthorized} onDenied={onDenied} />;
   return <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: current.data.deathDocuments.map(item => item.id) }}
-    step={step} lang={lang} onUnauthorized={onUnauthorized} />;
+    step={step} lang={lang} readOnly={legalReadOnly(current.data)} onUnauthorized={onUnauthorized} />;
 }
 
-function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
+function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
   const [draft, setDraft] = useState({});
@@ -173,7 +183,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
   const latest = data?.dossier?.versions?.reduce((best, item) => !best || item.version > best.version ? item : best, null);
   const forwarded = data?.dossier?.status === 'LEGAL_BASIS_FORWARDED' && latest?.forwardStatus === 'FORWARDED'
     && latest.version >= data.dossier.requiredVersion && data.will.vaultStatus === 'LEGAL_BASIS_VERIFICATION';
-  const editable = !busy && !needsReload && Boolean(data);
+  const editable = !busy && !needsReload && !readOnly && Boolean(data);
   const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang,
     onUnauthorized, onDenied: failure => { setData(null); setReceipt(null); setError(failure); setNeedsReload(true); } };
   let eligible = false;
@@ -183,6 +193,17 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
   if (step === 'dossier-review') eligible = editable && data.dossier?.route === 'COURT' && (draft.action === 'hold'
     ? ['AWAITING_LEGAL_BASIS', 'LEGAL_BASIS_VERIFICATION'].includes(data.will.vaultStatus)
     : forwarded && data.dossier.route !== 'ON_HOLD');
+  const fieldsComplete = Boolean((step === 'death-verification' ? draft.decision
+    : step === 'will-document-verification' ? draft.originalWillIntakeId && draft.willVersion && draft.result
+    : step === 'basis-route-selection' ? draft.route
+    : draft.action && (draft.action !== 'court' || draft.result) && (draft.action !== 'hold' || draft.cause))
+    && (step === 'will-document-verification' && draft.result === 'MATCH' || draft.reason?.trim()));
+  const disabledReason = busy ? (en ? 'Loading the latest record. Please wait.' : 'Đang tải hồ sơ mới nhất. Vui lòng chờ.')
+    : needsReload ? (en ? 'Reload the record above to check the latest status before continuing.' : 'Chọn “Tải lại hồ sơ” phía trên để kiểm tra trạng thái mới nhất trước khi tiếp tục.')
+    : step === 'death-verification' ? (en ? 'Select a death document above. A document with a recorded decision cannot be decided again.' : 'Chọn giấy tờ khai tử phía trên. Giấy tờ đã có quyết định chỉ được xem lại.')
+    : step === 'will-document-verification' ? (en ? 'Staff must receive the original will and upload a digitized version before comparison.' : 'Nhân viên cần tiếp nhận di chúc gốc và tải bản di chúc số trước khi chuyên viên pháp lý đối chiếu.')
+    : step === 'basis-route-selection' ? (en ? 'Complete death verification first. Existing classifications can only be changed when the case is on hold.' : 'Hoàn tất xác minh giấy tờ khai tử trước. Hồ sơ đã phân loại chỉ được phân loại lại khi đang tạm dừng.')
+    : (en ? 'Staff must forward the current court documents. Check the document version before reviewing.' : 'Nhân viên cần chuyển phiên bản giấy tờ tòa án hiện tại. Kiểm tra phiên bản hồ sơ trước khi thẩm định.');
 
   async function submit(e) {
     e.preventDefault(); if (lock.current || !eligible) return;
@@ -226,40 +247,42 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
     } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); } }
   }
   return <section className="lv-legal-live__card" aria-busy={busy}>
+    <h2>{en ? 'Documents and assessment' : 'Giấy tờ và kết luận thẩm định'}</h2>
+    {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This record is available for reference only. Editing is no longer available.' : 'Hồ sơ đã kết thúc xử lý. Bạn có thể tra cứu thông tin, không thể chỉnh sửa.'}</p>}
     {busy && <p role="status">{en ? 'Processing…' : 'Đang xử lý…'}</p>}
     {error && <p role="alert">{knownErrors[error.status]?.[en ? 1 : 0] || (error.code === 'VALIDATION_FAILED'
       ? (en ? 'Check your selections and reason (maximum 1000 characters).' : 'Kiểm tra lựa chọn và lý do (tối đa 1000 ký tự).')
       : (en ? 'The operation could not be confirmed. Reload to check its status before retrying.' : 'Chưa xác nhận được kết quả thao tác. Hãy tải lại để kiểm tra trạng thái trước khi thử lại.'))}</p>}
-    {receipt && <p role="status">{en ? 'The server confirmed the operation. Reload the record before continuing.' : 'Máy chủ đã xác nhận thao tác. Tải lại hồ sơ trước khi tiếp tục.'}
-      {' '}{session.user.fullName} · {receipt.decidedAt || receipt.comparedAt || receipt.reviewedAt || receipt.checkedAt || receipt.updatedAt || receipt.createdAt || '—'}</p>}
+    {receipt && <div className="lv-legal-live__success" role="status"><p>{en ? 'Decision saved. Reload the record to view the next available action.' : 'Đã lưu quyết định. Tải lại hồ sơ để xem bước có thể thực hiện tiếp theo.'}</p>
+      <LegalRecordDetails rows={[[en ? 'Reviewed by' : 'Người xử lý', session.user.fullName], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(receipt.decidedAt || receipt.comparedAt || receipt.reviewedAt || receipt.checkedAt || receipt.updatedAt || receipt.createdAt)]]} /></div>}
     <button type="button" disabled={busy} onClick={() => { setBusy(true); setReceipt(null); setReload(value => value + 1); }}>{en ? 'Reload record' : 'Tải lại hồ sơ'}</button>
     {step === 'death-verification' && <>
       <label>{en ? 'Death document' : 'Giấy tờ khai tử'}<select value={documentId} disabled={busy} onChange={e => { setDocumentId(e.target.value); setData(null); setDraft({}); setReceipt(null); setBusy(true); }}>
         <option value="">{en ? 'Select a document' : 'Chọn giấy tờ'}</option>{selected.deathDocumentIds.map((id, i) => <option key={id} value={id}>{en ? 'Document' : 'Giấy tờ'} {i + 1}</option>)}
       </select></label>
-      {data && <><p>{data.document.issuingAuthority} · {data.document.documentNumber} · {data.document.issuedDate}</p>
-        {typeof data.document.evidenceReference === 'string' && <p>{en ? 'Evidence reference' : 'Tham chiếu chứng cứ'}: {data.document.evidenceReference}</p>}
-        {data.decisions.map((item, i) => <p key={i}>{label(({ APPROVED: 'APPROVE', REJECTED: 'REJECT', NEEDS_CORRECTION: 'REQUEST_MORE' })[item.result], en)} · {item.decidedAt || '—'} · {item.reason} · {item.verifierPublicId || '—'}</p>)}</>}
-      {editable && documentId && <LegalEvidenceFiles {...evidenceProps} kind="death" subjectId={documentId} />}
+      {data && <><LegalRecordDetails rows={[[en ? 'Issuing authority' : 'Cơ quan cấp', data.document.issuingAuthority], [en ? 'Document number' : 'Số giấy tờ', data.document.documentNumber], [en ? 'Issue date' : 'Ngày cấp', legalDate(data.document.issuedDate)]]} />
+        <LegalTechnicalDetails en={en} rows={[[en ? 'Evidence reference' : 'Tham chiếu chứng cứ', data.document.evidenceReference]]} />
+        {data.decisions.map((item, i) => <div key={i}><LegalRecordDetails rows={[[en ? 'Decision' : 'Quyết định', label(({ APPROVED: 'APPROVE', REJECTED: 'REJECT', NEEDS_CORRECTION: 'REQUEST_MORE' })[item.result], en)], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(item.decidedAt)], [en ? 'Reason' : 'Lý do', item.reason]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Reviewer ID' : 'Mã người xử lý', item.verifierPublicId]]} /></div>)}</>}
+      {!busy && data && documentId && <LegalEvidenceFiles {...evidenceProps} kind="death" subjectId={documentId} />}
     </>}
     {step === 'will-document-verification' && data && <>
       <p>{en ? 'Select an original intake to view its attached paper-will files. Digitized version metadata is available for comparison.' : 'Chọn lần tiếp nhận để xem tệp đính kèm của di chúc giấy. Thông tin phiên bản số dùng để đối chiếu.'}</p>
-      {data.comparisons.map(item => <p key={item.id}>{label(item.result, en)} · {item.version} · {item.sha256} · {item.comparedAt} · {item.checkedBy}</p>)}
-      {editable && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
+      {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, `${en ? 'Intake' : 'Lần nhận'} ${i + 1}`]))}
+      <LegalTechnicalDetails en={en} rows={data.originalWillIntakes.map((item, index) => [`${en ? 'Intake reference' : 'Tham chiếu lần tiếp nhận'} ${index + 1}`, item.evidenceReference])} />
+      {data.comparisons.map(item => <div key={item.id}><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Compared at' : 'Thời gian đối chiếu', legalDate(item.comparedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Reviewer ID' : 'Mã người xử lý', item.checkedBy]]} /></div>)}
+      {!busy && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
         <LegalEvidenceFiles {...evidenceProps} kind="original-will" subjectId={draft.originalWillIntakeId} />}
     </>}
-    {data?.dossier && <><p>{label(data.dossier.route, en)}</p>{data.dossier.versions.map(item => <p key={item.version}>{en ? 'Version' : 'Phiên bản'} {item.version} · {item.documentNumber} · {item.sha256} · {item.forwardedAt || '—'}</p>)}
-      {editable && data.dossier.versions.filter(item => item.forwardStatus === 'FORWARDED').map(item => <div key={item.version}>
-        {typeof item.evidenceReference === 'string' && <p>{en ? 'Evidence reference' : 'Tham chiếu chứng cứ'}: {item.evidenceReference}</p>}
+    {data?.dossier && <><p>{label(data.dossier.route, en)}</p>{data.dossier.versions.map(item => <div key={item.version}><LegalRecordDetails rows={[[en ? 'Version' : 'Phiên bản', item.version], [en ? 'Document number' : 'Số giấy tờ', item.documentNumber], [en ? 'Forwarded at' : 'Thời gian chuyển thẩm định', legalDate(item.forwardedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Evidence reference' : 'Tham chiếu chứng cứ', item.evidenceReference]]} /></div>)}
+      {!busy && data.dossier.versions.filter(item => item.forwardStatus === 'FORWARDED').map(item => <div key={item.version}>
         <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
           file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />
       </div>)}
-      {data.court?.map(item => <p key={item.id}>{label(item.result, en)} · {item.version} · {item.sha256} · {item.reviewedAt}</p>)}</>}
-    <form onSubmit={submit}>
+      {data.court?.map(item => <div key={item.id}><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256]]} /></div>)}</>}
+    {!readOnly && <form onSubmit={submit}>
       {step === 'death-verification' && pick('decision', en ? 'Decision' : 'Quyết định', ['APPROVE', 'REJECT', 'REQUEST_MORE'])}
       {step === 'will-document-verification' && <>
-        {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', (data?.originalWillIntakes || []).map((item, i) => [item.id, item.evidenceReference || `${en ? 'Intake' : 'Lần nhận'} ${i + 1}`]))}
-        {input('willVersion', en ? 'Digitized version / hash' : 'Bản di chúc số / mã kiểm tra', (data?.wills || []).flatMap(will => will.versions.map(item => [`${will.id}:${item.version}`, `${en ? 'Version' : 'Phiên bản'} ${item.version} · ${item.sha256}`])))}
+        {input('willVersion', en ? 'Digitized version' : 'Bản di chúc số', (data?.wills || []).flatMap((will, index) => will.versions.map(item => [`${will.id}:${item.version}`, `${en ? 'Will' : 'Di chúc'} ${index + 1}: ${en ? 'Version' : 'Phiên bản'} ${item.version}`])))}
         {pick('result', en ? 'Comparison result' : 'Kết quả đối chiếu', ['MATCH', 'MISMATCH', 'INCONCLUSIVE'])}
       </>}
       {step === 'basis-route-selection' && pick('route', en ? 'Legal basis' : 'Căn cứ pháp lý', data?.dossier ? ['COURT'] : ['COURT', 'ON_HOLD'])}
@@ -268,9 +291,9 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized }) {
         {draft.action === 'court' && pick('result', en ? 'Court decision result' : 'Kết luận quyết định tòa', ['VALID', 'INVALID', 'INCONCLUSIVE'])}
         {draft.action === 'hold' && pick('cause', en ? 'Cause' : 'Nguyên nhân', ['NEW_DISPUTE', 'INSUFFICIENT_EVIDENCE'])}
       </>}
-      <label>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}<textarea value={draft.reason || ''} maxLength={1000} disabled={busy} onChange={e => set('reason', e.target.value)} /></label>
-      <button type="submit" disabled={!eligible}>{en ? 'Record decision' : 'Ghi nhận quyết định'}</button>
-      {!eligible && !busy && <p>{en ? 'Select the required record and ensure it meets the processing conditions.' : 'Chọn đủ hồ sơ và kiểm tra điều kiện xử lý trước khi ghi nhận.'}</p>}
-    </form>
+      <label>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}<textarea value={draft.reason || ''} maxLength={1000} disabled={busy} required={step !== 'will-document-verification' || draft.result !== 'MATCH'} onChange={e => set('reason', e.target.value)} /></label>
+      <button type="submit" disabled={!eligible || !fieldsComplete}>{en ? 'Record decision' : 'Ghi nhận quyết định'}</button>
+      {(!eligible || !fieldsComplete) && <p className="lv-legal-help" role="status">{!eligible ? disabledReason : (en ? 'Complete the selections and enter a reason above. A reason is optional only when the will comparison matches.' : 'Chọn đầy đủ thông tin và nhập lý do phía trên. Chỉ có thể bỏ trống lý do khi di chúc đối chiếu khớp.')}</p>}
+    </form>}
   </section>;
 }

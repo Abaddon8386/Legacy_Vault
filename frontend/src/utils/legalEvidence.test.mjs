@@ -195,7 +195,7 @@ for (const [kind, step] of [['death', 'death-verification'], ['original-will', '
     const view = await mount({ session, step, caseId, lang: 'en' }, Workflow);
     try {
       if (kind !== 'basis') {
-        const field = kind === 'death' ? view.host.querySelectorAll('select')[1] : view.host.querySelector('form select');
+        const field = view.host.querySelectorAll('select')[1];
         const props = field[Object.keys(field).find(key => key.startsWith('__reactProps'))];
         await act(async () => props.onChange({ target: { value: subjectId } }));
       }

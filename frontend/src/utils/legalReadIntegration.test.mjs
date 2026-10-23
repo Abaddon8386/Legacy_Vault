@@ -50,7 +50,11 @@ async function mount(props = base, Component = Screen) {
   return { host, render, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
 const change = (element, value) => act(async () => element[Object.keys(element).find(key => key.startsWith('__reactProps'))].onChange({ target: { value, checked: value } }));
-const submit = host => act(async () => host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+const submit = async host => {
+  await act(async () => host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+  const confirm = host.querySelector('[data-legal-confirm]');
+  if (confirm) await act(async () => confirm.click());
+};
 const click = (host, text) => act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === text).click());
 function transport(readContext = () => contextFixture(), write = () => assert.fail('Unexpected mutation')) {
   return async (url, init) => {
@@ -97,7 +101,7 @@ for (const decision of ['APPROVE', 'REJECT']) test(`final ${decision} reads cont
     await submit(view.host); await submit(view.host);
     assert.equal(reads, 2); assert.equal(writes, 1);
     assert.deepEqual(body, { decision, versionNo: 1, sha256Hash: sha, allocationHash: allocation, reason: 'Reviewed scope' });
-    assert.match(view.host.textContent, /server confirmed/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    assert.match(view.host.textContent, /Decision saved/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
   } finally { await view.close(); }
 });
 
@@ -128,7 +132,39 @@ test('controlled unlock is a separate confirmed request, never implicit after ap
   const view = await mount({ ...base, step: 'controlled-unlock' });
   try { assert.equal(view.host.querySelector('[type=submit]').disabled, true);
     await change(view.host.querySelector('[type=checkbox]'), true); await submit(view.host); await submit(view.host);
-    assert.equal(writes, 1); assert.match(view.host.textContent, /server confirmed/);
+    assert.equal(writes, 1); assert.match(view.host.textContent, /Decision saved/);
+  } finally { await view.close(); }
+});
+
+test('final decision opens a consequence summary and cancelling sends no request', async () => {
+  let writes = 0;
+  globalThis.fetch = transport(() => json(contextFixture()), () => { writes++; return json({}); });
+  const view = await mount();
+  try {
+    await change(view.host.querySelector('form select'), 'REJECT');
+    await change(view.host.querySelector('textarea'), 'Documents incomplete');
+    await act(async () => view.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+    assert.equal(writes, 0);
+    assert.match(view.host.querySelector('[role=dialog]').textContent, /Rejecting blocks this version/);
+    assert.match(view.host.querySelector('[role=dialog]').textContent, /Documents incomplete/);
+    await click(view.host, 'Go back');
+    assert.equal(Boolean(view.host.querySelector('[role=dialog]')), false);
+    assert.equal(view.host.querySelector('textarea').value, 'Documents incomplete');
+    assert.equal(writes, 0);
+  } finally { await view.close(); }
+});
+
+test('closed Legal context hides editing while preserving readable case information', async () => {
+  const value = contextFixture(); value.caseStatus = 'CLOSED';
+  value.capabilities = { approval: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' }, unlock: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' } };
+  globalThis.fetch = transport(() => json(value));
+  const view = await mount();
+  try {
+    assert.equal(Boolean(view.host.querySelector('form')), false);
+    assert.match(view.host.textContent, /reference only/);
+    assert.match(view.host.textContent, /CASE-A/);
+    assert.equal(view.host.querySelector('.lv-legal-technical').open, false);
+    assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
   } finally { await view.close(); }
 });
 
@@ -136,7 +172,7 @@ for (const status of [403, 409, 500]) test(`mutation HTTP ${status} cannot show 
   globalThis.fetch = transport(() => json(contextFixture()), () => json({ code: 'CONFLICT' }, status));
   const view = await mount();
   try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
-    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /server confirmed/);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved/);
     if (status === 403) assert.equal(view.host.querySelector('form'), null);
     else assert.equal(view.host.querySelector('[type=submit]').disabled, true);
   } finally { await view.close(); }
@@ -160,7 +196,7 @@ test('queue reload 403 removes active forms, context and pending mutation receip
   try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
     deny = true; await click(view.host, 'Reload cases'); assert.equal(signal.aborted, true);
     await act(async () => finish(json({}))); assert.equal(view.host.querySelector('form'), null);
-    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /server confirmed/);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved/);
   } finally { await view.close(); }
 });
 
@@ -246,7 +282,7 @@ test('COURT classification is available after death verification without a will 
     assert.equal([...view.host.querySelectorAll('form option')].some(option => option.value === 'NOTARIAL'), false);
     await change(view.host.querySelector('form select'), 'COURT'); await change(view.host.querySelector('textarea'), 'Court evidence expected');
     assert.equal(view.host.querySelector('[type=submit]').disabled, false);
-    await submit(view.host); assert.equal(writes, 1); assert.match(view.host.textContent, /server confirmed/);
+    await submit(view.host); assert.equal(writes, 1); assert.match(view.host.textContent, /Decision saved/);
   } finally { await view.close(); }
 });
 

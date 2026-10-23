@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Modal } from '../../components/common/Modal.jsx';
 import { listLegalEvidence, readLegalEvidence } from './legalEvidenceService.js';
+import { legalDate } from './legalPresentation.js';
 
 export default function LegalEvidenceFiles(props) {
   const { kind, caseId, subjectId, versionNo, accessToken } = props;
@@ -64,7 +65,7 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     {current?.error && <div role="alert"><p>{errorText(current.error)}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div>}
     {files?.length === 0 && <p>{en ? 'No files are attached to this record.' : 'Bản ghi này chưa có tệp đính kèm.'}</p>}
     {files?.map(item => <div key={item.id || versionNo} className="lv-legal-evidence__row"><span>{item.fileName}</span>
-      {item.uploadedAt && <time dateTime={item.uploadedAt}>{new Date(item.uploadedAt).toLocaleString(en ? 'en-GB' : 'vi-VN')}</time>}
+      {item.uploadedAt && <time dateTime={item.uploadedAt}>{legalDate(item.uploadedAt)}</time>}
       <button type="button" onClick={() => open(item)} disabled={Boolean(preview)}>{en ? 'Preview file' : 'Xem tệp'}</button></div>)}
     {fileError && <p role="alert">{errorText(fileError)}</p>}
     {preview && <Modal isOpen onClose={close} title={preview.fileName} closeLabel={en ? 'Close' : 'Đóng'} maxWidth="960px">
