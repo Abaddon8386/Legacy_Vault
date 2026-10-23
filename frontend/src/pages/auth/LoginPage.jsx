@@ -2,25 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { validateLogin } from '../../utils/loginValidation.js';
 import { authenticateUser, authenticateWithGoogle, getAuthMessage } from '../../utils/loginService.js';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import AuthBrand from './AuthBrand.jsx';
 import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
 import './LoginPage.css';
 
 const i18nContent = {
   vi: {
-    brandName: 'LegacyVault',
-    brandTag: 'Hệ thống Quản lý Di sản Số',
-    editorialEyebrow: 'BẢO TỒN & TRAO GỬI DI SẢN',
-    editorialHeading: 'Chào mừng bạn trở lại\nvới LegacyVault.',
-    editorialDesc:
-      'Không gian số an tâm, nơi bạn tiếp tục sắp xếp tài sản cá nhân, lưu giữ ký ức gia đình và quản lý kế hoạch di sản.',
-    pillar1: 'Không gian số an tâm · Hệ thống hóa và bảo toàn nguyên vẹn di sản gia đình.',
-    pillar2: 'Quyền kiểm soát chủ động · Không gian bảo mật riêng tư cho chủ sở hữu di sản.',
-    pillar3: 'Đồng hành bền vững · Lưu giữ ký ức và thông điệp gửi gắm thế hệ tương lai.',
-    copyright: '© 2026 LegacyVault · Sanctuary of Generations',
-
-    formBadge: 'ĐĂNG NHẬP',
     title: 'Đăng nhập tài khoản',
-    subtitle: 'Nhập thông tin xác thực để truy cập không gian di sản của bạn.',
+    subtitle: 'Chào mừng bạn trở lại với không gian di sản của mình.',
 
     emailLabel: 'Địa chỉ Email',
     emailPlaceholder: 'you@example.com',
@@ -36,18 +25,6 @@ const i18nContent = {
     forgotPassword: 'Quên mật khẩu?',
   },
   en: {
-    brandName: 'LegacyVault',
-    brandTag: 'Digital Heritage Sanctuary',
-    editorialEyebrow: 'PRESERVE & PASS ON HERITAGE',
-    editorialHeading: 'Welcome back to\nLegacyVault.',
-    editorialDesc:
-      'A secure, serene digital sanctuary where you continue organizing personal assets, preserving family memories, and managing your legacy.',
-    pillar1: 'Digital Heritage Protection · Systematically safeguarding family legacy records.',
-    pillar2: 'Autonomous Control · Dedicated private space for digital heritage owners.',
-    pillar3: 'Enduring Companion · Preserving memories and messages for future generations.',
-    copyright: '© 2026 LegacyVault · Sanctuary of Generations',
-
-    formBadge: 'SIGN IN',
     title: 'Sign in to your account',
     subtitle: 'Enter your credentials to access your heritage sanctuary.',
 
@@ -201,6 +178,8 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
 
   const handleGoogleError = (err) => {
     if (status === 'submitting') return;
+    // The Google button already displays connection errors beside its fallback.
+    if (err?.code === 'GOOGLE_SCRIPT_LOAD_ERROR') return;
     setStatus('failure');
     const errCode = err?.code || 'GOOGLE_SCRIPT_LOAD_ERROR';
     setLastStatusCode(errCode);
@@ -218,142 +197,14 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
   };
 
   return (
-    <div className="hn-login-page">
-      {/* ==================================================================
-          LEFT REGION: Editorial Brand Story & Calm Organic Art
-          Noble deep forest sanctuary backdrop + subtle gold filament curves
-          ================================================================== */}
-      <section className="hn-login-editorial-region" aria-label="Brand Sanctuary Story">
-        <div className="hn-login-editorial-wrapper">
-          {/* Top Brand Header (Entrance 1) */}
-          <header className="hn-login-brand-header hn-login-entrance-1">
-            <div className="hn-login-brand-lockup">
-              <div className="hn-login-brand-crest" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 2L4 6.5V12C4 17 7.5 20.8 12 22C16.5 20.8 20 17 20 12V6.5L12 2Z"
-                    stroke="#c5a059"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="12" cy="11" r="2" fill="#c5a059" />
-                  <path d="M12 13V16" stroke="#c5a059" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </div>
-              <div className="hn-login-brand-titles">
-                <span className="hn-login-brand-name">{t.brandName}</span>
-                <span className="hn-login-brand-tag">{t.brandTag}</span>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Story Body */}
-          <div className="hn-login-story-body">
-            {/* Eyebrow Pill (Entrance 2) */}
-            <div className="hn-login-eyebrow-pill hn-login-entrance-2">{t.editorialEyebrow}</div>
-
-            {/* Heading & Description (Entrance 3) */}
-            <h1 className="hn-login-heading hn-login-entrance-3">{t.editorialHeading}</h1>
-            <p className="hn-login-description hn-login-entrance-3">{t.editorialDesc}</p>
-
-            {/* Calm Organic Visual: Living Heritage Wave swells matching PS-1 (Entrance 4) */}
-            <div className="hn-login-calm-artwork hn-login-entrance-4" aria-hidden="true">
-              <svg
-                viewBox="0 0 460 220"
-                preserveAspectRatio="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="hn-login-calm-svg"
-              >
-                <defs>
-                  <linearGradient id="hnLgSoftGreen" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#1a4c3e" stopOpacity="0.88" />
-                    <stop offset="50%" stopColor="#245d4d" stopOpacity="0.65" />
-                    <stop offset="100%" stopColor="#10362b" stopOpacity="0.96" />
-                  </linearGradient>
-                  <linearGradient id="hnLgCeladon" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#82b5a5" stopOpacity="0.45" />
-                    <stop offset="50%" stopColor="#c5e0d6" stopOpacity="0.55" />
-                    <stop offset="100%" stopColor="#9ccbc0" stopOpacity="0.25" />
-                  </linearGradient>
-                  <linearGradient id="hnLgGoldLine" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="rgba(197, 160, 89, 0.4)" />
-                    <stop offset="50%" stopColor="rgba(235, 205, 140, 1)" />
-                    <stop offset="100%" stopColor="rgba(197, 160, 89, 0.5)" />
-                  </linearGradient>
-                </defs>
-
-                {/* Back Wave Layer & Primary Gold Contour (Grouped for swell motion) */}
-                <g className="hn-wave-group hn-wave-group-back">
-                  <path
-                    className="hn-wave-back"
-                    d="M -120 160 C -30 110, 60 180, 160 130 C 250 90, 340 170, 440 120 C 500 95, 540 140, 580 115 L 580 240 L -120 240 Z"
-                    fill="url(#hnLgSoftGreen)"
-                  />
-                  <path
-                    className="hn-gold-main"
-                    d="M -120 160 C -30 110, 60 180, 160 130 C 250 90, 340 170, 440 120 C 500 95, 540 140, 580 115"
-                    fill="none"
-                    stroke="url(#hnLgGoldLine)"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                </g>
-
-                {/* Front Wave Layer & Secondary Gold Accent (Grouped for counter-movement) */}
-                <g className="hn-wave-group hn-wave-group-front">
-                  <path
-                    className="hn-wave-front"
-                    d="M -120 180 C -40 130, 50 195, 140 145 C 230 100, 310 185, 410 135 C 470 105, 530 160, 580 130 L 580 240 L -120 240 Z"
-                    fill="url(#hnLgCeladon)"
-                  />
-                  <path
-                    className="hn-gold-sub"
-                    d="M -100 195 C -10 150, 70 205, 160 160 C 245 125, 335 195, 425 150 C 490 120, 540 170, 580 145"
-                    fill="none"
-                    stroke="rgba(217, 185, 120, 0.65)"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                  />
-                </g>
-              </svg>
-            </div>
-
-            {/* Calm Pillars of Trust (Entrance 4) */}
-            <div className="hn-login-pillars hn-login-entrance-4">
-              <div className="hn-login-pillar-item">
-                <span className="hn-pillar-bullet" aria-hidden="true">✦</span>
-                <span className="hn-pillar-text">{t.pillar1}</span>
-              </div>
-              <div className="hn-login-pillar-item">
-                <span className="hn-pillar-bullet" aria-hidden="true">✦</span>
-                <span className="hn-pillar-text">{t.pillar2}</span>
-              </div>
-              <div className="hn-login-pillar-item">
-                <span className="hn-pillar-bullet" aria-hidden="true">✦</span>
-                <span className="hn-pillar-text">{t.pillar3}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Copyright */}
-          <footer className="hn-login-editorial-footer">
-            <span>{t.copyright}</span>
-          </footer>
-        </div>
-      </section>
-
-      {/* ==================================================================
-          RIGHT REGION: Pure Warm-Ivory Login Form Area
-          Editorial typography, generous spacing, sand-gold CTA button
-          ================================================================== */}
-      <main className="hn-login-form-region" aria-label="Login Form">
-        <div className="hn-login-form-container">
-          <a className="hn-login-back-home" href="/">{lang === 'en' ? '← Back to home' : '← Về trang chủ'}</a>
+    <div className="hn-login-page lv-auth-page">
+      <a className="hn-login-back-home lv-auth-back-home" href="/">{lang === 'en' ? '← Back to home' : '← Về trang chủ'}</a>
+      <main className="hn-login-form-region lv-auth-card" aria-label="Login Form">
+        <div className="hn-login-form-container lv-auth-content">
           {/* Top Form Header with Language Toggle (Entrance 1) */}
-          <div className="hn-login-form-topbar hn-login-entrance-1">
-            <span className="hn-login-form-badge">{t.formBadge}</span>
-            <div className="hn-login-lang-toggle" role="radiogroup" aria-label="Language selection">
+          <div className="hn-login-form-topbar lv-auth-topbar">
+
+            <div className="hn-login-lang-toggle lv-auth-languages" role="radiogroup" aria-label="Language selection">
               <button
                 type="button"
                 className={`hn-login-lang-btn ${lang === 'vi' ? 'active' : ''}`}
@@ -376,7 +227,8 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
           </div>
 
           {/* Form Title & Subtitle (Entrance 2) */}
-          <h2 className="hn-login-form-title hn-login-entrance-2">{t.title}</h2>
+          <AuthBrand />
+          <h1 className="hn-login-form-title hn-login-entrance-2">{t.title}</h1>
           <p className="hn-login-form-sub hn-login-entrance-2">{t.subtitle}</p>
 
           <form onSubmit={handleSubmit} noValidate className="hn-login-form hn-login-entrance-3">

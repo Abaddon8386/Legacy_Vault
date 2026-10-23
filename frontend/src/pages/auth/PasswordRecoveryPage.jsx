@@ -3,6 +3,7 @@ import { recoveryErrorKey, validateRecoveryEmail, validateRecoveryPassword } fro
 import { passwordRecoveryI18n } from './passwordRecoveryI18n.js';
 import './LoginPage.css';
 import './PasswordRecoveryPage.css';
+import AuthBrand from './AuthBrand.jsx';
 
 // HTTP and credential handling belong to PasswordRecoveryRoute.
 function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPassword, onNavigate }) {
@@ -69,16 +70,17 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
     }
   }
   const fields = reset ? ['password', 'confirmPassword'] : ['email'];
-  return <main className="lv-password-recovery-page">
-    <section className="lv-recovery-card" aria-labelledby="recovery-title">
-      <div className="lv-recovery-topbar">
-        <a className="lv-recovery-brand" href="/">LegacyVault</a>
-        <div role="group" aria-label={t.language} className="lv-recovery-languages">
-          {['vi', 'en'].map(value => <button key={value} type="button" aria-pressed={lang === value} onClick={() => setLang(value)}>{value.toUpperCase()}</button>)}
+  return <main className="lv-password-recovery-page lv-auth-page">
+    <a className="lv-auth-back-home" href="/">{lang === 'en' ? '← Back to home' : '← Về trang chủ'}</a>
+    <section className="lv-recovery-card lv-auth-card" aria-labelledby="recovery-title">
+      <div className="lv-auth-topbar">
+        <div role="group" aria-label={t.language} className="lv-recovery-languages lv-auth-languages">
+          {['vi', 'en'].map(value => <button key={value} type="button" aria-pressed={lang === value} onClick={() => setLang(value)}>{value === 'vi' ? 'Tiếng Việt' : 'English'}</button>)}
         </div>
       </div>
-      <h1 id="recovery-title" ref={headingRef} tabIndex={-1}>{reset ? t.resetTitle : t.requestTitle}</h1>
-      <p className="lv-recovery-description">{reset ? t.resetDescription : t.requestDescription}</p>
+      <AuthBrand />
+      <h1 id="recovery-title" className="lv-auth-title" ref={headingRef} tabIndex={-1}>{reset ? t.resetTitle : t.requestTitle}</h1>
+      <p className="lv-auth-description">{reset ? t.resetDescription : t.requestDescription}</p>
       {!available && <p className="lv-recovery-notice" role="note">{reset ? t.verificationRequired : t.unavailable}</p>}
       {status === 'success' ? <p className="lv-recovery-success" role="status">{reset ? t.completed : t.accepted}</p> :
         <form className="hn-login-form" onSubmit={submit} noValidate aria-busy={busy}>
@@ -101,7 +103,7 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
           <button className="hn-login-cta-btn" type="submit" disabled={!available || busy || recoveryInvalid}>{busy ? t.submitting : reset ? t.resetSubmit : t.requestSubmit}</button>
         </form>}
       {reset && <a className="lv-recovery-link" href={`/forgot-password?lang=${lang}`} onClick={event => navigate(event, '/forgot-password')}>{t.requestAgain}</a>}
-      <a className="lv-recovery-link" href={`/login?lang=${lang}`} onClick={event => navigate(event, '/login')}>← {t.back}</a>
+      <footer className="lv-auth-footer"><a className="lv-recovery-link" href={`/login?lang=${lang}`} onClick={event => navigate(event, '/login')}>← {t.back}</a></footer>
     </section>
   </main>;
 }

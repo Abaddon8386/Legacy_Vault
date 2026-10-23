@@ -124,7 +124,7 @@ export default function GoogleSignInButton({
             text: text === 'signup_with' ? 'signup_with' : 'continue_with',
             shape: 'rectangular',
             logo_alignment: 'left',
-            width: 360,
+            width: Math.min(360, containerRef.current.parentElement?.clientWidth || 360),
             locale: lang === 'vi' ? 'vi' : 'en',
           });
           setHasError(false);
