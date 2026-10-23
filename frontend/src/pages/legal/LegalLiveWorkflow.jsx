@@ -282,9 +282,14 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
       {!busy && data && documentId && <LegalEvidenceFiles {...evidenceProps} kind="death" subjectId={documentId} />}
     </>}
     {step === 'will-document-verification' && data && <>
-      <p>{en ? 'Select an original intake to view its attached paper-will files. Digitized version metadata is available for comparison.' : 'Chọn lần tiếp nhận để xem tệp đính kèm của di chúc giấy. Thông tin phiên bản số dùng để đối chiếu.'}</p>
-      {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, `${en ? 'Intake' : 'Lần nhận'} ${i + 1}`]))}
-      <LegalTechnicalDetails en={en} rows={data.originalWillIntakes.map((item, index) => [`${en ? 'Intake reference' : 'Tham chiếu lần tiếp nhận'} ${index + 1}`, item.evidenceReference])} />
+      {data.originalWillIntakes.length > 0 ? <>
+        <p>{en ? 'Select an original intake to view its attached paper-will files. Digitized version metadata is available for comparison.' : 'Chọn lần tiếp nhận để xem tệp đính kèm của di chúc giấy. Thông tin phiên bản số dùng để đối chiếu.'}</p>
+        {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, `${en ? 'Intake' : 'Lần nhận'} ${i + 1}`]))}
+        <LegalTechnicalDetails en={en} rows={data.originalWillIntakes.map((item, index) => [`${en ? 'Intake reference' : 'Tham chiếu lần tiếp nhận'} ${index + 1}`, item.evidenceReference])} />
+      </> : <div className="lv-legal-live__notice" role="status"><Info size={20} aria-hidden="true" /><div>
+        <strong>{en ? 'No original paper will has been received for this case.' : 'Hồ sơ này chưa có di chúc bản cứng được tiếp nhận.'}</strong>
+        {!readOnly && <p>{en ? 'Staff must record the original paper will and attach its scan before Legal can compare it with the digitized version.' : 'Nhân viên cần ghi nhận tiếp nhận di chúc bản cứng và đính kèm bản scan trước khi Pháp lý đối chiếu với bản di chúc số.'}</p>}
+      </div></div>}
       {data.comparisons.map(item => <div key={item.id}><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Compared at' : 'Thời gian đối chiếu', legalDate(item.comparedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Reviewer ID' : 'Mã người xử lý', item.checkedBy]]} /></div>)}
       {!busy && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
         <LegalEvidenceFiles {...evidenceProps} kind="original-will" subjectId={draft.originalWillIntakeId} />}

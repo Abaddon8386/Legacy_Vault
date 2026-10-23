@@ -116,6 +116,27 @@ test('Blocked capability fixtures cannot approve or unlock after removing duplic
   }
 });
 
+test('Missing original will shows the next step instead of an empty intake selector; archived cases remain read-only', async () => {
+  globalThis.fetch = async (_url, init) => {
+    assert.equal(init.method, 'GET');
+    return json({ caseId: a, vaultStatus: 'DOCUMENT_VERIFICATION', approvalBlocked: true, originalWillIntakes: [], wills: [], comparisons: [] });
+  };
+  const view = await mount({ ...base, step: 'will-document-verification' });
+  try {
+    assert.match(view.host.textContent, /No original paper will has been received/);
+    assert.match(view.host.textContent, /Staff must record the original paper will/);
+    assert.equal(getSelect(view.host, 'Original intake'), undefined);
+    assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
+    await view.render({ ...base, step: 'will-document-verification', lang: 'vi', contextLoader: async caseId => ({
+      caseId, caseStatus: 'CLOSED', vaultStatus: 'ARCHIVED', deathDocuments: [], capabilities: {},
+    }) });
+    assert.match(view.host.textContent, /chưa có di chúc bản cứng được tiếp nhận/);
+    assert.doesNotMatch(view.host.textContent, /Nhân viên cần ghi nhận tiếp nhận/);
+    assert.equal(getSelect(view.host, 'Bản gốc đã tiếp nhận'), undefined);
+    assert.equal(view.host.querySelector('form'), null);
+  } finally { await view.close(); }
+});
+
 const makeDossier = (route = 'COURT') => ({ id: a, caseId: a, route, status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
   versions: [{ version: 1, sha256: digest, forwardStatus: 'FORWARDED', documentNumber: 'Basis 1' }], classifiedBy: a });
 for (const route of ['COURT', 'ON_HOLD']) test(`Classification ${route} sends only route/reason and uses a real receipt`, async () => {
