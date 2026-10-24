@@ -240,6 +240,7 @@ test('actual App Legal navigation is sidebar-only, covers six steps and retains 
       assert.equal(items().length, 6);
       assert.equal(new Set(items().map(item => item.textContent)).size, 6);
       assert.equal(view.host.querySelector('.lv-legal-live nav'), null);
+      assert.equal(view.host.querySelector('.lv-legal-process, .lv-legal-stages'), null);
       assert.equal(items().filter(item => item.getAttribute('aria-current') === 'page').length, 1);
       assert.equal(items().find(item => item.getAttribute('aria-current') === 'page').textContent.trim(), lang === 'en' ? 'Final approval' : 'Phê duyệt hồ sơ');
       for (const item of LEGAL_NAVIGATION_REGISTRY) {
@@ -256,6 +257,7 @@ test('actual App Legal navigation is sidebar-only, covers six steps and retains 
         assert.equal(items().find(button => button.getAttribute('aria-current') === 'page').textContent.trim(), label);
         assert.equal(view.host.querySelector('.lv-shell-sidebar').classList.contains('is-open'), false);
         assert.equal(view.host.querySelector('.lv-legal-live nav'), null);
+        assert.equal(view.host.querySelector('.lv-legal-process, .lv-legal-stages'), null);
       }
     } finally { await view.close(); }
   }

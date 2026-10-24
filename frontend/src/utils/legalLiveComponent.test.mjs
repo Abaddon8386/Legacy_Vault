@@ -111,7 +111,10 @@ test('Blocked capability fixtures cannot approve or unlock after removing duplic
     try {
       assert.match(view.host.textContent, /does not currently meet/);
       assert.equal([...view.host.querySelectorAll('button')].find(item => item.disabled && /Record decision|Unlock vault/.test(item.textContent)).disabled, true);
-      assert.equal(view.host.querySelector('ol [aria-current=step]')?.textContent.includes(step === 'approval-review' ? 'Final approval' : 'Controlled unlock'), true);
+      assert.equal(view.host.querySelector('h1').textContent, step === 'approval-review' ? 'Final approval' : 'Controlled unlock');
+      assert.equal(view.host.querySelector('.lv-legal-process, .lv-legal-stages'), null);
+      assert.ok(view.host.querySelector('.lv-legal-documents'));
+      assert.ok(view.host.querySelector('.lv-legal-action-panel form'));
     } finally { await view.close(); }
   }
 });
