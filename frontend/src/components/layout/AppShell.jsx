@@ -10,6 +10,7 @@ import {
   resolveAccountInitials,
 } from '../../utils/accountProfileValidation.js';
 import './AppShell.css';
+import './WorkspaceFoundation.css';
 import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 
 /**
