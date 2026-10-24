@@ -71,6 +71,53 @@ class DmsServiceTest {
 		verify(fixture.configs, never()).saveAndFlush(any());
 	}
 
+	@Test
+	void allowsOwnerCheckInBeforeGraceDeadlineAndRestoresMonitoring() {
+		Fixture fixture = new Fixture();
+		LocalDateTime now = LocalDateTime.of(2026, 10, 24, 10, 0);
+		DmsConfig triggered = triggeredConfig("TRIGGERED", now.plusMinutes(1));
+		when(triggered.getStatus()).thenReturn("TRIGGERED", "TRIGGERED", "MONITORING");
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(triggered));
+		when(fixture.configs.saveAndFlush(any(DmsConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		DmsDtos.Response response = fixture.service.checkInAt(now);
+
+		assertEquals("MONITORING", response.status());
+		verify(triggered).restoreAfterAlert(now);
+		verify(fixture.audit).record(eq(5L), eq(15L), eq("DMS_CHECKED_IN"), eq("DMS_CONFIG"), any(),
+				eq("USER"), any());
+	}
+
+	@Test
+	void rejectsCheckInAtGraceDeadlineAndAfterVaultLeavesActiveState() {
+		LocalDateTime now = LocalDateTime.of(2026, 10, 24, 10, 0);
+		for (boolean activeVault : List.of(true, false)) {
+			Fixture fixture = new Fixture();
+			DmsConfig triggered = triggeredConfig("TRIGGERED", now.plusMinutes(activeVault ? 0 : 1));
+			when(fixture.vault.getStatus()).thenReturn(activeVault ? Vault.STATUS_ACTIVE : "AWAITING_VERIFICATION");
+			when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(triggered));
+
+			BusinessException error = assertThrows(BusinessException.class, () -> fixture.service.checkInAt(now));
+
+			assertEquals(ErrorCode.DMS_NOT_MONITORING, error.getErrorCode());
+			verify(fixture.configs, never()).saveAndFlush(any());
+		}
+	}
+
+	private static DmsConfig triggeredConfig(String status, LocalDateTime graceDeadline) {
+		DmsConfig config = mock(DmsConfig.class);
+		when(config.getStatus()).thenReturn(status);
+		when(config.getGraceDeadline()).thenReturn(graceDeadline);
+		when(config.getId()).thenReturn(81L);
+		when(config.getCheckIntervalDays()).thenReturn(1);
+		when(config.getCheckIntervalMinutes()).thenReturn(1440);
+		when(config.getGracePeriodDays()).thenReturn(1);
+		when(config.getNextCheckAt()).thenReturn(graceDeadline);
+		when(config.getLastCheckInAt()).thenReturn(graceDeadline.minusDays(1));
+		when(config.getUpdatedAt()).thenReturn(graceDeadline);
+		return config;
+	}
+
 	private static class Fixture {
 		final java.util.UUID ownerId = java.util.UUID.randomUUID();
 		final User owner = mock(User.class);
