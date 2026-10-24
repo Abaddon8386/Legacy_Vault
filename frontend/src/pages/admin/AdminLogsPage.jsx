@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
+import { adminActionLabel } from './adminPresentation.js';
 import { Modal } from '../../components/common/Modal.jsx';
 import { fetchAdminAuditDetail, fetchAdminAuditLogs } from '../../utils/adminService.js';
 import './AdminPages.css';
@@ -85,7 +86,7 @@ export default function AdminLogsPage({
       <div>
         <div style={{ fontWeight: 600 }}>{log.actorName || log.actorId}</div>
         {log.actorId && log.actorName && (
-          <div style={{ fontSize: 11, color: 'var(--lv-text-muted)', fontFamily: 'monospace' }}>
+          <div className="lv-admin-code">
             ID: {log.actorId}
           </div>
         )}
@@ -141,6 +142,8 @@ export default function AdminLogsPage({
       {/* Filters Toolbar */}
       <form className="lv-admin-toolbar" onSubmit={handleFilterSubmit} role="search" aria-label={t.logsTitle}>
         <div className="lv-admin-toolbar-inputs">
+          <label className="lv-admin-field">
+            <span>{t.thAction}</span>
           <select
             className="lv-admin-select"
             value={actionFilter}
@@ -153,11 +156,13 @@ export default function AdminLogsPage({
             <option value="">{t.allActions}</option>
             {COMMON_ACTIONS.map((act) => (
               <option key={act} value={act}>
-                {act}
+                {adminActionLabel(act, lang)}
               </option>
             ))}
           </select>
-
+          </label>
+          <label className="lv-admin-field">
+            <span>{t.thActor}</span>
           <select
             className="lv-admin-select"
             value={actorTypeFilter}
@@ -173,36 +178,35 @@ export default function AdminLogsPage({
             <option value="DELETED_USER">{t.actorDeleted}</option>
             <option value="UNKNOWN">{t.actorUnknown}</option>
           </select>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+          </label>
+          <div className="lv-admin-field">
             <label htmlFor="log-actor-id">{t.logActorId}</label>
             <input id="log-actor-id" type="text" className="lv-admin-input" value={actorIdFilter}
               onChange={event => { setActorIdFilter(event.target.value); setPage(1); }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <label htmlFor="log-from-date" style={{ color: 'var(--lv-text-muted)' }}>{t.fromDate}</label>
+          <div className="lv-admin-field">
+            <label htmlFor="log-from-date">{t.fromDate}</label>
             <input
               id="log-from-date"
               type="date"
               className="lv-admin-input"
-              style={{ height: 40 }}
               value={fromDate}
               onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <label htmlFor="log-to-date" style={{ color: 'var(--lv-text-muted)' }}>{t.toDate}</label>
+          <div className="lv-admin-field">
+            <label htmlFor="log-to-date">{t.toDate}</label>
             <input
               id="log-to-date"
               type="date"
               className="lv-admin-input"
-              style={{ height: 40 }}
               value={toDate}
               onChange={(e) => { setToDate(e.target.value); setPage(1); }}
             />
           </div>
 
+          <div className="lv-admin-filter-actions">
           <button type="submit" className="lv-admin-btn lv-admin-btn-primary">
             {lang === 'vi' ? 'Lọc nhật ký' : 'Filter Logs'}
           </button>
@@ -216,11 +220,16 @@ export default function AdminLogsPage({
               {t.resetFilters}
             </button>
           )}
+          </div>
         </div>
       </form>
 
       {/* Audit Logs Table */}
-      <div className="lv-admin-table-container">
+      <div className="lv-admin-list-meta">
+        <p>{lang === 'en' ? 'Recorded events' : 'Sự kiện đã ghi nhận'}{total !== null && !loading && <> <strong>({total})</strong></>}</p>
+        <span className="lv-admin-scroll-hint">{lang === 'en' ? 'Scroll horizontally to see all columns' : 'Cuộn ngang để xem đầy đủ các cột'}</span>
+      </div>
+      <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'Audit log table' : 'Bảng nhật ký'}>
         <table className="lv-admin-table" aria-label={t.logsTitle}>
           <thead>
             <tr>
@@ -253,24 +262,24 @@ export default function AdminLogsPage({
             ) : (
               logs.map((log) => (
                 <tr key={log.id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{formatTimestamp(log.occurredAt)}</td>
+                  <td>{formatTimestamp(log.occurredAt)}</td>
                   <td>{renderActorLabel(log)}</td>
                   <td>
                     <span
                       style={{
-                        fontFamily: 'monospace',
                         fontWeight: 600,
                         color: log.action.includes('FAILED') ? 'var(--lv-status-error-text)' : 'var(--lv-brand-forest)',
                       }}
                     >
-                      {log.action}
+                      {adminActionLabel(log.action, lang)}
                     </span>
+                    {adminActionLabel(log.action, lang) !== log.action && <span className="lv-admin-code">{log.action}</span>}
                   </td>
                   <td>
                     {log.entityType ? (
                       <span style={{ fontSize: 12 }}>
                         <strong>{log.entityType}</strong>
-                        {log.vaultId && <div>{t.logVaultId} {log.vaultId}</div>}
+                        {log.vaultId && <div className="lv-admin-code">{t.logVaultId} {log.vaultId}</div>}
                       </span>
                     ) : (
                       '—'
@@ -283,7 +292,6 @@ export default function AdminLogsPage({
                     <button
                       type="button"
                       className="lv-admin-btn lv-admin-btn-secondary"
-                      style={{ height: 32, padding: '0 10px', fontSize: 12 }}
                       onClick={() => setDetailLog(log)}
                     >
                       {t.viewDetails}
@@ -306,7 +314,6 @@ export default function AdminLogsPage({
             <button
               type="button"
               className="lv-admin-btn lv-admin-btn-secondary"
-              style={{ height: 32, padding: '0 12px' }}
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
@@ -315,7 +322,6 @@ export default function AdminLogsPage({
             <button
               type="button"
               className="lv-admin-btn lv-admin-btn-secondary"
-              style={{ height: 32, padding: '0 12px' }}
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >

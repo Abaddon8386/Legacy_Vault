@@ -64,16 +64,18 @@
 .lv-admin-container :is(button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 3px solid #b38d45; outline-offset: 3px; }
 .lv-admin-list-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-block-end: 12px; }
 .lv-admin-list-meta p { margin: 0; }
-.lv-admin-scroll-hint { color: var(--admin-muted); font-size: 12px; display: none; }
+.lv-admin-scroll-hint { color: var(--admin-muted); font-size: 12px; }
 .lv-admin-table-container { min-inline-size: 0; overflow-x: auto; overscroll-behavior-inline: contain; border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; }
-.lv-admin-table { inline-size: 100%; min-inline-size: 840px; border-collapse: collapse; font-size: 13px; text-align: start; }
+.lv-admin-table { inline-size: 100%; min-inline-size: 1040px; border-collapse: collapse; font-size: 13px; text-align: start; }
 .lv-admin-table th { padding: 14px 18px; border-block-end: 1px solid var(--admin-line); background: #eff3ee; color: #4e6759; font-size: 11px; font-weight: 750; letter-spacing: .035em; white-space: nowrap; }
 .lv-admin-table td { padding: 17px 18px; border-block-end: 1px solid #e9ede7; vertical-align: middle; }
 .lv-admin-table tbody tr:last-child td { border: 0; }
 .lv-admin-table tbody tr:hover { background: #fafcf8; }
 .lv-admin-table :is(td, th) { overflow-wrap: anywhere; }
 .lv-admin-table td:first-child { min-inline-size: 150px; }
-.lv-admin-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.lv-admin-table td:nth-child(2) { min-inline-size: 190px; }
+.lv-admin-row-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.lv-admin-row-actions .lv-admin-btn { white-space: nowrap; }
 .lv-admin-code { display: block; margin-block-start: 3px; color: var(--admin-muted); font: 11px/1.5 ui-monospace, monospace; overflow-wrap: anywhere; }
 .lv-admin-container :is(.lv-admin-role-badge, .lv-admin-status-badge) { display: inline-flex; align-items: center; max-inline-size: 100%; padding: 4px 9px; border: 1px solid #dbe6d9; border-radius: 6px; background: #f0f5ee; color: #356149; font-size: 11px; font-weight: 650; line-height: 1.5; }
 .lv-admin-role-badge { margin-inline-end: 4px; margin-block: 2px; }

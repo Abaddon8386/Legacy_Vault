@@ -268,3 +268,11 @@ export const adminI18n = {
     sessionExpired: 'Your session has expired. Please sign in again.',
   },
 };
+
+export function adminRoleLabel(role, lang = 'vi') {
+  const key = {
+    VAULT_OWNER: 'roleOwner', BENEFICIARY: 'roleBeneficiary',
+    STAFF_EXECUTOR: 'roleStaff', LEGAL_VERIFIER: 'roleLegal', ADMIN: 'roleAdmin',
+  }[role];
+  return (adminI18n[lang] || adminI18n.vi)[key] || role;
+}
