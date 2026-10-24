@@ -132,3 +132,72 @@ test('real asset page sends one PATCH with password; REAUTH_FAILED and 429 retai
     assert.equal(calls.some(call => /reveal|login|verify/.test(call.url)), false);
   } finally { await view.close(); globalThis.fetch = original; }
 });
+
+test('real asset edit uploads selected files through add-only endpoints and preserves existing attachments', async () => {
+  const { exports: { AssetManagementPage } } = await loadComponentModule('src/pages/assets/AssetManagementPage.jsx');
+  const original = globalThis.fetch;
+  const vaultId = '11111111-1111-4111-8111-111111111111';
+  const assetId = '22222222-2222-4222-8222-222222222222';
+  const record = { ...asset, id: assetId, vaultId, createdAt: '2026-10-21T10:00:00Z', updatedAt: '2026-10-21T10:00:00Z' };
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (options.method === 'PATCH') return new Response(JSON.stringify({ ...record, name: 'Updated record' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/images') && options.method === 'GET') return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/documents') && options.method === 'GET') return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/images') && options.method === 'POST') return new Response(JSON.stringify([]), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/documents') && options.method === 'POST') return new Response(JSON.stringify([]), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(String(url).includes('?') ? { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 } : record), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
+  try {
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+    const image = new File(['image'], 'new.png', { type: 'image/png' });
+    const doc = new File(['%PDF-1.7\n%%EOF'], 'new.pdf', { type: 'application/pdf' });
+    const inputs = view.host.querySelectorAll('input[type=file]');
+    for (const [input, file] of [[inputs[0], image], [inputs[1], doc]]) {
+      assert.ok(input.classList.contains('lv-file-picker__input'));
+      assert.ok(input.closest('.lv-file-picker').querySelector('.lv-form-label'));
+      const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
+      await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
+    }
+    await change(view.host, 'edit-asset-name', 'Updated record');
+    await change(view.host, 'edit-confirm-password', 'current-password');
+    await submit(view.host);
+    assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 1);
+    assert.equal(calls.filter(call => call.options.method === 'POST' && call.url.endsWith('/images')).length, 1);
+    assert.equal(calls.filter(call => call.options.method === 'POST' && call.url.endsWith('/documents')).length, 1);
+    assert.equal(calls.some(call => call.options.method === 'DELETE'), false);
+    assert.match(view.host.textContent, /Asset updated/);
+  } finally { await view.close(); globalThis.fetch = original; }
+});
+
+test('uploading a new image without metadata edits skips the empty asset PATCH and uploads successfully', async () => {
+  const { exports: { AssetManagementPage } } = await loadComponentModule('src/pages/assets/AssetManagementPage.jsx');
+  const original = globalThis.fetch;
+  const vaultId = '11111111-1111-4111-8111-111111111111';
+  const assetId = '22222222-2222-4222-8222-222222222222';
+  const record = { ...asset, id: assetId, vaultId, createdAt: '2026-10-21T10:00:00Z', updatedAt: '2026-10-21T10:00:00Z' };
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    const path = String(url); calls.push({ path, options });
+    if (path.endsWith('/images') && options.method === 'GET') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (path.endsWith('/documents') && options.method === 'GET') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (path.endsWith('/images') && options.method === 'POST') return new Response('[]', { status: 201, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(path.includes('?') ? { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 } : record), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
+  try {
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    const input = view.host.querySelector('input[type=file]');
+    const file = new File(['image'], 'new.png', { type: 'image/png' });
+    const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
+    await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
+    await change(view.host, 'edit-confirm-password', 'current-password');
+    await submit(view.host);
+    assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 0);
+    assert.equal(calls.filter(call => call.options.method === 'POST' && call.path.endsWith('/images')).length, 1);
+    assert.match(view.host.textContent, /Asset updated/);
+  } finally { await view.close(); globalThis.fetch = original; }
+});

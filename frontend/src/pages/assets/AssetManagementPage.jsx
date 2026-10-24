@@ -9,6 +9,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { assetService } from '../../services/assetService'
+import { assetImageService } from '../../services/assetImageService.js'
 import { assetDocumentService } from '../../services/assetDocumentService.js'
 import { fetchSubscription, formatStorageBytes } from '../../utils/subscriptionService.js'
 import { ApiError } from '../../api/http.js'
@@ -216,7 +217,11 @@ export function AssetManagementPage({
     if (signal?.aborted) controller.abort()
     setIsUpdating(true); setEditErrorKey(null)
     try {
-      await assetService.updateAsset(vaultId,assetId,patch,{lang,accessToken,signal:controller.signal})
+      const { images = [], documents = [], ...assetPatch } = patch
+      const { password, ...editableFields } = assetPatch
+      if (Object.keys(editableFields).length) await assetService.updateAsset(vaultId,assetId,{...editableFields,password},{lang,accessToken,signal:controller.signal})
+      if (images.length) await assetImageService.add(vaultId, assetId, images, {lang, accessToken, signal:controller.signal})
+      if (documents.length) await assetDocumentService.upload(vaultId, assetId, documents, {lang, accessToken, signal:controller.signal})
       if (controller.signal.aborted || !aliveRef.current) return
       closeSelection(); loadAssets(); showToast('editSuccess')
     } catch (error) {
@@ -478,7 +483,7 @@ export function AssetManagementPage({
           onNavigateToLogin={onNavigateToLogin}
         />
       )}
-      {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} authContext={`${vaultId}:${accessToken}`} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
+      {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} vaultId={vaultId} accessToken={accessToken} lang={lang} authContext={`${vaultId}:${accessToken}`} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
       {/* Add Asset Modal */}
       {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
         isOpen={true}
