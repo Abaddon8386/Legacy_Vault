@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
-import { adminActionLabel } from './adminPresentation.js';
+import { adminActionLabel, formatAdminTimestamp } from './adminPresentation.js';
 import { Modal } from '../../components/common/Modal.jsx';
 import { fetchAdminAuditDetail, fetchAdminAuditLogs } from '../../utils/adminService.js';
 import './AdminPages.css';
@@ -84,8 +84,8 @@ export default function AdminLogsPage({
     if (log.actorType === 'UNKNOWN') return <span>{t.actorUnknown}</span>;
     return (
       <div>
-        <div style={{ fontWeight: 600 }}>{log.actorName || log.actorId}</div>
-        {log.actorId && log.actorName && (
+        <div style={{ fontWeight: 600 }}>{log.actorName || t.actorUser}</div>
+        {log.actorId && (
           <div className="lv-admin-code">
             ID: {log.actorId}
           </div>
@@ -345,7 +345,7 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
   return <Modal isOpen onClose={onClose} title={t.logDetailTitle} closeLabel={t.closeModal}>
     {loading ? <p role="status">{t.loading}</p> : error ? <p role="alert">{error}</p> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data &&
       <dl className="lv-admin-detail-list">{[
-        [t.logId, data.id], [t.logTimestamp, data.occurredAt], [t.logActorType, data.actorType],
+        [t.logId, data.id], [t.logTimestamp, formatAdminTimestamp(data.occurredAt, lang)], [t.logActorType, data.actorType],
         [t.logActorId, data.actorId], [t.logActionCode, data.action], [t.logEntityType, data.entityType],
         [t.logVaultId, data.vaultId], [t.logTraceId, data.traceId],
       ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? t.notAvailable}</dd></div>)}</dl>}

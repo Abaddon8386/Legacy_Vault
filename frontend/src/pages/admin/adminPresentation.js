@@ -17,6 +17,26 @@ const actions = {
   DMS_CONFIGURED: ['Cấu hình giám sát hoạt động', 'Activity monitoring configured'],
   LEGAL_DEATH_DOCUMENT_DECIDED: ['Kiểm duyệt giấy tờ tử vong', 'Death document reviewed'],
   HANDOVER_ASSET_DELIVERED: ['Bàn giao tài sản', 'Asset delivered'],
+  EVIDENCE_FILE_READ: ['Xem tệp chứng cứ', 'Evidence file viewed'],
 };
 
 export const adminActionLabel = (code, lang) => actions[code]?.[lang === 'en' ? 1 : 0] || code;
+
+export function formatAdminTimestamp(timestamp, lang) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  return `${date.toLocaleString(lang === 'en' ? 'en-GB' : 'vi-VN', {
+    dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC',
+  })} UTC`;
+}
+
+export function adminSubscriptionLabel(code, lang) {
+  const labels = {
+    ACTIVE: ['Đang hiệu lực', 'Active'],
+    DEFAULT_BASIC_FREE: ['Cơ bản miễn phí', 'Default free Basic'],
+    LIFETIME: ['Mua một lần / Trọn đời', 'One-time / Lifetime'],
+    MONTHLY: ['Theo tháng', 'Monthly'],
+  };
+  return labels[code]?.[lang === 'en' ? 1 : 0] || code;
+}

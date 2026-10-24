@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
+import { formatAdminTimestamp } from './adminPresentation.js';
 import { fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
 import './AdminPages.css';
 
@@ -385,7 +386,7 @@ function UserDetail({ id, accessToken, lang, onClose, onUnauthorized, onDenied }
           <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={reload}>{t.retryBtn}</button></> : data && <dl className="lv-admin-detail-list">
           {[[t.userId, data.id], [t.userFullName, data.fullName], [t.userEmail, data.email], [t.userRoles, data.roles.map(role => adminRoleLabel(role, lang)).join(', ')],
             [t.userStatus, data.status === 'ACTIVE' ? t.statusActive : data.status === 'PENDING' ? t.statusPending : data.status === 'DELETED' ? t.statusDeleted : t.notAvailable],
-            [t.userCreatedAt, data.createdAt]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t.notAvailable}</dd></div>)}
+            [t.userCreatedAt, formatAdminTimestamp(data.createdAt, lang)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t.notAvailable}</dd></div>)}
         </dl>}
       </div>
       <div className="lv-admin-modal-footer"><button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose}>{t.closeModal}</button></div>

@@ -85,8 +85,8 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
     {current?.error&&<p role="alert">{errorText(current.error)}</p>}
     {current?.data&&<>
       <p role="status">{en?'Results':'Kết quả'}: {current.data.totalElements}</p>
-      {current.data.content.length===0?<p>{en?'No matching transactions.':'Không có giao dịch phù hợp.'}</p>:
-        <div className="lv-payment-table-wrap"><table className="lv-admin-sub-table">
+      {current.data.content.length===0?<p className="lv-payment-empty">{en?'No matching transactions.':'Không có giao dịch phù hợp.'}</p>:
+        <div className="lv-payment-table-wrap" tabIndex={0} role="region" aria-label={en?'Payment transaction table':'Bảng giao dịch thanh toán'}><table className="lv-admin-sub-table">
           <thead><tr>{[en?'Created (UTC)':'Tạo lúc (UTC)',en?'Account':'Tài khoản',en?'Plan / version':'Gói / phiên bản',en?'Amount':'Số tiền',en?'Status':'Trạng thái',en?'Details':'Chi tiết'].map(h=><th key={h}>{h}</th>)}</tr></thead>
           <tbody>{current.data.content.map(x=><tr key={x.paymentId}>
             <td>{date(x.createdAt)}</td><td>{x.accountEmail}</td><td>{x.planCode} / v{x.catalogVersion}</td>
