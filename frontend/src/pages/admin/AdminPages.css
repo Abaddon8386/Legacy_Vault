@@ -97,10 +97,12 @@
 .lv-admin-detail-list dt { color: #63746b; font-size: 13px; }
 .lv-admin-detail-list dd { margin: 0; color: #203e33; font-weight: 600; overflow-wrap: anywhere; }
 .lv-admin-container .lv-modal__title { font-family: inherit; font-size: 20px; }
-@container admin-workspace (max-width: 960px) {
-  .lv-admin-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container admin-workspace (max-width: 860px) {
   .lv-admin-overview-panels { grid-template-columns: minmax(0, 1fr); }
   .lv-admin-scroll-hint { display: block; }
+}
+@container admin-workspace (max-width: 760px) {
+  .lv-admin-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container admin-workspace (max-width: 520px) {
   .lv-admin-header { margin-block-end: 22px; }
