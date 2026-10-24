@@ -73,7 +73,7 @@ test('AdminHome renders title with #admin-home-title and bilingual support', asy
       const h1 = viView.host.querySelector('#admin-home-title');
       assert.ok(h1);
       assert.equal(h1.textContent, 'Tổng quan quản trị');
-      assert.ok(viView.host.textContent.includes('Chỉ số tài khoản & Phân bổ vai trò'));
+      assert.ok(viView.host.querySelector('#overview-metrics-heading').textContent.includes('Số liệu hệ thống'));
       assert.ok(viView.host.textContent.includes('CHƯA KHẢ DỤNG'));
     } finally {
       await viView.close();
@@ -85,7 +85,7 @@ test('AdminHome renders title with #admin-home-title and bilingual support', asy
       const h1 = enView.host.querySelector('#admin-home-title');
       assert.ok(h1);
       assert.equal(h1.textContent, 'Administration overview');
-      assert.ok(enView.host.textContent.includes('Account Metrics & Role Distribution'));
+      assert.ok(enView.host.querySelector('#overview-metrics-heading').textContent.includes('System metrics'));
       assert.ok(enView.host.textContent.includes('UNAVAILABLE'));
     } finally {
       await enView.close();
@@ -196,8 +196,8 @@ test('AdminUsersPage renders user table, filters, and prevents creation/role edi
       assert.ok(view.host.querySelector('#admin-users-title'));
       assert.ok(view.host.textContent.includes('Trần Văn B'));
       assert.ok(view.host.textContent.includes('Lê Thị C'));
-      assert.ok(view.host.textContent.includes('VAULT_OWNER'));
-      assert.ok(view.host.textContent.includes('BENEFICIARY'));
+      assert.ok(view.host.querySelector('[title="VAULT_OWNER"]').textContent.includes('Chủ sở hữu kho'));
+      assert.ok(view.host.querySelector('[title="BENEFICIARY"]').textContent.includes('Người thụ hưởng'));
 
       // Search & Filters exist
       assert.ok(view.host.querySelector('input[type="search"]'));
