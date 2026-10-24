@@ -42,4 +42,11 @@ Giấy tờ / kết luận đã lưu                Ghi nhận quyết định
 - Không gửi quyết định Legal, mở khóa, nhận hồ sơ Staff hoặc thay dữ liệu khi kiểm tra UI.
 - Not verified: zoom trình duyệt 200%, RTL, mọi kích thước/locale ngoài các ca nêu trên. Quy trình nghiệp vụ có thao tác ghi chưa được demo lại trên DB.
 
+## Bổ sung: nút tải lại
+
+- Bỏ nút tải lại thường trực ở header Legal, danh sách và hồ sơ; người dùng có thể dùng F5 khi cần tải lại toàn trang.
+- Giữ hành động theo ngữ cảnh: `Thử lại` khi tải/lưu lỗi hoặc dữ liệu cần xác minh lại; `Xem trạng thái mới` sau khi server xác nhận quyết định. Các hành động này dùng lại cơ chế GET hiện có, không gửi lại quyết định và không làm mất bản nháp do tải toàn trang.
+- Giữ nguyên nút refresh của Staff/Owner và kiểm tra thu hồi quyền khi phiên thay đổi.
+- Kiểm tra bổ sung: 80/80 test liên quan đạt, lint/build đạt; browser xác nhận ca bình thường không có ba nút tải lại, ca tải lỗi có nút `Thử lại`.
+
 Approve cho phạm vi giao diện đã kiểm tra.

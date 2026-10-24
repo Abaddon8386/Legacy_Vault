@@ -54,6 +54,7 @@ test('Death decision requires selected server document; duplicate clicks locked,
   globalThis.fetch = async (_url, init) => init.method === 'POST' ? (writes++, new Promise(resolve => { finish = resolve; })) : json(detail());
   const view = await mount();
   try {
+    assert.doesNotMatch(view.host.textContent, /Reload cases|Reload record|View latest status/);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
     await change(getSelect(view.host, 'Death document'), a);
     await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
@@ -62,6 +63,7 @@ test('Death decision requires selected server document; duplicate clicks locked,
     await act(async () => finish(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })));
     assert.match(view.host.textContent, /Đã lưu quyết định/); assert.match(view.host.textContent, /Legal Test/); assert.match(view.host.textContent, /20\/10\/2026, 13:00/);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
+    assert.ok([...view.host.querySelectorAll('button')].some(button => button.textContent === 'Xem trạng thái mới'));
   } finally { await view.close(); }
 });
 test('Already decided death document cannot be decided again', async () => {
@@ -88,7 +90,7 @@ test('409 and malformed response preserve draft but require reload before retry;
   try {
     await change(getSelect(view.host, 'Death document'), a); await change(getSelect(view.host, 'Decision'), 'REJECT'); await change(view.host.querySelector('textarea'), 'Keep this reason');
     await submit(view.host); assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
-    await click(view.host, 'Reload record'); await submit(view.host); assert.equal(writes, 2);
+    await click(view.host, 'Try again'); await submit(view.host); assert.equal(writes, 2);
     await view.close(); closed = true; assert.equal(signal.aborted, true); await act(async () => finish(json({})));
   } finally { if (!closed) await view.close(); }
 });
@@ -192,7 +194,7 @@ test('Dossier changed since display blocks POST and retains reason; ON_HOLD/not-
     await change(getSelect(view.host, 'Action'), 'review'); await change(view.host.querySelector('textarea'), 'Keep'); await submit(view.host);
     assert.match(view.host.textContent, /record changed/); assert.equal(view.host.querySelector('textarea').value, 'Keep');
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
-    await click(view.host, 'Reload record'); assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
+    await click(view.host, 'Try again'); assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
   } finally { await view.close(); }
 });
 

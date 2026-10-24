@@ -90,7 +90,6 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
         <span>{page + 1} / {currentResult.totalPages}</span>
         <button type="button" disabled={busy || page + 1 >= currentResult.totalPages} onClick={() => { setPage(value => value + 1); go(step, ''); }}>{en ? 'Next' : 'Sau'}</button>
       </div>}
-      {!error && <button type="button" disabled={busy} title={en ? 'Reload cases' : 'Tải lại danh sách hồ sơ'} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{en ? 'Reload cases' : 'Tải lại danh sách'}</button>}
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
     {selected && <>
@@ -205,7 +204,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
     : draft.action && (draft.action !== 'court' || draft.result) && (draft.action !== 'hold' || draft.cause))
     && (step === 'will-document-verification' && draft.result === 'MATCH' || draft.reason?.trim()));
   const disabledReason = busy ? (en ? 'Loading the latest record. Please wait.' : 'Đang tải hồ sơ mới nhất. Vui lòng chờ.')
-    : needsReload ? (en ? 'Reload the record to check the latest status before continuing.' : 'Chọn “Tải lại hồ sơ” để kiểm tra trạng thái mới nhất trước khi tiếp tục.')
+    : needsReload ? (receipt ? (en ? 'Select “View latest status” to continue.' : 'Chọn “Xem trạng thái mới” để tiếp tục.') : (en ? 'Select “Try again” to check the latest status before continuing.' : 'Chọn “Thử lại” để kiểm tra trạng thái mới nhất trước khi tiếp tục.'))
     : step === 'death-verification' ? (en ? 'Select a death document above. A document with a recorded decision cannot be decided again.' : 'Chọn giấy tờ khai tử phía trên. Giấy tờ đã có quyết định chỉ được xem lại.')
     : step === 'will-document-verification' ? (en ? 'Staff must receive the original will and upload a digitized version before comparison.' : 'Nhân viên cần tiếp nhận di chúc gốc và tải bản di chúc số trước khi chuyên viên pháp lý đối chiếu.')
     : step === 'basis-route-selection' ? (en ? 'Complete death verification first. Existing classifications can only be changed when the case is on hold.' : 'Hoàn tất xác minh giấy tờ khai tử trước. Hồ sơ đã phân loại chỉ được phân loại lại khi đang tạm dừng.')
@@ -255,16 +254,16 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
   return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}`} aria-busy={busy}>
     <section className="lv-legal-live__card lv-legal-documents">
     <header className="lv-legal-card-heading"><h2><FileText size={20} aria-hidden="true" />{en ? 'Documents and assessment' : 'Giấy tờ và kết luận thẩm định'}</h2>
-      <button type="button" disabled={busy} onClick={() => { setBusy(true); setReceipt(null); setReload(value => value + 1); }}><RefreshCw size={16} aria-hidden="true" />{en ? 'Reload record' : 'Tải lại hồ sơ'}</button>
+      {(error || needsReload || receipt) && <button type="button" disabled={busy} onClick={() => { setBusy(true); setReceipt(null); setReload(value => value + 1); }}><RefreshCw size={16} aria-hidden="true" />{receipt ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
     </header>
     {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This record is available for reference only. Editing is no longer available.' : 'Hồ sơ đã kết thúc xử lý. Bạn có thể tra cứu thông tin, không thể chỉnh sửa.'}</p>}
     {busy && <p role="status">{en ? 'Processing…' : 'Đang xử lý…'}</p>}
     {error && <p role="alert">{!data ? (error.status === 401 || error.status === 403 ? knownErrors[error.status][en ? 1 : 0]
       : error.status === 404 ? (en ? 'No accessible legal documents were found for this case. Check with Staff whether the documents have been forwarded for review.' : 'Chưa tìm thấy hồ sơ pháp lý được phép truy cập. Hãy kiểm tra với nhân viên xem giấy tờ đã được chuyển thẩm định chưa.')
-      : (en ? 'Unable to load the case documents. Reload the record to try again.' : 'Chưa tải được giấy tờ của hồ sơ. Chọn “Tải lại hồ sơ” để thử lại.')) : knownErrors[error.status]?.[en ? 1 : 0] || (error.code === 'VALIDATION_FAILED'
+      : (en ? 'Unable to load the case documents. Select “Try again” to reload them.' : 'Chưa tải được giấy tờ của hồ sơ. Chọn “Thử lại” để tải lại.')) : knownErrors[error.status]?.[en ? 1 : 0] || (error.code === 'VALIDATION_FAILED'
       ? (en ? 'Check your selections and reason (maximum 1000 characters).' : 'Kiểm tra lựa chọn và lý do (tối đa 1000 ký tự).')
       : (en ? 'The operation could not be confirmed. Reload to check its status before retrying.' : 'Chưa xác nhận được kết quả thao tác. Hãy tải lại để kiểm tra trạng thái trước khi thử lại.'))}</p>}
-    {receipt && <div className="lv-legal-live__success" role="status"><p>{en ? 'Decision saved. Reload the record to view the next available action.' : 'Đã lưu quyết định. Tải lại hồ sơ để xem bước có thể thực hiện tiếp theo.'}</p>
+    {receipt && <div className="lv-legal-live__success" role="status"><p>{en ? 'Decision saved. Select “View latest status” to check the next available action.' : 'Đã lưu quyết định. Chọn “Xem trạng thái mới” để kiểm tra thao tác có thể thực hiện tiếp theo.'}</p>
       <LegalRecordDetails rows={[[en ? 'Reviewed by' : 'Người xử lý', session.user.fullName], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(receipt.decidedAt || receipt.comparedAt || receipt.reviewedAt || receipt.checkedAt || receipt.updatedAt || receipt.createdAt)]]} /></div>}
     {step === 'death-verification' && <>
       <label>{en ? 'Death document' : 'Giấy tờ khai tử'}<select value={documentId} disabled={busy} onChange={e => { setDocumentId(e.target.value); setData(null); setDraft({}); setReceipt(null); setBusy(true); }}>

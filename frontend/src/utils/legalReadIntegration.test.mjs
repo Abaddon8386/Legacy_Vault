@@ -188,13 +188,13 @@ test('a pending context for a previous case is aborted and cannot populate the n
   } finally { await view.close(); }
 });
 
-test('queue reload 403 removes active forms, context and pending mutation receipts', async () => {
+test('queue revalidation after a token change removes active forms and pending receipts on 403', async () => {
   let deny = false, finish, signal;
   const fetch = transport(() => json(contextFixture()), (_url, init) => new Promise(resolve => { finish = resolve; signal = init.signal; }));
   globalThis.fetch = (url, init) => deny && url.includes('verification-cases?') ? json({ code: 'ACCESS_DENIED' }, 403) : fetch(url, init);
   const view = await mount();
   try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
-    deny = true; await click(view.host, 'Reload cases'); assert.equal(signal.aborted, true);
+    deny = true; await view.render({ ...base, session: { ...session, accessToken: 'rotated-fixture-token' } }); assert.equal(signal.aborted, true);
     await act(async () => finish(json({}))); assert.equal(view.host.querySelector('form'), null);
     assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved/);
   } finally { await view.close(); }
@@ -241,6 +241,7 @@ test('actual App Legal navigation is sidebar-only, covers six steps and retains 
       assert.equal(new Set(items().map(item => item.textContent)).size, 6);
       assert.equal(view.host.querySelector('.lv-legal-live nav'), null);
       assert.equal(view.host.querySelector('.lv-legal-process, .lv-legal-stages'), null);
+      assert.equal(view.host.querySelector('.lv-header-right .lv-header-action-btn'), null, 'Legal has no global reload button');
       assert.equal(items().filter(item => item.getAttribute('aria-current') === 'page').length, 1);
       assert.equal(items().find(item => item.getAttribute('aria-current') === 'page').textContent.trim(), lang === 'en' ? 'Final approval' : 'Phê duyệt hồ sơ');
       for (const item of LEGAL_NAVIGATION_REGISTRY) {

@@ -72,7 +72,7 @@ export default function LegalFinalDecision({ session, context, step, lang, onRel
     {!denied && <>
       <section className="lv-legal-live__card lv-legal-documents">
       <header className="lv-legal-card-heading"><h2><FileCheck2 size={20} aria-hidden="true" />{en ? 'Case assessment' : 'Thông tin thẩm định'}</h2>
-        <button type="button" disabled={pending} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{en ? 'Reload record' : 'Tải lại hồ sơ'}</button>
+        {(error || needsReload) && <button type="button" disabled={pending} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{result ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
       </header>
       <LegalRecordDetails rows={[[en ? 'Case' : 'Hồ sơ', context.caseNumber], [en ? 'Status' : 'Trạng thái', legalStatus(context.vaultStatus, en)],
         ...(context.snapshot ? [[en ? 'Document version' : 'Phiên bản hồ sơ', context.snapshot.currentVersion],
@@ -95,11 +95,11 @@ export default function LegalFinalDecision({ session, context, step, lang, onRel
             required={decision === 'REJECT'} disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
         <div className="lv-legal-form-actions"><button type="submit" disabled={!allowed || !complete}>{unlocking ? <LockKeyhole size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button></div>
         {(!allowed || !complete) && (pending || needsReload || capability.allowed) && <p className="lv-legal-help" role="status">{pending ? (en ? 'Saving your decision. Please wait.' : 'Đang lưu quyết định. Vui lòng chờ.')
-          : needsReload ? (en ? 'Reload the record to check its latest status.' : 'Chọn “Tải lại hồ sơ” để kiểm tra trạng thái mới nhất.')
+          : needsReload ? (result ? (en ? 'Select “View latest status” to continue.' : 'Chọn “Xem trạng thái mới” để tiếp tục.') : (en ? 'Select “Try again” to check the latest status.' : 'Chọn “Thử lại” để kiểm tra trạng thái mới nhất.'))
           : unlocking ? (en ? 'Tick the confirmation above after reviewing this case.' : 'Kiểm tra hồ sơ và đánh dấu ô xác nhận phía trên để mở khóa.')
           : (en ? 'Select a decision. A reason is required when rejecting.' : 'Chọn quyết định phía trên. Nếu từ chối, bạn cần nhập lý do.')}</p>}
       </form>
-      {result && <p className="lv-legal-live__success" role="status">{en ? 'Decision saved. Reload before continuing.' : 'Đã lưu quyết định. Tải lại hồ sơ để tiếp tục.'}
+      {result && <p className="lv-legal-live__success" role="status">{en ? 'Decision saved. Select “View latest status” to continue.' : 'Đã lưu quyết định. Chọn “Xem trạng thái mới” để tiếp tục.'}
         {' '}{legalDate(result.decidedAt || result.unlockedAt)}</p>}
       </section>}
       <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title={unlocking ? (en ? 'Confirm vault unlocking' : 'Xác nhận mở khóa kho') : (en ? 'Confirm your decision' : 'Xác nhận quyết định')} closeLabel={en ? 'Close' : 'Đóng'}>
@@ -111,6 +111,6 @@ export default function LegalFinalDecision({ session, context, step, lang, onRel
           <button type="button" className={decision === 'REJECT' && !unlocking ? 'lv-legal-danger' : 'lv-legal-primary'} data-legal-confirm onClick={submit}>{en ? 'Confirm decision' : 'Xác nhận quyết định'}</button></div>
       </Modal>
     </>}
-    {denied && <button type="button" disabled={pending} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{en ? 'Reload record' : 'Tải lại hồ sơ'}</button>}
+    {denied && <button type="button" disabled={pending} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{en ? 'Try again' : 'Thử lại'}</button>}
   </div>;
 }
