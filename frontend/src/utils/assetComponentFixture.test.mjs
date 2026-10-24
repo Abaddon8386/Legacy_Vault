@@ -58,6 +58,83 @@ const AssetListTable = tableMod.AssetListTable || tableMod.default;
 const pageMod = await loadComponentModule('src/pages/assets/AssetManagementPage.jsx');
 const AssetManagementPage = pageMod.AssetManagementPage || pageMod.default;
 
+const quotaFixture = (assetsUsed=5) => ({planCode:'BASIC',status:'ACTIVE',assetsUsed,maxAssets:5,storageUsedBytes:100,maxStorageBytes:104857600,vaultsCreatedLifetime:1,maxVaultsLifetime:1,expiresAt:null});
+const quotaJson = (data,status=200) => new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+const emptyAssets = {page:0,size:10,totalElements:0,totalPages:0,content:[]};
+test('Full quota includes wills, blocks both add controls, and links to plans',async()=>{
+ const original=globalThis.fetch; let plans=0;
+ globalThis.fetch=async url=>quotaJson(url.includes('/subscriptions/me')?quotaFixture():emptyAssets);
+ const view=await mount(AssetManagementPage,{vaultId:'11111111-1111-4111-8111-111111111111',accessToken:'fixture',enforceQuota:true,onNavigateToSubscription:()=>plans++});
+ try {
+  assert.equal(view.container.querySelector('.lv-add-btn').disabled,true);
+  assert.equal(view.container.querySelector('.lv-mobile-fab').disabled,true);
+  assert.equal(view.container.querySelector('.lv-empty-card .lv-btn--primary').disabled,true);
+  assert.match(view.container.querySelector('.lv-asset-quota-notice').textContent,/5\/5.*hồ sơ di chúc/);
+  await act(async()=>view.container.querySelector('.lv-asset-quota-notice button').click());
+  assert.equal(plans,1); assert.equal(view.container.querySelector('[role=dialog]'),null);
+ }finally{await view.unmount();globalThis.fetch=original;}
+});
+test('Quota load failure blocks creation until a successful retry',async()=>{
+ const original=globalThis.fetch; let reads=0;
+ globalThis.fetch=async url=>url.includes('/subscriptions/me')?(++reads===1?quotaJson({code:'INTERNAL_ERROR'},503):quotaJson(quotaFixture(4))):quotaJson(emptyAssets);
+ const view=await mount(AssetManagementPage,{vaultId:'11111111-1111-4111-8111-111111111111',accessToken:'fixture',enforceQuota:true});
+ try {
+  assert.equal(view.container.querySelector('.lv-add-btn').disabled,true);
+  await act(async()=>view.container.querySelector('.lv-asset-quota-notice button').click());
+  assert.equal(view.container.querySelector('.lv-add-btn').disabled,false);
+  await act(async()=>view.container.querySelector('.lv-add-btn').click());
+  assert.ok(view.container.querySelector('[role=dialog]'));
+  await act(async()=>view.container.querySelector('.lv-modal__close-btn').click());
+  assert.equal(view.container.querySelector('[role=dialog]'),null);
+ }finally{await view.unmount();globalThis.fetch=original;}
+});
+test('Quota consumed in another tab is rechecked before posting an asset',async()=>{
+ const original=globalThis.fetch; let reads=0,posts=0;
+ globalThis.fetch=async(url,options)=>{
+  if(url.includes('/subscriptions/me'))return quotaJson(quotaFixture(++reads===1?4:5));
+  if(options.method==='POST'){posts++;throw new Error('Creation must be blocked');}
+  return quotaJson(emptyAssets);
+ };
+ const view=await mount(AssetManagementPage,{vaultId:'11111111-1111-4111-8111-111111111111',accessToken:'fixture',enforceQuota:true});
+ try {
+  await act(async()=>view.container.querySelector('.lv-add-btn').click());
+  for(const [id,value] of [['asset-name','New asset'],['asset-type','TEXT'],['asset-payload','synthetic']]) {
+   const field=view.container.querySelector('#'+id),key=Object.keys(field).find(k=>k.startsWith('__reactProps'));
+   await act(async()=>field[key].onChange({target:{value}}));
+  }
+  await act(async()=>view.container.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(posts,0);assert.ok(reads>=2);
+  assert.match(view.container.querySelector('[role=dialog] [role=alert]').textContent,/Đã hết chỗ/);
+ }finally{await view.unmount();globalThis.fetch=original;}
+});
+test('A backend quota conflict after preflight keeps the draft and shows the specific reason',async()=>{
+ const original=globalThis.fetch; let posts=0;
+ globalThis.fetch=async(url,options)=>{
+  if(url.includes('/subscriptions/me'))return quotaJson(quotaFixture(posts?5:4));
+  if(options.method==='POST'){posts++;return quotaJson({code:'ASSET_QUOTA_EXCEEDED'},409);}
+  return quotaJson(emptyAssets);
+ };
+ const view=await mount(AssetManagementPage,{vaultId:'11111111-1111-4111-8111-111111111111',accessToken:'fixture',enforceQuota:true});
+ try {
+  await act(async()=>view.container.querySelector('.lv-add-btn').click());
+  for(const [id,value] of [['asset-name','Preserved draft'],['asset-type','TEXT'],['asset-payload','synthetic']]) {
+   const field=view.container.querySelector('#'+id),key=Object.keys(field).find(k=>k.startsWith('__reactProps'));
+   await act(async()=>field[key].onChange({target:{value}}));
+  }
+  await act(async()=>view.container.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(posts,1);
+  assert.equal(view.container.querySelector('#asset-name').value,'Preserved draft');
+  assert.match(view.container.querySelector('[role=dialog] [role=alert]').textContent,/Đã hết chỗ/);
+ }finally{await view.unmount();globalThis.fetch=original;}
+});
+test('Storage exhaustion also blocks new assets even when slots remain',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async url=>quotaJson(url.includes('/subscriptions/me')?{...quotaFixture(2),storageUsedBytes:104857600}:emptyAssets);
+ const view=await mount(AssetManagementPage,{vaultId:'11111111-1111-4111-8111-111111111111',accessToken:'fixture',enforceQuota:true});
+ try {assert.equal(view.container.querySelector('.lv-add-btn').disabled,true);assert.match(view.container.querySelector('.lv-asset-quota-notice').textContent,/100 MB \/ 100 MB/);}
+ finally{await view.unmount();globalThis.fetch=original;}
+});
+
 // Synthetic Fixture Data for Asset Tests
 const testVaultId = '11111111-1111-4111-8111-111111111111';
 const syntheticAssets = [

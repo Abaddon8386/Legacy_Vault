@@ -4,7 +4,6 @@ import {
   createVault,
 
 } from '../../utils/vaultService.js';
-import StatusBadge from '../../components/common/StatusBadge.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import CreateVaultModal from '../../components/vault/CreateVaultModal.jsx';
@@ -166,7 +165,7 @@ export default function VaultOverviewPage({
         <div className="lv-vault-view">
           {/* Main Heritage Sanctuary Hero Banner */}
           <section
-            className="lv-vault-hero-card"
+            className="lv-vault-hero-card lv-owner-card"
             aria-label={lang === 'en' ? 'Vault information' : 'Thông tin kho di sản'}
           >
             {/* Background Decorative Spotlight Layer — strictly background (z-index: 0, pointer-events: none) */}
@@ -182,15 +181,9 @@ export default function VaultOverviewPage({
                     </span>
                   )}
                 </div>
-                <div className="lv-hero-status-wrap">
-                  <StatusBadge status={vault.status || 'ACTIVE'} lang={lang} />
-                </div>
               </div>
 
               <h1 className="lv-vault-name">{vault.vault_name || vault.name}</h1>
-              {vault.description && (
-                <p className="lv-vault-description">{vault.description}</p>
-              )}
 
               {/* Metadata Badges Bar */}
               <div className="lv-vault-meta-grid">
@@ -222,9 +215,6 @@ export default function VaultOverviewPage({
           {/* 1:1 Ownership Policy Footnote — Quiet, balanced editorial policy */}
           {/* Overview Resource & Operational Summary */}
           <VaultSummary onNavigate={onNavigate} vaultId={vault.id} ownerId={ownerId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} refreshKey={onRefreshTrigger} isSimulation={vault.isSimulation} />
-          <footer className="lv-vault-policy-footer">
-            <p className="lv-policy-text">{t.createAnotherNotice}</p>
-          </footer>
         </div>
       )}
 

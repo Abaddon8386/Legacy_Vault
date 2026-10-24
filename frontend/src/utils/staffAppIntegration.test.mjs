@@ -229,6 +229,7 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
       throw Error('Unexpected mutation '+url);
     }
     if(url.endsWith('/eligible-assets'))return json([{assetId:ids.assetId,recipientId:ids.recipient,description:'Counter fixture asset',deliveryStatus:delivered?'DELIVERED':'ELIGIBLE'}]);
+    if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:ids.recipient,fullName:'Người nhận kiểm thử',relationship:'Con'}]);
     if(url.endsWith('/beneficiary-confirmations'))return json([{sessionId:ids.sessionId,beneficiaryId:ids.recipient,status:confirmed?'CONFIRMED':'PENDING'}]);
     return staffFixture({status:completed?'COMPLETED':'OPEN',closed:archived,deliveries:delivered?[deliveredItem]:[],receipts,ready:confirmed})(url);
   };
@@ -244,7 +245,7 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
   });};
   try{
     await act(async()=>root.render(React.createElement(ProdApp)));
-    assert.ok(host.textContent.includes('gặp trực tiếp'),host.textContent.slice(0,1400));
+    assert.equal(host.querySelector('.lv-handover-notice-banner'), null);
     await click('Ghi nhận bàn giao');await click('Xác nhận ghi nhận bàn giao');await click('Xác nhận đã nhận tài sản');
     await change(host.querySelector('select'),ids.recipient);
     await change(host.querySelector('input[id*="receipt"]') || [...host.querySelectorAll('input')].at(-1),'BB-COUNTER-TEST');
@@ -439,7 +440,7 @@ test('PS-96/97/98 Integration: Flow across all Staff sections preserves case/ses
       await act(async () => {
         assetHandoverBtn.click();
       });
-      assert.equal(window.location.pathname, '/staff/handover');
+      assert.equal(window.location.pathname, '/staff/asset-handover');
       assert.equal(new URLSearchParams(window.location.search).get('caseId'), targetCaseId);
       assert.equal(new URLSearchParams(window.location.search).get('sessionId'), targetSessionId);
     }

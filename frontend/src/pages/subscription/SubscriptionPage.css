@@ -46,6 +46,15 @@
 .lv-plan-card-footer{border-top:1px solid #e8ebe2;padding-top:14px;margin-top:auto}
 .lv-plan-static-label{font-size:12px;color:#637068}
 .lv-plan-card.is-current .lv-plan-static-label{color:#315d43;font-weight:600}
+.lv-plan-select-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:46px;padding:12px 16px;border:1px solid #254f3e;border-radius:10px;background:#254f3e;color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s,box-shadow .2s}
+.lv-plan-select-btn:hover:not(:disabled){background:#32654d;box-shadow:0 4px 12px #254f3e26}
+.lv-plan-select-btn:focus-visible,.lv-sub-catalog-error button:focus-visible{outline:2px solid #b59854;outline-offset:4px}
+.lv-plan-select-btn:disabled{opacity:.5;cursor:default}
+.lv-plan-card:has(.lv-plan-select-btn:not(:disabled)){position:relative;transition:border-color .2s,box-shadow .2s}
+.lv-plan-select-btn:not(:disabled)::after{content:'';position:absolute;inset:0;border-radius:14px;cursor:pointer}
+.lv-plan-card:has(.lv-plan-select-btn:not(:disabled)):is(:hover,:focus-within){border-color:#79967d;box-shadow:0 6px 20px #254f3e15}
+.lv-sub-catalog-error{padding:14px 16px;background:#fff5e7;border-radius:10px;color:#77531e;line-height:1.6}
+.lv-sub-catalog-error button{font:inherit;font-weight:700;border:0;background:none;color:inherit;text-decoration:underline;cursor:pointer}
 .lv-sub-shared-features{border-bottom:1px solid #e2e2d9;font-size:13px;color:#526259}
 .lv-sub-shared-features summary{padding:12px 0;cursor:pointer;font-weight:600;color:#31533e;min-height:44px}
 .lv-sub-shared-features summary:focus-visible{outline:2px solid #315d43;outline-offset:3px}

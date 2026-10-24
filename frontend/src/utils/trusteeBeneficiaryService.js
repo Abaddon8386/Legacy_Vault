@@ -16,8 +16,8 @@ export function readTrustee(raw,vaultId) {
 }
 export function readBeneficiary(raw,vaultId) {
  const item=person(raw,vaultId);
- if(raw.status!=='DESIGNATED' || raw.hasAccount!==false || typeof raw.hasIdentityNumber!=='boolean' || !isUtcDate(raw.createdAt) || !optional(raw.dateOfBirth)) fail();
- return {...item,status:raw.status,hasAccount:false,hasIdentityNumber:raw.hasIdentityNumber,dateOfBirth:raw.dateOfBirth??null,createdAt:raw.createdAt};
+ if(raw.status!=='DESIGNATED' || typeof raw.hasAccount!=='boolean' || typeof raw.hasIdentityNumber!=='boolean' || !isUtcDate(raw.createdAt) || !optional(raw.dateOfBirth)) fail();
+ return {...item,status:raw.status,hasAccount:raw.hasAccount,hasIdentityNumber:raw.hasIdentityNumber,dateOfBirth:raw.dateOfBirth??null,createdAt:raw.createdAt};
 }
 function readPage(raw,vaultId,reader) {
  if(!Array.isArray(raw?.content) || !Number.isSafeInteger(raw.page) || raw.page<0 || !Number.isSafeInteger(raw.size) || raw.size<1 || !Number.isSafeInteger(raw.totalElements) || raw.totalElements<raw.content.length || !Number.isSafeInteger(raw.totalPages) || raw.totalPages<0) fail();

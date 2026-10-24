@@ -205,6 +205,10 @@
   background-color: #f1f5f9;
   color: #64748b;
 }
+.lv-case-modal-badge--closed {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
 
 .lv-case-modal-vault-line {
   display: flex;

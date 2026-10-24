@@ -65,6 +65,13 @@ async function loadComponentModule(entry, production = false) {
 
 const { default: SharedWithMePage } = await loadComponentModule('src/pages/beneficiary/SharedWithMePage.jsx');
 const { default: AppShell } = await loadComponentModule('src/components/layout/AppShell.jsx');
+test('Owner direct Shared URL does not request a Beneficiary-only endpoint', async () => {
+ let reads=0;
+ const user={id:'owner-only',roles:['VAULT_OWNER']};
+ const view=await mount(SharedWithMePage,{user,session:{user,accessToken:'owner-token'},receivedAssetActions:{list:async()=>{reads++;throw new Error('must not read')}}});
+ try { assert.equal(reads,0); assert.match(view.host.textContent,/dành cho tài khoản Người thụ hưởng/); assert.equal(view.host.querySelector('.lv-received-list'),null); }
+ finally { await view.close(); }
+});
 
 function submitTwiceInOneBatch(host) {
   const form = host.querySelector('form');
@@ -223,7 +230,7 @@ test('SharedWithMePage - honest error when invitation redemption API is not wire
   }
 });
 
-test('AppShell - Navigation registry includes Shared with me for OWNER and BENEFICIARY', async () => {
+test('AppShell - Shared with me is hidden for Owner-only accounts and visible for Beneficiaries', async () => {
   let navigatedTo = null;
 
   // 1. Owner layout: has personal vault tabs + Shared with me
@@ -239,7 +246,7 @@ test('AppShell - Navigation registry includes Shared with me for OWNER and BENEF
   try {
     const navButtons = [...v.host.querySelectorAll('button, a')];
     const sharedTab = navButtons.find(b => b.textContent.includes('Được chia sẻ với tôi'));
-    assert.ok(sharedTab, 'Shared with me tab must exist in OWNER sidebar');
+    assert.equal(sharedTab, undefined, 'Owner-only accounts cannot call the Beneficiary endpoint');
 
     const vaultTab = navButtons.find(b => b.textContent.includes('Kho di sản'));
     assert.ok(vaultTab, 'Vault tab must still exist in OWNER sidebar');
@@ -301,7 +308,7 @@ test('SharedWithMePage - Embedded ReceivedAssets displays received delivered ite
     lang: 'vi',
     receivedAssetActions: mockReceivedActions,
     user: { id: subject, email: 'bene@example.com' },
-    session: { accessToken: 'token', user: { id: subject } },
+    session: { accessToken: 'token', user: { id: subject, roles: ['BENEFICIARY'] } },
   });
 
   try {
@@ -327,7 +334,7 @@ test('SharedWithMePage - unavailable service is honest pending banner, not empty
   const v = await mount(SharedWithMePage, {
     lang: 'vi',
     user: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', email: 'bene@example.com' },
-    session: { accessToken: 'live-token', user: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' } },
+    session: { accessToken: 'live-token', user: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', roles: ['BENEFICIARY'] } },
   });
 
   try {
@@ -371,7 +378,7 @@ test('SharedWithMePage - partial state renders only delivered items', async () =
     lang: 'vi',
     receivedAssetActions: partialActions,
     user: { id: subject, email: 'bene@example.com' },
-    session: { accessToken: 'token', user: { id: subject } },
+    session: { accessToken: 'token', user: { id: subject, roles: ['BENEFICIARY'] } },
   });
 
   try {
@@ -408,9 +415,9 @@ test('Regression Finding 1: Existing Bene landing Shared with me button must nav
   }
 });
 
-test('Regression Finding 1 (Owner flow): Owner can navigate from vault to Shared with me and back to vault', async () => {
+test('Multi-role Owner can navigate from vault to Shared with me and back to vault', async () => {
   window.history.replaceState({}, '', '/vault');
-  const user = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', fullName: 'Owner User', email: 'owner@example.test', roles: ['VAULT_OWNER'] };
+  const user = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', fullName: 'Owner User', email: 'owner@example.test', roles: ['VAULT_OWNER', 'BENEFICIARY'] };
   const session = { accessToken: 'fixture-owner-token', user, expiresAt: Date.now() + 3600000 };
   window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify(session));
   const oldFetch = globalThis.fetch;

@@ -38,6 +38,7 @@ import { canAccessBeneficiaryConfirmation } from './utils/beneficiaryConfirmatio
 import CompletionProgressPage from './pages/staff/CompletionProgressPage.jsx';
 import { canAccessCompletionProgress } from './utils/completionProgressValidation.js';
 import CloseAndArchivePage from './pages/staff/CloseAndArchivePage.jsx';
+import './pages/staff/StaffWorkspace.css';
 import { canAccessCloseArchive } from './utils/closeAndArchiveValidation.js';
 import AppShell from './components/layout/AppShell.jsx';
 import StaffShell from './components/layout/StaffShell.jsx';
@@ -1131,7 +1132,13 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     } else if (targetTab === 'legal-documents') {
       navigateTo(buildStaffRoute('/staff/legal-documents'));
     } else if (targetTab === 'asset-handover') {
-      navigateTo(buildStaffRoute('/staff/handover'));
+      const currentParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const sId = currentParams?.get('sessionId') || staffSessionId;
+      if (sId) {
+        navigateTo(buildStaffRoute('/staff/asset-handover'));
+      } else {
+        navigateTo(buildStaffRoute('/staff/handover'));
+      }
     } else if (targetTab === 'beneficiary-confirmation') {
       navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'));
     } else if (targetTab === 'completion-progress') {
@@ -1737,7 +1744,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       </section> : isSubscriptionRoute ? <SubscriptionPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
         : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute onLoadInvitation={invitationActions?.loadForBeneficiary} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
-          : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
+          : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} onNavigateToSubscription={() => navigateTo('/subscription')} />
             : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
               : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;

@@ -37,6 +37,22 @@ async function buildComponent(entry) {
 }
 
 const DMSOverviewPage = await buildComponent('src/pages/dms/DMSOverviewPage.jsx');
+for (const status of ['TRIGGERED','GRACE_PERIOD_EXCEEDED']) test(`DMS ${status}: disallowed confirmation and configuration never reach the API`, async () => {
+ const original=globalThis.fetch; let writes=0;
+ globalThis.fetch=async (_url,options={})=>{
+  if(['POST','PUT'].includes(options.method))writes++;
+  return json({ownerId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',status,checkIntervalDays:30,gracePeriodDays:1,lastCheckInAt:'2026-10-15T00:00:00Z',nextCheckAt:'2026-10-16T00:00:00Z',triggeredAt:'2026-10-16T00:00:00Z',graceDeadline:'2026-10-17T00:00:00Z'});
+ };
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try {
+  await act(async()=>root.render(React.createElement(DMSOverviewPage,{accessToken:'fixture',lang:'vi'})));
+  const checkIn=host.querySelector('.lv-dms-checkin-btn'),save=host.querySelector('.lv-dms-submit-btn');
+  assert.equal(checkIn?.disabled,true);assert.equal(save?.disabled,true);
+  assert.match(host.textContent,/DMS đã rời trạng thái theo dõi/);
+  await act(async()=>host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  await act(async()=>checkIn.click());assert.equal(writes,0);
+ }finally{await act(async()=>root.unmount());host.remove();globalThis.fetch=original;}
+});
 
 for (const mutation of ['save', 'check-in']) {
   test(`DMS: stale refresh cannot overwrite successful ${mutation}`, async () => {

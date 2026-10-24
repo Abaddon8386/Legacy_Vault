@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { paymentCatalog, paymentQuote, createPayment, readPayment } from '../../utils/paymentService.js';
 import { Button } from '../../components/common/Button.jsx';
+import { Modal } from '../../components/common/Modal.jsx';
 import './PaymentCheckout.css';
 
-export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid }) {
+export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid, PlanView, planViewProps }) {
   const [plans, setPlans] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(false);
+  const [catalogRetry, setCatalogRetry] = useState(0);
   const [selection, setSelection] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -15,9 +19,15 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController();
-    paymentCatalog({ accessToken, signal: controller.signal }).then(setPlans).catch(() => {});
+    paymentCatalog({ accessToken, signal: controller.signal }).then(rows => {
+      if (controller.signal.aborted) return;
+      setPlans(rows); setCatalogLoading(false); setCatalogError(false);
+    }).catch(error => {
+      if (error.name === 'AbortError' || controller.signal.aborted) return;
+      setCatalogLoading(false); setCatalogError(true);
+    });
     return () => { alive.current = false; controller.abort(); };
-  }, [accessToken]);
+  }, [accessToken, catalogRetry]);
   useEffect(() => {
     const reference = new URLSearchParams(window.location.search).get('vnp_TxnRef');
     if (!reference) return;
@@ -80,7 +90,11 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
   };
   const tier = ['BASIC', 'STANDARD', 'EXTENDED'];
   const planName = code => ({ BASIC: en ? 'Basic' : 'Cơ bản', STANDARD: en ? 'Standard' : 'Tiêu chuẩn', EXTENDED: en ? 'Extended' : 'Mở rộng' }[code] || code);
-  return <section className="lv-payment-checkout" aria-label={en ? 'Buy a lifetime plan' : 'Mua gói trọn đời'} aria-busy={busy}>
+  const retryCatalog = () => { setCatalogLoading(true); setCatalogError(false); setCatalogRetry(value => value + 1); };
+  const close = () => { if (!inFlight.current) { setSelection(null); setMessage(''); } };
+  return <>
+    {PlanView && <PlanView {...planViewProps} payment={{ plans, busy, onChoose: choose, catalogLoading, catalogError, retryCatalog }} />}
+    {!PlanView && <section className="lv-payment-checkout" aria-label={en ? 'Buy a lifetime plan' : 'Mua gói trọn đời'} aria-busy={busy}>
     <h2>{en ? 'Buy once, use for life' : 'Mua một lần, dùng trọn đời'}</h2>
     <p>{en ? 'Free remains available. Upgrades cost the full target price. Payment takes place at VNPay sandbox.'
       : 'Gói Free vẫn miễn phí. Nâng cấp trả đủ giá gói đích. Thanh toán tại VNPay sandbox.'}</p>
@@ -90,11 +104,19 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
         {en ? 'Upgrade to' : 'Nâng cấp lên'} {planName(plan.code)} · {plan.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND
       </Button>)}
     </div>
-    {selection && <div className="lv-payment-checkout__confirmation" role="group" aria-label={en ? 'Confirm purchase' : 'Xác nhận mua gói'}>
-      <h3>{en ? 'Confirm purchase' : 'Xác nhận mua gói'}</h3>
+    </section>}
+    <Modal isOpen={Boolean(selection || (PlanView && message))} onClose={close} title={selection ? (en ? 'Confirm plan upgrade' : 'Xác nhận nâng cấp gói') : (en ? 'Payment information' : 'Thông tin thanh toán')} closeLabel={en ? 'Close' : 'Đóng'}>
+    {selection && <div className="lv-payment-checkout__confirmation" role="group" aria-label={en ? 'Confirm purchase' : 'Xác nhận mua gói'} aria-busy={busy}>
       <p>{planName(selection.code)}: <strong>{selection.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND</strong> — {en ? 'one-time payment, no recurring charge' : 'trả một lần, không tự động gia hạn'}</p>
+      <p>{en ? 'The full target plan price applies; previous purchases are not credited. Complete payment at VNPay to activate this plan.' : 'Thanh toán đủ giá gói mới, không trừ tiền gói đã mua. Gói được kích hoạt sau khi thanh toán tại VNPay được xác nhận.'}</p>
+      <div className="lv-payment-checkout__actions">
       <Button type="button" isLoading={busy} onClick={pay}>{en ? 'Continue to VNPay' : 'Tiếp tục đến VNPay'}</Button>
+      <Button type="button" disabled={busy} variant="secondary" onClick={close}>{en ? 'Cancel' : 'Hủy'}</Button>
+      </div>
+      {message && <p className="lv-payment-checkout__message" role="status">{message}</p>}
     </div>}
-    {message && <p className="lv-payment-checkout__message" role="status">{message}</p>}
-  </section>;
+    {!selection && message && <p className="lv-payment-checkout__message" role="status">{message}</p>}
+    </Modal>
+    {message && !selection && !PlanView && <p className="lv-payment-checkout__message" role="status">{message}</p>}
+  </>;
 }

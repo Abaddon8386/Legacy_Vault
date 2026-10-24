@@ -407,7 +407,6 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
         {/* Hero Title */}
         <div className="lv-tb-title-block">
           <h1 className="lv-tb-title">{lang === 'en' ? 'Beneficiaries & trustees' : 'Người thụ hưởng & Người thi hành bên ngoài'}</h1>
-          <p className="lv-tb-desc">{t.pageDesc}</p>
         </div>
 
         {/* Sample Data Preview Banner (Bug 17) */}
@@ -518,7 +517,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
         <div className="lv-tb-sections-stack">
           {/* SECTION B: BENEFICIARY (ST-05) */}
           <div id="panel-beneficiaries" role="tabpanel" aria-labelledby="tab-beneficiaries" hidden={activeTab !== 'beneficiaries'} tabIndex={0}>
-          <section className="lv-tb-section-card" aria-labelledby="beneficiary-heading">
+          <section className="lv-tb-section-card lv-owner-card" aria-labelledby="beneficiary-heading">
             <div className="lv-tb-section-header">
               <button type="button" className="lv-tb-btn-primary" onClick={openBeneficiaryDialog}>+ {t.addBeneficiaryBtn}</button>
               <div className="lv-tb-section-title-wrap">
@@ -554,13 +553,16 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   <div key={b.id} className="lv-tb-entity-card">
                     <div className="lv-tb-entity-header">
                       <span className="lv-tb-entity-name">{b.fullName}</span>
+                      <span className="lv-tb-account-status">{b.hasAccount
+                        ? (lang === 'en' ? 'Account linked' : 'Đã liên kết tài khoản')
+                        : (lang === 'en' ? 'Account not linked' : 'Chưa liên kết tài khoản')}</span>
                       {!isDevPreviewActive && <button type="button" className="lv-tb-btn-secondary" onClick={()=>setEditTarget({kind:'beneficiary',person:b})}>{lang==='en'?'Edit':'Chỉnh sửa'}</button>}
                       <span className="lv-tb-badge-appointed">
                         {b.relationship || (lang === 'vi' ? 'Người thụ hưởng' : 'Beneficiary')}
                       </span>
                     </div>
                     {!isDevPreviewActive && <GuardianPanel vaultId={vaultId} beneficiaryId={b.id} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} />}
-                    {!isDevPreviewActive && <BeneficiaryInvitationCode vaultId={vaultId} beneficiaryId={b.id}
+                    {!isDevPreviewActive && !b.hasAccount && <BeneficiaryInvitationCode vaultId={vaultId} beneficiaryId={b.id}
                       accessToken={accessToken} lang={lang} loadInvitation={onLoadInvitation} />}
                     <div className="lv-tb-entity-grid">
                       <div className="lv-tb-entity-prop">
@@ -725,7 +727,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
 
           {/* SECTION A: TRUSTEE (ST-04) */}
           <div id="panel-trustee" role="tabpanel" aria-labelledby="tab-trustee" hidden={activeTab !== 'trustee'} tabIndex={0}>
-          <section className="lv-tb-section-card" aria-labelledby="trustee-heading">
+          <section className="lv-tb-section-card lv-owner-card" aria-labelledby="trustee-heading">
             <div className="lv-tb-section-header">
               <div className="lv-tb-section-title-wrap">
                 <span className="lv-tb-section-tag">{t.trusteeTag}</span>

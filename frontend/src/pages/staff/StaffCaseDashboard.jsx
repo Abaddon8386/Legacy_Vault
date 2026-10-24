@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Sparkles,
   ShieldCheck,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button.jsx';
 import {
@@ -229,10 +230,11 @@ export default function StaffCaseDashboard({
   };
 
   const renderStatusBadge = (status) => {
-    const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
+    const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CLOSED' ? (lang === 'en' ? 'Closed' : 'Đã đóng') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeClass = 'lv-staff-status-badge--awaiting';
     if (status === 'IN_PROGRESS') badgeClass = 'lv-staff-status-badge--progress';
     if (status === 'VERIFIED') badgeClass = 'lv-staff-status-badge--verified';
+    if (status === 'CLOSED' || status === 'CANCELLED') badgeClass = 'lv-staff-status-badge--closed';
 
     return (
       <span className={`lv-staff-status-badge ${badgeClass}`}>
@@ -314,11 +316,9 @@ export default function StaffCaseDashboard({
       {/* Page Header */}
       <div className="lv-staff-dashboard__header">
         <div className="lv-staff-dashboard__header-content">
-          <div className="lv-staff-dashboard__eyebrow">{t.eyebrow}</div>
           <h1 className="lv-staff-dashboard__title">{t.title}</h1>
-          <p className="lv-staff-dashboard__subtitle">{t.subtitle}</p>
-          {!simulation && <a href="/staff/handover">{lang === 'en' ? 'Counter handover sessions' : 'Phiên bàn giao tại quầy'}</a>}
         </div>
+        {!simulation && <a className="lv-staff-counter-link" href="/staff/handover">{lang === 'en' ? 'Counter handover' : 'Bàn giao tại quầy'}<ArrowUpRight size={18} aria-hidden="true" /></a>}
       </div>
 
       {/* DEV Preview Notice Banner */}
@@ -379,11 +379,6 @@ export default function StaffCaseDashboard({
           </Button>
         </div>
       </div>
-
-      {/* Scope Note */}
-      <p className="lv-staff-filter-scope" role="note">
-        {simulation ? t.filters.scopeNote : (lang === 'en' ? 'Open unassigned cases and cases assigned to you. Open a case to claim it and record physical documents. Contact and identity selection await case data.' : 'Hồ sơ đang mở chưa được nhận và hồ sơ đã giao cho bạn. Mở hồ sơ để nhận và tiếp nhận giấy tờ bản cứng. Chọn người liên hệ/xác minh đang chờ dữ liệu theo hồ sơ.')}
-      </p>
 
       {/* Main Content Area based on states */}
       {pending ? (
@@ -459,7 +454,7 @@ export default function StaffCaseDashboard({
         /* Data Presentation View: Desktop Table + Mobile Cards */
         <div className="lv-staff-list-container">
           {/* Desktop Table View */}
-          <div className="lv-staff-table-wrap">
+          <div className="lv-staff-table-wrap lv-staff-glow">
             <table className="lv-staff-table" aria-label={t.title}>
               <thead>
                 <tr>
@@ -574,7 +569,7 @@ export default function StaffCaseDashboard({
           {/* Mobile Card View */}
           <div className="lv-staff-cards-wrap">
             {cases.map((c) => (
-              <div key={c.id} className="lv-staff-card">
+              <div key={c.id} className="lv-staff-card lv-staff-glow">
                 <div className="lv-staff-card__header">
                   <span className="lv-staff-card__code" title={c.caseNumber}>{formatCaseReference(c.caseNumber)}</span>
                   {renderStatusBadge(c.status)}

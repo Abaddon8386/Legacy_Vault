@@ -34,7 +34,7 @@ export const staffLegalDocumentsI18n = {
 
     // Nhánh & Trạng thái dịch
     routeNotarial: 'Công chứng (NOTARIAL)',
-    routeCourt: 'Tòa án (COURT)',
+    routeCourt: 'Tòa án',
     routeOnHold: 'Tạm dừng (ON_HOLD)',
     statusDraft: 'Bản thảo (Chờ tiếp nhận văn bản)',
     statusProvided: 'Đã tiếp nhận văn bản (Chờ chuyển Pháp chế)',
@@ -51,8 +51,8 @@ export const staffLegalDocumentsI18n = {
     dossierAlreadyForwardedNotice: 'Phiên bản mới nhất đã được chuyển cho Ban Pháp lý thẩm định. Không cần chuyển lại.',
 
     // Biểu mẫu thông tin văn bản căn cứ
-    formTitle: 'Tiếp nhận phiên bản văn bản căn cứ mới',
-    formDesc: 'Nhập thông tin chi tiết và tải lên tệp số hóa của văn bản căn cứ pháp lý.',
+    formTitle: 'Tiếp nhận văn bản',
+    formDesc: 'Điền thông tin văn bản, đính kèm bản số hóa và phân bổ cho người nhận.',
     legalBasisTypeLabel: 'Loại văn bản căn cứ (Bắt buộc)',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
     typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',
@@ -60,8 +60,8 @@ export const staffLegalDocumentsI18n = {
 
     // Cơ quan ban hành
     issuerLabel: 'Cơ quan ban hành (Bắt buộc)',
-    issuerPlaceholder: 'VD: Văn phòng Công chứng Thăng Long, TAND TP. Hà Nội...',
-    issuerHint: 'Tên cơ quan hoặc tổ chức có thẩm quyền ban hành/công chứng văn bản.',
+    issuerPlaceholder: 'VD: Tòa án nhân dân TP. Hà Nội',
+    issuerHint: 'Ghi đúng tên cơ quan trên văn bản.',
 
     // Số hiệu văn bản
     documentNumberLabel: 'Số hiệu văn bản (Bắt buộc)',
@@ -187,7 +187,7 @@ export const staffLegalDocumentsI18n = {
 
     // Route & Status
     routeNotarial: 'Notarial Route (NOTARIAL)',
-    routeCourt: 'Court Route (COURT)',
+    routeCourt: 'Court',
     routeOnHold: 'On Hold (ON_HOLD)',
     statusDraft: 'Draft (Awaiting Document Intake)',
     statusProvided: 'Legal Basis Provided (Ready for Legal Forward)',
@@ -204,8 +204,8 @@ export const staffLegalDocumentsI18n = {
     dossierAlreadyForwardedNotice: 'The latest version has already been forwarded to the Legal Department. No re-forwarding required.',
 
     // Document metadata form
-    formTitle: 'Intake New Legal Basis Version',
-    formDesc: 'Enter document metadata and upload the digitized copy of the legal basis document.',
+    formTitle: 'Receive a document',
+    formDesc: 'Enter the document details, attach a digitized copy and allocate assets to recipients.',
     legalBasisTypeLabel: 'Document Basis Type (Required)',
     typeNotarialPartition: 'Notarized Estate Partition Agreement',
     typeCourtJudgment: 'Legally Effective Court Judgment',
@@ -213,7 +213,7 @@ export const staffLegalDocumentsI18n = {
 
     // Issuing authority
     issuerLabel: 'Issuing Authority (Required)',
-    issuerPlaceholder: "e.g. Thang Long Notary Office, People's Court of Hanoi...",
+    issuerPlaceholder: "e.g. People's Court of Hanoi",
     issuerHint: 'Authorized organization or agency issuing or notarizing the document.',
 
     // Document number

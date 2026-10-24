@@ -1,3 +1,5 @@
+import { trackOwnerSurface } from './ownerSurfaceMotion.js';
+import './OwnerSurfaces.css';
 import LanguageToggle from '../common/LanguageToggle.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MagneticButton from '../common/MagneticButton.jsx';
@@ -373,7 +375,8 @@ export default function AppShell({
         <nav className="lv-sidebar-nav" aria-label="Menu chức năng">
           <span className="lv-nav-heading">{t.navSectionTitle}</span>
           <ul className="lv-nav-list">
-            {navList.filter((item) => item.status === 'ACTIVE').map((item) => (
+            {navList.filter((item) => item.status === 'ACTIVE' && (item.id !== 'shared-with-me' || isBeneficiary ||
+              resolvedUser?.roles?.some(value => value === 'BENEFICIARY' || value === 'ROLE_BENEFICIARY'))).map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -904,7 +907,7 @@ export default function AppShell({
         </header>
 
         {/* Scrollable Content Container */}
-        <main id="main-content" className="lv-shell-content">
+        <main id="main-content" className={`lv-shell-content ${isStaff ? 'lv-staff-surfaces' : ['vault', 'assets', 'dms', 'wills', 'beneficiaries', 'subscription'].includes(currentTab) ? 'lv-owner-surfaces' : ''}`} onPointerMove={trackOwnerSurface}>
           {children}
         </main>
       </div>

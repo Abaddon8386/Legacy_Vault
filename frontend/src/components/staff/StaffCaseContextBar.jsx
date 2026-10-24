@@ -16,13 +16,15 @@ export default function StaffCaseContextBar({
   const displayCaseRef = caseItem?.caseNumber
     ? formatCaseReference(caseItem.caseNumber)
     : caseId
-    ? formatCaseReference(caseId)
+    ? (en ? 'Selected case' : 'Hồ sơ đã chọn')
     : '';
 
   const statusLabel = caseItem?.status === 'OPEN'
     ? (en ? 'Open' : 'Đang mở')
     : caseItem?.status === 'CANCELLED'
     ? (en ? 'Cancelled' : 'Đã hủy')
+    : caseItem?.status === 'CLOSED'
+    ? (en ? 'Closed' : 'Đã đóng')
     : caseItem?.status || '';
 
   return (
@@ -37,7 +39,7 @@ export default function StaffCaseContextBar({
               <div className="lv-staff-context-bar__details">
                 <div className="lv-staff-context-bar__row1">
                   <span className="lv-staff-context-bar__label">
-                    {en ? 'Active case:' : 'Hồ sơ — Đang xử lý:'}
+                    {en ? 'Case:' : 'Hồ sơ:'}
                   </span>
                   <strong className="lv-staff-context-bar__code">{displayCaseRef}</strong>
                   {statusLabel && (
@@ -48,7 +50,7 @@ export default function StaffCaseContextBar({
                   {sessionId && (
                     <span className="lv-staff-context-session">
                       <Layers size={13} aria-hidden="true" />
-                      <span>{en ? 'Session' : 'Phiên'}: {sessionId}</span>
+                      <span title={sessionId}>{en ? 'Session selected' : 'Đã chọn phiên'}</span>
                     </span>
                   )}
                 </div>

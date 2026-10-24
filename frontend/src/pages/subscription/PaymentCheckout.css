@@ -30,16 +30,14 @@
   white-space: normal;
   text-align: center;
 }
+.lv-payment-checkout__confirmation .lv-btn{min-height:48px;border-radius:10px;white-space:normal}
 
 .lv-payment-checkout__confirmation {
-  margin-top: 20px;
-  padding: 20px;
-  border: 1px solid #c8dacd;
-  border-radius: 10px;
-  background: #f2f7f3;
+  display:grid;
+  gap:16px;
 }
 
-.lv-payment-checkout .lv-payment-checkout__message {
+.lv-payment-checkout__message {
   margin: 18px 0 0;
   padding: 12px 16px;
   border-radius: 8px;

@@ -190,10 +190,18 @@ export default function VaultSummary({
         )}
       </div>
 
+      {isDmsConfigured && isDmsOverdue && <div className="lv-summary-attention" role="status">
+        <div><strong>{en ? 'Activity confirmation needs attention' : 'Cần kiểm tra trạng thái xác nhận hoạt động'}</strong>
+          <p>{dmsDescription}{dms.nextCheckAt ? ` · ${formatNextDate(dms.nextCheckAt, lang)}` : ''}</p></div>
+        <button type="button" className="lv-summary-cta-btn" onClick={() => onNavigate?.('dms')}>
+          {en ? 'View monitoring' : 'Xem giám sát'} <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      </div>}
+
       {/* 4 Information Cards Grid */}
       <div className="lv-summary-grid">
         {/* Card 1: Assets Count */}
-        <div className="lv-summary-card lv-summary-card--metric">
+        <div className="lv-summary-card lv-summary-card--metric lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--forest" aria-hidden="true">
               <Layers size={18} />
@@ -232,7 +240,7 @@ export default function VaultSummary({
         </div>
 
         {/* Card 2: Beneficiaries Count */}
-        <div className="lv-summary-card lv-summary-card--metric">
+        <div className="lv-summary-card lv-summary-card--metric lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--gold" aria-hidden="true">
               <Users size={18} />
@@ -271,7 +279,7 @@ export default function VaultSummary({
         </div>
 
         {/* Card 3: Beneficiary Requirement Condition (Strictly: "Đã đáp ứng yêu cầu có người thụ hưởng") */}
-        <div className="lv-summary-card lv-summary-card--status">
+        <div className="lv-summary-card lv-summary-card--status lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--gold" aria-hidden="true">
               <ShieldCheck size={18} />
@@ -300,13 +308,9 @@ export default function VaultSummary({
               </div>
             )}
 
-            <p className="lv-summary-card__desc">
-              {!config
-                ? (en ? 'Unable to load configuration check.' : 'Chưa thể tải kết quả kiểm tra cấu hình.')
-                : isBeneficiaryReady
-                ? (en ? 'Vault configuration has designated beneficiaries.' : 'Kho đã ghi nhận người thụ hưởng hợp lệ theo cấu hình.')
-                : (en ? 'At least one designated beneficiary is required in vault configuration.' : 'Cần chỉ định tối thiểu 01 người thụ hưởng trong cấu hình kho.')}
-            </p>
+            {config && !isBeneficiaryReady && <p className="lv-summary-card__desc">
+              {en ? 'Add at least one beneficiary.' : 'Cần thêm ít nhất một người thụ hưởng.'}
+            </p>}
           </div>
 
           <div className="lv-summary-card__footer">
@@ -324,7 +328,7 @@ export default function VaultSummary({
         </div>
 
         {/* Card 4: Activity Confirmation Schedule (DMS) */}
-        <div className="lv-summary-card lv-summary-card--status">
+        <div className="lv-summary-card lv-summary-card--status lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--forest" aria-hidden="true">
               <Clock size={18} />
@@ -375,13 +379,13 @@ export default function VaultSummary({
           </div>
 
           <div className="lv-summary-card__footer">
-            {isDmsUnconfigured && (
+            {(isDmsUnconfigured || isDmsConfigured) && (
               <button
                 type="button"
                 className="lv-summary-cta-btn lv-summary-cta-btn--gold"
                 onClick={() => onNavigate?.('dms')}
               >
-                <span>{en ? 'Set up now' : 'Thiết lập ngay'}</span>
+                <span>{isDmsUnconfigured ? (en ? 'Set up now' : 'Thiết lập ngay') : (en ? 'View monitoring' : 'Xem giám sát')}</span>
                 <ArrowRight size={13} aria-hidden="true" />
               </button>
             )}
@@ -390,7 +394,7 @@ export default function VaultSummary({
       </div>
 
       {/* Subscription Quota Usage & Plan Link Widget (CR-01) */}
-      <div className="lv-summary-sub-widget" aria-label={en ? 'Subscription quota usage' : 'Mức sử dụng hạn mức gói'}>
+      <div className="lv-summary-sub-widget lv-owner-card" aria-label={en ? 'Subscription quota usage' : 'Mức sử dụng hạn mức gói'}>
         <div className="lv-summary-sub-left">
           {!subData ? <p role="status">{subLoading
             ? (en ? 'Loading subscription details…' : 'Đang tải thông tin gói…')
@@ -414,7 +418,7 @@ export default function VaultSummary({
             {/* Meter 1: Assets */}
             <div className="lv-sub-meter-item">
               <div className="lv-sub-meter-header">
-                <span className="lv-sub-meter-label">{en ? 'Digital Assets:' : 'Tài sản số:'}</span>
+                <span className="lv-sub-meter-label">{en ? 'Assets & wills:' : 'Tài sản & di chúc:'}</span>
                 <span className="lv-sub-meter-val">
                   {`${subData.assetsUsed} / ${subData.maxAssets}`}
                 </span>

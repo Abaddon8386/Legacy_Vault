@@ -184,6 +184,7 @@ export default function DMSOverviewPage({
 
   const handleSaveInterval = async (e) => {
     e.preventDefault();
+    if (dmsData && dmsData.status !== 'MONITORING') return;
     if (pendingSave.current || pendingCheckIn.current) return;
     const errors = validateDmsDuration({ days: intervalInput, hours: hoursInput, minutes: minutesInput }, lang);
     if (Object.keys(errors).length > 0) {
@@ -242,6 +243,7 @@ export default function DMSOverviewPage({
   };
 
   const handleCheckIn = async () => {
+    if (dmsData?.status !== 'MONITORING') return;
     if (pendingCheckIn.current || pendingSave.current) return;
     pendingCheckIn.current = true;
     ++fetchRequestId.current;
@@ -362,7 +364,7 @@ export default function DMSOverviewPage({
       configCardSub:
         'Tùy chỉnh khoảng thời gian giữa các lần hệ thống yêu cầu bạn gửi tín hiệu xác nhận.',
       presetsLabel: 'Gợi ý chu kỳ đề xuất:',
-      presetsHelper: 'Các mức ngày trên là gợi ý nhanh; bạn có thể tùy chọn số ngày phù hợp từ 1 đến 180 ngày.',
+      presetsHelper: 'Chọn nhanh hoặc điều chỉnh ngày, giờ, phút bên dưới.',
       inputLabel: 'Thời lượng chu kỳ:',
       inputHelper: 'Nhập số nguyên; tổng thời gian từ 1 phút đến 180 ngày.',
       saveBtn: 'Lưu cấu hình chu kỳ',
@@ -416,7 +418,7 @@ export default function DMSOverviewPage({
       configCardSub:
         'Customize the duration between required activity check-in confirmations.',
       presetsLabel: 'Suggested Presets:',
-      presetsHelper: 'The presets above are quick suggestions; you can enter any custom day count from 1 to 180 days.',
+      presetsHelper: 'Choose a preset or adjust days, hours and minutes below.',
       inputLabel: 'Check-in interval:',
       inputHelper: 'Enter whole numbers; total duration must be 1 minute to 180 days.',
       saveBtn: 'Save Interval Settings',
@@ -460,6 +462,11 @@ export default function DMSOverviewPage({
   }
 
   const isTriggered = dmsData && dmsData.status === 'TRIGGERED';
+  const cannotCheckIn = dmsData?.status !== 'MONITORING';
+  const configReadOnly = Boolean(dmsData && dmsData.status !== 'MONITORING');
+  const monitoringLockedMessage = lang === 'en'
+    ? 'Monitoring is inactive; check-in and schedule changes are locked.'
+    : 'DMS đã rời trạng thái theo dõi; xác nhận hoạt động và đổi chu kỳ đang khóa.';
   const isNotConfigured = !dmsData || dmsData.status === 'DISABLED' || dmsData.status === 'NOT_CONFIGURED';
 
   return (
@@ -523,7 +530,6 @@ export default function DMSOverviewPage({
                 )}
               </div>
             </div>
-            <p className="lv-dms-subtitle">{lang === 'en' ? 'Your check-in schedule and activity confirmations.' : 'Theo dõi lịch kiểm tra và xác nhận bạn vẫn đang hoạt động.'}</p>
           </div>
         </div>
       </header>
@@ -554,7 +560,7 @@ export default function DMSOverviewPage({
         <div className="lv-dms-content-grid">
           {/* Status Overview Card */}
           {dmsData && (
-            <section className="lv-dms-card lv-dms-stagger" style={{ '--stagger': 1 }} aria-labelledby="dms-overview-heading">
+            <section className="lv-dms-card lv-dms-stagger lv-owner-card" style={{ '--stagger': 1 }} aria-labelledby="dms-overview-heading">
               <div className="lv-dms-card-header">
                 <div className="lv-dms-card-heading-group">
                   <div className="lv-dms-card-icon-wrap" aria-hidden="true">
@@ -567,7 +573,6 @@ export default function DMSOverviewPage({
                     <h2 id="dms-overview-heading" className="lv-dms-card-title">
                       {t.statusCardTitle}
                     </h2>
-                    <p className="lv-dms-card-subtitle">{t.statusCardSub}</p>
                   </div>
                 </div>
                 <div className="lv-dms-badge-group">
@@ -636,7 +641,6 @@ export default function DMSOverviewPage({
                       {formatDmsDate(dmsData.nextCheckAt, lang)}
                     </span>
                   </div>
-                  <span className="lv-dms-metric-sub">{t.metricNextCheckSub}</span>
                 </div>
 
                 {/* Metric 3: Current Interval */}
@@ -649,7 +653,6 @@ export default function DMSOverviewPage({
                         : '—'}
                     </span>
                   </div>
-                  <span className="lv-dms-metric-sub">{t.metricIntervalSub}</span>
                 </div>
 
                 {/* Metric 4: Last Check-in Time */}
@@ -660,7 +663,6 @@ export default function DMSOverviewPage({
                       {formatDmsDate(dmsData.lastCheckInAt, lang)}
                     </span>
                   </div>
-                  <span className="lv-dms-metric-sub">{t.metricLastCheckSub}</span>
                 </div>
               </div>
 
@@ -676,18 +678,16 @@ export default function DMSOverviewPage({
                     <h2 id="dms-action-heading" className="lv-dms-action-title">
                       {t.actionCardTitle}
                     </h2>
-                    <p className="lv-dms-action-sub">
-                      {isTriggered ? t.checkInDisabledTriggered : t.actionCardSub}
-                    </p>
+                    {cannotCheckIn && <p className="lv-dms-action-sub">{monitoringLockedMessage}</p>}
                   </div>
                 </div>
 
                 <div className="lv-dms-action-button-col">
                   <MagneticButton
                     type="button"
-                    className={`lv-dms-checkin-btn ${isTriggered ? 'is-disabled' : ''}`}
+                    className={`lv-dms-checkin-btn ${cannotCheckIn ? 'is-disabled' : ''}`}
                     onClick={handleCheckIn}
-                    disabled={isCheckingIn || isTriggered}
+                    disabled={isCheckingIn || cannotCheckIn}
                     maxOffset={3}
                     aria-label={t.checkInBtn}
                   >
@@ -728,7 +728,7 @@ export default function DMSOverviewPage({
           )}
 
           {/* Configure Interval Form Card */}
-          <section className="lv-dms-card lv-dms-config-card lv-dms-stagger" style={{ '--stagger': 3 }} aria-labelledby="dms-config-heading">
+          <section className="lv-dms-card lv-dms-config-card lv-dms-stagger lv-owner-card" style={{ '--stagger': 3 }} aria-labelledby="dms-config-heading">
             <div className="lv-dms-card-header">
               <div className="lv-dms-card-heading-group">
                 <div className="lv-dms-card-icon-wrap" aria-hidden="true">
@@ -741,7 +741,6 @@ export default function DMSOverviewPage({
                   <h2 id="dms-config-heading" className="lv-dms-card-title">
                     {t.configCardTitle}
                   </h2>
-                  <p className="lv-dms-card-subtitle">{t.configCardSub}</p>
                 </div>
               </div>
             </div>
@@ -772,7 +771,6 @@ export default function DMSOverviewPage({
               <div className="lv-dms-presets-section">
                 <div className="lv-dms-presets-header">
                   <span className="lv-dms-presets-label">{t.presetsLabel}</span>
-                  <span className="lv-dms-presets-hint">{t.presetsHelper}</span>
                 </div>
                 <div className="lv-dms-presets-grid" role="group" aria-label={t.presetsLabel}>
                   {INTERVAL_PRESETS.map((preset) => {
@@ -784,6 +782,7 @@ export default function DMSOverviewPage({
                         className={`lv-dms-preset-pill ${isActive ? 'is-active' : ''}`}
                         onClick={() => handlePresetSelect(preset.days)}
                         aria-pressed={isActive}
+                        disabled={configReadOnly || isSaving}
                       >
                         {lang === 'vi' ? preset.labelVi : preset.labelEn}
                       </button>
@@ -814,7 +813,7 @@ export default function DMSOverviewPage({
                           className={`lv-dms-input ${currentErrors.days || currentErrors.check_interval_days || currentErrors.duration ? 'is-invalid' : ''}`}
                           value={intervalInput}
                           onChange={handleIntervalInputChange}
-                          disabled={isSaving}
+                          disabled={isSaving || configReadOnly}
                           aria-invalid={Boolean(currentErrors.days || currentErrors.check_interval_days || currentErrors.duration)}
                           aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
                         />
@@ -838,7 +837,7 @@ export default function DMSOverviewPage({
                           className={`lv-dms-input ${currentErrors.hours ? 'is-invalid' : ''}`}
                           value={hoursInput}
                           onChange={handleHoursInputChange}
-                          disabled={isSaving}
+                          disabled={isSaving || configReadOnly}
                           aria-invalid={Boolean(currentErrors.hours)}
                           aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
                         />
@@ -862,7 +861,7 @@ export default function DMSOverviewPage({
                           className={`lv-dms-input ${currentErrors.minutes ? 'is-invalid' : ''}`}
                           value={minutesInput}
                           onChange={handleMinutesInputChange}
-                          disabled={isSaving}
+                          disabled={isSaving || configReadOnly}
                           aria-invalid={Boolean(currentErrors.minutes)}
                           aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
                         />
@@ -905,7 +904,7 @@ export default function DMSOverviewPage({
                   <MagneticButton
                     type="submit"
                     className="lv-dms-submit-btn"
-                    disabled={isSaving}
+                    disabled={isSaving || configReadOnly}
                     maxOffset={2}
                   >
                     {isSaving && <span className="lv-btn-spinner" aria-hidden="true" />}
@@ -916,13 +915,6 @@ export default function DMSOverviewPage({
             </form>
           </section>
 
-          {/* Quiet, refined Policy Footer */}
-          <footer className="lv-dms-policy-footer lv-dms-stagger" style={{ '--stagger': 4 }}>
-            <p className="lv-dms-policy-text">
-              <span className="lv-dms-policy-shield" aria-hidden="true">🛡️</span>{' '}
-              {t.policyFootnote}
-            </p>
-          </footer>
         </div>
       )}
     </div>

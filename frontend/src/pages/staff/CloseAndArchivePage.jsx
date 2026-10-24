@@ -75,7 +75,7 @@ function CloseArchiveContext({
           closed || effectiveIsDevPreview ? [] : fetchStaffCaseBeneficiaries(caseId, opts),
         ]);
         if (controller.signal.aborted) return;
-        setServer({revision, sessionStatus: session.status, caseStatus: caseInfo.status,
+        setServer({revision, caseInfo, sessionStatus: session.status, caseStatus: caseInfo.status,
           vaultStatus: caseInfo.vaultStatus || propVaultStatus || '', receipts, deliveries, progress, people});
       } catch (error) {
         if (!controller.signal.aborted) { setServer(null); setLoadError(error.message || t.loadFailed); }
@@ -222,13 +222,12 @@ function CloseArchiveContext({
       {/* Header */}
       <header className="lv-ca-header">
         <h1 className="lv-ca-title">{t.pageTitle}</h1>
-        <p className="lv-ca-subtitle">{t.pageSubtitle}</p>
       </header>
 
       {/* Staff Case Context Bar */}
       <StaffCaseContextBar
         caseId={caseId}
-        caseItem={propCaseItem}
+        caseItem={propCaseItem || server?.caseInfo}
         sessionId={sessionId}
         onOpenSelector={() => setIsSelectorOpen(true)}
         onChangeCase={() => setIsSelectorOpen(true)}
@@ -267,7 +266,6 @@ function CloseArchiveContext({
             <h2 id="archive-banner-heading" className="lv-ca-archive-banner__title">
               {t.readOnlyBannerTitle}
             </h2>
-            <p>{t.readOnlyBannerBody}</p>
           </div>
         </section>
       )}
@@ -287,7 +285,7 @@ function CloseArchiveContext({
       )}
 
       {/* 1. Server Status Dashboard */}
-      <section className="lv-ca-card" aria-labelledby="server-status-heading">
+      <section className="lv-ca-card lv-staff-glow" aria-labelledby="server-status-heading">
         <h2 id="server-status-heading" className="lv-ca-card__title">
           {t.serverStatusHeading}
         </h2>
@@ -316,11 +314,10 @@ function CloseArchiveContext({
       </section>
 
       {/* 2. Pre-Conditions & Dual Gate Evaluation */}
-      {!isArchived && <section className="lv-ca-card" aria-labelledby="preconditions-heading">
+      {!isArchived && <section className="lv-ca-card lv-staff-glow" aria-labelledby="preconditions-heading">
         <h2 id="preconditions-heading" className="lv-ca-card__title">
           {t.preconditionsHeading}
         </h2>
-        <p className="lv-ca-card__desc">{t.preconditionsDesc}</p>
 
         <div className="lv-ca-preconditions-grid">
           <div className={`lv-ca-check-item ${isAssetComplete ? 'is-met' : 'is-unmet'}`}>
@@ -362,21 +359,20 @@ function CloseArchiveContext({
       </section>}
 
       {/* 3. Receipt Summary Section */}
-      <section className="lv-ca-card" aria-labelledby="receipt-summary-heading">
-        {!isArchived && <div style={{marginBottom: 16}}>
+      <section className="lv-ca-card lv-staff-glow" aria-labelledby="receipt-summary-heading">
+        {!isArchived && <div className="lv-ca-recipient-field">
           <label htmlFor="staff-receipt-recipient">{t.recipientLabel}</label>
           <select id="staff-receipt-recipient" value={selectedRecipient} onChange={event => setSelectedRecipient(event.target.value)} disabled={loading || !!busy}>
             <option value="">{t.selectRecipient}</option>
             {[...groups.keys()].map(id => <option key={id} value={id}>{recipientName(id)}</option>)}
           </select>
-          <p>{t.receiptScope}: {targetAssetIds.length}</p>
+          {selectedRecipient && <p>{t.receiptScope}: {targetAssetIds.length}</p>}
         </div>}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
           <div>
             <h2 id="receipt-summary-heading" className="lv-ca-card__title" style={{ margin: 0 }}>
               {t.receiptSummaryHeading}
             </h2>
-            <p className="lv-ca-card__desc" style={{ margin: '4px 0 0' }}>{t.receiptSummaryDesc}</p>
           </div>
           {!isArchived && (
             <button
@@ -417,7 +413,6 @@ function CloseArchiveContext({
           <div className="lv-ca-empty-box" role="status">
             <FileText size={32} aria-hidden="true" style={{ margin: '0 auto 12px', opacity: 0.4 }} />
             <h3>{t.receiptEmptyTitle}</h3>
-            <p>{t.receiptEmptyDesc}</p>
           </div>
         ) : (
           <div className="lv-ca-table-wrapper">
@@ -435,10 +430,10 @@ function CloseArchiveContext({
                 {receipts.map((rc, idx) => (
                   <tr key={rc.receiptId || rc.id || rc.code || idx}>
                     <td>
-                      <span className="lv-ca-code-badge">{rc.receiptId || rc.code || 'REC-STAFF'}</span>
+                      <span className="lv-ca-code-badge" title={rc.receiptId || rc.code}>{rc.code || `${lang === 'en' ? 'Receipt' : 'Biên nhận'} ${String(idx + 1).padStart(2, '0')}`}</span>
                     </td>
                     <td>
-                      {rc.attestationType || 'STAFF_ATTESTATION'}
+                      {rc.attestationType === 'STAFF_ATTESTATION' || !rc.attestationType ? (lang === 'en' ? 'Counter confirmation' : 'Xác nhận tại quầy') : (lang === 'en' ? 'Handover receipt' : 'Biên nhận bàn giao')}
                     </td>
                     <td>{recipientName(rc.recipientId) || t.statusUnavailable}</td>
                     <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
@@ -456,7 +451,7 @@ function CloseArchiveContext({
       </section>
 
       {/* 4. Sequential Business Completion Actions */}
-      <section className="lv-ca-card" aria-labelledby="action-heading">
+      {!isArchived && <section className="lv-ca-card" aria-labelledby="action-heading">
         <h2 id="action-heading" className="lv-ca-card__title">
           {t.actionHeading}
         </h2>
@@ -568,7 +563,7 @@ function CloseArchiveContext({
             </div>
           </div>
         )}
-      </section>
+      </section>}
     </div>
   );
 }

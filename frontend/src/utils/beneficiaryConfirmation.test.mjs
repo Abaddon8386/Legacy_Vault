@@ -457,3 +457,68 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
     }
   });
 });
+
+test('live confirmation DTOs are joined to recipient names and delivery metadata', async () => {
+  const originalFetch = globalThis.fetch;
+  const caseId = '11111111-1111-4111-8111-111111111111';
+  const sessionId = '22222222-2222-4222-8222-222222222222';
+  const recipients = [
+    {beneficiaryId: '33333333-3333-4333-8333-333333333333', fullName: 'Nguyễn Gia Linh', relationship: 'Con gái'},
+    {beneficiaryId: '44444444-4444-4444-8444-444444444444', fullName: 'Nguyễn Gia Bảo', relationship: 'Con trai'},
+  ];
+  globalThis.fetch = async url => {
+    const data = url.endsWith('/beneficiaries') ? recipients
+      : url.endsWith('/eligible-assets') ? recipients.map(person => ({recipientId: person.beneficiaryId, deliveryStatus: 'DELIVERED'}))
+      : recipients.map(person => ({beneficiaryId: person.beneficiaryId, sessionId, status: 'PENDING'}));
+    return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
+  };
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  const wrapper = await mount(BeneficiaryConfirmationPage, {caseId, sessionId, accessToken: 'synthetic', lang: 'vi'});
+  try {
+    const options = [...wrapper.host.querySelectorAll('select option')].map(option => option.textContent);
+    assert.ok(options.some(label => label.includes('Nguyễn Gia Linh')));
+    assert.ok(options.some(label => label.includes('Nguyễn Gia Bảo')));
+    assert.equal(options.filter(label => label.includes('Chưa có thông tin')).length, 0);
+    assert.ok(wrapper.host.textContent.includes('Con gái'));
+    await act(async () => {
+      changeInput(wrapper.host.querySelector('.lv-confirm-select'), recipients[0].beneficiaryId);
+      changeInput(wrapper.host.querySelector('input[placeholder*="BN-"]'), 'BN-DEMO-001');
+    });
+    assert.equal(wrapper.host.querySelector('.lv-btn-record-submit').disabled, false);
+  } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
+});
+
+test('closed archived case offers history instead of an unusable confirmation form', async () => {
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  const wrapper = await mount(BeneficiaryConfirmationPage, {
+    caseId: 'CASE-CLOSED', sessionId: 'SESSION-CLOSED', lang: 'vi',
+    caseItem: {caseId: 'CASE-CLOSED', status: 'CLOSED', vaultStatus: 'ARCHIVED'},
+  });
+  try {
+    assert.ok(wrapper.host.textContent.includes('Hồ sơ đã đóng'));
+    assert.equal(wrapper.host.querySelector('.lv-btn-record-submit'), null);
+    assert.ok(wrapper.host.querySelector('a[href*="close-and-archive"]'));
+  } finally { await wrapper.close(); }
+});
+
+test('missing confirmation data shows a readable error and retry recovers selection', async () => {
+  let attempts = 0;
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  const wrapper = await mount(BeneficiaryConfirmationPage, {
+    caseId: 'CASE-A', lang: 'vi',
+    onFetchBeneficiaries: async () => {
+      attempts += 1;
+      if (attempts === 1) throw Object.assign(new Error('RESOURCE_NOT_FOUND'), {status: 404});
+      return [{beneficiaryId: 'BEN-A', fullName: 'Nguyen Van A', confirmationStatus: 'PENDING'}];
+    },
+  });
+  try {
+    assert.equal(wrapper.host.textContent.includes('RESOURCE_NOT_FOUND'), false);
+    assert.ok(wrapper.host.textContent.includes('Không tải được'));
+    assert.equal(wrapper.host.querySelector('.lv-btn-record-submit'), null);
+    const retry = [...wrapper.host.querySelectorAll('button')].find(button => button.textContent === 'Thử lại');
+    await act(async () => retry.click());
+    assert.ok(wrapper.host.textContent.includes('Nguyen Van A'));
+    assert.equal(wrapper.host.querySelector('.lv-confirm-select').disabled, false);
+  } finally { await wrapper.close(); }
+});

@@ -175,7 +175,7 @@ test('PS-25 Component: StaffCaseDashboard renders desktop table and mobile cards
 
     // Check title and preview banner
     assert.match(view.host.textContent, /Hồ sơ cần xác minh/);
-    assert.match(view.host.textContent, /QUẢN LÝ XÁC MINH DI SẢN/);
+    assert.match(view.host.querySelector('h1').textContent, /Hồ sơ cần xác minh/);
     assert.match(view.host.textContent, /DEV Preview/);
 
     // Desktop table rows
@@ -692,7 +692,7 @@ test('Live dashboard renders OPEN queue and opens scoped live case instead of pr
   assert.equal(view.host.textContent.includes('CASE-2026-0001'),false);
   assert.equal(view.host.querySelector('.lv-staff-preview-banner'),null);
   await act(async () => view.host.querySelector('.lv-staff-view-btn').click());
-  assert.match(view.host.textContent,/Tiếp nhận hồ sơ/);
+  assert.match(view.host.querySelector('fieldset').textContent,/Tiếp nhận giấy tờ/);
   assert.match(view.host.textContent,/Synthetic live vault/);
   assert.equal(view.host.querySelector('fieldset').disabled,true);
   assert.equal(new URLSearchParams(window.location.search).get('caseId'),id);
