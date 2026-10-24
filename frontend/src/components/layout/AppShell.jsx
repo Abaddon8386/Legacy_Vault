@@ -882,10 +882,10 @@ export default function AppShell({
                 <span className="lv-header-home-text">{t.backToHome}</span>
               </button>
             )}
-            {typeof onRefresh === 'function' && (
+            {!isLegal && typeof onRefresh === 'function' && (
               <MagneticButton
                 type="button"
-                className={`lv-header-action-btn ${isLegal ? 'lv-header-action-btn--labelled' : ''} ${isRefreshing ? 'is-spinning' : ''}`}
+                className={`lv-header-action-btn ${isRefreshing ? 'is-spinning' : ''}`}
                 onClick={onRefresh}
                 title={t.refreshTitle}
                 aria-label={t.refreshTitle}
@@ -897,7 +897,6 @@ export default function AppShell({
                   <path d="M1 20v-6h6" />
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                 </svg>
-                {isLegal && <span>{isRefreshing ? (lang === 'en' ? 'Reloading…' : 'Đang tải…') : (lang === 'en' ? 'Reload' : 'Tải lại')}</span>}
               </MagneticButton>
             )}
 

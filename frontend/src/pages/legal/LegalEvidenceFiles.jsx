@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Eye, FileText } from 'lucide-react';
 import { Modal } from '../../components/common/Modal.jsx';
 import { listLegalEvidence, readLegalEvidence } from './legalEvidenceService.js';
 import { legalDate } from './legalPresentation.js';
@@ -66,9 +67,11 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     {kind !== 'basis' && !current && <p role="status">{en ? 'Loading files…' : 'Đang tải danh sách tệp…'}</p>}
     {current?.error && <div role="alert"><p>{errorText(current.error)}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div>}
     {files?.length === 0 && <p>{en ? 'No files are attached to this record.' : 'Bản ghi này chưa có tệp đính kèm.'}</p>}
-    {files?.map(item => <div key={item.id || versionNo} className="lv-legal-evidence__row"><span>{item.fileName}</span>
-      {item.uploadedAt && <time dateTime={item.uploadedAt}>{legalDate(item.uploadedAt)}</time>}
-      <button type="button" onClick={event => open(item, event.currentTarget)} disabled={Boolean(preview)}>{en ? 'Preview file' : 'Xem tệp'}</button></div>)}
+    {files?.map(item => <div key={item.id || versionNo} className="lv-legal-evidence__row"><FileText size={24} className="lv-legal-evidence__icon" aria-hidden="true" />
+      <div className="lv-legal-evidence__meta"><span>{item.fileName}</span>
+        {item.uploadedAt && <time dateTime={item.uploadedAt}>{legalDate(item.uploadedAt)}</time>}
+      </div>
+      <button type="button" onClick={event => open(item, event.currentTarget)} disabled={Boolean(preview)}><Eye size={16} aria-hidden="true" />{en ? 'Preview file' : 'Xem tệp'}</button></div>)}
     {fileError && <p role="alert">{errorText(fileError)}</p>}
     {preview && <Modal isOpen onClose={close} title={preview.fileName} closeLabel={en ? 'Close' : 'Đóng'} maxWidth="960px" returnFocusRef={previewTrigger}>
       {!preview.url ? <p role="status">{en ? 'Loading file…' : 'Đang tải tệp…'}</p>
