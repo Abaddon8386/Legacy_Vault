@@ -104,6 +104,10 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
 function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied }) {
   const [result, setResult] = useState(null);
   const [attempt, setAttempt] = useState(0);
+  // Keep only the input draft here. Revalidation unmounts stale records and actions;
+  // the caller's case/step/session key still discards the draft when scope changes.
+  const [draft, setDraft] = useState({});
+  const [documentId, setDocumentId] = useState('');
   const en = lang === 'en';
   const auth = useRef(onUnauthorized);
   const denied = useRef(onDenied);
@@ -140,20 +144,19 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       ? <LegalFinalDecision session={session} context={context} step={step} lang={lang}
         onReload={() => setAttempt(value => value + 1)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id) }}
-        step={step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} />}
+        step={step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized}
+        draft={draft} setDraft={setDraft} documentId={context.deathDocuments.some(item => item.id === documentId) ? documentId : ''}
+        setDocumentId={setDocumentId} onReload={() => setAttempt(value => value + 1)} />}
   </>;
 }
 
-function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly }) {
+function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly, draft, setDraft, documentId, setDocumentId, onReload }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
-  const [draft, setDraft] = useState({});
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [needsReload, setNeedsReload] = useState(false);
-  const [documentId, setDocumentId] = useState('');
-  const [reload, setReload] = useState(0);
   const controller = useRef(null);
   const lock = useRef(false);
   const auth = useRef(onUnauthorized);
@@ -178,7 +181,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
       .catch(err => { if (!c.signal.aborted) { setData(null); setError(err); setNeedsReload(true); if (err.status === 401) auth.current?.(); } })
       .finally(() => { if (!c.signal.aborted) { lock.current = false; setBusy(false); } });
     return () => c.abort();
-  }, [session, selected.caseId, step, documentId, reload]);
+  }, [session, selected.caseId, step, documentId]);
   useEffect(() => () => controller.current?.abort(), []);
   const set = (name, value) => setDraft(prev => ({ ...prev, [name]: value }));
   const input = (name, title, values) => <label>{title}<select value={draft[name] || ''} onChange={e => set(name, e.target.value)} disabled={busy} required>
@@ -254,7 +257,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
   return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}`} aria-busy={busy}>
     <section className="lv-legal-live__card lv-legal-documents">
     <header className="lv-legal-card-heading"><h2><FileText size={20} aria-hidden="true" />{en ? 'Documents and assessment' : 'Giấy tờ và kết luận thẩm định'}</h2>
-      {(error || needsReload || receipt) && <button type="button" disabled={busy} onClick={() => { setBusy(true); setReceipt(null); setReload(value => value + 1); }}><RefreshCw size={16} aria-hidden="true" />{receipt ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
+      {(error || needsReload || receipt) && <button type="button" disabled={busy} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{receipt ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
     </header>
     {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This record is available for reference only. Editing is no longer available.' : 'Hồ sơ đã kết thúc xử lý. Bạn có thể tra cứu thông tin, không thể chỉnh sửa.'}</p>}
     {busy && <p role="status">{en ? 'Processing…' : 'Đang xử lý…'}</p>}

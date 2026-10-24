@@ -49,4 +49,11 @@ Giấy tờ / kết luận đã lưu                Ghi nhận quyết định
 - Giữ nguyên nút refresh của Staff/Owner và kiểm tra thu hồi quyền khi phiên thay đổi.
 - Kiểm tra bổ sung: 80/80 test liên quan đạt, lint/build đạt; browser xác nhận ca bình thường không có ba nút tải lại, ca tải lỗi có nút `Thử lại`.
 
+## Sửa hồi quy PR #204: trạng thái hồ sơ sau khi lưu
+
+- Trước sửa, `Xem trạng thái mới` chỉ tải lại dữ liệu của giấy tờ; nhãn trạng thái dùng context cha nên vẫn giữ giá trị trước quyết định.
+- Cả `Xem trạng thái mới` và `Thử lại` nay tải lại context hồ sơ trước, rồi nạp lại giấy tờ. Trong lúc xác minh lại, ẩn trạng thái cũ và unmount dữ liệu/thao tác cũ.
+- Giữ bản nháp và lựa chọn giấy tờ trong đúng phạm vi hồ sơ/bước/phiên; lựa chọn giấy tờ được kiểm tra lại theo danh sách context mới. Đổi hồ sơ, bước hoặc tài khoản vẫn xóa bản nháp như trước.
+- Ba kiểm thử mới tái hiện lỗi trên bản cũ, sau sửa đều đạt: đồng bộ trạng thái cha/giấy tờ sau quyết định; lỗi context 403 và 500 không giữ trạng thái hoặc biểu mẫu cũ. Tổng kiểm thử liên quan đạt 83/83; lint/build đạt.
+
 Approve cho phạm vi giao diện đã kiểm tra.
