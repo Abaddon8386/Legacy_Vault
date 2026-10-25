@@ -134,7 +134,8 @@ export function AssetFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
+        <form onSubmit={handleSubmit} className="lv-modal__body lv-asset-form" noValidate>
+          <div className="lv-asset-form__scroll">
           {errorKey && <p className="lv-form-error" role="alert"><AlertCircle size={16} aria-hidden="true" /> {t.assets.alerts[errorKey] || t.assets.alerts.saveError}</p>}
           <fieldset disabled={assetSaved} style={{border:0,padding:0,margin:0,minWidth:0}}>
           {/* Asset Name */}
@@ -263,7 +264,8 @@ export function AssetFormModal({
           {assetSaved && <p role="status">{lang==='en'?'Asset saved. Retry documents only; no duplicate asset will be created.':'Tài sản đã lưu. Thử lại chỉ tải tài liệu, không tạo tài sản trùng.'}</p>}
           <DocumentPicker files={documents} onChange={setDocuments} disabled={isSubmitting} lang={lang} />
 
-          {/* Actions */}
+          </div>
+          {/* Actions remain outside the scrolling fields. */}
           <div className="lv-form-actions">
             <Button
               variant="secondary"

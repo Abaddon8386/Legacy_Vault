@@ -14,6 +14,8 @@ import StatusBadge from '../../components/common/StatusBadge.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import MagneticButton from '../../components/common/MagneticButton.jsx';
 import OwnerCancelAlert from '../../components/dms/OwnerCancelAlert.jsx';
+import OwnerLiveCancelAlert from '../../components/dms/OwnerLiveCancelAlert.jsx';
+import DmsGraceSettings from '../../components/dms/DmsGraceSettings.jsx';
 import './DMSOverviewPage.css';
 
 export default function DMSOverviewPage({
@@ -30,6 +32,7 @@ export default function DMSOverviewPage({
   customCancelCapability,
   onCancelAlert,
   isOwner = true,
+  graceActions,
 }) {
   const [dmsData, setDmsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,7 @@ export default function DMSOverviewPage({
   const activeOwnerIdRef = useRef(ownerId);
   const fetchRequestId = useRef(0);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [isSavingGrace, setIsSavingGrace] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -461,9 +465,9 @@ export default function DMSOverviewPage({
     );
   }
 
-  const isTriggered = dmsData && dmsData.status === 'TRIGGERED';
+  const isTriggered = dmsData && ['TRIGGERED', 'GRACE_PERIOD_EXCEEDED'].includes(dmsData.status);
   const cannotCheckIn = dmsData?.status !== 'MONITORING';
-  const configReadOnly = Boolean(dmsData && dmsData.status !== 'MONITORING');
+  const configReadOnly = isSavingGrace || Boolean(dmsData && dmsData.status !== 'MONITORING');
   const monitoringLockedMessage = lang === 'en'
     ? 'Monitoring is inactive; check-in and schedule changes are locked.'
     : 'DMS đã rời trạng thái theo dõi; xác nhận hoạt động và đổi chu kỳ đang khóa.';
@@ -596,8 +600,8 @@ export default function DMSOverviewPage({
             </svg>
           </div>
           <div className="lv-dms-triggered-content">
-            <h2 className="lv-dms-triggered-title">{t.triggeredAlertTitle}</h2>
-            <p className="lv-dms-triggered-desc">{t.triggeredAlertDesc}</p>
+            <h2 className="lv-dms-triggered-title">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'Grace period has ended' : 'Đã hết thời gian ân hạn') : t.triggeredAlertTitle}</h2>
+            <p className="lv-dms-triggered-desc">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'The record is awaiting verification. This status does not confirm death or unlock assets.' : 'Hồ sơ đang chờ xác minh. Trạng thái này chưa xác nhận tử vong và chưa mở khóa tài sản.') : t.triggeredAlertDesc}</p>
             <div className="lv-dms-triggered-actions-row">
               {dmsData.graceDeadline && (
                 <span className="lv-dms-triggered-deadline-tag">
@@ -605,7 +609,9 @@ export default function DMSOverviewPage({
                 </span>
               )}
               {/* PS-24: Owner Cancel Alert action */}
-              <OwnerCancelAlert
+              {accessToken && !onCancelAlert && canCancelAlert === undefined && !customCancelCapability ? <OwnerLiveCancelAlert
+                accessToken={accessToken} ownerId={ownerId} dmsStatus={dmsData.status} lang={lang} isOwner={isOwner}
+                onUnauthorized={onUnauthorized} onRefreshRequired={handleManualRetry} /> : <OwnerCancelAlert
                 lang={lang}
                 dmsStatus={dmsData.status}
                 canCancel={canCancelAlert}
@@ -624,7 +630,7 @@ export default function DMSOverviewPage({
                   }
                 }}
                 onUnauthorized={onUnauthorized}
-              />
+              />}
             </div>
           </div>
         </section>
@@ -687,7 +693,7 @@ export default function DMSOverviewPage({
                     type="button"
                     className={`lv-dms-checkin-btn ${cannotCheckIn ? 'is-disabled' : ''}`}
                     onClick={handleCheckIn}
-                    disabled={isCheckingIn || cannotCheckIn}
+                    disabled={isCheckingIn || isSavingGrace || cannotCheckIn}
                     maxOffset={3}
                     aria-label={t.checkInBtn}
                   >
@@ -914,6 +920,17 @@ export default function DMSOverviewPage({
               </div>
             </form>
           </section>
+          <DmsGraceSettings data={dmsData} actions={graceActions} ownerId={ownerId} accessToken={accessToken}
+            resetKey={`${refreshKey}:${onRefreshTrigger}`} lang={lang} isOwner={isOwner} onUnauthorized={onUnauthorized}
+            busy={isSaving || isCheckingIn || loading}
+            onBusyChange={value => {
+              if (value && (pendingSave.current || pendingCheckIn.current)) return false;
+              pendingSave.current = value;
+              ++fetchRequestId.current;
+              setIsSavingGrace(value);
+              return true;
+            }}
+            onSaved={value => setDmsData({ ...value, snapshotTimestamp: Date.now() })} />
 
         </div>
       )}

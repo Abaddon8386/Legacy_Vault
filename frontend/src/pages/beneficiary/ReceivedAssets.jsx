@@ -372,7 +372,7 @@ function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDe
   const [revision, setRevision] = useState(0);
   const subjectId = preview ? PREVIEW_SUBJECT : userId;
   return (
-    <section className="lv-received" aria-labelledby="received-assets-title">
+    <section className="lv-received lv-owner-card" aria-labelledby="received-assets-title">
       <header className={`lv-received__header ${hideTitle ? 'lv-received__header--concise' : ''}`}>
         {hideTitle ? (
           <h2 id="received-assets-title" className="lv-sr-only">{en ? 'Received assets' : 'Tài sản bạn đã nhận'}</h2>

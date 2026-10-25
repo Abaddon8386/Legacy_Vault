@@ -59,7 +59,7 @@
 
 .lv-shared-input {
   flex: 1;
-  min-width: 240px;
+  min-width: 0;
   padding: 10px 14px;
   font-size: 14px;
   border: 1px solid #ccd8cf;
@@ -67,6 +67,37 @@
   color: #1a332a;
   background: #fafcfa;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.lv-link-steps { padding-left: 24px; line-height: 1.8; margin: 16px 0 24px; color: #52685c; }
+.lv-link-heading, .lv-link-requests > li { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.lv-link-requests { list-style: none; margin: 0; padding: 0; }
+.lv-link-requests > li { padding: 18px 0; border-top: 1px solid #e0e6df; overflow-wrap: anywhere; }
+.lv-link-requests p { margin: 6px 0 0; color: #52685c; }
+.lv-shared-card .lv-feedback { margin-top: 16px; }
+.lv-shared-card > h2 { font-size: 21px; color: #234237; }
+.lv-shared-card { overflow-wrap: anywhere; }
+.lv-shared-view :is(h1, h2) { font-family: var(--lv-font-serif, Georgia, serif); }
+.lv-shared-view form { margin-top: 20px; }
+.lv-shared-view .lv-shared-input-row { margin-top: 8px; }
+.lv-shared-view #case-link-help { margin: 12px 0; }
+.lv-shared-view .lv-feedback {
+  --lv-status-info-bg: #f0f6f2;
+  --lv-status-info-text: #234237;
+  --lv-status-info-border: #c9dcd1;
+  --lv-status-error-bg: #fff1f0;
+  --lv-status-error-text: #a12525;
+  --lv-status-error-border: #f1c6c2;
+  --lv-status-success-bg: #eef8f0;
+  --lv-status-success-text: #255d3e;
+  --lv-status-success-border: #bcdcc8;
+  --lv-status-await-bg: #fff8e8;
+  --lv-status-await-text: #76541b;
+  --lv-status-await-border: #e8d4a7;
+  --lv-space-1: 4px;
+  --lv-space-3: 12px;
+  --lv-space-4: 16px;
+  --lv-radius-md: 12px;
 }
 
 .lv-shared-input:focus {

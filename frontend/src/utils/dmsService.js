@@ -485,7 +485,8 @@ export function readDms(raw, options = {}) {
       : validDays);
   if (!isUuid(raw?.ownerId) || (options.ownerId && raw.ownerId !== options.ownerId) ||
       !['MONITORING', 'TRIGGERED', 'GRACE_PERIOD_EXCEEDED'].includes(raw.status) || !validDuration ||
-      !Number.isSafeInteger(raw.gracePeriodDays) || raw.gracePeriodDays <= 0 || !isUtcDate(raw.nextCheckAt) ||
+      !Number.isSafeInteger(raw.gracePeriodDays) || raw.gracePeriodDays < 0 || raw.gracePeriodDays > 32767 || !isUtcDate(raw.nextCheckAt) ||
+      (raw.gracePeriodMinutes !== undefined && (!Number.isSafeInteger(raw.gracePeriodMinutes) || raw.gracePeriodMinutes < 0 || Math.floor(raw.gracePeriodMinutes / 1440) !== raw.gracePeriodDays)) ||
       ['lastCheckInAt', 'triggeredAt', 'graceDeadline', 'updatedAt'].some(key => raw[key] != null && !isUtcDate(raw[key]))) {
     throw new ApiError('INVALID_RESPONSE');
   }
@@ -506,6 +507,7 @@ export function readDms(raw, options = {}) {
     hours,
     minutes,
     gracePeriodDays: raw.gracePeriodDays,
+    ...(raw.gracePeriodMinutes !== undefined ? { gracePeriodMinutes: raw.gracePeriodMinutes } : {}),
     nextCheckAt: raw.nextCheckAt,
     lastCheckInAt: raw.lastCheckInAt ?? null,
     triggeredAt: raw.triggeredAt ?? null,
