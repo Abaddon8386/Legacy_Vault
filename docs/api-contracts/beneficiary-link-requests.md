@@ -10,7 +10,8 @@ Thay thế cách liên kết trực tiếp theo email của [beneficiary-account
    `POST /api/v1/beneficiary-link-requests {caseCode}` → `201 {requestId,status:"PENDING",createdAt,expiresAt}`.
    Chỉ tạo yêu cầu; không liên kết, không cấp quyền, không trả dữ liệu hồ sơ/kho/người nhận.
    Mã sai/không dùng được (không tồn tại, ca đóng/chưa nhận, sai năm, chủ kho, tài khoản nội bộ) → cùng một lỗi `422 BENEFICIARY_LINK_REQUEST_INVALID`.
-   Đã có yêu cầu chờ cho ca đó → `409 BENEFICIARY_LINK_REQUEST_ALREADY_PENDING`; quá 5 yêu cầu chờ → `429 BENEFICIARY_LINK_REQUEST_LIMIT`.
+   Đã có yêu cầu chờ cho ca đó → `409 BENEFICIARY_LINK_REQUEST_ALREADY_PENDING`; đã có 5 yêu cầu chờ còn hạn → `429 BENEFICIARY_LINK_REQUEST_LIMIT`.
+   Chỉ đếm `PENDING` có `expires_at > thời điểm gửi`; yêu cầu hết hạn (kể cả đúng thời điểm gửi) không chiếm hạn mức và vẫn giữ lịch sử.
    Hạn mặc định 7 ngày (`legacyvault.beneficiary.link-request-ttl-days`); yêu cầu quá hạn được đóng `EXPIRED` khi gửi lại.
 3. `GET /api/v1/beneficiary-link-requests` (của chính mình) và `POST /api/v1/beneficiary-link-requests/{requestId}/cancel`
    (yêu cầu của người khác → `404`; không còn `PENDING` → `409 BENEFICIARY_LINK_REQUEST_NOT_PENDING`).

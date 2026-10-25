@@ -166,11 +166,22 @@ class BeneficiaryLinkRequestServiceTest {
 
 	@Test
 	void tooManyPendingRequestsAreRejected() {
-		when(requests.countByRequesterUserIdAndStatus(ACCOUNT_ID, "PENDING"))
+		when(requests.countByRequesterUserIdAndStatusAndExpiresAtAfter(eq(ACCOUNT_ID), eq("PENDING"), any(LocalDateTime.class)))
 				.thenReturn((long) BeneficiaryLinkRequestService.MAX_PENDING_PER_ACCOUNT);
 
 		assertThat(error(() -> service.submit(ACCOUNT_ID, "HS-2026-000123")).getErrorCode())
 				.isEqualTo(ErrorCode.BENEFICIARY_LINK_REQUEST_LIMIT);
+	}
+
+	@Test
+	void limitCountsOnlyPendingRequestsStrictlyAfterTheSubmissionTime() {
+		when(requests.countByRequesterUserIdAndStatusAndExpiresAtAfter(eq(ACCOUNT_ID), eq("PENDING"), any(LocalDateTime.class)))
+				.thenReturn(4L);
+		var created = service.submit(ACCOUNT_ID, "HS-2026-000123");
+		var cutoff = org.mockito.ArgumentCaptor.forClass(LocalDateTime.class);
+		verify(requests).countByRequesterUserIdAndStatusAndExpiresAtAfter(eq(ACCOUNT_ID), eq("PENDING"), cutoff.capture());
+		assertThat(created.status()).isEqualTo("PENDING");
+		assertThat(created.expiresAt()).isEqualTo(cutoff.getValue().plusDays(7).toInstant(ZoneOffset.UTC));
 	}
 
 	@Test

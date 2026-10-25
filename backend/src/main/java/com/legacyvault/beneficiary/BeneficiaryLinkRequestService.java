@@ -80,7 +80,8 @@ public class BeneficiaryLinkRequestService {
 			existing.get().expire(now);
 			requests.saveAndFlush(existing.get());
 		}
-		if (requests.countByRequesterUserIdAndStatus(accountId, BeneficiaryLinkRequest.PENDING) >= MAX_PENDING_PER_ACCOUNT) {
+		if (requests.countByRequesterUserIdAndStatusAndExpiresAtAfter(accountId, BeneficiaryLinkRequest.PENDING, now)
+				>= MAX_PENDING_PER_ACCOUNT) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_LINK_REQUEST_LIMIT);
 		}
 		BeneficiaryLinkRequest created;

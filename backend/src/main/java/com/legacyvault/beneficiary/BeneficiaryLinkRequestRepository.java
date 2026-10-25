@@ -26,5 +26,6 @@ public interface BeneficiaryLinkRequestRepository extends JpaRepository<Benefici
 	Optional<BeneficiaryLinkRequest> findByRequesterUserIdAndVerificationCaseIdAndStatus(Long requesterUserId,
 			Long caseId, String status);
 
-	long countByRequesterUserIdAndStatus(Long requesterUserId, String status);
+	long countByRequesterUserIdAndStatusAndExpiresAtAfter(Long requesterUserId, String status,
+			java.time.LocalDateTime now);
 }

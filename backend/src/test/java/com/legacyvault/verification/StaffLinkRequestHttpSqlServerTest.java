@@ -238,6 +238,27 @@ class StaffLinkRequestHttpSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
+    void expiredPendingRequestsDoNotConsumeTheActiveRequestLimit() throws Exception {
+        var c = counter();
+        var p = person(c, "Expired requests");
+        for (int i = 0; i < 5; i++) {
+            var other = counter();
+            jdbc.update("INSERT dbo.beneficiary_link_requests(public_id,requester_user_id,verification_case_id,status,expires_at) VALUES (?,?,?,'PENDING',DATEADD(day,-1,SYSUTCDATETIME()))",
+                    UUID.randomUUID().toString(), p.userId(), other.fixture().caseId());
+        }
+        assertEquals("PENDING", requestStatus(submit(c, p)));
+        assertEquals(6, count("beneficiary_link_requests", "requester_user_id=? AND status='PENDING'", p.userId()));
+        // Expired rows remain available for history; five genuinely active requests still enforce the limit.
+        for (int i = 0; i < 4; i++) {
+            var other = counter();
+            submit(other, p);
+        }
+        var overLimit = counter();
+        callExpecting("POST", "/beneficiary-link-requests", Map.of("caseCode", overLimit.caseCode()), p.token(),
+                429, "BENEFICIARY_LINK_REQUEST_LIMIT");
+    }
+
+    @Test
     void failureWhileGrantingTheRole_leavesRequestPendingAndRecipientUnlinked() throws Exception {
         var c = counter();
         String recipient = verifiedRecipient(c, "Recipient Rollback");
