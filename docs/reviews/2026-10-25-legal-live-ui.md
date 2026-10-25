@@ -24,7 +24,9 @@ Nội dung hồ sơ dùng chữ 16px, hướng dẫn phụ 14px và mục tiêu 
 
 - **249/249** kiểm thử liên quan đạt: Legal, Admin, shared UI, case link, Shared with me và DMS. Bao gồm hồi quy phiên hết hạn không gọi API, metadata BE-02 và mã tham chiếu thu gọn có nút sao chép trong VI/EN.
 - ESLint các file JavaScript/JSX thay đổi đạt; production build đạt. Còn cảnh báo kích thước bundle ứng dụng lớn hơn 500 kB.
-- Kiểm tra CSS tĩnh: thứ tự DOM giữ nguyên, `min-width:0`, giới hạn khung chứa, wrap mã dài và bố cục co giãn. Nghiệm thu trực quan desktop/mobile, 320px, zoom 200%, RTL, pseudo-localization và bàn phím: **Not verified**; Chrome đang thu nhỏ nên công cụ chưa chụp được trang mới.
+- Kiểm tra CSS tĩnh: thứ tự DOM giữ nguyên, `min-width:0`, giới hạn khung chứa, wrap mã dài và bố cục co giãn. Nghiệm thu trực quan desktop/mobile, 320px, zoom 200%, RTL, pseudo-localization và bàn phím: **Not verified**.
+- Lượt kiểm tra Chrome sau khi người dùng mở lại cửa sổ: cây accessibility xác nhận URL `/legal/death-verification?lang=vi`, màn đăng nhập thật với email/mật khẩu và không còn toolbar DEV hoặc bộ chọn tình huống. Ảnh chụp của công cụ vẫn lấy cửa sổ khác; các lần khôi phục tiếp theo báo Chrome thu nhỏ. Vì vậy chỉ xác nhận điều hướng và nội dung từ accessibility, chưa xác nhận bố cục bằng hình ảnh.
+- Kiểm tra kết nối cùng lượt: cổng 8080 không nhận kết nối; proxy tại cổng 5197 trả HTTP 502 cho `/api/v1/auth/me`. Chưa có phiên Legal thật hoặc dữ liệu hồ sơ để nghiệm thu giao diện có đăng nhập.
 - Các kiểm thử FE sử dụng fixture HTTP theo contract. Đây không phải bằng chứng chạy nghiệp vụ trên backend/SQL Server thật.
 
 Lệnh kiểm tra từ `frontend`:
