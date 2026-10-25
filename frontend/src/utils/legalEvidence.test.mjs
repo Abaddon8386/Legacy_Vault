@@ -101,7 +101,7 @@ async function open(view, waitForContent = true) {
   const button = [...view.host.querySelectorAll('button')].find(item => item.textContent === 'Preview file');
   button.focus(); await act(async () => button.click());
   // WebCrypto digest finishes outside React's synchronous event queue.
-  for (let i = 0; waitForContent && i < 100 && view.host.querySelector('[role=dialog] [role=status]'); i++)
+  for (let i = 0; waitForContent && i < 100 && view.host.querySelector('[role=dialog] [role=status], .lv-legal-evidence-inline [role=status]'); i++)
     await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
   return button;
 }
@@ -179,7 +179,28 @@ test('basis preview uses version content directly without a fabricated attachmen
 });
 
 const Workflow = await component('src/pages/legal/LegalLiveWorkflow.jsx');
-for (const [kind, step] of [['death', 'death-verification'], ['original-will', 'will-document-verification'], ['basis', 'dossier-review']]) {
+test('desktop preview stays beside the workflow, switches to a mobile dialog and restores keyboard focus', async () => {
+  const previous = window.matchMedia;
+  let wide = true;
+  const listeners = new Set();
+  window.matchMedia = () => ({ matches: wide, addEventListener: (_name, callback) => listeners.add(callback), removeEventListener: (_name, callback) => listeners.delete(callback) });
+  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
+  const view = await mount({ ...base, inlineOnDesktop: true });
+  try {
+    const trigger = await open(view);
+    assert.equal(view.host.querySelector('[role=dialog]'), null);
+    assert.ok(view.host.querySelector('.lv-legal-evidence-inline iframe'));
+    assert.equal(document.activeElement, view.host.querySelector('.lv-legal-evidence-inline h4'));
+    await act(async () => { wide = false; for (const callback of listeners) callback(); });
+    assert.ok(view.host.querySelector('[role=dialog] iframe'));
+    assert.equal(created.length, 1, 'Resizing must reuse the authenticated file instead of fetching it again');
+    await act(async () => { wide = true; for (const callback of listeners) callback(); });
+    assert.equal(view.host.querySelector('[role=dialog]'), null);
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent === 'Close preview').click());
+    assert.deepEqual(revoked, ['blob:test-0']); assert.equal(document.activeElement, trigger);
+  } finally { await view.close(); window.matchMedia = previous; }
+});
+for (const [kind, step] of [['death', 'death-verification'], ['original-will', 'will-document-verification'], ['basis', 'dossier-review'], ['basis', 'approval-review'], ['basis', 'controlled-unlock']]) {
   test(`real Legal ${step} reads its files from PS-103; evidenceReference remains plain text`, async () => {
     const reference = 'https://not-a-file.example/evidence-reference';
     const vaultStatus = kind === 'death' ? 'AWAITING_VERIFICATION' : 'LEGAL_BASIS_VERIFICATION';
@@ -215,7 +236,7 @@ for (const [kind, step] of [['death', 'death-verification'], ['original-will', '
         await act(async () => props.onChange({ target: { value: subjectId } }));
       }
       assert.match(view.host.textContent, /https:\/\/not-a-file.example\/evidence-reference/);
-      assert.equal(view.host.querySelector('a'), null);
+      assert.equal([...view.host.querySelectorAll('a')].some(link => link.getAttribute('href') === reference), false);
       assert.equal(calls.some(url => url.endsWith('/content')), false, 'Reading metadata must not prefetch audited content');
       await open(view); assert.ok(view.host.querySelector('iframe'));
       assert.equal(calls.filter(url => url.endsWith('/content')).length, 1);

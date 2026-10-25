@@ -1,20 +1,38 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Eye, FileText } from 'lucide-react';
 import { Modal } from '../../components/common/Modal.jsx';
 import { listLegalEvidence, readLegalEvidence } from './legalEvidenceService.js';
 import { legalDate } from './legalPresentation.js';
+
+const previewQuery = '(min-width:1200px)';
+const subscribePreview = callback => {
+  const query = globalThis.window?.matchMedia?.(previewQuery);
+  query?.addEventListener('change', callback);
+  return () => query?.removeEventListener('change', callback);
+};
+const isWidePreview = () => globalThis.window?.matchMedia?.(previewQuery).matches || false;
+const noServerPreview = () => false;
 
 export default function LegalEvidenceFiles(props) {
   const { kind, caseId, subjectId, versionNo, accessToken } = props;
   return <EvidenceFiles key={`${kind}:${caseId}:${subjectId}:${versionNo}:${accessToken}`} {...props} />;
 }
 
-function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, lang, onUnauthorized, onDenied }) {
+function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, lang, onUnauthorized, onDenied, inlineOnDesktop = false }) {
   const en = lang === 'en';
+  const wide = useSyncExternalStore(subscribePreview, isWidePreview, noServerPreview);
+  const inlinePreview = inlineOnDesktop && wide;
   const [result, setResult] = useState(null), [attempt, setAttempt] = useState(0);
   const [preview, setPreview] = useState(null), [fileError, setFileError] = useState(null);
   const opened = useRef(null), request = useRef(null), busy = useRef(false);
   const previewTrigger = useRef(null);
+  const inlineTitle = useRef(null), wasInline = useRef(false);
+  const previewOpen = Boolean(preview);
+  useLayoutEffect(() => {
+    if (inlinePreview && previewOpen) inlineTitle.current?.focus();
+    else if (!previewOpen && wasInline.current) previewTrigger.current?.focus();
+    wasInline.current = inlinePreview && previewOpen;
+  }, [inlinePreview, previewOpen]);
   const callbacks = useRef({ onUnauthorized, onDenied });
   const locale = useRef(lang);
   useEffect(() => { callbacks.current = { onUnauthorized, onDenied }; locale.current = lang; }, [onUnauthorized, onDenied, lang]);
@@ -62,6 +80,12 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     ? (en ? 'The file is unavailable or has not been forwarded for Legal review.' : 'Tệp không khả dụng hoặc chưa được chuyển để Pháp lý thẩm định.')
     : [401, 403].includes(error.status) ? (en ? 'You do not have access to this file.' : 'Bạn không có quyền truy cập tệp này.')
     : (en ? 'Unable to load the file. Please retry.' : 'Không thể tải tệp. Vui lòng thử lại.');
+  const previewContent = preview && (!preview.url ? <p role="status">{en ? 'Loading file…' : 'Đang tải tệp…'}</p>
+    : <div className="lv-legal-evidence__preview">{preview.contentType === 'application/pdf'
+      ? <iframe src={preview.url} title={preview.fileName} sandbox="" referrerPolicy="no-referrer" />
+      : <img src={preview.url} alt={preview.fileName} />}
+      <a href={preview.url} download={preview.fileName} tabIndex={0}>{en ? 'Download file' : 'Tải tệp'}</a>
+    </div>);
   return <section className="lv-legal-evidence" aria-label={en ? 'Evidence files' : 'Tệp chứng cứ'}>
     <h3>{en ? 'Evidence files' : 'Tệp chứng cứ'}</h3>
     {kind !== 'basis' && !current && <p role="status">{en ? 'Loading files…' : 'Đang tải danh sách tệp…'}</p>}
@@ -73,13 +97,11 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
       </div>
       <button type="button" onClick={event => open(item, event.currentTarget)} disabled={Boolean(preview)}><Eye size={16} aria-hidden="true" />{en ? 'Preview file' : 'Xem tệp'}</button></div>)}
     {fileError && <p role="alert">{errorText(fileError)}</p>}
-    {preview && <Modal isOpen onClose={close} title={preview.fileName} closeLabel={en ? 'Close' : 'Đóng'} maxWidth="960px" returnFocusRef={previewTrigger}>
-      {!preview.url ? <p role="status">{en ? 'Loading file…' : 'Đang tải tệp…'}</p>
-        : <div className="lv-legal-evidence__preview">{preview.contentType === 'application/pdf'
-          ? <iframe src={preview.url} title={preview.fileName} sandbox="" referrerPolicy="no-referrer" />
-          : <img src={preview.url} alt={preview.fileName} />}
-          <a href={preview.url} download={preview.fileName} tabIndex={0}>{en ? 'Download file' : 'Tải tệp'}</a>
-        </div>}
-    </Modal>}
+    {preview && (inlinePreview ? <section className="lv-legal-evidence-inline" role="region" aria-label={preview.fileName}>
+      <header><h4 tabIndex={-1} ref={inlineTitle}>{preview.fileName}</h4><button type="button" onClick={close}>{en ? 'Close preview' : 'Đóng bản xem'}</button></header>
+      {previewContent}
+    </section> : <Modal isOpen onClose={close} title={preview.fileName} closeLabel={en ? 'Close' : 'Đóng'} maxWidth="960px" returnFocusRef={previewTrigger}>
+      {previewContent}
+    </Modal>)}
   </section>;
 }

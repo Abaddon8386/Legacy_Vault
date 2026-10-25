@@ -18,10 +18,18 @@ function reason(value, required = true) {
   return value?.trim() || '';
 }
 function actor(value, options) { return isUuid(value) && (!options.userId || options.userId === value); }
+function allocation(row) {
+  return isUuid(row?.assetId) && isUuid(row.beneficiaryId)
+    && ['description', 'assetName', 'assetType', 'recipientName', 'recipientRelationship'].every(key => row[key] == null || typeof row[key] === 'string')
+    && (row.recipientSource == null || ['OWNER_DESIGNATED', 'COURT_DOCUMENT'].includes(row.recipientSource))
+    && (row.sourceVersionNo == null || version(row.sourceVersionNo))
+    && (row.accountLinked === undefined || typeof row.accountLinked === 'boolean');
+}
 function dossier(value, caseId) {
   requireValue(value?.caseId === caseId && isUuid(value.id) && ['NOTARIAL', 'COURT', 'ON_HOLD'].includes(value.route)
     && text(value.status) && text(value.disputeStatus) && version(value.requiredVersion) && Array.isArray(value.versions)
-    && value.versions.every(item => version(item.version) && hash(item.sha256) && ['NOT_FORWARDED', 'FORWARDED'].includes(item.forwardStatus)));
+    && value.versions.every(item => version(item.version) && hash(item.sha256) && ['NOT_FORWARDED', 'FORWARDED'].includes(item.forwardStatus)
+      && (item.allocations == null || (Array.isArray(item.allocations) && item.allocations.every(allocation)))));
   return value;
 }
 export async function loadLegalDossier(caseId, options = {}) {
