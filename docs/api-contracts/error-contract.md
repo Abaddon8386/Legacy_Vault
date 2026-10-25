@@ -97,6 +97,7 @@ Lỗi validation:
 | `HANDOVER_RECEIPT_INVALID_STATE` | 409 | Session/Vault/legal workflow không cho phép lập receipt (PS-61) |
 | `HANDOVER_VAULT_NOT_UNLOCKED` | 409 | Vault không ở `UNLOCKED`/`HANDOVER_IN_PROGRESS` khi bàn giao (PS-66) |
 | `HANDOVER_RECIPIENT_NOT_ELIGIBLE` | 409 | Người nhận ngoài phạm vi Legal đã duyệt hoặc chưa `VERIFIED_AT_COUNTER` (PS-64, PS-65) |
+| `HANDOVER_RECIPIENT_ACCOUNT_REQUIRED` | 409 | Người nhận chưa có tài khoản chính thức được liên kết nên chưa giao mới được (BE-02, D-API-47); không ghi gì |
 | `HANDOVER_ASSET_NOT_ELIGIBLE` | 409 | Tài sản không thuộc phạm vi được duyệt cho người nhận (PS-65) |
 | `HANDOVER_ASSET_ALREADY_DELIVERED` | 409 | Dòng phân bổ này đã được bàn giao (PS-65) |
 | `BENEFICIARY_IDENTITY_NOT_VERIFIED` | 409 | Beneficiary chưa `VERIFIED_AT_COUNTER` nên chưa liên kết/tạo tài khoản (PS-62, PS-63) |

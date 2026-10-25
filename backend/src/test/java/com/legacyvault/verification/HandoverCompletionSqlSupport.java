@@ -26,9 +26,23 @@ abstract class HandoverCompletionSqlSupport extends LegalBasisSqlServerSupport {
         if(deliver) deliver(result);
         return result;
     }
+    /** BE-02: a new delivery needs the recipient's own linked account, so the fixture links one first (idempotent). */
     static void deliver(Ready r) {
+        ensureLinkedAccount(r);
+        deliverWithoutLinking(r);
+    }
+    static void deliverWithoutLinking(Ready r) {
         context.getBean(HandoverDeliveryService.class).deliver(r.f().publicCaseId(),r.session(),
             new HandoverDeliveryRequest(r.recipient(),List.of(r.asset())),r.f().legal());
+    }
+    static void ensureLinkedAccount(Ready r) {
+        String recipient=r.recipient().toString();
+        Long linked=jdbc.queryForObject("SELECT linked_user_id FROM dbo.beneficiaries WHERE public_id=?",Long.class,recipient);
+        if(linked!=null) return;
+        UUID account=UUID.randomUUID();
+        long userId=jdbc.queryForObject("INSERT dbo.users (public_id, full_name, email, password_hash, status) OUTPUT inserted.user_id VALUES (?, 'Linked recipient', ?, 'unused', 'ACTIVE')",
+            Long.class,account.toString(),account+"@example.test");
+        jdbc.update("UPDATE dbo.beneficiaries SET linked_user_id=?, account_status='ACCOUNT_CREATED' WHERE public_id=?",userId,recipient);
     }
     record Ready(Fixture f,UUID session,UUID recipient,UUID asset) {}
 }

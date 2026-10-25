@@ -53,6 +53,7 @@ public enum ErrorCode {
 	HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED(409, "error.handoverReceipt.recipientNotVerified"),
 	HANDOVER_VAULT_NOT_UNLOCKED(409, "error.handoverGuard.vaultNotUnlocked"),
 	HANDOVER_RECIPIENT_NOT_ELIGIBLE(409, "error.handoverGuard.recipientNotEligible"),
+	HANDOVER_RECIPIENT_ACCOUNT_REQUIRED(409, "error.handoverGuard.recipientAccountRequired"),
 	HANDOVER_ASSET_NOT_ELIGIBLE(409, "error.handoverGuard.assetNotEligible"),
 	HANDOVER_ASSET_ALREADY_DELIVERED(409, "error.handoverGuard.assetAlreadyDelivered"),
 	HANDOVER_RECEIPT_REISSUE_INVALID(409, "error.handoverReceipt.reissueInvalid"),

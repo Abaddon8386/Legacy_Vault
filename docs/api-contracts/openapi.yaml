@@ -4145,6 +4145,10 @@ components:
         deliveryStatus: { type: string, enum: [ELIGIBLE, DELIVERED] }
         assetName: { type: string, nullable: true }
         recipientName: { type: string, nullable: true }
+        recipientSource: { type: string, enum: [OWNER_DESIGNATED, COURT_DOCUMENT], nullable: true, description: "BE-02 (D-API-47). COURT_DOCUMENT = recipient named only by the Legal-reviewed court document." }
+        accountLinked: { type: boolean, description: "BE-02. true when the recipient has their own linked official account." }
+        deliverable: { type: boolean, description: "BE-02. false when this line is delivered already or blocked." }
+        blockedReason: { type: string, enum: [RECIPIENT_ACCOUNT_REQUIRED], nullable: true, description: "BE-02. Why a not-yet-delivered line cannot be delivered now." }
     HandoverDeliveryRequest:
       type: object
       required: [recipientId, assetIds]
@@ -4256,6 +4260,7 @@ components:
             - HANDOVER_RECEIPT_RECIPIENT_NOT_VERIFIED
             - HANDOVER_VAULT_NOT_UNLOCKED
             - HANDOVER_RECIPIENT_NOT_ELIGIBLE
+            - HANDOVER_RECIPIENT_ACCOUNT_REQUIRED
             - HANDOVER_ASSET_NOT_ELIGIBLE
             - HANDOVER_ASSET_ALREADY_DELIVERED
             - HANDOVER_COMPLETION_PENDING
@@ -4695,10 +4700,25 @@ components:
           items: { $ref: '#/components/schemas/AllocationResponse' }
     AllocationInput:
       type: object
-      required: [assetId, beneficiaryId]
+      required: [assetId]
+      description: |
+        BE-02 (D-API-47). Exactly one of beneficiaryId (recipient already in the Vault) or courtRecipient (recipient named
+        only by the court document; intake itself is COURT-route only since PS-102). Both or neither -> 400 VALIDATION_FAILED. The same
+        courtRecipient (name + identity number + date of birth) on several lines is created once.
       properties:
         assetId: { type: string, format: uuid }
-        beneficiaryId: { type: string, format: uuid }
+        beneficiaryId: { type: string, format: uuid, nullable: true }
+        courtRecipient:
+          type: object
+          nullable: true
+          required: [fullName]
+          properties:
+            fullName: { type: string, maxLength: 150 }
+            relationship: { type: string, maxLength: 100, nullable: true }
+            dateOfBirth: { type: string, format: date, nullable: true }
+            phone: { type: string, maxLength: 20, nullable: true }
+            email: { type: string, format: email, maxLength: 254, nullable: true }
+            identityNumber: { type: string, maxLength: 100, nullable: true, description: Encrypted server-side, never returned }
         description: { type: string, maxLength: 2000, nullable: true }
     AllocationResponse:
       type: object
@@ -4706,6 +4726,13 @@ components:
         assetId: { type: string, format: uuid }
         beneficiaryId: { type: string, format: uuid }
         description: { type: string, nullable: true }
+        assetName: { type: string, nullable: true }
+        assetType: { type: string, nullable: true }
+        recipientName: { type: string, nullable: true }
+        recipientRelationship: { type: string, nullable: true }
+        recipientSource: { type: string, enum: [OWNER_DESIGNATED, COURT_DOCUMENT], nullable: true }
+        sourceVersionNo: { type: integer, nullable: true, description: Version of the court document that named the recipient (COURT_DOCUMENT only) }
+        accountLinked: { type: boolean, description: Information only for Legal; never blocks approval }
     BasisDossierResponse:
       type: object
       properties:

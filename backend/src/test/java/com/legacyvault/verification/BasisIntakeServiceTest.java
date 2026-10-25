@@ -116,6 +116,7 @@ class BasisIntakeServiceTest {
             allocationRepository,
             assets,
             beneficiaries,
+            new com.legacyvault.beneficiary.IdentityNumberCipher(encryption),
             encryption,
             objectMapper,
             views,
@@ -351,6 +352,69 @@ class BasisIntakeServiceTest {
                         "ghi chú",
                         "van-ban"
                 );
+    }
+
+    private static com.legacyvault.beneficiary.BeneficiaryDtos.UpsertRequest courtRecipient(String name) {
+        return new com.legacyvault.beneficiary.BeneficiaryDtos.UpsertRequest(
+                name, "Cháu nội", LocalDate.of(1990, 5, 1), null, null, "079090000001");
+    }
+
+    private void stubBeneficiarySave() {
+        when(beneficiaries.saveAndFlush(any(Beneficiary.class))).thenAnswer(invocation -> {
+            Beneficiary saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 99L);
+            return saved;
+        });
+    }
+
+    /** BE-02 (ST-18, D-LEGAL-002): a recipient named only by the court is created once, tied to this version. */
+    @Test
+    void courtRoute_createsRecipientNamedOnlyByTheDocument_onceEvenWhenListedForSeveralAssets() {
+        happyPath("COURT");
+        stubBeneficiarySave();
+        when(versions.saveAndFlush(any(LegalBasisDossierVersion.class))).thenAnswer(invocation -> {
+            LegalBasisDossierVersion saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "dossierVersionId", 500L);
+            return saved;
+        });
+        UUID secondAsset = UUID.randomUUID();
+        Asset asset2 = new Asset(VAULT_ID, AssetType.TEXT, "Tài khoản 2", null);
+        ReflectionTestUtils.setField(asset2, "assetId", 32L);
+        when(assets.findByPublicIdAndVaultIdAndAssetTypeNot(secondAsset, VAULT_ID, AssetType.DOCUMENT))
+                .thenReturn(Optional.of(asset2));
+
+        service.intake(CASE_ID, staff, metadataWith(List.of(
+                new AllocationInput(ASSET_ID, null, "một", courtRecipient("Nguyễn Văn C")),
+                new AllocationInput(secondAsset, null, "hai", courtRecipient("  nguyễn văn c  ")))), pdf());
+
+        ArgumentCaptor<Beneficiary> created = ArgumentCaptor.forClass(Beneficiary.class);
+        verify(beneficiaries, org.mockito.Mockito.times(1)).saveAndFlush(created.capture());
+        assertThat(created.getValue().getOrigin()).isEqualTo(Beneficiary.ORIGIN_COURT_DOCUMENT);
+        assertThat(created.getValue().getFullName()).isEqualTo("Nguyễn Văn C");
+        assertThat(created.getValue().hasIdentityNumber()).isTrue();
+        assertThat(created.getValue().hasAccount()).isFalse();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<com.legacyvault.verification.entity.LegalBasisVersionAllocation>>
+                lines = ArgumentCaptor.forClass(List.class);
+        verify(allocationRepository).saveAll(lines.capture());
+        assertThat(lines.getValue()).hasSize(2);
+        assertThat(lines.getValue()).extracting(l -> l.getBeneficiaryId()).containsOnly(99L);
+    }
+
+    @Test
+    void exactlyOneKindOfRecipientIsRequiredPerLine() {
+        happyPath("COURT");
+
+        for (AllocationInput bad : List.of(
+                new AllocationInput(ASSET_ID, null, null, null),
+                new AllocationInput(ASSET_ID, BENEFICIARY_ID, null, courtRecipient("Nguyễn Văn C")))) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(
+                    () -> service.intake(CASE_ID, staff, metadataWith(List.of(bad)), pdf()))
+                    .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        }
+        verify(beneficiaries, org.mockito.Mockito.never()).saveAndFlush(any(Beneficiary.class));
+        verify(versions, org.mockito.Mockito.never()).saveAndFlush(any(LegalBasisDossierVersion.class));
     }
 
     @Test

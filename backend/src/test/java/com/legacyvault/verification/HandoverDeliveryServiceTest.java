@@ -64,7 +64,7 @@ class HandoverDeliveryServiceTest {
     private final HandoverSessionRepository sessions = mock(HandoverSessionRepository.class);
     private final VerificationCaseRepository cases = mock(VerificationCaseRepository.class);
     private final AuditService audit = mock(AuditService.class);
-    private final HandoverDeliveryService service = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit);
+    private final HandoverDeliveryService service = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit, true);
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, STAFF_PUBLIC, "staff@example.com");
     private final Vault vault = mock(Vault.class);
@@ -230,6 +230,56 @@ class HandoverDeliveryServiceTest {
         assertThat(result).extracting(EligibleHandoverAssetResponse::deliveryStatus)
                 .containsExactly(EligibleHandoverAssetResponse.ELIGIBLE, EligibleHandoverAssetResponse.DELIVERED);
         assertThat(result).extracting(EligibleHandoverAssetResponse::recipientId).containsOnly(RECIPIENT);
+    }
+
+    private static ScopeLine unlinkedCourtLine(long allocationId, UUID asset) {
+        return new ScopeLine(new ReceiptAllocationRow(2, allocationId, allocationId + 100, asset, 12L, RECIPIENT,
+                "VERIFIED_AT_COUNTER", "APPROVED", "note", "Asset", "Recipient C", null, "COURT_DOCUMENT"), false);
+    }
+
+    /** BE-02 (LV-HANDOVER-001): no new delivery before the recipient's own official account is linked. */
+    @Test
+    void recipientWithoutLinkedAccountIsRejected_andNothingIsSavedOrAudited() {
+        scopeLines(unlinkedCourtLine(1, ASSET_A), line(2, ASSET_B, false));
+
+        BusinessException ex = expect(() -> service.deliver(CASE_ID, SESSION_ID,
+                new HandoverDeliveryRequest(RECIPIENT, List.of(ASSET_A)), staff));
+
+        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.HANDOVER_RECIPIENT_ACCOUNT_REQUIRED);
+        verify(items, never()).saveAllAndFlush(anyIterable());
+        verify(vault, never()).markHandoverInProgress();
+        verifyNoInteractions(audit);
+    }
+
+    @Test
+    void eligibleAssetsExplainWhyAnUnlinkedRecipientCannotReceiveYet() {
+        when(scope.resolve(DOSSIER_ID, 2, null))
+                .thenReturn(List.of(unlinkedCourtLine(1, ASSET_A), line(2, ASSET_B, false)));
+
+        var result = service.eligibleAssets(CASE_ID, SESSION_ID, null, staff);
+
+        assertThat(result).extracting(EligibleHandoverAssetResponse::deliverable).containsExactly(false, true);
+        assertThat(result).extracting(EligibleHandoverAssetResponse::blockedReason)
+                .containsExactly(EligibleHandoverAssetResponse.BLOCKED_ACCOUNT_REQUIRED, null);
+        assertThat(result).extracting(EligibleHandoverAssetResponse::recipientSource)
+                .containsExactly("COURT_DOCUMENT", "OWNER_DESIGNATED");
+        assertThat(result).extracting(EligibleHandoverAssetResponse::accountLinked).containsExactly(false, true);
+    }
+
+    @Test
+    void flagOffRestoresTheOfflineRecipientBehaviour() {
+        HandoverDeliveryService lenient = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit, false);
+        scopeLines(unlinkedCourtLine(1, ASSET_A));
+        when(items.saveAllAndFlush(anyIterable())).thenAnswer(invocation -> {
+            List<HandoverItem> saved = (List<HandoverItem>) invocation.getArgument(0);
+            saved.forEach(item -> ReflectionTestUtils.setField(item, "publicId", UUID.randomUUID()));
+            return saved;
+        });
+        when(items.findRowsBySession(SESSION_DB_ID)).thenReturn(List.of());
+
+        lenient.deliver(CASE_ID, SESSION_ID, new HandoverDeliveryRequest(RECIPIENT, List.of(ASSET_A)), staff);
+
+        verify(items).saveAllAndFlush(anyIterable());
     }
 
     @Test

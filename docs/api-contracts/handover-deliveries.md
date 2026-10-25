@@ -70,6 +70,14 @@ Việc ghi là **tất cả hoặc không**: chỉ cần một tài sản không
 | Người nhận ngoài phạm vi duyệt hoặc chưa `VERIFIED_AT_COUNTER` | 409 | `HANDOVER_RECIPIENT_NOT_ELIGIBLE` |
 | Tài sản ngoài phạm vi được duyệt cho người nhận | 409 | `HANDOVER_ASSET_NOT_ELIGIBLE` |
 | Tài sản đã được giao (kể cả tranh chấp đồng thời) | 409 | `HANDOVER_ASSET_ALREADY_DELIVERED` |
+| Người nhận chưa có tài khoản chính thức được liên kết (BE-02, D-API-47) | 409 | `HANDOVER_RECIPIENT_ACCOUNT_REQUIRED` |
+
+### 4.1 Người nhận theo văn bản Tòa án (BE-02, D-API-47 — đề xuất, chưa được nhóm chốt)
+
+- `GET .../eligible-assets` bổ sung `recipientSource` (`OWNER_DESIGNATED` | `COURT_DOCUMENT`), `accountLinked`, `deliverable`, `blockedReason` (`RECIPIENT_ACCOUNT_REQUIRED` | null). Dòng đã giao có `deliverable=false`, `blockedReason=null`.
+- Người nhận chưa liên kết tài khoản **không** làm Legal bị chặn ký duyệt, nhưng **không** được giao mới; người nhận khác đủ điều kiện vẫn giao bình thường. Kiểm tra nằm trong cùng giao dịch ghi, trước khi tạo hạng mục.
+- Cờ cấu hình `legacyvault.handover.require-linked-account` (mặc định `true`). `false` trả về hành vi "người nhận ngoại tuyến" của D-API-38; chỉ dùng khi nhóm quyết định.
+- Người nhận chỉ có tên trong văn bản (C) được tạo ở ST-18 (`POST .../basis-dossier/versions`, `allocations[].courtRecipient`, chỉ nhánh `COURT`), lưu `beneficiaries.origin='COURT_DOCUMENT'` + `origin_dossier_version_id` (migration `V50__beneficiary_court_origin.sql`). Người trong danh sách Owner nhưng không có tên trong văn bản (B) không có quyền nhận.
 
 ## 5. Audit, khóa và dữ liệu
 

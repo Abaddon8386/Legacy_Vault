@@ -270,17 +270,18 @@ class StaffCounterInvitationSqlServerTest extends HandoverCompletionSqlSupport {
     }
 
     @Test
-    void handoverWithoutAnyAccountOrInvitationStillWorksAndEmailNeverReplacesIt() {
+    void handoverWithoutAnyAccountIsRefusedAndAnInvitationEmailNeverReplacesTheLinkedAccount() {
+        // BE-02 (D-API-47) supersedes D-API-38 "offline recipient": no new delivery before the recipient's own account is linked.
         var c = ctx();
         assertEquals(0, invitationRows(c));
 
         // The handover session was opened by the fixture Staff; hand the case back to them for the delivery.
         jdbc.update("UPDATE dbo.verification_cases SET assigned_staff_user_id=? WHERE verification_case_id=?",
                 c.ready().f().userId(), c.ready().f().caseId());
-        deliver(c.ready());
+        BusinessException refused = assertThrows(BusinessException.class, () -> deliverWithoutLinking(c.ready()));
 
-        assertEquals(1, count("handover_items", "status IN ('DELIVERED','VERIFIED_BY_BENEFICIARY')"
-                + " AND handover_session_id IN (SELECT handover_session_id FROM dbo.handover_sessions WHERE public_id=?)",
+        assertEquals(ErrorCode.HANDOVER_RECIPIENT_ACCOUNT_REQUIRED, refused.getErrorCode());
+        assertEquals(0, count("handover_items", "handover_session_id IN (SELECT handover_session_id FROM dbo.handover_sessions WHERE public_id=?)",
                 c.ready().session()));
         assertEquals(0, invitationRows(c));
         assertEquals(0, outboxRows(c));

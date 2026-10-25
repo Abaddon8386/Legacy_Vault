@@ -8,7 +8,10 @@ import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
+import com.legacyvault.beneficiary.Beneficiary;
+import com.legacyvault.beneficiary.BeneficiaryDtos;
 import com.legacyvault.beneficiary.BeneficiaryRepository;
+import com.legacyvault.beneficiary.IdentityNumberCipher;
 import com.legacyvault.common.crypto.EncryptionService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
@@ -34,8 +37,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -66,6 +71,7 @@ public class BasisIntakeService {
     private final LegalBasisVersionAllocationRepository allocations;
     private final AssetRepository assets;
     private final BeneficiaryRepository beneficiaries;
+    private final IdentityNumberCipher identityCipher;
     private final EncryptionService encryption;
     private final ObjectMapper objectMapper;
     private final BasisDossierViewService views;
@@ -82,6 +88,7 @@ public class BasisIntakeService {
             LegalBasisVersionAllocationRepository allocations,
             AssetRepository assets,
             BeneficiaryRepository beneficiaries,
+            IdentityNumberCipher identityCipher,
             EncryptionService encryption,
             ObjectMapper objectMapper,
             BasisDossierViewService views,
@@ -98,6 +105,7 @@ public class BasisIntakeService {
         this.allocations = allocations;
         this.assets = assets;
         this.beneficiaries = beneficiaries;
+        this.identityCipher = identityCipher;
         this.encryption = encryption;
         this.objectMapper = objectMapper;
         this.views = views;
@@ -181,7 +189,7 @@ public class BasisIntakeService {
          */
         requireTypeMatchesRoute(metadata, dossier);
 
-        List<long[]> scope = resolveScope(metadata, vault.getVaultId());
+        List<ScopeLine> scope = resolveScope(metadata, vault.getVaultId(), dossier.getRoute());
 
         WillFile scan = WillFile.inspect(file, maxFileBytes);
 
@@ -225,13 +233,30 @@ public class BasisIntakeService {
          */
         List<LegalBasisVersionAllocation> lines = new ArrayList<>();
 
+        /*
+         * BE-02: người chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch này, gắn đúng phiên bản vừa lưu.
+         * Cùng một người ở nhiều dòng chỉ tạo một lần.
+         */
+        Map<String, Beneficiary> courtRecipients = new HashMap<>();
+
         for (int i = 0; i < scope.size(); i++) {
+            ScopeLine line = scope.get(i);
             AllocationInput input = metadata.allocations().get(i);
+
+            Long beneficiaryId = line.beneficiaryId();
+            if (beneficiaryId == null) {
+                Beneficiary recipient = courtRecipients.get(line.courtKey());
+                if (recipient == null) {
+                    recipient = createCourtRecipient(vault, saved.getDossierVersionId(), line.court());
+                    courtRecipients.put(line.courtKey(), recipient);
+                }
+                beneficiaryId = recipient.getId();
+            }
 
             lines.add(new LegalBasisVersionAllocation(
                     saved.getDossierVersionId(),
-                    scope.get(i)[0],
-                    scope.get(i)[1],
+                    line.assetId(),
+                    beneficiaryId,
                     normalize(input.description())
             ));
         }
@@ -266,7 +291,10 @@ public class BasisIntakeService {
                         "legalBasisType", metadata.legalBasisType(),
                         "sha256", saved.getSha256Hash(),
                         "sizeBytes", scan.size(),
-                        "allocationCount", lines.size()
+                        "allocationCount", lines.size(),
+                        "courtRecipientCount", courtRecipients.size(),
+                        "courtRecipientIds", courtRecipients.values().stream()
+                                .map(recipient -> recipient.getPublicId().toString()).sorted().toList()
                 ),
                 STEP_ID,
                 RULE_ID
@@ -301,9 +329,10 @@ public class BasisIntakeService {
      * Mỗi dòng phải tham chiếu tài sản và beneficiary thuộc cùng Vault;
      * không cho phép trùng cặp asset-beneficiary.
      */
-    private List<long[]> resolveScope(
+    private List<ScopeLine> resolveScope(
             BasisIntakeMetadata metadata,
-            Long vaultId
+            Long vaultId,
+            String route
     ) {
         List<AllocationInput> inputs = metadata.allocations();
 
@@ -311,17 +340,29 @@ public class BasisIntakeService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
-        List<long[]> scope = new ArrayList<>();
+        List<ScopeLine> scope = new ArrayList<>();
         Set<String> seen = new HashSet<>();
 
         for (AllocationInput input : inputs) {
-            if (input == null
-                    || input.assetId() == null
-                    || input.beneficiaryId() == null) {
+            if (input == null || input.assetId() == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED);
             }
 
-            if (!seen.add(input.assetId() + "|" + input.beneficiaryId())) {
+            /*
+             * BE-02: đúng một trong hai — người đã có trong kho hoặc người chỉ có tên trong văn bản Tòa án.
+             * Người tạo từ văn bản chỉ hợp lệ ở nhánh COURT (D-LEGAL-002); nhánh công chứng không tự thêm người nhận.
+             */
+            boolean existing = input.beneficiaryId() != null;
+            boolean fromCourt = input.courtRecipient() != null;
+
+            if (existing == fromCourt
+                    || (fromCourt && !LegalBasisDossier.ROUTE_COURT.equals(route))) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+            }
+
+            String recipientKey = existing ? input.beneficiaryId().toString() : courtKey(input.courtRecipient());
+
+            if (!seen.add(input.assetId() + "|" + recipientKey)) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED);
             }
 
@@ -335,19 +376,66 @@ public class BasisIntakeService {
                             new BusinessException(ErrorCode.VALIDATION_FAILED))
                     .getAssetId();
 
-            Long beneficiaryId = beneficiaries
-                    .findByPublicIdAndVault_VaultId(
-                            input.beneficiaryId(),
-                            vaultId
-                    )
-                    .orElseThrow(() ->
-                            new BusinessException(ErrorCode.VALIDATION_FAILED))
-                    .getId();
+            if (existing) {
+                Long beneficiaryId = beneficiaries
+                        .findByPublicIdAndVault_VaultId(
+                                input.beneficiaryId(),
+                                vaultId
+                        )
+                        .orElseThrow(() ->
+                                new BusinessException(ErrorCode.VALIDATION_FAILED))
+                        .getId();
 
-            scope.add(new long[]{assetId, beneficiaryId});
+                scope.add(new ScopeLine(assetId, beneficiaryId, null, null));
+            } else {
+                scope.add(new ScopeLine(assetId, null, recipientKey, input.courtRecipient()));
+            }
         }
 
         return scope;
+    }
+
+    /** Một dòng phạm vi đã kiểm tra: người nhận có sẵn ({@code beneficiaryId}) hoặc người sẽ tạo từ văn bản. */
+    private record ScopeLine(
+            Long assetId,
+            Long beneficiaryId,
+            String courtKey,
+            BeneficiaryDtos.UpsertRequest court
+    ) {
+    }
+
+    /** Cùng họ tên + số giấy tờ + ngày sinh trong một phiên bản được coi là cùng một người nhận. */
+    private static String courtKey(BeneficiaryDtos.UpsertRequest court) {
+        String name = normalize(court.fullName());
+        if (name == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        String identity = normalize(court.identityNumber());
+        return "court:" + name.toLowerCase(Locale.ROOT)
+                + "|" + (identity == null ? "" : identity)
+                + "|" + (court.dateOfBirth() == null ? "" : court.dateOfBirth());
+    }
+
+    private Beneficiary createCourtRecipient(
+            Vault vault,
+            Long dossierVersionId,
+            BeneficiaryDtos.UpsertRequest court
+    ) {
+        UUID publicId = UUID.randomUUID();
+        String identity = normalize(court.identityNumber());
+        String email = normalize(court.email());
+
+        return beneficiaries.saveAndFlush(Beneficiary.fromCourtDocument(
+                publicId,
+                vault,
+                dossierVersionId,
+                normalize(court.fullName()),
+                normalize(court.relationship()),
+                court.dateOfBirth(),
+                normalize(court.phone()),
+                email == null ? null : email.toLowerCase(Locale.ROOT),
+                identity == null ? null : identityCipher.encrypt(identity, publicId)
+        ));
     }
 
     /**
