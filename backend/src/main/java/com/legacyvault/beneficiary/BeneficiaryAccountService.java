@@ -138,7 +138,7 @@ public class BeneficiaryAccountService {
 		return beneficiary;
 	}
 
-	private void requireUnlinkedVerified(Beneficiary beneficiary) {
+	void requireUnlinkedVerified(Beneficiary beneficiary) {
 		if (!Beneficiary.VERIFIED_AT_COUNTER.equals(beneficiary.getIdentityVerificationStatus())) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_IDENTITY_NOT_VERIFIED);
 		}
@@ -147,7 +147,7 @@ public class BeneficiaryAccountService {
 		}
 	}
 
-	private void requireEligible(Beneficiary beneficiary, User account) {
+	void requireEligible(Beneficiary beneficiary, User account) {
 		Long vaultId = beneficiary.getVault().getVaultId();
 		boolean usable = "ACTIVE".equals(account.getStatus()) && account.getDeletedAt() == null;
 		boolean ownerOfVault = account.getUserId().equals(beneficiary.getVault().getOwnerUserId());
@@ -160,7 +160,7 @@ public class BeneficiaryAccountService {
 		}
 	}
 
-	private void attach(Beneficiary beneficiary, User account, User actor, AuditAction action) {
+	void attach(Beneficiary beneficiary, User account, User actor, AuditAction action) {
 		boolean hasBeneficiaryRole = userRoles.findByUserIdWithRole(account.getUserId()).stream()
 				.map(UserRole::getRole).map(Role::getRoleCode).anyMatch(BENEFICIARY_ROLE::equals);
 		if (!hasBeneficiaryRole) {

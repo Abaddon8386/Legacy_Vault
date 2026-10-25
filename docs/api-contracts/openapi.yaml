@@ -3007,6 +3007,184 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/staff/verification-cases/{caseId}/accounts:
+    post:
+      tags: [Staff, Beneficiaries]
+      summary: Staff tạo tài khoản chưa liên kết tại quầy (BE-01)
+      description: |
+        Requires ROLE_STAFF_EXECUTOR and an OPEN verification case assigned to the actor (otherwise 404). Creates an
+        ACTIVE account with the password chosen by the person (BCrypt hash only; never logged or audited). The account
+        is NOT linked to any recipient and receives no ROLE_BENEFICIARY. An email that already has an account is
+        rejected with 409 EMAIL_ALREADY_EXISTS and is never reused or linked. Audits BENEFICIARY_ACCOUNT_CREATED_UNLINKED.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffCreateUnlinkedAccountRequest' }
+      responses:
+        '201':
+          description: Account created, not linked
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffCreatedUnlinkedAccount' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/beneficiary-link-requests:
+    post:
+      tags: [Beneficiaries]
+      summary: Người nhận gửi yêu cầu liên kết bằng mã hồ sơ (BE-01)
+      description: |
+        Any authenticated active account may call it (ROLE_BENEFICIARY is not required). Only creates a PENDING request;
+        it never links the account, grants a role, or returns case, vault or recipient data. The code is the case
+        reference HS-yyyy-nnnnnn. Every unusable code (malformed, unknown, wrong year, case closed or not yet taken by
+        Staff, caller owns the vault, caller holds Staff/Legal/Admin authority) returns the same 422
+        BENEFICIARY_LINK_REQUEST_INVALID. A second PENDING request for the same case is 409
+        BENEFICIARY_LINK_REQUEST_ALREADY_PENDING; more than 5 PENDING requests is 429 BENEFICIARY_LINK_REQUEST_LIMIT.
+        Requests expire after legacyvault.beneficiary.link-request-ttl-days (default 7); an expired PENDING request is
+        closed as EXPIRED when the account submits again.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkRequestSubmit' }
+      responses:
+        '201':
+          description: Request recorded as PENDING
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkRequestMine' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422':
+          description: BENEFICIARY_LINK_REQUEST_INVALID — generic for every unusable code
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429':
+          description: BENEFICIARY_LINK_REQUEST_LIMIT — too many PENDING requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    get:
+      tags: [Beneficiaries]
+      summary: Danh sách yêu cầu liên kết của chính tôi (BE-01)
+      description: Returns only the caller's own requests, newest first. A PENDING request past its deadline is reported as EXPIRED. Carries no case or recipient data.
+      x-status: implemented
+      responses:
+        '200':
+          description: Own link requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LinkRequestMine' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/beneficiary-link-requests/{requestId}/cancel:
+    post:
+      tags: [Beneficiaries]
+      summary: Người nhận hủy yêu cầu liên kết đang chờ (BE-01)
+      description: A request owned by another account is 404 RESOURCE_NOT_FOUND. A request that is no longer PENDING (decided, cancelled or expired) is 409 BENEFICIARY_LINK_REQUEST_NOT_PENDING.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/LinkRequestId'
+      responses:
+        '200':
+          description: Request cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkRequestMine' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/link-requests:
+    get:
+      tags: [Staff, Beneficiaries]
+      summary: Staff xem yêu cầu liên kết còn hạn của hồ sơ (BE-01)
+      description: Requires ROLE_STAFF_EXECUTOR and an OPEN case assigned to the actor (otherwise 404). Lists PENDING, unexpired requests with the requester name and email so Staff can compare them with the person at the counter.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LinkRequestStaffItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/link-requests/{requestId}/approve:
+    post:
+      tags: [Staff, Beneficiaries]
+      summary: Staff xác nhận yêu cầu và liên kết với recipient (BE-01)
+      description: |
+        Requires ROLE_STAFF_EXECUTOR and an OPEN case assigned to the actor. The body names only the recipient; the
+        account is always the stored requester of the request, so any account or email hint in the body is ignored.
+        The recipient must be VERIFIED_AT_COUNTER and not yet linked, and the account must be eligible (same rules as
+        PS-62). One transaction: request APPROVED, linked_user_id set, ROLE_BENEFICIARY granted, pending invitation
+        revoked, audit BENEFICIARY_ACCOUNT_LINKED and BENEFICIARY_LINK_REQUEST_APPROVED. When two requests race for one
+        recipient only one succeeds; the other gets 409 BENEFICIARY_ACCOUNT_ALREADY_LINKED and stays PENDING.
+        409 codes: BENEFICIARY_LINK_REQUEST_NOT_PENDING, BENEFICIARY_IDENTITY_NOT_VERIFIED,
+        BENEFICIARY_ACCOUNT_ALREADY_LINKED, BENEFICIARY_ACCOUNT_INELIGIBLE. Linking grants no access to undelivered assets.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/LinkRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkRequestApprove' }
+      responses:
+        '200':
+          description: Request approved and account linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkRequestDecision' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/link-requests/{requestId}/reject:
+    post:
+      tags: [Staff, Beneficiaries]
+      summary: Staff từ chối yêu cầu liên kết (BE-01)
+      description: No body. Never links an account or grants a role. A request that is no longer PENDING is 409 BENEFICIARY_LINK_REQUEST_NOT_PENDING.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/LinkRequestId'
+      responses:
+        '200':
+          description: Request rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkRequestDecision' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /api/v1/staff/beneficiaries/{beneficiaryId}/account-link:
     post:
       tags: [Staff]
@@ -3019,6 +3197,7 @@ paths:
         409 BENEFICIARY_ACCOUNT_INELIGIBLE when the account is inactive/deleted, is the Vault Owner, holds
         Staff/Legal/Admin authority, or is already linked to another Beneficiary of the same Vault. No Guest Portal,
         claim link or email OTP.
+        Since BE-01 this route answers 410 BENEFICIARY_LEGACY_LINK_DISABLED unless legacyvault.beneficiary.legacy-counter-link-enabled=true (default false; temporary until the FE moves to link requests).
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -3038,6 +3217,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '410': { $ref: '#/components/responses/LegacyLinkDisabled' }
 
   /api/v1/staff/beneficiaries/{beneficiaryId}/account:
     post:
@@ -3048,6 +3228,7 @@ paths:
         the Beneficiary at the counter, never stored or logged in clear) holding only ROLE_BENEFICIARY, with the
         full name taken from the Beneficiary record, then links it and audits BENEFICIARY_ACCOUNT_CREATED (ST-24).
         409 EMAIL_ALREADY_EXISTS when the email is taken (use account-link for an existing account).
+        Since BE-01 this route answers 410 BENEFICIARY_LEGACY_LINK_DISABLED unless legacyvault.beneficiary.legacy-counter-link-enabled=true (default false; temporary until the FE moves to link requests).
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/BeneficiaryId'
@@ -3067,6 +3248,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '410': { $ref: '#/components/responses/LegacyLinkDisabled' }
 
   /api/v1/staff/beneficiaries/{beneficiaryId}/identity-verifications:
     post:
@@ -3661,6 +3843,17 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      description: Public UUID of the verification case
+      schema: { type: string, format: uuid }
+    LinkRequestId:
+      name: requestId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     Page:
       name: page
       in: query
@@ -3673,6 +3866,11 @@ components:
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
 
   responses:
+    LegacyLinkDisabled:
+      description: BENEFICIARY_LEGACY_LINK_DISABLED — direct email linking is retired (BE-01)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
     RecoveryRateLimited:
       description: RATE_LIMITED; only IP/credential limits are exposed
       headers:
@@ -4269,6 +4467,11 @@ components:
             - BENEFICIARY_IDENTITY_NOT_VERIFIED
             - BENEFICIARY_ACCOUNT_ALREADY_LINKED
             - BENEFICIARY_ACCOUNT_INELIGIBLE
+            - BENEFICIARY_LINK_REQUEST_INVALID
+            - BENEFICIARY_LINK_REQUEST_ALREADY_PENDING
+            - BENEFICIARY_LINK_REQUEST_LIMIT
+            - BENEFICIARY_LINK_REQUEST_NOT_PENDING
+            - BENEFICIARY_LEGACY_LINK_DISABLED
             - BENEFICIARY_INVITATION_ALREADY_EXISTS
             - BENEFICIARY_INVITATION_ALREADY_USED
             - BENEFICIARY_INVITATION_STALE
@@ -4941,6 +5144,56 @@ components:
         accountId: { type: string, format: uuid, description: ID công khai của tài khoản }
         accountStatus: { type: string, enum: [ACCOUNT_CREATED] }
         identityVerificationStatus: { type: string, enum: [VERIFIED_AT_COUNTER] }
+    StaffCreateUnlinkedAccountRequest:
+      type: object
+      required: [email, fullName, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        fullName: { type: string, maxLength: 150 }
+        password: { type: string, minLength: 8, maxLength: 72, writeOnly: true }
+        phone: { type: string, pattern: '^$|^\+?[0-9]{8,15}$', nullable: true }
+    StaffCreatedUnlinkedAccount:
+      type: object
+      required: [accountId, linkStatus]
+      properties:
+        accountId: { type: string, format: uuid }
+        linkStatus: { type: string, enum: [UNLINKED] }
+    LinkRequestSubmit:
+      type: object
+      required: [caseCode]
+      properties:
+        caseCode: { type: string, maxLength: 30, example: HS-2026-000123 }
+    LinkRequestMine:
+      type: object
+      required: [requestId, status, createdAt, expiresAt]
+      properties:
+        requestId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED, EXPIRED] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    LinkRequestStaffItem:
+      type: object
+      required: [requestId, status, requesterName, requesterEmail, createdAt, expiresAt]
+      properties:
+        requestId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING] }
+        requesterName: { type: string }
+        requesterEmail: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    LinkRequestApprove:
+      type: object
+      required: [beneficiaryId]
+      properties:
+        beneficiaryId: { type: string, format: uuid, description: 'Recipient of the case vault to link. The account is never taken from the request body.' }
+    LinkRequestDecision:
+      type: object
+      required: [requestId, status]
+      properties:
+        requestId: { type: string, format: uuid }
+        status: { type: string, enum: [APPROVED, REJECTED] }
+        beneficiaryId: { type: string, format: uuid, nullable: true, description: Present only when APPROVED }
+        accountId: { type: string, format: uuid, nullable: true, description: Present only when APPROVED }
     IdentityVerificationRequest:
       type: object
       required: [documentType, result]

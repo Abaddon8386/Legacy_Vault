@@ -187,3 +187,12 @@ PS-113: `BENEFICIARY_GUARDIAN_STALE` — HTTP 409, reload guardian context/revis
 ## PS-112 recovery
 
 400 RECOVERY_INVALID normalizes invalid/expired/used/revoked/ineligible credentials; 400 PASSWORD_POLICY is shared password policy rejection. DTO validation remains VALIDATION_FAILED (password field maps to FE PASSWORD_POLICY). 429 RATE_LIMITED has Retry-After:900; 503 RECOVERY_UNAVAILABLE covers missing email configuration or infrastructure failure without account-specific provider errors. No token/password/account status is echoed. See password-recovery.md.
+
+## BE-01 link requests
+| Code | HTTP |
+|---|---|
+| `BENEFICIARY_LINK_REQUEST_INVALID` | 422 |
+| `BENEFICIARY_LINK_REQUEST_ALREADY_PENDING` | 409 |
+| `BENEFICIARY_LINK_REQUEST_LIMIT` | 429 |
+| `BENEFICIARY_LINK_REQUEST_NOT_PENDING` | 409 |
+| `BENEFICIARY_LEGACY_LINK_DISABLED` | 410 |

@@ -44,7 +44,8 @@ abstract class LegalBasisSqlServerSupport {
                         String name = TaskManagementConfigUtils.SCHEDULED_ANNOTATION_PROCESSOR_BEAN_NAME;
                         if (registry.containsBeanDefinition(name)) registry.removeBeanDefinition(name);
                     })).run("--spring.datasource.url=" + masterUrl.replace("databaseName=master;", "databaseName=" + database + ";"),
-                            "--server.port=0", "--legacyvault.jwt.secret=" + key, "--legacyvault.encryption.key=" + key,
+                            "--server.port=0", "--legacyvault.beneficiary.legacy-counter-link-enabled=true",
+                            "--legacyvault.jwt.secret=" + key, "--legacyvault.encryption.key=" + key,
                             "--logging.level.root=ERROR", "--logging.level.org.springframework.security=ERROR",
                             "--logging.level.org.flywaydb=ERROR");
             jdbc = context.getBean(JdbcTemplate.class);

@@ -28,7 +28,8 @@ import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.user.repository.UserRoleRepository;
 
 /** PS-62 / PS-63: HTTP contract of /staff/beneficiaries/{id}/account-link and /account. */
-@WebMvcTest(StaffBeneficiaryAccountController.class)
+@WebMvcTest(value = StaffBeneficiaryAccountController.class,
+		properties = "legacyvault.beneficiary.legacy-counter-link-enabled=true")
 @WebContractTestConfig
 class StaffBeneficiaryAccountControllerTest {
 
