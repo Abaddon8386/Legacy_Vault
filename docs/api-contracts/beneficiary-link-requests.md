@@ -31,3 +31,14 @@ Migration `V52__beneficiary_link_requests.sql` (additive).
 `POST /api/v1/staff/beneficiaries/{id}/account-link` và `/account` (liên kết theo email do client gửi) trả `410 BENEFICIARY_LEGACY_LINK_DISABLED`
 trừ khi `legacyvault.beneficiary.legacy-counter-link-enabled=true` (mặc định `false`). Liên kết hiện có và lịch sử giữ nguyên.
 Redeem mã mời PS-87/PS-106 giữ nguyên (đã ràng buộc email do Staff xác nhận tại quầy). Liên kết account không cấp quyền đọc tài sản chưa bàn giao.
+
+## Demo/dev: bật tạm API cũ trong lúc chờ FE-01
+Giao diện Staff hiện tại (`BeneficiaryAccountPage.jsx`, `LegacyCounterBeneficiariesSection.jsx` qua `beneficiaryAccountService.js`) vẫn gọi
+`/staff/beneficiaries/{id}/account-link` và `/account`, nên sẽ nhận `410` cho tới khi FE-01 chuyển sang luồng yêu cầu liên kết.
+Mặc định (kể cả production) giữ **tắt**. Chỉ môi trường demo/dev cục bộ mới bật, bằng đúng một trong các cách:
+- `./mvnw spring-boot:run "-Dspring-boot.run.arguments=--legacyvault.beneficiary.legacy-counter-link-enabled=true"`
+- `java -jar app.jar --legacyvault.beneficiary.legacy-counter-link-enabled=true`
+- biến môi trường `SPRING_APPLICATION_JSON='{"legacyvault":{"beneficiary":{"legacy-counter-link-enabled":true}}}'`
+
+Không đưa cờ này vào `application.yaml` hay cấu hình triển khai dùng chung. Cờ chỉ mở lại hai route cũ; luồng mới (`/link-requests`) vẫn luôn yêu cầu Staff xác nhận.
+Gỡ cờ khi FE-01 xong.
