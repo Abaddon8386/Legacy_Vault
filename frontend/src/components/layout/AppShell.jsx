@@ -3,7 +3,6 @@ import { trackOwnerSurface } from './ownerSurfaceMotion.js';
 import './OwnerSurfaces.css';
 import LanguageToggle from '../common/LanguageToggle.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import MagneticButton from '../common/MagneticButton.jsx';
 import {
   resolveAppShellAuthState,
   resolveUserRoleLabel,
@@ -101,8 +100,8 @@ export default function AppShell({
   currentTab = 'vault',
   onNavigateTab,
   onLogout,
-  onRefresh,
-  isRefreshing = false,
+  onRefresh: _onRefresh, // eslint-disable-line no-unused-vars
+  isRefreshing: _isRefreshing = false, // eslint-disable-line no-unused-vars
   lang = 'vi',
   onToggleLang,
   role = 'OWNER',
@@ -882,23 +881,6 @@ export default function AppShell({
                 </svg>
                 <span className="lv-header-home-text">{t.backToHome}</span>
               </button>
-            )}
-            {!isLegal && typeof onRefresh === 'function' && (
-              <MagneticButton
-                type="button"
-                className={`lv-header-action-btn ${isRefreshing ? 'is-spinning' : ''}`}
-                onClick={onRefresh}
-                title={t.refreshTitle}
-                aria-label={t.refreshTitle}
-                disabled={isRefreshing}
-                maxOffset={3}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M23 4v6h-6" />
-                  <path d="M1 20v-6h6" />
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                </svg>
-              </MagneticButton>
             )}
 
             {/* Language Toggle Pill */}

@@ -281,9 +281,10 @@
 }
 
 .lv-completion-progress-view .lv-metric-ratio {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 28px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--lv-brand-forest, #164639);
 }
 

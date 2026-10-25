@@ -7,6 +7,8 @@ import { Modal } from '../../components/common/Modal.jsx';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
 import { ArrowRight, FileCheck2, LockKeyhole, RefreshCw, ShieldCheck } from 'lucide-react';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
+import { legalBlockedReason } from '../../utils/workflowGuidance.js';
 
 // Exclude evaluatedAt: each read has a new clock value, not a new approval scope.
 function legalDecisionScope(value) {
@@ -20,7 +22,7 @@ function legalDecisionScope(value) {
     value.capabilities.unlock.allowed, value.capabilities.unlock.blockedReason]);
 }
 
-export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied }) {
+export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged }) {
   const en = lang === 'en', unlocking = step === 'controlled-unlock';
   const { decision = '', reason = '', confirmed = false } = draft;
   const setDecision = value => setDraft(previous => ({ ...previous, decision: value }));
@@ -41,6 +43,12 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const blockerPath = LEGAL_NAVIGATION_REGISTRY.find(item => item.id === blocker.step)?.path;
   const blockerUrl = blockerPath ? `${blockerPath}?${new URLSearchParams({ caseId: context.caseId, lang })}` : null;
   const documentVersion = context.basisDossier?.versions?.find(item => item.version === context.snapshot?.currentVersion);
+  const blocked = pending ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
+    : needsReload ? (en ? 'Reload the record before continuing.' : 'Tải lại hồ sơ trước khi tiếp tục.')
+      : !capability.allowed ? legalBlockedReason(context, unlocking ? 'unlock' : 'approval', lang)
+        : !complete ? unlocking ? (en ? 'Confirm the unlocking checkbox.' : 'Đánh dấu xác nhận mở khóa.')
+          : decision === 'REJECT' ? (en ? 'Enter the rejection reason.' : 'Nhập lý do từ chối.')
+            : (en ? 'Select a decision.' : 'Chọn quyết định.') : '';
   async function submit() {
     if (!allowed || !complete || lock.current) return;
     setConfirmOpen(false);
@@ -62,7 +70,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       onSaved(receipt);
     } catch (failure) {
       if (current.signal.aborted) return;
-      setError(failure); setNeedsReload(true);
+      setError(failure); setNeedsReload(true); onContextChanged?.();
       if (failure.status === 401) onUnauthorized?.();
       if (failure.status === 403) onDenied?.(failure);
     } finally {
@@ -103,11 +111,8 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
             <option value="REJECT">{en ? 'Reject' : 'Từ chối'}</option></select></label>
           <label>{en ? 'Reason (required for rejection)' : 'Lý do (bắt buộc khi từ chối)'}<textarea value={reason} maxLength={1000}
             required={decision === 'REJECT'} disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
-        <div className="lv-legal-form-actions"><button type="submit" disabled={!allowed || !complete}>{unlocking ? <LockKeyhole size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button></div>
-        {(!allowed || !complete) && (pending || needsReload || capability.allowed) && <p className="lv-legal-help" role="status">{pending ? (en ? 'Saving your decision. Please wait.' : 'Đang lưu quyết định. Vui lòng chờ.')
-          : needsReload ? (result ? (en ? 'Select “View latest status” to continue.' : 'Chọn “Xem trạng thái mới” để tiếp tục.') : (en ? 'Select “Try again” to check the latest status.' : 'Chọn “Thử lại” để kiểm tra trạng thái mới nhất.'))
-          : unlocking ? (en ? 'Tick the confirmation above after reviewing this case.' : 'Kiểm tra hồ sơ và đánh dấu ô xác nhận phía trên để mở khóa.')
-          : (en ? 'Select a decision. A reason is required when rejecting.' : 'Chọn quyết định phía trên. Nếu từ chối, bạn cần nhập lý do.')}</p>}
+        <button type="submit" disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
+        <WorkflowActionHint id="legal-action-blocked" reason={blocked} />
       </form>
       {result && <p className="lv-legal-live__success" role="status">{en ? 'Decision saved. Select “View latest status” to continue.' : 'Đã lưu quyết định. Chọn “Xem trạng thái mới” để tiếp tục.'}
         {' '}{legalDate(result.decidedAt || result.unlockedAt)}</p>}

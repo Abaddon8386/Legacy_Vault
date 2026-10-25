@@ -142,8 +142,9 @@ test('Login normalizes known authorities for existing FE guards and preserves re
   assert.deepEqual(mixed.user.roles, ['VAULT_OWNER']);
 });
 
-test('Authority compatibility still rejects unknown, malformed and empty roles', async () => {
-  for (const roles of [['ROLE_INVENTED'], ['ROLE_ROLE_ADMIN'], ['role_ADMIN'], [null], [], ['ROLE_VAULT_OWNER', 'UNKNOWN']]) {
+test('Authority compatibility rejects unknown and malformed roles; unlinked accounts may have no roles', async () => {
+  assert.deepEqual(createSession({ ...login, user: { ...user, roles: [] } }).user.roles, []);
+  for (const roles of [['ROLE_INVENTED'], ['ROLE_ROLE_ADMIN'], ['role_ADMIN'], [null], ['ROLE_VAULT_OWNER', 'UNKNOWN']]) {
     await assert.rejects(registerUser({ fullName: 'Demo', email: user.email, password: 'synthetic' }, {
       fetchFn: async () => json({ ...user, roles, status: 'ACTIVE', createdAt: date }, 201),
     }), error => error.code === 'INVALID_AUTH_RESPONSE');

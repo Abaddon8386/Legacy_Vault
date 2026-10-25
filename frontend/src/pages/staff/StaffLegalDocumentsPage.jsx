@@ -1,3 +1,5 @@
+import CourtAllocationEditor from '../../components/staff/CourtAllocationEditor.jsx';
+import { buildCourtAllocations, courtAllocationError } from '../../utils/courtAllocationModel.js';
 import { useState, useId, useEffect, useRef, useCallback } from 'react';
 import {
   AlertTriangle,
@@ -7,7 +9,6 @@ import {
   Send,
   Scale,
   Plus,
-  Trash2,
   FileText,
   Layers,
   Info,
@@ -18,6 +19,8 @@ import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.j
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
+import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import {
   validateStaffLegalDocumentForm,
   getStaffLegalDocumentErrorMessage,
@@ -210,6 +213,7 @@ export default function StaffLegalDocumentsPage({
       }
 
       setIsDossierLoading(true);
+      setAvailableAssets([]); setAvailableBeneficiaries([]);
       setDossierError(null);
       setDossierNotFound(false);
       setActionSuccess(null);
@@ -339,6 +343,8 @@ export default function StaffLegalDocumentsPage({
         id: 'alloc-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6),
         assetId: '',
         beneficiaryId: '',
+        recipientKind: 'existing',
+        courtRecipient: {},
         description: '',
       },
     ]);
@@ -361,12 +367,21 @@ export default function StaffLegalDocumentsPage({
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
   const isLatestForwarded = latestVersion?.forwardStatus === 'FORWARDED';
-  const isLiveWithoutMetadataSource = Boolean(effectiveAccessToken) && (availableAssets.length === 0 || availableBeneficiaries.length === 0);
+  const forwardBlocked = !selectedCaseId ? (en ? 'Select a case first.' : 'Chọn hồ sơ trước.')
+    : isDossierLoading || isForwarding || isSubmitting ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
+      : dossierError ? (en ? 'Reload the dossier to check its status.' : 'Tải lại hồ sơ để kiểm tra trạng thái.')
+        : displayCaseItem?.status === 'CLOSED' ? (en ? 'This case is closed.' : 'Hồ sơ đã đóng.')
+          : isRouteOnHold ? (en ? 'The dossier is on hold.' : 'Hồ sơ đang tạm dừng.')
+            : isRouteNotarial ? (en ? 'Legacy notarial records are read-only.' : 'Hồ sơ công chứng cũ chỉ được xem.')
+              : !latestVersion ? (en ? 'Receive a court document and allocation first.' : 'Tiếp nhận văn bản Tòa án và phân bổ trước.')
+                : isLatestForwarded ? (en ? 'This version has already been sent to Legal.' : 'Phiên bản này đã chuyển Legal.') : '';
+  const isLiveWithoutMetadataSource = Boolean(effectiveAccessToken) && availableAssets.length === 0;
 
   // Submit phiên bản mới (Finding B & C & Lỗi A/B/C)
   const handleSubmitVersion = async (e) => {
     e.preventDefault();
-    if (isSubmitting || isForwarding || isRouteNotarial) return;
+    if (isSubmitting || isForwarding || isDossierLoading || dossierError || !isRouteCourt || ['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status)) return;
+    if (mutationControllerRef.current && !mutationControllerRef.current.signal.aborted) return;
 
     setActionSuccess(null);
     setActionError(null);
@@ -387,33 +402,8 @@ export default function StaffLegalDocumentsPage({
 
     const newErrors = { ...validation.errors };
 
-    // Finding B: Bắt buộc phải có ít nhất 1 dòng phân bổ hợp lệ
-    if (allocations.length === 0) {
-      newErrors.allocations = isLiveWithoutMetadataSource ? t.metadataBlockerLiveNotice : t.allocationBlockerWarning;
-    } else {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const seenPairs = new Set();
-      let hasInvalidItem = false;
-
-      for (const item of allocations) {
-        const aId = item.assetId?.trim();
-        const bId = item.beneficiaryId?.trim();
-        if (!aId || !bId || !uuidRegex.test(aId) || !uuidRegex.test(bId)) {
-          hasInvalidItem = true;
-          break;
-        }
-        const pair = `${aId}|${bId}`;
-        if (seenPairs.has(pair)) {
-          hasInvalidItem = true;
-          break;
-        }
-        seenPairs.add(pair);
-      }
-
-      if (hasInvalidItem) {
-        newErrors.allocations = t.allocationInvalidWarning;
-      }
-    }
+    const allocationCheck = buildCourtAllocations(allocations, { assets: availableAssets, recipients: availableBeneficiaries, requireCatalog: Boolean(effectiveAccessToken) });
+    if (allocationCheck.errors.length) newErrors.allocations = courtAllocationError(allocationCheck.errors[0], lang);
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -421,11 +411,7 @@ export default function StaffLegalDocumentsPage({
     }
     setErrors({});
 
-    const formattedAllocations = allocations.map((a) => ({
-      assetId: a.assetId.trim(),
-      beneficiaryId: a.beneficiaryId.trim(),
-      description: a.description?.trim() || '',
-    }));
+    const formattedAllocations = allocationCheck.allocations;
 
     const metadata = {
       legalBasisType,
@@ -475,8 +461,8 @@ export default function StaffLegalDocumentsPage({
       }
 
       setDossier(updatedDossier);
-      setActionSuccess(t.uploadSuccessNotice);
       handleResetForm();
+      setActionSuccess(t.uploadSuccessNotice);
       setActiveTab('overview');
     } catch (err) {
       if (
@@ -490,6 +476,7 @@ export default function StaffLegalDocumentsPage({
       setActionError(err.message || (en ? 'Document upload failed.' : 'Tải lên văn bản thất bại.'));
     } finally {
       if (activeMutationIdRef.current === mutationId && currentCaseIdRef.current === requestCaseId) {
+        mutationControllerRef.current = null;
         setIsSubmitting(false);
       }
     }
@@ -528,7 +515,8 @@ export default function StaffLegalDocumentsPage({
   };
 
   const handleForwardToLegal = async () => {
-    if (isForwarding || isSubmitting || isRouteNotarial) return;
+    if (forwardBlocked) return;
+    if (mutationControllerRef.current && !mutationControllerRef.current.signal.aborted) return;
 
     const latestVer = dossier?.versions?.[0];
     if (!latestVer || latestVer.forwardStatus === 'FORWARDED') return;
@@ -583,6 +571,7 @@ export default function StaffLegalDocumentsPage({
       }
     } finally {
       if (activeMutationIdRef.current === mutationId && currentCaseIdRef.current === requestCaseId) {
+        mutationControllerRef.current = null;
         setIsForwarding(false);
       }
     }
@@ -655,6 +644,9 @@ export default function StaffLegalDocumentsPage({
         lang={lang}
       />
 
+      <StaffWorkflowGuide current="intake" caseId={selectedCaseId} sessionId={propSessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
+        caseStatus={displayCaseItem?.status} vaultStatus={isRouteOnHold ? 'ON_HOLD' : displayCaseItem?.vaultStatus}
+        loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} />
       {/* Feedback Messages */}
       {actionSuccess && (
         <div className="lv-form-success-banner" role="status">
@@ -875,12 +867,12 @@ export default function StaffLegalDocumentsPage({
                   )}
                 </button>
               )}
-              {latestVersion && !isLatestForwarded && !isRouteOnHold && !isRouteNotarial && (
+              {selectedCaseId && (
                 <button
                   type="button"
                   className="lv-btn-forward-legal"
                   onClick={handleForwardToLegal}
-                  disabled={isForwarding || isSubmitting}
+                  disabled={Boolean(forwardBlocked)} aria-describedby={forwardBlocked ? 'forward-blocked-reason' : undefined}
                 >
                   {isForwarding ? (
                     <>
@@ -906,6 +898,7 @@ export default function StaffLegalDocumentsPage({
                 <span>{t.btnGoToIntake}</span>
               </button>
             </div>
+            <WorkflowActionHint id="forward-blocked-reason" reason={forwardBlocked} />
           </section>
         </div>
       )}
@@ -1091,7 +1084,7 @@ export default function StaffLegalDocumentsPage({
                     type="button"
                     className="lv-btn-add-allocation"
                     onClick={handleAddAllocation}
-                    disabled={isSubmitting || isRouteOnHold || isRouteNotarial || isLiveWithoutMetadataSource}
+                    disabled={isSubmitting || isDossierLoading || Boolean(dossierError) || !isRouteCourt || ['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || isLiveWithoutMetadataSource}
                     title={isLiveWithoutMetadataSource ? t.metadataBlockedTooltip : undefined}
                   >
                     <Plus size={14} aria-hidden="true" />
@@ -1133,101 +1126,9 @@ export default function StaffLegalDocumentsPage({
                     )}
                   </div>
                 ) : (
-                  <div className="lv-allocations-table-wrap">
-                    <table className="lv-allocations-table">
-                      <thead>
-                        <tr>
-                          <th>{t.allocationAssetId}</th>
-                          <th>{t.allocationBeneficiaryId}</th>
-                          <th>{t.allocationDescription}</th>
-                          <th style={{ width: 60, textAlign: 'center' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {allocations.map((item, index) => (
-                          <tr key={item.id}>
-                            <td>
-                              {availableAssets.length > 0 ? (
-                                <select
-                                  className="lv-alloc-input lv-alloc-select"
-                                  value={item.assetId}
-                                  onChange={(e) => handleUpdateAllocation(index, 'assetId', e.target.value)}
-                                  disabled={isSubmitting || isRouteOnHold}
-                                  aria-label={t.allocationAssetId}
-                                >
-                                  <option value="">{en ? '-- Select asset --' : '-- Chọn tài sản --'}</option>
-                                  {availableAssets.map((ast) => (
-                                    <option key={ast.assetId} value={ast.assetId}>
-                                      {ast.name} ({ast.assetType})
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <input
-                                  type="text"
-                                  className="lv-alloc-input"
-                                  placeholder="00000000-0000-0000-0000-000000000000"
-                                  value={item.assetId}
-                                  onChange={(e) => handleUpdateAllocation(index, 'assetId', e.target.value)}
-                                  disabled={isSubmitting || isRouteOnHold}
-                                  aria-label={t.allocationAssetId}
-                                />
-                              )}
-                            </td>
-                            <td>
-                              {availableBeneficiaries.length > 0 ? (
-                                <select
-                                  className="lv-alloc-input lv-alloc-select"
-                                  value={item.beneficiaryId}
-                                  onChange={(e) => handleUpdateAllocation(index, 'beneficiaryId', e.target.value)}
-                                  disabled={isSubmitting || isRouteOnHold}
-                                  aria-label={t.allocationBeneficiaryId}
-                                >
-                                  <option value="">{en ? '-- Select beneficiary --' : '-- Chọn người nhận --'}</option>
-                                  {availableBeneficiaries.map((ben) => (
-                                    <option key={ben.beneficiaryId} value={ben.beneficiaryId}>
-                                      {ben.fullName} ({ben.relationship})
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <input
-                                  type="text"
-                                  className="lv-alloc-input"
-                                  placeholder="00000000-0000-0000-0000-000000000000"
-                                  value={item.beneficiaryId}
-                                  onChange={(e) => handleUpdateAllocation(index, 'beneficiaryId', e.target.value)}
-                                  disabled={isSubmitting || isRouteOnHold}
-                                  aria-label={t.allocationBeneficiaryId}
-                                />
-                              )}
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                className="lv-alloc-input"
-                                placeholder={en ? 'Item description' : 'Mô tả phần phân chia'}
-                                value={item.description}
-                                onChange={(e) => handleUpdateAllocation(index, 'description', e.target.value)}
-                                disabled={isSubmitting || isRouteOnHold}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                className="lv-btn-remove-alloc"
-                                onClick={() => handleRemoveAllocation(index)}
-                                disabled={isSubmitting || isRouteOnHold}
-                                title={t.btnRemoveAllocation}
-                              >
-                                <Trash2 size={16} aria-hidden="true" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <CourtAllocationEditor hideHeading rows={allocations} assets={availableAssets} recipients={availableBeneficiaries}
+                    lang={lang} onAdd={handleAddAllocation} onChange={handleUpdateAllocation} onRemove={handleRemoveAllocation}
+                    disabled={isSubmitting || isDossierLoading || isRouteOnHold || isRouteNotarial} />
                 )}
               </div>
 
@@ -1257,7 +1158,7 @@ export default function StaffLegalDocumentsPage({
                 <button
                   type="submit"
                   className="lv-btn-submit-version"
-                  disabled={isSubmitting || isRouteOnHold || isRouteNotarial || allocations.length === 0 || isLiveWithoutMetadataSource}
+                  disabled={isSubmitting || isDossierLoading || Boolean(dossierError) || !isRouteCourt || ['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || allocations.length === 0 || isLiveWithoutMetadataSource}
                   title={isLiveWithoutMetadataSource ? t.metadataBlockerLiveNotice : (allocations.length === 0 ? t.allocationBlockerWarning : undefined)}
                 >
                   {isSubmitting ? (

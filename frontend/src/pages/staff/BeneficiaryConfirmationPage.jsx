@@ -7,6 +7,7 @@ import {
   HelpCircle,
   RefreshCw,
   ArrowLeft,
+  FolderOpen,
 } from 'lucide-react';
 import {
   BENEFICIARY_CONFIRM_STATUS,
@@ -21,8 +22,14 @@ import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModa
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './BeneficiaryConfirmationPage.css';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
+import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { formatStaffSession } from '../../utils/caseReference.js';
 import { listLiveSessions, fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
+import { fetchStaffCases } from './staffCaseService.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (val) => typeof val === 'string' && UUID_REGEX.test(val);
 
 const EMPTY_INITIAL_BENEFICIARIES = Object.freeze([]);
 
@@ -112,19 +119,140 @@ function BeneficiaryConfirmationPageContext({
   const isReadOnlyCase = displayCaseItem?.status === 'CLOSED' || displayCaseItem?.vaultStatus === 'ARCHIVED';
   const [reloadRevision, setReloadRevision] = useState(0);
   const [sessionLoadError, setSessionLoadError] = useState('');
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sessionRetryTrigger, setSessionRetryTrigger] = useState(0);
+  const [resolvedCaseUuid, setResolvedCaseUuid] = useState(() => {
+    if (isUuid(initialCase)) return initialCase;
+    if (propCaseItem?.caseId && isUuid(propCaseItem.caseId)) return propCaseItem.caseId;
+    return '';
+  });
+
+  const effectiveCaseId = isUuid(caseReference)
+    ? caseReference
+    : (resolvedCaseUuid || selectedCaseItem?.caseId || propCaseItem?.caseId || displayCaseItem?.caseId || '');
+
+  const handleRetryLoadSessions = () => {
+    setSessionRetryTrigger((prev) => prev + 1);
+  };
+
+  const [fetchedKey, setFetchedKey] = useState('');
+
+  const handleSelectSession = (newSessionId) => {
+    setSessionId(newSessionId);
+    setBeneficiaries([]);
+    setLoadedCaseId('');
+    setSelectedBeneficiaryId('');
+    setReceiptReference('');
+    setErrors({});
+    setActionSuccess(null);
+    setActionError(null);
+    setFetchedKey('');
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (caseReference) url.searchParams.set('caseId', caseReference);
+      if (newSessionId) url.searchParams.set('sessionId', newSessionId);
+      else url.searchParams.delete('sessionId');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+    }
+  };
+
   useEffect(() => {
-    if (sessionId || !caseReference || !effectiveAccessToken || effectiveIsDevPreview) return;
+    if (
+      sessionId ||
+      !caseReference ||
+      !effectiveAccessToken ||
+      effectiveIsDevPreview ||
+      onFetchBeneficiaries ||
+      loadBeneficiaries
+    ) {
+      return;
+    }
+
     const controller = new AbortController();
-    listLiveSessions(caseReference, { accessToken: effectiveAccessToken, lang, signal: controller.signal })
-      .then(items => { if (!controller.signal.aborted) setAvailableSessions(items); })
-      .catch(error => {
+
+    async function loadSessionsForCase() {
+      setIsLoadingSessions(true);
+      setSessionLoadError('');
+      try {
+        let targetUuid = isUuid(caseReference)
+          ? caseReference
+          : (propCaseItem?.caseId && isUuid(propCaseItem.caseId)
+              ? propCaseItem.caseId
+              : (resolvedCaseUuid || ''));
+
+        if (!targetUuid && caseReference.trim() && effectiveAccessToken) {
+          try {
+            const res = await fetchStaffCases({
+              accessToken: effectiveAccessToken,
+              lang,
+              q: caseReference.trim(),
+              size: 20,
+              signal: controller.signal,
+            });
+            const found = res?.content?.find(
+              (c) => c.caseNumber === caseReference.trim() || c.caseId === caseReference.trim()
+            );
+            if (found?.caseId && isUuid(found.caseId)) {
+              targetUuid = found.caseId;
+              setResolvedCaseUuid((prev) => (prev === found.caseId ? prev : found.caseId));
+            }
+          } catch {
+            // Silent lookup fallback
+          }
+        }
+
+        if (!targetUuid || !isUuid(targetUuid)) {
+          if (!controller.signal.aborted) {
+            setIsLoadingSessions(false);
+            setAvailableSessions([]);
+            setSessionLoadError(
+              lang === 'en'
+                ? 'Unable to resolve case ID. Please re-select the case.'
+                : 'Chưa xác định được mã hồ sơ. Vui lòng chọn lại hồ sơ từ danh sách.'
+            );
+          }
+          return;
+        }
+
+        const items = await listLiveSessions(targetUuid, {
+          accessToken: effectiveAccessToken,
+          lang,
+          signal: controller.signal,
+        });
+
         if (!controller.signal.aborted) {
-          setSessionLoadError(lang === 'en' ? 'Unable to load handover sessions.' : 'Không tải được danh sách phiên bàn giao.');
+          setAvailableSessions(Array.isArray(items) ? items : []);
+          setSessionLoadError('');
+          setIsLoadingSessions(false);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setAvailableSessions([]);
+          setIsLoadingSessions(false);
+          const msg = confirmationErrorMessage(error, lang);
+          setSessionLoadError(msg || (lang === 'en' ? 'Unable to load handover sessions.' : 'Không tải được danh sách phiên bàn giao.'));
           if (error.status === 401) onUnauthorized?.();
         }
-      });
+      }
+    }
+
+    loadSessionsForCase();
+
     return () => controller.abort();
-  }, [sessionId, caseReference, effectiveAccessToken, effectiveIsDevPreview, lang, onUnauthorized]);
+  }, [
+    sessionId,
+    caseReference,
+    propCaseItem?.caseId,
+    resolvedCaseUuid,
+    effectiveAccessToken,
+    effectiveIsDevPreview,
+    lang,
+    onUnauthorized,
+    sessionRetryTrigger,
+    onFetchBeneficiaries,
+    loadBeneficiaries,
+  ]);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [loadedCaseId, setLoadedCaseId] = useState(() => {
     if (initialCase && (propBeneficiaries || (initialBeneficiaries && initialBeneficiaries.length > 0))) {
@@ -145,7 +273,6 @@ function BeneficiaryConfirmationPageContext({
   const [actionError, setActionError] = useState(null);
 
   const activeCaseRef = useRef(initialCase);
-  const lastFetchedKeyRef = useRef('');
   const confirmationController = useRef(null);
   useEffect(() => () => confirmationController.current?.abort(), []);
 
@@ -213,8 +340,12 @@ function BeneficiaryConfirmationPageContext({
       return;
     }
 
-    const currentKey = `${caseReference}::${sessionId}::${effectiveAccessToken || ''}`;
-    if (lastFetchedKeyRef.current === currentKey) {
+    const effectiveTargetCase = isUuid(caseReference)
+      ? caseReference
+      : (effectiveCaseId || caseReference);
+
+    const currentKey = `${effectiveTargetCase}::${sessionId}::${effectiveAccessToken || ''}`;
+    if (fetchedKey === currentKey) {
       return;
     }
 
@@ -226,13 +357,13 @@ function BeneficiaryConfirmationPageContext({
       signal: controller.signal,
     };
     Promise.all([
-      fetchBeneficiaryConfirmations(caseReference, sessionId, options),
-      effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(caseReference, options),
-      effectiveIsDevPreview ? Promise.resolve([]) : fetchEligibleAssets(caseReference, sessionId, options),
+      fetchBeneficiaryConfirmations(effectiveTargetCase, sessionId, options),
+      effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(effectiveTargetCase, options),
+      effectiveIsDevPreview ? Promise.resolve([]) : fetchEligibleAssets(effectiveTargetCase, sessionId, options),
     ])
       .then(([list, people, assets]) => {
         if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
-          lastFetchedKeyRef.current = currentKey;
+          setFetchedKey(currentKey);
           const normalized = (Array.isArray(list) ? list : []).map((b) => {
             const person = people.find(item => item.beneficiaryId === b.beneficiaryId);
             const allocated = assets.filter(item => item.recipientId === b.beneficiaryId);
@@ -251,7 +382,7 @@ function BeneficiaryConfirmationPageContext({
       })
       .catch((err) => {
         if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
-          lastFetchedKeyRef.current = '';
+          setFetchedKey('');
           setBeneficiaries([]);
           setLoadedCaseId('');
           setErrors({ fetch: confirmationErrorMessage(err, lang) });
@@ -262,15 +393,21 @@ function BeneficiaryConfirmationPageContext({
     return () => {
       controller.abort();
     };
-  }, [caseReference, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, isReadOnlyCase, reloadRevision, onUnauthorized]);
+  }, [caseReference, effectiveCaseId, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, isReadOnlyCase, reloadRevision, onUnauthorized, fetchedKey]);
 
   const handleCaseChange = (newCase) => {
     confirmationController.current?.abort();
     confirmationController.current = null;
     setIsSubmitting(false);
     activeCaseRef.current = newCase;
-    lastFetchedKeyRef.current = '';
+    setFetchedKey('');
     setCaseReference(newCase);
+    setResolvedCaseUuid(isUuid(newCase) ? newCase : '');
+    setSelectedCaseItem(null);
+    setSessionId('');
+    setAvailableSessions([]);
+    setSessionLoadError('');
+    setIsLoadingSessions(false);
     setBeneficiaries([]);
     setLoadedCaseId('');
     setSelectedBeneficiaryId('');
@@ -278,6 +415,15 @@ function BeneficiaryConfirmationPageContext({
     setErrors({});
     setActionSuccess(null);
     setActionError(null);
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (newCase) url.searchParams.set('caseId', newCase);
+      else url.searchParams.delete('caseId');
+      url.searchParams.delete('sessionId');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+    }
+    onCaseChange?.(newCase, null);
   };
 
   const handleBeneficiarySelect = (benId) => {
@@ -331,7 +477,11 @@ function BeneficiaryConfirmationPageContext({
     const controller = new AbortController();
     confirmationController.current = controller;
     try {
-      const confirmed = await confirmBeneficiary(caseReference, sessionId, selectedBeneficiaryId, {
+      const effectiveTargetCase = isUuid(caseReference)
+        ? caseReference
+        : (effectiveCaseId || caseReference);
+
+      const confirmed = await confirmBeneficiary(effectiveTargetCase, sessionId, selectedBeneficiaryId, {
         receiptReference: trimmedReceipt,
       }, {
         accessToken: effectiveAccessToken,
@@ -387,9 +537,17 @@ function BeneficiaryConfirmationPageContext({
     receiptReference.trim().length > 0 &&
     !isSelectedAlreadyConfirmed &&
     !isSubmitting;
+  const confirmationBlocked = isReadOnlyCase ? (lang === 'en' ? 'This case is read-only.' : 'Hồ sơ này chỉ được xem.')
+    : !hasValidData ? (lang === 'en' ? 'Select a session and load the recipient data first.' : 'Chọn phiên và tải thông tin người nhận trước.')
+      : !selectedBeneficiaryId ? (lang === 'en' ? 'Select the recipient who signed the receipt.' : 'Chọn người nhận đã ký nhận.')
+        : isSelectedAlreadyConfirmed ? (lang === 'en' ? 'This recipient is already confirmed.' : 'Người nhận này đã được xác nhận.')
+          : !receiptReference.trim() ? (lang === 'en' ? 'Enter the signed receipt reference.' : 'Nhập số biên nhận hoặc tham chiếu ký nhận.')
+            : isSubmitting ? (lang === 'en' ? 'Wait for confirmation to finish.' : 'Chờ ghi nhận hoàn tất.') : '';
 
   return (
     <div className="lv-beneficiary-confirmation-view">
+      <StaffWorkflowGuide current="confirmation" caseId={caseReference} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
+        caseStatus={displayCaseItem?.status} vaultStatus={displayCaseItem?.vaultStatus} confirmationReady={hasValidData} loading={isLoadingSessions} error={sessionLoadError} />
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         {caseReference && sessionId && (
@@ -449,10 +607,18 @@ function BeneficiaryConfirmationPageContext({
           const newId = item.caseId || item.id;
           setSelectedCaseItem(item);
           setCaseReference(newId);
+          setResolvedCaseUuid(item.caseId || '');
           setSessionId(''); // Đổi hồ sơ xóa sessionId cũ
+          setAvailableSessions([]);
+          setSessionLoadError('');
+          setIsLoadingSessions(false);
           setBeneficiaries([]);
           setLoadedCaseId('');
           setSelectedBeneficiaryId('');
+          setReceiptReference('');
+          setErrors({});
+          setActionSuccess(null);
+          setActionError(null);
           if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             url.searchParams.set('caseId', newId);
@@ -468,52 +634,176 @@ function BeneficiaryConfirmationPageContext({
         onUnauthorized={onUnauthorized}
       />
 
-      {/* Warning when context is missing in real mode */}
-      {caseReference && !sessionId && !effectiveIsDevPreview && (
-        <section className="lv-confirm-card">
-          <label>{lang === 'en' ? 'Select handover session' : 'Chọn phiên bàn giao'}
-            <select value="" onChange={event => {
-              const selected = availableSessions.find(item => item.sessionId === event.target.value);
-              if (!selected) return;
-              setSessionId(selected.sessionId);
-              const url = new URL(window.location.href);
-              url.searchParams.set('caseId', caseReference);
-              url.searchParams.set('sessionId', selected.sessionId);
-              window.history.replaceState(window.history.state, '', url.pathname + url.search);
-            }}>
-              <option value="">{lang === 'en' ? 'Select a session' : '-- Chọn phiên đã bàn giao --'}</option>
-              {availableSessions.map(item => <option key={item.sessionId} value={item.sessionId}>{formatStaffSession(item, lang)}</option>)}
-            </select>
-          </label>
-          {sessionLoadError && <p role="alert">{sessionLoadError}</p>}
-        </section>
-      )}
-      {(!caseReference || !sessionId) && !effectiveIsDevPreview && (
-        <section className="lv-confirm-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-            <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} aria-hidden="true" />
+      {/* State 1: Chưa chọn hồ sơ */}
+      {!caseReference && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card lv-confirm-state-card" role="region" aria-label="Chưa chọn hồ sơ">
+          <div className="lv-confirm-state-content">
+            <FolderOpen size={24} className="lv-confirm-state-icon lv-confirm-state-icon--warning" aria-hidden="true" />
             <div>
-              <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
-                {lang === 'en' ? 'No Handover Session Context' : 'Chưa có thông tin phiên bàn giao'}
+              <h3 className="lv-confirm-state-title">
+                {lang === 'en' ? 'No verification case selected' : 'Chưa chọn hồ sơ xác minh'}
               </h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+              <p className="lv-confirm-state-desc">
                 {lang === 'en'
-                  ? 'Please select a verification case and open a counter handover session to record beneficiary confirmations.'
-                  : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy từ Bàn làm việc Nhân viên để thực hiện xác nhận người thụ hưởng.'}
+                  ? 'Please select a verification case to view handover sessions and record beneficiary confirmations.'
+                  : 'Vui lòng chọn hồ sơ xác minh để xem danh sách phiên bàn giao và thực hiện xác nhận người thụ hưởng.'}
               </p>
-              {onNavigateCases && (
+              <div className="lv-confirm-state-actions">
                 <button
                   type="button"
                   className="lv-btn lv-btn-primary"
-                  onClick={onNavigateCases}
-                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                  onClick={() => setIsSelectorOpen(true)}
                 >
-                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                  {lang === 'en' ? 'Select Verification Case' : 'Chọn hồ sơ xác minh'}
                 </button>
-              )}
+                {onNavigateCases && (
+                  <button
+                    type="button"
+                    className="lv-btn lv-btn-secondary"
+                    onClick={onNavigateCases}
+                  >
+                    {lang === 'en' ? 'Back to Cases Queue' : 'Về danh sách ca xác minh'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </section>
+      )}
+
+      {/* State 2: Đang tải danh sách phiên */}
+      {caseReference && !sessionId && isLoadingSessions && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card lv-confirm-state-card" aria-busy="true" aria-live="polite">
+          <div className="lv-confirm-state-content">
+            <RefreshCw size={22} className="lv-confirm-state-spinner" aria-hidden="true" />
+            <div>
+              <h3 className="lv-confirm-state-title">
+                {lang === 'en' ? 'Loading handover sessions…' : 'Đang tải danh sách phiên bàn giao…'}
+              </h3>
+              <p className="lv-confirm-state-desc">
+                {lang === 'en'
+                  ? 'Fetching available counter handover sessions for the selected case.'
+                  : 'Đang lấy danh sách các phiên bàn giao tại quầy cho hồ sơ đã chọn.'}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* State 3: Tải phiên thất bại (có nguyên nhân và nút thử lại) */}
+      {caseReference && !sessionId && !isLoadingSessions && sessionLoadError && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card lv-confirm-state-card lv-confirm-state-card--error" role="alert">
+          <div className="lv-confirm-state-content">
+            <AlertTriangle size={24} className="lv-confirm-state-icon lv-confirm-state-icon--error" aria-hidden="true" />
+            <div>
+              <h3 className="lv-confirm-state-title">
+                {lang === 'en' ? 'Unable to load handover sessions' : 'Không tải được danh sách phiên bàn giao'}
+              </h3>
+              <p className="lv-confirm-state-desc">{sessionLoadError}</p>
+              <div className="lv-confirm-state-actions">
+                <button
+                  type="button"
+                  className="lv-btn lv-btn-primary"
+                  onClick={handleRetryLoadSessions}
+                >
+                  <RefreshCw size={14} aria-hidden="true" style={{ marginRight: '6px' }} />
+                  {lang === 'en' ? 'Retry' : 'Thử lại'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* State 4: Tải thành công nhưng không có phiên phù hợp */}
+      {caseReference && !sessionId && !isLoadingSessions && !sessionLoadError && availableSessions.length === 0 && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card lv-confirm-state-card lv-confirm-state-card--warning" role="region">
+          <div className="lv-confirm-state-content">
+            <HelpCircle size={24} className="lv-confirm-state-icon lv-confirm-state-icon--warning" aria-hidden="true" />
+            <div>
+              <h3 className="lv-confirm-state-title">
+                {lang === 'en' ? 'No Handover Session Available' : 'Chưa có phiên bàn giao phù hợp'}
+              </h3>
+              <p className="lv-confirm-state-desc">
+                {lang === 'en'
+                  ? 'This case does not have an active counter handover session to record beneficiary confirmations. Please open a counter handover session first.'
+                  : 'Hồ sơ này chưa có phiên bàn giao mở tại quầy để ghi nhận người nhận. Vui lòng mở phiên bàn giao tại quầy trước.'}
+              </p>
+              <div className="lv-confirm-state-actions">
+                <a
+                  href={`/staff/handover?caseId=${encodeURIComponent(caseReference)}`}
+                  className="lv-btn lv-btn-primary"
+                  onClick={(e) => {
+                    if (typeof window !== 'undefined' && window.__LV_NAVIGATE__) {
+                      e.preventDefault();
+                      window.__LV_NAVIGATE__(`/staff/handover?caseId=${encodeURIComponent(caseReference)}`);
+                    }
+                  }}
+                >
+                  {lang === 'en' ? 'Open Counter Handover' : 'Mở phiên bàn giao tại quầy'}
+                </a>
+                <button
+                  type="button"
+                  className="lv-btn lv-btn-secondary"
+                  onClick={handleRetryLoadSessions}
+                >
+                  <RefreshCw size={14} aria-hidden="true" style={{ marginRight: '6px' }} />
+                  {lang === 'en' ? 'Check Sessions Again' : 'Kiểm tra lại phiên'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* State 5: Có phiên nhưng chưa chọn */}
+      {caseReference && !sessionId && !isLoadingSessions && !sessionLoadError && availableSessions.length > 0 && !effectiveIsDevPreview && (
+        <section className="lv-confirm-card lv-confirm-session-picker-card">
+          <div className="lv-confirm-input-group">
+            <label htmlFor="lv-confirm-session-select" className="lv-confirm-label">
+              {lang === 'en' ? 'Select handover session *' : 'Chọn phiên bàn giao *'}
+            </label>
+            <div className="lv-confirm-session-select-row">
+              <select
+                id="lv-confirm-session-select"
+                className="lv-confirm-select"
+                value=""
+                onChange={(event) => handleSelectSession(event.target.value)}
+              >
+                <option value="">{lang === 'en' ? '-- Select a handover session --' : '-- Chọn phiên đã bàn giao --'}</option>
+                {availableSessions.map((item) => (
+                  <option key={item.sessionId} value={item.sessionId}>
+                    {formatStaffSession(item, lang)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* State 6 Header bar: Đã chọn phiên */}
+      {caseReference && sessionId && !effectiveIsDevPreview && (
+        <div className="lv-confirm-active-session-strip">
+          <div className="lv-confirm-active-session-info">
+            <span className="lv-confirm-active-session-label">
+              {lang === 'en' ? 'Active Handover Session:' : 'Phiên bàn giao đang chọn:'}
+            </span>
+            <strong className="lv-confirm-active-session-id">
+              {formatStaffSession(
+                availableSessions.find((s) => s.sessionId === sessionId) || { sessionId },
+                lang
+              )}
+            </strong>
+          </div>
+          <button
+            type="button"
+            className="lv-btn lv-btn-secondary lv-btn-sm"
+            onClick={() => handleSelectSession('')}
+          >
+            {lang === 'en' ? 'Change session' : 'Đổi phiên'}
+          </button>
+        </div>
       )}
 
       {/* Header */}
@@ -595,7 +885,7 @@ function BeneficiaryConfirmationPageContext({
         <section className="lv-confirm-card">
           <p className="lv-confirm-error-msg" role="alert"><AlertTriangle size={18} aria-hidden="true" />{errors.fetch}</p>
           <button type="button" className="lv-confirm-btn-select-case" onClick={() => {
-            lastFetchedKeyRef.current = '';
+            setFetchedKey('');
             setErrors({});
             setReloadRevision((revision) => revision + 1);
           }}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button>
@@ -671,7 +961,11 @@ function BeneficiaryConfirmationPageContext({
                         )}
                       </td>
                       <td>
-                        <code>{b.receiptReference || t.informationUnavailable}</code>
+                        {b.receiptReference ? (
+                          <code className="lv-confirm-receipt-code">{b.receiptReference}</code>
+                        ) : (
+                          <span className="lv-confirm-empty-cell">{t.informationUnavailable}</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -761,9 +1055,11 @@ function BeneficiaryConfirmationPageContext({
             )}
           </div>
 
+          <WorkflowActionHint id="confirmation-action-blocked" reason={confirmationBlocked} />
           <div className="lv-confirm-form-actions">
             <button
               type="submit"
+              aria-describedby={confirmationBlocked ? 'confirmation-action-blocked' : undefined}
               className="lv-btn-record-submit"
               disabled={!canSubmit}
               title={!canSubmit ? (!hasValidData ? t.informationUnavailable : t.unavailableNotice) : undefined}

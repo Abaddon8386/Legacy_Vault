@@ -664,7 +664,8 @@ test('an OPEN workflow conflict is not labelled as a closed case', async () => {
   try {
     assert.equal(wrapper.host.querySelector('.lv-progress-error-banner--closed'), null);
     assert.ok(wrapper.host.textContent.includes('Approval requires review'));
-    assert.equal(wrapper.host.querySelector('a[href*="/staff/close-and-archive"]'), null);
+    const archiveActions = [...wrapper.host.querySelectorAll('a[href*="/staff/close-and-archive"]')].filter(link => !link.closest('.lv-workflow-guide'));
+    assert.equal(archiveActions.length, 0, 'History navigation stays available, but no archive action is offered on a failed read');
   } finally { await wrapper.close(); }
 });
 

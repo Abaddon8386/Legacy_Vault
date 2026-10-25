@@ -228,7 +228,7 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
       if(url.endsWith('/archive')){assert.equal(receipts.length,1);archived=true;return json({caseId:ids.caseId,sessionId:ids.sessionId,caseStatus:'CLOSED',vaultStatus:'ARCHIVED'});}
       throw Error('Unexpected mutation '+url);
     }
-    if(url.endsWith('/eligible-assets'))return json([{assetId:ids.assetId,recipientId:ids.recipient,description:'Counter fixture asset',deliveryStatus:delivered?'DELIVERED':'ELIGIBLE'}]);
+    if(url.endsWith('/eligible-assets'))return json([{assetId:ids.assetId,recipientId:ids.recipient,description:'Counter fixture asset',accountLinked:true,deliverable:!delivered,blockedReason:null,deliveryStatus:delivered?'DELIVERED':'ELIGIBLE'}]);
     if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:ids.recipient,fullName:'Người nhận kiểm thử',relationship:'Con'}]);
     if(url.endsWith('/beneficiary-confirmations'))return json([{sessionId:ids.sessionId,beneficiaryId:ids.recipient,status:confirmed?'CONFIRMED':'PENDING'}]);
     return staffFixture({status:completed?'COMPLETED':'OPEN',closed:archived,deliveries:delivered?[deliveredItem]:[],receipts,ready:confirmed})(url);
@@ -502,7 +502,7 @@ test('PS-96/97/98 Integration: Auto-load reads document and asset lists by permi
       return json({ dossier: { route: 'COURT', status: 'LEGAL_BASIS_PROVIDED', versions: [] } });
     }
     if (url.includes('/eligible-assets')) {
-      return json([{ assetId: ids.assetId, recipientId: ids.recipient, description: 'Auto-load item' }]);
+      return json([{ assetId: ids.assetId, recipientId: ids.recipient, description: 'Auto-load item', accountLinked: true, deliverable: true, blockedReason: null }]);
     }
     return staffFixture({ status: 'OPEN' })(url);
   };
@@ -801,7 +801,7 @@ test('PS-96/97/98 Integration: Finding B - Upload form blocks submit when alloca
     assert.ok(simSampleBtn, 'Sample allocation button must exist in anonymous DEV preview simulation');
     await act(async () => simSampleBtn.click());
 
-    const allocRows = hostSim.querySelectorAll('.lv-allocations-table tbody tr');
+    const allocRows = hostSim.querySelectorAll('.lv-court-editor__row');
     assert.ok(allocRows.length > 0, 'Allocation row should be rendered after clicking sample in simulation');
   } finally {
     await act(async () => rootSim.unmount());
@@ -981,7 +981,7 @@ test('PS-96/97/98 Integration: Legacy NOTARIAL route is strictly read-only with 
 
     // 1. Tab Tổng quan: Nút forward tuyệt đối không hiển thị cho hồ sơ NOTARIAL
     const forwardBtn = host.querySelector('.lv-btn-forward-legal');
-    assert.equal(forwardBtn, null, 'Forward button must NOT exist for read-only NOTARIAL route');
+    assert.equal(forwardBtn?.disabled, true, 'NOTARIAL keeps the action disabled with a reason');
 
     // 2. Chuyển sang Tab Tiếp nhận
     const intakeTabBtn = host.querySelector('#tab-btn-intake');
@@ -1017,7 +1017,7 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
       recipientId: '77777777-7777-4777-8777-777777777777',
       recipientName: 'Trần Văn A',
       description: 'Phân chia 100% căn hộ',
-      deliveryStatus: 'PENDING',
+      deliveryStatus: 'PENDING', accountLinked: true, deliverable: true, blockedReason: null,
     },
     {
       assetId: '22222222-2222-4222-8222-222222222222',
@@ -1025,7 +1025,7 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
       recipientId: '77777777-7777-4777-8777-777777777777',
       recipientName: 'Trần Văn A',
       description: 'Phân chia 100% số dư',
-      deliveryStatus: 'PENDING',
+      deliveryStatus: 'PENDING', accountLinked: true, deliverable: true, blockedReason: null,
     },
     {
       assetId: '33333333-3333-4333-8333-333333333333',
@@ -1033,7 +1033,7 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
       recipientId: '88888888-8888-4888-8888-888888888888',
       recipientName: 'Nguyễn Thị B',
       description: 'Phân chia quyền sở hữu xe',
-      deliveryStatus: 'PENDING',
+      deliveryStatus: 'PENDING', accountLinked: true, deliverable: true, blockedReason: null,
     },
   ];
 

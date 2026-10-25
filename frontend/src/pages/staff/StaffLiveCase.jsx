@@ -11,6 +11,7 @@ import { validateEvidenceFile, formatFileSize, EVIDENCE_UPLOAD_I18N } from '../.
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import { FolderOpen, FileText, Paperclip, RefreshCw, UserRound, Archive } from 'lucide-react';
 import './StaffLiveCase.css';
+import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 
 const labels = {
   documentType: ['Loại giấy tờ', 'Document type'], issuingAuthority: ['Cơ quan cấp', 'Issuing authority'],
@@ -264,6 +265,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const draft = drafts[kind] || {};
   const closed = data?.status !== 'OPEN';
   return <section className="lv-staff-live" aria-busy={busy || recordsLoading}>
+    <StaffWorkflowGuide current="intake" intakeDestinationNeeded caseId={caseId} caseStatus={data?.status} vaultStatus={data?.vaultStatus} loading={busy} error={error} lang={lang} />
     <button type="button" onClick={onBack}>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button>
     <header className="lv-intake-heading lv-staff-glow">
       <div className="lv-intake-hero-mark"><FolderOpen size={30} aria-hidden="true" /></div>

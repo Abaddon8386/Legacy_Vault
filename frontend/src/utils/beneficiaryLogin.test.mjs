@@ -24,9 +24,9 @@ async function component(entry, stubLogin = false) {
 }
 const App = await component('src/App.jsx', true);
 const Login = await component('src/pages/auth/LoginPage.jsx');
-async function mount(Component) {
+async function mount(Component, props = {}) {
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
-  await act(async () => root.render(React.createElement(Component)));
+  await act(async () => root.render(React.createElement(Component, props)));
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); storeSession(null); } };
 }
 test('Beneficiary routing retains existing role precedence', () => {
@@ -79,4 +79,22 @@ for (const targetRole of ['BENEFICIARY', 'ADMIN']) for (const roles of [null, ['
     assert.equal(view.host.querySelector(targetRole === 'ADMIN' ? '#admin-home-title' : '#beneficiary-home-title'), null);
     assert.match(view.host.textContent, roles ? (targetRole === 'ADMIN' ? /Trang này dành cho tài khoản quản trị viên/ : /Trang này dành cho tài khoản người thụ hưởng/) : /Test sign in/);
   } finally { await view.close(); globalThis.fetch = originalFetch; }
+});
+
+
+test('created roleless account signs in to Shared with me without Owner or delivered asset access', async () => {
+  storeSession(null); window.history.replaceState({}, '', '/login');
+  const currentUser = { ...user, roles: [] };
+  globalThis.__beneficiaryUser = currentUser;
+  const originalFetch = globalThis.fetch; const urls = [];
+  globalThis.fetch = async url => { urls.push(url); return new Response(JSON.stringify(currentUser), { headers: { 'Content-Type': 'application/json' } }); };
+  const view = await mount(App, { caseLinkActions: { listOwn: async () => [], submit: async () => { throw Error('unused'); } } });
+  try {
+    await act(async () => view.host.querySelector('button').click());
+    assert.equal(window.location.pathname, '/shared-with-me');
+    assert.ok(view.host.querySelector('#case-link-number'));
+    assert.equal(view.host.querySelector('#case-link-number').disabled, false);
+    assert.equal(urls.some(url => url.includes('received-assets') || url.includes('/vault')), false);
+    assert.equal(view.host.querySelector('.lv-sidebar-nav').textContent.includes('Kho di sản số'), false);
+  } finally { await view.close(); globalThis.fetch = originalFetch; delete globalThis.__beneficiaryUser; }
 });

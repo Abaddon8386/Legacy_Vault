@@ -120,14 +120,18 @@ test('Will picks original/version/hash from authorized overview, sends only cont
 test('Blocked capability fixtures cannot approve or unlock after removing duplicate content navigation', async () => {
   globalThis.fetch = async () => assert.fail('Injected context should not trigger additional reads before a decision');
   for (const step of ['approval-review', 'controlled-unlock']) {
-    const view = await mount({ ...base, step });
+    let destination = '';
+    const view = await mount({ ...base, step, onNavigate: path => { destination = path; } });
     try {
-      assert.match(view.host.textContent, /does not currently meet/);
+      assert.match(view.host.textContent, /no longer open|current document and allocation|No current approval/);
       assert.equal([...view.host.querySelectorAll('button')].find(item => item.disabled && /Record decision|Unlock vault/.test(item.textContent)).disabled, true);
       assert.equal(view.host.querySelector('h1').textContent, step === 'approval-review' ? 'Final approval' : 'Controlled unlock');
       assert.equal(view.host.querySelector('.lv-legal-process, .lv-legal-stages'), null);
       assert.ok(view.host.querySelector('.lv-legal-documents'));
       assert.ok(view.host.querySelector('.lv-legal-action-panel form'));
+      const viewWill = view.host.querySelector('.lv-workflow-guide a[href*="will-document-verification"]');
+      assert.ok(viewWill, 'Blocked actions do not lock read navigation');
+      await act(async () => viewWill.click()); assert.match(destination, new RegExp(`caseId=${a}`)); assert.match(destination, /lang=en/);
     } finally { await view.close(); }
   }
 });

@@ -5,6 +5,8 @@ import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, i
 import './LiveHandoverPage.css';
 import { trackOwnerSurface } from '../../components/layout/ownerSurfaceMotion.js';
 import '../../components/layout/OwnerSurfaces.css';
+import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import StaffCaseLinkPanel from './StaffCaseLinkPanel.jsx';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
 
@@ -135,8 +137,16 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
   const { selected, sessions, error, loading } = state;
   const openExists = sessions.some(item => item.status === 'OPEN');
   const isCaseClosed = caseItem?.status === 'CLOSED';
+  const openBlocked = loading || pending ? (en ? 'Wait for the session status check.' : 'Chờ kiểm tra trạng thái phiên.')
+    : error ? (en ? 'Reload the session status before opening a new one.' : 'Tải lại trạng thái phiên trước khi mở mới.')
+      : isCaseClosed ? (en ? 'This case is closed.' : 'Hồ sơ đã đóng.')
+        : openExists ? (en ? 'An open session already exists. Select it below.' : 'Đã có phiên đang mở. Chọn phiên đó bên dưới.')
+          : selected?.status === 'COMPLETED' ? (en ? 'This session is complete. Continue to closing and archiving.' : 'Phiên đã hoàn tất. Chuyển sang đóng và lưu trữ.')
+            : mode === 'accounts' ? (en ? 'Open sessions from the handover page.' : 'Mở phiên tại trang bàn giao.') : '';
   const statuses = en ? { OPEN: 'Open', COMPLETED: 'Completed', CANCELLED: 'Cancelled' } : { OPEN: 'Đang mở', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy' };
   return <section className="lv-session-panel" aria-busy={loading || pending}>
+    <StaffWorkflowGuide current="handover" caseId={caseId} sessionId={selected?.sessionId} caseStatus={caseItem?.status}
+      vaultStatus={caseItem?.vaultStatus} sessionStatus={selected?.status} loading={loading} error={error} lang={lang} />
     <div className="lv-session-panel-heading">
       <div>
         <h2>{en ? 'Handover sessions' : 'Phiên bàn giao'} <span className="lv-session-count">{sessions.length}</span></h2>
@@ -154,7 +164,8 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         {en ? 'This verification case is closed. New handover sessions cannot be opened.' : 'Hồ sơ xác minh này đã đóng. Không thể mở phiên bàn giao mới.'}
       </p>
     )}
-    <button className="lv-live-primary" disabled={loading || pending || Boolean(error) || openExists || selected?.status === 'COMPLETED' || mode === 'accounts' || isCaseClosed} onClick={() => act(options => openLiveSession(caseId, options))}>{en ? 'Open handover session' : 'Mở phiên bàn giao'}</button>
+    <button className="lv-live-primary" disabled={Boolean(openBlocked)} aria-describedby={openBlocked ? 'open-session-blocked' : undefined} onClick={() => act(options => openLiveSession(caseId, options))}>{en ? 'Open handover session' : 'Mở phiên bàn giao'}</button>
+    <WorkflowActionHint id="open-session-blocked" reason={openBlocked} />
     {!loading && !error && sessions.length === 0 && <p>{en ? 'No sessions yet.' : 'Chưa có phiên bàn giao.'}</p>}
     <ul className="lv-session-list">{sessions.map((item, index) => <li key={item.sessionId}>
       <button className={`lv-session-choice${selected?.sessionId === item.sessionId ? ' is-selected' : ''}`} aria-pressed={selected?.sessionId === item.sessionId} disabled={pending || loading || Boolean(error)} onClick={() => act(options => getLiveSession(caseId, item.sessionId, options))}>

@@ -522,3 +522,164 @@ test('missing confirmation data shows a readable error and retry recovers select
     assert.equal(wrapper.host.querySelector('.lv-confirm-select').disabled, false);
   } finally { await wrapper.close(); }
 });
+
+test('never shows simultaneous session load error and missing session business card', async () => {
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  const originalFetch = globalThis.fetch;
+  const mockCaseUuid = '06eb6e23-1ae4-4db7-93ec-35110ad011f3';
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/handover-sessions')) {
+      return {
+        ok: false,
+        status: 500,
+        json: async () => ({ code: 'INTERNAL_ERROR', message: 'Database connection failed' }),
+      };
+    }
+    return { ok: true, status: 200, json: async () => ({ content: [] }) };
+  };
+
+  try {
+    const wrapper = await mount(BeneficiaryConfirmationPage, {
+      caseId: 'HS-2026-000002',
+      caseItem: { caseId: mockCaseUuid, caseNumber: 'HS-2026-000002', status: 'OPEN' },
+      accessToken: 'valid-mock-token',
+      lang: 'vi',
+    });
+
+    try {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+      });
+
+      // Must show session load error
+      assert.ok(wrapper.host.textContent.includes('Không tải được danh sách phiên bàn giao'));
+      // Must have retry button
+      const retryBtn = [...wrapper.host.querySelectorAll('button')].find(b => b.textContent.includes('Thử lại'));
+      assert.ok(retryBtn, 'Retry button must exist for session load failure');
+      // Crucial requirement: MUST NOT show "Chưa có thông tin phiên bàn giao" business card when fetch failed
+      assert.equal(
+        wrapper.host.textContent.includes('Chưa có thông tin phiên bàn giao'),
+        false,
+        'Must never show "Chưa có thông tin phiên bàn giao" simultaneously with session load error'
+      );
+      assert.equal(
+        wrapper.host.textContent.includes('Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao'),
+        false,
+        'Must never ask user to select case again when case is already selected'
+      );
+    } finally {
+      await wrapper.close();
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('when case has no eligible sessions, directs to counter handover without asking to re-select case', async () => {
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  const originalFetch = globalThis.fetch;
+  const mockCaseUuid = '06eb6e23-1ae4-4db7-93ec-35110ad011f3';
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/handover-sessions')) {
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => [],
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ content: [] }),
+    };
+  };
+
+  try {
+    const wrapper = await mount(BeneficiaryConfirmationPage, {
+      caseId: 'HS-2026-000002',
+      caseItem: { caseId: mockCaseUuid, caseNumber: 'HS-2026-000002', status: 'OPEN' },
+      accessToken: 'valid-mock-token',
+      lang: 'vi',
+    });
+
+    try {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 40));
+      });
+
+      // Shows State 4: No session available
+      assert.ok(wrapper.host.textContent.includes('Chưa có phiên bàn giao phù hợp'));
+      // Directs to handover with caseId
+      const handoverLink = wrapper.host.querySelector('a[href*="/staff/handover?caseId=HS-2026-000002"]');
+      assert.ok(handoverLink, 'Must direct to /staff/handover?caseId=HS-2026-000002');
+      // Must not ask to re-select case
+      assert.equal(
+        wrapper.host.textContent.includes('Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao'),
+        false
+      );
+    } finally {
+      await wrapper.close();
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('when sessions are successfully loaded, renders session picker with formatted options', async () => {
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  const originalFetch = globalThis.fetch;
+  const mockCaseUuid = '06eb6e23-1ae4-4db7-93ec-35110ad011f3';
+  const mockSessionUuid = 'fe59e5ed-a842-45ab-b798-98cdda164ceb';
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/handover-sessions')) {
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => [
+          {
+            sessionId: mockSessionUuid,
+            caseId: mockCaseUuid,
+            vaultId: '9c1f0b6e-0000-4000-8000-000000000001',
+            staffId: '2e52b115-9e13-4760-9062-caa3ad085449',
+            status: 'OPEN',
+            openedAt: '2026-10-23T11:00:00Z',
+            closedAt: null,
+          },
+        ],
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ content: [] }),
+    };
+  };
+
+  try {
+    const wrapper = await mount(BeneficiaryConfirmationPage, {
+      caseId: 'HS-2026-000002',
+      caseItem: { caseId: mockCaseUuid, caseNumber: 'HS-2026-000002', status: 'OPEN' },
+      accessToken: 'valid-mock-token',
+      lang: 'vi',
+    });
+
+    try {
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 30));
+      });
+
+      const select = wrapper.host.querySelector('#lv-confirm-session-select');
+      assert.ok(select, 'Session select dropdown must exist');
+      assert.ok(select.options.length >= 2, 'Must have placeholder and session option');
+      assert.ok(select.textContent.includes('Đang mở'));
+    } finally {
+      await wrapper.close();
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

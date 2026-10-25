@@ -619,7 +619,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (invitationIntentRef.current) { navigateTo('/invitations'); return; }
     navigateTo(user.roles?.includes('STAFF_EXECUTOR') && !user.roles?.includes('VAULT_OWNER') && !user.roles?.includes('LEGAL_VERIFIER') ? '/staff/cases' : resolvePostLoginRoute(user));
   };
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     if (profileWriteRef.current && !profileWriteRef.current.aborted) return;
     if (refreshControllerRef.current) return;
     const currentSession = session;
@@ -670,7 +670,13 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         setIsRefreshing(false);
       }
     }
-  };
+  }, [session, lang, logout, navigateTo]);
+
+  useEffect(() => {
+    const onTriggerRefresh = () => { handleRefresh(); };
+    window.addEventListener('lv:refresh', onTriggerRefresh);
+    return () => window.removeEventListener('lv:refresh', onTriggerRefresh);
+  }, [handleRefresh]);
   const refreshLinkedAccount = async ({ signal }) => {
     const snapshot = session;
     if (!isSessionActive(snapshot)) throw new ApiError('UNAUTHENTICATED', 401);
@@ -680,6 +686,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     if (user.id !== snapshot.user.id) { logout(); throw new ApiError('INVALID_AUTH_RESPONSE', 401); }
     setSession(current => current?.accessToken === snapshot.accessToken && current?.user.id === user.id ? { ...current, user } : current);
   };
+
   const saveAccountProfile = async (changes, options) => {
     const snapshot = session;
     const active = profileSessionRef.current;
@@ -810,7 +817,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     }
 
     const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
-    const shellRole = preview ? (new URLSearchParams(location.split('?')[1] || '').get('role') === 'BENEFICIARY' ? 'BENEFICIARY' : 'OWNER') : (userRoles.includes('VAULT_OWNER') ? 'OWNER' : userRoles.includes('BENEFICIARY') ? 'BENEFICIARY' : 'OWNER');
+    const shellRole = preview ? (new URLSearchParams(location.split('?')[1] || '').get('role') === 'BENEFICIARY' ? 'BENEFICIARY' : 'OWNER') : (userRoles.includes('VAULT_OWNER') ? 'OWNER' : userRoles.includes('BENEFICIARY') || !userRoles.length ? 'BENEFICIARY' : 'OWNER');
 
     return (
       <div className="lv-app-root">

@@ -13,11 +13,8 @@ export default function StaffCaseContextBar({
   const en = lang === 'en';
   const hasCase = Boolean(caseId);
 
-  const displayCaseRef = caseItem?.caseNumber
-    ? formatCaseReference(caseItem.caseNumber)
-    : caseId
-    ? (en ? 'Selected case' : 'Hồ sơ đã chọn')
-    : '';
+  const rawCode = caseItem?.caseNumber || caseItem?.caseId || caseId || '';
+  const displayCaseRef = rawCode ? formatCaseReference(rawCode) : '';
 
   const statusLabel = caseItem?.status === 'OPEN'
     ? (en ? 'Open' : 'Đang mở')

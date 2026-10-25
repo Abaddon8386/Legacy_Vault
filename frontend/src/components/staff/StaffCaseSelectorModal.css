@@ -187,7 +187,8 @@
   font-weight: 700;
   font-size: 14px;
   color: #164639;
-  font-family: monospace;
+  font-family: var(--lv-font-mono, ui-monospace, 'JetBrains Mono', Consolas, monospace);
+  letter-spacing: 0.02em;
 }
 
 .lv-case-modal-badge {

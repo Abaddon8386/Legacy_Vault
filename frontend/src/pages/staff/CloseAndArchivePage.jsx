@@ -8,6 +8,8 @@ import { closeAndArchiveI18n } from './closeAndArchiveI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CloseAndArchivePage.css';
+import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
 const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
@@ -68,15 +70,13 @@ function CloseArchiveContext({
         ]);
         // Progress requires a current workflow and can conflict after archival. History remains readable.
         const closed = caseInfo.status === 'CLOSED' || propVaultStatus === 'ARCHIVED';
-        const [progress, people] = await Promise.all([
-          closed ? null : assetData && beneficiaryData
-            ? {assets: assetData, beneficiaries: beneficiaryData}
-            : fetchCompletionProgress(caseId, sessionId, opts),
-          closed || effectiveIsDevPreview ? [] : fetchStaffCaseBeneficiaries(caseId, opts),
-        ]);
+        const people = closed || effectiveIsDevPreview || propCaseStatus ? []
+          : await fetchStaffCaseBeneficiaries(caseId, opts).catch(() => []);
+        const progress = closed ? null : assetData && beneficiaryData
+          ? {assets: assetData, beneficiaries: beneficiaryData}
+          : await fetchCompletionProgress(caseId, sessionId, opts);
         if (controller.signal.aborted) return;
-        setServer({revision, caseInfo, sessionStatus: session.status, caseStatus: caseInfo.status,
-          vaultStatus: caseInfo.vaultStatus || propVaultStatus || '', receipts, deliveries, progress, people});
+        setServer({revision, caseInfo, sessionStatus: session.status, caseStatus: caseInfo.status, vaultStatus: caseInfo.vaultStatus, people, receipts, deliveries, progress});
       } catch (error) {
         if (!controller.signal.aborted) { setServer(null); setLoadError(error.message || t.loadFailed); }
       } finally {
@@ -118,6 +118,18 @@ function CloseArchiveContext({
   const canCreateReceipt = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasValidReceiptTarget;
   // BE rechecks coverage against the current full allocation snapshot under lock.
   const canArchive = ready && sessionStatus === 'COMPLETED' && isDualGateReady && hasReceipts && allDeliveredCovered;
+  const say = (vi, en) => lang === 'en' ? en : vi;
+  const commonBlock = loading || busy ? say('Chờ kiểm tra hoặc ghi nhận hoàn tất.', 'Wait for loading or saving to finish.')
+    : loadError || !server ? say('Tải lại để kiểm tra trạng thái hồ sơ.', 'Reload to check the case status.')
+      : isArchived ? say('Hồ sơ đã đóng/lưu trữ; chỉ xem lịch sử.', 'Closed or archived record; history is read-only.')
+        : !isDualGateReady ? say('Cần đủ bàn giao và xác nhận đã nhận trước khi đóng phiên.', 'Complete both delivery and receipt confirmation before closing.') : '';
+  const closeBlock = canCloseSession ? '' : commonBlock || say('Phiên không ở trạng thái đang mở.', 'The session is not open.');
+  const receiptBlock = canCreateReceipt ? '' : commonBlock || (sessionStatus !== 'COMPLETED'
+    ? say('Đóng phiên trước khi lập biên nhận Staff.', 'Close the session before creating a Staff receipt.')
+    : say('Chọn người nhận có phần tài sản đã giao để lập biên nhận.', 'Select a recipient with delivered items for the receipt.'));
+  const archiveBlock = canArchive ? '' : commonBlock || (sessionStatus !== 'COMPLETED'
+    ? say('Đóng phiên trước khi lưu trữ.', 'Close the session before archiving.')
+    : say('Cần biên nhận Staff bao phủ đầy đủ phần tài sản đã giao.', 'Staff receipts must cover all delivered items.'));
   const isCreatingReceipt = busy === 'receipt', isClosingSession = busy === 'close', isArchiving = busy === 'archive';
   async function execute(kind, permitted, work) {
     if (!permitted || mutation.current) return;
@@ -149,6 +161,9 @@ function CloseArchiveContext({
 
   return (
     <div className="lv-close-archive-view">
+      <StaffWorkflowGuide current="archive" caseId={caseId} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
+        caseStatus={caseStatus} vaultStatus={vaultStatus} sessionStatus={sessionStatus} loading={loading} error={loadError}
+        assets={server?.progress?.assets} beneficiaries={server?.progress?.beneficiaries} hasReceipts={hasReceipts} canArchive={canArchive} />
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         {caseId && sessionId && (
@@ -374,11 +389,13 @@ function CloseArchiveContext({
               {t.receiptSummaryHeading}
             </h2>
           </div>
+          <WorkflowActionHint id="receipt-action-blocked" reason={receiptBlock} />
           {!isArchived && (
             <button
               type="button"
               className="lv-ca-btn-receipt"
               onClick={handleCreateReceipt}
+              aria-describedby={receiptBlock ? 'receipt-action-blocked' : undefined}
               disabled={isCreatingReceipt || !canCreateReceipt}
               style={{
                 display: 'inline-flex',
@@ -435,7 +452,7 @@ function CloseArchiveContext({
                     <td>
                       {rc.attestationType === 'STAFF_ATTESTATION' || !rc.attestationType ? (lang === 'en' ? 'Counter confirmation' : 'Xác nhận tại quầy') : (lang === 'en' ? 'Handover receipt' : 'Biên nhận bàn giao')}
                     </td>
-                    <td>{recipientName(rc.recipientId) || t.statusUnavailable}</td>
+                    <td title={rc.recipientId}>{rc.recipientName || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
                     <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
                     <td>
                       <span className="lv-ca-tag">
@@ -478,6 +495,7 @@ function CloseArchiveContext({
                 </p>
               </div>
 
+              <WorkflowActionHint id="close-action-blocked" reason={closeBlock} />
               {sessionStatus === 'COMPLETED' ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 600, color: '#059669', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px' }}>
                   <CheckCircle2 size={14} aria-hidden="true" />
@@ -488,6 +506,7 @@ function CloseArchiveContext({
                   type="button"
                   className="lv-ca-btn-primary"
                   onClick={handleCloseSession}
+                  aria-describedby={closeBlock ? 'close-action-blocked' : undefined}
                   disabled={!canCloseSession || isClosingSession}
                   style={{
                     display: 'inline-flex',
@@ -529,10 +548,12 @@ function CloseArchiveContext({
                 </p>
               </div>
 
+              <WorkflowActionHint id="archive-action-blocked" reason={archiveBlock} />
               <button
                 type="button"
                 className="lv-ca-btn-primary"
                 onClick={handleArchiveCase}
+                aria-describedby={archiveBlock ? 'archive-action-blocked' : undefined}
                 disabled={!canArchive || isArchiving}
                 style={{
                   display: 'inline-flex',

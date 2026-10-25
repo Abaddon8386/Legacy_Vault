@@ -278,20 +278,54 @@
   gap: 16px;
 }
 
-/* Desktop Table View */
+/* Desktop Table View - Outer Frame with rounded border, glow and background */
 .lv-staff-table-wrap {
   width: 100%;
   background-color: #ffffff;
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: 12px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   box-shadow: 0 1px 3px rgba(22, 70, 57, 0.03);
+  position: relative;
+  min-width: 0;
+  padding: 3px;
+}
+
+.lv-staff-surfaces .lv-staff-table-wrap.lv-staff-glow::after {
+  inset: 0;
+}
+
+/* The content sets its own height; scroll only when it exceeds the available width. */
+.lv-staff-table-scroll {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  overflow: auto;
+  border-radius: inherit;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1;
+}
+
+.lv-staff-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.lv-staff-table-scroll::-webkit-scrollbar-track {
+  background: #faf8f5;
+}
+
+.lv-staff-table-scroll::-webkit-scrollbar-thumb {
+  background: #d4cec4;
+  border-radius: 4px;
+}
+
+.lv-staff-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #b8b0a2;
 }
 
 .lv-staff-table {
   width: 100%;
-  min-width: 760px;
   border-collapse: collapse;
   text-align: left;
   font-size: 13.5px;
@@ -311,6 +345,8 @@
 
 .lv-staff-th-actions {
   text-align: right;
+  white-space: nowrap;
+  width: 1%;
 }
 
 /* Fixed 58px Row Height on Desktop */
@@ -400,35 +436,42 @@
 /* Actions */
 .lv-staff-td-actions {
   text-align: right;
+  white-space: nowrap;
+  width: 1%;
 }
 
 .lv-staff-actions-group {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .lv-staff-view-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   height: 32px;
-  padding: 0 12px;
-  font-size: 12.5px;
+  padding: 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .lv-staff-intake-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   height: 32px;
-  padding: 0 12px;
-  font-size: 12.5px;
+  padding: 0 10px;
+  font-size: 12px;
   font-weight: 600;
   background-color: var(--lv-brand-forest, #164639);
   color: #ffffff;
   border-color: var(--lv-brand-forest, #164639);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .lv-staff-intake-btn:hover:not(:disabled) {
@@ -440,14 +483,16 @@
 .lv-staff-verify-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   height: 32px;
-  padding: 0 12px;
-  font-size: 12.5px;
+  padding: 0 10px;
+  font-size: 12px;
   font-weight: 600;
   background-color: #faf5eb;
   color: #8c6820;
   border-color: #ebd9b5;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .lv-staff-verify-btn:hover:not(:disabled) {

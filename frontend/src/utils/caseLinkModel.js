@@ -6,14 +6,14 @@ export const REQUEST_STATES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', '
 const text = value => typeof value === 'string' && value.trim().length > 0;
 export function isPersonalRecipient(roles = []) {
   const names = roles.map(role => role.replace(/^ROLE_/, ''));
-  return !names.some(role => ['ADMIN', 'LEGAL', 'LEGAL_OFFICER', 'STAFF_EXECUTOR'].includes(role)) &&
-    names.some(role => ['VAULT_OWNER', 'BENEFICIARY'].includes(role));
+  return !names.some(role => ['ADMIN', 'LEGAL', 'LEGAL_VERIFIER', 'LEGAL_OFFICER', 'STAFF_EXECUTOR'].includes(role)) &&
+    (names.length === 0 || names.some(role => ['VAULT_OWNER', 'BENEFICIARY'].includes(role)));
 }
 export function readLinkRequest(raw, { staff = false } = {}) {
-  if (!raw || !text(raw.id) || !text(raw.caseNumber) || !REQUEST_STATES.includes(raw.status)) throw new ApiError('INVALID_RESPONSE');
+  if (!raw || !text(raw.id) || (raw.caseNumber !== null && !text(raw.caseNumber)) || !REQUEST_STATES.includes(raw.status)) throw new ApiError('INVALID_RESPONSE');
   const item = { id: raw.id, caseNumber: raw.caseNumber, status: raw.status };
   if (staff) {
-    if (!text(raw.accountId) || !text(raw.accountName) || !text(raw.accountEmail)) throw new ApiError('INVALID_RESPONSE');
+    if ((raw.accountId !== null && !text(raw.accountId)) || !text(raw.accountName) || !text(raw.accountEmail)) throw new ApiError('INVALID_RESPONSE');
     Object.assign(item, { accountId: raw.accountId, accountName: raw.accountName, accountEmail: raw.accountEmail });
   }
   return item;
@@ -31,6 +31,15 @@ export function requestStatusLabel(status, lang = 'vi') {
 }
 export function caseLinkError(error, lang = 'vi') {
   const en = lang === 'en';
+  const messages = {
+    BENEFICIARY_LINK_REQUEST_INVALID: en ? 'Case number unavailable. Ask Staff to check it.' : 'Mã hồ sơ không khả dụng. Nhờ Staff kiểm tra lại.',
+    BENEFICIARY_LINK_REQUEST_ALREADY_PENDING: en ? 'You already have a pending request for this case.' : 'Bạn đã có yêu cầu đang chờ cho hồ sơ này.',
+    BENEFICIARY_LINK_REQUEST_LIMIT: en ? 'You have 5 active pending requests. Cancel one or wait for a decision.' : 'Bạn có 5 yêu cầu đang chờ còn hạn. Hãy hủy một yêu cầu hoặc chờ xử lý.',
+    BENEFICIARY_LINK_REQUEST_NOT_PENDING: en ? 'This request is no longer pending. Refresh its status.' : 'Yêu cầu không còn chờ xử lý. Hãy tải lại trạng thái.',
+    EMAIL_ALREADY_EXISTS: en ? 'An account already uses this email. Ask the recipient to sign in.' : 'Email đã có tài khoản. Hướng dẫn người nhận đăng nhập.',
+    BENEFICIARY_ACCOUNT_ALREADY_LINKED: en ? 'This recipient is already linked. Refresh the case.' : 'Người nhận đã liên kết. Hãy tải lại hồ sơ.',
+  };
+  if (messages[error?.code]) return messages[error.code];
   if (error?.status === 401) return en ? 'Your session has expired. Please sign in again.' : 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
   if (error?.status === 403) return en ? 'This account cannot perform this action.' : 'Tài khoản không có quyền thực hiện thao tác này.';
   if (error?.status === 429) return en ? 'Too many requests. Please wait before trying again.' : 'Bạn thao tác quá nhanh. Vui lòng chờ trước khi thử lại.';
