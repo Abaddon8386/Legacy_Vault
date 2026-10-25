@@ -16,6 +16,7 @@
 .lv-modal,
 .lv-asset-page .lv-modal {
   width: 100%;
+  font-family: var(--lv-font-sans);
   background-color: var(--lv-bg-surface, #ffffff);
   border-radius: var(--lv-radius-card, 16px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -23,7 +24,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   animation: lv-scale-up 200ms ease;
   box-sizing: border-box;
   color: var(--lv-text-ink, #1f2937);
@@ -41,9 +42,12 @@
   flex-shrink: 0;
 }
 
+.lv-modal__header > div { min-inline-size: 0; }
+
 .lv-modal__title,
 .lv-asset-page .lv-modal__title {
-  font-family: var(--lv-font-serif, Georgia, serif);
+  font-family: var(--lv-font-sans);
+  overflow-wrap: anywhere;
   font-size: 20px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
@@ -71,12 +75,19 @@
   justify-content: center;
   transition: all var(--lv-transition-fast, 150ms ease);
   flex-shrink: 0;
+  min-width: var(--lv-control-min-size);
+  min-height: var(--lv-control-min-size);
 }
 
 .lv-modal__close-btn:hover,
 .lv-asset-page .lv-modal__close-btn:hover {
   background-color: #f1ede5;
   color: var(--lv-text-ink, #111827);
+}
+
+.lv-modal__close-btn:focus-visible {
+  outline: 2px solid var(--lv-action-focus);
+  outline-offset: 3px;
 }
 
 .lv-modal__body,
@@ -96,7 +107,7 @@
 
   .lv-modal,
   .lv-asset-page .lv-modal {
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     border-radius: 12px;
   }
 

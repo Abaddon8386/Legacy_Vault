@@ -5,6 +5,22 @@
    ========================================================================== */
 
 :root {
+  /* Shared workspace controls. Gold remains a brand accent, not white-text CTA fill. */
+  --lv-action-primary: #164639;
+  --lv-action-primary-hover: #0c2b22;
+  --lv-action-focus: #164639;
+  --lv-action-disabled-bg: #e6e9e4;
+  --lv-action-disabled-text: #536056;
+  --lv-control-border: #7b887e;
+  --lv-control-text: #47564b;
+  --lv-control-min-size: 44px;
+  --lv-radius-control: 10px;
+  --lv-space-1: 4px;
+  --lv-space-2: 8px;
+  --lv-space-3: 12px;
+  --lv-space-4: 16px;
+  --lv-space-6: 24px;
+  --lv-space-8: 32px;
   /* ------------------------------------------------------------------------
      1. BRAND CORE IDENTITIES (Canonical Henedo Style)
      ------------------------------------------------------------------------ */
@@ -74,7 +90,7 @@
   --lv-status-success-border: #c9ecdb;
 
   --lv-status-error-bg: #fff8f7;
-  --lv-status-error-text: #c25149;
+  --lv-status-error-text: #a3312b;
   --lv-status-error-border: #f9d3cf;
 
   --lv-status-info-bg: #eef6f6;
@@ -86,7 +102,7 @@
   --lv-status-active-text: var(--lv-status-success-text);
   --lv-status-active-border: var(--lv-status-success-border);
   --lv-status-await-bg: #fff8eb;
-  --lv-status-await-text: #b46b18;
+  --lv-status-await-text: #82510d;
   --lv-status-await-border: #f9e2b8;
   --lv-status-danger-bg: var(--lv-status-error-bg);
   --lv-status-danger-text: var(--lv-status-error-text);

@@ -1,4 +1,4 @@
-import MagneticButton from './MagneticButton.jsx';
+import { Button } from './Button.jsx';
 import './EmptyState.css';
 
 export default function EmptyState({
@@ -65,15 +65,15 @@ export default function EmptyState({
         <p className="lv-empty-desc">{displayDesc}</p>
 
         {handleAction && (
-          <MagneticButton
+          <Button
             type="button"
             className="lv-empty-cta"
             onClick={handleAction}
-            maxOffset={5}
+            size="lg"
           >
             <span>{displayCta}</span>
             <span className="lv-empty-arrow" aria-hidden="true">→</span>
-          </MagneticButton>
+          </Button>
         )}
 
         {/* Informative Value Pillars (for Vault default) */}

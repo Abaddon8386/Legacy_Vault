@@ -13,11 +13,12 @@ export function Button({
 }) {
   return (
     <button
+      {...rest}
       type={type}
       disabled={disabled || isLoading}
+      aria-busy={isLoading || rest['aria-busy']}
       onClick={onClick}
       className={`lv-btn lv-btn--${variant} lv-btn--${size} ${isLoading ? 'lv-btn--loading' : ''} ${className}`}
-      {...rest}
     >
       {isLoading && <span className="lv-btn__spinner" aria-hidden="true" />}
       <span className="lv-btn__content">{children}</span>

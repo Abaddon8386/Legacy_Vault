@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Download, X, FileText } from 'lucide-react';
 import { useModalFocus } from './useModalFocus.js';
+import { Button } from './Button.jsx';
 import './EvidencePreviewModal.css';
 
 export default function EvidencePreviewModal({
@@ -112,13 +113,12 @@ export default function EvidencePreviewModal({
                   ? 'Preview not supported for this file format. Please download to view.'
                   : 'Định dạng tệp này không hỗ trợ xem trực tiếp. Vui lòng tải về máy để xem.'}
               </p>
-              <button
+              <Button
                 type="button"
-                className="lv-btn lv-btn-primary"
                 onClick={handleDownload}
               >
                 {isEn ? 'Download file' : 'Tải tệp'}
-              </button>
+              </Button>
             </div>
           )}
         </div>

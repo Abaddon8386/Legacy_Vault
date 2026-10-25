@@ -1,5 +1,8 @@
 /* EmptyState Stylesheet — Henedo Editorial Sanctuary */
 .lv-empty-state {
+  overflow-wrap: anywhere;
+  --lv-text-muted: #5f6b62;
+  font-family: var(--lv-font-sans);
   width: 100%;
   max-width: 860px;
   margin: 20px auto 40px;
@@ -43,7 +46,7 @@
   height: 84px;
   border-radius: 50%;
   background: rgba(197, 160, 89, 0.1);
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-brand-forest);
   display: grid;
   place-items: center;
   margin-bottom: 24px;
@@ -58,16 +61,17 @@
 
 .lv-empty-badge {
   display: inline-block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--lv-accent-gold, #c5a059);
+  letter-spacing: 0.04em;
+  color: var(--lv-control-text);
   margin-bottom: 12px;
   text-transform: uppercase;
 }
 
 .lv-empty-heading {
-  font-family: var(--lv-font-serif);
+  font-family: var(--lv-font-sans);
+  font-weight: 650;
   font-size: clamp(24px, 3.5vw, 32px);
   color: var(--lv-text-heading, #164639);
   line-height: 1.25;
@@ -84,7 +88,7 @@
 }
 
 .lv-empty-cta {
-  background: var(--lv-accent-gold, #c5a059);
+  background: var(--lv-action-primary);
   color: #ffffff;
   padding: 14px 32px;
   min-height: 48px;
@@ -94,7 +98,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  box-shadow: var(--lv-shadow-cta, 0 4px 14px rgba(197, 160, 89, 0.25));
+  box-shadow: var(--lv-shadow-sm);
   transition: background-color var(--lv-transition-fast),
               box-shadow var(--lv-transition-fast),
               transform var(--lv-transition-fast);
@@ -102,8 +106,8 @@
 }
 
 .lv-empty-cta:hover {
-  background: var(--lv-accent-gold-hover, #b58f47);
-  box-shadow: var(--lv-shadow-cta-hover, 0 6px 18px rgba(197, 160, 89, 0.35));
+  background: var(--lv-action-primary-hover);
+  box-shadow: var(--lv-shadow-sm);
 }
 
 .lv-empty-cta:active {
@@ -111,8 +115,8 @@
 }
 
 .lv-empty-cta:focus-visible {
-  outline: 2px solid var(--lv-accent-gold);
-  outline-offset: 2px;
+  outline: 2px solid var(--lv-action-focus);
+  outline-offset: 3px;
 }
 
 .lv-empty-arrow {
@@ -126,17 +130,19 @@
 /* Informative Value Pillars Grid */
 .lv-empty-pillars {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
   width: 100%;
   max-width: 760px;
   margin-top: 48px;
   padding-top: 36px;
   border-top: 1px solid var(--lv-border-subtle, #eae5dc);
-  text-align: left;
+  text-align: start;
 }
 
 .lv-empty-pillar {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   gap: 12px;
   align-items: flex-start;

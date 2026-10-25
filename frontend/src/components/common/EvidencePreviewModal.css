@@ -58,6 +58,7 @@
 }
 
 .lv-evidence-preview-btn-download {
+  min-height: var(--lv-control-min-size);
   display: inline-flex;
   align-items: center;
   gap: 6px;
