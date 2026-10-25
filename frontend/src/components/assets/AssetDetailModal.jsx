@@ -150,6 +150,7 @@ export function AssetDetailModal({
   }
 
   const isCredential = asset.assetType === 'CREDENTIAL'
+  const credential = isCredential ? readCredentialPayload(revealedPayload) : null
   const typeLabel = isCredential ? t.assets.types.CREDENTIAL : t.assets.types.TEXT
   const typeBadgeClass = isCredential ? 'lv-badge--gold' : 'lv-badge--forest'
   const TypeIcon = isCredential ? KeyRound : FileText
@@ -223,7 +224,7 @@ export function AssetDetailModal({
         </div>
 
         <AssetImageGallery key={[vaultId, asset.id, accessToken, lang].join(':')} vaultId={vaultId} assetId={asset.id}
-          accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} />
+          accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly />
 
         {/* Reveal / Secret Payload Section */}
         {asset.hasPayload && (
@@ -269,24 +270,26 @@ export function AssetDetailModal({
                     {t.assets.detailModal.hideBtn}
                   </button>
                 </div>
-                <pre
+                <div
                   style={{
                     backgroundColor: '#ffffff',
                     border: '1px solid #dce2da',
                     borderRadius: '8px',
                     padding: '12px',
                     fontSize: '13px',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
                     margin: 0,
                     maxHeight: '200px',
                     overflowY: 'auto',
-                    fontFamily: 'monospace',
                     color: '#164639',
                   }}
                 >
-                  {revealedPayload}
-                </pre>
+                  {credential ? (
+                    <div style={{ display: 'grid', gap: '10px', fontFamily: 'inherit' }}>
+                      <div><strong>{lang === 'en' ? 'Username' : 'Tên đăng nhập'}</strong><div>{credential.username || '—'}</div></div>
+                      <div><strong>{lang === 'en' ? 'Password' : 'Mật khẩu'}</strong><div style={{ overflowWrap: 'anywhere' }}>{credential.password || '—'}</div></div>
+                    </div>
+                  ) : <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0, fontFamily: 'monospace', color: 'inherit' }}>{revealedPayload}</pre>}
+                </div>
               </div>
             ) : isReauthOpen ? (
               /* Case 2: Reauth password input form */
@@ -427,7 +430,7 @@ export function AssetDetailModal({
         )}
 
         {/* Actions */}
-        {asset && <AssetDocuments vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} />}
+        {asset && <AssetDocuments vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly />}
         <div className="lv-modal-actions-right">
           <Button variant="primary" onClick={handleClose}>
             {t.assets.closeBtn}
@@ -436,4 +439,16 @@ export function AssetDetailModal({
       </div>
     </Modal>
   )
+}
+
+function readCredentialPayload(value) {
+  if (typeof value !== 'string') return null
+  try {
+    const parsed = JSON.parse(value)
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object' ||
+        typeof parsed.username !== 'string' || typeof parsed.password !== 'string') return null
+    return { username: parsed.username, password: parsed.password }
+  } catch {
+    return null
+  }
 }

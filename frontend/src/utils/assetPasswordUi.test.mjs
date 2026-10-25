@@ -132,3 +132,161 @@ test('real asset page sends one PATCH with password; REAUTH_FAILED and 429 retai
     assert.equal(calls.some(call => /reveal|login|verify/.test(call.url)), false);
   } finally { await view.close(); globalThis.fetch = original; }
 });
+
+test('real asset edit uploads selected files through add-only endpoints and preserves existing attachments', async () => {
+  const { exports: { AssetManagementPage } } = await loadComponentModule('src/pages/assets/AssetManagementPage.jsx');
+  const original = globalThis.fetch;
+  const vaultId = '11111111-1111-4111-8111-111111111111';
+  const assetId = '22222222-2222-4222-8222-222222222222';
+  const record = { ...asset, id: assetId, vaultId, createdAt: '2026-10-21T10:00:00Z', updatedAt: '2026-10-21T10:00:00Z' };
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (options.method === 'PATCH') return new Response(JSON.stringify({ ...record, name: 'Updated record' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/images') && options.method === 'GET') return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/documents') && options.method === 'GET') return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/images') && options.method === 'POST') return new Response(JSON.stringify([]), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    if (String(url).endsWith('/documents') && options.method === 'POST') return new Response(JSON.stringify([]), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(String(url).includes('?') ? { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 } : record), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
+  try {
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+    const image = new File(['image'], 'new.png', { type: 'image/png' });
+    const doc = new File(['%PDF-1.7\n%%EOF'], 'new.pdf', { type: 'application/pdf' });
+    const inputs = view.host.querySelectorAll('input[type=file]');
+    for (const [input, file] of [[inputs[0], image], [inputs[1], doc]]) {
+      assert.ok(input.closest('label.lv-asset-file-picker'), 'file input sits inside the shared picker box');
+      assert.ok(input.getAttribute('aria-label'));
+      const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
+      await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
+    }
+    await change(view.host, 'edit-asset-name', 'Updated record');
+    await change(view.host, 'edit-confirm-password', 'current-password');
+    await submit(view.host);
+    assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 1);
+    assert.equal(calls.filter(call => call.options.method === 'POST' && call.url.endsWith('/images')).length, 1);
+    assert.equal(calls.filter(call => call.options.method === 'POST' && call.url.endsWith('/documents')).length, 1);
+    assert.equal(calls.some(call => call.options.method === 'DELETE'), false);
+    assert.match(view.host.textContent, /Asset updated/);
+  } finally { await view.close(); globalThis.fetch = original; }
+});
+
+test('uploading a new image without metadata edits skips the empty asset PATCH and uploads successfully', async () => {
+  const { exports: { AssetManagementPage } } = await loadComponentModule('src/pages/assets/AssetManagementPage.jsx');
+  const original = globalThis.fetch;
+  const vaultId = '11111111-1111-4111-8111-111111111111';
+  const assetId = '22222222-2222-4222-8222-222222222222';
+  const record = { ...asset, id: assetId, vaultId, createdAt: '2026-10-21T10:00:00Z', updatedAt: '2026-10-21T10:00:00Z' };
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    const path = String(url); calls.push({ path, options });
+    if (path.endsWith('/images') && options.method === 'GET') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (path.endsWith('/documents') && options.method === 'GET') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (path.endsWith('/images') && options.method === 'POST') return new Response('[]', { status: 201, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(path.includes('?') ? { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 } : record), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
+  try {
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    const input = view.host.querySelector('input[type=file]');
+    const file = new File(['image'], 'new.png', { type: 'image/png' });
+    const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
+    await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
+    await change(view.host, 'edit-confirm-password', 'current-password');
+    await submit(view.host);
+    assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 0);
+    assert.equal(calls.filter(call => call.options.method === 'POST' && call.path.endsWith('/images')).length, 1);
+    assert.match(view.host.textContent, /Asset updated/);
+  } finally { await view.close(); globalThis.fetch = original; }
+});
+
+async function mountEditWithFiles({ imagePosts = [], documentPosts = [] }) {
+  const { exports: { AssetManagementPage } } = await loadComponentModule('src/pages/assets/AssetManagementPage.jsx');
+  const original = globalThis.fetch;
+  const vaultId = '11111111-1111-4111-8111-111111111111';
+  const assetId = '22222222-2222-4222-8222-222222222222';
+  const record = { ...asset, id: assetId, vaultId, createdAt: '2026-10-21T10:00:00Z', updatedAt: '2026-10-21T10:00:00Z' };
+  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const calls = [], queues = { images: [...imagePosts], documents: [...documentPosts] };
+  globalThis.fetch = async (url, options) => {
+    const path = String(url); calls.push({ path, options });
+    for (const kind of ['images', 'documents']) {
+      if (!path.endsWith('/' + kind)) continue;
+      if (options.method === 'GET') return json([]);
+      if (options.method === 'POST') {
+        const next = queues[kind].shift() ?? 'ok';
+        if (next === 'network') throw new TypeError('offline');
+        return next === 'ok' ? json([], 201) : json({ code: 'UPLOAD_FAILED' }, next);
+      }
+    }
+    return json(path.includes('?') ? { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 } : record);
+  };
+  const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
+  await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+  await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+  const pick = async (index, file) => {
+    const input = view.host.querySelectorAll('input[type=file]')[index];
+    const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
+    await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
+  };
+  await pick(0, new File(['image'], 'new.png', { type: 'image/png' }));
+  await pick(1, new File(['%PDF-1.7\n%%EOF'], 'new.pdf', { type: 'application/pdf' }));
+  const save = async () => { await change(view.host, 'edit-confirm-password', 'current-password'); await submit(view.host); };
+  const posts = kind => calls.filter(call => call.options.method === 'POST' && call.path.endsWith('/' + kind)).length;
+  return { view, save, posts, calls, close: async () => { await view.close(); globalThis.fetch = original; } };
+}
+
+for (const [label, failure] of [['API error', 500], ['network interruption', 'network']]) {
+  test(`image saved but PDF fails (${label}): partial result is shown and retry uploads only the PDF`, async () => {
+    const env = await mountEditWithFiles({ documentPosts: [failure, 'ok'] });
+    const text = () => env.view.host.textContent;
+    try {
+      await env.save();
+      assert.equal(env.posts('images'), 1); assert.equal(env.posts('documents'), 1);
+      assert.doesNotMatch(text(), /Asset updated/);
+      const partial = env.view.host.querySelector('[data-testid=edit-partial]');
+      assert.ok(partial); assert.match(partial.textContent, /Saved: new\.png/); assert.match(partial.textContent, /Failed: new\.pdf/);
+      await env.save();
+      assert.equal(env.posts('images'), 1, 'image must not be uploaded again');
+      assert.equal(env.posts('documents'), 2);
+      assert.match(text(), /Asset updated/);
+    } finally { await env.close(); }
+  });
+}
+
+test('both uploads fail: no success, nothing is marked saved, selection is kept and retry sends both', async () => {
+  const env = await mountEditWithFiles({ imagePosts: [500, 'ok'], documentPosts: [500, 'ok'] });
+  try {
+    await env.save();
+    assert.equal(env.posts('images'), 1); assert.equal(env.posts('documents'), 1);
+    assert.doesNotMatch(env.view.host.textContent, /Asset updated/);
+    assert.equal(env.view.host.querySelector('[data-testid=edit-partial]'), null);
+    assert.match(env.view.host.textContent, /Unable to update asset/);
+    assert.match(env.view.host.textContent, /new\.png/); assert.match(env.view.host.textContent, /new\.pdf/);
+    await env.save();
+    assert.equal(env.posts('images'), 2); assert.equal(env.posts('documents'), 2);
+    assert.match(env.view.host.textContent, /Asset updated/);
+  } finally { await env.close(); }
+});
+
+test('image fails but PDF succeeds: retry uploads only the image', async () => {
+  const env = await mountEditWithFiles({ imagePosts: [500, 'ok'] });
+  try {
+    await env.save();
+    assert.match(env.view.host.querySelector('[data-testid=edit-partial]').textContent, /Saved: new\.pdf[\s\S]*Failed: new\.png/);
+    await env.save();
+    assert.equal(env.posts('images'), 2); assert.equal(env.posts('documents'), 1);
+    assert.match(env.view.host.textContent, /Asset updated/);
+  } finally { await env.close(); }
+});
+
+test('double submit while the first save is running does not upload files twice', async () => {
+  const env = await mountEditWithFiles({});
+  try {
+    await change(env.view.host, 'edit-confirm-password', 'current-password');
+    await act(async () => { const form = env.view.host.querySelector('form'); for (let i = 0; i < 2; i++) form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); });
+    assert.equal(env.posts('images'), 1); assert.equal(env.posts('documents'), 1);
+  } finally { await env.close(); }
+});
