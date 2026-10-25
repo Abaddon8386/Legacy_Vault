@@ -326,6 +326,7 @@ const PS6_I18N = {
   }
 };
 for (const lang of ["vi","en"]) { Object.assign(ASSET_I18N[lang].assets,PS6_I18N[lang]); Object.assign(ASSET_I18N[lang].assets.alerts,{editSuccess:lang==="vi"?"Đã cập nhật tài sản.":"Asset updated.",editError:lang==="vi"?"Không thể cập nhật tài sản.":"Unable to update asset."}); }
+for (const lang of ["vi","en"]) Object.assign(ASSET_I18N[lang].assets.alerts,{editPartial:lang==="vi"?"Chỉ lưu được một phần. Thay đổi chưa hoàn tất.":"Only part of the changes were saved. The update is not complete.",editSavedLabel:lang==="vi"?"Đã lưu":"Saved",editFailedLabel:lang==="vi"?"Lưu thất bại":"Failed",editRetryHint:lang==="vi"?"Nhập lại mật khẩu và bấm Lưu để thử lại; phần đã lưu sẽ không bị tải lên lần nữa.":"Re-enter your password and save again to retry; items already saved will not be uploaded again."})
 
 Object.assign(ASSET_I18N.vi.assets.editModal, {confirmPasswordLabel: 'Xác nhận mật khẩu đăng nhập trước khi lưu', passwordRequired: 'Vui lòng nhập mật khẩu hiện tại.', passwordFailed: 'Không thể xác nhận mật khẩu. Vui lòng thử lại.'});
 Object.assign(ASSET_I18N.en.assets.editModal, {confirmPasswordLabel: 'Confirm your current password before saving', passwordRequired: 'Enter your current password.', passwordFailed: 'Unable to verify your password. Please try again.'});

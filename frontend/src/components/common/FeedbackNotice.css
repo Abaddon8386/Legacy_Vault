@@ -1,0 +1,46 @@
+.lv-feedback {
+  --feedback-bg: var(--lv-status-info-bg);
+  --feedback-ink: var(--lv-status-info-text);
+  --feedback-border: var(--lv-status-info-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--lv-space-3);
+  padding: var(--lv-space-4);
+  border: 1px solid var(--feedback-border);
+  border-inline-start: 4px solid var(--feedback-ink);
+  border-radius: var(--lv-radius-md);
+  background: var(--feedback-bg);
+  color: var(--feedback-ink);
+  font-family: var(--lv-font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.lv-feedback--success {
+  --feedback-bg: var(--lv-status-success-bg);
+  --feedback-ink: var(--lv-status-success-text);
+  --feedback-border: var(--lv-status-success-border);
+}
+
+.lv-feedback--warning {
+  --feedback-bg: var(--lv-status-await-bg);
+  --feedback-ink: var(--lv-status-await-text);
+  --feedback-border: var(--lv-status-await-border);
+}
+
+.lv-feedback--error {
+  --feedback-bg: var(--lv-status-error-bg);
+  --feedback-ink: var(--lv-status-error-text);
+  --feedback-border: var(--lv-status-error-border);
+}
+
+.lv-feedback__icon { flex-shrink: 0; margin-block-start: 2px; }
+.lv-feedback__content { flex: 1 1 180px; min-inline-size: 0; }
+.lv-feedback__title { margin: 0; color: inherit; font-weight: 700; }
+.lv-feedback__title + .lv-feedback__message { margin-block-start: var(--lv-space-1); }
+.lv-feedback__message { max-inline-size: 75ch; }
+.lv-feedback__message a { text-decoration: underline; text-underline-offset: 3px; }
+.lv-feedback__action { max-inline-size: 100%; }

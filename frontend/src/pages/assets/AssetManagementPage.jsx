@@ -68,6 +68,8 @@ export function AssetManagementPage({
   const addUnavailable = enforceQuota && (quotaLoading || quotaError || !quota || quotaFull)
   const submittingRef = useRef(false)
   const createdAssetRef = useRef(null)
+  // Edit steps already saved for one asset, so a retry only repeats what failed. files holds the File objects uploaded.
+  const editProgressRef = useRef(null)
   const [assetSaved,setAssetSaved] = useState(false)
   const mutationRef = useRef(null)
   const selectionRef = useRef(null)
@@ -190,7 +192,7 @@ export function AssetManagementPage({
   }
 
   function closeSelection() {
-    selectionRef.current?.abort(); setSelection(null); setEditErrorKey(null)
+    selectionRef.current?.abort(); setSelection(null); setEditErrorKey(null); editProgressRef.current = null
   }
   async function openAsset(asset, mode) {
     if (submittingRef.current) return
@@ -219,10 +221,32 @@ export function AssetManagementPage({
     try {
       const { images = [], documents = [], ...assetPatch } = patch
       const { password, ...editableFields } = assetPatch
-      if (Object.keys(editableFields).length) await assetService.updateAsset(vaultId,assetId,{...editableFields,password},{lang,accessToken,signal:controller.signal})
-      if (images.length) await assetImageService.add(vaultId, assetId, images, {lang, accessToken, signal:controller.signal})
-      if (documents.length) await assetDocumentService.upload(vaultId, assetId, documents, {lang, accessToken, signal:controller.signal})
+      const progress = editProgressRef.current?.assetId === assetId ? editProgressRef.current : (editProgressRef.current = { assetId, fieldsKey: null, files: new Set() })
+      const options = { lang, accessToken, signal: controller.signal }
+      const fieldsKey = Object.keys(editableFields).length ? JSON.stringify(editableFields) : null
+      const todoImages = images.filter(f => !progress.files.has(f)), todoDocuments = documents.filter(f => !progress.files.has(f))
+      const failed = { fields: false, images: [], documents: [] }
+      let firstError = null
+      const step = async (run, onFail) => {
+        try { await run() } catch (error) { if (controller.signal.aborted) throw error; firstError ||= error; onFail() }
+      }
+      if (fieldsKey && progress.fieldsKey !== fieldsKey) {
+        await step(async () => { await assetService.updateAsset(vaultId, assetId, { ...editableFields, password }, options); progress.fieldsKey = fieldsKey }, () => { failed.fields = true })
+      }
+      // A failed field save (e.g. wrong password) stops the save; images and documents use separate endpoints, so each is attempted and reported on its own.
+      if (!failed.fields && todoImages.length) await step(async () => { await assetImageService.add(vaultId, assetId, todoImages, options); todoImages.forEach(f => progress.files.add(f)) }, () => { failed.images = todoImages })
+      if (!failed.fields && todoDocuments.length) await step(async () => { await assetDocumentService.upload(vaultId, assetId, todoDocuments, options); todoDocuments.forEach(f => progress.files.add(f)) }, () => { failed.documents = todoDocuments })
       if (controller.signal.aborted || !aliveRef.current) return
+      if (firstError) {
+        const savedFiles = { images: images.filter(f => progress.files.has(f)), documents: documents.filter(f => progress.files.has(f)) }
+        const savedFields = !!fieldsKey && progress.fieldsKey === fieldsKey
+        if (savedFields || savedFiles.images.length || savedFiles.documents.length) {
+          firstError.partial = { savedFields, failedFields: failed.fields, savedImages: savedFiles.images, savedDocuments: savedFiles.documents, failedImages: failed.images, failedDocuments: failed.documents }
+          loadAssets()
+        }
+        throw firstError
+      }
+      editProgressRef.current = null
       closeSelection(); loadAssets(); showToast('editSuccess')
     } catch (error) {
       if (controller.signal.aborted || !aliveRef.current) return

@@ -47,6 +47,7 @@ export function AssetEditModal({
   const [errors, setErrors] = useState({})
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
+  const [partial, setPartial] = useState(null)
   const submission = useRef(null), pending = useRef(false)
   useLayoutEffect(() => () => { submission.current?.abort(); submission.current = null; pending.current = false }, [asset?.id, isOpen, authContext])
   useEffect(() => {
@@ -70,7 +71,7 @@ export function AssetEditModal({
       setName(asset?.name || ''); setDescription(asset?.description || ''); setPayload(''); setCredentials({ username: '', password: '' })
       setImages([]); setDocuments([])
     }
-    setPrevious({ id: asset?.id, isOpen, authContext }); setPassword(''); setSaving(false); setErrors({})
+    setPrevious({ id: asset?.id, isOpen, authContext }); setPassword(''); setSaving(false); setErrors({}); setPartial(null)
   }
   const busy = isSubmitting || saving
   const canSubmit = typeof onSubmit === 'function'
@@ -110,7 +111,7 @@ export function AssetEditModal({
 
     if (!canSubmit) return
     if (!password.trim()) { setErrors({ password: 'required' }); return }
-    pending.current = true; setSaving(true)
+    pending.current = true; setSaving(true); setPartial(null)
     const controller = new AbortController(); submission.current = controller
     const submittedPassword = password
     setPassword('')
@@ -118,6 +119,15 @@ export function AssetEditModal({
       await onSubmit(asset.id, { ...patchData, password: submittedPassword }, { signal: controller.signal })
     } catch (error) {
       if (!controller.signal.aborted && submission.current === controller) {
+        const done = error.partial
+        if (done) {
+          // Saved files leave the selection (and count as existing) so a retry cannot upload them twice; failed ones stay selected.
+          setImages(current => current.filter(f => !done.savedImages.includes(f)))
+          setDocuments(current => current.filter(f => !done.savedDocuments.includes(f)))
+          setExistingImageCount(n => n + done.savedImages.length)
+          setExistingDocumentCount(n => n + done.savedDocuments.length)
+          setPartial({ savedNames: [...(done.savedFields ? [name.trim()] : []), ...done.savedImages.map(f => f.name), ...done.savedDocuments.map(f => f.name)], failedNames: [...(done.failedFields ? [name.trim()] : []), ...done.failedImages.map(f => f.name), ...done.failedDocuments.map(f => f.name)] })
+        }
         setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
       }
     } finally {
@@ -178,7 +188,8 @@ export function AssetEditModal({
 
         <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
-          {errors.save && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
+          {errors.save && !partial && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
+          {partial && <div className="lv-form-error" role="alert" data-testid="edit-partial"><p>{t.assets.alerts.editPartial}</p>{!!partial.savedNames.length && <p>{t.assets.alerts.editSavedLabel}: {partial.savedNames.join(', ')}</p>}{!!partial.failedNames.length && <p>{t.assets.alerts.editFailedLabel}: {partial.failedNames.join(', ')}</p>}<p>{t.assets.alerts.editRetryHint}</p></div>}
           {errors.rateLimited && <p className="lv-form-error" role="alert">{t.assets.alerts.TOO_MANY_ATTEMPTS}</p>}
           {errors.noChanges && <p className="lv-form-error" role="alert">{t.assets.editModal.noChangesError}</p>}
           {/* Read-only Asset Type */}

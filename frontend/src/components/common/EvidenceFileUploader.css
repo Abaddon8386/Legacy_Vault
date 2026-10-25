@@ -199,6 +199,7 @@
 }
 
 .lv-evidence-btn-change {
+  min-height: var(--lv-control-min-size);
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -221,8 +222,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: var(--lv-control-min-size);
+  height: var(--lv-control-min-size);
   color: #64748b;
   background: transparent;
   border: 1px solid transparent;
@@ -323,23 +324,6 @@
   gap: 0.375rem;
   color: #059669;
   font-weight: 600;
-}
-
-/* Error message */
-.lv-evidence-error {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.775rem;
-  color: #dc2626;
-  background-color: #fef2f2;
-  border: 1px solid #fee2e2;
-  padding: 0.375rem 0.625rem;
-  border-radius: 0.375rem;
-}
-
-.lv-evidence-error__icon {
-  flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
