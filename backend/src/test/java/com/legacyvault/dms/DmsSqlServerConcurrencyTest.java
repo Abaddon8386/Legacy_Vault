@@ -130,7 +130,7 @@ class DmsSqlServerConcurrencyTest {
     }
 
     @Test
-    void schedulerCommitsFirstSoCheckInCannotOverwriteTriggeredState() throws Exception {
+    void schedulerCommitsFirstSoOwnerCanStillCheckInDuringGracePeriod() throws Exception {
         schedulerWins(false);
     }
 
@@ -150,24 +150,29 @@ class DmsSqlServerConcurrencyTest {
         }));
         try {
             assertTrue(triggered.await(10, TimeUnit.SECONDS));
-            Future<ErrorCode> owner = workers.submit(() -> asOwner(() -> {
-                BusinessException error = assertThrows(BusinessException.class, () -> {
-                    if (configure) ownerService.configure(new DmsDtos.ConfigureRequest(60));
-                    else ownerService.checkIn();
-                });
-                return error.getErrorCode();
+            Future<String> owner = workers.submit(() -> asOwner(() -> {
+                if (!configure) return ownerService.checkIn().status();
+                BusinessException error = assertThrows(BusinessException.class,
+                        () -> ownerService.configure(new DmsDtos.ConfigureRequest(60)));
+                return error.getErrorCode().name();
             }));
             assertThrows(TimeoutException.class, () -> owner.get(300, TimeUnit.MILLISECONDS), "Owner must wait for scheduler transaction");
             commitScheduler.countDown();
             trigger.get(15, TimeUnit.SECONDS);
-            assertEquals(ErrorCode.DMS_NOT_MONITORING, owner.get(15, TimeUnit.SECONDS));
-            assertEquals("TRIGGERED", status());
+            assertEquals(configure ? ErrorCode.DMS_NOT_MONITORING.name() : "MONITORING", owner.get(15, TimeUnit.SECONDS));
+            assertEquals(configure ? "TRIGGERED" : "MONITORING", status());
             assertEquals(1, audits("DMS_TRIGGERED"));
-            assertEquals(0, audits("DMS_CHECKED_IN"));
+            assertEquals(configure ? 0 : 1, audits("DMS_CHECKED_IN"));
             assertEquals(0, audits("DMS_CONFIGURED"));
-            assertNotNull(jdbc.queryForObject("SELECT triggered_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
-            assertNotNull(jdbc.queryForObject("SELECT grace_period_ends_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
-            assertNull(jdbc.queryForObject("SELECT last_check_in_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+            if (configure) {
+                assertNotNull(jdbc.queryForObject("SELECT triggered_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+                assertNotNull(jdbc.queryForObject("SELECT grace_period_ends_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+                assertNull(jdbc.queryForObject("SELECT last_check_in_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+            } else {
+                assertNull(jdbc.queryForObject("SELECT triggered_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+                assertNull(jdbc.queryForObject("SELECT grace_period_ends_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+                assertNotNull(jdbc.queryForObject("SELECT last_check_in_at FROM dbo.dms_configs WHERE dms_id = ?", Object.class, configId));
+            }
         } finally { commitScheduler.countDown(); }
     }
 

@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
-import { dmsStatusMessages } from './dmsService.js';
+import { dmsStatusMessages, formatDmsDate } from './dmsService.js';
 
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/dms' });
 globalThis.window = dom.window;
@@ -48,10 +48,187 @@ for (const status of ['TRIGGERED','GRACE_PERIOD_EXCEEDED']) test(`DMS ${status}:
   await act(async()=>root.render(React.createElement(DMSOverviewPage,{accessToken:'fixture',lang:'vi'})));
   const checkIn=host.querySelector('.lv-dms-checkin-btn'),save=host.querySelector('.lv-dms-submit-btn');
   assert.equal(checkIn?.disabled,true);assert.equal(save?.disabled,true);
-  assert.match(host.textContent,/DMS đã rời trạng thái theo dõi/);
+  assert.match(host.textContent,/Thời hạn check-in đã kết thúc/);
   await act(async()=>host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   await act(async()=>checkIn.click());assert.equal(writes,0);
  }finally{await act(async()=>root.unmount());host.remove();globalThis.fetch=original;}
+});
+
+test('DMS progress advances from backend timestamps and infers the first configured cycle start', async () => {
+  const original = globalThis.fetch;
+  const originalSetInterval = window.setInterval;
+  const originalClearInterval = window.clearInterval;
+  const scheduledIntervals = [];
+  const clearedIntervals = [];
+  window.setInterval = (...args) => {
+    const id = originalSetInterval(...args);
+    scheduledIntervals.push(id);
+    return id;
+  };
+  window.clearInterval = id => {
+    clearedIntervals.push(id);
+    return originalClearInterval(id);
+  };
+  const nextCheckAt = new Date(Date.now() + 20_000).toISOString();
+  globalThis.fetch = async () => json({
+    ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'MONITORING',
+    checkIntervalDays: null, checkIntervalMinutes: 1, gracePeriodDays: 1,
+    lastCheckInAt: null, nextCheckAt,
+  });
+  const host = document.createElement('div'); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(DMSOverviewPage, { accessToken: 'fixture', lang: 'vi' })));
+    const bar = host.querySelector('.lv-dms-cycle-progress-bar');
+    assert.ok(bar, 'First-time configuration should show cycle progress without lastCheckInAt');
+    const before = Number.parseFloat(bar.style.width);
+    await act(async () => new Promise(resolve => setTimeout(resolve, 1100)));
+    const after = Number.parseFloat(bar.style.width);
+    assert.ok(after > before, `Progress should advance while mounted (${before}% -> ${after}%)`);
+  } finally {
+    try {
+      await act(async () => root.unmount());
+      assert.ok(scheduledIntervals.length > 0, 'Component should own one progress clock interval');
+      assert.ok(scheduledIntervals.every(id => clearedIntervals.includes(id)), 'Unmount must clear the progress clock interval');
+    } finally {
+      host.remove(); globalThis.fetch = original;
+      window.setInterval = originalSetInterval;
+      window.clearInterval = originalClearInterval;
+    }
+  }
+});
+
+test('DMS Owner check-in remains enabled only before the backend grace deadline', async () => {
+  const original = globalThis.fetch;
+  const payload = deadline => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'TRIGGERED',
+    checkIntervalDays: 30, gracePeriodDays: 1, lastCheckInAt: new Date(Date.now() - 31 * 86400000).toISOString(),
+    nextCheckAt: new Date(Date.now() - 86400000).toISOString(), triggeredAt: new Date(Date.now() - 86400000).toISOString(),
+    graceDeadline: deadline });
+  let writes = 0;
+  globalThis.fetch = async (_url, options = {}) => {
+    if (options.method === 'POST') { writes++; return json({ ...payload(new Date(Date.now() + 86400000).toISOString()), status: 'MONITORING' }); }
+    return json(payload(new Date(Date.now() + 60_000).toISOString()));
+  };
+  const host = document.createElement('div'); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(DMSOverviewPage, { accessToken: 'fixture', lang: 'vi' })));
+    const checkIn = host.querySelector('.lv-dms-checkin-btn');
+    assert.equal(checkIn.disabled, false, 'TRIGGERED status is check-in eligible while the grace deadline is in the future');
+    await act(async () => checkIn.click());
+    assert.equal(writes, 1);
+    await act(async () => root.render(React.createElement(DMSOverviewPage, { accessToken: 'fixture', lang: 'vi', isOwner: false })));
+    assert.equal(host.querySelector('.lv-dms-checkin-btn').disabled, true, 'Non-Owner cannot check in');
+  } finally {
+    await act(async () => root.unmount()); host.remove(); globalThis.fetch = original;
+  }
+});
+
+test('DMS deadline status refresh shows one overdue notice and keeps it singular after remount', async () => {
+  const original = globalThis.fetch;
+  const ownerId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const deadlineMs = Date.now() + 400;
+  const expiredAt = new Date(deadlineMs).toISOString();
+  let reads = 0;
+  let resolveTriggered;
+  const triggeredPayload = () => ({ ownerId, status: 'TRIGGERED', checkIntervalDays: 1,
+    gracePeriodDays: 1, lastCheckInAt: new Date(deadlineMs - 86400000).toISOString(),
+    nextCheckAt: expiredAt, triggeredAt: expiredAt,
+    graceDeadline: new Date(Date.now() + 86400000).toISOString() });
+  globalThis.fetch = async () => {
+    reads++;
+    if (reads === 1) return json({ ownerId, status: 'MONITORING', checkIntervalDays: 1,
+      gracePeriodDays: 1, lastCheckInAt: new Date(deadlineMs - 86400000).toISOString(),
+      nextCheckAt: expiredAt, triggeredAt: null, graceDeadline: null });
+    if (reads === 2) return new Promise(resolve => { resolveTriggered = () => resolve(json(triggeredPayload())); });
+    return json(triggeredPayload());
+  };
+  const host = document.createElement('div'); document.body.append(host);
+  let root = createRoot(host);
+  const page = () => React.createElement(DMSOverviewPage, { accessToken: 'fixture', lang: 'vi' });
+  try {
+    await act(async () => root.render(page()));
+    await act(async () => new Promise(resolve => setTimeout(resolve, 1400)));
+    await act(async () => new Promise(resolve => setTimeout(resolve, 20)));
+    assert.equal(reads, 2, `Expired DMS is refetched from the backend while the page stays mounted; UI: ${host.textContent}`);
+    assert.equal(host.querySelectorAll('.lv-dms-triggered-banner').length, 1);
+    const noticeDelay = Date.now() - deadlineMs;
+    assert.ok(noticeDelay >= 0 && noticeDelay < 1500, `Deadline notice should appear promptly (${noticeDelay} ms after deadline)`);
+    assert.match(host.textContent, /Đang xác minh trạng thái DMS/);
+    assert.doesNotMatch(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/,
+      'The UI must not claim the backend triggered DMS while its status request is pending');
+
+    await act(async () => { resolveTriggered(); await new Promise(resolve => setTimeout(resolve, 0)); });
+    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/,
+      'The confirmed notice replaces the pending deadline notice after backend confirmation');
+
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(page()));
+    assert.equal(host.querySelectorAll('.lv-dms-triggered-banner').length, 1, 'Reload/remount displays one current-state notice');
+  } finally {
+    await act(async () => root.unmount()); host.remove(); globalThis.fetch = original;
+  }
+});
+
+test('DMS deadline refresh does not show overdue notice before backend deadline', async () => {
+  const original = globalThis.fetch;
+  let reads = 0;
+  globalThis.fetch = async () => {
+    reads++;
+    return json({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'MONITORING', checkIntervalDays: 1,
+      gracePeriodDays: 1, lastCheckInAt: new Date().toISOString(),
+      nextCheckAt: new Date(Date.now() + 60_000).toISOString() });
+  };
+  const host = document.createElement('div'); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(DMSOverviewPage, { accessToken: 'fixture', lang: 'vi' })));
+    await act(async () => new Promise(resolve => setTimeout(resolve, 20)));
+    assert.equal(host.querySelectorAll('.lv-dms-triggered-banner').length, 0);
+    assert.equal(reads, 1, 'No deadline poll should run before nextCheckAt');
+  } finally {
+    await act(async () => root.unmount()); host.remove(); globalThis.fetch = original;
+  }
+});
+
+test('DMS waits for backend grace deadline and renders it with the triggered notice atomically', async () => {
+  const original = globalThis.fetch;
+  const ownerId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const triggeredAt = new Date(Date.now() - 1000).toISOString();
+  const graceDeadline = new Date(Date.now() + 86400000).toISOString();
+  let reads = 0;
+  let resolveCompleteResponse;
+  globalThis.fetch = async () => {
+    reads++;
+    if (reads === 1) return json({ ownerId, status: 'TRIGGERED', checkIntervalDays: 1,
+      gracePeriodDays: 1, lastCheckInAt: triggeredAt, nextCheckAt: triggeredAt,
+      triggeredAt, graceDeadline: null });
+    return new Promise(resolve => {
+      resolveCompleteResponse = () => resolve(json({ ownerId, status: 'TRIGGERED', checkIntervalDays: 1,
+        gracePeriodDays: 1, lastCheckInAt: triggeredAt, nextCheckAt: triggeredAt,
+        triggeredAt, graceDeadline }));
+    });
+  };
+  const host = document.createElement('div'); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(React.createElement(DMSOverviewPage, { accessToken: 'fixture', lang: 'vi' })));
+    await act(async () => new Promise(resolve => setTimeout(resolve, 20)));
+    assert.equal(reads, 2, 'Missing deadline triggers a backend refetch');
+    assert.equal(host.querySelector('.lv-dms-triggered-banner'), null,
+      'Do not show a partial triggered notice without the backend deadline');
+
+    await act(async () => { resolveCompleteResponse(); await new Promise(resolve => setTimeout(resolve, 0)); });
+    const banner = host.querySelector('.lv-dms-triggered-banner');
+    assert.ok(banner);
+    assert.match(banner.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/);
+    assert.match(banner.textContent, /Thời hạn ân hạn:/);
+    assert.ok(banner.querySelector('.lv-dms-triggered-deadline-tag').textContent.includes(formatDmsDate(graceDeadline, 'vi')),
+      'Deadline is rendered from the API response');
+  } finally {
+    await act(async () => root.unmount()); host.remove(); globalThis.fetch = original;
+  }
 });
 
 for (const mutation of ['save', 'check-in']) {

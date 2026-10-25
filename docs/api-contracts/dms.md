@@ -56,14 +56,13 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **t
 - Owner xác nhận còn sống. Không có body.
 - **Hành vi:** `lastCheckInAt = now`, `nextCheckAt = now + checkIntervalDays`. **Không** mở khóa, **không** giải mã.
 - **Response 200:** `DmsResponse` mới.
-- **Lỗi:** `401` · `403` · `404` (chưa bật DMS) · `409 DMS_NOT_MONITORING` khi DMS không ở `MONITORING` — Sprint 1 từ chối như trên (D-API-27); luồng huỷ
-  báo động trong lúc `TRIGGERED`/Grace (LV-OWN-001) là việc riêng ở sprint sau.
-- **Audit:** `DMS_CHECKED_IN`.
+- **Trong thời gian ân hạn (D-API-27):** khi DMS đang `TRIGGERED`, `graceDeadline` còn ở tương lai (`graceDeadline > now`, so sánh nghiêm ngặt) và Vault còn `ACTIVE`, check-in được chấp nhận: DMS về `MONITORING`, `lastCheckInAt = now`, `nextCheckAt = now + chu kỳ`, xoá `triggeredAt` và `graceDeadline` (`restoreAfterAlert`). Audit `DMS_CHECKED_IN` có `stateBefore = TRIGGERED`, `stateAfter = MONITORING`.
+- **Lỗi:** `401` · `403` · `404` (chưa bật DMS) · `409 DMS_NOT_MONITORING` khi DMS không ở `MONITORING` và cũng không nằm trong thời gian ân hạn nói trên, tức `TRIGGERED` mà `graceDeadline` null, đã tới/qua hạn (`graceDeadline <= now`) hoặc Vault không còn `ACTIVE`; `GRACE_PERIOD_EXCEEDED` luôn bị từ chối. Không ghi đè trạng thái, không tạo audit.- **Audit:** `DMS_CHECKED_IN`.
 
 Check-in và cập nhật cấu hình đọc DMS bằng `PESSIMISTIC_WRITE` trong cùng transaction với
 ghi dữ liệu và audit. Nếu Owner giữ khóa trước, scheduler chờ commit rồi kiểm tra lại điều kiện
 quá hạn trên dữ liệu mới. Nếu scheduler chuyển `TRIGGERED` trước, Owner đọc trạng thái đó sau
-commit và nhận `409 DMS_NOT_MONITORING`; không ghi đè trạng thái hoặc tạo audit check-in/cấu hình.
+commit; check-in vẫn thành công nếu còn trong thời gian ân hạn, ngược lại nhận `409 DMS_NOT_MONITORING`; không ghi đè trạng thái hoặc tạo audit check-in/cấu hình.
 
 ## PS-23 — Scheduler `TRIGGERED` + Grace (không có HTTP endpoint)
 

@@ -89,7 +89,7 @@ Lỗi validation:
 | `EMAIL_ALREADY_EXISTS` | 409 | Đăng ký trùng email |
 | `TRUSTEE_ALREADY_EXISTS` | 409 | Vault đã có Trustee hiện hành |
 | `VAULT_NOT_EDITABLE` | 409 | Vault hiện không cho phép Owner chỉnh sửa |
-| `DMS_NOT_MONITORING` | 409 | Check-in hoặc cấu hình khi DMS không ở `MONITORING` |
+| `DMS_NOT_MONITORING` | 409 | Check-in (ngoài thời gian ân hạn) hoặc cấu hình khi DMS không ở `MONITORING` |
 | `VERIFICATION_CASE_NOT_OPEN` | 409 | Ghi nhận chứng từ trên ca xác minh đã hủy/đóng (PS-38, PS-39) |
 | `INTAKE_ATTACHMENT_LIMIT_EXCEEDED` | 409 | Giấy tờ đã đạt số tệp đính kèm tối đa (`legacyvault.intake.max-attachments-per-record`, PS-103, D-API-41) |
 | `HANDOVER_SESSION_ALREADY_OPEN` | 409 | Ca đã có một handover session đang mở (PS-60) |
@@ -129,7 +129,7 @@ Lỗi validation:
 | `BENEFICIARY_REQUIRED` | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có Beneficiary nào |
 | `TRUSTEE_ALREADY_EXISTS` | 409 | PS-19 | Vault đã có Trustee hiện hành khi tạo thêm |
 | `VAULT_NOT_EDITABLE` | 409 | PS-19/20/22 | Vault không còn ở trạng thái Owner được phép sửa |
-| `DMS_NOT_MONITORING` | 409 | PS-22 | Check-in/cấu hình khi DMS không ở trạng thái `MONITORING` (xem D-API-27) |
+| `DMS_NOT_MONITORING` | 409 | PS-22 | Check-in (trừ khi `TRIGGERED` còn ân hạn)/cấu hình khi DMS không ở trạng thái `MONITORING` (xem D-API-27) |
 | `FILE_TYPE_NOT_ALLOWED` | 415 | PS-17 | Loại file ngoài danh sách cho phép (có thể dùng `UNSUPPORTED_MEDIA_TYPE`) |
 
 Lỗi vi phạm quy tắc nghiệp vụ dùng HTTP **422** (D-API-19); xung đột trạng thái dùng **409**.
