@@ -230,7 +230,7 @@ test('SharedWithMePage - honest error when invitation redemption API is not wire
   }
 });
 
-test('AppShell - Shared with me is hidden for Owner-only accounts and visible for Beneficiaries', async () => {
+test('AppShell - Shared with me is visible for personal Owners and Beneficiaries', async () => {
   let navigatedTo = null;
 
   // 1. Owner layout: has personal vault tabs + Shared with me
@@ -246,7 +246,7 @@ test('AppShell - Shared with me is hidden for Owner-only accounts and visible fo
   try {
     const navButtons = [...v.host.querySelectorAll('button, a')];
     const sharedTab = navButtons.find(b => b.textContent.includes('Được chia sẻ với tôi'));
-    assert.equal(sharedTab, undefined, 'Owner-only accounts cannot call the Beneficiary endpoint');
+    assert.ok(sharedTab, 'Personal Owner must be able to enter the new case-link workflow');
 
     const vaultTab = navButtons.find(b => b.textContent.includes('Kho di sản'));
     assert.ok(vaultTab, 'Vault tab must still exist in OWNER sidebar');
@@ -413,6 +413,25 @@ test('Regression Finding 1: Existing Bene landing Shared with me button must nav
     globalThis.fetch = oldFetch;
     window.sessionStorage.clear();
   }
+});
+
+test('Actual App enables case-number requests only with the new adapter and refreshes account roles', async () => {
+  window.history.replaceState({}, '', '/shared-with-me');
+  let user = { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', fullName: 'Account C', email: 'c@example.test', roles: ['VAULT_OWNER'] };
+  window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt: Date.now() + 3600000 }));
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(user), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  let sent, legacyCalls = 0, reads = 0;
+  const caseLinkActions = { listOwn: async () => [{ id: 'approved', caseNumber: 'HS-2026-000001', status: 'APPROVED' }], submit: async (data, options) => { sent = { data, options }; return { id: 'new', ...data, status: 'PENDING' }; } };
+  const v = await mount(App, { caseLinkActions, invitationActions: { accept: () => { legacyCalls++; } }, beneficiaryAssetActions: { list: async () => { reads++; throw new Error('read fixture'); }, detail: async () => {}, content: async () => {}, image: async () => {} } });
+  try {
+    await change(v.host, '#case-link-number', 'hs-2026-000002'); await submit(v.host);
+    assert.equal(sent.options.accessToken, 'fixture'); assert.equal(sent.data.caseNumber, 'HS-2026-000002'); assert.equal(legacyCalls, 0); assert.equal(reads, 0);
+    user = { ...user, roles: ['VAULT_OWNER', 'BENEFICIARY'] };
+    const refresh = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Cập nhật quyền tài khoản'));
+    assert.ok(refresh); await act(async () => refresh.click());
+    assert.ok(reads > 0, 'Received assets are fetched only after /auth/me confirms Beneficiary role');
+  } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
 });
 
 test('Multi-role Owner can navigate from vault to Shared with me and back to vault', async () => {

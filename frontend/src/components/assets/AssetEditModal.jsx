@@ -144,7 +144,8 @@ export function AssetEditModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
+        <form onSubmit={handleSubmit} className="lv-modal__body lv-asset-form" noValidate>
+          <div className="lv-asset-form__scroll">
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
           {errors.save && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
           {errors.rateLimited && <p className="lv-form-error" role="alert">{t.assets.alerts.TOO_MANY_ATTEMPTS}</p>}
@@ -258,6 +259,7 @@ export function AssetEditModal({
             {errors.password && <p id="edit-password-error" className="lv-form-error" role="alert">{errors.password === 'required' ? t.assets.editModal.passwordRequired : t.assets.editModal.passwordFailed}</p>}
           </div>
           {/* Actions */}
+          </div>
           <div className="lv-form-actions">
             <Button
               variant="secondary"

@@ -1,0 +1,15 @@
+.lv-counter-link { padding: 24px; margin-top: 24px; border: 1px solid #dce5de; border-radius: 18px; background: #fff; color: #234237; line-height: 1.6; }
+.lv-counter-link__heading, .lv-counter-link__actions { display: flex; gap: 16px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.lv-counter-link h2 { margin: 0; font-size: 24px; font-family: var(--lv-font-serif, Georgia, serif); }
+.lv-counter-link ol { padding-left: 24px; margin: 18px 0; }
+.lv-counter-link details { margin: 20px 0; border-top: 1px solid #e0e7e1; padding-top: 14px; }
+.lv-counter-link summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.lv-counter-link label { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; min-width: 0; }
+.lv-counter-link fieldset { border: 0; padding: 0; min-width: 0; }
+.lv-counter-link input, .lv-counter-link select, .lv-counter-link textarea { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border: 1px solid #b9cbc0; border-radius: 8px; background: #fcfdfb; color: inherit; font: inherit; }
+.lv-counter-link :is(input, select, textarea, summary):focus-visible { outline: 3px solid #b8cfc1; outline-offset: 2px; }
+.lv-counter-link .lv-counter-link__check { flex-direction: row; align-items: flex-start; }
+.lv-counter-link__check input { width: 20px; min-height: 20px; margin-top: 3px; flex-shrink: 0; }
+.lv-counter-link__columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.lv-counter-link__identity { display: flex; flex-direction: column; padding: 16px; border-radius: 8px; background: #f1f6f2; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .lv-counter-link { padding: 16px; } .lv-counter-link__columns { grid-template-columns: 1fr; gap: 0; } .lv-counter-link__actions > * { width: 100%; } }
