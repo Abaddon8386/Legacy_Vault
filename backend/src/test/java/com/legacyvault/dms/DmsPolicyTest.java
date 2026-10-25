@@ -12,8 +12,8 @@ class DmsPolicyTest {
     }
 
     @Test
-    void rejectsGracePeriodOutsideDatabaseRange() {
+    void rejectsGracePeriodOutsideAllowedRange() {
         assertThrows(IllegalArgumentException.class, () -> new DmsPolicy(1, 32767, -1));
-        assertThrows(IllegalArgumentException.class, () -> new DmsPolicy(1, 32767, 32768));
+        assertThrows(IllegalArgumentException.class, () -> new DmsPolicy(1, 32767, 31));
     }
 }

@@ -56,7 +56,7 @@ public class DmsTriggerProcessor {
 			state.refresh(vault);
 			if (Vault.STATUS_ARCHIVED.equals(vault.getStatus())) return;
 		}
-		LocalDateTime deadline = now.plusDays(config.getGracePeriodDays());
+		LocalDateTime deadline = now.plusMinutes(config.getGracePeriodMinutes());
 
 		int updated = configs.triggerIfExpired(configId, now, deadline);
 		if (updated != 1) {

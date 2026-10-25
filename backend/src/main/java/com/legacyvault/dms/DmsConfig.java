@@ -32,6 +32,9 @@ public class DmsConfig {
 	@Column(name = "grace_period_days", nullable = false)
 	private int gracePeriodDays;
 
+	@Column(name = "grace_period_minutes")
+	private Integer gracePeriodMinutes;
+
 	@Column(name = "status", nullable = false, length = 30)
 	private String status;
 
@@ -57,6 +60,7 @@ public class DmsConfig {
 		this.checkIntervalDays = checkIntervalDays;
 		this.checkIntervalMinutes = Math.multiplyExact(checkIntervalDays, 1440);
 		this.gracePeriodDays = gracePeriodDays;
+		this.gracePeriodMinutes = Math.multiplyExact(gracePeriodDays, 1440);
 		this.status = "MONITORING";
 		this.nextCheckAt = nextCheckAt;
 		this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
@@ -82,6 +86,21 @@ public class DmsConfig {
 		config.configureMinutes(minutes, nextCheckAt);
 		return config;
 	}
+	public static DmsConfig withGraceMinutes(Long ownerId, int minutes, int graceMinutes, LocalDateTime nextCheckAt) {
+		var config = new DmsConfig(ownerId, 1, 0, nextCheckAt);
+		config.configureMinutes(minutes, nextCheckAt);
+		config.setGraceMinutes(graceMinutes);
+		return config;
+	}
+
+	/** Grace-only change: keeps the check-in cycle (lastCheckInAt/nextCheckAt) untouched. */
+	public void setGraceMinutes(int graceMinutes) {
+		if (graceMinutes < 0 || graceMinutes > MAX_GRACE_MINUTES) throw new IllegalArgumentException("Invalid DMS grace minutes");
+		this.gracePeriodMinutes = graceMinutes;
+		this.gracePeriodDays = graceMinutes / 1440;
+		this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+	}
+
 	public void configureMinutes(int minutes, LocalDateTime nextCheckAt) {
 		if (minutes < 1 || minutes > 47184480) throw new IllegalArgumentException("Invalid DMS minutes");
 		this.checkIntervalMinutes = minutes;
@@ -109,6 +128,7 @@ public class DmsConfig {
 		this.updatedAt = now;
 	}
 
+	public static final int MAX_GRACE_MINUTES = 30 * 1440;
 	public static final String STATUS_MONITORING = "MONITORING";
 	public static final String STATUS_TRIGGERED = "TRIGGERED";
 	public static final String STATUS_GRACE_PERIOD_EXCEEDED = "GRACE_PERIOD_EXCEEDED";
@@ -133,6 +153,8 @@ public class DmsConfig {
 	public Integer getCheckIntervalDays() { return checkIntervalDays; }
 	public int getCheckIntervalMinutes() { return checkIntervalMinutes != null ? checkIntervalMinutes : Math.multiplyExact(checkIntervalDays, 1440); }
 	public int getGracePeriodDays() { return gracePeriodDays; }
+	/** NULL column = legacy row, exactly gracePeriodDays * 1440. */
+	public int getGracePeriodMinutes() { return gracePeriodMinutes != null ? gracePeriodMinutes : Math.multiplyExact(gracePeriodDays, 1440); }
 	public String getStatus() { return status; }
 	public LocalDateTime getLastCheckInAt() { return lastCheckInAt; }
 	public LocalDateTime getNextCheckAt() { return nextCheckAt; }

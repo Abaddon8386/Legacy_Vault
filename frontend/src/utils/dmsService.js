@@ -552,6 +552,16 @@ export const liveDmsAdapter = {
     return result;
   },
 };
+/** Live actions for DmsGraceSettings (BE-03): PUT /dms with the current interval plus the grace duration.
+ * Returns the raw response because the component validates it with readDms itself. */
+export const liveDmsGraceActions = {
+  durationUnit: 'minutes',
+  policy: { minMinutes: 0, maxMinutes: 43200 },
+  async save(payload, options = {}) {
+    const body = { checkIntervalMinutes: payload.checkIntervalMinutes, gracePeriodMinutes: payload.gracePeriodMinutes };
+    return request('/dms', { ...options, method: 'PUT', expectedStatus: 200, body });
+  },
+};
 export function getDmsMessage(code, lang = 'vi') {
   const vi = { SAVED: 'Đã lưu chu kỳ kiểm tra.', CHECKED_IN: 'Đã xác nhận hoạt động và cập nhật lịch kiểm tra.',
     BENEFICIARY_REQUIRED: 'Hãy khai báo ít nhất một người thụ hưởng trước khi bật giám sát.',
