@@ -3241,7 +3241,7 @@ paths:
     post:
       tags: [DMS]
       summary: Owner check-in, cập nhật next_check_at (PS-22)
-      description: Chỉ hợp lệ khi DMS ở MONITORING (D-API-27). Không mở khóa, không giải mã.
+      description: Hợp lệ khi DMS ở MONITORING, hoặc ở TRIGGERED trong thời gian ân hạn (graceDeadline > now và Vault ACTIVE) thì DMS được khôi phục về MONITORING (D-API-27). Ngoài các trường hợp đó trả 409 DMS_NOT_MONITORING (TRIGGERED hết ân hạn/không có graceDeadline, Vault không còn ACTIVE, GRACE_PERIOD_EXCEEDED). Không mở khóa, không giải mã.
       x-status: designed
       responses:
         '200':

@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { RefreshCw } from 'lucide-react';
 import AdminPaymentTransactions from './AdminPaymentTransactions.jsx';
+import { useModalFocus } from '../../components/common/useModalFocus.js';
+import { adminSubscriptionLabel } from './adminPresentation.js';
+import './AdminPages.css';
 import './AdminSubscriptionPage.css';
 import {
   fetchAdminPlans,
@@ -35,6 +39,11 @@ function ScopedAdminSubscriptionPage({
   const [planDetail, setPlanDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const detailTitleRef = useRef(null);
+  const planTriggerRef = useRef(null);
+  useEffect(() => {
+    if (selectedPlanCode) detailTitleRef.current?.focus();
+  }, [selectedPlanCode]);
 
   // Edit / Version modal drawer
   const [editingVersion, setEditingVersion] = useState(null);
@@ -51,6 +60,7 @@ function ScopedAdminSubscriptionPage({
     concurrencyToken: 0,
   });
   const [savingVersion, setSavingVersion] = useState(false);
+  const editModalRef = useModalFocus(Boolean(editingVersion), () => setEditingVersion(null), savingVersion);
   const [saveError, setSaveError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
 
@@ -63,10 +73,10 @@ function ScopedAdminSubscriptionPage({
   useEffect(()=>()=>accountController.current?.abort(),[activeTab]);
 
   const t = {
-    title: en ? 'Subscription Plan Catalog' : 'Quản lý gói sử dụng & Danh mục',
+    title: en ? 'Subscription Plan Catalog' : 'Quản lý gói sử dụng',
     subtitle: en
-      ? 'Manage subscription plans, pricing, quotas, draft versions, and inspect live account quotas.'
-      : 'Quản lý các gói Cơ bản, Tiêu chuẩn, Mở rộng; phát hành phiên bản cấu hình và tra cứu hạn mức tài khoản thật.',
+      ? 'Manage plan versions, look up account usage, and review payment transactions.'
+      : 'Quản lý phiên bản gói, tra cứu mức sử dụng và giao dịch thanh toán.',
     tabCatalog: en ? 'Plans & Versions' : 'Danh mục gói & Phiên bản',
     tabAccounts: en ? 'Account Quota Lookup' : 'Tra cứu tài khoản & Mức dùng',
     tabTransactions: en ? 'Payment Transactions' : 'Giao dịch thanh toán',
@@ -87,7 +97,7 @@ function ScopedAdminSubscriptionPage({
     reloadCatalog: en ? 'Reload Data' : 'Tải lại dữ liệu',
     billingCycleLabel: en ? 'Billing Cycle' : 'Chu kỳ thanh toán',
     billingMonthlyOnly: en ? 'One-time purchase / Lifetime' : 'Mua một lần / Trọn đời',
-    lookupPlaceholder: en ? 'Enter account ID, email, username or public UUID' : 'Nhập mã tài khoản, email, username hoặc public UUID',
+    lookupPlaceholder: en ? 'Enter email, username, or account ID' : 'Nhập email, tên tài khoản hoặc mã tài khoản',
     lookupBtn: en ? 'Look up' : 'Tra cứu',
     conflictBanner: en
       ? 'Plan configuration was modified by another administrator. Please reload data.'
@@ -317,7 +327,7 @@ function ScopedAdminSubscriptionPage({
   };
 
   return (
-    <div className="lv-admin-sub-page">
+    <div className="lv-admin-container lv-admin-sub-page">
       <header className="lv-admin-sub-header">
         {onNavigateHome && (
           <button
@@ -332,10 +342,11 @@ function ScopedAdminSubscriptionPage({
         <p className="lv-admin-sub-subtitle">{t.subtitle}</p>
       </header>
 
-      <nav className="lv-admin-sub-tabs" aria-label="Subscription sub-navigation">
+      <nav className="lv-admin-sub-tabs" aria-label={en ? 'Subscription sub-navigation' : 'Danh mục quản lý gói'}>
         <button
           type="button"
           className={`lv-admin-sub-tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'catalog'}
           onClick={() => setActiveTab('catalog')}
         >
           {t.tabCatalog}
@@ -343,6 +354,7 @@ function ScopedAdminSubscriptionPage({
         <button
           type="button"
           className={`lv-admin-sub-tab-btn ${activeTab === 'accounts' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'accounts'}
           onClick={() => setActiveTab('accounts')}
         >
           {t.tabAccounts}
@@ -350,6 +362,7 @@ function ScopedAdminSubscriptionPage({
         <button
           type="button"
           className={`lv-admin-sub-tab-btn ${activeTab === 'transactions' ? 'active' : ''}`}
+          aria-pressed={activeTab === 'transactions'}
           onClick={() => setActiveTab('transactions')}
         >
           {t.tabTransactions}
@@ -366,13 +379,15 @@ function ScopedAdminSubscriptionPage({
       {activeTab === 'catalog' && (
         <div className="lv-admin-sub-content">
           <div className="lv-admin-sub-toolbar">
+            <p>{en ? 'Select a plan to view its versions.' : 'Chọn một gói để xem và quản lý phiên bản.'}</p>
             <button
               type="button"
               className="lv-admin-sub-btn lv-admin-sub-btn--secondary"
               onClick={loadPlans}
               disabled={loadingPlans}
             >
-              {loadingPlans ? (en ? 'Refreshing...' : 'Đang làm mới...') : (en ? '🔄 Refresh' : '🔄 Làm mới danh sách')}
+              <RefreshCw size={15} aria-hidden="true" />
+              {loadingPlans ? (en ? 'Refreshing...' : 'Đang làm mới...') : (en ? 'Refresh catalog' : 'Cập nhật danh mục')}
             </button>
           </div>
 
@@ -393,10 +408,11 @@ function ScopedAdminSubscriptionPage({
                   <div
                     key={p.planCode}
                     className={`lv-admin-sub-card ${isSelected ? 'selected' : ''}`}
-                    onClick={() => openPlanDetail(p.planCode)}
+                    onClick={(e) => { planTriggerRef.current = e.currentTarget; openPlanDetail(p.planCode); }}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openPlanDetail(p.planCode); }}
+                    aria-expanded={isSelected}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); planTriggerRef.current = e.currentTarget; openPlanDetail(p.planCode); } }}
                   >
                     <div className="lv-admin-sub-card-header">
                       <h3 className="lv-admin-sub-card-name">{en ? p.nameEn : p.nameVi}</h3>
@@ -438,6 +454,7 @@ function ScopedAdminSubscriptionPage({
                         </span>
                       )}
                     </div>
+                    <p className="lv-admin-sub-card-cta">{en ? 'View versions' : 'Xem phiên bản'} <span aria-hidden="true">→</span></p>
                   </div>
                 );
               })}
@@ -448,8 +465,8 @@ function ScopedAdminSubscriptionPage({
           {selectedPlanCode && (
             <section className="lv-admin-sub-detail-panel" aria-label="Plan details and history">
               <div className="lv-admin-sub-detail-header">
-                <h2>
-                  {en ? 'Plan History:' : 'Lịch sử cấu hình:'} {planDetail?.nameVi || selectedPlanCode} ({selectedPlanCode})
+                <h2 ref={detailTitleRef} tabIndex={-1}>
+                  {en ? 'Plan History:' : 'Lịch sử cấu hình:'} {(en ? planDetail?.nameEn : planDetail?.nameVi) || selectedPlanCode} ({selectedPlanCode})
                 </h2>
                 <div className="lv-admin-sub-detail-actions">
                   {planDetail && !planDetail.versions?.some(v => v.status === 'DRAFT') && (
@@ -467,7 +484,7 @@ function ScopedAdminSubscriptionPage({
                   <button
                     type="button"
                     className="lv-admin-sub-btn lv-admin-sub-btn--text"
-                    onClick={() => setSelectedPlanCode(null)}
+                    onClick={() => { setSelectedPlanCode(null); planTriggerRef.current?.focus(); }}
                   >
                     {en ? 'Close ✕' : 'Đóng ✕'}
                   </button>
@@ -483,11 +500,11 @@ function ScopedAdminSubscriptionPage({
               )}
 
               {planDetail && !loadingDetail && (
-                <div className="lv-admin-sub-versions-list">
+                <div className="lv-admin-sub-versions-list" role="region" tabIndex={0} aria-label={en ? 'Plan version table' : 'Bảng phiên bản gói'}>
                   <table className="lv-admin-sub-table">
                     <thead>
                       <tr>
-                        <th>Version</th>
+                        <th>{en ? 'Version' : 'Phiên bản'}</th>
                         <th>{en ? 'Status' : 'Trạng thái'}</th>
                         <th>{en ? 'Name' : 'Tên hiển thị'}</th>
                         <th>{en ? 'Purchase Price' : 'Giá mua'}</th>
@@ -506,7 +523,7 @@ function ScopedAdminSubscriptionPage({
                             <td className="cell-version">v{v.version}</td>
                             <td>
                               <span className={`lv-admin-sub-badge lv-admin-sub-badge--${v.status.toLowerCase()}`}>
-                                {v.status}
+                                {isDraft ? t.draftTag : isPublished ? t.activeTag : v.status === 'DEPRECATED' ? t.deprecatedTag : v.status}
                               </span>
                             </td>
                             <td>{en ? v.nameEn : v.nameVi}</td>
@@ -557,7 +574,7 @@ function ScopedAdminSubscriptionPage({
 
           {/* EDIT DRAFT MODAL */}
           {editingVersion && (
-            <div className="lv-admin-sub-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div className="lv-admin-sub-modal-backdrop" ref={editModalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="modal-title">
               <div className="lv-admin-sub-modal">
                 <div className="lv-admin-sub-modal-header">
                   <h3 id="modal-title">
@@ -568,6 +585,8 @@ function ScopedAdminSubscriptionPage({
                   <button
                     type="button"
                     className="lv-admin-sub-modal-close"
+                    aria-label={en ? 'Close' : 'Đóng'}
+                    disabled={savingVersion}
                     onClick={() => setEditingVersion(null)}
                   >
                     ✕
@@ -753,6 +772,8 @@ function ScopedAdminSubscriptionPage({
       {activeTab === 'accounts' && (
         <div className="lv-admin-sub-content">
           <form onSubmit={handleLookupAccount} className="lv-admin-sub-search-form">
+            <label>
+            <span>{en ? 'Account to look up' : 'Tài khoản cần tra cứu'}</span>
             <input
               type="text"
               placeholder={t.lookupPlaceholder}
@@ -761,6 +782,7 @@ function ScopedAdminSubscriptionPage({
               onChange={(e) => {accountController.current?.abort();setLoadingAccount(false);setAccountData(null);setAccountError(null);setAccountQuery(e.target.value);}}
               className="lv-admin-sub-search-input"
             />
+            </label>
             <button
               type="submit"
               className="lv-admin-sub-btn lv-admin-sub-btn--primary"
@@ -796,15 +818,15 @@ function ScopedAdminSubscriptionPage({
                 </div>
                 <div className="lv-admin-sub-meta-box">
                   <span className="lv-admin-sub-meta-label">{en ? 'Plan Status' : 'Trạng thái gói'}</span>
-                  <span className="lv-admin-sub-meta-val">{accountData.effectivePlanStatus}</span>
+                  <span className="lv-admin-sub-meta-val" title={accountData.effectivePlanStatus}>{adminSubscriptionLabel(accountData.effectivePlanStatus, lang)}</span>
                 </div>
                 <div className="lv-admin-sub-meta-box">
                   <span className="lv-admin-sub-meta-label">{en ? 'Entitlement Status' : 'Quyền sử dụng'}</span>
-                  <span className="lv-admin-sub-meta-val">{accountData.entitlementStatus}</span>
+                  <span className="lv-admin-sub-meta-val" title={accountData.entitlementStatus}>{adminSubscriptionLabel(accountData.entitlementStatus, lang)}</span>
                 </div>
                 <div className="lv-admin-sub-meta-box">
                   <span className="lv-admin-sub-meta-label">{en ? 'Billing Model' : 'Mô hình thanh toán'}</span>
-                  <span className="lv-admin-sub-meta-val">{accountData.billingModel}</span>
+                  <span className="lv-admin-sub-meta-val" title={accountData.billingModel}>{adminSubscriptionLabel(accountData.billingModel, lang)}</span>
                 </div>
                 <div className="lv-admin-sub-meta-box">
                   <span className="lv-admin-sub-meta-label">{en ? 'Vault Created' : 'Kho di sản'}</span>

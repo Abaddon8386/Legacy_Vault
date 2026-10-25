@@ -1,0 +1,22 @@
+/* Scope work typography to the application; preserve the sidebar and public pages. */
+.lv-shell-main-wrap {
+  --lv-font-serif: var(--lv-font-sans);
+  --lv-font-editorial: var(--lv-font-sans);
+  --lv-text-muted: #5f6b62;
+  --lv-text-light: #657167;
+  font-family: var(--lv-font-sans);
+}
+
+.lv-shell-main-wrap :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--lv-font-sans);
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.lv-shell-main-wrap .lv-shell-content { min-inline-size: 0; }
+
+.lv-shell-main-wrap :focus-visible {
+  outline: 2px solid var(--lv-action-focus);
+  outline-offset: 3px;
+}

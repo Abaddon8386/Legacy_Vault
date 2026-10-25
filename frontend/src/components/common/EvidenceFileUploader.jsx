@@ -5,7 +5,6 @@ import {
   FileImage,
   X,
   RefreshCw,
-  AlertCircle,
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
@@ -16,6 +15,7 @@ import {
   ALLOWED_EVIDENCE_EXTENSIONS,
 } from '../../utils/staffEvidenceUpload.js';
 import './EvidenceFileUploader.css';
+import FeedbackNotice from './FeedbackNotice.jsx';
 
 function EvidenceThumbnail({ file, alt }) {
   const [objectUrl, setObjectUrl] = useState(null);
@@ -304,10 +304,7 @@ export default function EvidenceFileUploader({
 
       {/* Thông báo lỗi */}
       {activeError && (
-        <div id={`${inputId}-error`} className="lv-evidence-error" role="alert">
-          <AlertCircle size={15} className="lv-evidence-error__icon" aria-hidden="true" />
-          <span>{activeError}</span>
-        </div>
+        <FeedbackNotice id={`${inputId}-error`} tone="error">{activeError}</FeedbackNotice>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import MagneticButton from './MagneticButton.jsx';
+import { Button } from './Button.jsx';
 import './ErrorState.css';
 
 export default function ErrorState({
@@ -70,20 +70,17 @@ export default function ErrorState({
   const badge = customBadge || (lang === 'en' ? cfg.badgeEn : cfg.badgeVi);
   const title = customTitle || (lang === 'en' ? cfg.titleEn : cfg.titleVi);
   const desc = customMessage || (lang === 'en' ? cfg.descEn : cfg.descVi);
-  const actionLabel = customActionLabel || (lang === 'en' ? cfg.actionLabelEn : cfg.actionLabelVi);
-
-  const handleAction = () => {
-    if (cfg.actionType === 'login' && typeof onNavigateToLogin === 'function') {
-      onNavigateToLogin();
-    } else if (cfg.actionType === 'create' && typeof onCreateVault === 'function') {
-      onCreateVault();
-    } else if (typeof onRetry === 'function') {
-      onRetry();
-    }
-  };
+  const configuredAction = cfg.actionType === 'login' ? onNavigateToLogin
+    : cfg.actionType === 'create' ? onCreateVault : onRetry;
+  const hasConfiguredAction = typeof configuredAction === 'function';
+  const handleAction = hasConfiguredAction ? configuredAction
+    : typeof onRetry === 'function' ? onRetry : null;
+  const actionLabel = customActionLabel || (hasConfiguredAction
+    ? (lang === 'en' ? cfg.actionLabelEn : cfg.actionLabelVi)
+    : (lang === 'en' ? 'Retry' : 'Thử lại'));
 
   return (
-    <section className="lv-error-state" role="alert" aria-live="polite">
+    <section className="lv-error-state" role="alert">
       <div className="lv-error-card">
         <div className="lv-error-icon-wrap" aria-hidden="true">
           <span className="lv-error-icon">{cfg.icon}</span>
@@ -93,26 +90,25 @@ export default function ErrorState({
         <h2 className="lv-error-heading">{title}</h2>
         <p className="lv-error-desc">{desc}</p>
 
-        <div className="lv-error-actions">
-          <MagneticButton
+        {handleAction && <div className="lv-error-actions">
+          <Button
             type="button"
             className="lv-error-primary-btn"
             onClick={handleAction}
-            maxOffset={5}
           >
             {actionLabel}
-          </MagneticButton>
-          {!customActionLabel && cfg.actionType !== 'retry' && typeof onRetry === 'function' && (
-            <MagneticButton
+          </Button>
+          {!customActionLabel && hasConfiguredAction && cfg.actionType !== 'retry' && typeof onRetry === 'function' && (
+            <Button
+              variant="secondary"
               type="button"
               className="lv-error-secondary-btn"
               onClick={onRetry}
-              maxOffset={4}
             >
               {lang === 'en' ? 'Retry' : 'Thử lại'}
-            </MagneticButton>
+            </Button>
           )}
-        </div>
+        </div>}
       </div>
     </section>
   );

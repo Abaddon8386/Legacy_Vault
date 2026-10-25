@@ -2,103 +2,93 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-weight: 500;
-  border-radius: var(--lv-radius-control);
-  cursor: pointer;
-  transition: all var(--lv-transition-fast);
+  gap: var(--lv-space-2);
+  min-block-size: var(--lv-control-min-size);
+  min-inline-size: var(--lv-control-min-size);
+  max-inline-size: 100%;
+  padding: 10px 18px;
   border: 1px solid transparent;
-  outline: none;
-  white-space: nowrap;
-  user-select: none;
+  border-radius: var(--lv-radius-control);
+  font-family: var(--lv-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background-color var(--lv-transition-fast),
+              border-color var(--lv-transition-fast),
+              color var(--lv-transition-fast);
 }
 
 .lv-btn:focus-visible {
-  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.35);
+  outline: 2px solid var(--lv-action-focus);
+  outline-offset: 3px;
 }
 
 .lv-btn:disabled {
-  opacity: 0.55;
+  background: var(--lv-action-disabled-bg);
+  border-color: var(--lv-border-medium);
+  color: var(--lv-action-disabled-text);
   cursor: not-allowed;
-  pointer-events: none;
 }
 
-/* Sizes */
-.lv-btn--sm {
-  padding: 6px 12px;
-  font-size: 13px;
-  line-height: 18px;
-}
+/* Small controls keep the touch target; only typography and padding shrink. */
+.lv-btn--sm { padding: 8px 12px; font-size: 13px; }
+.lv-btn--lg { min-block-size: 48px; padding: 12px 24px; font-size: 15px; }
 
-.lv-btn--md {
-  padding: 10px 18px;
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.lv-btn--lg {
-  padding: 12px 24px;
-  font-size: 15px;
-  line-height: 22px;
-}
-
-/* Variants */
 .lv-btn--primary {
-  background-color: var(--lv-brand-forest);
-  color: var(--lv-text-inverse, #ffffff);
+  background: var(--lv-action-primary);
+  color: var(--lv-text-inverse);
 }
-
-.lv-btn--primary:hover:not(:disabled) {
-  background-color: var(--lv-brand-forest-dark, #0c2b22);
-}
+.lv-btn--primary:hover:not(:disabled) { background: var(--lv-action-primary-hover); }
 
 .lv-btn--secondary {
-  background-color: transparent;
-  color: var(--lv-text-ink);
-  border-color: var(--lv-border-subtle);
+  background: var(--lv-bg-surface);
+  border-color: var(--lv-control-border);
+  color: var(--lv-text-heading);
 }
-
 .lv-btn--secondary:hover:not(:disabled) {
-  background-color: #edeae3;
-  border-color: #d8d3c7;
+  background: var(--lv-bg-muted);
+  border-color: var(--lv-action-primary);
 }
 
 .lv-btn--danger {
-  background-color: var(--lv-danger-bg);
-  color: var(--lv-danger);
-  border-color: rgba(168, 67, 61, 0.25);
+  background: var(--lv-status-error-bg);
+  border-color: var(--lv-status-error-text);
+  color: var(--lv-status-error-text);
 }
-
 .lv-btn--danger:hover:not(:disabled) {
-  background-color: var(--lv-danger);
-  color: #ffffff;
+  background: var(--lv-status-error-text);
+  color: var(--lv-text-inverse);
 }
 
 .lv-btn--ghost {
-  background-color: transparent;
-  color: var(--lv-text-muted);
+  background: transparent;
+  color: var(--lv-text-heading);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
+.lv-btn--ghost:hover:not(:disabled) { background: var(--lv-bg-muted); }
 
-.lv-btn--ghost:hover:not(:disabled) {
-  background-color: rgba(0, 0, 0, 0.04);
-  color: var(--lv-text-ink);
+.lv-btn__content {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  min-inline-size: 0;
 }
-
-/* Spinner */
+.lv-btn__content svg, .lv-btn__spinner { flex-shrink: 0; }
 .lv-btn__spinner {
-  width: 14px;
-  height: 14px;
+  inline-size: 16px;
+  block-size: 16px;
   border: 2px solid currentColor;
-  border-right-color: transparent;
+  border-inline-end-color: transparent;
   border-radius: 50%;
-  animation: lv-spin 0.6s linear infinite;
+  animation: lv-spin 0.8s linear infinite;
 }
-
-@keyframes lv-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .lv-btn__spinner { animation: none; }
 }

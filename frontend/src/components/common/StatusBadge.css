@@ -1,6 +1,8 @@
 /* StatusBadge Stylesheet — Henedo Design System */
 .lv-status-badge {
   display: inline-flex;
+  max-width: 100%;
+  font-family: var(--lv-font-sans);
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
@@ -9,7 +11,6 @@
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0.01em;
-  animation: lv-badge-pop var(--lv-motion-duration-standard, 220ms) var(--lv-motion-ease-smooth) forwards;
   transition: background-color var(--lv-transition-fast),
               color var(--lv-transition-fast),
               border-color var(--lv-transition-fast);
@@ -30,9 +31,8 @@
   border: 1px solid var(--lv-status-active-border, #c9ecdb);
 }
 .lv-status-badge.lv-tone-active .lv-status-dot {
-  background: #1d724f;
+  background: currentColor;
   box-shadow: 0 0 0 2px rgba(29, 114, 79, 0.2);
-  animation: lv-status-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Tone: Await (Warm Amber) */
@@ -42,7 +42,7 @@
   border: 1px solid var(--lv-status-await-border, #f9e2b8);
 }
 .lv-status-badge.lv-tone-await .lv-status-dot {
-  background: #b46b18;
+  background: currentColor;
   box-shadow: 0 0 0 2px rgba(180, 107, 24, 0.2);
 }
 
@@ -53,16 +53,18 @@
   border: 1px solid var(--lv-status-info-border, #cbe3e4);
 }
 .lv-status-badge.lv-tone-info .lv-status-dot {
-  background: #1b6264;
+  background: currentColor;
   box-shadow: 0 0 0 2px rgba(27, 98, 100, 0.2);
 }
 
 /* Tone: Neutral / Archived (Slate Gray) */
 .lv-status-badge.lv-tone-neutral {
   background: var(--lv-bg-muted, #efece6);
-  color: var(--lv-text-muted, #6b726b);
+  color: var(--lv-control-text);
   border: 1px solid var(--lv-border-subtle, #eae5dc);
 }
 .lv-status-badge.lv-tone-neutral .lv-status-dot {
-  background: #8c918b;
+  background: currentColor;
 }
+
+.lv-status-text { min-width: 0; overflow-wrap: anywhere; }

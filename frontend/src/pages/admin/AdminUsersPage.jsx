@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
-import { adminI18n } from './adminI18n.js';
+import { adminI18n, adminRoleLabel } from './adminI18n.js';
+import { formatAdminTimestamp } from './adminPresentation.js';
 import { fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
 import './AdminPages.css';
 
@@ -103,6 +104,8 @@ export default function AdminUsersPage({
       {/* Search & Filters Toolbar */}
       <form className="lv-admin-toolbar" onSubmit={handleSearchSubmit} role="search" aria-label={t.usersTitle}>
         <div className="lv-admin-toolbar-inputs">
+          <label className="lv-admin-field lv-admin-field--search">
+            <span>{lang === 'en' ? 'Name or email' : 'Tên hoặc email'}</span>
           <input
             type="search"
             className="lv-admin-input lv-admin-search-input"
@@ -112,7 +115,9 @@ export default function AdminUsersPage({
             onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             aria-label={t.searchPlaceholder}
           />
-
+          </label>
+          <label className="lv-admin-field">
+            <span>{t.thRoles}</span>
           <select
             className="lv-admin-select"
             value={roleFilter}
@@ -129,7 +134,9 @@ export default function AdminUsersPage({
             <option value="LEGAL_VERIFIER">{t.roleLegal}</option>
             <option value="ADMIN">{t.roleAdmin}</option>
           </select>
-
+          </label>
+          <label className="lv-admin-field">
+            <span>{t.thStatus}</span>
           <select
             className="lv-admin-select"
             value={statusFilter}
@@ -144,7 +151,8 @@ export default function AdminUsersPage({
             <option value="DELETED">{t.statusDeleted}</option>
             <option value="PENDING">{t.statusPending}</option>
           </select>
-
+          </label>
+          <div className="lv-admin-filter-actions">
           <button type="submit" className="lv-admin-btn lv-admin-btn-primary">
             {lang === 'vi' ? 'Tìm kiếm' : 'Search'}
           </button>
@@ -158,11 +166,16 @@ export default function AdminUsersPage({
               {t.resetFilters}
             </button>
           )}
+          </div>
         </div>
       </form>
 
       {/* Users Data Table */}
-      <div className="lv-admin-table-container">
+      <div className="lv-admin-list-meta">
+        <p>{lang === 'en' ? 'User directory' : 'Danh sách người dùng'}{total !== null && !loading && <> <strong>({total})</strong></>}</p>
+        <span className="lv-admin-scroll-hint">{lang === 'en' ? 'Scroll horizontally to see all columns' : 'Cuộn ngang để xem đầy đủ các cột'}</span>
+      </div>
+      <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'User table' : 'Bảng người dùng'}>
         <table className="lv-admin-table" aria-label={t.usersTitle}>
           <thead>
             <tr>
@@ -196,8 +209,8 @@ export default function AdminUsersPage({
                   <td>{user.email}</td>
                   <td>
                     {user.roles.map((role) => (
-                      <span key={role} className="lv-admin-role-badge">
-                        {role}
+                      <span key={role} className="lv-admin-role-badge" title={role}>
+                        {adminRoleLabel(role, lang)}
                       </span>
                     ))}
                   </td>
@@ -215,11 +228,11 @@ export default function AdminUsersPage({
                         : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <td>
+                    <div className="lv-admin-row-actions">
                     <button
                       type="button"
                       className="lv-admin-btn lv-admin-btn-secondary"
-                      style={{ height: 32, padding: '0 10px', marginRight: 6, fontSize: 12 }}
                       onClick={() => setDetailUser(user)}
                     >
                       {t.viewDetails}
@@ -227,7 +240,6 @@ export default function AdminUsersPage({
                     <button
                       type="button"
                       className={`lv-admin-btn ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
-                      style={{ height: 32, padding: '0 10px', fontSize: 12 }}
                       onClick={() => {
                         setLockTargetUser(user);
                         setLockReason('');
@@ -235,6 +247,7 @@ export default function AdminUsersPage({
                     >
                       {user.status === 'LOCKED' ? t.unlockAction : t.lockAction}
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -253,7 +266,6 @@ export default function AdminUsersPage({
             <button
               type="button"
               className="lv-admin-btn lv-admin-btn-secondary"
-              style={{ height: 32, padding: '0 12px' }}
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
@@ -262,7 +274,6 @@ export default function AdminUsersPage({
             <button
               type="button"
               className="lv-admin-btn lv-admin-btn-secondary"
-              style={{ height: 32, padding: '0 12px' }}
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
@@ -372,13 +383,13 @@ function UserDetail({ id, accessToken, lang, onClose, onUnauthorized, onDenied }
         <button type="button" className="lv-admin-modal-close-btn" onClick={onClose} aria-label={t.closeModal}>✕</button></div>
       <div className="lv-admin-modal-body">
         {loading ? <p role="status">{t.loading}</p> : error || apiPending ? <><p role="alert">{error || t.notAvailable}</p>
-          <button type="button" onClick={reload}>{t.retryBtn}</button></> : data && <dl className="lv-admin-detail-list">
-          {[[t.userId, data.id], [t.userFullName, data.fullName], [t.userEmail, data.email], [t.userRoles, data.roles.join(', ')],
+          <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={reload}>{t.retryBtn}</button></> : data && <dl className="lv-admin-detail-list">
+          {[[t.userId, data.id], [t.userFullName, data.fullName], [t.userEmail, data.email], [t.userRoles, data.roles.map(role => adminRoleLabel(role, lang)).join(', ')],
             [t.userStatus, data.status === 'ACTIVE' ? t.statusActive : data.status === 'PENDING' ? t.statusPending : data.status === 'DELETED' ? t.statusDeleted : t.notAvailable],
-            [t.userCreatedAt, data.createdAt]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t.notAvailable}</dd></div>)}
+            [t.userCreatedAt, formatAdminTimestamp(data.createdAt, lang)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t.notAvailable}</dd></div>)}
         </dl>}
       </div>
-      <div className="lv-admin-modal-footer"><button type="button" onClick={onClose}>{t.closeModal}</button></div>
+      <div className="lv-admin-modal-footer"><button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose}>{t.closeModal}</button></div>
     </div>
   </div>;
 }

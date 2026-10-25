@@ -89,6 +89,36 @@ class DmsServiceTest {
 	}
 
 	@Test
+	void allowsOwnerCheckInWhileMonitoring() {
+		Fixture fixture = new Fixture();
+		LocalDateTime now = LocalDateTime.of(2026, 10, 24, 10, 0);
+		DmsConfig monitoring = triggeredConfig("MONITORING", now.plusDays(1));
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(monitoring));
+		when(fixture.configs.saveAndFlush(any(DmsConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		DmsDtos.Response response = fixture.service.checkInAt(now);
+
+		assertEquals("MONITORING", response.status());
+		verify(monitoring).checkIn(now);
+		verify(monitoring, never()).restoreAfterAlert(any());
+		verify(fixture.audit).record(eq(5L), eq(15L), eq("DMS_CHECKED_IN"), eq("DMS_CONFIG"), any(),
+				eq("USER"), any());
+	}
+
+	@Test
+	void rejectsCheckInWhenGracePeriodExceededStatus() {
+		Fixture fixture = new Fixture();
+		LocalDateTime now = LocalDateTime.of(2026, 10, 24, 10, 0);
+		DmsConfig exceeded = triggeredConfig("GRACE_PERIOD_EXCEEDED", now.plusMinutes(5));
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(exceeded));
+
+		BusinessException error = assertThrows(BusinessException.class, () -> fixture.service.checkInAt(now));
+
+		assertEquals(ErrorCode.DMS_NOT_MONITORING, error.getErrorCode());
+		verify(fixture.configs, never()).saveAndFlush(any());
+	}
+
+	@Test
 	void rejectsCheckInAtGraceDeadlineAndAfterVaultLeavesActiveState() {
 		LocalDateTime now = LocalDateTime.of(2026, 10, 24, 10, 0);
 		for (boolean activeVault : List.of(true, false)) {
