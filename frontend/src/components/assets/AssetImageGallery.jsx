@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { assetImageService } from '../../services/assetImageService.js';
 import { AssetImagePicker } from './AssetImagePicker.jsx';
 
-export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', onUnauthorized }) {
+export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', onUnauthorized, readOnly = false }) {
   const en=lang==='en';
   const [images,setImages]=useState([]), [files,setFiles]=useState([]), [error,setError]=useState('');
   const [busy,setBusy]=useState(false), [password,setPassword]=useState(''), [selected,setSelected]=useState(null);
@@ -32,11 +32,11 @@ export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', 
       {opened[image.id]&&<img src={opened[image.id]} alt={image.fileName}/>}
       <figcaption>{image.fileName}</figcaption>
       <button type="button" disabled={busy} onClick={()=>{setSelected(image);setPassword('');}}>{en?'View photo':'Xem ảnh'}</button>
-      <button type="button" disabled={busy} onClick={()=> {
+      {!readOnly && <button type="button" disabled={busy} onClick={()=> {
         if(!window.confirm(en?'Delete this photo?':'Xóa ảnh này?')) return;
         run(async opts=>{await assetImageService.remove(vaultId,assetId,image.id,opts); if(opts.signal?.aborted)return;
           setImages(prev=>prev.filter(i=>i.id!==image.id)); setOpened(prev=>({...prev,[image.id]:null}));});
-      }}>{en?'Delete':'Xóa'}</button>
+      }}>{en?'Delete':'Xóa'}</button>}
     </figure>)}</div>
     {selected&&<form onSubmit={e=>{e.preventDefault();const secret=password;setPassword('');const image=selected;
       run(async opts=>{const blob=await assetImageService.open(vaultId,assetId,image,secret,opts);if(opts.signal?.aborted)return;
@@ -47,7 +47,7 @@ export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', 
       <button disabled={busy} type="submit">{en?'View':'Xem'}</button>
       <button type="button" disabled={busy} onClick={()=>{setSelected(null);setPassword('');}}>{en?'Cancel':'Hủy'}</button>
     </form>}
-    {images.length<5&&<>
+    {!readOnly && images.length<5&&<>
       <AssetImagePicker files={files} onChange={setFiles} existingCount={images.length} disabled={busy} lang={lang}/>
       <button type="button" disabled={busy||!files.length} onClick={()=>run(async opts=>{
         const result=await assetImageService.add(vaultId,assetId,files,opts); if(opts.signal?.aborted)return;setImages(result);setFiles([]);

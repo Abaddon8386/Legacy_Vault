@@ -125,7 +125,7 @@ Source-backed blockers still open:
 | D-API-24 | PS-16 | Cập nhật Asset | `PATCH` (cập nhật một phần) |
 | D-API-25 | PS-21 | Kiểm tra điều kiện Beneficiary | `GET /vaults/{id}/configuration-check` + bật DMS bị chặn bằng `422 BENEFICIARY_REQUIRED` |
 | D-API-26 | PS-20 | Số định danh Beneficiary | Có thể lưu (write-only `identityNumber`, mã hóa trong DB); **response không trả số, chỉ trả `hasIdentityNumber` (boolean)**. Không cần giải mã khi liệt kê. *(Đổi so với đề xuất ban đầu `identityNumberMasked`.)* |
-| D-API-27 | PS-22 | Check-in khi DMS đã `TRIGGERED` | Sprint 1: từ chối `409 DMS_NOT_MONITORING`. Luồng huỷ báo động (LV-OWN-001) là việc riêng ở sprint sau |
+| D-API-27 | PS-22 | Check-in khi DMS đã `TRIGGERED` | Cho phép check-in khi `TRIGGERED` còn trong thời gian ân hạn (`graceDeadline > now`, Vault `ACTIVE`): khôi phục `MONITORING`. Hết ân hạn, Vault không còn `ACTIVE` hoặc `GRACE_PERIOD_EXCEEDED`: `409 DMS_NOT_MONITORING` |
 | D-API-28 | PS-23 | Nhiều instance cùng quét | Cập nhật có điều kiện `WHERE status = 'MONITORING'` để idempotent; chưa thêm thư viện lock |
 | D-API-29 | PS-15 | Giới hạn `payload` Asset | Mặc định 64 KB, cấu hình qua property; vượt → `400 VALIDATION_FAILED` |
 | D-API-30 | PS-22 / PS-23 | Phạm vi và đường dẫn DMS | DMS thuộc **tài khoản Owner** (mỗi Owner một DMS, `dms_configs.owner_user_id UNIQUE`), đường dẫn `/api/v1/dms`, `/api/v1/dms/check-in`; không có tham số `vaultId`/`ownerId`, Owner lấy từ người đăng nhập. Chốt 2026-10-14 (Dương) |
