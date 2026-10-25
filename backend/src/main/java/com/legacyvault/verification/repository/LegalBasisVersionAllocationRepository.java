@@ -17,8 +17,10 @@ public interface LegalBasisVersionAllocationRepository extends JpaRepository<Leg
 
     @Query("""
         select new com.legacyvault.verification.repository.AllocationRow(
-            v.versionNo, a.publicId, b.publicId, al.allocationDescription)
+            v.versionNo, a.publicId, b.publicId, al.allocationDescription,
+            a.name, a.assetType, b.fullName, b.relationship, b.origin, ov.versionNo, b.linkedUserId)
         from LegalBasisVersionAllocation al, LegalBasisDossierVersion v, Asset a, Beneficiary b
+            left join LegalBasisDossierVersion ov on ov.dossierVersionId = b.originDossierVersionId
         where v.legalBasisDossierId = :dossierId
           and al.dossierVersionId = v.dossierVersionId
           and a.assetId = al.assetId
@@ -30,7 +32,7 @@ public interface LegalBasisVersionAllocationRepository extends JpaRepository<Leg
     @Query("""
         select new com.legacyvault.verification.repository.ReceiptAllocationRow(
             v.versionNo, al.allocationId, a.assetId, a.publicId, b.id, b.publicId, b.identityVerificationStatus,
-            al.status, al.allocationDescription, a.name, b.fullName)
+            al.status, al.allocationDescription, a.name, b.fullName, b.linkedUserId, b.origin)
         from LegalBasisVersionAllocation al, LegalBasisDossierVersion v, Asset a, Beneficiary b
         where v.legalBasisDossierId = :dossierId
           and al.dossierVersionId = v.dossierVersionId

@@ -17,6 +17,7 @@ Trạng thái: **focused service/controller/OpenAPI tests pass trên working tre
 
 ## Quy tắc nghiệp vụ và phạm vi truy cập
 
+- **BE-02 (D-API-47, đề xuất)** — `POST .../basis-dossier/versions`: mỗi dòng `allocations[]` có đúng một trong `beneficiaryId` (người đã có trong kho) hoặc `courtRecipient` (`fullName`, `relationship`, `dateOfBirth`, `phone`, `email`, `identityNumber`; người chỉ có tên trong văn bản Tòa án, tiếp nhận văn bản chỉ nhánh `COURT` từ PS-102; cả hai hoặc không có cái nào → `400 VALIDATION_FAILED`). Người này được tạo trong cùng giao dịch với phiên bản, gắn `origin='COURT_DOCUMENT'` và đúng phiên bản nêu tên; phiên bản mới thay đổi phân bổ làm mất hiệu lực phê duyệt cũ như thường lệ (AC-L06). Chi tiết: `openapi.yaml` (`AllocationInput`, `AllocationResponse`) và `handover-deliveries.md` §4.1.
 - ST-09 tạo verification case sau khi Grace Period hết hạn; việc tạo case không đồng nghĩa đã xác nhận tử vong và không tự mở khóa/giải mã tài sản.
 - Case mới có thể có `assignedStaffUserId = null` — chưa được Staff nhận.
 - Quy trình hiện tại là **Staff tự nhận case**. Queue hiển thị case `OPEN` chưa được nhận và case đã được gán cho Staff đang đăng nhập.

@@ -244,3 +244,12 @@ Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
 ## PS-113 — D-API-45 (proposal, pending group approval, 2026-10-21)
 
 Guardian: age 18 by Asia/Ho_Chi_Minh date; one current guardian; name/relationship plus email or phone; incomplete beneficiary remains savable/readable with warning; replace/revoke retains history; DOB/adulthood never auto-delete or grant access. See beneficiary-guardians.md. No changes to Trustee or PS-86/87/104/106/116 permissions.
+
+## BE-02 — D-API-47 (proposal, pending group approval, 2026-10-25)
+
+Recipients from a Court document (D-LEGAL-002, ST-18, LV-BASIS-001, LV-HANDOVER-001):
+
+1. On the `COURT` route a recipient named only by the document (C) is created at ST-18 in the same transaction as the document version, stored as a Beneficiary with `origin='COURT_DOCUMENT'` and the exact `origin_dossier_version_id`. NOTARIAL never creates recipients from the document. No new recipient is derived from the Owner list; a person on the Owner list but absent from the approved document (B) has no right.
+2. A recipient without a linked official account does **not** block Legal approval, but **no new delivery** is allowed (`409 HANDOVER_RECIPIENT_ACCOUNT_REQUIRED`, agreed with Long). Other eligible recipients are delivered first. Delivered history is immutable and stays readable by its own account after archive (PS-104).
+3. **Policy change to confirm:** this supersedes the earlier D-API-38 "offline recipient without account" behaviour for new deliveries. Escape hatch: `legacyvault.handover.require-linked-account=false` (default `true`).
+4. Not decided here (open questions, no numbers invented): invitation TTL / rate limit, representation of minors (guardian data from V49 is informational).

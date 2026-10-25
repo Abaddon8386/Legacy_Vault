@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,9 +50,13 @@ public class HandoverDeliveryService {
     private final VerificationCaseRepository cases;
     private final AuditService audit;
 
+    private final boolean requireLinkedAccount;
+
     public HandoverDeliveryService(HandoverAuthorizationGuard guard, HandoverScopeResolver scope,
             HandoverItemRepository items, HandoverSessionRepository sessions, VerificationCaseRepository cases,
-            AuditService audit) {
+            AuditService audit,
+            @Value("${legacyvault.handover.require-linked-account:true}") boolean requireLinkedAccount) {
+        this.requireLinkedAccount = requireLinkedAccount;
         this.guard = guard;
         this.scope = scope;
         this.items = items;
@@ -68,12 +73,24 @@ public class HandoverDeliveryService {
         Authorized authorized = guard.authorize(casePublicId, sessionPublicId, staffId);
         return scope.resolve(authorized.dossier().getLegalBasisDossierId(), authorized.versionNo(), recipientPublicId)
                 .stream()
-                .map(line -> new EligibleHandoverAssetResponse(line.row().assetPublicId(),
-                        line.row().beneficiaryPublicId(), line.row().description(),
-                        line.delivered() ? EligibleHandoverAssetResponse.DELIVERED
-                                : EligibleHandoverAssetResponse.ELIGIBLE,
-                        line.row().assetName(), line.row().beneficiaryName()))
+                .map(this::toEligible)
                 .toList();
+    }
+
+    private EligibleHandoverAssetResponse toEligible(ScopeLine line) {
+        boolean blocked = !line.delivered() && accountMissing(line);
+        return new EligibleHandoverAssetResponse(line.row().assetPublicId(),
+                line.row().beneficiaryPublicId(), line.row().description(),
+                line.delivered() ? EligibleHandoverAssetResponse.DELIVERED
+                        : EligibleHandoverAssetResponse.ELIGIBLE,
+                line.row().assetName(), line.row().beneficiaryName(), line.row().recipientSource(),
+                line.row().accountLinked(), !line.delivered() && !blocked,
+                blocked ? EligibleHandoverAssetResponse.BLOCKED_ACCOUNT_REQUIRED : null);
+    }
+
+    /** BE-02 (LV-HANDOVER-001): a new delivery needs the recipient's own linked official account. */
+    private boolean accountMissing(ScopeLine line) {
+        return requireLinkedAccount && !line.row().accountLinked();
     }
 
     /** PS-65: record the delivery of the chosen assets to one recipient. All or nothing. */
@@ -98,6 +115,9 @@ public class HandoverDeliveryService {
         }
         if (selected.stream().anyMatch(ScopeLine::delivered)) {
             throw new BusinessException(ErrorCode.HANDOVER_ASSET_ALREADY_DELIVERED);
+        }
+        if (selected.stream().anyMatch(this::accountMissing)) {
+            throw new BusinessException(ErrorCode.HANDOVER_RECIPIENT_ACCOUNT_REQUIRED);
         }
 
         Long sessionId = authorized.session().getId();

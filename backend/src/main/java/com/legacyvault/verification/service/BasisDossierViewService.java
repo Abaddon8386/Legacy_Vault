@@ -91,7 +91,10 @@ public class BasisDossierViewService {
         Map<Integer, List<AllocationResponse>> scopeByVersion = allocations
                 .findRowsByDossier(dossier.getLegalBasisDossierId()).stream()
                 .collect(Collectors.groupingBy(AllocationRow::versionNo, Collectors.mapping(
-                        a -> new AllocationResponse(a.assetId(), a.beneficiaryId(), a.description()),
+                        a -> new AllocationResponse(a.assetId(), a.beneficiaryId(), a.description(), a.assetName(),
+                                a.assetType() == null ? null : a.assetType().name(), a.recipientName(),
+                                a.recipientRelationship(), a.recipientSource(), a.sourceVersionNo(),
+                                a.accountLinked()),
                         Collectors.toList())));
 
         List<BasisVersionResponse> items = rows.stream()
