@@ -8,6 +8,13 @@ const labels = {
   VALID: ['Hợp lệ', 'Valid'], INVALID: ['Không hợp lệ', 'Invalid'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
 };
 export const legalStatus = (value, en = false) => labels[value]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
+export function legalStatusTone(value) {
+  if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS'].includes(value)) return 'warning';
+  if (['CANCELLED', 'CLOSED', 'ARCHIVED'].includes(value)) return 'neutral';
+  if (['COMPLETED', 'UNLOCKED', 'VALID'].includes(value)) return 'success';
+  if (value === 'INVALID') return 'error';
+  return 'info';
+}
 export const legalReadOnly = context => ['CLOSED', 'CANCELLED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus)
   || ['CLOSED', 'ARCHIVED', 'COMPLETED', 'UNLOCKED', 'HANDOVER_IN_PROGRESS'].includes(context.vaultStatus);
 const blockers = {
