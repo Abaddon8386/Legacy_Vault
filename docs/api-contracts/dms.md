@@ -1,5 +1,23 @@
 # Dead Man's Switch — PS-22, PS-23 (ST-06, ST-07, LV-DEATH-001)
 
+## BE-03 — Owner cấu hình Grace Period (ngày–giờ–phút)
+
+PUT `/api/v1/dms` nhận thêm **tùy chọn** đúng một trong `gracePeriodMinutes` (0–43200, tức tối đa 30 ngày) hoặc `gracePeriodDays` (0–30). Gửi cả hai, số thập phân, chuỗi, âm hoặc vượt ngưỡng: 400 (`MALFORMED_REQUEST` / `VALIDATION_FAILED` như checkInterval). `0` hợp lệ: `graceDeadline = triggeredAt`, scheduler chuyển `GRACE_PERIOD_EXCEEDED` ở nhịp quét kế tiếp.
+
+- **Mặc định:** Owner chưa từng lưu Grace → lấy `DMS_GRACE_PERIOD_DAYS` (1 ngày = 1440 phút) khi tạo DMS lần đầu.
+- **Client cũ** (không gửi trường Grace): giữ nguyên Grace đang lưu của chính Owner đó.
+- **Chỉ đổi Grace** (có trường Grace và interval không đổi): không reset `lastCheckInAt/nextCheckAt`. Nếu interval đổi thì chu kỳ được đặt lại như trước.
+- Chỉ sửa được khi DMS `MONITORING` và kho cho phép sửa; `TRIGGERED`/`GRACE_PERIOD_EXCEEDED` → `409 DMS_NOT_MONITORING`, nên không kéo dài deadline của ca đã kích hoạt. `graceDeadline` được chốt tại thời điểm `TRIGGERED` từ giá trị đã lưu.
+- Mỗi Owner một giá trị độc lập (cột trên `dms_configs`, migration V50). Cột NULL = hàng cũ, đọc là `grace_period_days × 1440`.
+- Cancel Alert/hết Grace không đổi: hết Grace không xác nhận tử vong, không unlock.
+
+Response (GET/PUT) thêm `gracePeriodMinutes` (chính xác); `gracePeriodDays = floor(gracePeriodMinutes / 1440)`:
+
+```json
+{ "status":"MONITORING", "checkIntervalDays":null, "checkIntervalMinutes":90,
+  "gracePeriodDays":1, "gracePeriodMinutes":1563, "nextCheckAt":"2026-10-20T09:30:00Z", "graceDeadline":null }
+```
+
 ## PS-91 — quyết định người dùng 20/10/2026
 
 Cho phép chu kỳ **1–259.200 phút (180 ngày), kể cả phiên thật/production**. PUT `/api/v1/dms` nhận đúng một trong `{ "checkIntervalMinutes": 90 }` hoặc legacy `{ "checkIntervalDays": 30 }` (1–180 ngày, vẫn tôn trọng min/max ngày server nếu hẹp hơn). Không gửi cả hai, kể cả khi tương đương. Không nhận đơn vị khác, field lạ, key trùng, chuỗi, số thập phân hoặc overflow: 400 `MALFORMED_REQUEST`; thiếu/cả hai/âm/0/vượt ngưỡng: 400 `VALIDATION_FAILED`. Lỗi VI/EN dùng shared contract. Các phần mô tả chỉ dùng ngày bên dưới là contract lịch sử trước PS-91.
@@ -20,7 +38,7 @@ Trạng thái: **contract đã chốt**. Quyền: `VAULT_OWNER`. DMS thuộc **t
   không giải mã, không gửi tài sản cho bất kỳ ai (LV-DEATH-001).
 - Owner cấu hình chu kỳ; check-in đặt lại `nextCheckAt`.
 - Khoảng giá trị cho phép của `checkIntervalDays` do cấu hình qua property, không hardcode (D-API-15).
-- **Grace Period mặc định 1 ngày**, cấu hình phía server bằng `DMS_GRACE_PERIOD_DAYS` (0–32767 ngày; DB `SMALLINT`). Sprint 1 chưa có trường/endpoint để Owner đổi giá trị này (ticket PS-22 chỉ cấu hình chu kỳ).
+- **Grace Period mặc định 1 ngày**, cấu hình phía server bằng `DMS_GRACE_PERIOD_DAYS` (0–30 ngày). Owner đổi giá trị riêng qua PUT `/api/v1/dms` (xem BE-03).
 
 ## Mô hình `DmsResponse`
 

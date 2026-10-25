@@ -46,6 +46,7 @@ public class DmsService {
 	public DmsDtos.Response configure(DmsDtos.ConfigureRequest request) {
 		User owner = owners.requireOwner();
 		int interval = policy.resolveMinutes(request);
+		Integer graceMinutes = policy.resolveGraceMinutes(request);
 		Vault vault = ownerVault(owner.getUserId());
 		vaultService.requireEditableVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		if (beneficiaries.countByVault_VaultId(vault.getVaultId()) < 1) {
@@ -55,12 +56,15 @@ public class DmsService {
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId()).orElse(null);
 		String stateBefore = config == null ? null : config.getStatus();
 		if (config == null) {
-			config = DmsConfig.withMinutes(owner.getUserId(), interval, policy.gracePeriodDays(), now.plusMinutes(interval));
+			config = DmsConfig.withGraceMinutes(owner.getUserId(), interval,
+					graceMinutes != null ? graceMinutes : policy.gracePeriodMinutes(), now.plusMinutes(interval));
 		} else {
 			if (!"MONITORING".equals(config.getStatus())) {
 				throw new BusinessException(ErrorCode.DMS_NOT_MONITORING);
 			}
-			config.configureMinutes(interval, now.plusMinutes(interval));
+			boolean graceOnly = graceMinutes != null && config.getCheckIntervalMinutes() == interval;
+			if (!graceOnly) config.configureMinutes(interval, now.plusMinutes(interval));
+			if (graceMinutes != null) config.setGraceMinutes(graceMinutes);
 		}
 		try {
 			config = configs.saveAndFlush(config);
@@ -70,7 +74,7 @@ public class DmsService {
 		}
 		audit.record(owner.getUserId(), vault.getVaultId(), "DMS_CONFIGURED", "DMS_CONFIG", config.getId(), "USER",
 				Map.of("stateBefore", stateBefore == null ? "NOT_CONFIGURED" : stateBefore,
-						"stateAfter", "MONITORING", "checkIntervalMinutes", interval, "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
+						"stateAfter", "MONITORING", "checkIntervalMinutes", interval, "gracePeriodMinutes", config.getGracePeriodMinutes(), "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
 		return DmsDtos.Response.from(owner.getPublicId(), config);
 	}
 

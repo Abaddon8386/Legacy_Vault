@@ -5012,15 +5012,26 @@ components:
           minimum: 1
           maximum: 259200
           description: Whole minutes, supported in production; exactly one duration field
+        gracePeriodDays:
+          type: integer
+          minimum: 0
+          maximum: 30
+          description: Optional; mutually exclusive with gracePeriodMinutes. Omitted keeps the stored grace
+        gracePeriodMinutes:
+          type: integer
+          minimum: 0
+          maximum: 43200
+          description: Optional grace in whole minutes (days/hours/minutes); 0 allowed; omitted keeps the stored grace
     DmsResponse:
       type: object
-      required: [ownerId, status, checkIntervalDays, checkIntervalMinutes, gracePeriodDays, nextCheckAt]
+      required: [ownerId, status, checkIntervalDays, checkIntervalMinutes, gracePeriodDays, gracePeriodMinutes, nextCheckAt]
       properties:
         ownerId: { type: string, format: uuid, description: 'public_id của tài khoản Owner; DMS thuộc Owner, mỗi Owner một DMS' }
         status: { type: string, enum: [MONITORING, TRIGGERED, GRACE_PERIOD_EXCEEDED] }
         checkIntervalDays: { type: integer, nullable: true, description: Exact whole days or null for a non-whole-day duration; never rounded }
         checkIntervalMinutes: { type: integer, minimum: 1, description: Authoritative duration; legacy rows may exceed the new configuration maximum }
-        gracePeriodDays: { type: integer, description: 'Chỉ đọc; server cấu hình qua DMS_GRACE_PERIOD_DAYS, mặc định 1 (A5)' }
+        gracePeriodDays: { type: integer, description: 'floor(gracePeriodMinutes / 1440); default from DMS_GRACE_PERIOD_DAYS (1) for a new Owner DMS' }
+        gracePeriodMinutes: { type: integer, minimum: 0, description: Authoritative per-Owner grace duration }
         lastCheckInAt: { type: string, format: date-time, nullable: true }
         nextCheckAt: { type: string, format: date-time }
         triggeredAt: { type: string, format: date-time, nullable: true }

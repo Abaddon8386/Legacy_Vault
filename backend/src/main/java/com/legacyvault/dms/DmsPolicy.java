@@ -15,8 +15,8 @@ public class DmsPolicy {
 		if (minIntervalDays < 1 || maxIntervalDays < minIntervalDays || maxIntervalDays > 32767) {
 			throw new IllegalArgumentException("Invalid DMS policy configuration");
 		}
-		if (gracePeriodDays < 0 || gracePeriodDays > 32767) {
-			throw new IllegalArgumentException("DMS grace period must fit the database SMALLINT range");
+		if (gracePeriodDays < 0 || gracePeriodDays > 30) {
+			throw new IllegalArgumentException("DMS grace period must be between 0 and 30 days");
 		}
 		this.minIntervalDays = minIntervalDays;
 		this.maxIntervalDays = maxIntervalDays;
@@ -40,6 +40,23 @@ public class DmsPolicy {
 	}
 	private static com.legacyvault.common.error.BusinessException invalid() {
 		return new com.legacyvault.common.error.BusinessException(com.legacyvault.common.error.ErrorCode.VALIDATION_FAILED);
+	}
+
+	/** Requested grace in minutes, or null when the request does not carry a grace field. */
+	public Integer resolveGraceMinutes(DmsDtos.ConfigureRequest request) {
+		if (request.gracePeriodDays() == null && request.gracePeriodMinutes() == null) return null;
+		if (request.gracePeriodDays() != null && request.gracePeriodMinutes() != null) throw invalid();
+		if (request.gracePeriodDays() != null) {
+			if (request.gracePeriodDays() < 0 || request.gracePeriodDays() > 30) throw invalid();
+			return Math.multiplyExact(request.gracePeriodDays(), 1440);
+		}
+		int minutes = request.gracePeriodMinutes();
+		if (minutes < 0 || minutes > DmsConfig.MAX_GRACE_MINUTES) throw invalid();
+		return minutes;
+	}
+
+	public int gracePeriodMinutes() {
+		return Math.multiplyExact(gracePeriodDays, 1440);
 	}
 
 	public int gracePeriodDays() {

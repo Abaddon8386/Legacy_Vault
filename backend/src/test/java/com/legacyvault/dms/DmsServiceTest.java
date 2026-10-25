@@ -71,6 +71,47 @@ class DmsServiceTest {
 		verify(fixture.configs, never()).saveAndFlush(any());
 	}
 
+	@Test
+	void savesOwnerGraceAndLegacyClientKeepsIt() {
+		Fixture fixture = new Fixture();
+		when(fixture.beneficiaries.countByVault_VaultId(15L)).thenReturn(1L);
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.empty());
+		when(fixture.configs.saveAndFlush(any(DmsConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		DmsDtos.Response created = fixture.service.configure(new DmsDtos.ConfigureRequest(null, 60, null, 1563));
+		assertEquals(1563, created.gracePeriodMinutes());
+		assertEquals(1, created.gracePeriodDays());
+
+		DmsConfig stored = DmsConfig.withGraceMinutes(5L, 60, 1563, LocalDateTime.now().plusHours(1));
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(stored));
+		DmsDtos.Response legacy = fixture.service.configure(new DmsDtos.ConfigureRequest(null, 120, null, null));
+		assertEquals(1563, legacy.gracePeriodMinutes());
+		assertEquals(120, legacy.checkIntervalMinutes());
+	}
+
+	@Test
+	void cannotChangeGraceOfTriggeredCase() {
+		Fixture fixture = new Fixture();
+		when(fixture.beneficiaries.countByVault_VaultId(15L)).thenReturn(1L);
+		DmsConfig stored = DmsConfig.withGraceMinutes(5L, 60, 30, LocalDateTime.now());
+		org.springframework.test.util.ReflectionTestUtils.setField(stored, "status", DmsConfig.STATUS_TRIGGERED);
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.of(stored));
+		BusinessException error = assertThrows(BusinessException.class,
+				() -> fixture.service.configure(new DmsDtos.ConfigureRequest(null, 60, null, 1000)));
+		assertEquals(ErrorCode.DMS_NOT_MONITORING, error.getErrorCode());
+		assertEquals(30, stored.getGracePeriodMinutes());
+	}
+
+	@Test
+	void acceptsZeroGraceAndRejectsInvalidInput() {
+		Fixture fixture = new Fixture();
+		when(fixture.beneficiaries.countByVault_VaultId(15L)).thenReturn(1L);
+		when(fixture.configs.findByOwnerUserIdForUpdate(5L)).thenReturn(Optional.empty());
+		when(fixture.configs.saveAndFlush(any(DmsConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		assertEquals(0, fixture.service.configure(new DmsDtos.ConfigureRequest(null, 60, null, 0)).gracePeriodMinutes());
+		assertThrows(BusinessException.class, () -> fixture.service.configure(new DmsDtos.ConfigureRequest(null, 60, null, -1)));
+		assertThrows(BusinessException.class, () -> fixture.service.configure(new DmsDtos.ConfigureRequest(null, 60, 1, 60)));
+	}
+
 	private static class Fixture {
 		final java.util.UUID ownerId = java.util.UUID.randomUUID();
 		final User owner = mock(User.class);

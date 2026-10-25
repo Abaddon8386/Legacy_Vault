@@ -30,9 +30,9 @@ class DmsTriggerProcessorTest {
 		when(configs.findById(81L)).thenReturn(Optional.of(config));
 		when(config.getStatus()).thenReturn("MONITORING");
 		when(config.getNextCheckAt()).thenReturn(now.minusDays(1));
-		when(config.getGracePeriodDays()).thenReturn(1);
+		when(config.getGracePeriodMinutes()).thenReturn(1440);
 		when(config.getOwnerUserId()).thenReturn(6L);
-		when(configs.triggerIfExpired(81L, now, now.plusDays(1))).thenReturn(1);
+		when(configs.triggerIfExpired(81L, now, now.plusMinutes(1440))).thenReturn(1);
 		when(vaults.findByOwnerUserIdForUpdate(6L)).thenReturn(Optional.of(vault));
 		when(vault.getVaultId()).thenReturn(19L);
 		VerificationCaseRepository verificationCases =
@@ -44,7 +44,7 @@ class DmsTriggerProcessorTest {
 
 		processor.triggerIfExpired(81L, now);
 
-		verify(configs).triggerIfExpired(81L, now, now.plusDays(1));
+		verify(configs).triggerIfExpired(81L, now, now.plusMinutes(1440));
 		verify(audit).record(eq(null), eq(19L), eq("DMS_TRIGGERED"), eq("DMS_CONFIG"), eq(81L), eq("SYSTEM"),
 				org.mockito.ArgumentMatchers.any());
 	}
