@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { legalBlocker, legalDate, legalReadOnly, legalStatus, legalStepBlocker } from '../pages/legal/legalPresentation.js';
+import { legalBlocker, legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from '../pages/legal/legalPresentation.js';
 
 test('Legal dates use Vietnam time for UTC and offset-less backend timestamps', () => {
   for (const value of ['2026-10-22T18:23:03.753702400Z', '2026-10-22T18:23:03.753702400']) {
@@ -21,6 +21,14 @@ test('Closed records and unlocked vaults stay read-only', () => {
   assert.equal(legalReadOnly({ caseStatus: 'CANCELLED', vaultStatus: 'ACTIVE' }), true);
   assert.equal(legalReadOnly({ caseStatus: 'OPEN', vaultStatus: 'UNLOCKED' }), true);
   assert.equal(legalReadOnly({ caseStatus: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION' }), false);
+});
+
+test('Semantic status colors distinguish waiting, closed, success and errors', () => {
+  assert.equal(legalStatusTone('ON_HOLD'), 'warning');
+  assert.equal(legalStatusTone('CANCELLED'), 'neutral');
+  assert.equal(legalStatusTone('UNLOCKED'), 'success');
+  assert.equal(legalStatusTone('INVALID'), 'error');
+  assert.equal(legalStatusTone('FUTURE_STATUS'), 'info');
 });
 
 test('Legal explains missing records, forwarded versions and holds using existing data', () => {

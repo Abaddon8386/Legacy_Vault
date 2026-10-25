@@ -37,11 +37,21 @@ test('Explicitly disabled discovery remains unavailable without requests or fabr
   try { assert.match(view.host.textContent, /case list is not available/); assert.equal(view.host.querySelector('select').disabled, true); assert.equal(view.host.querySelector('input'), null); assert.equal(view.host.querySelector('form'), null); }
   finally { await view.close(); }
 });
-test('Role guard does not discover or mutate for Staff/Owner/Admin or expired session', async () => {
-  for (const next of [ ...['STAFF_EXECUTOR', 'VAULT_OWNER', 'ADMIN'].map(role => ({ ...session, user: { ...session.user, roles: [role] } })), { ...session, expiresAt: 0 } ]) {
+test('Role guard does not discover or mutate for Staff/Owner/Admin', async () => {
+  for (const next of ['STAFF_EXECUTOR', 'VAULT_OWNER', 'ADMIN'].map(role => ({ ...session, user: { ...session.user, roles: [role] } }))) {
     const view = await mount({ ...base, session: next, discovery: async () => assert.fail('No discovery') });
     try { assert.match(view.host.textContent, /do not have permission/); assert.equal(view.host.querySelector('form'), null); } finally { await view.close(); }
   }
+});
+
+test('An expired session explains expiry and offers sign-in without making Legal requests', async () => {
+  let signIns = 0;
+  globalThis.fetch = async () => assert.fail('Expired sessions must not request private data');
+  const view = await mount({ ...base, session: { ...session, expiresAt: 0 }, onUnauthorized: () => { signIns++; }, discovery: async () => assert.fail('No discovery') });
+  try {
+    assert.match(view.host.textContent, /session has expired/); assert.doesNotMatch(view.host.textContent, /do not have permission/);
+    assert.equal(view.host.querySelector('form'), null); await click(view.host, 'Sign in again'); assert.equal(signIns, 1);
+  } finally { await view.close(); }
 });
 test('Queue empty/error and invalid/cross-case discovery are not silently treated as ready', async () => {
   for (const discovery of [async () => [], async () => { throw { status: 403 }; }, async () => [{ caseId: 'bad' }]]) {

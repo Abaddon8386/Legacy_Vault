@@ -123,6 +123,13 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
     const table = view.host.querySelector('table');
     assert.match(table.textContent, /Family archive/); assert.match(table.textContent, /Cloud account/);
     assert.match(table.textContent, /Recipient A/); assert.match(table.textContent, /Recipient C/);
+    assert.equal(table.querySelectorAll('code').length, 4);
+    for (const code of table.querySelectorAll('code')) {
+      const details = code.closest('details');
+      assert.ok(details); assert.equal(details.open, false);
+      assert.equal(details.querySelector('summary').textContent, lang === 'en' ? 'Technical details' : 'Chi tiết kỹ thuật');
+      assert.ok(details.querySelector('button[aria-label]'), 'References must offer a labeled Copy action');
+    }
     assert.doesNotMatch(view.host.textContent, /Old B allocation|Recipient B|Old decision/);
     assert.match(table.textContent, lang === 'en' ? /Court document/ : /Từ văn bản Tòa án/);
     assert.match(table.textContent, lang === 'en' ? /Named in version 2/ : /Ghi nhận từ phiên bản 2/);
@@ -250,7 +257,9 @@ for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal cont
     assert.match(view.host.textContent, /CASE-A/);
     assert.equal(view.host.querySelector('.lv-legal-technical').open, false);
     assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
-    if (caseStatus === 'CANCELLED') assert.match(view.host.querySelector('.lv-legal-case-status').textContent, /Verification cancelled/);
+    const badge = view.host.querySelector('.lv-legal-case-status');
+    assert.equal(badge.textContent, caseStatus === 'CANCELLED' ? 'Verification cancelled' : 'Closed');
+    assert.ok(badge.classList.contains('is-neutral'));
   } finally { await view.close(); }
 });
 

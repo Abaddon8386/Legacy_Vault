@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Archive, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
-import { legalDate, legalReadOnly, legalStatus, legalStepBlocker } from './legalPresentation.js';
+import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
+import { legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { LegalRecordDetails, LegalTechnicalDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
@@ -13,6 +13,7 @@ import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavi
 import './LegalLiveWorkflow.css';
 
 const paths = Object.fromEntries(LEGAL_NAVIGATION_REGISTRY.map(item => [item.id, item.path]));
+const statusIcons = { neutral: Archive, warning: Clock3, success: CircleCheck, info: Info, error: CircleAlert };
 const choices = {
   APPROVE: ['Chấp thuận', 'Approve'], REJECT: ['Từ chối', 'Reject'], REQUEST_MORE: ['Yêu cầu bổ sung', 'Request more information'],
   MATCH: ['Khớp', 'Match'], MISMATCH: ['Không khớp', 'Mismatch'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
@@ -76,7 +77,9 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-
     const params = new URLSearchParams({ lang }); if (id) params.set('caseId', id);
     onNavigate?.(`${paths[next]}?${params}`);
   };
-  if (!isSessionActive(session) || !session.user.roles.includes('LEGAL_VERIFIER')) return <p role="alert">{knownErrors[403][en ? 1 : 0]}</p>;
+  if (!isSessionActive(session)) return <div className="lv-legal-live" role="alert"><p>{knownErrors[401][en ? 1 : 0]}</p>
+    {onUnauthorized && <button type="button" className="lv-legal-primary" onClick={onUnauthorized}>{en ? 'Sign in again' : 'Đăng nhập lại'}</button>}</div>;
+  if (!session.user.roles.includes('LEGAL_VERIFIER')) return <p role="alert">{knownErrors[403][en ? 1 : 0]}</p>;
   return <section className="lv-legal-live">
     <header className="lv-legal-live__header"><div>
       <h1>{legalStepTitle(step, lang)}</h1>
@@ -149,6 +152,9 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div></>;
   const context = current.data;
   const readOnly = legalReadOnly(context);
+  const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : context.vaultStatus;
+  const statusTone = legalStatusTone(caseStatus);
+  const StatusIcon = statusIcons[statusTone];
   return <>
     {confirmation}
     {savedReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
@@ -158,7 +164,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       <div className="lv-legal-case-banner__icon"><FolderOpen size={28} aria-hidden="true" /></div>
       <div className="lv-legal-case-banner__content"><span>{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
         <strong>{context.caseNumber || selected.label}</strong>
-        {context.vaultStatus && <span className="lv-legal-case-status">{legalStatus(context.caseStatus === 'CANCELLED' ? 'CANCELLED' : context.vaultStatus, en)}</span>}
+        {caseStatus && <span className={`lv-legal-case-status is-${statusTone}`}><StatusIcon size={16} aria-hidden="true" />{legalStatus(caseStatus, en)}</span>}
       </div>
       {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
     </div>
