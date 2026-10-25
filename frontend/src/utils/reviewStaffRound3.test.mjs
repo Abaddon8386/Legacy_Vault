@@ -29,7 +29,7 @@ async function run(check, customFetch){
       return json([]);
     }
     if(customFetch) return customFetch(url,init);
-    return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING'}]);
+    return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING',accountLinked:true,deliverable:true,blockedReason:null}]);
   };
   const host=document.createElement('div');
   document.body.append(host);
@@ -100,7 +100,7 @@ test('review: modal confirm sends exact payload and marks DELIVERED on valid rec
       deliveredAt:'2026-10-20T08:00:00Z',
     }]);
   }
-  return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING'}]);
+  return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING',accountLinked:true,deliverable:true,blockedReason:null}]);
 }));
 
 // Test Finding A: Mismatched recipient or status in receipt rejects false success
@@ -126,7 +126,7 @@ test('review: receipt with mismatched recipient does NOT mark asset DELIVERED an
       deliveredAt:'2026-10-20T08:00:00Z',
     }]);
   }
-  return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING'}]);
+  return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING',accountLinked:true,deliverable:true,blockedReason:null}]);
 }));
 
 // Test Finding A: 409 Conflict handled properly without retry POST
@@ -148,7 +148,7 @@ test('review: 409 Conflict triggers reload and does not retry POST',()=>run(asyn
     return new Response(JSON.stringify({code:'CONFLICT',message:'Handover session changed'}),{status:409,headers:{'Content-Type':'application/json'}});
   }
   conflictGets++;
-  return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING'}]);
+  return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'PENDING',accountLinked:true,deliverable:true,blockedReason:null}]);
 }));
 
 // Test Finding B & C: Switching recipient resets selection, Recipient B is isolated from Recipient A
@@ -198,8 +198,8 @@ test('review: switching recipient resets selection and preserves isolation betwe
     }]);
   }
   return json([
-    {assetId:asset,recipientId:r,description:'Asset 1',deliveryStatus:'PENDING'},
-    {assetId:asset2,recipientId:r2,description:'Asset 2',deliveryStatus:'PENDING'},
+    {assetId:asset,recipientId:r,description:'Asset 1',deliveryStatus:'PENDING',accountLinked:true,deliverable:true,blockedReason:null},
+    {assetId:asset2,recipientId:r2,description:'Asset 2',deliveryStatus:'PENDING',accountLinked:true,deliverable:true,blockedReason:null},
   ]);
 }));
 
@@ -222,7 +222,7 @@ for (const [name, receipt] of [
       assert.ok(host.querySelector('.lv-api-status-banner--error'));
     },async(url,init)=>{
       if(init.method==='POST')return json(receipt);
-      gets++;return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'ELIGIBLE'}]);
+      gets++;return json([{assetId:asset,recipientId:r,description:'Asset X',deliveryStatus:'ELIGIBLE',accountLinked:true,deliverable:true,blockedReason:null}]);
     });
   });
 }
