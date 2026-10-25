@@ -5,6 +5,9 @@
  */
 
 .lv-account-profile-view {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   max-width: 860px;
   margin: 0 auto;
   padding: 32px 24px 64px;
@@ -62,6 +65,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .lv-account-profile-view .lv-profile-edit-btn {
@@ -122,6 +127,7 @@
 }
 
 .lv-account-profile-view .lv-profile-field-item {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -136,6 +142,9 @@
 }
 
 .lv-account-profile-view .lv-profile-field-value {
+  min-width: 0;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 15.5px;
   font-weight: 600;
   color: var(--lv-color-text-main, #1f2421);

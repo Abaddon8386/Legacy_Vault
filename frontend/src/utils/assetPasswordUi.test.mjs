@@ -156,8 +156,8 @@ test('real asset edit uploads selected files through add-only endpoints and pres
     const doc = new File(['%PDF-1.7\n%%EOF'], 'new.pdf', { type: 'application/pdf' });
     const inputs = view.host.querySelectorAll('input[type=file]');
     for (const [input, file] of [[inputs[0], image], [inputs[1], doc]]) {
-      assert.ok(input.classList.contains('lv-file-picker__input'));
-      assert.ok(input.closest('.lv-file-picker').querySelector('.lv-form-label'));
+      assert.ok(input.closest('label.lv-asset-file-picker'), 'file input sits inside the shared picker box');
+      assert.ok(input.getAttribute('aria-label'));
       const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
       await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
     }

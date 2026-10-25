@@ -1,0 +1,5 @@
+.lv-asset-file-picker { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px; margin: 10px 0; border: 1px dashed var(--lv-control-border, #a2b4a8); border-radius: 10px; min-height: 48px; background: #f7faf7; cursor: pointer; overflow-wrap: anywhere; }
+.lv-asset-file-picker > input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.lv-asset-file-picker:focus-within { outline: 2px solid var(--lv-action-focus, #234237); outline-offset: 3px; }
+.lv-asset-file-picker:has(input:disabled) { opacity: .65; cursor: default; }
+.lv-asset-file-picker__files { padding-left: 20px; overflow-wrap: anywhere; }

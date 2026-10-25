@@ -186,7 +186,8 @@ export function AssetEditModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
+        <form onSubmit={handleSubmit} className="lv-modal__body lv-asset-form" noValidate>
+          <div className="lv-asset-form__scroll">
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
           {errors.save && !partial && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
           {partial && <div className="lv-form-error" role="alert" data-testid="edit-partial"><p>{t.assets.alerts.editPartial}</p>{!!partial.savedNames.length && <p>{t.assets.alerts.editSavedLabel}: {partial.savedNames.join(', ')}</p>}{!!partial.failedNames.length && <p>{t.assets.alerts.editFailedLabel}: {partial.failedNames.join(', ')}</p>}<p>{t.assets.alerts.editRetryHint}</p></div>}
@@ -305,6 +306,7 @@ export function AssetEditModal({
             {errors.password && <p id="edit-password-error" className="lv-form-error" role="alert">{errors.password === 'required' ? t.assets.editModal.passwordRequired : t.assets.editModal.passwordFailed}</p>}
           </div>
           {/* Actions */}
+          </div>
           <div className="lv-form-actions">
             <Button
               variant="secondary"

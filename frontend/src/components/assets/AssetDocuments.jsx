@@ -1,15 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { assetDocumentService, validateDocuments } from '../../services/assetDocumentService.js';
 import '../common/RelatedAttachments.css';
+import './AssetFilePicker.css';
 export function DocumentPicker({files,onChange,disabled,lang='vi',existingCount=0}) {
-  const [error,setError]=useState(false);const en=lang==='en';const inputId=useId();
-  return <div className="lv-form-group lv-file-picker">
-    <label className="lv-form-label" htmlFor={inputId}>{en?'PDF / Word attachments':'Tài liệu PDF / Word'}</label>
-    <span className="lv-form-hint">{en?'Up to 5 files, 10 MiB each. Files are downloaded, not embedded.':'Tối đa 5 tệp, 10 MiB/tệp. Tài liệu chỉ tải xuống, không nhúng để xem.'}</span>
-    <input id={inputId} className="lv-file-picker__input" type="file" multiple accept=".pdf,.doc,.docx" disabled={disabled} aria-label={en?'Choose PDF or Word files':'Chọn tệp PDF hoặc Word'} onChange={e=>{const list=Array.from(e.target.files||[]);if(!list.length){onChange([]);setError(false);return;}try{validateDocuments(list,existingCount);onChange(list);setError(false);}catch{setError(true);onChange([]);e.target.value='';}}}/>
-    {error&&<p className="lv-form-error" role="alert">{en?'Select valid PDF, DOC or DOCX files within the limits.':'Chọn PDF, DOC hoặc DOCX hợp lệ trong giới hạn.'}</p>}
-    {!!files.length&&<ul className="lv-file-picker__list">{files.map((f,i)=><li key={i}>{f.name}</li>)}</ul>}
-  </div>;
+  const [error,setError]=useState(false);const en=lang==='en';
+  return <div className="lv-form-group"><label className="lv-asset-file-picker"><strong>{en?'Choose PDF / Word files':'Chọn tài liệu PDF / Word'}</strong><span>{files.length ? (en ? `${files.length} files selected` : `Đã chọn ${files.length} tệp`) : (en ? 'No files selected' : 'Chưa chọn tệp')}</span><input aria-label={en?'PDF / Word attachments':'Tài liệu PDF / Word'} type="file" multiple accept=".pdf,.doc,.docx" disabled={disabled} onChange={e=>{const list=Array.from(e.target.files||[]);if(!list.length){onChange([]);setError(false);return;}try{validateDocuments(list,existingCount);onChange(list);setError(false);}catch{setError(true);onChange([]);e.target.value='';}}}/></label><p>{en?'Up to 5 files, 10 MiB each. Files are downloaded, not embedded.':'Tối đa 5 tệp, 10 MiB/tệp. Tài liệu chỉ tải xuống, không nhúng để xem.'}</p>{error&&<p role="alert">{en?'Select valid PDF, DOC or DOCX files within the limits.':'Chọn PDF, DOC hoặc DOCX hợp lệ trong giới hạn.'}</p>}<ul className="lv-asset-file-picker__files">{files.map((f,i)=><li key={i}>{f.name} · {(f.size / 1048576).toFixed(2)} MiB</li>)}</ul></div>;
 }
 export default function AssetDocuments(props){return <Documents key={`${props.vaultId}:${props.assetId}:${props.accessToken}`} {...props}/>;}
 function Documents({vaultId,assetId,accessToken,lang,onUnauthorized,readOnly=false}) {

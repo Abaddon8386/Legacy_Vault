@@ -393,7 +393,7 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App({ invitationActions, beneficiaryAssetActions, legalDiscovery } = {}) {
+export default function App({ invitationActions, beneficiaryAssetActions, legalDiscovery, caseLinkActions, counterLinkActions, dmsGraceActions } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
   const [session, setSession] = useState(readStoredSession);
@@ -671,6 +671,15 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       }
     }
   };
+  const refreshLinkedAccount = async ({ signal }) => {
+    const snapshot = session;
+    if (!isSessionActive(snapshot)) throw new ApiError('UNAUTHENTICATED', 401);
+    const result = await request('/auth/me', { accessToken: snapshot.accessToken, signal, lang });
+    if (signal.aborted) throw new DOMException('Session changed', 'AbortError');
+    const user = readUser(result);
+    if (user.id !== snapshot.user.id) { logout(); throw new ApiError('INVALID_AUTH_RESPONSE', 401); }
+    setSession(current => current?.accessToken === snapshot.accessToken && current?.user.id === user.id ? { ...current, user } : current);
+  };
   const saveAccountProfile = async (changes, options) => {
     const snapshot = session;
     const active = profileSessionRef.current;
@@ -823,6 +832,8 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             lang={lang}
             receivedAssetActions={effectiveBeneficiaryAssetActions}
             invitationActions={invitationActions}
+            caseLinkActions={caseLinkActions}
+            onRefreshAccount={refreshLinkedAccount}
             isDevPreview={preview}
             previewScenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'unlinked'}
             user={session?.user || null}
@@ -937,6 +948,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
           <CounterHandoverPage
+            counterLinkActions={counterLinkActions}
             key={session?.user.id || 'preview'}
             accessToken={session?.accessToken}
             isDevPreview={preview}
@@ -1311,7 +1323,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   if (path === '/staff/beneficiary-accounts') {
     if (!isSessionActive(session) && !preview) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
     if (session && !session?.user?.roles?.includes('STAFF_EXECUTOR')) return <main role="alert"><p>{lang === 'en' ? 'Access denied.' : 'Bạn không có quyền truy cập.'}</p><button onClick={logout}>{lang === 'en' ? 'Sign in again' : 'Đăng nhập lại'}</button></main>;
-    return <div className="lv-app-root"><BeneficiaryAccountPage key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
+    return <div className="lv-app-root"><BeneficiaryAccountPage counterLinkActions={counterLinkActions} key={session?.user.id || 'preview'} accessToken={session?.accessToken} isDevPreview={preview} lang={lang} onToggleLang={setLang} onLogout={logout} onRefresh={handleRefresh} /></div>;
   }
   if (isStaffLegalDocsRoute) {
     if (!isSessionActive(session) && !preview) {
@@ -1745,7 +1757,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         : isBeneficiariesRoute ? <TrusteeBeneficiaryRoute onLoadInvitation={invitationActions?.loadForBeneficiary} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} onNavigateToSubscription={() => navigateTo('/subscription')} />
-            : isDmsRoute ? <DMSOverviewPage key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
+            : isDmsRoute ? <DMSOverviewPage graceActions={dmsGraceActions} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
               : <VaultOverviewPage onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
     </AppShell></div>;
   }
