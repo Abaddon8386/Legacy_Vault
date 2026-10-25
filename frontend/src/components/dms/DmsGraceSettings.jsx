@@ -30,6 +30,8 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
   const total = Number(value.days) * 1440 + Number(value.hours) * 60 + Number(value.minutes);
   const unsupportedPrecision = ready && !minuteMode && total % 1440 !== 0;
   const invalid = Object.values(value).some(part => !/^\d+$/.test(part)) || !Number.isSafeInteger(total) || Number(value.hours) > 23 || Number(value.minutes) > 59 || (ready && (total < min || total > max)) || unsupportedPrecision;
+  const maxDays = ready ? Math.floor(max / 1440) : null;
+  const maxText = ready ? (en ? `Maximum: ${maxDays} days.` : `Tối đa ${maxDays} ngày.`) : '';
   useEffect(() => () => { if (request.current) { request.current.abort(); request.current = null; busyCallback.current?.(false); } }, []);
 
   async function save(event) {
@@ -67,8 +69,8 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
       <p id="grace-help">{!data ? (en ? 'Configure a check-in cycle first.' : 'Hãy thiết lập chu kỳ xác nhận trước.')
         : !ready ? (en ? 'Grace period changes are not available yet.' : 'Chưa hỗ trợ thay đổi thời gian ân hạn.')
         : !writable ? (en ? 'Grace period can only be changed while monitoring is active.' : 'Chỉ được đổi thời gian ân hạn khi hệ thống đang theo dõi bình thường.')
-        : !minuteMode ? (en ? 'Current service supports whole days only.' : 'Dịch vụ hiện tại chỉ lưu được số ngày nguyên.') : ''}</p>
-      {dirty && invalid && <p role="alert">{unsupportedPrecision ? (en ? 'Minute precision is not supported by the current service.' : 'Dịch vụ chưa hỗ trợ lưu theo giờ, phút.') : (en ? 'Enter a valid duration within the allowed range.' : 'Nhập thời gian hợp lệ trong khoảng cho phép.')}</p>}
+        : !minuteMode ? (en ? 'Current service supports whole days only.' : 'Dịch vụ hiện tại chỉ lưu được số ngày nguyên.') : maxText}</p>
+      {dirty && invalid && <p role="alert">{unsupportedPrecision ? (en ? 'Minute precision is not supported by the current service.' : 'Dịch vụ chưa hỗ trợ lưu theo giờ, phút.') : (en ? `Enter a valid duration within the allowed range. ${maxText}` : `Nhập thời gian hợp lệ trong khoảng cho phép. ${maxText}`)}</p>}
     </form>
     {saved && <FeedbackNotice tone="success">{en ? 'Grace period saved.' : 'Đã lưu thời gian ân hạn.'}</FeedbackNotice>}
     {error && <FeedbackNotice tone="error">{error === 'changed'
