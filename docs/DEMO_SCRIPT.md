@@ -1,4 +1,4 @@
-# KỊCH BẢN DEMO LEGACYVAULT — GIA ĐÌNH NGUYỄN MINH AN
+d# KỊCH BẢN DEMO LEGACYVAULT — GIA ĐÌNH NGUYỄN MINH AN
 
 Ngày biên soạn: 21/10/2026. Lưu theo yêu cầu người dùng để diễn tập sau khi hoàn thành các task cuối.
 

@@ -38,6 +38,7 @@ export default function DMSOverviewPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   // Form states
   const [intervalInput, setIntervalInput] = useState(DEFAULT_INTERVAL_DAYS);
@@ -66,6 +67,13 @@ export default function DMSOverviewPage({
   const active = useRef(true);
   const mutationController = useRef(null);
   useEffect(() => { active.current = true; return () => { active.current = false; mutationController.current?.abort(); }; }, []);
+
+  // Progress and grace-period eligibility are derived from server timestamps, with
+  // one page-scoped clock. The interval is cleaned up on unmount/remount.
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const [showInfoPopover, setShowInfoPopover] = useState(false);
   const isDevPreviewActive = useMemo(() => {
@@ -143,6 +151,49 @@ export default function DMSOverviewPage({
       controller.abort();
     };
   }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, onUnauthorized]);
+
+  // Once the backend deadline has passed, the displayed status can remain the
+  // old MONITORING snapshot until its scheduler runs. Poll for the authoritative
+  // backend transition so the overdue notice appears without leaving this page.
+  const deadlineReached = dmsData?.status === 'MONITORING' &&
+    Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
+    clockNow >= Date.parse(dmsData.nextCheckAt);
+  const awaitingGraceDeadline = dmsData?.status === 'TRIGGERED' && !dmsData.graceDeadline;
+
+  useEffect(() => {
+    if ((!deadlineReached && !awaitingGraceDeadline) || isDevPreviewActive) return undefined;
+
+    let stopped = false;
+    let timeoutId;
+    const controller = new AbortController();
+    const pollStatus = async () => {
+      try {
+        const latest = await fetchDmsConfig({ lang, accessToken, ownerId, signal: controller.signal });
+        if (stopped) return;
+        if (latest) {
+          const triggerHasDeadline = latest.status !== 'TRIGGERED' || Boolean(latest.graceDeadline);
+          if (triggerHasDeadline) setDmsData({ ...latest, snapshotTimestamp: Date.now() });
+          if (latest.status === 'MONITORING' || !triggerHasDeadline) timeoutId = window.setTimeout(pollStatus, 5000);
+        } else {
+          setDmsData(null);
+        }
+      } catch (err) {
+        if (stopped || err.name === 'AbortError') return;
+        if (err.status === 401) {
+          onUnauthorized?.();
+          return;
+        }
+        timeoutId = window.setTimeout(pollStatus, 5000);
+      }
+    };
+
+    timeoutId = window.setTimeout(pollStatus, 0);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [deadlineReached, awaitingGraceDeadline, isDevPreviewActive, lang, accessToken, ownerId, onUnauthorized]);
 
 
     const handleManualRetry = useCallback(() => {
@@ -247,7 +298,7 @@ export default function DMSOverviewPage({
   };
 
   const handleCheckIn = async () => {
-    if (dmsData?.status !== 'MONITORING') return;
+    if (cannotCheckIn) return;
     if (pendingCheckIn.current || pendingSave.current) return;
     pendingCheckIn.current = true;
     ++fetchRequestId.current;
@@ -304,27 +355,16 @@ export default function DMSOverviewPage({
 
   // Calculate cycle progress if timestamps are valid
   const cycleProgress = useMemo(() => {
-    if (!dmsData || !dmsData.lastCheckInAt || !dmsData.nextCheckAt) return null;
-    const start = new Date(dmsData.lastCheckInAt).getTime();
+    if (!dmsData || !dmsData.nextCheckAt) return null;
     const end = new Date(dmsData.nextCheckAt).getTime();
-    const refTime = dmsData.snapshotTimestamp;
-    if (!refTime || isNaN(start) || isNaN(end) || end <= start) return null;
-    if (refTime <= start) return 0;
-    if (refTime >= end) return 100;
-    return Math.min(100, Math.max(0, Math.round(((refTime - start) / (end - start)) * 100)));
-  }, [dmsData]);
-
-  // Animate progress bar from 0 to real percentage upon data load
-  const [animatedProgress, setAnimatedProgress] = useState(0);
-
-  useEffect(() => {
-    if (cycleProgress !== null) {
-      const timer = setTimeout(() => {
-        setAnimatedProgress(cycleProgress);
-      }, 70);
-      return () => clearTimeout(timer);
-    }
-  }, [cycleProgress]);
+    const intervalMs = Number(dmsData.checkIntervalTotalMinutes) * 60_000;
+    const explicitStart = dmsData.lastCheckInAt ? new Date(dmsData.lastCheckInAt).getTime() : NaN;
+    const start = Number.isFinite(explicitStart) ? explicitStart : end - intervalMs;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+    if (clockNow <= start) return 0;
+    if (clockNow >= end) return 100;
+    return Math.min(100, Math.max(0, Math.round(((clockNow - start) / (end - start)) * 100)));
+  }, [dmsData, clockNow]);
 
   const content = {
     vi: {
@@ -364,6 +404,8 @@ export default function DMSOverviewPage({
       triggeredAlertDesc:
         'Đã quá hạn xác nhận hoạt động. Quá hạn xác nhận hoạt động không đồng nghĩa với xác nhận qua đời và không tự động mở khóa kho di sản.',
       triggeredDeadlinePrefix: 'Thời hạn ân hạn:',
+      deadlinePendingTitle: 'Đã đến hạn xác nhận hoạt động',
+      deadlinePendingDesc: 'Đang xác minh trạng thái DMS mới nhất từ máy chủ. Quá hạn check-in chưa đồng nghĩa với việc DMS đã kích hoạt.',
       configCardTitle: 'Cấu hình chu kỳ kiểm tra',
       configCardSub:
         'Tùy chỉnh khoảng thời gian giữa các lần hệ thống yêu cầu bạn gửi tín hiệu xác nhận.',
@@ -418,6 +460,8 @@ export default function DMSOverviewPage({
       triggeredAlertDesc:
         'Vitality confirmation is overdue. Check-in expiration does not signify owner decease and does not automatically unlock the heritage vault.',
       triggeredDeadlinePrefix: 'Grace period deadline:',
+      deadlinePendingTitle: 'Check-in deadline reached',
+      deadlinePendingDesc: 'Confirming the latest DMS status with the server. A missed check-in deadline alone does not mean DMS has been triggered.',
       configCardTitle: 'Configure Check-in Interval',
       configCardSub:
         'Customize the duration between required activity check-in confirmations.',
@@ -465,12 +509,21 @@ export default function DMSOverviewPage({
     );
   }
 
-  const isTriggered = dmsData && ['TRIGGERED', 'GRACE_PERIOD_EXCEEDED'].includes(dmsData.status);
-  const cannotCheckIn = dmsData?.status !== 'MONITORING';
+  const isTriggered = dmsData?.status === 'GRACE_PERIOD_EXCEEDED' ||
+    (dmsData?.status === 'TRIGGERED' && Boolean(dmsData.graceDeadline));
+  const isDeadlinePending = dmsData?.status === 'MONITORING' &&
+    Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
+    clockNow >= Date.parse(dmsData.nextCheckAt);
+  const canCheckInDuringGrace = dmsData?.status === 'TRIGGERED' &&
+    Number.isFinite(Date.parse(dmsData.graceDeadline || '')) &&
+    clockNow < Date.parse(dmsData.graceDeadline);
+  const cannotCheckIn = !isOwner || (dmsData?.status !== 'MONITORING' && !canCheckInDuringGrace);
   const configReadOnly = isSavingGrace || Boolean(dmsData && dmsData.status !== 'MONITORING');
-  const monitoringLockedMessage = lang === 'en'
-    ? 'Monitoring is inactive; check-in and schedule changes are locked.'
-    : 'DMS đã rời trạng thái theo dõi; xác nhận hoạt động và đổi chu kỳ đang khóa.';
+  const monitoringLockedMessage = !isOwner
+    ? (lang === 'en' ? 'Only the Owner can check in.' : 'Chỉ Chủ sở hữu mới có thể xác nhận hoạt động.')
+    : (lang === 'en'
+      ? 'The check-in window has closed; check-in and schedule changes are locked.'
+      : 'Thời hạn check-in đã kết thúc; chức năng xác nhận và đổi chu kỳ đang khóa.');
   const isNotConfigured = !dmsData || dmsData.status === 'DISABLED' || dmsData.status === 'NOT_CONFIGURED';
 
   return (
@@ -590,7 +643,7 @@ export default function DMSOverviewPage({
               </div>
 
       {/* TRIGGERED / GRACE PERIOD Alert Banner */}
-      {isTriggered && (
+      {(isTriggered || isDeadlinePending) && (
         <section className="lv-dms-triggered-banner lv-dms-stagger" style={{ '--stagger': 1 }} role="alert" aria-live="polite">
           <div className="lv-dms-triggered-icon" aria-hidden="true">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -600,8 +653,8 @@ export default function DMSOverviewPage({
             </svg>
           </div>
           <div className="lv-dms-triggered-content">
-            <h2 className="lv-dms-triggered-title">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'Grace period has ended' : 'Đã hết thời gian ân hạn') : t.triggeredAlertTitle}</h2>
-            <p className="lv-dms-triggered-desc">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'The record is awaiting verification. This status does not confirm death or unlock assets.' : 'Hồ sơ đang chờ xác minh. Trạng thái này chưa xác nhận tử vong và chưa mở khóa tài sản.') : t.triggeredAlertDesc}</p>
+            <h2 className="lv-dms-triggered-title">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'Grace period has ended' : 'Đã hết thời gian ân hạn') : (isTriggered ? t.triggeredAlertTitle : t.deadlinePendingTitle)}</h2>
+            <p className="lv-dms-triggered-desc">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'The record is awaiting verification. This status does not confirm death or unlock assets.' : 'Hồ sơ đang chờ xác minh. Trạng thái này chưa xác nhận tử vong và chưa mở khóa tài sản.') : (isTriggered ? t.triggeredAlertDesc : t.deadlinePendingDesc)}</p>
             <div className="lv-dms-triggered-actions-row">
               {dmsData.graceDeadline && (
                 <span className="lv-dms-triggered-deadline-tag">
@@ -721,7 +774,7 @@ export default function DMSOverviewPage({
                   >
                     <div
                       className="lv-dms-cycle-progress-bar"
-                      style={{ width: `${animatedProgress}%` }}
+                      style={{ width: `${cycleProgress}%` }}
                     />
                   </div>
                   <div className="lv-dms-cycle-timeline-bounds">

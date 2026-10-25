@@ -84,20 +84,31 @@ public class DmsService {
 
 	@Transactional
 	public DmsDtos.Response checkIn() {
+		return checkInAt(null);
+	}
+
+	DmsDtos.Response checkInAt(LocalDateTime requestedAt) {
 		User owner = owners.requireOwner();
 		Vault vault = ownerVault(owner.getUserId());
 		vaultService.requireNotArchivedVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		if (!"MONITORING".equals(config.getStatus())) {
+		LocalDateTime now = requestedAt == null ? LocalDateTime.now(ZoneOffset.UTC) : requestedAt;
+		boolean monitoring = DmsConfig.STATUS_MONITORING.equals(config.getStatus());
+		boolean withinGrace = DmsConfig.STATUS_TRIGGERED.equals(config.getStatus())
+				&& config.getGraceDeadline() != null
+				&& config.getGraceDeadline().isAfter(now)
+				&& Vault.STATUS_ACTIVE.equals(vault.getStatus());
+		if (!monitoring && !withinGrace) {
 			throw new BusinessException(ErrorCode.DMS_NOT_MONITORING);
 		}
-		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-		config.checkIn(now);
+		String stateBefore = config.getStatus();
+		if (withinGrace) config.restoreAfterAlert(now);
+		else config.checkIn(now);
 		config = configs.saveAndFlush(config);
 		Long vaultId = vault.getVaultId();
 		audit.record(owner.getUserId(), vaultId, "DMS_CHECKED_IN", "DMS_CONFIG", config.getId(), "USER",
-				Map.of("stateBefore", "MONITORING", "stateAfter", "MONITORING", "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
+				Map.of("stateBefore", stateBefore, "stateAfter", "MONITORING", "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
 		return DmsDtos.Response.from(owner.getPublicId(), config);
 	}
 
