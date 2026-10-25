@@ -29,6 +29,19 @@ function pageFixture(page = 0) {
     route: 'COURT', dossierStatus: 'LEGAL_BASIS_FORWARDED', reviewStatus: 'FRESH', openedAt: now }], page, size: 20, totalElements: 21, totalPages: 2 };
 }
 const options = { accessToken: session.accessToken, roles: user.roles, lang: 'en' };
+const c = '33333333-3333-4333-8333-333333333333';
+function courtContext(caseId = a, approved = false) {
+  const value = contextFixture(caseId, approved);
+  value.basisDossier.requiredVersion = value.snapshot.requiredVersion = value.snapshot.currentVersion = 2;
+  value.basisDossier.versions = [
+    { version: 1, sha256: sha, forwardStatus: 'FORWARDED', documentNumber: 'Old decision', allocations: [{ assetId: a, beneficiaryId: b, description: 'Old B allocation', assetName: 'Old asset', recipientName: 'Recipient B', recipientSource: 'OWNER_DESIGNATED', sourceVersionNo: null, accountLinked: true }] },
+    { version: 2, sha256: sha, forwardStatus: 'FORWARDED', documentNumber: 'Court decision 25/2026', allocations: [
+      { assetId: a, beneficiaryId: a, description: 'A receives the archive', assetName: 'Family archive', assetType: 'TEXT', recipientName: 'Recipient A', recipientSource: 'OWNER_DESIGNATED', sourceVersionNo: null, accountLinked: true },
+      { assetId: b, beneficiaryId: c, description: 'C receives the account', assetName: 'Cloud account', assetType: 'CREDENTIAL', recipientName: 'Recipient C', recipientSource: 'COURT_DOCUMENT', sourceVersionNo: 2, accountLinked: false },
+    ] },
+  ];
+  return value;
+}
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/legal/approval-review' });
 globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -86,6 +99,77 @@ test('PS-102 context validates case, document references, snapshot hashes and ca
   }
 });
 
+test('BE-02 metadata is validated without requiring an account link or breaking legacy allocations', async () => {
+  const value = courtContext();
+  const actual = await api.loadLegalContext(a, { ...options, fetchFn: async () => json(value) });
+  assert.equal(actual.basisDossier.versions[1].allocations[1].accountLinked, false);
+  assert.equal(actual.capabilities.approval.allowed, true);
+  for (const [field, wrong] of [['assetName', {}], ['recipientName', []], ['accountLinked', 'false'], ['recipientSource', 'INTERNAL_ONLY'], ['sourceVersionNo', 0]]) {
+    const bad = courtContext(); bad.basisDossier.versions[1].allocations[1][field] = wrong;
+    await assert.rejects(api.loadLegalContext(a, { ...options, fetchFn: async () => json(bad) }), { code: 'INVALID_RESPONSE' });
+  }
+  const legacy = contextFixture(); legacy.basisDossier.versions[0].allocations = [{ assetId: a, beneficiaryId: b, description: null }];
+  assert.equal((await api.loadLegalContext(a, { ...options, fetchFn: async () => json(legacy) })).basisDossier.versions[0].allocations.length, 1);
+});
+
+for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations and approves C without an account (${lang})`, async () => {
+  let writes = 0, body;
+  globalThis.fetch = transport(() => json(courtContext(a, writes > 0)), (url, init) => {
+    assert.ok(url.endsWith('/basis-dossier/decision')); writes++; body = JSON.parse(init.body);
+    return json({ dossierId: a, decision: 'LEGAL_APPROVED', versionNo: 2, sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now });
+  });
+  const view = await mount({ ...base, lang });
+  try {
+    const table = view.host.querySelector('table');
+    assert.match(table.textContent, /Family archive/); assert.match(table.textContent, /Cloud account/);
+    assert.match(table.textContent, /Recipient A/); assert.match(table.textContent, /Recipient C/);
+    assert.doesNotMatch(view.host.textContent, /Old B allocation|Recipient B|Old decision/);
+    assert.match(table.textContent, lang === 'en' ? /Court document/ : /Từ văn bản Tòa án/);
+    assert.match(table.textContent, lang === 'en' ? /Named in version 2/ : /Ghi nhận từ phiên bản 2/);
+    assert.match(table.textContent, lang === 'en' ? /Account not linked/ : /Chưa liên kết tài khoản/);
+    await change(view.host.querySelector('form select'), 'APPROVE');
+    assert.equal(view.host.querySelector('[type=submit]').disabled, false);
+    await submit(view.host);
+    assert.equal(writes, 1);
+    assert.deepEqual(body, { decision: 'APPROVE', reason: '', versionNo: 2, sha256Hash: sha, allocationHash: allocation });
+    assert.ok(view.host.querySelector('a[href*="controlled-unlock"]'), 'Next action is navigation; approval must never submit unlock');
+    assert.match(view.host.textContent, lang === 'en' ? /latest case status is shown/ : /Trạng thái hồ sơ mới nhất/);
+  } finally { await view.close(); }
+});
+
+for (const status of [401, 403, 404, 500]) test(`post-save context HTTP ${status} hides old actions and handles the saved receipt correctly`, async () => {
+  let reads = 0, writes = 0;
+  globalThis.fetch = transport(() => ++reads === 3 ? json({ code: 'READ_FAILED' }, status) : json(courtContext(a, writes > 0)), (_url, init) => {
+    writes++; const body = JSON.parse(init.body);
+    return json({ dossierId: a, decision: 'LEGAL_APPROVED', versionNo: body.versionNo, sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now });
+  });
+  const view = await mount();
+  try {
+    await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+    assert.equal(writes, 1); assert.ok(view.host.querySelector('[role=alert]'));
+    assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('table'), null);
+    if (status !== 500) assert.doesNotMatch(view.host.textContent, /Decision saved|Recipient C/);
+    else {
+      assert.match(view.host.textContent, /Your decision was saved/);
+      await click(view.host, 'Retry');
+      assert.ok(view.host.querySelector('table')); assert.equal(writes, 1);
+      assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    }
+  } finally { await view.close(); }
+});
+
+test('a final-decision draft survives reloading a conflict but is discarded when the case changes', async () => {
+  globalThis.fetch = transport(url => json(courtContext(url.includes(b) ? b : a)), () => json({ code: 'LEGAL_DECISION_STALE' }, 409));
+  const view = await mount();
+  try {
+    await change(view.host.querySelector('form select'), 'REJECT'); await change(view.host.querySelector('textarea'), 'Keep this reason');
+    await submit(view.host); await click(view.host, 'Try again');
+    assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(view.host.querySelector('form select').value, 'REJECT');
+    await view.render({ ...base, caseId: b });
+    assert.equal(view.host.querySelector('textarea').value, ''); assert.equal(view.host.querySelector('form select').value, '');
+  } finally { await view.close(); }
+});
+
 for (const decision of ['APPROVE', 'REJECT']) test(`final ${decision} reads context again and submits the displayed snapshot only`, async () => {
   let reads = 0, writes = 0, body;
   globalThis.fetch = transport(() => { reads++; return json(contextFixture()); }, (url, init) => {
@@ -99,9 +183,10 @@ for (const decision of ['APPROVE', 'REJECT']) test(`final ${decision} reads cont
     if (decision === 'REJECT') assert.equal(view.host.querySelector('[type=submit]').disabled, true);
     await change(view.host.querySelector('textarea'), 'Reviewed scope');
     await submit(view.host); await submit(view.host);
-    assert.equal(reads, 2); assert.equal(writes, 1);
+    assert.equal(reads, 3); assert.equal(writes, 1);
     assert.deepEqual(body, { decision, versionNo: 1, sha256Hash: sha, allocationHash: allocation, reason: 'Reviewed scope' });
     assert.match(view.host.textContent, /Decision saved/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    assert.equal(view.host.querySelector('form select').value, '', 'A saved decision must require a new explicit selection');
   } finally { await view.close(); }
 });
 
@@ -154,8 +239,8 @@ test('final decision opens a consequence summary and cancelling sends no request
   } finally { await view.close(); }
 });
 
-test('closed Legal context hides editing while preserving readable case information', async () => {
-  const value = contextFixture(); value.caseStatus = 'CLOSED';
+for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal context hides editing while preserving readable case information`, async () => {
+  const value = contextFixture(); value.caseStatus = caseStatus;
   value.capabilities = { approval: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' }, unlock: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' } };
   globalThis.fetch = transport(() => json(value));
   const view = await mount();
@@ -165,6 +250,7 @@ test('closed Legal context hides editing while preserving readable case informat
     assert.match(view.host.textContent, /CASE-A/);
     assert.equal(view.host.querySelector('.lv-legal-technical').open, false);
     assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
+    if (caseStatus === 'CANCELLED') assert.match(view.host.querySelector('.lv-legal-case-status').textContent, /Verification cancelled/);
   } finally { await view.close(); }
 });
 

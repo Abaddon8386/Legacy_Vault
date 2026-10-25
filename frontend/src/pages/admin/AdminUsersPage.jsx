@@ -26,11 +26,6 @@ export default function AdminUsersPage({
   const [detailSelection, setDetailSelection] = useState(null);
   const detailUser = detailSelection?.data === data ? detailSelection.record : null;
   const setDetailUser = (record) => setDetailSelection(record ? { record, data } : null);
-  const [lockSelection, setLockSelection] = useState(null);
-  const lockTargetUser = lockSelection?.data === data ? lockSelection.record : null;
-  const setLockTargetUser = (record) => setLockSelection(record ? { record, data } : null);
-  const [lockReason, setLockReason] = useState('');
-  const lockRef = useModalFocus(Boolean(lockTargetUser), () => setLockTargetUser(null));
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -171,6 +166,7 @@ export default function AdminUsersPage({
       </form>
 
       {/* Users Data Table */}
+      <p id="admin-lock-policy-notice">{t.lockPolicyPendingNotice}</p>
       <div className="lv-admin-list-meta">
         <p>{lang === 'en' ? 'User directory' : 'Danh sách người dùng'}{total !== null && !loading && <> <strong>({total})</strong></>}</p>
         <span className="lv-admin-scroll-hint">{lang === 'en' ? 'Scroll horizontally to see all columns' : 'Cuộn ngang để xem đầy đủ các cột'}</span>
@@ -240,10 +236,9 @@ export default function AdminUsersPage({
                     <button
                       type="button"
                       className={`lv-admin-btn ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
-                      onClick={() => {
-                        setLockTargetUser(user);
-                        setLockReason('');
-                      }}
+                      disabled
+                      aria-describedby="admin-lock-policy-notice"
+                      title={t.lockPolicyPendingNotice}
                     >
                       {user.status === 'LOCKED' ? t.unlockAction : t.lockAction}
                     </button>
@@ -285,88 +280,6 @@ export default function AdminUsersPage({
 
       {detailUser && <UserDetail key={detailUser.id} id={detailUser.id} accessToken={accessToken} lang={lang}
         onClose={() => setDetailUser(null)} onUnauthorized={onUnauthorized} onDenied={deny} />}
-      {/* Lock/Unlock Confirmation Dialog */}
-      {lockTargetUser && (
-        <div className="lv-admin-modal-backdrop" ref={lockRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="lock-dialog-title">
-          <div className="lv-admin-modal-card">
-            <div className="lv-admin-modal-header">
-              <h2 id="lock-dialog-title" className="lv-admin-modal-title">
-                {t.lockDialogTitle}
-              </h2>
-              <button
-                type="button"
-                className="lv-admin-modal-close-btn"
-                onClick={() => setLockTargetUser(null)}
-                aria-label={t.cancelBtn}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="lv-admin-modal-body">
-              <p style={{ margin: '0 0 16px 0', color: 'var(--lv-text-body)' }}>
-                {t.lockDialogWarning}
-              </p>
-
-              <div style={{ background: 'var(--lv-bg-canvas)', padding: 14, borderRadius: 'var(--lv-radius-md)', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, marginBottom: 4 }}>
-                  <strong>{t.lockTargetAccount}</strong> {lockTargetUser.fullName} ({lockTargetUser.email})
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--lv-text-muted)' }}>
-                  ID: {lockTargetUser.id} | {t.thStatus}: {lockTargetUser.status}
-                </div>
-              </div>
-
-              {/* Policy Pending Notice */}
-              <div
-                style={{
-                  background: '#fffbf5',
-                  border: '1px solid #fed7aa',
-                  borderRadius: 'var(--lv-radius-md)',
-                  padding: 14,
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                  color: '#9a3412',
-                  marginBottom: 16,
-                }}
-              >
-                <strong>{t.pendingApiBadge}:</strong> {t.lockPolicyPendingNotice}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label htmlFor="lock-reason-input" style={{ fontSize: 13, fontWeight: 600 }}>
-                  {t.lockReasonLabel}
-                </label>
-                <textarea
-                  id="lock-reason-input"
-                  className="lv-admin-input"
-                  style={{ height: 80, padding: 10, resize: 'vertical' }}
-                  placeholder={t.lockReasonPlaceholder}
-                  value={lockReason}
-                  onChange={(e) => setLockReason(e.target.value)}
-                  disabled
-                />
-              </div>
-            </div>
-            <div className="lv-admin-modal-footer">
-              <button
-                type="button"
-                className="lv-admin-btn lv-admin-btn-secondary"
-                onClick={() => setLockTargetUser(null)}
-              >
-                {t.cancelBtn}
-              </button>
-              <button
-                type="button"
-                className="lv-admin-btn lv-admin-btn-danger"
-                disabled
-                title={t.lockPolicyPendingNotice}
-              >
-                {lockTargetUser.status === 'LOCKED' ? t.confirmUnlockBtn : t.confirmLockBtn}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

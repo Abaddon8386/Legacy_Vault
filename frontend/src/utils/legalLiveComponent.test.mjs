@@ -50,8 +50,9 @@ test('Queue empty/error and invalid/cross-case discovery are not silently treate
   }
 });
 test('Death decision requires selected server document; duplicate clicks locked, VI/EN draft kept and actual receipt shown', async () => {
-  let writes = 0, finish;
-  globalThis.fetch = async (_url, init) => init.method === 'POST' ? (writes++, new Promise(resolve => { finish = resolve; })) : json(detail());
+  let writes = 0, finish, saved = false;
+  globalThis.fetch = async (url, init) => init.method === 'POST' ? (writes++, new Promise(resolve => { finish = resolve; }))
+    : url.endsWith('/attachments') ? json([]) : json(detail(a, saved ? { vaultStatus: 'DOCUMENT_VERIFICATION', decisions: [{ result: 'APPROVED', decidedAt: now }] } : {}));
   const view = await mount();
   try {
     assert.doesNotMatch(view.host.textContent, /Reload cases|Reload record|View latest status/);
@@ -60,10 +61,10 @@ test('Death decision requires selected server document; duplicate clicks locked,
     await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
     await view.render({ ...base, lang: 'vi' }); assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     await submit(view.host); await submit(view.host); assert.equal(writes, 1);
-    await act(async () => finish(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })));
+    await act(async () => { saved = true; finish(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })); });
     assert.match(view.host.textContent, /Đã lưu quyết định/); assert.match(view.host.textContent, /Legal Test/); assert.match(view.host.textContent, /20\/10\/2026, 13:00/);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
-    assert.ok([...view.host.querySelectorAll('button')].some(button => button.textContent === 'Xem trạng thái mới'));
+    assert.doesNotMatch(view.host.textContent, /Xem trạng thái mới/);
   } finally { await view.close(); }
 });
 test('Already decided death document cannot be decided again', async () => {
@@ -121,7 +122,7 @@ test('Blocked capability fixtures cannot approve or unlock after removing duplic
   }
 });
 
-test('View latest status refreshes parent context and document together while preserving the selected document and draft', async () => {
+test('Saving automatically refreshes parent context and document while preserving the selected document and draft', async () => {
   let saved = false, contextReads = 0, documentReads = 0, finishContext;
   const context = () => ({ caseId: a, caseNumber: 'Case A', caseStatus: 'OPEN',
     vaultStatus: saved ? 'DOCUMENT_VERIFICATION' : 'AWAITING_VERIFICATION', deathDocuments: [{ id: a }], capabilities: {} });
@@ -143,7 +144,6 @@ test('View latest status refreshes parent context and document together while pr
     await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
     await submit(view.host);
     const previousReads = documentReads;
-    await click(view.host, 'View latest status');
     assert.equal(contextReads, 2, 'The refresh must read the parent case context, not only the document');
     assert.equal(view.host.querySelector('.lv-legal-case-banner'), null, 'Old status must disappear while revalidating');
     assert.equal(view.host.querySelector('form'), null, 'No decision may be submitted during context revalidation');
@@ -153,7 +153,8 @@ test('View latest status refreshes parent context and document together while pr
     assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     assert.equal(documentReads, previousReads + 1);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
-    assert.doesNotMatch(view.host.textContent, /Decision saved/);
+    assert.match(view.host.textContent, /Decision saved/);
+    assert.doesNotMatch(view.host.textContent, /Checking the latest case/);
   } finally { await view.close(); }
 });
 
@@ -234,6 +235,26 @@ for (const action of ['review', 'request-supplementation', 'court', 'hold']) tes
     assert.doesNotMatch(destination, /\/decision$|\/unlock$/); assert.match(view.host.textContent, /Decision saved/);
   } finally { await view.close(); }
 });
+test('BE-02 account linking during review does not invalidate the Legal allocation scope', async () => {
+  let writes = 0;
+  const dossier = linked => ({ ...makeDossier(), versions: [{ ...makeDossier().versions[0], allocations: [{ assetId: a, beneficiaryId: b, description: 'Court allocation', recipientSource: 'COURT_DOCUMENT', sourceVersionNo: 1, accountLinked: linked }] }] });
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'POST') {
+      writes++; assert.ok(url.endsWith('/review'));
+      return json({ dossierId: a, reviewStatus: 'FRESH', reviewRequired: false, checkedAt: now, currentVersionNo: 1, currentSha256Hash: digest, currentAllocationHash: digest, currentDisputeStatus: 'NONE' });
+    }
+    if (url.endsWith('/context')) return json({ caseId: a, basisDossier: dossier(false), snapshot: { dossierId: a, currentVersion: 1, sha256Hash: digest, allocationHash: digest, disputeStatus: 'NONE' } });
+    if (url.endsWith('/court-decisions')) return json([]);
+    if (url.endsWith('/will-comparisons')) return json({ caseId: a, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: false, originalWillIntakes: [], wills: [], comparisons: [] });
+    return json(dossier(true));
+  };
+  const view = await mount({ ...base, step: 'dossier-review' });
+  try {
+    await change(getSelect(view.host, 'Action'), 'review'); await change(view.host.querySelector('textarea'), 'Reviewed allocation');
+    await submit(view.host); assert.equal(writes, 1); assert.match(view.host.textContent, /Decision saved/);
+  } finally { await view.close(); }
+});
+
 test('Dossier changed since display blocks POST and retains reason; ON_HOLD/not-forwarded cannot review', async () => {
   let loads = 0;
   globalThis.fetch = async (url, init) => {

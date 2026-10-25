@@ -275,46 +275,42 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
   }
 });
 
-test('AdminUsersPage lock confirmation dialog is guarded and disabled', async () => {
+for (const lang of ['vi', 'en']) test(`AdminUsersPage shows unavailable lock/unlock actions before interaction (${lang})`, async () => {
   const prevFetch = globalThis.fetch;
-  const mockUser = {
-    id: 'u-101',
-    fullName: 'Trần Văn B',
-    email: 'b@example.com',
-    roles: ['VAULT_OWNER'],
-    status: 'ACTIVE',
-  };
+  const mockUsers = [
+    { fullName: 'Active account', email: 'active@example.com', roles: ['VAULT_OWNER'], status: 'ACTIVE' },
+    { fullName: 'Locked account', email: 'locked@example.com', roles: ['VAULT_OWNER'], status: 'LOCKED' },
+  ];
+  let requests = 0;
 
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify(userPage([mockUser])), {
+  globalThis.fetch = async () => {
+    requests++;
+    return new Response(JSON.stringify(userPage(mockUsers)), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+  };
 
   try {
-    const view = await mount(AdminUsersPage, { lang: 'vi', accessToken: 'test-token', fetchOnMount: true });
+    const view = await mount(AdminUsersPage, { lang, accessToken: 'test-token', fetchOnMount: true });
     try {
-      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
-
-      // Click "Khóa tài khoản"
-      const lockBtn = [...view.host.querySelectorAll('button')].find((b) =>
-        b.textContent.includes('Khóa tài khoản')
-      );
-      assert.ok(lockBtn);
-      await act(async () => { lockBtn.click(); });
-
-      // Modal is open
-      assert.ok(view.host.querySelector('#lock-dialog-title'));
-      assert.ok(view.host.textContent.includes('Trần Văn B'));
-      assert.ok(view.host.textContent.includes('CHƯA KHẢ DỤNG'));
-      assert.ok(view.host.textContent.includes('hiện chưa khả dụng'));
-
-      // Confirm button must be disabled to prevent fake optimistic success
-      const confirmLockBtn = [...view.host.querySelectorAll('button')].find((b) =>
-        b.textContent.includes('Xác nhận khóa tài khoản')
-      );
-      assert.ok(confirmLockBtn);
-      assert.equal(confirmLockBtn.disabled, true);
+      const notice = view.host.querySelector('#admin-lock-policy-notice');
+      assert.match(notice.textContent, lang === 'en' ? /currently unavailable/ : /hiện chưa khả dụng/);
+      const labels = lang === 'en' ? ['Lock account', 'Unlock account'] : ['Khóa tài khoản', 'Mở khóa'];
+      for (const label of labels) {
+        const button = [...view.host.querySelectorAll('button')].find(candidate => candidate.textContent.trim() === label);
+        assert.ok(button);
+        assert.equal(button.disabled, true);
+        assert.equal(button.getAttribute('aria-describedby'), notice.id);
+        assert.equal(button.title, notice.textContent);
+        await act(async () => button.click());
+      }
+      assert.equal(view.host.querySelector('[role="dialog"]'), null);
+      assert.equal(requests, 1, 'Unavailable actions must not make requests');
+      const details = [...view.host.querySelectorAll('button')].filter(button =>
+        button.textContent.trim() === (lang === 'en' ? 'View details' : 'Xem chi tiết'));
+      assert.equal(details.length, 2);
+      assert.ok(details.every(button => !button.disabled), 'Read-only details remain available');
     } finally {
       await view.close();
     }

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Archive, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
-import { legalDate, legalReadOnly, legalStatus } from './legalPresentation.js';
+import { legalDate, legalReadOnly, legalStatus, legalStepBlocker } from './legalPresentation.js';
+import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { LegalRecordDetails, LegalTechnicalDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
 import { isSessionActive } from '../../utils/session.js';
 import * as api from './legalLiveService.js';
 import LegalFinalDecision from './LegalFinalDecision.jsx';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
+import LegalAllocations from './LegalAllocations.jsx';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import './LegalLiveWorkflow.css';
 
@@ -27,6 +29,10 @@ const knownErrors = {
   409: ['Hồ sơ đã thay đổi hoặc chưa đủ điều kiện. Hãy tải lại trước khi tiếp tục.', 'The record changed or is not eligible. Reload before continuing.'],
 };
 const label = (key, en) => choices[key]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
+// Linking can change while Legal reviews a document. It is not an approval condition.
+const dossierScope = dossier => JSON.stringify(dossier && { ...dossier, versions: dossier.versions.map(item => ({ ...item,
+  allocations: item.allocations?.map(row => Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'accountLinked'))),
+})) });
 
 export default function LegalLiveWorkflow({ session, lang = 'vi', step = 'death-verification', caseId = '', discovery = api.loadLegalQueue,
   contextLoader = api.loadLegalContext, onNavigate, onUnauthorized }) {
@@ -108,6 +114,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   // the caller's case/step/session key still discards the draft when scope changes.
   const [draft, setDraft] = useState({});
   const [documentId, setDocumentId] = useState('');
+  const [savedReceipt, setSavedReceipt] = useState(null);
   const en = lang === 'en';
   const auth = useRef(onUnauthorized);
   const denied = useRef(onDenied);
@@ -126,31 +133,46 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     return () => controller.abort();
   }, [selected.caseId, session, contextLoader, attempt]);
   const current = result?.attempt === attempt && result.session === session && result.contextLoader === contextLoader ? result : null;
-  if (!current) return <p role="status">{en ? 'Loading case context…' : 'Đang tải thông tin hồ sơ…'}</p>;
-  if (current.error) return <div role="alert"><p>{knownErrors[current.error.status]?.[en ? 1 : 0] || (en ? 'Unable to load case information.' : 'Không thể tải thông tin hồ sơ.')}</p>
-    <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div>;
+  const confirmation = savedReceipt && <FeedbackNotice tone="success" title={en ? 'Decision saved' : 'Đã lưu quyết định'}>
+    <p>{!current ? (en ? 'Checking the latest case status before further action.' : 'Đang kiểm tra trạng thái hồ sơ mới nhất trước khi cho phép thao tác tiếp.')
+      : current.error ? (en ? 'Your decision was saved. The latest case status could not be loaded; retry before continuing.' : 'Quyết định đã được lưu. Chưa tải được trạng thái hồ sơ mới nhất; hãy thử lại trước khi tiếp tục.')
+      : (en ? 'The latest case status is shown below.' : 'Trạng thái hồ sơ mới nhất được hiển thị bên dưới.')}</p>
+    <LegalRecordDetails rows={[[en ? 'Reviewed by' : 'Người xử lý', session.user.fullName], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(savedReceipt.decidedAt || savedReceipt.unlockedAt || savedReceipt.comparedAt || savedReceipt.reviewedAt || savedReceipt.checkedAt || savedReceipt.updatedAt || savedReceipt.createdAt)]]} />
+  </FeedbackNotice>;
+  const saved = receipt => {
+    setSavedReceipt(receipt);
+    if (['approval-review', 'controlled-unlock'].includes(step)) setDraft({});
+    setAttempt(value => value + 1);
+  };
+  if (!current) return <>{confirmation}<p role="status">{en ? 'Loading case context…' : 'Đang tải thông tin hồ sơ…'}</p></>;
+  if (current.error) return <>{![401, 403, 404].includes(current.error.status) && confirmation}<div role="alert"><p>{knownErrors[current.error.status]?.[en ? 1 : 0] || (en ? 'Unable to load case information.' : 'Không thể tải thông tin hồ sơ.')}</p>
+    <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div></>;
   const context = current.data;
   const readOnly = legalReadOnly(context);
   return <>
+    {confirmation}
+    {savedReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
+      <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
+        <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
     <div className="lv-legal-case-banner">
       <div className="lv-legal-case-banner__icon"><FolderOpen size={28} aria-hidden="true" /></div>
       <div className="lv-legal-case-banner__content"><span>{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
         <strong>{context.caseNumber || selected.label}</strong>
-        {context.vaultStatus && <span className="lv-legal-case-status">{legalStatus(context.vaultStatus, en)}</span>}
+        {context.vaultStatus && <span className="lv-legal-case-status">{legalStatus(context.caseStatus === 'CANCELLED' ? 'CANCELLED' : context.vaultStatus, en)}</span>}
       </div>
       {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
     </div>
     {['approval-review', 'controlled-unlock'].includes(step)
       ? <LegalFinalDecision session={session} context={context} step={step} lang={lang}
-        onReload={() => setAttempt(value => value + 1)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
+        draft={draft} setDraft={setDraft} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id) }}
-        step={step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized}
+        step={step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved}
         draft={draft} setDraft={setDraft} documentId={context.deathDocuments.some(item => item.id === documentId) ? documentId : ''}
         setDocumentId={setDocumentId} onReload={() => setAttempt(value => value + 1)} />}
   </>;
 }
 
-function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly, draft, setDraft, documentId, setDocumentId, onReload }) {
+function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied, onSaved, readOnly, draft, setDraft, documentId, setDocumentId, onReload }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
@@ -192,7 +214,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
   const forwarded = data?.dossier?.status === 'LEGAL_BASIS_FORWARDED' && latest?.forwardStatus === 'FORWARDED'
     && latest.version >= data.dossier.requiredVersion && data.will.vaultStatus === 'LEGAL_BASIS_VERIFICATION';
   const editable = !busy && !needsReload && !readOnly && Boolean(data);
-  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang,
+  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang, inlineOnDesktop: true,
     onUnauthorized, onDenied: failure => { setData(null); setReceipt(null); setError(failure); setNeedsReload(true); } };
   let eligible = false;
   if (step === 'death-verification') eligible = editable && data.verificationCaseStatus === 'OPEN' && data.vaultStatus === 'AWAITING_VERIFICATION' && data.decisions.length === 0;
@@ -208,10 +230,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
     && (step === 'will-document-verification' && draft.result === 'MATCH' || draft.reason?.trim()));
   const disabledReason = busy ? (en ? 'Loading the latest record. Please wait.' : 'Đang tải hồ sơ mới nhất. Vui lòng chờ.')
     : needsReload ? (receipt ? (en ? 'Select “View latest status” to continue.' : 'Chọn “Xem trạng thái mới” để tiếp tục.') : (en ? 'Select “Try again” to check the latest status before continuing.' : 'Chọn “Thử lại” để kiểm tra trạng thái mới nhất trước khi tiếp tục.'))
-    : step === 'death-verification' ? (en ? 'Select a death document above. A document with a recorded decision cannot be decided again.' : 'Chọn giấy tờ khai tử phía trên. Giấy tờ đã có quyết định chỉ được xem lại.')
-    : step === 'will-document-verification' ? (en ? 'Staff must receive the original will and upload a digitized version before comparison.' : 'Nhân viên cần tiếp nhận di chúc gốc và tải bản di chúc số trước khi chuyên viên pháp lý đối chiếu.')
-    : step === 'basis-route-selection' ? (en ? 'Complete death verification first. Existing classifications can only be changed when the case is on hold.' : 'Hoàn tất xác minh giấy tờ khai tử trước. Hồ sơ đã phân loại chỉ được phân loại lại khi đang tạm dừng.')
-    : (en ? 'Staff must forward the current court documents. Check the document version before reviewing.' : 'Nhân viên cần chuyển phiên bản giấy tờ tòa án hiện tại. Kiểm tra phiên bản hồ sơ trước khi thẩm định.');
+    : legalStepBlocker(step, { data, documentId, documentCount: selected.deathDocumentIds.length, action: draft.action }, en);
 
   async function submit(e) {
     e.preventDefault(); if (lock.current || !eligible) return;
@@ -237,8 +256,8 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
       if (['basis-route-selection', 'dossier-review'].includes(step)) {
         const current = await api.loadLegalDossier(selected.caseId, opts).catch(err => { if (err.status === 404 && !data.dossier && step === 'basis-route-selection') return null; throw err; });
         if (c.signal.aborted) return;
-        // Compare all server dossier metadata/versions/allocations, never recompute approval hashes in the FE.
-        if (JSON.stringify(current) !== JSON.stringify(data.dossier)) throw { status: 409 };
+        // Compare document/allocation scope; never recompute server approval hashes.
+        if (dossierScope(current) !== dossierScope(data.dossier)) throw { status: 409 };
       }
       if (step === 'basis-route-selection') value = await api.classifyLegalDossier(selected.caseId, { route: draft.route, routeReason: draft.reason }, { ...opts, reclassification: Boolean(data.dossier) });
       if (step === 'dossier-review') {
@@ -248,9 +267,12 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
       }
       if (c.signal.aborted) return;
       setReceipt(value); setNeedsReload(true); // A receipt never grants the next capability: reload authoritative state.
+      onSaved(value);
     } catch (err) {
       if (c.signal.aborted) return;
       setError(err); if (err.status === 401) auth.current?.();
+      if ([401, 403, 404].includes(err.status)) setData(null);
+      if (err.status === 403) onDenied?.(err);
       if ([401, 403, 404, 409].includes(err.status) || ['INVALID_RESPONSE', 'NETWORK_ERROR'].includes(err.code)) setNeedsReload(true);
     } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); } }
   }
@@ -290,11 +312,15 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, readOnly
       {!busy && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
         <LegalEvidenceFiles {...evidenceProps} kind="original-will" subjectId={draft.originalWillIntakeId} />}
     </>}
-    {data?.dossier && <><p className="lv-legal-route-label">{label(data.dossier.route, en)}</p>{data.dossier.versions.map(item => <div key={item.version} className="lv-legal-document-version"><LegalRecordDetails rows={[[en ? 'Version' : 'Phiên bản', item.version], [en ? 'Document number' : 'Số giấy tờ', item.documentNumber], [en ? 'Forwarded at' : 'Thời gian chuyển thẩm định', legalDate(item.forwardedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Evidence reference' : 'Tham chiếu chứng cứ', item.evidenceReference]]} /></div>)}
-      {!busy && data.dossier.versions.filter(item => item.forwardStatus === 'FORWARDED').map(item => <div key={item.version}>
-        <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
-          file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />
-      </div>)}
+    {data?.dossier && <><p className="lv-legal-route-label">{label(data.dossier.route, en)}</p>
+      {[...data.dossier.versions].sort((a, b) => b.version - a.version).map(item => <section key={item.version} className="lv-legal-document-version">
+        <h3>{en ? `Version ${item.version}` : `Phiên bản ${item.version}`} · {item.version === latest.version ? (en ? 'Current document' : 'Văn bản hiện tại') : (en ? 'Historical document' : 'Văn bản cũ để tra cứu')}</h3>
+        <LegalRecordDetails rows={[[en ? 'Document number' : 'Số giấy tờ', item.documentNumber], [en ? 'Forwarded at' : 'Thời gian chuyển thẩm định', legalDate(item.forwardedAt)]]} />
+        <LegalAllocations version={item} lang={lang} />
+        {!busy && item.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
+          file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />}
+        <LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Evidence reference' : 'Tham chiếu chứng cứ', item.evidenceReference]]} />
+      </section>)}
       {data.court?.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256]]} /></div>)}</>}
     </section>
     {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel">
