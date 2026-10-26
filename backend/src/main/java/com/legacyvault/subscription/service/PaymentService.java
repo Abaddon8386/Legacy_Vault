@@ -68,7 +68,24 @@ public class PaymentService {
     public IpnResult ipn(MultiValueMap<String,String> query) {
         var verified=gateway.verified(query);
         if(verified.isEmpty()) return result("97");
-        var f=verified.get();
+        return applyVerified(verified.get(), "VERIFIED_IPN_ONLY");
+    }
+    /** Server-to-server QueryDR only. Browser return parameters cannot call this completion path. */
+    @Transactional
+    public IpnResult reconcile(long owner, UUID paymentId, Map<?,?> response) {
+        payments.find(paymentId).filter(p -> p.owner()==owner)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        var verified = gateway.verifiedQuery(response);
+        if (verified.isEmpty()) return result("97");
+        var fields = verified.get();
+        if (!paymentId.toString().replace("-", "").equals(fields.get("vnp_TxnRef"))) return result("01");
+        // Query ResponseCode describes the query, not the charge. Only verified successful PAY is final here.
+        if (!"querydr".equals(fields.get("vnp_Command")) || !"00".equals(fields.get("vnp_ResponseCode"))
+            || !"01".equals(fields.get("vnp_TransactionType")) || !"00".equals(fields.get("vnp_TransactionStatus")))
+            return result("99");
+        return applyVerified(fields, "VERIFIED_QUERYDR");
+    }
+    private IpnResult applyVerified(Map<String,String> f, String verificationSource) {
         if(!gateway.merchant().equals(f.get("vnp_TmnCode"))) return result("97");
         UUID id;
         try {
@@ -102,12 +119,15 @@ public class PaymentService {
             } catch(DateTimeException e) { return result("99"); }
         }
         payments.complete(id,success?"SUCCEEDED":"FAILED",success?number:null,code,state);
-        audit(p,success?AuditAction.SUBSCRIPTION_PAYMENT_SUCCEEDED:AuditAction.SUBSCRIPTION_PAYMENT_FAILED,AuditActorType.SYSTEM,null,null);
+        audit(p,success?AuditAction.SUBSCRIPTION_PAYMENT_SUCCEEDED:AuditAction.SUBSCRIPTION_PAYMENT_FAILED,AuditActorType.SYSTEM,null,null,verificationSource);
         return result("00");
     }
     private void audit(Payment p,AuditAction action,AuditActorType actor,Long user,String ip) {
+        audit(p,action,actor,user,ip,"VERIFIED_IPN_ONLY");
+    }
+    private void audit(Payment p,AuditAction action,AuditActorType actor,Long user,String ip,String verificationSource) {
         audit.record(new AuditEvent(action,actor,user,null,"SUBSCRIPTION_PAYMENT",null,null,null,ip,
-            Map.of("paymentId",p.id().toString(),"planCode",p.plan().code(),"amountVnd",p.plan().priceVnd()),"PS-80","VERIFIED_IPN_ONLY"));
+            Map.of("paymentId",p.id().toString(),"planCode",p.plan().code(),"amountVnd",p.plan().priceVnd()),"PS-80",verificationSource));
     }
     private static IpnResult result(String code) {
         return new IpnResult(code,switch(code) {case "00"->"Confirm Success";case "01"->"Order not found";

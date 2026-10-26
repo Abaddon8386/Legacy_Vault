@@ -73,6 +73,55 @@ class PaymentSqlServerTest {
             s.execute("ALTER DATABASE ["+database+"] SET SINGLE_USER WITH ROLLBACK IMMEDIATE");s.execute("DROP DATABASE ["+database+"]");
         } finally { database=null; }
     }
+    @Test void queryReconciliationRecoversMissedIpnAndAcceptsValidLateConfirmation() throws Exception {
+        var p=create(PlanCode.STANDARD);
+        jdbc.update("UPDATE dbo.subscription_payments SET created_at=DATEADD(hour,-1,SYSUTCDATETIME()),expires_at=DATEADD(minute,-45,SYSUTCDATETIME()) WHERE payment_id=?",p.paymentId().toString());
+        var response=VnPayQueryGatewayTest.signed(p.paymentId(),Instant.now().minusSeconds(3000),p.amountVnd());
+        assertEquals("EXPIRED",service.read(owner,p.paymentId()).status());
+        assertEquals("00",service.reconcile(owner,p.paymentId(),response).code());
+        assertEquals("SUCCEEDED",service.read(owner,p.paymentId()).status());
+        assertEquals("STANDARD",quotas.current(owner).effectivePlan().code());
+        assertEquals("02",service.reconcile(owner,p.paymentId(),response).code());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='SUBSCRIPTION_PAYMENT_SUCCEEDED' AND rule_id='VERIFIED_QUERYDR' AND JSON_VALUE(details,'$.paymentId')=?",Integer.class,p.paymentId().toString()));
+    }
+    @Test void queryReconciliationRejectsTamperingWrongOwnerAmountMerchantStatusAndPaymentTime() throws Exception {
+        var p=create(PlanCode.STANDARD);
+        var valid=VnPayQueryGatewayTest.signed(p.paymentId(),p.createdAt(),p.amountVnd());
+        assertThrows(BusinessException.class,()->service.reconcile(owner+999999,p.paymentId(),valid));
+        var tampered=new LinkedHashMap<>(valid);tampered.put("vnp_Amount","100");
+        assertEquals("97",service.reconcile(owner,p.paymentId(),tampered).code());
+        for(var change:List.of(Map.entry("vnp_Amount","100"),Map.entry("vnp_TmnCode","OTHER123"),
+                Map.entry("vnp_TxnRef",UUID.randomUUID().toString().replace("-","")),Map.entry("vnp_TransactionStatus","02"),
+                Map.entry("vnp_TransactionType","02"),Map.entry("vnp_ResponseCode","91"),Map.entry("vnp_PayDate","20000101000000"))) {
+            var wrong=new LinkedHashMap<>(valid);wrong.put(change.getKey(),change.getValue());VnPayQueryGatewayTest.resign(wrong);
+            assertNotEquals("00",service.reconcile(owner,p.paymentId(),wrong).code());
+        }
+        assertEquals("PENDING",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+    }
+    @Test void queryAndIpnRaceGrantAndAuditOnlyOnce() throws Exception {
+        var p=create(PlanCode.STANDARD);long account=owner;
+        var ipn=callback(p,"00","00");
+        var query=VnPayQueryGatewayTest.signed(p.paymentId(),p.createdAt(),p.amountVnd());
+        query.put("vnp_TransactionNo",ipn.getFirst("vnp_TransactionNo"));VnPayQueryGatewayTest.resign(query);
+        var start=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
+        try {
+            var a=pool.submit(()->{start.await();return service.reconcile(account,p.paymentId(),query).code();});
+            var b=pool.submit(()->{start.await();return service.ipn(ipn).code();});start.countDown();
+            assertEquals(Set.of("00","02"),Set.of(a.get(15,TimeUnit.SECONDS),b.get(15,TimeUnit.SECONDS)));
+        } finally {pool.shutdownNow();}
+        assertEquals("SUCCEEDED",service.read(owner,p.paymentId()).status());assertEquals("STANDARD",quotas.current(owner).effectivePlan().code());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='SUBSCRIPTION_PAYMENT_SUCCEEDED' AND JSON_VALUE(details,'$.paymentId')=?",Integer.class,p.paymentId().toString()));
+    }
+    @Test void queryReconciliationRollsBackIfAuditFailsAndCanRetry() throws Exception {
+        var p=create(PlanCode.STANDARD);
+        var query=VnPayQueryGatewayTest.signed(p.paymentId(),p.createdAt(),p.amountVnd());
+        jdbc.execute("CREATE TRIGGER dbo.TR_payment_query_audit ON dbo.audit_logs AFTER INSERT AS BEGIN IF EXISTS(SELECT 1 FROM inserted WHERE action='SUBSCRIPTION_PAYMENT_SUCCEEDED') THROW 51980,'Query audit fixture',1; END");
+        try {
+            assertThrows(RuntimeException.class,()->service.reconcile(owner,p.paymentId(),query));
+            assertEquals("PENDING",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        } finally {jdbc.execute("DROP TRIGGER dbo.TR_payment_query_audit");}
+        assertEquals("00",service.reconcile(owner,p.paymentId(),query).code());assertEquals("STANDARD",quotas.current(owner).effectivePlan().code());
+    }
     @BeforeEach void owner() {
         userPublic=UUID.randomUUID();
         owner=jdbc.queryForObject("INSERT dbo.users(public_id,full_name,email,password_hash,status) OUTPUT inserted.user_id VALUES(?,'Payment fixture',?,'unused','ACTIVE')",
