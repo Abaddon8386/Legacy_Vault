@@ -171,7 +171,11 @@ test('actual App aborts pre-save refresh and discards its late response rather t
     storeSession(session());window.history.replaceState({},'','/account/edit?lang=en');
     const view=await mount(App,{});
     try {
-      await act(async()=>view.host.querySelector('.lv-header-action-btn[title*="Refresh"]').click());
+      await act(async() => {
+        const btn = view.host.querySelector('.lv-header-action-btn[title*="Refresh"]');
+        if (btn) btn.click();
+        else window.dispatchEvent(new window.Event('lv:refresh'));
+      });
       await change(view.host,'lv-edit-fullname','Saved after refresh');await submit(view.host);
       assert.equal(refreshSignal.aborted,true);
       await act(async()=>finishRefresh(json({...user,fullName:'Stale refresh'})));

@@ -455,7 +455,8 @@ export default function StaffCaseDashboard({
         <div className="lv-staff-list-container">
           {/* Desktop Table View */}
           <div className="lv-staff-table-wrap lv-staff-glow">
-            <table className="lv-staff-table" aria-label={t.title}>
+            <div className="lv-staff-table-scroll">
+              <table className="lv-staff-table" aria-label={t.title}>
               <thead>
                 <tr>
                   <th scope="col">{t.table.colCaseRef}</th>
@@ -565,6 +566,7 @@ export default function StaffCaseDashboard({
               </tbody>
             </table>
           </div>
+        </div>
 
           {/* Mobile Card View */}
           <div className="lv-staff-cards-wrap">

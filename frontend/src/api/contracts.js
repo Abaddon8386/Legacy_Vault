@@ -7,7 +7,7 @@ const roleAliases = new Map(appRoles.flatMap(role => [[role, role], [`ROLE_${rol
 export function readUser(raw) {
   if (!isUuid(raw?.id) || typeof raw.fullName !== 'string' || !raw.fullName.trim() ||
       typeof raw.email !== 'string' || !raw.email.includes('@') || !Array.isArray(raw.roles) ||
-      !raw.roles.length || !raw.roles.every(role => roleAliases.has(role))) throw new ApiError('INVALID_AUTH_RESPONSE');
+      !raw.roles.every(role => roleAliases.has(role))) throw new ApiError('INVALID_AUTH_RESPONSE');
   if (Object.hasOwn(raw, 'phoneNumber') && raw.phoneNumber !== null && typeof raw.phoneNumber !== 'string') throw new ApiError('INVALID_AUTH_RESPONSE');
   return { id: raw.id, fullName: raw.fullName, email: raw.email, roles: [...new Set(raw.roles.map(role => roleAliases.get(role)))],
     ...(Object.hasOwn(raw, 'phoneNumber') ? { phoneNumber: raw.phoneNumber } : {}) };

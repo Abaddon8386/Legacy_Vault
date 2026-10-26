@@ -45,7 +45,7 @@ export function resolvePostLoginRoute(user) {
   if (roles.includes('BENEFICIARY') && !roles.includes('VAULT_OWNER')) {
     return '/beneficiary';
   }
-  return '/vault';
+  return roles.length ? '/vault' : '/shared-with-me';
 }
 
 /**

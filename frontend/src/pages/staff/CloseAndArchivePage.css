@@ -302,13 +302,15 @@
 }
 
 .lv-close-archive-view .lv-ca-code-badge {
-  font-family: monospace;
+  font-family: var(--lv-font-mono, ui-monospace, 'JetBrains Mono', Consolas, monospace);
   font-weight: 600;
   font-size: 12.5px;
   color: var(--lv-color-primary, #164639);
   background: #eef4f0;
   padding: 3px 8px;
   border-radius: 6px;
+  display: inline-block;
+  letter-spacing: 0;
 }
 
 .lv-close-archive-view .lv-ca-tag {

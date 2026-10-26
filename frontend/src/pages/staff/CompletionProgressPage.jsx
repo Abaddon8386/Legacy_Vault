@@ -24,6 +24,7 @@ import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx'
 import './CompletionProgressPage.css';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import { formatStaffSession } from '../../utils/caseReference.js';
+import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 
 export default function CompletionProgressPage(props) {
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -368,6 +369,9 @@ function CompletionProgressContext({
 
   return (
     <div className="lv-completion-progress-view">
+      <StaffWorkflowGuide current="confirmation" caseId={activeTrimmed} sessionId={selectedSessionId} lang={lang}
+        caseStatus={currentCaseItem?.status} vaultStatus={currentCaseItem?.vaultStatus} preview={effectiveIsDevPreview && !effectiveAccessToken}
+        assets={effectiveAssetData} beneficiaries={effectiveBeneficiaryData} loading={loading || loadingSessions} error={loadError} />
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         {activeTrimmed && selectedSessionId && (

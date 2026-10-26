@@ -769,3 +769,18 @@ test('Actual App DEV preview: tab navigation preserves active preview scenario w
     window.localStorage.clear();
   }
 });
+
+test('Actual App case-number entry keeps received items and disables requests without BE', async () => {
+  window.sessionStorage.clear();
+  window.history.replaceState({}, '', '/shared-with-me?preview=true&scenario=partial');
+  const v = await mount(DevApp, { caseLinkActions: null });
+  try {
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
+    assert.match(v.host.textContent, /Yêu cầu liên kết hồ sơ/);
+    assert.doesNotMatch(v.host.textContent, /Liên kết mã mời/);
+    assert.equal(v.host.querySelector('#case-link-number').disabled, true);
+    assert.match(v.host.textContent, /Chưa hỗ trợ gửi yêu cầu/);
+    assert.ok(v.host.querySelector('.lv-received-list'), 'Previously delivered items remain visible');
+    assert.match(v.host.querySelector('.lv-workflow-guide').textContent, /Đã nhận một phần/);
+  } finally { await v.close(); window.sessionStorage.clear(); }
+});

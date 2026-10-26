@@ -62,10 +62,11 @@
 }
 
 .lv-staff-context-bar__code {
-  font-family: monospace;
-  font-size: 14px;
+  font-family: var(--lv-font-mono, ui-monospace, 'JetBrains Mono', Consolas, monospace);
+  font-size: 13.5px;
   font-weight: 700;
-  color: #24384e;
+  color: #164639;
+  letter-spacing: 0.02em;
 }
 
 .lv-staff-context-badge {

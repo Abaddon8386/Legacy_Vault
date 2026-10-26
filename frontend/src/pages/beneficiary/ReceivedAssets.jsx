@@ -275,7 +275,7 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
 }
 
 
-function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, onError }) {
+function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, onError, onStageChange }) {
   const en = lang === 'en';
   const [state, setState] = useState({ loading: true, data: null, error: null });
   const [selected, setSelected] = useState(null);
@@ -290,6 +290,7 @@ function AssetPage({ actions, subjectId, accessToken, lang, page, size, onPage, 
     return () => c.abort();
   }, [actions, subjectId, accessToken, page, size, retry]);
   const data = state.data;
+  useEffect(() => { onStageChange?.(!state.loading && !state.error ? state.data?.accountState : null); }, [state, onStageChange]);
   const handleDetailError = error => {
     if (isPasswordOrReauthError(error)) return;
     if ([401, 403, 404].includes(error?.status)) {
@@ -363,7 +364,7 @@ export default function ReceivedAssets(props) {
   return <ReceivedAssetsContent key={`${props.userId || 'preview'}:${props.accessToken || 'anonymous'}`} {...props} />;
 }
 
-function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDevPreview = false, scenario = 'unlinked', onUnauthorized, refreshKey = 0, hideTitle = false }) {
+function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDevPreview = false, scenario = 'unlinked', onUnauthorized, refreshKey = 0, hideTitle = false, onStageChange }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);
   const preview = receivedPreviewAllowed({ accessToken, isDevPreview });
@@ -409,6 +410,7 @@ function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDe
           page={page}
           size={5}
           onPage={setPage}
+          onStageChange={onStageChange}
           onError={error => { if (error?.status === 401) onUnauthorized?.(); }}
         />
       )}

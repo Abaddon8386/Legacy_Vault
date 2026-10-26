@@ -107,7 +107,7 @@ test('Staff create-only clears password immediately and never calls approve', as
   try {
     await change(v.host, 'form input:not([type])', 'Người C'); await change(v.host, 'input[type="email"]', 'c@example.test'); await change(v.host, 'input[type="password"]', 'fixture-only-password');
     await submit(v.host); assert.equal(v.host.querySelector('input[type="password"]').value, '');
-    assert.equal(sent.fullName, 'Người C'); assert.equal('caseId' in sent, false);
+    assert.equal(sent.fullName, 'Người C'); assert.equal(sent.caseId, 'case-a');
     await act(async () => finish({ accountId: 'person-c', linked: false }));
     assert.equal(approvals, 0); assert.match(v.host.textContent, /Đã tạo tài khoản/);
   } finally { await v.close(); }
