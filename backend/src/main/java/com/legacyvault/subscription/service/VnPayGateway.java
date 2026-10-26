@@ -42,6 +42,40 @@ public class VnPayGateway {
     }
     public boolean available() { return enabled && configured(); }
     public String merchant() { return merchant; }
+    private static final List<String> QUERY_RESPONSE_FIELDS = List.of("vnp_ResponseId", "vnp_Command",
+        "vnp_ResponseCode", "vnp_Message", "vnp_TmnCode", "vnp_TxnRef", "vnp_Amount", "vnp_BankCode",
+        "vnp_PayDate", "vnp_TransactionNo", "vnp_TransactionType", "vnp_TransactionStatus", "vnp_OrderInfo",
+        "vnp_PromotionCode", "vnp_PromotionAmount");
+
+    /** QueryDR uses pipe-delimited UTF-8, not the URL-encoded checkout/IPN signature format. */
+    public Map<String,String> queryRequest(UUID paymentId, Instant created, Instant now, String serverIp) {
+        requireAvailable();
+        var fields = new LinkedHashMap<String,String>();
+        fields.put("vnp_RequestId", UUID.randomUUID().toString().replace("-", ""));
+        fields.put("vnp_Version", "2.1.0"); fields.put("vnp_Command", "querydr");
+        fields.put("vnp_TmnCode", merchant); fields.put("vnp_TxnRef", paymentId.toString().replace("-", ""));
+        fields.put("vnp_TransactionDate", DATE.format(created)); fields.put("vnp_CreateDate", DATE.format(now));
+        fields.put("vnp_IpAddr", serverIp); fields.put("vnp_OrderInfo", "Query LegacyVault payment");
+        fields.put("vnp_SecureHash", signText(String.join("|", fields.values()), StandardCharsets.UTF_8));
+        return Collections.unmodifiableMap(fields);
+    }
+
+    public Optional<Map<String,String>> verifiedQuery(Map<?,?> response) {
+        if (!available() || response == null || response.size() > 32) return Optional.empty();
+        var fields = new LinkedHashMap<String,String>();
+        for (String field : QUERY_RESPONSE_FIELDS) {
+            Object value = response.get(field);
+            if (value != null && !(value instanceof String)) return Optional.empty();
+            String text = value == null ? "" : (String)value;
+            if (text.length() > 512) return Optional.empty();
+            fields.put(field, text);
+        }
+        Object received = response.get("vnp_SecureHash");
+        if (!(received instanceof String hash) || !hash.matches("[a-fA-F0-9]{128}")) return Optional.empty();
+        String expected = signText(String.join("|", fields.values()), StandardCharsets.UTF_8);
+        if (!MessageDigest.isEqual(HexFormat.of().parseHex(hash), HexFormat.of().parseHex(expected))) return Optional.empty();
+        return Optional.of(Collections.unmodifiableMap(fields));
+    }
     public void requireAvailable() {
         if(!available()) throw new BusinessException(ErrorCode.SUBSCRIPTION_UPGRADE_UNAVAILABLE);
     }
@@ -72,10 +106,13 @@ public class VnPayGateway {
             ? Optional.of(Collections.unmodifiableMap(fields)) : Optional.empty();
     }
     public String sign(Map<String,String> fields) {
+        return signText(canonical(fields), StandardCharsets.US_ASCII);
+    }
+    private String signText(String text, java.nio.charset.Charset charset) {
         try {
             Mac mac=Mac.getInstance("HmacSHA512");
             mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8),"HmacSHA512"));
-            return HexFormat.of().formatHex(mac.doFinal(canonical(fields).getBytes(StandardCharsets.US_ASCII)));
+            return HexFormat.of().formatHex(mac.doFinal(text.getBytes(charset)));
         } catch(java.security.GeneralSecurityException e) { throw new IllegalStateException("HMAC unavailable",e); }
     }
     static String canonical(Map<String,String> fields) {

@@ -6,7 +6,7 @@ Quyết định người dùng 20/10/2026: BASIC Free 0đ (5 tài sản, 100 MiB
 
 Backend đọc `VNPAY_SANDBOX_ENABLED` (mặc định false), `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_RETURN_URL` từ môi trường. Secret chỉ lưu trên máy/secret manager, không đưa vào Git, VITE_* hoặc log. Bật nhưng thiếu cấu hình sẽ từ chối khởi động. Checkout cố định tại sandbox, không có chế độ live.
 
-Return URL là trang Owner `/subscription` hoặc `/subscriptions`, không query/fragment/userinfo; dùng HTTPS, chỉ localhost/127.0.0.1 được HTTP. IPN URL đăng ký với merchant: `https://<backend-public-domain>/api/v1/payments/vnpay/ipn`. Localhost không nhận IPN từ VNPay: cần HTTPS ingress/tunnel do người vận hành cấu hình. Người dùng chưa có merchant sandbox nên chưa chạy giao dịch end-to-end VNPay; callback fixture không phải bằng chứng gateway đã thanh toán. Không thu thập/lưu PAN, CVV hay thông tin thẻ.
+Return URL là trang Owner `/subscription` hoặc `/subscriptions`, không query/fragment/userinfo; dùng HTTPS, chỉ localhost/127.0.0.1 được HTTP. IPN URL đăng ký với merchant: `https://<backend-public-domain>/api/v1/payments/vnpay/ipn`. Localhost không nhận IPN từ VNPay: cần HTTPS ingress/tunnel do người vận hành cấu hình. Checkout/IPN phải được kiểm chứng trên merchant sandbox của môi trường triển khai; callback fixture không phải bằng chứng gateway đã thanh toán. Không thu thập/lưu PAN, CVV hay thông tin thẻ.
 
 ## API
 
@@ -34,3 +34,12 @@ Không sửa migration/checksum/schema history hoặc dữ liệu kho. Base deve
 Admin PS-82 transaction search vẫn pending ở phân hệ riêng; PS-80 có trạng thái cho Owner và audit, chưa nối UI tra cứu Admin.
 
 **Thứ tự triển khai:** PS-86 PR #151 đang giữ V34. Nếu sẽ triển khai cả hai, áp dụng V34 trước V35. Nếu một database đã chạy V35 mà chưa có V34, phải điều phối một migration phiên bản mới cho PS-86; không bật out-of-order hoặc chỉnh schema history để vượt kiểm tra. PR PS-80 không tự merge PS-86.
+## Bổ sung 26/10/2026 — phục hồi khi mất IPN
+
+GET trạng thái đơn của chính Owner có thể đối soát server-to-server qua API QueryDR chính thức của VNPay sandbox khi đơn còn PENDING trong DB (kể cả UI hiển thị EXPIRED). Không nhận dữ liệu kết quả thanh toán do client gửi. Sau tối thiểu 10 giây từ tạo đơn, giới hạn một truy vấn/đơn/60 giây trên mỗi tiến trình; cache giới hạn4096 mục. Có timeout kết nối3giây/đọc5giây; không gọi mạng bên trong giao dịch database, không theo redirect.
+
+Request/response QueryDR dùng HMAC-SHA512 chuỗi UTF-8 phân tách bằng dấu | theo đặc tả, khác chữ ký URL checkout/IPN. Chỉ hoàn tất SUCCEEDED khi chữ ký hợp lệ, query thành công, loại PAY01, trạng thái giao dịch00, đúng merchant/mãđơn/amount và thời điểm thanh toán thuộc cửa sổ đơn gốc. Không coi vnp_ResponseCode=00 của QueryDR riêng lẻ là thanh toán thành công. Kết quả chưa rõ, sai chữ ký, hết thời gian gọi hoặc query lỗi giữ nguyên trạng thái; không tự cấp gói hay đánh dấu FAILED.
+
+Hoàn tất dùng cùng khóa User→payment, transaction, tính idempotent và audit như IPN; audit nguồn VERIFIED_QUERYDR. IPN và QueryDR chạy đồng thời chỉ một lần cập nhật/ghi audit. Phản hồi của GET không đổi schema. Tắt gateway dừng cả IPN/QueryDR; quyền lợi đã xác nhận vẫn giữ. IPN vẫn nên cấu hình cho xử lý chủ động khi người dùng không mở lại đơn.
+
+Nguồn: https://sandbox.vnpayment.vn/apis/docs/truy-van-hoan-tien/querydr%26refund.html
