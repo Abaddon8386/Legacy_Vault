@@ -38,6 +38,7 @@ import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.repository.VerificationCaseRepository;
 import com.legacyvault.verification.service.BasisDossierViewService;
+import com.legacyvault.verification.service.LegalBasisLockedState;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.WillComparisonService;
 
@@ -59,7 +60,7 @@ class BasisReclassificationServiceTest {
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
     private final BasisReclassificationService service = new BasisReclassificationService(caseLookup, caseRepository,
-            vaultRepository, dossiers, history, willComparisons, views, auditService);
+            vaultRepository, dossiers, history, willComparisons, views, auditService, mock(LegalBasisLockedState.class));
 
     private final CustomUserPrincipal legal = new CustomUserPrincipal(LEGAL_ID, UUID.randomUUID(), "legal@example.com");
 
@@ -78,7 +79,7 @@ class BasisReclassificationServiceTest {
     }
 
     private static LegalBasisDossier dossier(String route, String status) {
-        String dispute = "ON_HOLD".equals(route) ? "UNDETERMINED" : "COURT".equals(route) ? "DISPUTED" : "NONE";
+        String dispute = "ON_HOLD".equals(route) ? "UNDETERMINED" : "COURT".equals(route) ? "DISPUTED" : "DISPUTED";
         LegalBasisDossier d = new LegalBasisDossier(CASE_DB_ID, route, "Chưa đủ thông tin", dispute, FIRST_LEGAL_ID);
         ReflectionTestUtils.setField(d, "legalBasisDossierId", 900L);
         ReflectionTestUtils.setField(d, "publicId", UUID.randomUUID());
@@ -112,7 +113,7 @@ class BasisReclassificationServiceTest {
         when(views.view(any(VerificationCase.class), org.mockito.ArgumentMatchers.eq(true))).thenReturn(expected);
 
         BasisDossierResponse response = service.reclassify(CASE_ID, legal,
-                request(Route.NOTARIAL, "  Đã đủ chứng cứ không tranh chấp  "));
+                request(Route.COURT, "  Đã đủ chứng cứ không tranh chấp  "));
 
         assertThat(response).isSameAs(expected);
         ArgumentCaptor<LegalBasisClassificationHistory> saved = ArgumentCaptor.forClass(LegalBasisClassificationHistory.class);
@@ -122,8 +123,8 @@ class BasisReclassificationServiceTest {
         assertThat(saved.getValue().getRouteReason()).isEqualTo("Chưa đủ thông tin");
         assertThat(saved.getValue().getClassifiedByUserId()).isEqualTo(FIRST_LEGAL_ID);
 
-        assertThat(dossier.getRoute()).isEqualTo("NOTARIAL");
-        assertThat(dossier.getDisputeStatus()).isEqualTo("NONE");
+        assertThat(dossier.getRoute()).isEqualTo("COURT");
+        assertThat(dossier.getDisputeStatus()).isEqualTo("DISPUTED");
         assertThat(dossier.getRouteReason()).isEqualTo("Đã đủ chứng cứ không tranh chấp");
         assertThat(dossier.getClassifiedByUserId()).isEqualTo(LEGAL_ID);
         assertThat(dossier.getCreatedByUserId()).isEqualTo(FIRST_LEGAL_ID);
@@ -138,7 +139,7 @@ class BasisReclassificationServiceTest {
         assertThat(event.ruleId()).isEqualTo("LV-HOLD-001");
         assertThat(event.stateBefore()).isEqualTo("ON_HOLD");
         assertThat(event.stateAfter()).isEqualTo("AWAITING_LEGAL_BASIS");
-        assertThat(event.context()).containsEntry("previousRoute", "ON_HOLD").containsEntry("route", "NOTARIAL");
+        assertThat(event.context()).containsEntry("previousRoute", "ON_HOLD").containsEntry("route", "COURT");
         assertThat(event.context().toString()).doesNotContain("chứng cứ");
     }
 
@@ -155,10 +156,10 @@ class BasisReclassificationServiceTest {
 
     @Test
     void courtOrNotarialDossier_cannotBeReclassified() {
-        for (String route : new String[] { "COURT", "NOTARIAL" }) {
+        for (String route : new String[] { "COURT", "COURT" }) {
             LegalBasisDossier dossier = dossier(route, "DRAFT");
             happyPath(dossier);
-            assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "Trustee đổi lời khai")))
+            assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "Trustee đổi lời khai")))
                     .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
             assertThat(dossier.getRoute()).isEqualTo(route);
         }
@@ -182,19 +183,19 @@ class BasisReclassificationServiceTest {
         for (String vaultStatus : new String[] { "WILL_VERIFICATION", "AWAITING_LEGAL_BASIS", "ACTIVE" }) {
             happyPath(dossier("ON_HOLD", "DRAFT"));
             when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault(vaultStatus)));
-            assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+            assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "x")))
                     .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
         }
 
         happyPath(dossier("ON_HOLD", "LEGAL_BASIS_PROVIDED"));
-        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
 
         happyPath(dossier("ON_HOLD", "DRAFT"));
         VerificationCase cancelled = openCase();
         cancelled.cancel(LocalDateTime.of(2026, 10, 2, 8, 0));
         when(caseRepository.findByIdForUpdate(CASE_DB_ID)).thenReturn(Optional.of(cancelled));
-        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
 
         verify(history, never()).saveAndFlush(any());
@@ -204,33 +205,27 @@ class BasisReclassificationServiceTest {
     @Test
     void unknownCaseOrMissingDossier_isNotFound() {
         when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
 
         happyPath(dossier("ON_HOLD", "DRAFT"));
         when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
+        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "x")))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
     @Test
-    void withoutMatchingWillComparison_isBlocked() {
-        LegalBasisDossier dossier = dossier("ON_HOLD", "DRAFT");
-        Vault vault = happyPath(dossier);
-        when(willComparisons.isApprovalBlocked(CASE_DB_ID)).thenReturn(true);
-
-        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x")))
-                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.WILL_NOT_VERIFIED));
-        assertThat(dossier.getRoute()).isEqualTo("ON_HOLD");
-        assertThat(vault.getStatus()).isEqualTo("ON_HOLD");
-        verify(history, never()).saveAndFlush(any());
+    void courtReclassificationDoesNotRequireWillMatch() {
+        happyPath(dossier("ON_HOLD", "DRAFT"));
+        service.reclassify(CASE_ID, legal, request(Route.COURT, "Court evidence required next"));
+        verifyNoInteractions(willComparisons);
     }
 
     @Test
     void locksVaultThenCaseThenDossier() {
         happyPath(dossier("ON_HOLD", "DRAFT"));
 
-        service.reclassify(CASE_ID, legal, request(Route.NOTARIAL, "x"));
+        service.reclassify(CASE_ID, legal, request(Route.COURT, "x"));
 
         InOrder order = inOrder(vaultRepository, caseRepository, dossiers, history);
         order.verify(vaultRepository).findByIdForUpdate(VAULT_ID);

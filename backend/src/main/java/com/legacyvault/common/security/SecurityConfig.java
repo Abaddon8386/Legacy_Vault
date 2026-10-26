@@ -37,6 +37,9 @@ public class SecurityConfig {
 	private static final String[] PUBLIC_PATHS = {
 			"/api/v1/auth/register",
 			"/api/v1/auth/login",
+			"/api/v1/auth/google",
+            "/api/v1/auth/password-recovery/requests",
+            "/api/v1/auth/password-recovery/reset",
 			"/api/v1/system/ping",
 			"/api/v1/system/db-check" // chỉ tồn tại khi chạy profile "dev"
 	};
@@ -51,12 +54,14 @@ public class SecurityConfig {
 				.cors(cors -> { })
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
+						.requestMatchers(HttpMethod.GET, "/api/v1/payments/vnpay/ipn").permitAll()
 						.requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 						.requestMatchers(PUBLIC_PATHS).permitAll()
 						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 						.requestMatchers("/api/v1/vaults/**").hasRole("VAULT_OWNER")
 						.requestMatchers("/api/v1/trustees/**").hasRole("VAULT_OWNER")
 						.requestMatchers("/api/v1/dms/**").hasRole("VAULT_OWNER")
+						.requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated())
 				.exceptionHandling(ex -> ex
 						.authenticationEntryPoint(entryPoint)

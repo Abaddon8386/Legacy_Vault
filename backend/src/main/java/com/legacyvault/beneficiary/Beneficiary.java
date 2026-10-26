@@ -23,6 +23,14 @@ import jakarta.persistence.Table;
 @Table(name = "beneficiaries", schema = "dbo")
 public class Beneficiary {
 
+	public static final String NOT_VERIFIED = "NOT_VERIFIED";
+	public static final String VERIFIED_AT_COUNTER = "VERIFIED_AT_COUNTER";
+	public static final String ACCOUNT_NOT_CREATED = "NOT_CREATED";
+	public static final String ACCOUNT_CREATED = "ACCOUNT_CREATED";
+	public static final String ORIGIN_OWNER_DESIGNATED = "OWNER_DESIGNATED";
+	/** BE-02: recipient named only by a Legal-reviewed court document (D-LEGAL-002), not by the Owner. */
+	public static final String ORIGIN_COURT_DOCUMENT = "COURT_DOCUMENT";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "beneficiary_id")
@@ -56,6 +64,12 @@ public class Beneficiary {
 	@Column(name = "designation_status", nullable = false, length = 20)
 	private String status;
 
+	@Column(name = "id_verification_status", nullable = false, length = 30)
+	private String identityVerificationStatus = NOT_VERIFIED;
+
+	@Column(name = "account_status", nullable = false, length = 30)
+	private String accountStatus = ACCOUNT_NOT_CREATED;
+
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
 
@@ -68,7 +82,24 @@ public class Beneficiary {
 	@Column(name = "relationship_to_owner", length = 100)
 	private String relationship;
 
+	@Column(name = "origin", nullable = false, updatable = false, length = 30)
+	private String origin = ORIGIN_OWNER_DESIGNATED;
+
+	@Column(name = "origin_dossier_version_id", updatable = false)
+	private Long originDossierVersionId;
+
 	protected Beneficiary() {
+	}
+
+	/** BE-02: a recipient created at ST-18 from the court document version that names them. */
+	public static Beneficiary fromCourtDocument(UUID publicId, Vault vault, Long dossierVersionId, String fullName,
+			String relationship, LocalDate dateOfBirth, String phone, String email, byte[] identityNumberEncrypted) {
+		if (dossierVersionId == null) throw new IllegalArgumentException("dossierVersionId");
+		Beneficiary beneficiary = new Beneficiary(publicId, vault, fullName, relationship, dateOfBirth, phone, email,
+				identityNumberEncrypted);
+		beneficiary.origin = ORIGIN_COURT_DOCUMENT;
+		beneficiary.originDossierVersionId = dossierVersionId;
+		return beneficiary;
 	}
 
 	public Beneficiary(UUID publicId, Vault vault, String fullName, String relationship, LocalDate dateOfBirth,
@@ -121,6 +152,20 @@ public class Beneficiary {
 	public String getEmail() { return email; }
 	public boolean hasIdentityNumber() { return identityNumberEncrypted != null && identityNumberEncrypted.length > 0; }
 	public boolean hasAccount() { return linkedUserId != null; }
+	public Long getLinkedUserId() { return linkedUserId; }
+	public String getAccountStatus() { return accountStatus; }
+	public String getOrigin() { return origin; }
+	public Long getOriginDossierVersionId() { return originDossierVersionId; }
+	/** ST-24: link the beneficiary record to an official account; the legal identity record is not altered. */
+	public void linkAccount(Long userId) {
+		if (userId == null || linkedUserId != null) throw new IllegalStateException("Beneficiary account cannot be linked");
+		this.linkedUserId = userId;
+		this.accountStatus = ACCOUNT_CREATED;
+	}
+	public String getIdentityVerificationStatus() { return identityVerificationStatus; }
+	public void verifyAtCounter() { this.identityVerificationStatus = VERIFIED_AT_COUNTER; }
+	/** A new NOT_MATCH invalidates any previous at-counter verification. History remains append-only. */
+	public void markIdentityNotVerified() { this.identityVerificationStatus = NOT_VERIFIED; }
 	public String getStatus() { return status; }
 	public LocalDateTime getCreatedAt() { return createdAt; }
 	public LocalDateTime getUpdatedAt() { return updatedAt; }

@@ -1,0 +1,52 @@
+.lv-payment-checkout {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid #d8e2da;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lv-payment-checkout h2,
+.lv-payment-checkout h3 {
+  margin: 0 0 10px;
+  color: #164639;
+}
+
+.lv-payment-checkout > p,
+.lv-payment-checkout__confirmation p {
+  margin: 0 0 18px;
+  line-height: 1.7;
+  color: #52645a;
+}
+
+.lv-payment-checkout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lv-payment-checkout .lv-btn {
+  min-height: 48px;
+  white-space: normal;
+  text-align: center;
+}
+.lv-payment-checkout__confirmation .lv-btn{min-height:48px;border-radius:10px;white-space:normal}
+
+.lv-payment-checkout__confirmation {
+  display:grid;
+  gap:16px;
+}
+
+.lv-payment-checkout__message {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #f2f5f1;
+}
+
+@media (max-width: 480px) {
+  .lv-payment-checkout { padding: 18px; }
+  .lv-payment-checkout__actions { flex-direction: column; }
+  .lv-payment-checkout .lv-btn { width: 100%; }
+  .lv-payment-checkout__confirmation { padding: 16px; }
+}

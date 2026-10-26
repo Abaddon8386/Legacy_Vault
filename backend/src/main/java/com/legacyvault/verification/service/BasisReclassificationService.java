@@ -25,12 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * PS-43 (ST-16, LV-HOLD-001): Legal phân loại lại hồ sơ căn cứ đang ON_HOLD (chưa đủ thông tin) sang NOTARIAL hoặc COURT khi đã
- * có đủ chứng cứ. Chỉ ON_HOLD mới được đổi nhánh; NOTARIAL và COURT không đổi lẫn nhau, dù Trustee đổi lời khai (D-LEGAL-002).
- * Phân loại cũ được lưu vào lịch sử, không ghi đè. Vault ON_HOLD -> AWAITING_LEGAL_BASIS (qua LEGAL_BASIS_CLASSIFICATION).
- * Thứ tự khóa Vault -> ca -> hồ sơ.
- */
+/** PS-102: COURT-only writes; optional will comparison never substitutes court validation.
+ * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier. */
 @Service
 public class BasisReclassificationService {
 
@@ -46,11 +42,12 @@ public class BasisReclassificationService {
     private final WillComparisonService willComparisons;
     private final BasisDossierViewService views;
     private final AuditService auditService;
+    private final LegalBasisLockedState lockedState;
 
     public BasisReclassificationService(LegalCaseLookupRepository caseLookup, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers,
             LegalBasisClassificationHistoryRepository history, WillComparisonService willComparisons,
-            BasisDossierViewService views, AuditService auditService) {
+            BasisDossierViewService views, AuditService auditService, LegalBasisLockedState lockedState) {
         this.caseLookup = caseLookup;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -59,6 +56,7 @@ public class BasisReclassificationService {
         this.willComparisons = willComparisons;
         this.views = views;
         this.auditService = auditService;
+        this.lockedState = lockedState;
     }
 
     @Transactional
@@ -70,10 +68,13 @@ public class BasisReclassificationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         Vault vault = vaultRepository.findByIdForUpdate(initialCase.getVaultId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(vault);
         VerificationCase verificationCase = caseRepository.findByIdForUpdate(initialCase.getVerificationCaseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(verificationCase);
         LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        lockedState.refresh(dossier);
 
         if (!Objects.equals(verificationCase.getVaultId(), vault.getVaultId()) || !verificationCase.isOpen()
                 || !Vault.STATUS_ON_HOLD.equals(vault.getStatus())
@@ -81,9 +82,7 @@ public class BasisReclassificationService {
                 || !LegalBasisDossier.STATUS_DRAFT.equals(dossier.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
-        if (willComparisons.isApprovalBlocked(verificationCase.getVerificationCaseId())) {
-            throw new BusinessException(ErrorCode.WILL_NOT_VERIFIED);
-        }
+        // COURT evidence, not a will MATCH, controls distribution (PS-102).
 
         String previousRoute = dossier.getRoute();
         String route = request.route().name();
@@ -122,6 +121,9 @@ public class BasisReclassificationService {
     private static String validate(ClassifyBasisRequest request) {
         if (request == null || request.route() == null || request.routeReason() == null
                 || request.route() == ClassifyBasisRequest.Route.ON_HOLD) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        if (request.route() == ClassifyBasisRequest.Route.NOTARIAL) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         String reason = request.routeReason().trim();

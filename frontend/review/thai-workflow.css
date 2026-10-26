@@ -1,0 +1,13 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f7f6f0; color: #234237; font-family: 'Segoe UI', sans-serif; line-height: 1.5; }
+main { max-width: 1100px; margin: auto; padding: 24px; }
+header { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 16px 0 24px; }
+header strong { font-family: Georgia, serif; font-size: 28px; }
+header button { margin-left: auto; }
+aside { padding: 16px; border: 1px solid #dcc48b; border-radius: 12px; background: #fffaf0; margin-bottom: 24px; }
+nav { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+button, select { min-height: 44px; border: 1px solid #bccdc1; border-radius: 8px; padding: 10px 16px; background: white; color: inherit; font: inherit; cursor: pointer; }
+button[aria-pressed="true"] { background: #234237; color: white; }
+button:disabled { cursor: default; opacity: .55; }
+.review-status { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+@media(max-width:640px) { main { padding: 16px; } header span { width: 100%; order: 3; } nav button { flex: 1; } }

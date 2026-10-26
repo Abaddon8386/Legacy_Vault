@@ -2,23 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { validateRegistration } from '../../utils/registrationValidation.js';
 import './RegisterPageHenedo.css';
 import { registerUser, getRegistrationMessage } from '../../utils/registrationService.js';
+import { authenticateWithGoogle, authStatusMessages } from '../../utils/loginService.js';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import InvitationEntry from '../../components/invitations/InvitationEntry.jsx';
+import AuthBrand from './AuthBrand.jsx';
 
 const i18nContent = {
   vi: {
-    brandName: 'LegacyVault',
-    brandTag: 'Hệ thống Quản lý Di sản Số',
-    editorialEyebrow: 'LƯU GIỮ HÔM NAY · TRAO GỬI MAI SAU',
-    editorialHeading: 'Một nơi gìn giữ\nnhững điều quý giá nhất.',
-    editorialDesc:
-      'Không gian số thanh bình, nơi bạn chủ động sắp xếp tài sản, lưu giữ ký ức và chuẩn bị kế hoạch trao gửi trọn vẹn cho người thân yêu.',
-    pillar1: 'Sắp xếp tập trung · Dễ dàng hệ thống hóa và quản lý danh mục tài sản số cá nhân.',
-    pillar2: 'Chủ động chuyển giao · Tự quyết định người nhận và chuẩn bị lộ trình bàn giao theo ý nguyện.',
-    pillar3: 'Gìn giữ trọn vẹn · Lưu giữ kỷ niệm và thông điệp ý nghĩa gửi gắm đến người thân yêu.',
-    copyright: '© 2026 LegacyVault · Sanctuary of Generations',
-
-    formBadge: 'KHỞI TẠO TÀI KHOẢN DI SẢN',
     title: 'Tạo tài khoản cá nhân',
-    subtitle: 'Khởi tạo không gian số để sắp xếp tài sản cá nhân và chuẩn bị kế hoạch trao gửi di sản.',
+    subtitle: 'Bắt đầu lưu giữ và trao gửi những điều quý giá.',
 
     fullNameLabel: 'Họ và tên',
     fullNamePlaceholder: 'Ví dụ: Nguyễn Văn An',
@@ -35,9 +27,10 @@ const i18nContent = {
     termsText: 'Tôi đồng ý với',
     termsLink: 'Điều khoản dịch vụ',
     andText: 'và',
-    privacyLink: 'Chính sách bảo vệ dữ liệu di sản',
+    privacyLink: 'Chính sách bảo mật',
     submitButton: 'Tạo tài khoản',
     submittingButton: 'Đang khởi tạo tài khoản…',
+    orDivider: 'Hoặc',
     signinPrompt: 'Đã có tài khoản?',
     signinAction: 'Đăng nhập',
     pendingNotice: 'Thông tin đăng ký đã được xác thực hợp lệ. Hệ thống đang tiến hành xử lý yêu cầu tạo tài khoản.',
@@ -53,18 +46,6 @@ const i18nContent = {
     modalClose: 'Đã hiểu',
   },
   en: {
-    brandName: 'LegacyVault',
-    brandTag: 'Digital Heritage Sanctuary',
-    editorialEyebrow: 'PRESERVE TODAY · PASS ON TOMORROW',
-    editorialHeading: 'A peaceful sanctuary\nfor what matters most.',
-    editorialDesc:
-      'A serene digital haven where you can thoughtfully organize personal assets, cherish family memories, and prepare plans for loved ones.',
-    pillar1: 'Centralized Organization · Easily structure and manage your personal digital assets in one place.',
-    pillar2: 'Autonomous Transfer · Decide designated recipients and prepare transfer plans on your own terms.',
-    pillar3: 'Preserve with Care · Safeguard meaningful memories and heartfelt messages for future generations.',
-    copyright: '© 2026 LegacyVault · Sanctuary of Generations',
-
-    formBadge: 'INITIALIZE PERSONAL SANCTUARY',
     title: 'Create personal account',
     subtitle: 'Set up your digital space to organize personal assets and prepare your legacy transfer plan.',
 
@@ -86,6 +67,7 @@ const i18nContent = {
     privacyLink: 'Heritage Privacy Policy',
     submitButton: 'Create account',
     submittingButton: 'Creating sanctuary…',
+    orDivider: 'or',
     signinPrompt: 'Already have an account?',
     signinAction: 'Sign in',
     pendingNotice: 'Registration details validated. System is processing your account creation request.',
@@ -111,20 +93,60 @@ const initialForm = {
   agreeTerms: false,
 };
 
-export default function RegisterPageHenedo({ onNavigateToLogin }) {
-  const [lang, setLang] = useState('vi');
+export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated, onNavigateToInvitations, invitationMode = false, onCancelInvitation, onRegisterWithInvitation }) {
+  const [lang, setLang] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi');
   const [values, setValues] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState('idle');
   const [statusCode, setStatusCode] = useState('');
-  const statusMessage = getRegistrationMessage(statusCode, lang);
+  const statusMessage = authStatusMessages[lang]?.[statusCode] || getRegistrationMessage(statusCode, lang);
   const pendingRef = useRef(false);
   const controllerRef = useRef(null);
   useEffect(() => () => controllerRef.current?.abort(), []);
   const [policyModal, setPolicyModal] = useState(null);
 
   const t = i18nContent[lang];
+
+  const handleGoogleCredential = async (credentialResponse) => {
+    if (pendingRef.current || invitationMode) return;
+    pendingRef.current = true;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus('submitting');
+    setStatusCode('');
+
+    try {
+      const response = await authenticateWithGoogle(
+        { credential: credentialResponse?.credential },
+        { signal: controller.signal, lang }
+      );
+      if (controller.signal.aborted) return;
+      if (typeof onAuthenticated === 'function') {
+        await onAuthenticated(response, { signal: controller.signal, lang });
+      } else {
+        setStatus('success');
+        setStatusCode('SUCCESS');
+        setTimeout(() => navigateToLogin(), 1000);
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      setStatus('failure');
+      setStatusCode(err?.code || 'GOOGLE_SIGNIN_UNAVAILABLE');
+    } finally {
+      pendingRef.current = false;
+      if (controllerRef.current === controller) controllerRef.current = null;
+    }
+  };
+
+  const handleGoogleError = (err) => {
+    if (status === 'submitting') return;
+    if (err?.code === 'GOOGLE_SCRIPT_LOAD_ERROR') return;
+    setStatus('failure');
+    setStatusCode(err?.code || 'GOOGLE_SCRIPT_LOAD_ERROR');
+  };
+
 
   useEffect(() => {
     if (!policyModal) return;
@@ -137,14 +159,18 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [policyModal]);
 
-  const handleLoginClick = (e) => {
-    e.preventDefault();
+  const navigateToLogin = () => {
     if (typeof onNavigateToLogin === 'function') {
       onNavigateToLogin();
     } else {
       window.history.pushState({}, '', '/login');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
+  };
+
+  const handleLoginClick = (e) => {
+    e.preventDefault();
+    navigateToLogin();
   };
 
   const handleLanguageChange = (nextLang) => {
@@ -170,7 +196,7 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (pendingRef.current) return;
+    if (pendingRef.current || (invitationMode && typeof onRegisterWithInvitation !== 'function')) return;
     const validationErrors = validateRegistration(values, lang);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length) { setStatus('idle'); return; }
@@ -178,9 +204,10 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
     const controller = new AbortController(); controllerRef.current = controller;
     setStatus('submitting'); setStatusCode('');
     try {
-      await registerUser(values, { lang, signal: controller.signal });
+      await (invitationMode ? onRegisterWithInvitation : registerUser)(values, { lang, signal: controller.signal });
       if (controller.signal.aborted) return;
       setValues(initialForm); setStatus('success'); setStatusCode('SUCCESS');
+      navigateToLogin();
     } catch (error) {
       if (controller.signal.aborted) return;
       setStatus('failure'); setStatusCode(error.code || 'INTERNAL_ERROR');
@@ -191,142 +218,14 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
   };
 
   return (
-    <div className="henedo-page">
-      {/* ==================================================================
-          LEFT REGION: Editorial Sanctuary Story & Calm Organic Art
-          Warm deep forest sanctuary backdrop + soft botanical curves
-          ================================================================== */}
-      <section className="henedo-editorial-region" aria-label="Brand Sanctuary Story">
-        <div className="editorial-content-wrapper">
-          {/* Top Brand Header (Entrance 1) */}
-          <header className="henedo-brand-header henedo-entrance-1">
-            <div className="henedo-brand-lockup">
-              <div className="henedo-brand-crest" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 2L4 6.5V12C4 17 7.5 20.8 12 22C16.5 20.8 20 17 20 12V6.5L12 2Z"
-                    stroke="#c5a059"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="12" cy="11" r="2" fill="#c5a059" />
-                  <path d="M12 13V16" stroke="#c5a059" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </div>
-              <div className="henedo-brand-titles">
-                <span className="henedo-brand-name">{t.brandName}</span>
-                <span className="henedo-brand-tag">{t.brandTag}</span>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Story Body */}
-          <div className="editorial-story-body">
-            {/* Eyebrow Pill (Entrance 2) */}
-            <div className="henedo-eyebrow-pill henedo-entrance-2">{t.editorialEyebrow}</div>
-
-            {/* Heading & Description (Entrance 3) */}
-            <h1 className="editorial-heading henedo-entrance-3">{t.editorialHeading}</h1>
-            <p className="editorial-description henedo-entrance-3">{t.editorialDesc}</p>
-
-            {/* Calm Organic Visual: Noticeable Living Heritage Wave swells (Entrance 4) */}
-            <div className="henedo-calm-artwork henedo-entrance-4" aria-hidden="true">
-              <svg
-                viewBox="0 0 460 220"
-                preserveAspectRatio="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="calm-svg"
-              >
-                <defs>
-                  <linearGradient id="hnSoftGreen" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#1a4c3e" stopOpacity="0.88" />
-                    <stop offset="50%" stopColor="#245d4d" stopOpacity="0.65" />
-                    <stop offset="100%" stopColor="#10362b" stopOpacity="0.96" />
-                  </linearGradient>
-                  <linearGradient id="hnCeladon" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#82b5a5" stopOpacity="0.45" />
-                    <stop offset="50%" stopColor="#c5e0d6" stopOpacity="0.55" />
-                    <stop offset="100%" stopColor="#9ccbc0" stopOpacity="0.25" />
-                  </linearGradient>
-                  <linearGradient id="hnGoldLine" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="rgba(197, 160, 89, 0.4)" />
-                    <stop offset="50%" stopColor="rgba(235, 205, 140, 1)" />
-                    <stop offset="100%" stopColor="rgba(197, 160, 89, 0.5)" />
-                  </linearGradient>
-                </defs>
-
-                {/* Back Wave Layer & Primary Gold Contour (Grouped for perfect alignment) */}
-                <g className="hn-wave-group hn-wave-group-back">
-                  <path
-                    className="hn-wave-back"
-                    d="M -120 160 C -30 110, 60 180, 160 130 C 250 90, 340 170, 440 120 C 500 95, 540 140, 580 115 L 580 240 L -120 240 Z"
-                    fill="url(#hnSoftGreen)"
-                  />
-                  <path
-                    className="hn-gold-main"
-                    d="M -120 160 C -30 110, 60 180, 160 130 C 250 90, 340 170, 440 120 C 500 95, 540 140, 580 115"
-                    fill="none"
-                    stroke="url(#hnGoldLine)"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                </g>
-
-                {/* Front Wave Layer & Secondary Gold Accent (Grouped for counter-movement) */}
-                <g className="hn-wave-group hn-wave-group-front">
-                  <path
-                    className="hn-wave-front"
-                    d="M -120 180 C -40 130, 50 195, 140 145 C 230 100, 310 185, 410 135 C 470 105, 530 160, 580 130 L 580 240 L -120 240 Z"
-                    fill="url(#hnCeladon)"
-                  />
-                  <path
-                    className="hn-gold-sub"
-                    d="M -100 195 C -10 150, 70 205, 160 160 C 245 125, 335 195, 425 150 C 490 120, 540 170, 580 145"
-                    fill="none"
-                    stroke="rgba(217, 185, 120, 0.65)"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                  />
-                </g>
-              </svg>
-            </div>
-
-            {/* Calm Pillars of Trust (Entrance 4) */}
-            <div className="henedo-pillars henedo-entrance-4">
-              <div className="henedo-pillar-item">
-                <span className="pillar-leaf-bullet" aria-hidden="true">◆</span>
-                <span className="pillar-text">{t.pillar1}</span>
-              </div>
-              <div className="henedo-pillar-item">
-                <span className="pillar-leaf-bullet" aria-hidden="true">◆</span>
-                <span className="pillar-text">{t.pillar2}</span>
-              </div>
-              <div className="henedo-pillar-item">
-                <span className="pillar-leaf-bullet" aria-hidden="true">◆</span>
-                <span className="pillar-text">{t.pillar3}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Copyright */}
-          <footer className="editorial-footer">
-            <span>{t.copyright}</span>
-          </footer>
-        </div>
-      </section>
-
-      {/* ==================================================================
-          RIGHT REGION: Pure Warm-Ivory Registration Form
-          Editorial typography, generous breathing room, sand-gold CTA
-          ================================================================== */}
-      <main className="henedo-form-region" aria-label="Registration Form">
+    <div className="henedo-page lv-auth-page">
+      <a className="lv-auth-back-home" href="/">{lang === 'en' ? '← Back to home' : '← Về trang chủ'}</a>
+      <main className="henedo-form-region lv-auth-card" aria-label="Registration Form">
         {/* Form Container (Entrance 5) */}
-        <div className="henedo-form-container henedo-entrance-5">
+        <div className="henedo-form-container lv-auth-content">
           {/* Top Form Header with Language Toggle */}
-          <div className="henedo-form-topbar">
-            <span className="henedo-form-badge">{t.formBadge}</span>
-            <div className="henedo-lang-toggle" role="radiogroup" aria-label="Language selection">
+          <div className="lv-auth-topbar">
+            <div className="lv-auth-languages" role="radiogroup" aria-label="Language selection">
               <button
                 type="button"
                 className={`hn-lang-btn ${lang === 'vi' ? 'active' : ''}`}
@@ -348,8 +247,9 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
             </div>
           </div>
 
-          <h2 className="henedo-form-title">{t.title}</h2>
-          <p className="henedo-form-sub">{t.subtitle}</p>
+          <AuthBrand />
+          <h1 className="lv-auth-title">{t.title}</h1>
+          <p className="lv-auth-description">{t.subtitle}</p>
 
           <form onSubmit={handleSubmit} noValidate className="henedo-form">
             {/* Row 1: Full Name & Phone Number */}
@@ -519,22 +419,23 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
                 </span>
                 <span className="henedo-checkbox-text">
                   {t.termsText}{' '}
-                  <button
-                    type="button"
+                  <a
+                    href="#terms"
                     className="hn-text-link"
-                    onClick={() => setPolicyModal('terms')}
+                    aria-haspopup="dialog"
+                    onClick={(event) => { event.preventDefault(); setPolicyModal('terms'); }}
                   >
                     {t.termsLink}
-                  </button>{' '}
+                  </a>{' '}
                   {t.andText}{' '}
-                  <button
-                    type="button"
+                  <a
+                    href="#privacy"
                     className="hn-text-link"
-                    onClick={() => setPolicyModal('privacy')}
+                    aria-haspopup="dialog"
+                    onClick={(event) => { event.preventDefault(); setPolicyModal('privacy'); }}
                   >
                     {t.privacyLink}
-                  </button>
-                  .
+                  </a>.
                 </span>
               </label>
               {errors.agreeTerms && (
@@ -548,15 +449,33 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
             <button
               type="submit"
               className="henedo-cta-btn"
-              disabled={status === 'submitting'}
+              disabled={status === 'submitting' || (invitationMode && typeof onRegisterWithInvitation !== 'function')}
             >
               <span>{status === 'submitting' ? t.submittingButton : t.submitButton}</span>
               <span className="hn-arrow" aria-hidden="true">→</span>
             </button>
           </form>
 
+          {/* Divider: Hoặc / or */}
+          <div className="henedo-divider" role="separator" aria-label={t.orDivider}>
+            <span>{t.orDivider}</span>
+          </div>
+
+          {/* Google Sign-in Section */}
+          <div className="henedo-google-section">
+            <GoogleSignInButton
+              id="hn-register-google-btn"
+              disabled={status === 'submitting' || invitationMode}
+              lang={lang}
+              text="continue_with"
+              onCredentialReceived={handleGoogleCredential}
+              onError={handleGoogleError}
+            />
+          </div>
+
           {/* Status Alert Notification */}
           {status !== 'idle' && status !== 'submitting' && (
+
             <div className={`henedo-status-box ${status}`} role="status">
               <div className="henedo-status-icon" aria-hidden="true">
                 {status === 'pending' && 'ℹ'}
@@ -568,7 +487,8 @@ export default function RegisterPageHenedo({ onNavigateToLogin }) {
           )}
 
           {/* Footer Info & Signin Prompt (No RBAC note) */}
-          <footer className="henedo-form-footer">
+          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} registration />
+          <footer className="henedo-form-footer lv-auth-footer">
             {typeof onNavigateToLogin === 'function' && (
               <div className="henedo-signin-prompt">
                 {t.signinPrompt}{' '}

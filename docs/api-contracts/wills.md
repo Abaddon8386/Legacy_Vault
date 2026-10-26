@@ -104,3 +104,14 @@ Chấp nhận PDF/JPEG/PNG hợp lệ · từ chối loại khác (415) và quá
 `status = UPLOADED` và **không** bao giờ `LEGAL_APPROVED` · SHA-256 đúng với nội dung · file khác → hash khác ·
 version tăng, phiên bản cũ còn · audit có ghi · không log nội dung file · `download`: đúng mật khẩu trả đúng byte gốc,
 sai → 403, vượt giới hạn → 429, kho đóng băng → 409, hash lệch → không trả file, người khác → 404.
+
+## PS-77 — quota file và mọi phiên bản (prototype chưa áp dụng)
+
+**Mặc định tắt**, chờ nhóm phê duyệt tại open-decisions.md §G. Các phép tính/lỗi quota dưới đây
+chỉ áp dụng khi bật prototype trong test cô lập; không phải chính sách production đã được duyệt.
+Giới hạn payload/upload sẵn có và guard quyền/trạng thái vẫn có hiệu lực.
+
+File tối đa 10.485.760 byte (đơn vị nhị phân). Will mới chiếm một Asset; thêm version không tăng count
+nhưng cộng toàn bộ kích thước version mới, giữ tính dung lượng mọi version cũ. Quota được kiểm tra dưới
+khóa Owner trong cùng transaction với dữ liệu/audit. 409 `ASSET_QUOTA_EXCEEDED` /
+`STORAGE_QUOTA_EXCEEDED`; 413 `PAYLOAD_TOO_LARGE` cho mỗi file quá lớn. Xem [subscriptions.md](subscriptions.md).

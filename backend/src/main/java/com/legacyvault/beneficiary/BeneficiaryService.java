@@ -19,6 +19,7 @@ import com.legacyvault.common.security.OwnerContextService;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.service.VaultService;
+import jakarta.persistence.EntityManager;
 
 @Service
 public class BeneficiaryService {
@@ -29,22 +30,26 @@ public class BeneficiaryService {
 	private final IdentityNumberCipher identityCipher;
 	private final AuditService audit;
 	private final MessageService messages;
+	private final BeneficiaryInvitationService invitations;
+	private final EntityManager entities;
 
 	public BeneficiaryService(BeneficiaryRepository beneficiaries, VaultService ownerVaults,
 			OwnerContextService owners, IdentityNumberCipher identityCipher, AuditService audit,
-			MessageService messages) {
+			MessageService messages, BeneficiaryInvitationService invitations, EntityManager entities) {
 		this.beneficiaries = beneficiaries;
 		this.ownerVaults = ownerVaults;
 		this.owners = owners;
 		this.identityCipher = identityCipher;
 		this.audit = audit;
 		this.messages = messages;
+		this.invitations = invitations;
+		this.entities = entities;
 	}
 
 	@Transactional
 	public BeneficiaryDtos.Response create(UUID vaultId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
+		Vault vault = ownerVaults.requireEditableVaultForUpdate(vaultId, owner.getUserId());
 		UUID beneficiaryId = UUID.randomUUID();
 		byte[] encryptedId = encryptIfPresent(request.identityNumber(), beneficiaryId);
 		Beneficiary beneficiary = new Beneficiary(beneficiaryId, vault, clean(request.fullName()), clean(request.relationship()),
@@ -68,10 +73,14 @@ public class BeneficiaryService {
 	@Transactional
 	public BeneficiaryDtos.Response update(UUID vaultId, UUID beneficiaryId, BeneficiaryDtos.UpsertRequest request) {
 		User owner = owners.requireOwner();
-		Vault vault = ownerVaults.requireEditableVault(vaultId, owner.getUserId());
+		Vault vault = ownerVaults.requireEditableVaultForUpdate(vaultId, owner.getUserId());
 		Beneficiary beneficiary = beneficiaries.findByPublicIdAndVault_VaultId(beneficiaryId, vault.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+		entities.refresh(beneficiary); // Do not overwrite a link committed while the Vault lock was awaited.
 		byte[] encryptedId = encryptIfPresent(request.identityNumber(), beneficiary.getPublicId());
+		if (!java.util.Objects.equals(beneficiary.getEmail(), cleanEmail(request.email()))) {
+			invitations.revokeForEmailChange(beneficiary, owner.getUserId());
+		}
 		beneficiary.update(clean(request.fullName()), clean(request.relationship()), request.dateOfBirth(),
 				clean(request.phone()), cleanEmail(request.email()), encryptedId);
 		beneficiary = beneficiaries.saveAndFlush(beneficiary);

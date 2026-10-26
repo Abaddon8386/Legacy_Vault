@@ -1,0 +1,705 @@
+/* Administration workspace. Keep these rules local to the admin content area. */
+
+.lv-admin-container {
+  --admin-ink: #203e33;
+  --admin-muted: #63746b;
+  --admin-line: #dfe5de;
+  --admin-soft: #f4f7f3;
+  container: admin-workspace / inline-size;
+  inline-size: 100%;
+  max-inline-size: 1240px;
+  min-inline-size: 0;
+  margin-inline: auto;
+  padding-block: 8px 40px;
+  color: var(--admin-ink);
+  font: 400 14px/1.6 var(--lv-font-sans, 'Inter', sans-serif);
+}
+
+.lv-admin-container *, .lv-admin-container *::before, .lv-admin-container *::after {
+  box-sizing: border-box;
+}
+
+.lv-admin-container :is(h1, h2, h3, button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.lv-admin-header {
+  margin-block-end: 28px;
+}
+
+.lv-admin-header-title {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 3cqi, 34px);
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+  color: var(--admin-ink);
+}
+
+.lv-admin-header-subtitle {
+  margin: 0;
+  max-inline-size: 72ch;
+  color: var(--admin-muted);
+  font-size: 14px;
+}
+
+.lv-admin-section-heading {
+  margin: 0 0 16px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.lv-admin-pending-banner, .lv-admin-alert {
+  border: 1px solid #f0cdca;
+  border-inline-start: 4px solid #be5149;
+  border-radius: 12px;
+  background: #fff4f2;
+  padding: 18px 20px;
+  margin-block-end: 24px;
+  color: #973f38;
+}
+
+.lv-admin-pending-banner-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-block-end: 6px;
+}
+
+.lv-admin-pending-banner-title {
+  font-weight: 700;
+}
+
+.lv-admin-pending-banner-desc {
+  margin: 0;
+}
+
+.lv-admin-pending-banner .lv-admin-btn {
+  margin-block-start: 12px;
+}
+
+.lv-admin-pending-badge {
+  display: inline-flex;
+  padding: 3px 9px;
+  border: 1px solid #e7b8b3;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.lv-admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-block-end: 28px;
+}
+
+.lv-admin-metric-card {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  padding: 22px;
+}
+
+.lv-admin-metric-top {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 20px;
+}
+
+.lv-admin-metric-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 38px;
+  block-size: 38px;
+  border-radius: 11px;
+  background: #eef4ee;
+  color: #38634e;
+}
+
+.lv-admin-metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+
+.lv-admin-metric-value {
+  font-size: clamp(28px, 4cqi, 38px);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-overview-panels {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lv-admin-card-section {
+  min-inline-size: 0;
+  padding: 24px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.lv-admin-card-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.lv-admin-card-help {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: var(--admin-muted);
+}
+
+.lv-admin-role-bars {
+  display: grid;
+  gap: 0;
+}
+
+.lv-admin-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 13px;
+  border-block-end: 1px solid #edf0ea;
+}
+
+.lv-admin-role-row:last-child {
+  border: 0;
+  padding-block-end: 0;
+}
+
+.lv-admin-role-label {
+  font-weight: 500;
+}
+
+.lv-admin-role-count {
+  flex-shrink: 0;
+  min-inline-size: 32px;
+  text-align: center;
+  border-radius: 8px;
+  background: var(--admin-soft);
+  padding: 3px 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-admin-action-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lv-admin-action-card {
+  min-inline-size: 0;
+  padding: 20px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #fff;
+}
+
+.lv-admin-action-card-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lv-admin-action-card-desc {
+  flex: 1;
+  margin: 0 0 20px;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.lv-admin-snapshot {
+  margin-block-start: 18px;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.lv-admin-snapshot summary, .lv-admin-boundary summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.lv-admin-snapshot p {
+  margin: 8px 0 0;
+}
+
+.lv-admin-boundary {
+  margin-block-start: 24px;
+  border-block-start: 1px solid var(--admin-line);
+  padding-block-start: 18px;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.lv-admin-boundary p {
+  margin: 10px 0 0;
+  max-inline-size: 90ch;
+}
+
+.lv-admin-toolbar {
+  margin-block-end: 24px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+}
+
+.lv-admin-toolbar-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  min-inline-size: 0;
+}
+
+.lv-admin-field {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  gap: 7px;
+  min-inline-size: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--admin-muted);
+}
+
+.lv-admin-field--search {
+  flex-basis: 260px;
+}
+
+.lv-admin-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lv-admin-container :is(.lv-admin-input, .lv-admin-select) {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cdd6ce;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--admin-ink);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.lv-admin-search-input {
+  flex: 1;
+}
+
+.lv-admin-container :is(.lv-admin-input, .lv-admin-select):focus {
+  border-color: #4c7761;
+  outline: 3px solid #e4ede3;
+  outline-offset: 1px;
+}
+
+.lv-admin-container .lv-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-block-size: 44px;
+  block-size: auto;
+  max-inline-size: 100%;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 650;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+
+.lv-admin-container .lv-admin-btn-primary {
+  color: #fff;
+  background: #244b3d;
+}
+
+.lv-admin-container .lv-admin-btn-primary:hover:not(:disabled) {
+  background: #193d2f;
+}
+
+.lv-admin-container .lv-admin-btn-secondary {
+  color: var(--admin-ink);
+  background: #fff;
+  border-color: #ccd6cd;
+}
+
+.lv-admin-container .lv-admin-btn-secondary:hover:not(:disabled) {
+  border-color: #78967f;
+  background: #f2f6f0;
+}
+
+.lv-admin-container .lv-admin-btn-danger {
+  color: #a13c35;
+  background: #fff5f3;
+  border-color: #edccc7;
+}
+
+.lv-admin-container .lv-admin-btn-danger:hover:not(:disabled) {
+  background: #fce9e5;
+}
+
+.lv-admin-container button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.lv-admin-container :is(button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #b38d45;
+  outline-offset: 3px;
+}
+
+.lv-admin-list-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 12px;
+}
+
+.lv-admin-list-meta p {
+  margin: 0;
+}
+
+.lv-admin-scroll-hint {
+  display: none;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.lv-admin-table-container {
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lv-admin-table {
+  inline-size: 100%;
+  min-inline-size: 1040px;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: start;
+}
+
+.lv-admin-table th {
+  padding: 14px 18px;
+  border-block-end: 1px solid var(--admin-line);
+  background: #eff3ee;
+  color: #4e6759;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+
+.lv-admin-table td {
+  padding: 17px 18px;
+  border-block-end: 1px solid #e9ede7;
+  vertical-align: middle;
+}
+
+.lv-admin-table tbody tr:last-child td {
+  border: 0;
+}
+
+.lv-admin-table tbody tr:hover {
+  background: #fafcf8;
+}
+
+.lv-admin-table :is(td, th) {
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-table td:first-child {
+  min-inline-size: 150px;
+}
+
+.lv-admin-table td:nth-child(2) {
+  min-inline-size: 190px;
+}
+
+.lv-admin-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lv-admin-row-actions .lv-admin-btn {
+  white-space: nowrap;
+}
+
+.lv-admin-code {
+  display: block;
+  margin-block-start: 3px;
+  color: var(--admin-muted);
+  font: 11px/1.5 ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-container :is(.lv-admin-role-badge, .lv-admin-status-badge) {
+  display: inline-flex;
+  align-items: center;
+  max-inline-size: 100%;
+  padding: 4px 9px;
+  border: 1px solid #dbe6d9;
+  border-radius: 6px;
+  background: #f0f5ee;
+  color: #356149;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.lv-admin-role-badge {
+  margin-inline-end: 4px;
+  margin-block: 2px;
+}
+
+.lv-admin-container .lv-admin-status-active {
+  color: #236346;
+  background: #eaf5ed;
+  border-color: #cfe5d4;
+}
+
+.lv-admin-container :is(.lv-admin-status-locked, .lv-admin-status-deleted) {
+  color: #a13c35;
+  background: #fff1ef;
+  border-color: #f0d0ca;
+}
+
+.lv-admin-container .lv-admin-status-pending {
+  color: #805615;
+  background: #fff6e4;
+  border-color: #edd9b0;
+}
+
+.lv-admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-block: 18px;
+}
+
+.lv-admin-pagination-info {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.lv-admin-pagination-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.lv-admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(13 37 28 / .42);
+  backdrop-filter: blur(3px);
+}
+
+.lv-admin-modal-card {
+  inline-size: 100%;
+  max-inline-size: 600px;
+  max-block-size: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 20px 80px #0d251c30;
+}
+
+.lv-admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 22px 24px;
+  border-block-end: 1px solid var(--admin-line);
+}
+
+.lv-admin-modal-header h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.lv-admin-modal-close-btn {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--admin-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--admin-ink);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.lv-admin-modal-body {
+  min-block-size: 0;
+  padding: 24px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 16px 24px;
+  background: var(--admin-soft);
+  border-block-start: 1px solid var(--admin-line);
+}
+
+.lv-admin-detail-list {
+  margin: 0;
+}
+
+.lv-admin-detail-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 16px;
+  padding-block: 14px;
+  border-block-end: 1px solid #e8ede5;
+}
+
+.lv-admin-detail-list > div:first-child {
+  padding-block-start: 0;
+}
+
+.lv-admin-detail-list > div:last-child {
+  border: 0;
+  padding-block-end: 0;
+}
+
+.lv-admin-detail-list dt {
+  color: #63746b;
+  font-size: 13px;
+}
+
+.lv-admin-detail-list dd {
+  margin: 0;
+  color: #203e33;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-container .lv-modal__title {
+  font-family: inherit;
+  font-size: 20px;
+}
+
+@container admin-workspace (max-width: 1080px) {
+  .lv-admin-scroll-hint {
+    display: block;
+  }
+}
+
+@container admin-workspace (max-width: 860px) {
+  .lv-admin-overview-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container admin-workspace (max-width: 760px) {
+  .lv-admin-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container admin-workspace (max-width: 520px) {
+  .lv-admin-header {
+    margin-block-end: 22px;
+  }
+  .lv-admin-overview-grid {
+    gap: 12px;
+  }
+  .lv-admin-metric-card {
+    padding: 16px;
+  }
+  .lv-admin-metric-top {
+    flex-direction: column-reverse;
+    margin-block-end: 12px;
+  }
+  .lv-admin-action-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lv-admin-card-section, .lv-admin-toolbar {
+    padding: 18px;
+  }
+  .lv-admin-field {
+    flex-basis: 100%;
+  }
+  .lv-admin-filter-actions {
+    inline-size: 100%;
+  }
+  .lv-admin-filter-actions .lv-admin-btn {
+    flex: 1;
+  }
+  .lv-admin-detail-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .lv-admin-pagination-btns {
+    inline-size: 100%;
+  }
+  .lv-admin-pagination-btns .lv-admin-btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-admin-container * {
+    transition: none;
+  }
+}

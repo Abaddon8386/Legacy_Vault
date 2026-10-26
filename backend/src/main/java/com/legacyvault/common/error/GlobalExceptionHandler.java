@@ -23,6 +23,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.validation.ConstraintViolationException;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -38,9 +39,18 @@ public class GlobalExceptionHandler {
 		this.factory = factory;
 	}
 
+    @ExceptionHandler(com.legacyvault.auth.recovery.PasswordRecoveryController.Limited.class)
+    ResponseEntity<ApiError> handleRecoveryLimit(HttpServletRequest request) {
+        return ResponseEntity.status(429).header("Retry-After", "900").header("Cache-Control", "no-store")
+                .body(factory.create(request, ErrorCode.RATE_LIMITED, List.of()));
+    }
+
 	@ExceptionHandler(BusinessException.class)
 	ResponseEntity<ApiError> handleBusiness(BusinessException ex, HttpServletRequest request) {
 		ErrorCode code = ex.getErrorCode();
+        if (request.getRequestURI().startsWith("/api/v1/auth/password-recovery/"))
+            return ResponseEntity.status(code.status()).header("Cache-Control", "no-store")
+                    .body(factory.create(request, code, List.of(), ex.getArgs()));
 		return respond(factory.create(request, code, List.of(), ex.getArgs()));
 	}
 
@@ -49,8 +59,8 @@ public class GlobalExceptionHandler {
 		return respond(factory.validation(request, ex.getBindingResult()));
 	}
 
-	@ExceptionHandler(HandlerMethodValidationException.class)
-	ResponseEntity<ApiError> handleMethodValidation(HandlerMethodValidationException ex, HttpServletRequest request) {
+	@ExceptionHandler({ HandlerMethodValidationException.class, ConstraintViolationException.class })
+	ResponseEntity<ApiError> handleMethodValidation(Exception ex, HttpServletRequest request) {
 		return respond(factory.create(request, ErrorCode.VALIDATION_FAILED, List.of()));
 	}
 
@@ -95,6 +105,16 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AuthenticationException.class)
 	ResponseEntity<ApiError> handleAuthentication(HttpServletRequest request) {
 		return respond(factory.create(request, ErrorCode.UNAUTHENTICATED, List.of()));
+	}
+
+	/** SQL Server archive trigger errors are classified by numeric code, never message text. */
+	@ExceptionHandler(org.springframework.dao.DataAccessException.class)
+	ResponseEntity<ApiError> handleDatabaseWrite(org.springframework.dao.DataAccessException ex, HttpServletRequest request) {
+		for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+			if (cause instanceof java.sql.SQLException sql && sql.getErrorCode() == 51300)
+				return respond(factory.create(request, ErrorCode.VAULT_NOT_EDITABLE, List.of()));
+		}
+		return handleUnexpected(ex, request);
 	}
 
 	/** Lưới an toàn cuối cùng: client chỉ thấy thông điệp chung, chi tiết nằm trong log theo traceId. */

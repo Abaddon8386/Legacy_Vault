@@ -1,3 +1,4 @@
+import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   willService,
@@ -5,7 +6,6 @@ import {
   formatFileSize,
   formatDateTime,
   downloadBlobFile,
-  openBlobPreview,
 } from '../../utils/willService.js';
 import {
   getWillUploadErrors,
@@ -249,17 +249,8 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
       {/* Header */}
       <div className="hn-will-intro">
         <h1 id="will-title">{t.title}</h1>
-        <p>{t.intro}</p>
       </div>
 
-      {/* Legal Notice Callout */}
-      <aside className="hn-will-notice" aria-label={messages.NOTICE_TITLE}>
-        <span aria-hidden="true">ⓘ</span>
-        <div>
-          <strong>{messages.NOTICE_TITLE}</strong>
-          <p>{messages.NOTICE_CONTENT}</p>
-        </div>
-      </aside>
 
       {/* Actions Bar */}
       <div className="hn-will-header-actions">
@@ -284,9 +275,9 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
 
       {/* Main Content Area */}
       {isLoadingWills ? (
-        <div className="hn-will-card hn-will-loading-card" role="status">
-          <div className="hn-will-spin" style={{ width: 28, height: 28, margin: '0 auto 12px' }} />
-          <p>{messages.UPLOADING_BTN || 'Đang tải…'}</p>
+        <div className="hn-will-card hn-will-loading-card" role="status" aria-live="polite" aria-busy="true">
+          <p>{language === 'en' ? 'Loading will documents…' : 'Đang tải hồ sơ di chúc…'}</p>
+          <div className="hn-will-skeleton-row" aria-hidden="true" /><div className="hn-will-skeleton-row" aria-hidden="true" />
         </div>
       ) : listError ? (
         <div className="hn-will-card hn-will-error-panel" role="alert">
@@ -313,7 +304,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
         <div className="hn-will-workspace">
           {/* Will Document Overview & Version History */}
           {selectedWill && (
-            <div className="hn-will-card" style={{ marginBottom: '24px' }}>
+            <div className="hn-will-card lv-owner-card" style={{ marginBottom: '24px' }}>
               <div className="hn-will-detail-header">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -358,28 +349,24 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                         <th scope="col">{t.formatCol}</th>
                         <th scope="col">{t.sizeCol}</th>
                         <th scope="col">{t.dateCol}</th>
-                        <th scope="col">{t.hashCol}</th>
                         <th scope="col" style={{ textAlign: 'right' }}>{t.actionCol}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {versions.map((ver) => (
                         <tr key={ver.version}>
-                          <td>
+                          <td data-label={t.versionCol}>
                             <span className="hn-will-version-badge">v{ver.version}</span>
                           </td>
-                          <td style={{ fontWeight: 600 }}>{ver.fileName}</td>
-                          <td>{formatNames[ver.contentType] || ver.contentType}</td>
-                          <td>{formatFileSize(ver.sizeBytes)}</td>
-                          <td style={{ fontSize: '12.5px', color: '#68736b' }}>
+                          <td data-label={t.fileNameCol} style={{ fontWeight: 600 }}>
+                            {ver.fileName}
+                          </td>
+                          <td data-label={t.formatCol}>{formatNames[ver.contentType] || ver.contentType}</td>
+                          <td data-label={t.sizeCol}>{formatFileSize(ver.sizeBytes)}</td>
+                          <td data-label={t.dateCol} style={{ fontSize: '12.5px', color: '#68736b' }}>
                             {formatDateTime(ver.uploadedAt, language)}
                           </td>
-                          <td>
-                            <code className="hn-will-hash-inline" title={ver.sha256}>
-                              {ver.sha256.slice(0, 10)}…{ver.sha256.slice(-8)}
-                            </code>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
+                          <td data-label={t.actionCol} style={{ textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                               <Button
                                 variant="secondary"
@@ -467,6 +454,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
       {/* Modal: Download / Open Reauthentication */}
       {downloadTarget && (
         <DownloadReauthModal
+          key={`${vaultId}:${downloadTarget.willId}:${downloadTarget.version}:${accessToken}`}
           lang={language}
           t={t}
           vaultId={vaultId}
@@ -798,7 +786,7 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
 // -----------------------------------------------------------------------------
 // Sub-component: DownloadReauthModal (Binary Download via Password Reauth)
 // -----------------------------------------------------------------------------
-function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode = 'download', accessToken, onUnauthorized, onClose }) {
+export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode = 'download', accessToken, onUnauthorized, onClose }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -807,10 +795,15 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
   const abortRef = useRef(null);
   const pendingRef = useRef(false);
   const activeContextRef = useRef({ willId, version, vaultId, accessToken });
+  const previewUrlRef = useRef(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const dialogRef = useModalFocus(true, onClose);
 
   const cleanup = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
     pendingRef.current = false;
     setPassword('');
     setErrorKey(null);
@@ -858,11 +851,19 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
 
       if (isCurrent) {
         if (mode === 'view') {
-          openBlobPreview(result.blob);
+          if (!['image/png', 'image/jpeg', 'application/pdf'].includes(result.blob.type)) {
+            setErrorKey('DOWNLOAD_FAILED');
+            return;
+          }
+          if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+          const url = URL.createObjectURL(result.blob);
+          previewUrlRef.current = url;
+          setPassword('');
+          setPreviewFile({ url, type: result.blob.type, name: result.fileName || fileName });
         } else {
           downloadBlobFile(result.blob, result.fileName || fileName || `will-version-${version}`);
+          handleClose();
         }
-        handleClose();
       }
     } catch (err) {
       const isCurrent =
@@ -903,14 +904,21 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
 
   return (
     <div className="hn-will-modal-backdrop" onClick={handleClose} role="presentation">
-      <div className="hn-will-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '440px' }}>
+      <div ref={dialogRef} className={`hn-will-modal-card ${previewFile ? 'hn-will-preview-card' : ''}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={previewFile ? fileName : (isView ? t.reauthModalTitleView : t.reauthModalTitle)} style={{ maxWidth: previewFile ? '1000px' : '440px' }}>
         <div className="hn-will-modal-header">
-          <h2>{isView ? t.reauthModalTitleView : t.reauthModalTitle}</h2>
+          <h2>{previewFile ? previewFile.name : (isView ? t.reauthModalTitleView : t.reauthModalTitle)}</h2>
           <button type="button" className="hn-will-modal-close" onClick={handleClose} disabled={isSubmitting} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
 
+        {previewFile ? (
+          <div className="hn-will-inline-preview">
+            {previewFile.type === 'application/pdf'
+              ? <iframe src={previewFile.url} title={previewFile.name} />
+              : <img src={previewFile.url} alt={previewFile.name} />}
+          </div>
+        ) : (
         <form onSubmit={handleConfirm} noValidate>
           <p style={{ fontSize: '13.5px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6 }}>
             {isView ? t.reauthPromptView : t.reauthPrompt} <strong>v{version}</strong> ({fileName})
@@ -986,6 +994,7 @@ function DownloadReauthModal({ lang, t, vaultId, willId, version, fileName, mode
             {t.legalNoticeViewOnly}
           </p>
         </form>
+        )}
       </div>
     </div>
   );

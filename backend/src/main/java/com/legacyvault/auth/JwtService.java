@@ -33,6 +33,11 @@ public class JwtService {
     }
 
     public String generateAccessToken(UUID publicUserId, String email, List<String> roles) {
+        return generateAccessToken(publicUserId, email, roles, 0);
+    }
+
+    public String generateAccessToken(UUID publicUserId, String email, List<String> roles, long authVersion) {
+        if (authVersion < 0) throw new IllegalArgumentException("Invalid auth version");
         Instant now = Instant.now();
         Instant expiration = now.plusSeconds(expirationSeconds);
 
@@ -40,6 +45,7 @@ public class JwtService {
                 .subject(publicUserId.toString())
                 .claim("email", email)
                 .claim("roles", roles)
+                .claim("authVersion", authVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .signWith(signingKey)

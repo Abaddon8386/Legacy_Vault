@@ -109,7 +109,7 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                   {renderSortIcon('createdAt')}
                 </div>
               </th>
-              <th scope="col">{t.assets.colActions}</th>
+              <th scope="col" className="lv-th-actions">{t.assets.colActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -161,7 +161,26 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                       {formatDate(asset.createdAt)}
                     </span>
                   </td>
-                  <td><Button variant="secondary" onClick={() => onViewAsset(asset)}>{t.assets.actions.view}</Button><Button variant="secondary" onClick={() => onEditAsset(asset)}>{t.assets.actions.edit}</Button></td>
+                  <td className="lv-td-actions">
+                    <div className="lv-table-actions-cell">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="lv-asset-action-btn"
+                        onClick={() => onViewAsset(asset)}
+                      >
+                        {t.assets.actions.view}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="lv-asset-action-btn"
+                        onClick={() => onEditAsset(asset)}
+                      >
+                        {t.assets.actions.edit}
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               )
             })}
@@ -188,7 +207,6 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                 </div>
               </div>
 
-              <div><Button variant="secondary" onClick={() => onViewAsset(asset)}>{t.assets.actions.view}</Button><Button variant="secondary" onClick={() => onEditAsset(asset)}>{t.assets.actions.edit}</Button></div>
               {asset.description && (
                 <p className="lv-mobile-card__desc" title={asset.description}>
                   {asset.description}
@@ -211,6 +229,25 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                   </span>
                 </div>
               </div>
+
+              <div className="lv-mobile-actions-row">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="lv-asset-mobile-btn"
+                  onClick={() => onViewAsset(asset)}
+                >
+                  {t.assets.actions.view}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="lv-asset-mobile-btn"
+                  onClick={() => onEditAsset(asset)}
+                >
+                  {t.assets.actions.edit}
+                </Button>
+              </div>
             </div>
           )
         })}
@@ -232,22 +269,6 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
         </div>
 
         <div className="lv-pagination-controls">
-          <div className="lv-page-size-selector">
-            <label htmlFor="page-size-select">{t.assets.pagination.rowsPerPage}</label>
-            <select
-              id="page-size-select"
-              value={pageSize}
-              onChange={(e) => {
-                onQueryChange({ ...query, size: Number(e.target.value), page: 0 })
-              }}
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-
           <div className="lv-page-nav-btns">
             <Button
               variant="secondary"

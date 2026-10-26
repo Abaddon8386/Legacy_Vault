@@ -1,0 +1,33 @@
+.lv-shell-lang-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--lv-border-medium);
+  border-radius: var(--lv-radius-pill);
+  background: var(--lv-bg-muted);
+}
+.lv-lang-btn {
+  min-inline-size: var(--lv-control-min-size);
+  min-block-size: var(--lv-control-min-size);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--lv-radius-pill);
+  background: transparent;
+  color: var(--lv-control-text);
+  font: inherit;
+  font-family: var(--lv-font-sans);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.lv-lang-btn.is-active {
+  background: var(--lv-bg-surface);
+  color: var(--lv-text-heading);
+  box-shadow: var(--lv-shadow-sm);
+}
+.lv-lang-btn:focus-visible {
+  outline: 2px solid var(--lv-action-focus);
+  outline-offset: 2px;
+}
+.lv-lang-btn:hover { color: var(--lv-text-heading); }

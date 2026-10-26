@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   FileText,
   UserCheck,
-  RefreshCw,
   Info,
   Building2,
   Scale,
@@ -77,15 +76,6 @@ export default function LegalBasisRouteSelectionPage({
     });
     setErrors(res.errors);
     setValidationStatus(res.isValid ? 'success' : 'error');
-  };
-
-  const handleReset = () => {
-    setDocketReference(initialDocket?.docketReference || '');
-    setRoute('');
-    setReason('');
-    setErrors({});
-    setValidatedOnce(false);
-    setValidationStatus(null);
   };
 
   return (
@@ -244,7 +234,7 @@ export default function LegalBasisRouteSelectionPage({
             {errors.route && (
               <div className="lv-form-error-msg" role="alert" style={{ marginTop: 8 }}>
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.route] || errors.route}</span>
+                <span>{t[errors.route] || t.validationFailure}</span>
               </div>
             )}
           </fieldset>
@@ -266,7 +256,7 @@ export default function LegalBasisRouteSelectionPage({
             {errors.reason && (
               <div className="lv-form-error-msg" role="alert">
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.reason] || errors.reason}</span>
+                <span>{t[errors.reason] || t.validationFailure}</span>
               </div>
             )}
           </div>
@@ -315,15 +305,6 @@ export default function LegalBasisRouteSelectionPage({
                 onClick={handleValidateLocal}
               >
                 <span>{t.btnValidateLocal}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 

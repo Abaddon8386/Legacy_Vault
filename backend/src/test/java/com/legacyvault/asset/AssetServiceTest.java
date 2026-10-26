@@ -61,7 +61,8 @@ class AssetServiceTest {
 	private final AuditService auditService = mock(AuditService.class);
 	private final PasswordReauthService reauthService = mock(PasswordReauthService.class);
 	private final AssetService assetService = new AssetService(assetRepository, vaultService, encryptionService,
-			auditService, reauthService);
+			auditService, reauthService, mock(com.legacyvault.subscription.service.OwnerQuotaService.class),
+			mock(jakarta.persistence.EntityManager.class));
 
 	private static Vault vault() {
 		Vault vault = new Vault();
@@ -87,7 +88,7 @@ class AssetServiceTest {
 
 	@Test
 	void create_encryptsPayload_savesAndAudits() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		repositoryAssignsIdOnSave();
 
 		AssetResponse response = assetService.createAsset(VAULT_ID, OWNER_ID,
@@ -125,7 +126,7 @@ class AssetServiceTest {
 
 	@Test
 	void create_onVaultOfOtherUser_isNotFoundAndNothingSaved() {
-		when(vaultService.requireEditableVault(VAULT_ID, 2L))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, 2L))
 				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
 		assertThatThrownBy(() -> assetService.createAsset(VAULT_ID, 2L,
@@ -137,7 +138,7 @@ class AssetServiceTest {
 
 	@Test
 	void create_onFrozenVault_isRejectedAndNothingSaved() {
-		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID))
 				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
 
 		assertThatThrownBy(() -> assetService.createAsset(VAULT_ID, OWNER_ID,
@@ -223,10 +224,13 @@ class AssetServiceTest {
 		byte[] oldIv = new byte[12];
 		asset.setEncryptedPayload(new EncryptedData(new byte[] { 1 }, oldIv, "v1"));
 		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		ownerFinds(asset);
 		when(assetRepository.saveAndFlush(asset)).thenReturn(asset);
 
-		assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID, new UpdateAssetRequest(null, null, SECRET));
+		assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
+				new UpdateAssetRequest(null, null, SECRET, "MatKhau@123"));
+		verify(reauthService).requirePassword(OWNER_ID, VAULT_DB_ID, "MatKhau@123");
 
 		assertThat(asset.getName()).isEqualTo("Email");
 		assertThat(asset.getDescription()).isEqualTo("Ghi chú cũ");
@@ -249,11 +253,12 @@ class AssetServiceTest {
 	void update_nameAndClearDescription() {
 		Asset asset = storedAsset();
 		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		ownerFinds(asset);
 		when(assetRepository.saveAndFlush(asset)).thenReturn(asset);
 
 		assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
-				new UpdateAssetRequest("  Email mới ", "", null));
+				new UpdateAssetRequest("  Email mới ", "", null, "MatKhau@123"));
 
 		assertThat(asset.getName()).isEqualTo("Email mới");
 		assertThat(asset.getDescription()).isNull();
@@ -267,10 +272,11 @@ class AssetServiceTest {
 	void update_withSameValues_writesNothingAndDoesNotAudit() {
 		Asset asset = storedAsset();
 		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		when(vaultService.requireEditableVaultForUpdate(VAULT_ID, OWNER_ID)).thenReturn(vault());
 		ownerFinds(asset);
 
 		AssetResponse response = assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
-				new UpdateAssetRequest("Email", "Ghi chú cũ", null));
+				new UpdateAssetRequest("Email", "Ghi chú cũ", null, "MatKhau@123"));
 
 		assertThat(response.name()).isEqualTo("Email");
 		verify(assetRepository, never()).saveAndFlush(any());
@@ -278,15 +284,82 @@ class AssetServiceTest {
 	}
 
 	@Test
-	void update_onFrozenVault_isRejectedBeforeTouchingAsset() {
+	void update_onFrozenVault_isRejectedBeforePasswordCheckAndBeforeTouchingAsset() {
 		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
 				.thenThrow(new BusinessException(ErrorCode.VAULT_NOT_EDITABLE));
 
 		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID,
-				new UpdateAssetRequest("x", null, null)))
+				new UpdateAssetRequest("x", null, null, "MatKhau@123")))
 				.extracting(ex -> ((BusinessException) ex).getErrorCode())
 				.isEqualTo(ErrorCode.VAULT_NOT_EDITABLE);
-		verifyNoInteractions(assetRepository, auditService);
+		verifyNoInteractions(reauthService, assetRepository, auditService);
+	}
+
+	// ---------- PS-111 (D-API-40): xác thực lại mật khẩu khi sửa tài sản ----------
+
+	@Test
+	void update_onOtherUsersVault_isNotFound_andPasswordIsNeverChecked() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID))
+				.thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID,
+				new UpdateAssetRequest("x", null, null, "x")))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+		verifyNoInteractions(reauthService, assetRepository, auditService);
+	}
+
+	@Test
+	void update_withUnknownAsset_isNotFound_andPasswordIsNeverChecked() {
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+
+		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, UUID.randomUUID(), OWNER_ID,
+				new UpdateAssetRequest("x", null, null, "MatKhau@123")))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+		verifyNoInteractions(reauthService, auditService);
+	}
+
+	@Test
+	void update_withWrongPassword_changesNothing_andTakesNoLockOrAudit() {
+		Asset asset = storedAsset();
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+		doThrow(new BusinessException(ErrorCode.REAUTH_FAILED)).when(reauthService)
+				.requirePassword(OWNER_ID, VAULT_DB_ID, "sai");
+
+		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
+				new UpdateAssetRequest("Tên mới", null, SECRET, "sai")))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.REAUTH_FAILED);
+
+		assertThat(asset.getName()).isEqualTo("Email");
+		// Mật khẩu được kiểm tra trước mọi khóa bi quan: sai thì không khóa Owner/Vault.
+		verify(vaultService, never()).requireEditableVaultForUpdate(any(), any());
+		verify(assetRepository, never()).saveAndFlush(any());
+		verifyNoInteractions(auditService);
+	}
+
+	@Test
+	void update_whenRateLimited_isRejectedWithoutChange() {
+		Asset asset = storedAsset();
+		when(vaultService.requireEditableVault(VAULT_ID, OWNER_ID)).thenReturn(vault());
+		ownerFinds(asset);
+		doThrow(new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS)).when(reauthService)
+				.requirePassword(OWNER_ID, VAULT_DB_ID, "MatKhau@123");
+
+		assertThatThrownBy(() -> assetService.updateAsset(VAULT_ID, asset.getPublicId(), OWNER_ID,
+				new UpdateAssetRequest("Tên mới", null, null, "MatKhau@123")))
+				.extracting(ex -> ((BusinessException) ex).getErrorCode())
+				.isEqualTo(ErrorCode.TOO_MANY_ATTEMPTS);
+		verify(assetRepository, never()).saveAndFlush(any());
+		verifyNoInteractions(auditService);
+	}
+
+	@Test
+	void updateRequest_toStringNeverContainsPasswordOrPayload() {
+		String text = new UpdateAssetRequest("x", null, SECRET, "MatKhau@123").toString();
+		assertThat(text).doesNotContain("MatKhau@123").doesNotContain(SECRET);
 	}
 
 	// ---------- PS-16: xem nội dung bảo mật sau khi nhập lại mật khẩu (D-API-32) ----------

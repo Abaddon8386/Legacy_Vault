@@ -2,6 +2,12 @@
 
 Repo nhóm: https://github.com/Abaddon8386/Legacy_Vault. Nhánh tích hợp: `develop`; nhánh nền: `main`.
 
+## Thay đổi local ngày 19/10/2026 — gói trọn đời và ảnh tài sản
+
+Theo quyết định mới của người dùng: BASIC miễn phí, STANDARD 499.000đ, EXTENDED 999.000đ, mua một lần dùng trọn đời. Nâng cấp trả đủ giá gói đích, không tính chênh lệch. Mỗi tài sản thêm tối đa 5 ảnh JPEG/PNG, 5 MiB/ảnh; ảnh mã hóa và tính vào dung lượng kho. Xem [contract và giới hạn triển khai](docs/api-contracts/lifetime-plans-and-asset-images.md).
+
+Khởi động lại backend theo cấu hình hiện có để Flyway chạy V31–V33; không chạy SQL thủ công, reset DB hoặc repair checksum. V32 giữ lịch sử giá cũ, không cấp gói trả phí cho tài khoản hiện hữu. API báo giá không phải thanh toán: payment vẫn chưa tích hợp, không có nút mua thành công giả. Quota enforcement vẫn tắt mặc định.
+
 ## Bộ khung
 
 React/Vite, Java 25, Spring Boot 4.1.1, Spring Data JPA, Spring Security và Microsoft SQL Server (JDBC 13.6.0.jre11). Phiên bản được giữ theo bản nền repo cũ; không nâng dependency trong lần khởi tạo này.
@@ -97,7 +103,7 @@ $env:API_PROXY_TARGET = 'http://127.0.0.1:18178'
 npm.cmd run dev
 ```
 
-Mở URL Vite, đăng nhập bằng tài khoản **chỉ dành cho fixture**: `demo@example.test` / `SyntheticPass123`. Khởi tạo kho, rồi thêm dữ liệu minh họa qua các màn hình. Fixture lưu trong bộ nhớ; khởi động lại sẽ mất dữ liệu. Tải lại trang cần đăng nhập lại vì phiên FE giữ trong bộ nhớ. Bộ dữ liệu ảnh được chuẩn bị riêng nên fixture mới khởi động chưa có sẵn các bản ghi trong ảnh. Dừng cả hai terminal bằng Ctrl+C.
+Mở URL Vite, đăng nhập bằng tài khoản **chỉ dành cho fixture**: `demo@example.test` / `SyntheticPass123`. Khởi tạo kho, rồi thêm dữ liệu minh họa qua các màn hình. Fixture lưu trong bộ nhớ; khởi động lại sẽ mất dữ liệu. Phiên FE được giữ trong sessionStorage của tab khi tải lại trang và xác minh lại với API; phiên hết hạn hoặc đăng xuất sẽ yêu cầu đăng nhập lại. Bộ dữ liệu ảnh được chuẩn bị riêng nên fixture mới khởi động chưa có sẵn các bản ghi trong ảnh. Dừng cả hai terminal bằng Ctrl+C.
 
 Fixture chỉ phục vụ kiểm thử FE, không phải backend nghiệp vụ và không kết nối SQL Server.
 

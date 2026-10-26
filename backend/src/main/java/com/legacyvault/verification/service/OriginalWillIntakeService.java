@@ -43,17 +43,20 @@ public class OriginalWillIntakeService {
     private final OriginalWillIntakeRepository intakeRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final LegalBasisLockedState state;
 
     public OriginalWillIntakeService(
             StaffCaseLockRepository caseRepository,
             OriginalWillIntakeRepository intakeRepository,
             UserRepository userRepository,
-            AuditService auditService
+            AuditService auditService,
+            LegalBasisLockedState state
     ) {
         this.caseRepository = caseRepository;
         this.intakeRepository = intakeRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.state = state;
     }
 
     @Transactional
@@ -67,6 +70,7 @@ public class OriginalWillIntakeService {
         VerificationCase verificationCase = caseRepository.findOwnedByStaffForUpdate(caseId, staffUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
+        state.refresh(verificationCase);
         if (!verificationCase.isOpen()) {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }

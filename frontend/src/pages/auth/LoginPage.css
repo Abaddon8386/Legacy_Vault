@@ -1,210 +1,9 @@
-﻿/* ==========================================================================
-   LoginPage Stylesheet — LegacyVault (PS-2)
-   Art Direction: Editorial Luxury + Private Sanctuary (Henedo-Inspired)
-   Palette: Warm Cream (#F7F5F0), Noble Forest (#164639), Sand Gold (#C5A059)
-   ========================================================================== */
-
-.hn-login-page {
-  display: grid;
-  grid-template-columns: 44% 56%;
-  min-height: 100svh;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  background-color: var(--lv-bg-canvas, #f7f5f0);
-  box-sizing: border-box;
-  overflow-x: hidden;
-  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
-}
-
-/* ==========================================================================
-   LEFT REGION: Editorial Sanctuary Story
-   ========================================================================== */
-.hn-login-editorial-region {
-  background: linear-gradient(160deg, #164639 0%, #10382d 50%, #0c2b22 100%);
-  color: #f7f6e9;
-  padding: clamp(36px, 4vw, 56px) clamp(28px, 4vw, 52px);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border-right: 1px solid rgba(197, 160, 89, 0.22);
-  box-sizing: border-box;
-  overflow-y: auto;
-}
-
-.hn-login-editorial-wrapper {
-  max-width: 480px;
-  width: 100%;
-  margin: auto;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  justify-content: space-between;
-}
-
-/* Brand Lockup */
-.hn-login-brand-header {
-  margin-bottom: 24px;
-}
-
-.hn-login-brand-lockup {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.hn-login-brand-crest {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  border: 1.5px solid #c5a059;
-  background: rgba(197, 160, 89, 0.12);
-  display: grid;
-  place-items: center;
-  color: #c5a059;
-  box-shadow: 0 0 12px rgba(197, 160, 89, 0.15);
-  flex-shrink: 0;
-}
-
-.hn-login-brand-titles {
-  display: flex;
-  flex-direction: column;
-}
-
-.hn-login-brand-name {
-  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
-  font-size: 22px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  color: #ffffff;
-  line-height: 1.15;
-}
-
-.hn-login-brand-tag {
-  font-size: 10.5px;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: #d8c292;
-  margin-top: 1px;
-}
-
-/* Editorial Story Content */
-.hn-login-story-body {
-  margin: 16px 0;
-}
-
-.hn-login-eyebrow-pill {
-  display: inline-block;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #d8c292;
-  background: rgba(197, 160, 89, 0.14);
-  border: 1px solid rgba(197, 160, 89, 0.3);
-  padding: 4px 12px;
-  border-radius: 9999px;
-  margin-bottom: 16px;
-}
-
-.hn-login-heading {
-  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
-  font-size: clamp(28px, 2.8vw, 40px);
-  font-weight: 400;
-  line-height: 1.22;
-  letter-spacing: -0.01em;
-  color: #ffffff;
-  white-space: pre-line;
-  margin-bottom: 14px;
-}
-
-.hn-login-description {
-  color: #c8d8ce;
-  font-size: 14px;
-  line-height: 1.7;
-  margin-bottom: 24px;
-}
-
-/* Living Calm Wave Swell Artwork Box */
-.hn-login-calm-artwork {
-  width: 100%;
-  height: 140px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(197, 160, 89, 0.25);
-  background: rgba(10, 36, 28, 0.5);
-  margin-bottom: 24px;
-  position: relative;
-}
-
-.hn-login-calm-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Calm Pillars */
-.hn-login-pillars {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.hn-login-pillar-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: #d1ded6;
-}
-
-.hn-pillar-bullet {
-  color: #c5a059;
-  font-size: 11px;
-  margin-top: 3px;
-  flex-shrink: 0;
-}
-
-.hn-login-editorial-footer {
-  font-size: 11.5px;
-  color: rgba(200, 215, 205, 0.6);
-  border-top: 1px solid rgba(197, 160, 89, 0.15);
-  padding-top: 16px;
-  margin-top: 24px;
-}
-
-/* ==========================================================================
-   RIGHT REGION: Pure Warm-Ivory Form Area
-   ========================================================================== */
-.hn-login-form-region {
-  background-color: #ffffff;
-  padding: clamp(36px, 4vw, 56px) clamp(28px, 4vw, 64px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
-  width: 100%;
-  color: #20211f;
-}
-
-.hn-login-form-container {
-  max-width: 470px;
-  width: 100%;
-  margin: auto;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
 /* Topbar */
 .hn-login-form-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -245,19 +44,21 @@
 
 .hn-login-form-title {
   font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
-  font-size: clamp(26px, 2.5vw, 33px);
+  font-size: clamp(25px, 2.5vw, 29px);
   font-weight: 500;
   line-height: 1.22;
   letter-spacing: -0.01em;
   color: #1f2421;
-  margin-bottom: 6px;
+  margin: 0 0 10px;
+  text-align: center;
 }
 
 .hn-login-form-sub {
   color: #6b726b;
   font-size: 13.5px;
   line-height: 1.55;
-  margin-bottom: 24px;
+  margin: 0 0 24px;
+  text-align: center;
 }
 
 /* Form Fields */
@@ -273,7 +74,7 @@
 }
 
 .hn-login-field-group:last-of-type {
-  margin-bottom: 24px;
+  margin-bottom: 6px;
 }
 
 .hn-login-label {
@@ -295,11 +96,11 @@
   width: 100%;
   background: #fdfdfd;
   border: 1px solid #ded9ce;
-  border-radius: 10px;
+  border-radius: 14px;
   color: #1f2421;
   font-size: 13.5px;
   padding: 11px 14px;
-  min-height: 44px;
+  min-height: 48px;
   box-sizing: border-box;
   transition: border-color 0.2s ease,
               box-shadow 0.2s ease,
@@ -336,6 +137,7 @@
   align-items: center;
   width: 100%;
 }
+.hn-login-input-wrap .hn-login-input { padding-right: 48px; }
 
 .hn-login-eye-btn {
   position: absolute;
@@ -382,11 +184,13 @@
 }
 
 /* Primary Sand Gold CTA Button */
+.hn-login-page .hn-login-forgot-password { align-self: flex-end; min-height: 44px; display: inline-flex; align-items: center; color: var(--lv-brand-forest); font-size: 14px; }
+.hn-login-page .hn-login-forgot-password:focus-visible { outline: 2px solid var(--lv-border-focus); outline-offset: 3px; }
 .hn-login-cta-btn {
   width: 100%;
   padding: 13px 20px;
   min-height: 46px;
-  background: #c5a059;
+  background: #214d3b;
   color: #ffffff;
   font-size: 14.5px;
   font-weight: 600;
@@ -397,14 +201,14 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.25);
+  box-shadow: 0 4px 14px #214d3b22;
   transition: background-color 0.2s ease,
               transform 0.2s ease,
               box-shadow 0.2s ease;
 }
 
 .hn-login-cta-btn:hover:not(:disabled) {
-  background: #b58f47;
+  background: #163f2e;
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(197, 160, 89, 0.35);
 }
@@ -432,8 +236,40 @@
   transform: translateX(4px);
 }
 
+/* Divider: Hoặc / or */
+.hn-login-divider {
+  display: flex;
+  align-items: center;
+  margin: 18px 0 14px 0;
+  width: 100%;
+}
+
+.hn-login-divider::before,
+.hn-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--lv-border-subtle, #eae5dc);
+}
+
+.hn-login-divider span {
+  padding: 0 14px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--lv-text-muted, #747871);
+  font-weight: 500;
+}
+
+/* Google Sign-in Section */
+.hn-login-google-section {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
 /* Status Notifications Box */
 .hn-login-status-box {
+
   margin-top: 16px;
   padding: 12px 14px;
   border-radius: 10px;
@@ -568,204 +404,15 @@
   color: #c5a059;
 }
 
-/* ==========================================================================
-   ANIMATIONS (Harmonized with PS-1)
-   ========================================================================== */
-@keyframes hnLoginEntranceFadeUp {
-  0% {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.hn-login-page .lv-invitation-entry { margin: 14px 0 0; padding: 8px 0; text-align: center; font-size: 12px; }
+.hn-login-page .hn-login-form-footer { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e8eae2; }
+@media (max-width: 540px) {
+  .hn-login-page { padding: 68px 16px 28px; }
+  .hn-login-form-region { padding: 24px; border-radius: 22px; }
+  .hn-login-back-home { left: 20px; top: 14px; }
+  .hn-login-input { font-size: 16px; }
+  .hn-login-card-brand { margin-bottom: 18px; }
 }
-
-.hn-login-entrance-1 {
-  animation: hnLoginEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 0ms backwards;
-}
-
-.hn-login-entrance-2 {
-  animation: hnLoginEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 110ms backwards;
-}
-
-.hn-login-entrance-3 {
-  animation: hnLoginEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 220ms backwards;
-}
-
-.hn-login-entrance-4 {
-  animation: hnLoginEntranceFadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) 330ms backwards;
-}
-
-/* Living Heritage Wave swells matching PS-1 */
-@keyframes hnLoginWaveGroupBack {
-  0% {
-    transform: translate(0px, 0px) scale(1, 1);
-  }
-  35% {
-    transform: translate(-22px, -6px) scale(1.02, 1.03);
-  }
-  70% {
-    transform: translate(-38px, 4px) scale(0.99, 0.98);
-  }
-  100% {
-    transform: translate(-18px, -8px) scale(1.01, 1.02);
-  }
-}
-
-@keyframes hnLoginWaveGroupFront {
-  0% {
-    transform: translate(-30px, 0px) scale(1, 1);
-  }
-  40% {
-    transform: translate(-8px, 7px) scale(1.02, 0.97);
-  }
-  75% {
-    transform: translate(14px, -5px) scale(0.98, 1.03);
-  }
-  100% {
-    transform: translate(-10px, 4px) scale(1.01, 0.99);
-  }
-}
-
-@keyframes hnLoginGoldShimmerMain {
-  0% {
-    opacity: 0.75;
-    filter: drop-shadow(0 0 1px rgba(217, 185, 120, 0.2));
-  }
-  50% {
-    opacity: 1;
-    filter: drop-shadow(0 0 6px rgba(235, 205, 140, 0.7));
-  }
-  100% {
-    opacity: 0.8;
-    filter: drop-shadow(0 0 2px rgba(217, 185, 120, 0.3));
-  }
-}
-
-@keyframes hnLoginGoldShimmerSub {
-  0% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 0.8;
-  }
-  100% {
-    opacity: 0.4;
-  }
-}
-
-.hn-login-calm-svg .hn-wave-group-back {
-  animation: hnLoginWaveGroupBack 9s ease-in-out infinite alternate;
-  transform-origin: 45% 85%;
-  will-change: transform;
-}
-
-.hn-login-calm-svg .hn-wave-group-front {
-  animation: hnLoginWaveGroupFront 7.5s ease-in-out infinite alternate;
-  transform-origin: 50% 90%;
-  will-change: transform;
-}
-
-.hn-login-calm-svg .hn-gold-main {
-  animation: hnLoginGoldShimmerMain 5s ease-in-out infinite alternate;
-  will-change: opacity, filter;
-}
-
-.hn-login-calm-svg .hn-gold-sub {
-  animation: hnLoginGoldShimmerSub 6s ease-in-out infinite alternate;
-  will-change: opacity;
-}
-
-/* ==========================================================================
-   RESPONSIVE DESIGN FOR LOGIN PAGE
-   ========================================================================== */
-@media (max-width: 1023px) {
-  .hn-login-page {
-    grid-template-columns: 1fr;
-  }
-
-  .hn-login-editorial-region {
-    border-right: none;
-    border-bottom: 1px solid rgba(197, 160, 89, 0.2);
-    padding: 32px 24px;
-  }
-
-  .hn-login-heading {
-    font-size: 26px;
-  }
-
-  .hn-login-form-region {
-    padding: 32px 20px 48px;
-  }
-}
-
-@media (max-width: 767px) {
-  .hn-login-page {
-    display: flex;
-    flex-direction: column;
-    min-height: 100svh;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  .hn-login-editorial-region {
-    display: none; /* Mobile first: Prioritize immediate access to login controls */
-  }
-
-  .hn-login-form-region {
-    padding: 24px 16px 36px;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    overflow-x: hidden;
-  }
-
-  .hn-login-form-container {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
-  .hn-login-input {
-    font-size: 14px; /* Prevent automatic iOS zoom */
-  }
-
-  .hn-login-form-topbar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-}
-
-/* Accessibility: Respect Reduced Motion Preferences */
 @media (prefers-reduced-motion: reduce) {
-  .hn-login-page *,
-  .hn-login-page *::before,
-  .hn-login-page *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-
-  .hn-login-calm-svg .hn-wave-group-back,
-  .hn-login-calm-svg .hn-wave-group-front,
-  .hn-login-calm-svg .hn-gold-main,
-  .hn-login-calm-svg .hn-gold-sub {
-    animation: none !important;
-    transform: none !important;
-  }
-
-  .hn-login-entrance-1,
-  .hn-login-entrance-2,
-  .hn-login-entrance-3,
-  .hn-login-entrance-4 {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
+  .hn-login-page *, .hn-login-page *::before, .hn-login-page *::after { animation: none !important; transition: none !important; }
 }

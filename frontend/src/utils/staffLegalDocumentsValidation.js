@@ -1,28 +1,19 @@
 /**
- * Staff Legal Documents Validation & Client Role Guard — PS-31 / ST-17–19 / LV-BASIS-001
- * Architecture notes:
- * - Client guard strictly verifies active session and STAFF_EXECUTOR role.
- * - Client guard does NOT substitute for backend authorization.
- * - Form validation checks core metadata completeness (issuer, documentNumber, valid issuanceDate).
- * - State preserves language-neutral error keys for instant dynamic VI <-> EN rendering.
+ * Staff Legal Documents Validation & Client Role Guard — PS-31 / PS-96 / LV-BASIS-001
  */
 
 import { staffLegalDocumentsI18n } from '../pages/staff/staffLegalDocumentsI18n.js';
+import { validateEvidenceFile } from './staffEvidenceUpload.js';
 
 export const STAFF_LEGAL_DOCS_ERROR_KEYS = {
   ISSUER_REQUIRED: 'issuerRequired',
   DOCUMENT_NUMBER_REQUIRED: 'documentNumberRequired',
   ISSUANCE_DATE_REQUIRED: 'issuanceDateRequired',
   ISSUANCE_DATE_INVALID: 'issuanceDateInvalid',
+  NOTARY_REQUIRED: 'notaryRequired',
+  FILE_REQUIRED: 'fileRequired',
 };
 
-/**
- * Checks whether the current user session is authorized to access
- * the Staff Legal Basis Documents screen.
- *
- * @param {Object|null|undefined} session
- * @returns {boolean}
- */
 export function canAccessStaffLegalDocuments(session) {
   if (!session || !session.accessToken || typeof session.expiresAt !== 'number') {
     return false;
@@ -40,13 +31,6 @@ export function canAccessStaffLegalDocuments(session) {
   return roles.includes('STAFF_EXECUTOR');
 }
 
-/**
- * Determines the destination path after establishing a session,
- * preserving existing Owner and Legal priorities and routing pure Staff users to /staff/legal-documents.
- *
- * @param {Object} [user]
- * @returns {string}
- */
 export function resolvePostLoginRoute(user) {
   const roles = Array.isArray(user?.roles) ? user.roles : [];
   if (roles.includes('LEGAL_VERIFIER') && !roles.includes('VAULT_OWNER')) {
@@ -55,42 +39,85 @@ export function resolvePostLoginRoute(user) {
   if (roles.includes('STAFF_EXECUTOR') && !roles.includes('VAULT_OWNER')) {
     return '/staff/legal-documents';
   }
-  return '/vault';
+  if (roles.includes('ADMIN') && !roles.includes('VAULT_OWNER')) {
+    return '/admin';
+  }
+  if (roles.includes('BENEFICIARY') && !roles.includes('VAULT_OWNER')) {
+    return '/beneficiary';
+  }
+  return roles.length ? '/vault' : '/shared-with-me';
 }
 
 /**
- * Validates the core legal document metadata form:
- * - issuer must be non-empty after trim
- * - documentNumber must be non-empty after trim
- * - issuanceDate must be non-empty after trim and represent a valid date
- *
- * @param {Object} formValues
- * @param {string} [formValues.issuer] - Name of issuing authority
- * @param {string} [formValues.documentNumber] - Document reference number
- * @param {string} [formValues.issuanceDate] - Issuance date (YYYY-MM-DD or standard parseable format)
- * @returns {{ isValid: boolean, errors: Object.<string, string> }}
+ * Kiểm tra tính hợp lệ của toàn bộ form tiếp nhận văn bản căn cứ pháp lý:
+ * - issuer: bắt buộc, không rỗng
+ * - documentNumber: bắt buộc, không rỗng
+ * - issuanceDate: bắt buộc, yyyy-MM-dd, không ở tương lai
+ * - nếu là NOTARIAL_PARTITION: bắt buộc notaryAuthority, notarialDocumentNumber, notarizedAt (không ở tương lai)
+ * - file: bắt buộc, phải là File hợp lệ theo quy chuẩn PS-98
  */
-export function validateStaffLegalDocumentForm(formValues = {}) {
+export function validateStaffLegalDocumentForm(formValues = {}, options = {}) {
   const errors = {};
-  const { issuer, documentNumber, issuanceDate } = formValues;
+  const {
+    issuer,
+    documentNumber,
+    issuanceDate,
+    legalBasisType,
+    notaryAuthority,
+    notarialDocumentNumber,
+    notarizedAt,
+    file,
+  } = formValues;
 
-  // 1. Validate issuing authority
+  const requireFile = options.requireFile !== false;
+  const lang = options.lang || 'vi';
+
+  // 1. Cơ quan ban hành
   if (!issuer || typeof issuer !== 'string' || !issuer.trim()) {
     errors.issuer = STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUER_REQUIRED;
   }
 
-  // 2. Validate document number
+  // 2. Số hiệu văn bản
   if (!documentNumber || typeof documentNumber !== 'string' || !documentNumber.trim()) {
     errors.documentNumber = STAFF_LEGAL_DOCS_ERROR_KEYS.DOCUMENT_NUMBER_REQUIRED;
   }
 
-  // 3. Validate issuance date
+  // 3. Ngày ban hành
   if (!issuanceDate || typeof issuanceDate !== 'string' || !issuanceDate.trim()) {
     errors.issuanceDate = STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUANCE_DATE_REQUIRED;
   } else {
     const timestamp = Date.parse(issuanceDate);
-    if (isNaN(timestamp)) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (isNaN(timestamp) || issuanceDate > todayStr) {
       errors.issuanceDate = STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUANCE_DATE_INVALID;
+    }
+  }
+
+  // 4. Các trường công chứng nếu loại văn bản là NOTARIAL_PARTITION
+  if (legalBasisType === 'NOTARIAL_PARTITION') {
+    const hasNotaryOrg = Boolean(notaryAuthority && typeof notaryAuthority === 'string' && notaryAuthority.trim());
+    const hasNotaryNum = Boolean(notarialDocumentNumber && typeof notarialDocumentNumber === 'string' && notarialDocumentNumber.trim());
+    const hasNotaryDate = Boolean(notarizedAt && typeof notarizedAt === 'string' && notarizedAt.trim());
+
+    if (!hasNotaryOrg || !hasNotaryNum || !hasNotaryDate) {
+      errors.notary = STAFF_LEGAL_DOCS_ERROR_KEYS.NOTARY_REQUIRED;
+    } else {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (notarizedAt > todayStr || isNaN(Date.parse(notarizedAt))) {
+        errors.notary = STAFF_LEGAL_DOCS_ERROR_KEYS.NOTARY_REQUIRED;
+      }
+    }
+  }
+
+  // 5. Kiểm tra tệp đính kèm
+  if (requireFile) {
+    if (!file) {
+      errors.file = STAFF_LEGAL_DOCS_ERROR_KEYS.FILE_REQUIRED;
+    } else {
+      const fileValidation = validateEvidenceFile(file, lang);
+      if (!fileValidation.isValid) {
+        errors.file = fileValidation.errorMessage;
+      }
     }
   }
 
@@ -100,25 +127,11 @@ export function validateStaffLegalDocumentForm(formValues = {}) {
   };
 }
 
-/**
- * Resolves an error key to a translated string for the specified language.
- *
- * @param {string} errorKey
- * @param {string} [lang='vi']
- * @returns {string}
- */
 export function getStaffLegalDocumentErrorMessage(errorKey, lang = 'vi') {
   const dictionary = staffLegalDocumentsI18n[lang] || staffLegalDocumentsI18n.vi;
   return dictionary[errorKey] || errorKey;
 }
 
-/**
- * Transforms an object of error keys into translated messages.
- *
- * @param {Object.<string, string>} errors
- * @param {string} [lang='vi']
- * @returns {Object.<string, string>}
- */
 export function formatStaffLegalDocumentErrors(errors = {}, lang = 'vi') {
   const formatted = {};
   for (const [field, key] of Object.entries(errors)) {

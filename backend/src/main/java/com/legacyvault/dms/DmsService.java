@@ -45,25 +45,26 @@ public class DmsService {
 	@Transactional
 	public DmsDtos.Response configure(DmsDtos.ConfigureRequest request) {
 		User owner = owners.requireOwner();
+		int interval = policy.resolveMinutes(request);
+		Integer graceMinutes = policy.resolveGraceMinutes(request);
 		Vault vault = ownerVault(owner.getUserId());
-		vaultService.requireEditableVault(vault.getPublicId(), owner.getUserId());
+		vaultService.requireEditableVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		if (beneficiaries.countByVault_VaultId(vault.getVaultId()) < 1) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_REQUIRED);
-		}
-		int interval = request.checkIntervalDays();
-		if (!policy.allowsInterval(interval)) {
-			throw new BusinessException(ErrorCode.VALIDATION_FAILED);
 		}
 		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId()).orElse(null);
 		String stateBefore = config == null ? null : config.getStatus();
 		if (config == null) {
-			config = new DmsConfig(owner.getUserId(), interval, policy.gracePeriodDays(), now.plusDays(interval));
+			config = DmsConfig.withGraceMinutes(owner.getUserId(), interval,
+					graceMinutes != null ? graceMinutes : policy.gracePeriodMinutes(), now.plusMinutes(interval));
 		} else {
 			if (!"MONITORING".equals(config.getStatus())) {
 				throw new BusinessException(ErrorCode.DMS_NOT_MONITORING);
 			}
-			config.configure(interval, now.plusDays(interval));
+			boolean graceOnly = graceMinutes != null && config.getCheckIntervalMinutes() == interval;
+			if (!graceOnly) config.configureMinutes(interval, now.plusMinutes(interval));
+			if (graceMinutes != null) config.setGraceMinutes(graceMinutes);
 		}
 		try {
 			config = configs.saveAndFlush(config);
@@ -73,7 +74,7 @@ public class DmsService {
 		}
 		audit.record(owner.getUserId(), vault.getVaultId(), "DMS_CONFIGURED", "DMS_CONFIG", config.getId(), "USER",
 				Map.of("stateBefore", stateBefore == null ? "NOT_CONFIGURED" : stateBefore,
-						"stateAfter", "MONITORING", "checkIntervalDays", interval, "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
+						"stateAfter", "MONITORING", "checkIntervalMinutes", interval, "gracePeriodMinutes", config.getGracePeriodMinutes(), "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
 		return DmsDtos.Response.from(owner.getPublicId(), config);
 	}
 
@@ -87,18 +88,31 @@ public class DmsService {
 
 	@Transactional
 	public DmsDtos.Response checkIn() {
+		return checkInAt(null);
+	}
+
+	DmsDtos.Response checkInAt(LocalDateTime requestedAt) {
 		User owner = owners.requireOwner();
+		Vault vault = ownerVault(owner.getUserId());
+		vaultService.requireNotArchivedVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		if (!"MONITORING".equals(config.getStatus())) {
+		LocalDateTime now = requestedAt == null ? LocalDateTime.now(ZoneOffset.UTC) : requestedAt;
+		boolean monitoring = DmsConfig.STATUS_MONITORING.equals(config.getStatus());
+		boolean withinGrace = DmsConfig.STATUS_TRIGGERED.equals(config.getStatus())
+				&& config.getGraceDeadline() != null
+				&& config.getGraceDeadline().isAfter(now)
+				&& Vault.STATUS_ACTIVE.equals(vault.getStatus());
+		if (!monitoring && !withinGrace) {
 			throw new BusinessException(ErrorCode.DMS_NOT_MONITORING);
 		}
-		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-		config.checkIn(now);
+		String stateBefore = config.getStatus();
+		if (withinGrace) config.restoreAfterAlert(now);
+		else config.checkIn(now);
 		config = configs.saveAndFlush(config);
-		Long vaultId = ownerVault(owner.getUserId()).getVaultId();
+		Long vaultId = vault.getVaultId();
 		audit.record(owner.getUserId(), vaultId, "DMS_CHECKED_IN", "DMS_CONFIG", config.getId(), "USER",
-				Map.of("stateBefore", "MONITORING", "stateAfter", "MONITORING", "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
+				Map.of("stateBefore", stateBefore, "stateAfter", "MONITORING", "stepId", "ST-06", "ruleId", "LV-DEATH-001"));
 		return DmsDtos.Response.from(owner.getPublicId(), config);
 	}
 

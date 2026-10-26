@@ -1,6 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import MagneticButton from '../common/MagneticButton.jsx';
+import { isPersonalRecipient } from '../../utils/caseLinkModel.js';
+import { trackOwnerSurface } from './ownerSurfaceMotion.js';
+import './OwnerSurfaces.css';
+import LanguageToggle from '../common/LanguageToggle.jsx';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  resolveAppShellAuthState,
+  resolveUserRoleLabel,
+  resolveAccountDisplayName,
+  resolveAccountInitials,
+} from '../../utils/accountProfileValidation.js';
 import './AppShell.css';
+import './WorkspaceFoundation.css';
+import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 
 /**
  * Extensible Navigation Registry for LegacyVault AppShell
@@ -28,7 +39,7 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'assets',
     jiraTicket: 'PS-5',
-    labelVi: 'Danh mục tài sản di sản',
+    labelVi: 'Danh mục tài sản',
     labelEn: 'Heritage Assets',
     status: 'ACTIVE',
   },
@@ -42,13 +53,28 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'beneficiaries',
     jiraTicket: 'PS-8',
-    labelVi: 'Người thụ hưởng & Người giám hộ',
+    labelVi: 'Người thụ hưởng & Người thi hành bên ngoài',
     labelEn: 'Beneficiaries & Trustees',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'shared-with-me',
+    jiraTicket: 'PS-105',
+    labelVi: 'Được chia sẻ với tôi',
+    labelEn: 'Shared with me',
+    status: 'ACTIVE',
+  },
+  {
+    id: 'subscription',
+    jiraTicket: 'CR-01',
+    labelVi: 'Gói sử dụng',
+    labelEn: 'Subscription Plans',
     status: 'ACTIVE',
   },
 ];
 
 const STAFF_NAVIGATION_REGISTRY = [
+  { id: 'cases', labelVi: 'Hồ sơ xác minh', labelEn: 'Verification Cases', status: 'ACTIVE' },
   {
     id: 'legal-documents',
     jiraTicket: 'PS-31',
@@ -56,51 +82,51 @@ const STAFF_NAVIGATION_REGISTRY = [
     labelEn: 'Legal Basis Documents',
     status: 'ACTIVE',
   },
+  {
+    id: 'asset-handover',
+    jiraTicket: 'PS-53',
+    labelVi: 'Bàn giao tài sản',
+    labelEn: 'Asset Handover',
+    status: 'ACTIVE',
+  },
+  { id: 'beneficiary-confirmation', jiraTicket: 'PS-54', labelVi: 'Xác nhận đã nhận tài sản', labelEn: 'Asset receipt confirmation', status: 'ACTIVE' },
+  { id: 'completion-progress', jiraTicket: 'PS-55', labelVi: 'Tiến độ hoàn tất', labelEn: 'Completion Progress', status: 'ACTIVE' },
+  { id: 'close-and-archive', jiraTicket: 'PS-56', labelVi: 'Đóng và lưu trữ hồ sơ', labelEn: 'Close & Archive', status: 'ACTIVE' },
 ];
 
-const LEGAL_NAVIGATION_REGISTRY = [
-  {
-    id: 'death-verification',
-    labelVi: 'Xác minh tử vong',
-    labelEn: 'Death Verification',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'will-document-verification',
-    jiraTicket: 'PS-29',
-    labelVi: 'Đối chiếu di chúc',
-    labelEn: 'Will Verification',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'basis-route-selection',
-    jiraTicket: 'PS-30',
-    labelVi: 'Thẩm định căn cứ',
-    labelEn: 'Basis Adjudication',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'dossier-review',
-    jiraTicket: 'PS-32',
-    labelVi: 'Thẩm định hồ sơ',
-    labelEn: 'Dossier Review',
-    status: 'ACTIVE',
-  },
-];
 
 export default function AppShell({
   children,
   currentTab = 'vault',
   onNavigateTab,
   onLogout,
-  onRefresh,
-  isRefreshing = false,
+  onRefresh: _onRefresh, // eslint-disable-line no-unused-vars
+  isRefreshing: _isRefreshing = false, // eslint-disable-line no-unused-vars
   lang = 'vi',
   onToggleLang,
   role = 'OWNER',
   user = null,
+  session = null,
+  isAuthenticated = undefined,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [prevTab, setPrevTab] = useState(currentTab);
+  const [prevMobileMenuOpen, setPrevMobileMenuOpen] = useState(mobileMenuOpen);
+  const accountFooterRef = useRef(null);
+  const badgeButtonRef = useRef(null);
+
+  // Close account menu during render when currentTab or mobileMenuOpen changes
+  if (currentTab !== prevTab) {
+    setPrevTab(currentTab);
+    setIsAccountMenuOpen(false);
+  }
+  if (mobileMenuOpen !== prevMobileMenuOpen) {
+    setPrevMobileMenuOpen(mobileMenuOpen);
+    if (!mobileMenuOpen) {
+      setIsAccountMenuOpen(false);
+    }
+  }
 
   // Close mobile drawer on route change or resize
   useEffect(() => {
@@ -110,6 +136,31 @@ export default function AppShell({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Close account popover menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (accountFooterRef.current && !accountFooterRef.current.contains(event.target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsAccountMenuOpen(false);
+        badgeButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
 
   // Cursor-reactive spotlight tracking for sidebar nav item
   const handleNavItemMouseMove = useCallback((e) => {
@@ -133,6 +184,18 @@ export default function AppShell({
 
   const isStaff = role === 'STAFF';
   const isLegal = role === 'LEGAL';
+  const isBeneficiary = role === 'BENEFICIARY';
+  const isAdmin = role === 'ADMIN';
+  const isOwner = role === 'OWNER' || (!isStaff && !isLegal && !isAdmin && !isBeneficiary);
+  const isOwnerOrBeneficiary = isOwner || isBeneficiary;
+
+  const handleNavigateHome = useCallback(() => {
+    if (typeof onNavigateTab === 'function') {
+      onNavigateTab('home');
+    } else if (typeof window !== 'undefined') {
+      window.location.href = lang === 'en' ? '/?lang=en' : '/?lang=vi';
+    }
+  }, [onNavigateTab, lang]);
 
   const content = {
     vi: {
@@ -152,7 +215,7 @@ export default function AppShell({
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
       breadcrumbCurrent: isStaff
-        ? 'Hồ sơ căn cứ pháp lý'
+        ? (currentTab === 'close-and-archive' ? 'Đóng và lưu trữ hồ sơ' : currentTab === 'completion-progress' ? 'Tiến độ hoàn tất' : currentTab === 'beneficiary-confirmation' ? 'Xác nhận đã nhận tài sản' : currentTab === 'asset-handover' ? 'Bàn giao tài sản' : currentTab === 'cases' ? 'Hồ sơ xác minh' : 'Hồ sơ căn cứ pháp lý')
         : isLegal
           ? 'Xác minh tử vong'
           : 'Kho di sản cá nhân',
@@ -163,16 +226,12 @@ export default function AppShell({
           ? 'Chuyên viên Pháp lý'
           : 'Chủ sở hữu kho',
       logout: 'Đăng xuất',
-      userDisplay: isStaff
-        ? (user?.fullName || user?.email || 'Nhân viên thực thi')
-        : isLegal
-          ? (user?.fullName || user?.email || 'Chuyên viên Pháp lý')
-          : (user?.fullName || 'Chủ sở hữu kho'),
-      userInitials: isStaff
-        ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'SE')
-        : isLegal
-          ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
-          : 'VO',
+      accountCardAria: 'Tùy chọn tài khoản',
+      accountMenuTitle: 'Menu tài khoản',
+      accountProfile: 'Hồ sơ tài khoản',
+      editProfile: 'Chỉnh sửa hồ sơ',
+      neutralAccount: 'Tài khoản',
+      backToHome: 'Về trang chủ',
     },
     en: {
       brandTag: isStaff
@@ -191,7 +250,7 @@ export default function AppShell({
           ? 'Legal Portal'
           : 'Dashboard',
       breadcrumbCurrent: isStaff
-        ? 'Legal Basis Documents'
+        ? (currentTab === 'close-and-archive' ? 'Close & Archive' : currentTab === 'completion-progress' ? 'Completion Progress' : currentTab === 'beneficiary-confirmation' ? 'Asset receipt confirmation' : currentTab === 'asset-handover' ? 'Asset Handover' : currentTab === 'cases' ? 'Verification Cases' : 'Legal Basis Documents')
         : isLegal
           ? 'Death Verification'
           : 'Personal Heritage Vault',
@@ -202,25 +261,75 @@ export default function AppShell({
           ? 'Legal Verifier'
           : 'Vault Owner',
       logout: 'Sign out',
-      userDisplay: isStaff
-        ? (user?.fullName || user?.email || 'Staff Executor')
-        : isLegal
-          ? (user?.fullName || user?.email || 'Legal Verifier')
-          : (user?.fullName || 'Vault Owner'),
-      userInitials: isStaff
-        ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'SE')
-        : isLegal
-          ? (user?.fullName ? user.fullName.split(' ').map((s) => s[0]).join('').substring(0, 2).toUpperCase() : 'LV')
-          : 'VO',
+      accountCardAria: 'Account options',
+      accountMenuTitle: 'Account menu',
+      accountProfile: 'Account Profile',
+      editProfile: 'Edit Profile',
+      neutralAccount: 'Account',
+      backToHome: 'Back to home',
     },
   };
 
   const t = content[lang] || content.vi;
-  const navList = isStaff
+  if (isAdmin) {
+    t.brandTag = lang === 'en' ? 'Administrator account' : 'Tài khoản quản trị';
+    t.navSectionTitle = lang === 'en' ? 'ADMINISTRATION' : 'QUẢN TRỊ';
+    t.breadcrumbHome = lang === 'en' ? 'Administration' : 'Quản trị';
+    t.breadcrumbCurrent = currentTab === 'admin-subscriptions'
+      ? (lang === 'en' ? 'Subscription management' : 'Quản lý gói sử dụng')
+      : currentTab === 'admin-users'
+      ? (lang === 'en' ? 'Users' : 'Người dùng')
+      : currentTab === 'admin-logs'
+      ? (lang === 'en' ? 'Audit logs' : 'Nhật ký')
+      : (lang === 'en' ? 'Administration overview' : 'Tổng quan quản trị');
+    t.roleBadge = lang === 'en' ? 'Administrator' : 'Quản trị viên';
+  }
+  if (isBeneficiary) {
+    t.brandTag = lang === 'en' ? 'Beneficiary account' : 'Tài khoản người thụ hưởng';
+    t.navSectionTitle = lang === 'en' ? 'BENEFICIARY' : 'NGƯỜI THỤ HƯỞNG';
+    t.breadcrumbHome = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
+    t.breadcrumbCurrent = currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : (lang === 'en' ? 'Account information' : 'Thông tin tài khoản');
+    t.roleBadge = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
+  }
+  const navList = isAdmin
+    ? [
+        { id: 'admin-home', labelVi: 'Tổng quan quản trị', labelEn: 'Administration overview', status: 'ACTIVE' },
+        { id: 'admin-users', labelVi: 'Người dùng', labelEn: 'Users', status: 'ACTIVE' },
+        { id: 'admin-subscriptions', labelVi: 'Quản lý gói sử dụng', labelEn: 'Subscription management', status: 'ACTIVE' },
+        { id: 'admin-logs', labelVi: 'Nhật ký', labelEn: 'Audit logs', status: 'ACTIVE' },
+      ]
+    : isBeneficiary
+      ? [
+          { id: 'shared-with-me', labelVi: 'Được chia sẻ với tôi', labelEn: 'Shared with me', status: 'ACTIVE' },
+          { id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary Information', status: 'ACTIVE' },
+        ]
+    : isStaff
     ? STAFF_NAVIGATION_REGISTRY
     : isLegal
       ? LEGAL_NAVIGATION_REGISTRY
       : NAVIGATION_REGISTRY;
+
+  const hasSession = resolveAppShellAuthState({
+    isAuthenticated,
+    session,
+    user,
+    onLogout,
+  });
+  // Immediately clear user reference when there is no active session to prevent stale info
+  const resolvedUser = hasSession ? (session?.user || user || null) : null;
+  const displayRole = hasSession
+    ? resolveUserRoleLabel(resolvedUser, session, role, lang)
+    : null;
+  const displayName = resolveAccountDisplayName(
+    resolvedUser,
+    session,
+    hasSession,
+    displayRole,
+    lang
+  );
+  const displayInitials = hasSession
+    ? (resolveAccountInitials(displayName) || (isStaff ? 'SE' : isLegal ? 'LV' : 'VO'))
+    : '';
 
   return (
     <div className="lv-shell">
@@ -267,7 +376,7 @@ export default function AppShell({
         <nav className="lv-sidebar-nav" aria-label="Menu chức năng">
           <span className="lv-nav-heading">{t.navSectionTitle}</span>
           <ul className="lv-nav-list">
-            {navList.filter((item) => item.status === 'ACTIVE').map((item) => (
+            {navList.filter((item) => item.status === 'ACTIVE' && (item.id !== 'shared-with-me' || isBeneficiary || isPersonalRecipient(resolvedUser?.roles || []))).map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -282,13 +391,36 @@ export default function AppShell({
                 >
                   <span className="lv-nav-spotlight" aria-hidden="true" />
                   <span className="lv-nav-icon" aria-hidden="true">
-                    {item.id === 'legal-documents' ? (
+                    {item.id === 'subscription' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                      </svg>
+                    ) : item.id === 'legal-documents' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
                         <line x1="16" y1="13" x2="8" y2="13" />
                         <line x1="16" y1="17" x2="8" y2="17" />
                         <line x1="10" y1="9" x2="8" y2="9" />
+                      </svg>
+                    ) : item.id === 'beneficiary-confirmation' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <polyline points="16 11 18 13 22 9" />
+                      </svg>
+                    ) : item.id === 'completion-progress' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 20V10" />
+                        <path d="M18 20V4" />
+                        <path d="M6 20v-4" />
+                      </svg>
+                    ) : item.id === 'close-and-archive' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="21 8 21 21 3 21 3 8" />
+                        <rect x="1" y="3" width="22" height="5" />
+                        <line x1="10" y1="12" x2="14" y2="12" />
                       </svg>
                     ) : item.id === 'death-verification' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -317,10 +449,33 @@ export default function AppShell({
                         <line x1="16" y1="17" x2="8" y2="17" />
                         <polyline points="10 9 9 9 8 9" />
                       </svg>
+                    ) : item.id === 'approval-review' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8 12 3 3 5-6" />
+                      </svg>
+                    ) : item.id === 'controlled-unlock' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <rect x="4" y="10" width="16" height="11" rx="2" />
+                        <path d="M8 10V6a4 4 0 0 1 8 0" />
+                        <path d="M12 14v3" />
+                      </svg>
                     ) : item.id === 'dms' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    ) : item.id === 'cases' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                        <path d="m9 14 2 2 4-4" />
+                      </svg>
+                    ) : item.id === 'asset-handover' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
                       </svg>
                     ) : (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -343,31 +498,312 @@ export default function AppShell({
           </ul>
         </nav>
 
-        {/* User Role Footer - Hidden when unauthenticated for staff/legal to avoid impersonation */}
-        {((!isStaff && !isLegal) || Boolean(user)) && (
-          <div className="lv-sidebar-footer">
-            <div className="lv-user-badge-card">
-              <div className="lv-user-avatar-initials" aria-hidden="true">
-                {t.userInitials}
+        {/* User Account Footer & Floating Popover Menu */}
+        <div className="lv-sidebar-footer" ref={accountFooterRef}>
+          {isAccountMenuOpen && (
+            <div
+              id="lv-account-popover-menu"
+              className="lv-account-popover-menu"
+              role="menu"
+              aria-label={t.accountMenuTitle}
+            >
+              <div className="lv-account-popover-header" role="presentation">
+                <div
+                  className={`lv-account-popover-avatar ${!hasSession ? 'is-neutral' : ''}`}
+                  aria-hidden="true"
+                >
+                  {hasSession ? (
+                    displayInitials
+                  ) : (
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </div>
+                <div className="lv-account-popover-user">
+                  <span className="lv-account-popover-name">{displayName}</span>
+                  {hasSession && displayRole && (
+                    <span className="lv-account-popover-sub">{displayRole}</span>
+                  )}
+                </div>
               </div>
-              <div className="lv-user-info">
-                <span className="lv-user-name">{t.userDisplay}</span>
-                <span className="lv-user-role">{t.roleBadge}</span>
-              </div>
+
+              <div className="lv-account-popover-divider" role="separator" />
+
+              <ul className="lv-account-popover-list" role="none">
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`lv-account-menu-item ${currentTab === 'account-profile' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      setMobileMenuOpen(false);
+                      if (typeof onNavigateTab === 'function') {
+                        onNavigateTab('account-profile');
+                      }
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    <span>{t.accountProfile}</span>
+                    {currentTab === 'account-profile' && (
+                      <span className="lv-menu-active-dot" aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`lv-account-menu-item ${currentTab === 'account-edit' ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      setMobileMenuOpen(false);
+                      if (typeof onNavigateTab === 'function') {
+                        onNavigateTab('account-edit');
+                      }
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    <span>{t.editProfile}</span>
+                    {currentTab === 'account-edit' && (
+                      <span className="lv-menu-active-dot" aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+
+                {isOwnerOrBeneficiary && (
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="lv-account-menu-item lv-account-menu-item--home"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setMobileMenuOpen(false);
+                        handleNavigateHome();
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      <span>{t.backToHome}</span>
+                    </button>
+                  </li>
+                )}
+
+                {hasSession && <li role="none"><a role="menuitem" className="lv-account-menu-item"
+                  href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
+                  {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
+                </a></li>}
+                {hasSession && resolvedUser?.roles && (
+                  <>
+                    {!isBeneficiary && (resolvedUser.roles.includes('BENEFICIARY') || resolvedUser.roles.includes('ROLE_BENEFICIARY')) && (
+                      <li role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="lv-account-menu-item"
+                          onClick={() => {
+                            setIsAccountMenuOpen(false);
+                            setMobileMenuOpen(false);
+                            if (typeof onNavigateTab === 'function') onNavigateTab('beneficiary-home');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                          <span>{lang === 'en' ? 'Beneficiary Portal' : 'Cổng Người thụ hưởng'}</span>
+                        </button>
+                      </li>
+                    )}
+                    {isBeneficiary && resolvedUser.roles.includes('VAULT_OWNER') && (
+                      <li role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="lv-account-menu-item"
+                          onClick={() => {
+                            setIsAccountMenuOpen(false);
+                            setMobileMenuOpen(false);
+                            if (typeof onNavigateTab === 'function') onNavigateTab('vault');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <path d="M7 7h10v10H7z" />
+                          </svg>
+                          <span>{lang === 'en' ? 'Heritage Vault' : 'Kho di sản'}</span>
+                        </button>
+                      </li>
+                    )}
+                    {isBeneficiary && resolvedUser.roles.includes('STAFF_EXECUTOR') && (
+                      <li role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="lv-account-menu-item"
+                          onClick={() => {
+                            setIsAccountMenuOpen(false);
+                            setMobileMenuOpen(false);
+                            if (typeof onNavigateTab === 'function') onNavigateTab('cases');
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                            <rect x="8" y="2" width="8" height="4" rx="1" />
+                          </svg>
+                          <span>{lang === 'en' ? 'Staff Portal' : 'Cổng Nhân viên'}</span>
+                        </button>
+                      </li>
+                    )}
+                  </>
+                )}
+                <li role="separator" className="lv-account-popover-divider" />
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="lv-account-menu-item lv-account-menu-item--logout"
+                    disabled={!hasSession || typeof onLogout !== 'function'}
+                    aria-disabled={!hasSession || typeof onLogout !== 'function'}
+                    title={t.logout}
+                    onClick={() => {
+                      if (!hasSession || typeof onLogout !== 'function') {
+                        return;
+                      }
+                      setIsAccountMenuOpen(false);
+                      setMobileMenuOpen(false);
+                      onLogout();
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    <span>{t.logout}</span>
+                  </button>
+                </li>
+              </ul>
             </div>
-            {typeof onLogout === 'function' && (
-              <MagneticButton
-                type="button"
-                className="lv-sidebar-logout-btn"
-                onClick={onLogout}
-                maxOffset={4}
-              >
-                <span aria-hidden="true">↳</span>
-                <span>{t.logout}</span>
-              </MagneticButton>
-            )}
-          </div>
-        )}
+          )}
+
+          <button
+            ref={badgeButtonRef}
+            type="button"
+            className={`lv-user-badge-card ${isAccountMenuOpen ? 'is-menu-open' : ''} ${currentTab === 'account-profile' || currentTab === 'account-edit' ? 'is-active' : ''}`}
+            onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={isAccountMenuOpen}
+            aria-controls="lv-account-popover-menu"
+            aria-label={t.accountCardAria}
+            title={t.accountCardAria}
+          >
+            <div
+              className={`lv-user-avatar-initials ${!hasSession ? 'is-neutral' : ''}`}
+              aria-hidden="true"
+            >
+              {hasSession ? (
+                displayInitials
+              ) : (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </div>
+            <div className="lv-user-info">
+              <span className="lv-user-name">{displayName}</span>
+              {hasSession && displayRole && (
+                <span className="lv-user-role">{displayRole}</span>
+              )}
+            </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`lv-user-card-chevron ${isAccountMenuOpen ? 'is-open' : ''}`}
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+        </div>
       </aside>
 
       {/* ====================================================================
@@ -396,22 +832,18 @@ export default function AppShell({
               <span className="lv-crumb-dim">{t.breadcrumbHome}</span>
               <span className="lv-crumb-sep" aria-hidden="true">/</span>
               <span className="lv-crumb-active">
-                {isStaff
+                {currentTab === 'account-profile'
+                  ? (lang === 'en' ? 'Account Profile' : 'Hồ sơ tài khoản')
+                  : currentTab === 'account-edit'
+                  ? (lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ')
+                  : isStaff
                   ? currentTab === 'legal-documents'
                     ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
                     : t.breadcrumbCurrent
                   : isLegal
-                    ? currentTab === 'dossier-review'
-                      ? (lang === 'en' ? 'Dossier Review' : 'Thẩm định hồ sơ')
-                      : currentTab === 'basis-route-selection'
-                        ? (lang === 'en' ? 'Basis Adjudication' : 'Thẩm định căn cứ')
-                        : currentTab === 'will-document-verification'
-                          ? (lang === 'en' ? 'Will Document Verification' : 'Đối chiếu di chúc')
-                          : currentTab === 'death-verification'
-                            ? (lang === 'en' ? 'Death Verification' : 'Xác minh tử vong')
-                            : t.breadcrumbCurrent
-                  : currentTab === 'beneficiaries'
-                    ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người giám hộ')
+                    ? LEGAL_NAVIGATION_REGISTRY.find(item => item.id === currentTab)?.[lang === 'en' ? 'labelEn' : 'labelVi'] || t.breadcrumbCurrent
+                  : currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
+                    ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người thi hành bên ngoài')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')
                       : currentTab === 'assets'
@@ -425,48 +857,39 @@ export default function AppShell({
 
           {/* Right Header Utilities: Refresh, Language Switcher */}
           <div className="lv-header-right">
-            {typeof onRefresh === 'function' && (
-              <MagneticButton
+            {isOwnerOrBeneficiary && (
+              <button
                 type="button"
-                className={`lv-header-action-btn ${isRefreshing ? 'is-spinning' : ''}`}
-                onClick={onRefresh}
-                title={t.refreshTitle}
-                aria-label={t.refreshTitle}
-                disabled={isRefreshing}
-                maxOffset={3}
+                className="lv-header-action-btn lv-header-home-btn"
+                onClick={handleNavigateHome}
+                title={t.backToHome}
+                aria-label={t.backToHome}
               >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M23 4v6h-6" />
-                  <path d="M1 20v-6h6" />
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
-              </MagneticButton>
+                <span className="lv-header-home-text">{t.backToHome}</span>
+              </button>
             )}
 
             {/* Language Toggle Pill */}
-            <div className="lv-shell-lang-toggle" role="group" aria-label="Ngôn ngữ / Language">
-              <button
-                type="button"
-                className={`lv-lang-btn ${lang === 'vi' ? 'is-active' : ''}`}
-                onClick={() => onToggleLang && onToggleLang('vi')}
-                aria-pressed={lang === 'vi'}
-              >
-                VI
-              </button>
-              <button
-                type="button"
-                className={`lv-lang-btn ${lang === 'en' ? 'is-active' : ''}`}
-                onClick={() => onToggleLang && onToggleLang('en')}
-                aria-pressed={lang === 'en'}
-              >
-                EN
-              </button>
-            </div>
+            <LanguageToggle lang={lang} onToggleLang={onToggleLang} />
           </div>
         </header>
 
         {/* Scrollable Content Container */}
-        <main id="main-content" className="lv-shell-content">
+        <main id="main-content" className={`lv-shell-content ${isStaff ? 'lv-staff-surfaces' : ['vault', 'assets', 'dms', 'wills', 'beneficiaries', 'subscription', 'shared-with-me'].includes(currentTab) ? 'lv-owner-surfaces' : ''}`} onPointerMove={trackOwnerSurface}>
           {children}
         </main>
       </div>

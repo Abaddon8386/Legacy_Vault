@@ -56,13 +56,19 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Nhóm | `action` | Ticket nguồn |
 |---|---|---|
 | Auth | `AUTH_REGISTERED`, `AUTH_LOGIN_SUCCEEDED`, `AUTH_LOGIN_FAILED` | PS-9, PS-10 |
+| Auth profile | `AUTH_PROFILE_UPDATED` (kết quả và chỉ tên trường đã đổi; không ghi giá trị email/phone/password) | PS-79; thay email/password yêu cầu `currentPassword` qua `PasswordReauthService` |
 | Vault | `VAULT_CREATED`, `VAULT_ALERT_CANCELLED` | PS-12, PS-33 |
 | Asset | `ASSET_CREATED`, `ASSET_UPDATED`, `ASSET_REVEALED` | PS-15, PS-16 |
-| Xác nhận lại mật khẩu | `REAUTH_FAILED` (mỗi lần sai; là bộ đếm cho giới hạn thử, D-API-32) | PS-16 |
+| Tài sản đã nhận (Beneficiary) | `RECEIVED_ASSET_OPENED`, `RECEIVED_ASSET_IMAGE_OPENED` (không ghi nội dung) | PS-104 |
+| Tài liệu đính kèm tài sản | `ASSET_DOCUMENT_ADDED`, `ASSET_DOCUMENT_OPENED`, `ASSET_DOCUMENT_REMOVED` (không ghi tên tệp hay nội dung) | PS-114 |
+| Tệp đính kèm giấy tờ tiếp nhận | `INTAKE_ATTACHMENT_UPLOADED`; `EVIDENCE_FILE_READ` (mỗi lần đọc nội dung tệp đính kèm hoặc file phiên bản căn cứ; không ghi tên file/nội dung) | PS-103 |
+| Xác nhận lại mật khẩu | `REAUTH_FAILED` (mỗi lần sai khi xem/sửa nội dung bảo mật hoặc đổi email/password; là bộ đếm giới hạn dùng chung) | PS-16, PS-79, PS-111 |
 | Will | `WILL_UPLOADED`, `WILL_VERSION_ADDED`, `WILL_FILE_OPENED` | PS-17, PS-18 |
 | Trustee | `TRUSTEE_APPOINTED`, `TRUSTEE_UPDATED`, `TRUSTEE_REVOKED`, `TRUSTEE_CONTACT_RECORDED` | PS-19, PS-44 |
 | Beneficiary | `BENEFICIARY_ADDED`, `BENEFICIARY_UPDATED` | PS-20 |
 | Identity verification | `BENEFICIARY_IDENTITY_VERIFIED` | PS-45 |
+| Guardian của Beneficiary | `BENEFICIARY_GUARDIAN_RECORDED`, `BENEFICIARY_GUARDIAN_REVOKED` (ID công khai của Beneficiary, revision; không tên/email/điện thoại guardian) | PS-113 |
+| Tài khoản Beneficiary | `BENEFICIARY_ACCOUNT_LINKED`, `BENEFICIARY_ACCOUNT_CREATED` (ID công khai của Beneficiary và tài khoản, trạng thái trước/sau; không email, mật khẩu hay số giấy tờ) | PS-62, PS-63 (ST-24) |
 | DMS | `DMS_CONFIGURED`, `DMS_CHECKED_IN`, `DMS_TRIGGERED`, `DMS_GRACE_PERIOD_EXCEEDED` | PS-22, PS-23 |
 | Verification case | `VERIFICATION_CASE_CREATED`, `VERIFICATION_CASE_CLAIMED` | ST-09 |
 | Giấy tờ khai tử | `DEATH_DOCUMENT_RECORDED` (loại + ID công khai; không số giấy tờ) | PS-38 (ST-11) |
@@ -71,6 +77,7 @@ Nhờ chuẩn hóa tập trung này, các caller như PS-33 Cancel Alert không 
 | Đối chiếu di chúc gốc | `WILL_COMPARISON_RECORDED` (kết quả, ID công khai, phiên bản, hash; không ghi lý do) | PS-40 (ST-15) |
 | Hồ sơ căn cứ phân chia | `LEGAL_BASIS_CLASSIFIED` (nhánh, ID công khai; không ghi lý do), `LEGAL_BASIS_RECEIVED` (loại, phiên bản, hash; không ghi số văn bản) | PS-41 (ST-16, ST-18) |
 | Hồ sơ căn cứ phân chia (chuyển) | `LEGAL_BASIS_FORWARDED` (phiên bản, ID công khai; Vault `AWAITING_LEGAL_BASIS` → `LEGAL_BASIS_VERIFICATION`) | PS-42 (ST-19) |
+| Bàn giao tài sản | `HANDOVER_ASSET_DELIVERED` (ID công khai của phiên, hồ sơ, người nhận, các hạng mục; trạng thái Vault trước/sau; không nội dung tài sản) | PS-65 (ST-25) |
 | Hồ sơ căn cứ phân chia (phân loại lại) | `LEGAL_BASIS_RECLASSIFIED` (nhánh trước/sau, tranh chấp; không ghi lý do; Vault `ON_HOLD` → `AWAITING_LEGAL_BASIS`) | PS-43 (ST-16, LV-HOLD-001) |
 
 ## Giao diện nội bộ

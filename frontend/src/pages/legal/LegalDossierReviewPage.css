@@ -406,23 +406,6 @@
   transition: opacity 0.2s;
 }
 
-.lv-legal-dossier-review-view .lv-btn-reset {
-  background-color: transparent;
-  color: var(--lv-text-muted, #6b726b);
-  border: 1px solid var(--lv-border-medium, #ded9ce);
-  border-radius: 8px;
-  padding: 12px 18px;
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.lv-legal-dossier-review-view .lv-btn-reset:hover {
-  background-color: #f7f5f0;
-  color: var(--lv-text-heading, #1f2421);
-}
-
 .lv-legal-dossier-review-view .lv-action-helper-notice {
   display: flex;
   align-items: center;
@@ -566,8 +549,7 @@
   }
 
   .lv-legal-dossier-review-view .lv-btn-submit-disabled,
-  .lv-legal-dossier-review-view .lv-btn-validate-local,
-  .lv-legal-dossier-review-view .lv-btn-reset {
+  .lv-legal-dossier-review-view .lv-btn-validate-local {
     width: 100%;
     justify-content: center;
   }

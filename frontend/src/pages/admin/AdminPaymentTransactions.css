@@ -1,0 +1,178 @@
+.lv-payments {
+  min-inline-size: 0;
+}
+
+.lv-payment-empty {
+  padding: 36px 24px;
+  text-align: center;
+  color: var(--admin-muted);
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+}
+
+.lv-payment-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-block-end: 24px;
+  padding: 20px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.lv-payment-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1 1 180px;
+  min-inline-size: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--admin-muted);
+}
+
+.lv-payment-table-wrap {
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lv-payment-pagination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-block: 18px;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.lv-payment-pagination label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.lv-payment-pagination select {
+  inline-size: auto;
+}
+
+.lv-payments :is(.lv-payment-pagination button, td button, .lv-payment-detail > button) {
+  min-block-size: 44px;
+  padding: 10px 16px;
+  border: 1px solid #ccd6cd;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--admin-ink);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.lv-payments td:nth-child(4) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.lv-payments > [role='alert'], .lv-payment-detail > [role='alert'] {
+  padding: 16px 20px;
+  border: 1px solid #edccc7;
+  border-inline-start-width: 4px;
+  border-radius: 12px;
+  background: #fff4f2;
+  color: #a13c35;
+}
+
+.lv-payments > [role='status'] {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.lv-payment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(13 37 28 / .42);
+  backdrop-filter: blur(3px);
+}
+
+.lv-payment-detail {
+  inline-size: 640px;
+  max-inline-size: 100%;
+  max-block-size: calc(100dvh - 32px);
+  padding: 24px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  box-shadow: 0 20px 80px #0d251c30;
+}
+
+.lv-payment-detail h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.lv-payment-detail > button {
+  float: inline-end;
+  margin-block-end: 12px;
+}
+
+.lv-payment-detail dl {
+  clear: both;
+  margin: 0;
+}
+
+.lv-payment-detail dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 16px;
+  padding-block: 14px;
+  border-block-end: 1px solid #e8ede5;
+}
+
+.lv-payment-detail dt {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.lv-payment-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+@container admin-subscriptions (max-width: 520px) {
+  .lv-payment-filters label {
+    flex-basis: 100%;
+  }
+  .lv-payment-filters .lv-admin-sub-btn {
+    flex: 1;
+  }
+  .lv-payment-pagination label {
+    margin-inline-start: 0;
+    inline-size: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .lv-payment-detail {
+    padding: 18px;
+  }
+  .lv-payment-detail dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

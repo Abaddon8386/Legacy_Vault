@@ -1,0 +1,637 @@
+/* Subscription administration uses the same workspace tokens as the directory. */
+
+.lv-admin-sub-page {
+  container: admin-subscriptions / inline-size;
+}
+
+.lv-admin-sub-header {
+  margin-block-end: 24px;
+}
+
+.lv-admin-sub-title {
+  margin: 8px 0;
+  color: var(--admin-ink);
+  font-size: clamp(26px, 3cqi, 34px);
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+
+.lv-admin-sub-subtitle {
+  margin: 0;
+  max-inline-size: 76ch;
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-back-link {
+  border: 0;
+  padding: 8px 0;
+  background: none;
+  color: var(--admin-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lv-admin-sub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-block-end: 1px solid var(--admin-line);
+  padding-block-end: 12px;
+  margin-block-end: 24px;
+}
+
+.lv-admin-sub-tab-btn {
+  min-block-size: 44px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.lv-admin-sub-tab-btn:hover {
+  background: #eef3eb;
+}
+
+.lv-admin-sub-tab-btn.active {
+  background: #244b3d;
+  color: #fff;
+}
+
+.lv-admin-sub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-end: 16px;
+}
+
+.lv-admin-sub-toolbar p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-content {
+  min-inline-size: 0;
+}
+
+.lv-admin-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-block-end: 24px;
+}
+
+.lv-admin-sub-card {
+  min-inline-size: 0;
+  padding: 24px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.lv-admin-sub-card:hover {
+  border-color: #7c9b80;
+}
+
+.lv-admin-sub-card.selected {
+  border-color: #547c59;
+  box-shadow: 0 0 0 2px #547c5920;
+}
+
+.lv-admin-sub-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lv-admin-sub-card-name {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.lv-admin-sub-card-price {
+  min-block-size: 68px;
+  display: flex;
+  align-items: center;
+  padding-block: 16px;
+}
+
+.lv-admin-sub-price-num {
+  font-size: clamp(22px, 2.6cqi, 28px);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-sub-limit-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 10px;
+  border-block-end: 1px solid #edf0e9;
+  font-size: 13px;
+}
+
+.lv-admin-sub-limit-label {
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-limit-value {
+  font-weight: 650;
+}
+
+.lv-admin-sub-card-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block-start: 18px;
+}
+
+.lv-admin-sub-card-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: #38634e;
+}
+
+.lv-admin-sub-version-badge {
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+
+.lv-admin-sub-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid #dce4d7;
+  border-radius: 6px;
+  color: #52674d;
+  background: #f1f5ed;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.lv-admin-sub-badge--draft {
+  color: #855a19;
+  background: #fff6e6;
+  border-color: #f0dcba;
+}
+
+.lv-admin-sub-badge--published {
+  color: #246342;
+  background: #eaf5ed;
+  border-color: #cfe5d4;
+}
+
+.lv-admin-sub-badge--deprecated {
+  color: #64716b;
+  background: #f2f3f0;
+}
+
+.lv-admin-sub-detail-panel {
+  padding: 24px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+  min-inline-size: 0;
+}
+
+.lv-admin-sub-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-block-end: 24px;
+}
+
+.lv-admin-sub-detail-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.lv-admin-sub-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lv-admin-sub-versions-list {
+  overflow-x: auto;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  overscroll-behavior-inline: contain;
+}
+
+.lv-admin-sub-table {
+  inline-size: 100%;
+  min-inline-size: 900px;
+  border-collapse: collapse;
+  text-align: start;
+  font-size: 13px;
+}
+
+.lv-admin-sub-table th {
+  padding: 14px 16px;
+  background: #eff3ee;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4e6759;
+  white-space: nowrap;
+}
+
+.lv-admin-sub-table td {
+  padding: 16px;
+  border-block-start: 1px solid #e8ede5;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-sub-table tbody tr:hover {
+  background: #fafcf8;
+}
+
+.lv-admin-sub-table .cell-note {
+  min-inline-size: 120px;
+  max-inline-size: 240px;
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-table .cell-actions {
+  min-inline-size: 180px;
+}
+
+.lv-admin-sub-table .cell-actions button {
+  margin: 3px;
+}
+
+.lv-admin-sub-page :is(.lv-admin-sub-btn, .lv-admin-sub-btn-sm) {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 44px;
+  max-inline-size: 100%;
+  border: 1px solid #ccd6cd;
+  border-radius: 9px;
+  background: #fff;
+  padding: 10px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 650;
+  color: var(--admin-ink);
+  cursor: pointer;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn-sm {
+  padding-inline: 12px;
+  font-size: 12px;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn--primary {
+  background: #244b3d;
+  color: #fff;
+  border-color: #244b3d;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn--primary:hover:not(:disabled) {
+  background: #193d2f;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn--secondary:hover:not(:disabled) {
+  background: #f2f6f0;
+  border-color: #78967f;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn--text {
+  border-color: transparent;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn--danger {
+  background: #fff4f2;
+  color: #a13c35;
+  border-color: #edccc7;
+}
+
+.lv-admin-sub-page .lv-admin-sub-btn--gold {
+  background: #f8edd7;
+  color: #765419;
+  border-color: #ddc18d;
+}
+
+.lv-admin-sub-alert {
+  padding: 16px 20px;
+  border: 1px solid;
+  border-inline-start-width: 4px;
+  border-radius: 12px;
+  margin-block-end: 20px;
+}
+
+.lv-admin-sub-alert--error {
+  background: #fff4f2;
+  border-color: #edccc7;
+  color: #a13c35;
+}
+
+.lv-admin-sub-alert--success {
+  background: #edf6ee;
+  border-color: #c1d8c1;
+  color: #286341;
+}
+
+.lv-admin-sub-loading {
+  padding: 32px;
+  text-align: center;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-text-muted, .lv-admin-sub-hint {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.lv-admin-sub-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(13 37 28 / .42);
+  backdrop-filter: blur(3px);
+}
+
+.lv-admin-sub-modal {
+  inline-size: 100%;
+  max-inline-size: 700px;
+  max-block-size: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: 18px;
+  box-shadow: 0 20px 80px #0d251c30;
+}
+
+.lv-admin-sub-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-block-end: 1px solid var(--admin-line);
+}
+
+.lv-admin-sub-modal-header h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.lv-admin-sub-modal-close {
+  flex-shrink: 0;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--admin-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--admin-ink);
+  cursor: pointer;
+}
+
+.lv-admin-sub-form {
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.lv-admin-sub-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lv-admin-sub-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-block-end: 18px;
+  min-inline-size: 0;
+}
+
+.lv-admin-sub-form-group label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-page :is(input, select, textarea) {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  border: 1px solid #cdd6ce;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--admin-ink);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.lv-admin-sub-page :is(input, select, textarea):disabled {
+  background: #f1f3ef;
+  color: #63746b;
+}
+
+.lv-admin-sub-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-block-start: 18px;
+  border-block-start: 1px solid var(--admin-line);
+}
+
+.lv-admin-sub-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+  margin-block-end: 24px;
+}
+
+.lv-admin-sub-search-form label {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-inline-size: 0;
+  font-size: 12px;
+  color: var(--admin-muted);
+  font-weight: 650;
+}
+
+.lv-admin-sub-account-result {
+  padding: 24px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.lv-admin-sub-account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-block-end: 20px;
+}
+
+.lv-admin-sub-account-header h3 {
+  margin: 0 0 5px;
+  font-size: 18px;
+}
+
+.lv-admin-sub-id-badge {
+  margin-block-start: 6px;
+  font-size: 11px;
+  color: var(--admin-muted);
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-sub-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block-start: 1px solid var(--admin-line);
+  border-block-end: 1px solid var(--admin-line);
+  gap: 20px;
+  padding-block: 20px;
+}
+
+.lv-admin-sub-meta-box {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-inline-size: 0;
+}
+
+.lv-admin-sub-meta-label {
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+
+.lv-admin-sub-meta-val {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.lv-admin-sub-gauges {
+  display: grid;
+  gap: 24px;
+  padding-block-start: 24px;
+}
+
+.lv-admin-sub-gauge-title {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-end: 10px;
+  font-size: 13px;
+}
+
+.lv-admin-sub-bar {
+  block-size: 8px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #ebf0e7;
+}
+
+.lv-admin-sub-bar-fill {
+  block-size: 100%;
+  background: #547c59;
+  border-radius: inherit;
+}
+
+.lv-admin-sub-bar-fill.over {
+  background: #b84e47;
+}
+
+.lv-admin-sub-quota-warning {
+  margin: 0;
+  padding: 12px 16px;
+  border-inline-start: 4px solid #be5149;
+  background: #fff4f2;
+  color: #a13c35;
+  border-radius: 8px;
+}
+
+@container admin-subscriptions (max-width: 700px) {
+  .lv-admin-sub-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lv-admin-sub-card {
+    padding: 20px;
+  }
+  .lv-admin-sub-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container admin-subscriptions (max-width: 420px) {
+  .lv-admin-sub-tab-btn {
+    inline-size: 100%;
+    text-align: start;
+  }
+  .lv-admin-sub-detail-panel, .lv-admin-sub-account-result {
+    padding: 18px;
+  }
+  .lv-admin-sub-search-form .lv-admin-sub-btn {
+    inline-size: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .lv-admin-sub-form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .lv-admin-sub-form, .lv-admin-sub-modal-header {
+    padding: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-admin-sub-card {
+    transition: none;
+  }
+}

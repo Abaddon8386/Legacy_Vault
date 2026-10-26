@@ -18,10 +18,10 @@ export const legalI18n = {
 
     // Biểu mẫu PS-28
     formTitle: 'Phiếu thẩm định sự kiện tử vong',
-    formDesc: 'Chọn kết quả thẩm định và nhập lý do để lưu vết kiểm toán.',
+    formDesc: 'Chọn kết quả thẩm định và nhập lý do để lưu vào lịch sử hồ sơ.',
 
-    docketRefLabel: 'Mã hồ sơ / Tham chiếu',
-    docketRefHint: 'Mã số hồ sơ hoặc mã kho cần thẩm định (tùy chọn khi xem giao diện).',
+    docketRefLabel: 'Số hồ sơ',
+    docketRefHint: 'Số hồ sơ cần thẩm định.',
     docketRefPlaceholder: 'VD: DOCKET-2026-001',
 
     decisionLabel: 'Kết quả thẩm định (Bắt buộc)',
@@ -58,33 +58,30 @@ export const legalI18n = {
     // PS-29 / ST-15: Đối chiếu di chúc (Tách key tránh ghi đè)
     // ==========================================
     willPageTitle: 'Đối chiếu di chúc',
-    willFormSubtitle: 'Đối chiếu tài liệu di chúc bản giấy với phiên bản và mã băm SHA-256 của bản số hóa đã lưu trữ.',
+    willFormSubtitle: 'Đối chiếu nội dung di chúc bản giấy với bản đã lưu.',
 
     // Cảnh báo quy tắc nghiệp vụ LV-WILL-001
-    willNoticeTitle: 'Lưu ý đối chiếu di chúc (LV-WILL-001)',
+    willNoticeTitle: 'Lưu ý khi đối chiếu di chúc',
     willNoticeBody:
-      'Kết quả đối chiếu không thay thế quyết định thẩm định pháp lý. Việc tài liệu trùng khớp về số hóa không đồng nghĩa với việc hồ sơ được tự động phê duyệt pháp lý (Legal Approved).',
+      'Đối chiếu di chúc chỉ xác nhận nội dung có trùng khớp. Hồ sơ vẫn cần được thẩm định và phê duyệt riêng.',
 
     // Thông tin bản số hóa lưu trữ PS-29
-    willQueueSectionTitle: 'Thông tin bản số hóa lưu trữ',
+    willQueueSectionTitle: 'Bản di chúc đã lưu',
     willQueueUnconnectedTitle: 'Chưa thể tải hồ sơ/tài liệu',
-    willQueueUnconnectedDesc: 'Chưa thể kết nối danh sách hồ sơ hoặc dữ liệu bản số hóa cần đối chiếu từ máy chủ.',
-    docVersionLabel: 'Phiên bản di chúc số lưu trữ:',
+    willQueueUnconnectedDesc: 'Chưa tải được di chúc để đối chiếu. Vui lòng thử lại sau.',
+    docVersionLabel: 'Bản di chúc đang xem:',
     docVersionUnloaded: 'Chưa có dữ liệu kết nối',
-    docHashLabel: 'Mã băm SHA-256 bản số hóa:',
-    docHashUnloaded: 'Chưa có dữ liệu kết nối',
-    docHashHint: 'Mã băm SHA-256 đầy đủ được bảo toàn để đối chiếu với bản gốc giấy:',
 
     // Biểu mẫu đối chiếu PS-29
     willFormTitle: 'Phiếu đối chiếu tài liệu di chúc',
-    willFormDesc: 'Chọn kết quả đối chiếu giữa bản giấy và dữ liệu số hóa lưu trữ để ghi nhận vết kiểm toán.',
+    willFormDesc: 'Ghi nhận kết quả đối chiếu và những điểm cần lưu ý.',
 
     willDocketRefHint: 'Mã số hồ sơ hoặc mã kho cần đối chiếu (tùy chọn khi xem giao diện).',
     willDocketRefPlaceholder: 'VD: WILL-DOC-2026-001',
 
     comparisonLabel: 'Kết quả đối chiếu di chúc (Bắt buộc)',
     comparisonMatch: 'Khớp',
-    comparisonMatchDesc: 'Bản giấy trùng khớp hoàn toàn với phiên bản và mã băm bản số hóa lưu trữ.',
+    comparisonMatchDesc: 'Nội dung bản giấy trùng khớp với bản di chúc đã lưu.',
     comparisonMismatch: 'Không khớp',
     comparisonMismatchDesc: 'Phát hiện sai lệch giữa bản giấy và thông tin bản số hóa lưu trữ.',
 
@@ -112,7 +109,6 @@ export const legalI18n = {
     // ==========================================
     btnSubmitHelper: 'Chức năng hiện chưa khả dụng',
     btnValidateLocal: 'Kiểm tra biểu mẫu',
-    btnReset: 'Làm mới',
   },
 
   en: {
@@ -134,10 +130,10 @@ export const legalI18n = {
 
     // Form PS-28
     formTitle: 'Death Verification Docket',
-    formDesc: 'Select an adjudication decision and provide rationale for audit trail.',
+    formDesc: 'Select a decision and give a reason to save in the case history.',
 
-    docketRefLabel: 'Docket / Reference Identifier',
-    docketRefHint: 'Docket or vault reference identifier (optional during review).',
+    docketRefLabel: 'Case number',
+    docketRefHint: 'The number of the case being reviewed.',
     docketRefPlaceholder: 'e.g. DOCKET-2026-001',
 
     decisionLabel: 'Adjudication Decision (Required)',
@@ -174,33 +170,30 @@ export const legalI18n = {
     // PS-29 / ST-15: Will Document Verification
     // ==========================================
     willPageTitle: 'Will Document Verification',
-    willFormSubtitle: 'Compare physical paper will documents against the stored version and SHA-256 hash of the digitized record.',
+    willFormSubtitle: 'Compare the contents of the paper will with the saved copy.',
 
     // Business regulatory rule LV-WILL-001
-    willNoticeTitle: 'Will Verification Notice (LV-WILL-001)',
+    willNoticeTitle: 'Before comparing the will',
     willNoticeBody:
-      'Comparison result does not replace legal adjudication decision. A matching document record does not automatically grant legal approval.',
+      'Comparison records whether the contents match. The case still needs a separate legal review and approval.',
 
     // Queue / Digitized Record metadata PS-29
-    willQueueSectionTitle: 'Stored Digitized Record Metadata',
+    willQueueSectionTitle: 'Saved will',
     willQueueUnconnectedTitle: 'Unable to load docket / documents',
-    willQueueUnconnectedDesc: 'Unable to retrieve pending verification dockets or digitized record data from the server.',
-    docVersionLabel: 'Stored Digitized Will Version:',
-    docVersionUnloaded: 'Not loaded (API unready)',
-    docHashLabel: 'Digitized SHA-256 Hash:',
-    docHashUnloaded: 'Not loaded (API unready)',
-    docHashHint: 'Full SHA-256 hash preserved for complete visual cross-examination against paper will:',
+    willQueueUnconnectedDesc: 'The will could not be loaded for comparison. Please try again later.',
+    docVersionLabel: 'Will copy being reviewed:',
+    docVersionUnloaded: 'Information unavailable',
 
     // Form PS-29
     willFormTitle: 'Will Document Verification Docket',
-    willFormDesc: 'Record comparison between paper document and stored digitized record for audit trail.',
+    willFormDesc: 'Record the comparison result and any points that need attention.',
 
     willDocketRefHint: 'Docket or vault reference identifier (optional during review).',
     willDocketRefPlaceholder: 'e.g. WILL-DOC-2026-001',
 
     comparisonLabel: 'Will Comparison Result (Required)',
     comparisonMatch: 'Match',
-    comparisonMatchDesc: 'Physical paper will matches the stored version and SHA-256 hash completely.',
+    comparisonMatchDesc: 'The paper will matches the contents of the saved copy.',
     comparisonMismatch: 'Mismatch',
     comparisonMismatchDesc: 'Discrepancy detected between paper will and stored digitized record.',
 
@@ -228,6 +221,5 @@ export const legalI18n = {
     // ==========================================
     btnSubmitHelper: 'Function is currently unavailable',
     btnValidateLocal: 'Check Form Completeness',
-    btnReset: 'Reset Form',
   },
 };

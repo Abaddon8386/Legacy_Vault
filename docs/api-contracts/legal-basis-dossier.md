@@ -1,7 +1,14 @@
+> **Stale-review fix:** POST `/basis-dossier/review` now requires `reason`, `versionNo`, `sha256Hash`, `allocationHash`, `disputeStatus` from the context snapshot displayed to Legal. Missing snapshot returns 400; any mismatch returns 409 LEGAL_DECISION_STALE before writes/audit, under Vault -> Case -> Dossier locks. Reason-only legacy clients must upgrade; no fallback to reviewing the newest version. Request-supplementation still takes only reason. FE captures the snapshot on load and sends it unchanged on review; it must not fetch a new hash at click time and silently attest that version.
+
+> **PS-102, 20/10/2026:** [COURT-only](court-only.md) supersedes conflicting NOTARIAL/write and will-MATCH requirements below. Legacy NOTARIAL is read-only.
+
 # Hồ sơ căn cứ phân chia di sản — PS-41, PS-42, PS-43 (ST-16..19, LV-BASIS-001)
 
 **Trạng thái:** PS-41 (phân loại của Legal, tiếp nhận văn bản của Staff) PS-42 (Staff chuyển văn bản cho Legal) và PS-43 (Legal phân loại lại từ ON_HOLD, kiểm tra thông tin công chứng) đã triển khai. Các quyết định thiết kế được ghi ở
 [D-API-36](open-decisions.md); đó là cách đọc Main Flow v4.2 và `09_Decision_Legal_Basis_Branches.md`, chờ nhóm xác nhận.
+
+PS-46–48 bổ sung kiểm chứng và luồng COURT/hold: xem [court-route.md](court-route.md) và
+[legal-workflow-hold.md](legal-workflow-hold.md). Các giới hạn cũ bên dưới được thay thế ở phạm vi này.
 
 ## 1. Mô hình và luồng
 
@@ -71,7 +78,7 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 ### 2.3 Response (`BasisDossierResponse`)
 
 `id`, `caseId`, `route`, `status`, `disputeStatus`, `routeReason` (**chỉ Legal thấy**, Staff là `null`), `classifiedBy` (uuid Legal),
-`createdAt`, `updatedAt`, `versions[]` (mới nhất trước). Mỗi phiên bản: `version`, `legalBasisType`, `issuingAuthority`, `documentNumber`,
+`createdAt`, `updatedAt`, `requiredVersion` (phiên bản tối thiểu cần nộp sau hold), `versions[]` (mới nhất trước). Mỗi phiên bản: `version`, `legalBasisType`, `issuingAuthority`, `documentNumber`,
 `issueDate`, `notaryAuthority`, `notarialDocumentNumber`, `notarizedAt`, `evidenceReference`, `notes`, `contentType`, `sizeBytes`, `sha256`,
 `forwardStatus` (`NOT_FORWARDED`/`FORWARDED`), `createdBy` (uuid Staff), `createdAt`, `forwardedAt`. Không có tên file hay nội dung.
 
@@ -94,14 +101,26 @@ Hai phần: `metadata` (JSON, `Content-Type: application/json`) và `file` (PDF/
 
 - `LEGAL_BASIS_CLASSIFIED` (ST-16): nhánh, tình trạng tranh chấp, ID công khai; trạng thái Vault trước/sau đi qua `stateBefore/After`. **Không** ghi `routeReason`.
 - `LEGAL_BASIS_RECEIVED` (ST-18): loại văn bản, phiên bản, `sha256`, kích thước, ID công khai. **Không** ghi số văn bản, cơ quan, ghi chú hay tên file.
-- Phân loại khóa dòng **Vault → ca** (như Cancel Alert, PS-36, PS-40); tiếp nhận khóa ca rồi hồ sơ. Lưu và audit cùng một giao dịch.
+- Phân loại khóa dòng **Vault → ca** (như Cancel Alert, PS-36, PS-40); tiếp nhận/chuyển/hold khóa Vault → ca → hồ sơ và refresh trạng thái sau khóa. Lưu và audit cùng một giao dịch.
 - Phiên bản chỉ thêm mới; không có API sửa hay xóa.
+
+PS-46 dùng lại API phân loại/phân loại lại ở trên, không tạo endpoint song song. Sau khi khóa
+Vault → ca → hồ sơ, Backend refresh trạng thái từ SQL Server trước khi kiểm tra điều kiện;
+entity cũ trong persistence context không được bỏ qua ca đã hủy hoặc Vault đã chuyển trạng thái.
+`routeReason` được giữ trong hồ sơ/lịch sử và chỉ trả cho Legal, không đưa vào audit.
+
+Kiểm chứng PS-46: `LegalRouteSqlServerTest` tạo DB ngẫu nhiên từ `LEGAL_SQLSERVER_MASTER_URL`
+(JDBC URL tới `master`), chạy Flyway thật và xóa riêng DB đó sau test. Các tình huống gồm cả ba
+nhánh, thiếu đối chiếu MATCH, tạo hồ sơ đồng thời, ca cache cũ sau hủy và rollback khi audit lỗi.
 
 ## 5. Kiểm chứng và giới hạn
 
-Đã có: test dịch vụ (phân loại 8, tiếp nhận 7, đọc hồ sơ 2), test controller (Legal 4, Staff 5), toàn bộ bộ test Maven chỉ `contextLoads` lỗi
-(cần SQL Server). Migration `V14` đã qua kiểm tra cú pháp trên SQL Server thật (chỉ phân tích); **chưa chạy lưu thật** và chưa kiểm
-chứng ràng buộc `CHECK`/chỉ mục duy nhất trên DB. Nội dung file mã hóa chưa có API giải mã cho Legal.
+PS-46–48 đã kiểm chứng trên SQL Server thật bằng DB tạm, gồm Flyway toàn nhánh,
+phân loại đồng thời, tiếp nhận file mã hóa, chuyển phiên bản, kết luận COURT và hold/resume/re-review.
+Lượt Maven clean test cuối trên develop `2a1ad38`: 352 test được phát hiện, 349 pass,
+0 failure/error, 3 test DMS opt-in cũ bỏ qua. Đã bật cả SQL suite Staff/identity: 53 SQL tests pass. Ba bộ SQL mới chạy đủ 23 test (5 route, 6 court, 12 hold), không có test bị bỏ qua.
+Các DB thử nghiệm đã được đóng/xóa; không sửa Flyway history của DB dùng chung.
+Nội dung file vẫn không có API tải xuống dành cho Legal; thẩm định giấy tờ thuộc trách nhiệm của Legal.
 
 ## 6. Chuyển văn bản cho Legal — PS-42 (ST-19)
 
@@ -109,13 +128,77 @@ chứng ràng buộc `CHECK`/chỉ mục duy nhất trên DB. Nội dung file m�
 - Kết quả: phiên bản được đánh dấu đã chuyển (cập nhật có điều kiện, chống chuyển đôi), hồ sơ `LEGAL_BASIS_FORWARDED`, Vault `LEGAL_BASIS_VERIFICATION`. Phiên bản cũ không bị sửa hay xóa.
 - Khóa dòng: đọc ca không khóa → khóa Vault → khóa ca → khóa hồ sơ (Vault → ca → bản ghi con). Audit `LEGAL_BASIS_FORWARDED` (ST-19) cùng giao dịch.
 - Kế hoạch phân bổ (tài sản - người nhận) được gửi trong `metadata.allocations` ở bước tiếp nhận, gắn với từng phiên bản; thay đổi phiên bản đồng nghĩa phân bổ mới.
-- Giới hạn: chưa có bước Legal trả hồ sơ bổ sung (ST-20) nên sau khi chuyển, Vault rời `AWAITING_LEGAL_BASIS` và không thể nộp phiên bản mới cho tới khi PS thẩm định được làm.
+- PS-48 cho phép Legal đưa hồ sơ về hold khi thiếu chứng cứ/tranh chấp mới, rồi resume để Staff nộp và chuyển phiên bản mới. Phiên bản cũ không bị ghi đè.
 
 ## 7. Phân loại lại và thông tin công chứng — PS-43
 
 - **Phân loại lại (LV-HOLD-001):** body giống ST-16 (`route`, `routeReason`) nhưng `route` chỉ được `NOTARIAL` hoặc `COURT`; `ON_HOLD` hoặc lý do trống trả `400`. Điều kiện: ca `OPEN`, Vault `ON_HOLD`, hồ sơ nhánh `ON_HOLD` và còn `DRAFT`, đối chiếu di chúc không bị chặn (`WILL_NOT_VERIFIED`). Sai điều kiện trả `409 BASIS_DOSSIER_INVALID_STATE`.
-- **Không đổi `COURT` ↔ `NOTARIAL`:** hồ sơ đã ở nhánh `NOTARIAL`/`COURT` không thể phân loại lại, kể cả khi lời khai của Trustee thay đổi (D-LEGAL-002); thay đổi như vậy phải đi qua `ON_HOLD` do Legal ghi nhận (chưa có API riêng, xem giới hạn).
+- **Không đổi `COURT` ↔ `NOTARIAL`:** hồ sơ đã ở nhánh `NOTARIAL`/`COURT` không thể phân loại lại, kể cả khi lời khai của Trustee thay đổi (D-LEGAL-002); thay đổi như vậy phải đi qua `ON_HOLD` do Legal ghi nhận qua API PS-48.
 - `NOTARIAL` đặt `disputeStatus = NONE`, `COURT` đặt `DISPUTED`. Lý do và chứng cứ của lần phân loại cũ được lưu vào `legal_basis_classification_history` (V15), không ghi đè; `classifiedBy` trả Legal của lần phân loại hiện hành.
 - Kết quả: Vault `ON_HOLD` → `AWAITING_LEGAL_BASIS` (qua `LEGAL_BASIS_CLASSIFICATION`); audit `LEGAL_BASIS_RECLASSIFIED` (ST-16, LV-HOLD-001), không ghi lý do. Khóa Vault → ca → hồ sơ.
 - **Thông tin công chứng (LV-NOTARY-001):** tiếp nhận văn bản nhánh `NOTARIAL` bắt buộc `notaryAuthority`, `notarialDocumentNumber` và `notarizedAt`; thiếu thì `400`. Văn bản `COURT` đã yêu cầu cơ quan, số và ngày ban hành.
-- Giới hạn: chưa có API đưa hồ sơ `NOTARIAL`/`COURT` trở lại `ON_HOLD` (LV-HOLD-001 khi có tranh chấp mới) và chưa có thẩm định/ký duyệt (ST-20, ST-21); migration V15 mới chỉ viết, **chưa chạy** trên SQL Server.
+- PS-48 bổ sung API `/hold`, giữ lịch sử và yêu cầu phiên bản mới; PS-47 bổ sung kết luận COURT theo phiên bản. Migration V15–V17 đã chạy trong các test SQL Server dùng DB tạm. Ký duyệt/unlock/handover thuộc các ticket sau Sprint 2.
+
+## 8. Legal review và yêu cầu bổ sung — PS-37 (ST-20, LV-BASIS-001/LV-HOLD-001)
+
+Hai endpoint chỉ dành cho role `LEGAL_VERIFIER`; `caseId` là UUID công khai của verification case. `reviewerUserId` lấy từ principal phía server, không nhận từ request.
+
+### 8.1 POST hoàn thành review
+
+`POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/review`
+
+Request body (`application/json`):
+
+```json
+{
+  "reason": "Đã kiểm tra phiên bản hồ sơ và các chứng cứ liên quan."
+}
+```
+
+| Trường | Kiểu | Bắt buộc | Quy tắc |
+|---|---|---|---|
+| `reason` | string | Có | Không rỗng/không chỉ chứa khoảng trắng; tối đa 1000 ký tự |
+
+Response `200 OK`: `LegalBasisReviewResponse`.
+
+### 8.2 POST yêu cầu bổ sung
+
+`POST /api/v1/legal-verifications/verification-cases/{caseId}/basis-dossier/request-supplementation`
+
+Request body giống endpoint `/review`, dùng `reason` bắt buộc, tối đa 1000 ký tự. Response `200 OK`: `LegalBasisReviewResponse`. Khi thành công, dossier được đánh dấu cần review lại với reason code `LEGAL_REQUESTED_SUPPLEMENTATION`; việc chuyển trạng thái Vault/dossier tuân theo service và workflow hiện hành.
+
+### 8.3 Response — `LegalBasisReviewResponse`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `dossierId` | string / UUID | Public ID của dossier; không trả khóa chính tuần tự trong database theo D-API-08 |
+| `reviewStatus` | string | Trạng thái review hiện tại |
+| `reviewRequired` | boolean | Dossier có cần review hay không |
+| `reasonCode` | string / nullable | Mã lý do review hoặc kết quả kiểm tra |
+| `reason` | string / nullable | Lý do nghiệp vụ được trả về |
+| `currentVersionNo` | integer / nullable | Phiên bản hiện tại |
+| `currentSha256Hash` | string / nullable | Hash SHA-256 hiện tại |
+| `currentDisputeStatus` | string / nullable | Trạng thái tranh chấp hiện tại |
+| `currentAllocationHash` | string / nullable | Hash phạm vi phân bổ hiện tại |
+| `checkedAt` | string, date-time | Thời điểm kiểm tra |
+
+### 8.4 Mã lỗi
+
+| HTTP | `code` | Tình huống |
+|---|---|---|
+| `400` | `VALIDATION_FAILED` | `reason` thiếu, rỗng/chỉ có khoảng trắng hoặc dài hơn 1000 ký tự |
+| `401` | `UNAUTHENTICATED` | Chưa đăng nhập hoặc token không hợp lệ |
+| `403` | `ACCESS_DENIED` | Đã đăng nhập nhưng không có role `LEGAL_VERIFIER` |
+| `404` | `RESOURCE_NOT_FOUND` | Không tìm thấy ca, Vault hoặc dossier liên quan |
+| `409` | `VERIFICATION_CASE_NOT_OPEN` | Verification case không ở trạng thái `OPEN` |
+| `409` | `BASIS_DOSSIER_INVALID_STATE` | Vault/dossier không ở trạng thái cho phép review hoặc đang bị hold |
+
+Các lỗi dùng cấu trúc `ApiError` chung; FE phân loại bằng `code`, không dựa vào `message`.
+
+### 8.5 Audit và migration
+
+- `LEGAL_BASIS_REVIEW_RECORDED`: ghi nhận Legal hoàn thành review; context chứa reason code `REVIEW_COMPLETED`; audit phải gắn `vaultId` khi Vault đã được xác định.
+- `LEGAL_BASIS_REVIEW_REQUIRED`: ghi nhận dossier cần review lại hoặc Legal yêu cầu bổ sung; context chứa reason code, không thay thế audit bằng cách ghi đè lịch sử review; audit phải gắn `vaultId` khi Vault đã được xác định.
+- Thay đổi trạng thái, review history và audit phải commit trong cùng transaction.
+- Migration cho phần revalidation/review phải dùng `V18__legal_basis_review_revalidation.sql` nếu V16 chưa được merge/chạy trên môi trường dùng chung và nhóm đã thống nhất dành V18 cho PS-37. Không đổi tên migration đã áp dụng; nếu V16 đã chạy, giữ nguyên lịch sử Flyway và thống nhất một migration bổ sung riêng trước khi triển khai.
+

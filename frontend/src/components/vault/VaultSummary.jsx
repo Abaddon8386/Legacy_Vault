@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { fetchVaultSummary, describeNextCheck } from '../../utils/vaultSummaryService.js';
 import { mockDmsAdapter } from '../../utils/dmsService.js';
+import { fetchSubscription, formatStorageBytes } from '../../utils/subscriptionService.js';
 import './VaultSummary.css';
 
 function formatNextDate(dateStr, lang) {
@@ -94,7 +95,12 @@ export default function VaultSummary({
   onNavigate,
 }) {
   const [state, setState] = useState(null);
+  const [subState, setSubState] = useState(null);
   const requestKey = [vaultId, ownerId, accessToken, lang, refreshKey].join('|');
+  const subRequestKey = `${requestKey}|${Boolean(isSimulation)}`;
+  const subData = subState?.key === subRequestKey ? subState.data : null;
+  const subPolicyPending = subState?.key === subRequestKey && subState.error === 'SUBSCRIPTION_POLICY_PENDING';
+  const subLoading = subState?.key !== subRequestKey;
 
   useEffect(() => {
     if (isSimulation) return;
@@ -113,11 +119,39 @@ export default function VaultSummary({
     };
   }, [vaultId, ownerId, accessToken, lang, onUnauthorized, refreshKey, isSimulation, requestKey]);
 
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const isDevPreviewActive = Boolean(typeof window !== 'undefined' && import.meta.env.DEV && (isSimulation || new URLSearchParams(window.location.search).get('preview') === 'true'));
+    const scenario = isDevPreviewActive ? (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('scenario') || 'active_basic') : 'active_basic') : undefined;
+
+    fetchSubscription({
+      accessToken,
+      ownerId,
+      lang,
+      isDevPreview: isDevPreviewActive,
+      scenario,
+      signal: controller.signal,
+    })
+      .then((data) => {
+        if (active) setSubState({ key: subRequestKey, data });
+      })
+      .catch((error) => {
+        if (active) setSubState({ key: subRequestKey, data: null, error: error.code });
+        if (active && !isDevPreviewActive && error.status === 401) onUnauthorized?.();
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [accessToken, ownerId, lang, onUnauthorized, refreshKey, isSimulation, subRequestKey]);
+
   const en = lang === 'en';
   const data = isSimulation ? getSimulationData(lang) : (state?.key === requestKey ? state.data : null);
   const isLoading = !isSimulation && !data;
 
-  const assetsCount = data?.assets?.available ? data.assets.value : null;
+  const assetsCount = isSimulation && subData ? subData.assetsUsed : (data?.assets?.available ? data.assets.value : null);
   const config = data?.configuration?.available ? data.configuration.value : null;
   const beneficiaryCount = config ? config.beneficiaryCount : null;
   const isBeneficiaryReady = Boolean(config?.ready);
@@ -142,17 +176,11 @@ export default function VaultSummary({
       className="lv-overview-summary"
       aria-label={en ? 'Vault resource and operational overview' : 'Tổng quan tài nguyên và vận hành kho'}
     >
-      {/* Decorative Top Accent Line */}
-      <div className="lv-summary-top-bar" aria-hidden="true" />
-
       {/* Header Row */}
       <div className="lv-summary-header">
         <div className="lv-summary-header__title-group">
-          <span className="lv-summary-header__eyebrow">
-            {en ? 'RESOURCE & OPERATIONAL STATUS' : 'CHỈ SỐ & TRẠNG THÁI HOẠT ĐỘNG'}
-          </span>
           <h2 className="lv-summary-header__title">
-            {en ? 'Vault Summary' : 'Tổng quan kho di sản'}
+            {en ? 'Resources & activity' : 'Tài nguyên và hoạt động'}
           </h2>
         </div>
         {isSimulation && (
@@ -162,10 +190,18 @@ export default function VaultSummary({
         )}
       </div>
 
+      {isDmsConfigured && isDmsOverdue && <div className="lv-summary-attention" role="status">
+        <div><strong>{en ? 'Activity confirmation needs attention' : 'Cần kiểm tra trạng thái xác nhận hoạt động'}</strong>
+          <p>{dmsDescription}{dms.nextCheckAt ? ` · ${formatNextDate(dms.nextCheckAt, lang)}` : ''}</p></div>
+        <button type="button" className="lv-summary-cta-btn" onClick={() => onNavigate?.('dms')}>
+          {en ? 'View monitoring' : 'Xem giám sát'} <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      </div>}
+
       {/* 4 Information Cards Grid */}
       <div className="lv-summary-grid">
         {/* Card 1: Assets Count */}
-        <div className="lv-summary-card lv-summary-card--metric">
+        <div className="lv-summary-card lv-summary-card--metric lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--forest" aria-hidden="true">
               <Layers size={18} />
@@ -188,9 +224,7 @@ export default function VaultSummary({
                 {en ? 'Unavailable' : 'Chưa có thông tin'}
               </span>
             )}
-            <p className="lv-summary-card__desc">
-              {en ? 'Secured assets recorded in your heritage vault.' : 'Tài sản số an toàn đã được ghi nhận trong kho.'}
-            </p>
+
           </div>
 
           <div className="lv-summary-card__footer">
@@ -206,7 +240,7 @@ export default function VaultSummary({
         </div>
 
         {/* Card 2: Beneficiaries Count */}
-        <div className="lv-summary-card lv-summary-card--metric">
+        <div className="lv-summary-card lv-summary-card--metric lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--gold" aria-hidden="true">
               <Users size={18} />
@@ -229,9 +263,7 @@ export default function VaultSummary({
                 {en ? 'Unavailable' : 'Chưa có thông tin'}
               </span>
             )}
-            <p className="lv-summary-card__desc">
-              {en ? 'Designated beneficiaries recorded in vault.' : 'Danh sách người được chỉ định quyền thụ hưởng.'}
-            </p>
+
           </div>
 
           <div className="lv-summary-card__footer">
@@ -247,7 +279,7 @@ export default function VaultSummary({
         </div>
 
         {/* Card 3: Beneficiary Requirement Condition (Strictly: "Đã đáp ứng yêu cầu có người thụ hưởng") */}
-        <div className="lv-summary-card lv-summary-card--status">
+        <div className="lv-summary-card lv-summary-card--status lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--gold" aria-hidden="true">
               <ShieldCheck size={18} />
@@ -276,13 +308,9 @@ export default function VaultSummary({
               </div>
             )}
 
-            <p className="lv-summary-card__desc">
-              {!config
-                ? (en ? 'Unable to load configuration check.' : 'Chưa thể tải kết quả kiểm tra cấu hình.')
-                : isBeneficiaryReady
-                ? (en ? 'Vault configuration has designated beneficiaries.' : 'Kho đã ghi nhận người thụ hưởng hợp lệ theo cấu hình.')
-                : (en ? 'At least one designated beneficiary is required in vault configuration.' : 'Cần chỉ định tối thiểu 01 người thụ hưởng trong cấu hình kho.')}
-            </p>
+            {config && !isBeneficiaryReady && <p className="lv-summary-card__desc">
+              {en ? 'Add at least one beneficiary.' : 'Cần thêm ít nhất một người thụ hưởng.'}
+            </p>}
           </div>
 
           <div className="lv-summary-card__footer">
@@ -300,7 +328,7 @@ export default function VaultSummary({
         </div>
 
         {/* Card 4: Activity Confirmation Schedule (DMS) */}
-        <div className="lv-summary-card lv-summary-card--status">
+        <div className="lv-summary-card lv-summary-card--status lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--forest" aria-hidden="true">
               <Clock size={18} />
@@ -351,17 +379,91 @@ export default function VaultSummary({
           </div>
 
           <div className="lv-summary-card__footer">
-            {isDmsUnconfigured && (
+            {(isDmsUnconfigured || isDmsConfigured) && (
               <button
                 type="button"
                 className="lv-summary-cta-btn lv-summary-cta-btn--gold"
                 onClick={() => onNavigate?.('dms')}
               >
-                <span>{en ? 'Set up now' : 'Thiết lập ngay'}</span>
+                <span>{isDmsUnconfigured ? (en ? 'Set up now' : 'Thiết lập ngay') : (en ? 'View monitoring' : 'Xem giám sát')}</span>
                 <ArrowRight size={13} aria-hidden="true" />
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Subscription Quota Usage & Plan Link Widget (CR-01) */}
+      <div className="lv-summary-sub-widget lv-owner-card" aria-label={en ? 'Subscription quota usage' : 'Mức sử dụng hạn mức gói'}>
+        <div className="lv-summary-sub-left">
+          {!subData ? <p role="status">{subLoading
+            ? (en ? 'Loading subscription details…' : 'Đang tải thông tin gói…')
+            : subPolicyPending
+              ? (en ? 'Subscription plans are not available yet. Your account has not been assigned the proposed plan limits.' : 'Gói sử dụng hiện chưa được mở. Tài khoản chưa được áp dụng các hạn mức gói đề xuất.')
+              : (en ? 'Subscription details unavailable. Open plans to retry.' : 'Chưa tải được thông tin gói. Mở trang gói để thử lại.')}</p> : <>
+
+          <div className="lv-summary-sub-badge-row">
+            <span className="lv-summary-sub-plan-badge">
+              <Layers size={16} aria-hidden="true" />
+              <span>{en ? subData.planNameEn : subData.planNameVi}</span>
+            </span>
+            {subData?.isTrialGrant && (
+              <span className="lv-summary-sub-trial-badge">
+                {en ? 'Trial Grant' : 'Dùng thử nghiệm'}
+              </span>
+            )}
+          </div>
+
+          <div className="lv-summary-sub-meters">
+            {/* Meter 1: Assets */}
+            <div className="lv-sub-meter-item">
+              <div className="lv-sub-meter-header">
+                <span className="lv-sub-meter-label">{en ? 'Assets & wills:' : 'Tài sản & di chúc:'}</span>
+                <span className="lv-sub-meter-val">
+                  {`${subData.assetsUsed} / ${subData.maxAssets}`}
+                </span>
+              </div>
+              <div className="lv-sub-meter-track" role="progressbar" aria-label={en ? 'Subscription usage' : 'Mức sử dụng gói'} aria-valuenow={Math.min(100, Math.round((subData.assetsUsed / subData.maxAssets) * 100))} aria-valuemin="0" aria-valuemax="100">
+                <div
+                  className="lv-sub-meter-bar"
+                  style={{
+                    width: `${Math.min(100, Math.round((subData.assetsUsed / subData.maxAssets) * 100))}%`
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Meter 2: Storage */}
+            <div className="lv-sub-meter-item">
+              <div className="lv-sub-meter-header">
+                <span className="lv-sub-meter-label">{en ? 'Storage space:' : 'Dung lượng lưu trữ:'}</span>
+                <span className="lv-sub-meter-val">
+                  {`${formatStorageBytes(subData.storageUsedBytes)} / ${formatStorageBytes(subData.maxStorageBytes)}`}
+                </span>
+              </div>
+              <div className="lv-sub-meter-track" role="progressbar" aria-label={en ? 'Subscription usage' : 'Mức sử dụng gói'} aria-valuenow={Math.min(100, Math.round((subData.storageUsedBytes / subData.maxStorageBytes) * 100))} aria-valuemin="0" aria-valuemax="100">
+                <div
+                  className="lv-sub-meter-bar"
+                  style={{
+                    width: `${Math.min(100, Math.round((subData.storageUsedBytes / subData.maxStorageBytes) * 100))}%`
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          </>}
+        </div>
+
+        <div className="lv-summary-sub-right">
+          <button
+            type="button"
+            className="lv-summary-cta-btn lv-summary-cta-btn--gold"
+            onClick={() => onNavigate?.('subscription')}
+            aria-label={en ? 'Upgrade plan' : 'Nâng cấp gói'}
+          >
+            <span>{en ? 'Upgrade plan' : 'Nâng cấp gói'}</span>
+            <ArrowRight size={13} aria-hidden="true" />
+          </button>
         </div>
       </div>
     </section>

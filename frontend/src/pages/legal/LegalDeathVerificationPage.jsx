@@ -7,7 +7,6 @@ import {
   HelpCircle,
   FileText,
   UserCheck,
-  RefreshCw,
   Info,
 } from 'lucide-react';
 import {
@@ -79,16 +78,6 @@ export default function LegalDeathVerificationPage({
     });
     setErrors(res.errors);
     setValidationStatus(res.isValid ? 'success' : 'error');
-  };
-
-  const handleReset = () => {
-    setDocketReference('');
-    setDecision('');
-    setReason('');
-    setNotes('');
-    setErrors({});
-    setValidatedOnce(false);
-    setValidationStatus(null);
   };
 
   return (
@@ -235,7 +224,7 @@ export default function LegalDeathVerificationPage({
             {errors.decision && (
               <div className="lv-form-error-msg" role="alert" style={{ marginTop: 8 }}>
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.decision] || errors.decision}</span>
+                <span>{t[errors.decision] || t.validationFailure}</span>
               </div>
             )}
           </fieldset>
@@ -259,7 +248,7 @@ export default function LegalDeathVerificationPage({
             {errors.reason && (
               <div id="reason-error" className="lv-form-error-msg" role="alert">
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.reason] || errors.reason}</span>
+                <span>{t[errors.reason] || t.validationFailure}</span>
               </div>
             )}
           </div>
@@ -323,15 +312,6 @@ export default function LegalDeathVerificationPage({
                 onClick={handleValidateLocal}
               >
                 <span>{t.btnValidateLocal}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 

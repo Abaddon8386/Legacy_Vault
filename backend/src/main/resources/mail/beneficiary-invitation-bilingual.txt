@@ -1,0 +1,9 @@
+Tiếng Việt
+Bạn được mời liên kết hồ sơ người thụ hưởng với tài khoản LegacyVault. Đăng nhập hoặc đăng ký tài khoản, mở mục “Được chia sẻ với tôi”, rồi nhập mã bên dưới. Mã có thời hạn theo lời mời PS-86. Việc liên kết không cấp quyền xem tài sản chưa được bàn giao.
+Mã lời mời: {{invitationCode}}
+
+English
+You are invited to link a beneficiary record to your LegacyVault account. Sign in or register, open “Shared with me”, then enter the code below. The code expires according to the PS-86 invitation. Linking does not grant access to assets that have not been delivered.
+Invitation code: {{invitationCode}}
+
+Nếu bạn không mong đợi thư này, vui lòng liên hệ Staff qua kênh chính thức. Do not forward this code.

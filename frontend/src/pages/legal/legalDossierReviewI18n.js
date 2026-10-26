@@ -15,11 +15,9 @@ export const legalDossierReviewI18n = {
     // Khu vực thông tin hồ sơ
     dossierSectionTitle: 'Hồ sơ cần thẩm định',
     dossierUnloaded: 'Chưa thể tải hồ sơ',
-    dossierUnloadedDesc: 'Chưa thể kết nối thông tin hồ sơ hoặc phiên bản từ máy chủ.',
+    dossierUnloadedDesc: 'Chưa tải được giấy tờ của hồ sơ. Vui lòng thử lại sau.',
     versionLabel: 'Phiên bản hồ sơ',
     versionUnloaded: 'Chưa thể tải thông tin',
-    hashLabel: 'Mã kiểm tra tính toàn vẹn (SHA-256)',
-    hashUnloaded: 'Chưa thể tải thông tin',
     issuerLabel: 'Cơ quan ban hành:',
     docNumberLabel: 'Số hiệu văn bản:',
     issuanceDateLabel: 'Ngày ban hành:',
@@ -38,7 +36,7 @@ export const legalDossierReviewI18n = {
     historySectionTitle: 'Lịch sử thẩm định',
     historyUnloaded: 'Chưa thể tải lịch sử thẩm định',
     historyUnloadedDesc:
-      'Chưa thể kết nối lịch sử thẩm định từ máy chủ.',
+      'Chưa tải được lịch sử thẩm định. Vui lòng thử lại sau.',
     historyVersionCol: 'Phiên bản',
     historyDecisionCol: 'Kết quả',
     historyTimeCol: 'Thời gian',
@@ -47,7 +45,6 @@ export const legalDossierReviewI18n = {
     // Các nút hành động
     btnSubmitDecision: 'Xác nhận kết quả',
     btnSubmitDisabledHelper: 'Chức năng hiện chưa khả dụng',
-    btnReset: 'Làm mới',
 
     // Mã lỗi validation (dynamic i18n)
     decisionRequired: 'Vui lòng chọn một kết quả thẩm định.',
@@ -71,11 +68,9 @@ export const legalDossierReviewI18n = {
     dossierSectionTitle: 'Dossier for Review',
     dossierUnloaded: 'Unable to load dossier',
     dossierUnloadedDesc:
-      'Unable to retrieve dossier records or version metadata from the server.',
+      'The case documents could not be loaded. Please try again later.',
     versionLabel: 'Dossier Version',
     versionUnloaded: 'Unable to load information',
-    hashLabel: 'Integrity Verification Code (SHA-256)',
-    hashUnloaded: 'Unable to load information',
     issuerLabel: 'Issuing Authority:',
     docNumberLabel: 'Document Number:',
     issuanceDateLabel: 'Issuance Date:',
@@ -94,7 +89,7 @@ export const legalDossierReviewI18n = {
     historySectionTitle: 'Review History',
     historyUnloaded: 'Unable to load review history',
     historyUnloadedDesc:
-      'Unable to retrieve review history from the server.',
+      'The review history could not be loaded. Please try again later.',
     historyVersionCol: 'Version',
     historyDecisionCol: 'Decision',
     historyTimeCol: 'Timestamp',
@@ -103,7 +98,6 @@ export const legalDossierReviewI18n = {
     // Action buttons
     btnSubmitDecision: 'Confirm Review Result',
     btnSubmitDisabledHelper: 'Function is currently unavailable',
-    btnReset: 'Reset',
 
     // Validation error codes (dynamic i18n)
     decisionRequired: 'Please select a review decision.',

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-export function useModalFocus(isOpen, onClose, blocked = false) {
+export function useModalFocus(isOpen, onClose, blocked = false, returnFocusRef = null) {
   const dialogRef = useRef(null)
   const closeRef = useRef(onClose)
   const blockedRef = useRef(blocked)
@@ -8,12 +8,14 @@ export function useModalFocus(isOpen, onClose, blocked = false) {
   useEffect(() => {
     if (!isOpen) return
     const previousFocus = document.activeElement
+    const returnTarget = returnFocusRef?.current || previousFocus
     const previousOverflow = document.body.style.overflow
-    const dialog = dialogRef.current
+    const dialog = dialogRef.current;
+    if (!dialog) return;
     const controls = () => Array.from(dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]'))
     document.body.style.overflow = 'hidden'
     const firstInput = dialog.querySelector('input:not(:disabled)') || controls()[0] || dialog
-    firstInput.focus()
+    if (firstInput && typeof firstInput.focus === 'function') firstInput.focus();
     const onKeyDown = event => {
       if (event.key === 'Escape' && !blockedRef.current) { event.preventDefault(); closeRef.current() }
       if (event.key !== 'Tab') return
@@ -28,8 +30,8 @@ export function useModalFocus(isOpen, onClose, blocked = false) {
     return () => {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', onKeyDown)
-      if (previousFocus?.isConnected) previousFocus.focus()
+      if (returnTarget?.isConnected && !returnTarget.disabled) returnTarget.focus()
     }
-  }, [isOpen])
+  }, [isOpen, returnFocusRef])
   return dialogRef
 }

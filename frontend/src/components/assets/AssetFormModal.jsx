@@ -1,7 +1,11 @@
+import { AssetCredentialFields } from './AssetCredentialFields.jsx'
+import { credentialPayload } from '../../utils/credentialPayload.js'
+import { AssetImagePicker } from './AssetImagePicker.jsx'
+import { DocumentPicker } from './AssetDocuments.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
-import { AlertCircle, Lock } from 'lucide-react'
+import { AlertCircle, Lock, X } from 'lucide-react'
 import './AssetFormModal.css'
 import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
@@ -17,6 +21,8 @@ export function AssetFormModal({
   t: externalT,
   lang = 'vi',
   isSubmitting = false,
+  assetSaved = false,
+  errorKey,
 }) {
   const t = getAssetTranslations(externalT, lang)
   const emptyForm = {
@@ -27,7 +33,11 @@ export function AssetFormModal({
   }
 
   const [formData, setFormData] = useState(emptyForm)
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const secretPayload = formData.assetType === 'CREDENTIAL' ? credentialPayload(credentials.username, credentials.password) : formData.payload
   const [errors, setErrors] = useState({})
+  const [images, setImages] = useState([])
+  const [documents, setDocuments] = useState([])
 
   function validate() {
     const errs = {}
@@ -47,7 +57,7 @@ export function AssetFormModal({
       errs.description = 'descMax'
     }
 
-    if (!formData.payload || !formData.payload.trim()) {
+    if (!secretPayload || !secretPayload.trim()) {
       errs.payload = 'payloadRequired'
     }
 
@@ -64,19 +74,24 @@ export function AssetFormModal({
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (isSubmitting || !validate()) return
+    if (isSubmitting || (!assetSaved && !validate())) return
 
     onSubmit({
       name: formData.name.trim(),
       assetType: formData.assetType,
       description: formData.description.trim(),
-      payload: formData.payload,
+      payload: secretPayload,
+      images,
+      documents,
     })
   }
 
   function handleResetAndClose() {
     if (isSubmitting) return
     setFormData(emptyForm)
+    setCredentials({ username: '', password: '' })
+    setImages([])
+    setDocuments([])
     setErrors({})
     onClose()
   }
@@ -115,11 +130,14 @@ export function AssetFormModal({
             aria-label={t.assets.closeBtn}
             disabled={isSubmitting}
           >
-            ✕
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="lv-modal__body" noValidate>
+        <form onSubmit={handleSubmit} className="lv-modal__body lv-asset-form" noValidate>
+          <div className="lv-asset-form__scroll">
+          {errorKey && <p className="lv-form-error" role="alert"><AlertCircle size={16} aria-hidden="true" /> {t.assets.alerts[errorKey] || t.assets.alerts.saveError}</p>}
+          <fieldset disabled={assetSaved} style={{border:0,padding:0,margin:0,minWidth:0}}>
           {/* Asset Name */}
           <div className="lv-form-group">
             <label htmlFor="asset-name" className="lv-form-label">
@@ -174,9 +192,13 @@ export function AssetFormModal({
 
           {/* Confidential Payload (Write-Only) */}
           <div className="lv-form-group">
-            <label htmlFor="asset-payload" className="lv-form-label">
+            <label htmlFor={formData.assetType === 'CREDENTIAL' ? 'asset-credential-username' : 'asset-payload'} className="lv-form-label">
               {t.assets.addModal.payloadLabel} <span className="lv-required">*</span>
             </label>
+            {formData.assetType === 'CREDENTIAL' ? (
+              <AssetCredentialFields idPrefix="asset-credential" {...credentials} labels={t.assets.addModal} disabled={isSubmitting}
+                onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, payload: undefined })); }} />
+            ) : (
             <textarea
               id="asset-payload"
               rows={4}
@@ -186,6 +208,7 @@ export function AssetFormModal({
               onChange={(e) => handleChange('payload', e.target.value)}
               disabled={isSubmitting}
             />
+            )}
             {errors.payload ? (
               <p className="lv-form-error" role="alert">
                 <AlertCircle size={14} /> {t.assets.validation[errors.payload]}
@@ -236,7 +259,13 @@ export function AssetFormModal({
             <span>{t.assets.addModal.beneficiaryHint}</span>
           </div>
 
-          {/* Actions */}
+          <AssetImagePicker files={images} onChange={setImages} disabled={isSubmitting} lang={lang} />
+          </fieldset>
+          {assetSaved && <p role="status">{lang==='en'?'Asset saved. Retry documents only; no duplicate asset will be created.':'Tài sản đã lưu. Thử lại chỉ tải tài liệu, không tạo tài sản trùng.'}</p>}
+          <DocumentPicker files={documents} onChange={setDocuments} disabled={isSubmitting} lang={lang} />
+
+          </div>
+          {/* Actions remain outside the scrolling fields. */}
           <div className="lv-form-actions">
             <Button
               variant="secondary"

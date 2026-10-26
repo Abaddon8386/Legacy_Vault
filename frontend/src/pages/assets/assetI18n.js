@@ -11,11 +11,11 @@ export const LEGAL_DISMISSED_KEY = 'legacyvault_legal_notice_dismissed';
 export const ASSET_I18N = {
   vi: {
     assets: {
-      title: 'Danh sách Tài sản',
+      title: 'Danh mục tài sản',
       subtitle: 'Khai báo các tài sản thuộc kho di sản cá nhân để chuẩn bị phân định thừa kế.',
       addNewBtn: 'Thêm tài sản mới',
       notice:
-        'Lưu ý pháp lý: Tài sản lưu trong hệ thống mang tính chất ghi nhận và lập kế hoạch, chưa phải là hành vi bàn giao hoặc chuyển dịch quyền sở hữu tài sản.',
+        'Ghi nhận tài sản để lập kế hoạch di sản; việc lưu thông tin chưa chuyển giao quyền sở hữu.',
       noticeDismiss: 'Đã hiểu',
       noticeInfoTooltip: 'Xem lưu ý pháp lý',
       pageScope: 'Tìm kiếm, bộ lọc và thống kê áp dụng cho trang hiện tại.',
@@ -73,6 +73,8 @@ export const ASSET_I18N = {
         typeLabel: 'Dạng nội dung',
         typePlaceholder: '-- Chọn dạng nội dung --',
         typeDescText: 'Ghi chú văn bản bảo mật (hướng dẫn bí mật, di nguyện riêng tư, tài liệu ghi chú...)',
+        credentialUsernameLabel: 'Tên đăng nhập',
+        credentialPasswordLabel: 'Mật khẩu / mã bí mật',
         typeDescCredential: 'Thông tin xác thực (tài khoản đăng nhập, mật khẩu, mã PIN, khóa bảo mật...)',
         beneficiaryHint: 'Lưu ý cấu hình: Cần khai báo Người thụ hưởng để hoàn tất cấu hình kho di sản. Bạn vẫn có thể lưu tài sản ngay bây giờ và bổ sung người thụ hưởng sau.',
         descriptionLabel: 'Mô tả / Ghi chú',
@@ -107,17 +109,19 @@ export const ASSET_I18N = {
         addSuccess: 'Đã thêm tài sản vào danh sách.',
         loadError: 'Không thể tải danh sách tài sản. Vui lòng thử lại sau.',
         saveError: 'Đã xảy ra lỗi khi lưu tài sản. Vui lòng kiểm tra lại.',
+        ASSET_QUOTA_EXCEEDED: 'Đã hết chỗ cho tài sản và hồ sơ di chúc. Vui lòng nâng gói trước khi thêm mới.',
+        STORAGE_QUOTA_EXCEEDED: 'Đã hết dung lượng lưu trữ. Vui lòng nâng gói trước khi thêm nội dung.',
         retryBtn: 'Thử lại',
       },
     },
   },
   en: {
     assets: {
-      title: 'Asset Inventory',
+      title: 'Heritage Assets',
       subtitle: 'Record and organize assets within your vault to prepare for succession planning.',
       addNewBtn: 'Add New Asset',
       notice:
-        'Legal Notice: Assets recorded in this system are for inventory and planning purposes only and do not constitute actual legal transfer or delivery of ownership.',
+        'Recording assets supports inheritance planning; it does not transfer ownership.',
       noticeDismiss: 'Understood',
       noticeInfoTooltip: 'View legal notice',
       pageScope: 'Search, filters and summaries apply to the current page.',
@@ -175,6 +179,8 @@ export const ASSET_I18N = {
         typeLabel: 'Content Format',
         typePlaceholder: '-- Select content format --',
         typeDescText: 'Secured text note (private instructions, messages, notes...)',
+        credentialUsernameLabel: 'Username',
+        credentialPasswordLabel: 'Password / secret',
         typeDescCredential: 'Credentials (account logins, passwords, PINs, secret keys...)',
         beneficiaryHint: 'Vault Configuration Notice: Declaring beneficiaries is needed to complete your vault setup. You can still save this asset now and add beneficiaries later.',
         descriptionLabel: 'Description / Notes',
@@ -209,6 +215,8 @@ export const ASSET_I18N = {
         addSuccess: 'Asset added to the list.',
         loadError: 'Failed to retrieve asset inventory. Please try again.',
         saveError: 'An error occurred while saving the asset. Please try again.',
+        ASSET_QUOTA_EXCEEDED: 'All asset and will slots are used. Upgrade your plan before adding another item.',
+        STORAGE_QUOTA_EXCEEDED: 'Storage is full. Upgrade your plan before adding content.',
         retryBtn: 'Retry',
       },
     },
@@ -318,3 +326,7 @@ const PS6_I18N = {
   }
 };
 for (const lang of ["vi","en"]) { Object.assign(ASSET_I18N[lang].assets,PS6_I18N[lang]); Object.assign(ASSET_I18N[lang].assets.alerts,{editSuccess:lang==="vi"?"Đã cập nhật tài sản.":"Asset updated.",editError:lang==="vi"?"Không thể cập nhật tài sản.":"Unable to update asset."}); }
+for (const lang of ["vi","en"]) Object.assign(ASSET_I18N[lang].assets.alerts,{editPartial:lang==="vi"?"Chỉ lưu được một phần. Thay đổi chưa hoàn tất.":"Only part of the changes were saved. The update is not complete.",editSavedLabel:lang==="vi"?"Đã lưu":"Saved",editFailedLabel:lang==="vi"?"Lưu thất bại":"Failed",editRetryHint:lang==="vi"?"Nhập lại mật khẩu và bấm Lưu để thử lại; phần đã lưu sẽ không bị tải lên lần nữa.":"Re-enter your password and save again to retry; items already saved will not be uploaded again."})
+
+Object.assign(ASSET_I18N.vi.assets.editModal, {confirmPasswordLabel: 'Xác nhận mật khẩu đăng nhập trước khi lưu', passwordRequired: 'Vui lòng nhập mật khẩu hiện tại.', passwordFailed: 'Không thể xác nhận mật khẩu. Vui lòng thử lại.'});
+Object.assign(ASSET_I18N.en.assets.editModal, {confirmPasswordLabel: 'Confirm your current password before saving', passwordRequired: 'Enter your current password.', passwordFailed: 'Unable to verify your password. Please try again.'});

@@ -80,4 +80,14 @@ class EncryptionServiceTest {
 		}
 		return bytes;
 	}
+
+	@Test
+	void logicalSizeIsCiphertextMinus128BitTagForCurrentEnvelope() {
+		for (String value : new String[] { "", "ASCII", "Tiếng Việt", "密碼 🔑" }) {
+			byte[] logical = value.getBytes(StandardCharsets.UTF_8);
+			EncryptedData encrypted = service.encrypt(value, AAD);
+			assertThat(encrypted.ciphertext().length - 16).isEqualTo(logical.length);
+			assertThat(service.decryptBytes(encrypted, AAD)).isEqualTo(logical);
+		}
+	}
 }

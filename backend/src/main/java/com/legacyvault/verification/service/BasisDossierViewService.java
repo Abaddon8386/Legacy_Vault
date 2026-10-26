@@ -82,6 +82,7 @@ public class BasisDossierViewService {
         Set<Long> userIds = new HashSet<>();
         userIds.add(dossier.getClassifiedByUserId());
         rows.forEach(r -> userIds.add(r.createdByUserId()));
+        userIds.remove(null); // Historical dossiers may not have a classified-by reference.
         Map<Long, UUID> publicIds = users.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getUserId, User::getPublicId, (a, b) -> a));
 
@@ -90,7 +91,10 @@ public class BasisDossierViewService {
         Map<Integer, List<AllocationResponse>> scopeByVersion = allocations
                 .findRowsByDossier(dossier.getLegalBasisDossierId()).stream()
                 .collect(Collectors.groupingBy(AllocationRow::versionNo, Collectors.mapping(
-                        a -> new AllocationResponse(a.assetId(), a.beneficiaryId(), a.description()),
+                        a -> new AllocationResponse(a.assetId(), a.beneficiaryId(), a.description(), a.assetName(),
+                                a.assetType() == null ? null : a.assetType().name(), a.recipientName(),
+                                a.recipientRelationship(), a.recipientSource(), a.sourceVersionNo(),
+                                a.accountLinked()),
                         Collectors.toList())));
 
         List<BasisVersionResponse> items = rows.stream()
@@ -102,7 +106,7 @@ public class BasisDossierViewService {
                 dossier.getStatus(), dossier.getDisputeStatus(), includeReason ? dossier.getRouteReason() : null,
                 publicIds.get(dossier.getClassifiedByUserId()),
                 dossier.getCreatedAt().toInstant(ZoneOffset.UTC), dossier.getUpdatedAt().toInstant(ZoneOffset.UTC),
-                items);
+                items, dossier.getRequiredVersionNo());
     }
 
     private String evidenceReferenceOf(String evidenceMetadata) {

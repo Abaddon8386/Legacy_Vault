@@ -1,0 +1,171 @@
+.lv-staff-context-bar {
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-context-bar--active {
+  background-color: #f0f4f9;
+  border: 1px solid #ccd8e6;
+  box-shadow: 0 1px 3px rgba(22, 101, 52, 0.05);
+}
+
+.lv-staff-context-bar--empty {
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+}
+
+.lv-staff-context-bar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lv-staff-context-bar__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lv-staff-context-bar__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #dcfce7;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lv-staff-context-bar__details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lv-staff-context-bar__row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lv-staff-context-bar__label {
+  font-size: 13px;
+  color: #607086;
+  font-weight: 500;
+}
+
+.lv-staff-context-bar__code {
+  font-family: var(--lv-font-mono, ui-monospace, 'JetBrains Mono', Consolas, monospace);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #164639;
+  letter-spacing: 0.02em;
+}
+
+.lv-staff-context-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+.lv-staff-context-badge--open {
+  background-color: #bbf7d0;
+  color: #14532d;
+}
+.lv-staff-context-badge--cancelled {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+.lv-staff-context-badge--closed {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.lv-staff-context-session {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lv-staff-context-bar__row2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.lv-staff-context-bar__vault {
+  font-weight: 600;
+  color: #334155;
+}
+
+.lv-staff-context-bar__owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #64748b;
+}
+
+.lv-staff-context-bar__change-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background-color: #ffffff;
+  color: #294d70;
+  border: 1px solid #bccddd;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.lv-staff-context-bar__change-btn:hover {
+  background-color: #dcfce7;
+  border-color: #4ade80;
+}
+
+.lv-staff-context-bar__empty-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.lv-staff-context-bar__empty-icon {
+  color: #d97706;
+}
+
+.lv-staff-context-bar__select-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 16px;
+  background-color: #164639;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.lv-staff-context-bar__select-btn:hover {
+  background-color: #0f2e26;
+}

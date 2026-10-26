@@ -1,3 +1,4 @@
+import { assetImageService } from './assetImageService.js';
 import { request, ApiError } from '../api/http.js';
 import { isUuid, isUtcDate } from '../api/contracts.js';
 const bad = (message, code = 'VALIDATION_FAILED') => { const error = new ApiError(code); error.message = message; return error; };
@@ -23,6 +24,8 @@ export const assetService = {
   if (patch.description !== undefined) { if (patch.description !== null && (typeof patch.description !== 'string' || patch.description.length>1000)) throw bad('Invalid description'); body.description=patch.description?.trim()||null; }
   if (patch.payload !== undefined) { if (typeof patch.payload !== 'string' || !patch.payload.trim()) throw bad('Invalid payload'); body.payload=patch.payload; }
   if (!Object.keys(body).length) throw bad('No editable fields');
+  if (typeof patch.password !== 'string' || !patch.password.trim() || patch.password.length > 72) throw bad('Current password is required');
+  body.password = patch.password;
   const item = readAsset(await request('/vaults/'+vaultId+'/assets/'+assetId, {...options,method:'PATCH',expectedStatus:200,body}),vaultId);
   if (item.id !== assetId) throw new ApiError('INVALID_RESPONSE'); return item;
  },
@@ -46,6 +49,7 @@ export const assetService = {
   if (typeof formData.payload!=='string' || !formData.payload.trim()) throw bad('Confidential payload is required');
   if (formData.description && formData.description.length>1000) throw bad('Description exceeds 1000 characters');
   const body={name,assetType:formData.assetType,description:formData.description?.trim()||null,payload:formData.payload};
+  if (formData.images?.length) return readAsset(await assetImageService.create(vaultId, body, formData.images, options), vaultId);
   return readAsset(await request(`/vaults/${vaultId}/assets`, {...options,method:'POST',expectedStatus:201,body}),vaultId);
  },
  async revealAsset(vaultId, assetId, password, options = {}) {

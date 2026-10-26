@@ -1,0 +1,5 @@
+# Preserve exact attachment bytes and hashes across Windows/Linux checkouts.
+*.pdf binary
+*.doc binary
+*.docx binary
+*.png binary

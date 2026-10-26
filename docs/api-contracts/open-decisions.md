@@ -1,5 +1,89 @@
 # Quyết định API (Decision Log)
 
+## PS-86 — quyết định người dùng ngày 20/10/2026
+
+Người dùng xác nhận trong chat: đồng ý đề xuất mã mời; **dùng mã làm bằng chứng
+nhận lời mời, chưa thêm xác minh email hay OTP**. Ưu tiên PS-86, PS-80 chờ quyết định;
+triển khai/kiểm thử local, chưa push hoặc merge. Đây không phải biên bản nhóm phê duyệt
+payment hoặc cập nhật trạng thái Jira.
+
+- 128-bit CSPRNG, base64url 22 ký tự, 7 ngày UTC; DB hash-only, raw code chỉ ở response
+  cấp/cấp lại; Owner có thể thu hồi/cấp lại mã chưa dùng trong Vault ACTIVE.
+- Code possession không chứng minh danh tính pháp lý. Email không bắt buộc, không
+  so khớp/verify email; không thêm OTP, guest portal hay quyền đọc tài sản sớm.
+- Tạo Beneficiary rồi cấp mã theo ID đã lưu; không tạo lại người khi riêng bước cấp
+  mã thất bại. Cấp lại gửi generation hiện tại để chặn request stale/rotate hai lần.
+  Review 20/10 bổ sung generation bắt buộc cho DELETE để retry thu hồi không hủy mã vừa cấp lại.
+- Tài khoản mới theo mã chỉ thêm Beneficiary (PS-87); account cũ giữ role hợp lệ.
+  Không nhận role/accountId từ client. Account/link/role/consume/audit chung transaction.
+- Sau freeze không mở tự phục vụ mới; làm việc với Staff theo workflow hiện có.
+  Đổi email thu hồi mã chưa dùng; không tự hủy liên kết account.
+- Public signup/redeem và limiter do PS-87 tích hợp; trước khi mở phải có bộ đếm
+  dùng chung (5 lỗi/account/15 phút) và chốt trusted-source limit cho signup. PS-86
+  không mở route redeem hoặc tự thay Google login/FE.
+- Review 20/10 đồng bộ thứ tự khóa nhận mã và Staff link account có sẵn thành target
+  User → Vault (→ Case với Staff), theo User → Vault của Owner/quota writers. Recheck
+  Vault/Beneficiary/invitation sau khi chờ khóa; không giữ resource write lock trước seam.
+  Staff create cũng preflight rồi kiểm tra/tạo User trước Vault/Case, tránh đảo khóa
+  trên email unique index với signup-by-invitation; mọi lỗi final guard/audit rollback User mới.
+
+Contract và scope kiểm chứng: [beneficiary-invitations.md](beneficiary-invitations.md).
+Quyết định này mở rộng hạn chế onboarding "chỉ tại quầy" cũ của PS-20/PS-62/63,
+không thay các yêu cầu xác minh trực tiếp, Legal, handover, confirmation hoặc archive.
+
+## PS-87 / PS-106 — approved direction and implementation blockers
+
+The following direction is approved in the user's 2026-10-21 instruction for this feature branch and supersedes
+conflicting legacy wording only for PS-87/PS-106 integration. It does not retroactively mark existing PS-86
+invitations as email-bound and does not alter the existing `VERIFIED_AT_COUNTER` workflow:
+
+- PS-87 is authenticated-only redemption for an existing account. New users use ordinary signup/login first; no
+  public signup+redeem route. Preserve existing roles and add only the Beneficiary role through PS-86. Email is bound
+  to the Beneficiary/invitation after Staff confirms the recipient and address at the counter. Backend must reject
+  missing/mismatched/unproven binding; no email, account ID, role, or verification flag from FE is authoritative.
+- PS-106 targets the Staff-confirmed email before account linking. Counter evidence records authenticated Staff,
+  server UTC time, case/Beneficiary and evidence reference. The optional `confirmedEmail` snapshot is stored in the
+  append-only attestation but is not returned or logged as plaintext. It does not change legacy identity status.
+- PS-86 code/lifecycle remains authoritative. No new generator or plaintext recovery. Raw code may reach mail only
+  through an atomic encrypted outbox. Transport must remain disabled by default until provider/sender/test recipient
+  and transport policies are approved. Linking never unlocks content; PS-104 exact-recipient DELIVERED authorization
+  remains the only read gate.
+- For a current PS-106 invitation generation bound to the email Staff confirmed in person for the correct Beneficiary,
+  redeem requires the authenticated account's normalized email to equal that generation's bound address;
+  `users.email_verified_at` may be NULL. This narrow exception does not write that column or claim Staff attestation
+  proves mailbox control. It does not apply to unbound/legacy or Owner-issued invitations. The existing
+  `VERIFIED_AT_COUNTER` beneficiary status remains required; the new attestation does not write or substitute for it.
+  Legacy invitations without email binding must be confirmed by Staff and revoked/reissued through the existing PS-86
+  lifecycle with audit; no silent trust promotion.
+- Redeem limits retain five failed attempts/account/15 minutes and add five failed attempts/account+invitation/15
+  minutes. A pessimistic lock on the authenticated User row serializes checks across instances; failed-attempt rows
+  are written in a separate transaction so rollback cannot erase them. Invalid-format inputs consume only the account
+  bucket because they have no canonical invitation hash. No trusted IP/X-Forwarded-For policy is introduced.
+- Route: `POST /api/v1/auth/invitations/redeem` with bearer authentication and `{ "code": "..." }`. Staff-bound
+  issuance and authenticated redeem are implemented. Signup+redeem remains excluded; real email delivery and the
+  PS-104 delivered-item read API remain separate integration blockers.
+
+Source-backed blockers still open:
+
+- `BeneficiaryInvitation.recipient_email` is now nullable and legacy rows remain null. Migration V41 adds this field.
+  The Staff PS-106 endpoint now confirms the current generation, applies the existing PS-86 issue/reissue lifecycle,
+  binds the last counter-confirmed email, and writes the generation's code+recipient encrypted in V43 outbox in the
+  same transaction. Legacy rows stay unbound until this explicit flow reissues them.
+- Durable redeem limiting is implemented with SQL Server failure rows and the locked authenticated User row. SQL
+  Server concurrency/rollback behavior still needs a real SQL Server integration run.
+- The Staff counter attestation has a nullable `confirmed_email` snapshot; this records the address Staff confirmed
+  at the counter, but does not prove mailbox control. The approved PS-106 flow binds that address to the invitation
+  generation and permits the matching authenticated account to redeem even while `users.email_verified_at` is NULL.
+  No email-verification flow currently populates that column; no general email-verification policy is inferred.
+- No mail provider/sandbox, sender, test recipient, transport adapter, or worker exists. The outbox is persisted but
+  transport remains hard-disabled. Provider acceptance,
+  timeout/retry/backoff, resend/idempotency semantics, audit events, and ciphertext/key-version deletion/retention
+  policy are not configured. Transport remains disabled; do not claim delivery.
+- Current develop has no beneficiary-scoped delivered-item content/image endpoint from PS-104. Linking does not
+  grant asset reads, and no replacement access mechanism is implemented.
+
+> **Cập nhật 19/10/2026:** Quyết định mới của người dùng thay giá/chu kỳ trước đây: BASIC miễn phí, STANDARD 499.000đ và EXTENDED 999.000đ trọn đời; nâng cấp trả đủ giá gói đích. Ảnh tài sản 5 ảnh × 5 MiB. Xem [quyết định và contract hiện hành](lifetime-plans-and-asset-images.md). Phần cũ bên dưới giữ để truy vết lịch sử.
+
 > **Cách đọc:** mục **ĐÃ CHỐT** là quyết định để FE/BE triển khai Sprint 1, do **Dương (điều phối PS-74) chốt ngày 2026-10-11**
 > trên cơ sở đề xuất trong contract. FE/BE vẫn có thể phản biện ở buổi review; mọi thay đổi sau đó phải ghi vào mục D và cập nhật
 > contract + `openapi.yaml` trong cùng PR.
@@ -13,7 +97,7 @@
 | D-API-01 | Base path | `/api/v1` | URL toàn hệ thống |
 | D-API-02 | Port local | Backend `8080`, Frontend `5173` | Proxy/CORS |
 | D-API-03 | FE gọi BE khi dev | **Vite proxy** là cách chính; CORS whitelist `http://localhost:5173` là phương án phụ, mặc định **tắt** (`CORS_ALLOWED_ORIGINS`) | `vite.config.js`, `SecurityConfig` |
-| D-API-04 | Nơi lưu access token ở FE | Trong bộ nhớ JS (in-memory); tải lại trang phải đăng nhập lại. **Không** dùng `localStorage`/`sessionStorage` | FE guard |
+| D-API-04 | Nơi lưu access token ở FE | Cập nhật được người dùng phê duyệt ngày 2026-10-19: giữ phiên trong `sessionStorage` của tab để hỗ trợ reload; xác minh lại bằng `/auth/me`, giữ nguyên thời điểm hết hạn, xóa khi đăng xuất/hết hạn/401. Không dùng `localStorage` | FE guard |
 | D-API-05 | Refresh token | **Không có** ở Sprint 1 (không có `/auth/refresh`). Nếu sau này thêm: cookie `HttpOnly; Secure; SameSite` + bật chống CSRF cho endpoint đó | PS-10 |
 | D-API-06 | Phân trang | `page` (từ 0), `size` (mặc định 20, tối đa 100), `sort`; envelope `content/page/size/totalElements/totalPages` | Mọi endpoint danh sách |
 | D-API-07 | Truy cập tài nguyên của người khác | `404 RESOURCE_NOT_FOUND` (không lộ sự tồn tại); thiếu role → `403 ACCESS_DENIED` | Test ownership |
@@ -41,7 +125,7 @@
 | D-API-24 | PS-16 | Cập nhật Asset | `PATCH` (cập nhật một phần) |
 | D-API-25 | PS-21 | Kiểm tra điều kiện Beneficiary | `GET /vaults/{id}/configuration-check` + bật DMS bị chặn bằng `422 BENEFICIARY_REQUIRED` |
 | D-API-26 | PS-20 | Số định danh Beneficiary | Có thể lưu (write-only `identityNumber`, mã hóa trong DB); **response không trả số, chỉ trả `hasIdentityNumber` (boolean)**. Không cần giải mã khi liệt kê. *(Đổi so với đề xuất ban đầu `identityNumberMasked`.)* |
-| D-API-27 | PS-22 | Check-in khi DMS đã `TRIGGERED` | Sprint 1: từ chối `409 DMS_NOT_MONITORING`. Luồng huỷ báo động (LV-OWN-001) là việc riêng ở sprint sau |
+| D-API-27 | PS-22 | Check-in khi DMS đã `TRIGGERED` | Cho phép check-in khi `TRIGGERED` còn trong thời gian ân hạn (`graceDeadline > now`, Vault `ACTIVE`): khôi phục `MONITORING`. Hết ân hạn, Vault không còn `ACTIVE` hoặc `GRACE_PERIOD_EXCEEDED`: `409 DMS_NOT_MONITORING` |
 | D-API-28 | PS-23 | Nhiều instance cùng quét | Cập nhật có điều kiện `WHERE status = 'MONITORING'` để idempotent; chưa thêm thư viện lock |
 | D-API-29 | PS-15 | Giới hạn `payload` Asset | Mặc định 64 KB, cấu hình qua property; vượt → `400 VALIDATION_FAILED` |
 | D-API-30 | PS-22 / PS-23 | Phạm vi và đường dẫn DMS | DMS thuộc **tài khoản Owner** (mỗi Owner một DMS, `dms_configs.owner_user_id UNIQUE`), đường dẫn `/api/v1/dms`, `/api/v1/dms/check-in`; không có tham số `vaultId`/`ownerId`, Owner lấy từ người đăng nhập. Chốt 2026-10-14 (Dương) |
@@ -51,6 +135,15 @@
 | D-API-34 | PS-38 / PS-39 | Ghi nhận giấy tờ do Staff nhận | **Đề xuất, chờ nhóm xác nhận.** (1) Hai loại giấy tờ khai tử: `DEATH_CERTIFICATE`, `DEATH_REGISTRATION_EXTRACT` (suy từ LV-DEATH-002 "Giấy chứng tử / Trích lục khai tử"; chỉ `DEATH_CERTIFICATE` có trong data dictionary). (2) Chỉ Staff **đã nhận ca** mới ghi nhận; ca phải `OPEN`. (3) PS-38/39 chỉ ghi nhận, **không** đổi trạng thái Vault/ca: tiến độ hồ sơ (`DEATH_DOCS_COLLECTED`, `WILL_AND_IDS_SUBMITTED`) chưa có cột chứa, `verification_cases.status` chỉ có `OPEN`/`CANCELLED`. (4) PS-39 không bắt buộc ST-12 đã được duyệt. |
 | D-API-35 | PS-40 | Đối chiếu di chúc gốc của Legal | **Đề xuất, chờ nhóm xác nhận.** (1) Legal (không phải Staff) đối chiếu, theo chỉ đạo của Dương. (2) Ba kết quả `MATCH`/`MISMATCH`/`INCONCLUSIVE`; `MISMATCH` và `INCONCLUSIVE` bắt buộc có lý do. (3) Hash do server lấy từ phiên bản đã lưu. (4) "Chặn luồng duyệt thông thường" hiểu là `approvalBlocked` cho tới khi kết quả **mới nhất** của ca là `MATCH`; chưa đối chiếu cũng chặn. (5) Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION`. (6) **Đã giải quyết theo Main Flow ST-15:** `MATCH` đầu tiên chuyển Vault sang `WILL_VERIFICATION`. Còn mở: Legal chưa có cách xem nội dung bản scan. |
 | D-API-36 | PS-41 / PS-42 / PS-43 | Hồ sơ căn cứ phân chia | **Giải quyết theo Main Flow v4.2 (ST-16..19) và D-LEGAL-002; chờ nhóm xác nhận.** (1) Hồ sơ do **Legal** tạo ở ST-16 kèm nhánh; Staff không bao giờ chọn nhánh (AC-L04). (2) "Chưa đủ thông tin" là `ON_HOLD`; hồ sơ `ON_HOLD` chưa nhận văn bản. (3) Tiến độ hồ sơ ở `legal_basis_dossiers.status`: `DRAFT` → `LEGAL_BASIS_PROVIDED` (ST-18) → `LEGAL_BASIS_FORWARDED` (ST-19). (4) ST-18 yêu cầu văn bản **được số hóa và có hash**: Staff tải file, server tính SHA-256, mã hóa, sinh `file_reference`; migration V14 thêm cột lưu file và `legal_basis_type`. (5) Mỗi ca một hồ sơ. (6) Vault: ST-15 `MATCH` → `WILL_VERIFICATION`; ST-16 → `AWAITING_LEGAL_BASIS`/`ON_HOLD`; ST-19 → `LEGAL_BASIS_VERIFICATION`. (7) Tranh chấp suy từ nhánh: NOTARIAL=`NONE`, COURT=`DISPUTED`, ON_HOLD=`UNDETERMINED`. (8) PS-43: chỉ hồ sơ `ON_HOLD` được phân loại lại sang NOTARIAL/COURT; NOTARIAL↔COURT không đổi lẫn nhau; lịch sử phân loại lưu ở `legal_basis_classification_history` (V15). (9) Văn bản NOTARIAL bắt buộc tổ chức, số và ngày công chứng. |
+| D-API-38 | PS-64 / PS-65 / PS-66 | Bàn giao tài sản tại quầy (ST-25) | **Giải quyết theo Main Flow v4.2 (ST-25, LV-HANDOVER-001); chờ nhóm xác nhận.** (1) Đơn vị bàn giao là dòng phân bổ (tài sản - người nhận) đã được Legal duyệt của phiên bản hồ sơ hiện tại; mỗi dòng chỉ giao một lần (`handover_items`). (2) Một tài sản có nhiều người nhận chỉ được coi là đã giao hết khi mọi dòng của tài sản đó đã giao; PS-68 cần roll-up theo quy tắc này. (3) Người nhận phải `VERIFIED_AT_COUNTER`; tài khoản (ST-24) chưa bắt buộc ở bước giao. (4) Lần giao đầu tiên chuyển Vault `UNLOCKED` → `HANDOVER_IN_PROGRESS`; mở phiên mới và lập biên nhận chấp nhận cả hai trạng thái. (5) Mọi thao tác bàn giao đi qua `HandoverAuthorizationGuard` (PS-66), không dựa riêng vào `UNLOCKED`. (6) `VERIFIED_BY_BENEFICIARY` chỉ dành cho PS-67; PS-64..66 không đặt giá trị này. |
+| D-API-37 | PS-62 / PS-63 | Tài khoản Beneficiary tại quầy (ST-24) | **Giải quyết theo Main Flow v4.2 (ST-24, LV-ID-001); chờ nhóm xác nhận.** (1) Chỉ Staff đã nhận ca `OPEN` của đúng kho; chỉ làm sau khi Beneficiary `VERIFIED_AT_COUNTER` (ST-14). (2) Liên kết: Staff nhập email của tài khoản có sẵn; tạo mới: Beneficiary tự chọn mật khẩu tại quầy, tài khoản `ACTIVE` ngay vì danh tính đã đối chiếu trực tiếp; không OTP/Claim Link/Guest Portal. (3) Cấp `ROLE_BENEFICIARY` cho tài khoản được liên kết (giữ vai trò khác như Owner nếu có). (4) Từ chối tài khoản Staff/Legal/Admin, Owner của chính kho, hoặc đã liên kết Beneficiary khác của cùng kho. (5) Hồ sơ Beneficiary độc lập với tài khoản; chưa có API hủy/đổi liên kết, chờ yêu cầu. |
+| D-API-39 | PS-88 | Dữ liệu tại quầy cho Beneficiary (ST-14, ST-24) | **Giải quyết theo Main Flow v4.2; chờ nhóm xác nhận.** (1) Staff chỉ đọc Beneficiary của ca `OPEN` được giao cho mình; không trả email, số điện thoại, số giấy tờ hay mã mời. (2) `counterStep` suy ra từ dữ liệu server: chờ xác minh tại quầy → chờ quyết định tài khoản → đã liên kết; `actions` chỉ là gợi ý, server kiểm tra lại. (3) Tài khoản không bắt buộc: bàn giao chỉ cần `VERIFIED_AT_COUNTER` (D-API-38), nên người nhận chọn xử lý offline không cần bản ghi riêng; chưa có API ghi nhận lựa chọn này. (4) Liên kết/tạo tại quầy thu hồi mã mời `PENDING` của Beneficiary đó. (5) Chưa idempotent khi liên kết lại cùng tài khoản: vẫn trả `BENEFICIARY_ACCOUNT_ALREADY_LINKED`. |
+| D-API-40 | PS-111 | Xác thực lại mật khẩu khi sửa Asset | **Đề xuất, chờ nhóm xác nhận.** (1) `PATCH .../assets/{assetId}` bắt buộc trường `password` (mật khẩu đăng nhập hiện tại); server tự xác thực, không dựa cờ FE. (2) Áp dụng cho mọi lần sửa (tên, mô tả, payload), không chỉ payload. (3) Dùng lại `PasswordReauthService` và cùng bộ đếm thử sai với `reveal` (mặc định 5 lần/15 phút, cấu hình được, chưa chốt). (4) Thứ tự 404 → 409 → 403/429; thiếu `password` là 400 và không tính lần sai. (5) Client cũ không gửi `password` nhận 400 (thay đổi không tương thích, FE PR #141 gửi kèm). (6) Chưa có reauth cho thao tác tạo/xóa Asset. |
+| D-API-41 | PS-103 | Tệp đính kèm giấy tờ tiếp nhận và đọc file theo quyền | **Đề xuất, chờ nhóm xác nhận.** (1) Bảng riêng `staff_intake_attachments` (V40), chỉ thêm, mã hóa AES-256-GCM, gắn vào bản ghi giấy tờ tử vong hoặc lần nộp di chúc giấy gốc; không có nhóm giấy tờ danh tính. (2) Loại PDF/JPEG/PNG theo nội dung, tối đa 10 MB/tệp và 10 tệp/bản ghi, cấu hình `legacyvault.intake.*`: các con số là mặc định đề xuất, chưa chốt; chưa có retention hay quota theo gói. (3) Staff đã nhận ca được tải lên khi ca `OPEN`; Staff được giao và mọi Legal Verifier đọc (phạm vi Legal toàn cục sẵn có); file căn cứ chỉ Legal đọc khi phiên bản đã chuyển (ST-19). (4) Mỗi lần đọc nội dung ghi audit `EVIDENCE_FILE_READ`. (5) Chưa chặn đính kèm thêm sau khi Legal đã quyết định; đề xuất chặn nếu nhóm đồng ý. |
+| D-API-42 | PS-92 | Thực thi hạn mức tài sản và cách đếm di chúc | **Đề xuất, chờ nhóm xác nhận** (người dùng chọn 21/10/2026 trong phiên làm PS-92). (1) `quota-enforcement-enabled` mặc định **true**: hạn mức catalog hiện hành (5/50/200 tài sản; 100 MiB/1 GiB/5 GiB) được thực thi; đặt `QUOTA_ENFORCEMENT_ENABLED=false` để tắt khi vận hành. (2) Di chúc **tính vào** số tài sản (mỗi di chúc một chỗ; phiên bản mới của cùng di chúc không chiếm thêm); mọi phiên bản file di chúc và ảnh tính vào dung lượng. (3) Owner đang vượt giới hạn vẫn đọc/sửa không tăng usage/xóa ảnh, nhưng mọi thao tác tăng count hoặc byte bị 409; không xóa hay sửa dữ liệu tự động. (4) `GET /subscriptions/me` thêm `usage.willCount` và `usage.assetOnlyCount` (đếm vẫn nằm trong `assetCount`). (5) Chưa có API xóa Asset/di chúc để Owner tự giải phóng chỗ; chưa có chính sách xử lý Owner vượt hạn mức do hạ gói. |
+| D-API-43 | PS-114 | Tài liệu PDF/Word đính kèm tài sản | **Đề xuất, chờ nhóm xác nhận** (người dùng chọn định dạng trong phiên làm PS-114). (1) Bảng riêng `asset_documents` (V48), mã hóa AES-256-GCM, đính vào tài sản `TEXT`/`CREDENTIAL`; không dùng cho di chúc, chứng cứ Staff hay ảnh. (2) Định dạng theo nội dung: PDF, DOCX và DOC; từ chối macro (`vbaProject.bin`, `_VBA_PROJECT`), ActiveX, container khác và ZIP bom. (3) Mặc định 10 MiB/tệp và 5 tệp/tài sản, cấu hình `legacyvault.asset-documents.*`: các con số chưa chốt. (4) Dung lượng tính vào hạn mức lưu trữ, không chiếm chỗ số tài sản. (5) Đọc cần mật khẩu hiện tại (như ảnh và `reveal`); Owner xóa được khi Vault `ACTIVE`. (6) Chưa có retention, quét mã độc, xem trước phía server; tài liệu chưa thuộc phạm vi bàn giao cho Beneficiary. |
+| D-API-44 | PS-104 | Đọc tài sản đã nhận của tài khoản Beneficiary | **Đề xuất, chờ nhóm xác nhận.** (1) Quyền = principal ∧ Beneficiary liên kết với tài khoản ∧ mục bàn giao `DELIVERED`/`VERIFIED_BY_BENEFICIARY`; không có ID người nhận/kho/tài khoản trong request. (2) Chỉ thấy phần đã giao, không thấy phần đã phân bổ nhưng chưa giao. (3) Mục đã giao vẫn đọc được khi kho `ARCHIVED` hoặc `ON_HOLD` (lịch sử, không tự thu hồi); tranh chấp mới chỉ chặn phần chưa giao (LV-HOLD-001). (4) Đọc nội dung/ảnh cần mật khẩu hiện tại, dùng chung bộ đếm thử sai với `reveal` (mặc định 5 lần/15 phút, chưa chốt). (5) Một tài khoản nhận từ nhiều kho; endpoint tách biệt `/api/v1/received-assets`. (6) Chưa gồm tài liệu PDF/Word đính kèm (PS-114) và chưa có ngưỡng thời gian giữ quyền đọc sau lưu trữ. |
+| D-API-46 | PS-88 | Tìm kho/hồ sơ trong hàng chờ của Staff | **Đề xuất, chờ nhóm xác nhận.** Thêm tham số tùy chọn `q` vào `GET /api/v1/staff/verification-cases`: khớp không phân biệt hoa thường theo tên kho, tên chủ kho, tên người thụ hưởng (chứa), mã hồ sơ `HS-YYYY-NNNNNN` và UUID công khai của hồ sơ/kho (khớp đúng). Chỉ thu hẹp phạm vi hàng chờ hiện có của Staff, không lộ hồ sơ của Staff khác; không tìm theo email/điện thoại/số giấy tờ; không audit vì chỉ đọc. Yêu cầu gửi lời mời đã có ở `POST …/invitation-email` (PS-106) và xác minh người nhận ở PS-45/PS-62/PS-63, không thêm API mới. Read context tại quầy bổ sung `invitation.generation`, `counterAttestation` (chỉ có/không, thời điểm, đã có email hay chưa) và `actions.canRequestInvitationEmail` để FE không đoán; gợi ý này không thay kiểm tra của server. **Còn mở:** (a) gửi lại sau khi đã có mã gắn email hiện bị từ chối `BENEFICIARY_INVITATION_ALREADY_EXISTS` — chính sách gửi lại/đổi email cần nhóm chốt; (b) cách đạt `VERIFIED_AT_COUNTER` khi FE không có màn MATCH cũ (guard gửi mã vẫn yêu cầu cả hai: `VERIFIED_AT_COUNTER` và attestation) cần chốt với Long/Thái, BE chưa đổi guard. |
 
 ## C. Câu hỏi mở kế thừa từ tài liệu nghiệp vụ — **TẠM HOÃN** (2026-10-12)
 
@@ -107,3 +200,56 @@ Theo trao đổi Dương – Long. **Xác minh trên commit `842258c` của `fea
 | N2 | `flyway.locations` phụ thuộc working directory | **Đã giải quyết** — migration được đóng gói vào classpath (`classpath:db/migration`, Maven resource `../database/migration`) |
 | N3 | V2 bị sửa tại chỗ sau khi đã push (`804b891` → `842258c`) | **Đã chốt: giữ V2** (2026-10-12). Điều kiện: báo mọi người đã chạy bản V2 cũ **reset DB cục bộ** (nếu không sẽ lỗi Flyway "checksum mismatch"); từ khi merge, mọi thay đổi schema là V3 trở đi |
 | N4 | Tài liệu DB chưa nhắc DLL xác thực Windows (`mssql-jdbc_auth-*.dll`) và chưa có cách sinh BCrypt cho seed | **Tạm bỏ qua** (2026-10-12) |
+
+## G. PS-77 — đề xuất chờ phê duyệt của nhóm (2026-10-17)
+
+Trạng thái: **PENDING — chưa có biên bản phê duyệt của nhóm**. Trao đổi với người dùng
+trong chat là đầu vào đề xuất, không thay thế Main Flow v4.2, D-TRUSTEE-001 hoặc D-LEGAL-002.
+Không ghi tên thành viên hoặc chữ ký phê duyệt khi chưa có xác nhận thực tế.
+
+- Đề xuất mô hình: chọn sau đăng ký, trọn đời, nâng hạn mức, không hạ/gia hạn/hết hạn.
+- Đề xuất giá một lần: BASIC 0, STANDARD 199000, EXTENDED 499000 VND.
+- Đề xuất Owner quota: 5/50/200 Asset, 100 MiB/1 GiB/5 GiB, 10 MiB/tệp.
+- Đề xuất evidence theo ca: 100 MiB tổng, 50 phiên bản, 10 MiB/tệp. **Không áp dụng vào PS-41**.
+- Còn phải chốt: ai xác nhận thanh toán/cấp gói, chứng từ/giao dịch nào được tin cậy,
+  idempotency và rollback, nâng gói trả chênh lệch hay cách khác; có cho mô phỏng miễn phí không.
+  Owner yêu cầu nâng gói không đồng nghĩa đã thanh toán hoặc được cấp entitlement.
+- Nhóm cần bổ sung biên bản, người duyệt, ngày duyệt và tham chiếu tài liệu nguồn trước khi
+  kích hoạt quota; cần triển khai quy trình thanh toán/xác nhận đã duyệt trước khi cho cấp gói.
+
+Hành vi hiện tại: `POST /subscriptions/me/upgrade` luôn 409
+`SUBSCRIPTION_UPGRADE_UNAVAILABLE`, không ghi entitlement/audit nâng gói; không có cờ bật cấp miễn phí.
+`legacyvault.subscription.quota-enforcement-enabled=false` mặc định: không áp các giới hạn Owner
+đề xuất, GET catalog/gói trả 409 `SUBSCRIPTION_POLICY_PENDING`. Cờ chỉ dành cho thử nghiệm cô lập
+cho đến khi có phê duyệt bằng văn bản; bật cờ không mở khóa cấp gói trả phí.
+Intake PS-41 không phụ thuộc subscription và không chặn theo tổng byte/số phiên bản đề xuất.
+Giới hạn upload và authorization/route/hold đã có của PS-41 được giữ nguyên.
+Quy tắc một Vault/Owner đã chốt tại A4 tiếp tục có hiệu lực.
+
+## PS-57–PS-72 integration questions (pending group decision)
+
+- Main Flow ST-21 names `LEGAL_APPROVED` as a Vault state. PS-57 code records the decision in dossier review history; the approval service does not transition the Vault to `LEGAL_APPROVED`, and PS-59 unlock proceeds from the forwarded dossier/current approval guard. Confirm whether this intermediate Vault state is mandatory before changing workflow transitions.
+- PS-58 derives stale approval by comparing the current dossier snapshot in `LegalApprovalGuard`; it does not append a separate invalidation event. Confirm whether an explicit invalidation record is required for audit/reporting. Do not treat the derived guard as a persisted invalidation event.
+- Main Flow ST-28 requires a completed handover record signed by Staff and every Beneficiary. PS-61 `STAFF_ATTESTATION` represents Staff confirmation only. The group must decide the evidence/signature model and whether the receipt is issued before or after PS-71 closes the session. No electronic signature or Beneficiary signature is claimed by the current schema.
+- Main Flow ST-23 lists `IN_PERSON_PRESENT`, while PS-60 V24/runtime session states are `OPEN`, `COMPLETED`, and `CANCELLED`. Confirm whether this is a workflow milestone or a required persisted session status before changing the enum or migration.
+
+## PS-85 — Google account onboarding and linking
+
+- `POST /api/v1/auth/google` accepts only an ID token whose verified `sub` already maps to a LegacyVault account in `dbo.external_auth_identities`.
+- Unknown `sub` is rejected with generic `401 INVALID_CREDENTIALS`; no account is created and a matching email never links accounts.
+- `POST /api/v1/auth/google/link` lets an authenticated active user link a verified Google `sub` to their own account. It never links by email or creates an account; a subject already mapped to any account is rejected. This is the approved self-service linking path implemented in PS-85.
+- First-time Google registration, linking to another account, administrative linking/revocation and account recovery remain out of scope and require a separate owner decision. Google sign-in remains unavailable to unlinked users until they authenticate to LegacyVault and use the self-link endpoint.
+- Mock verifier tests are not evidence of a real Google integration; live Google verification still requires configured client ID and Google JWKS connectivity.
+
+## PS-113 — D-API-45 (proposal, pending group approval, 2026-10-21)
+
+Guardian: age 18 by Asia/Ho_Chi_Minh date; one current guardian; name/relationship plus email or phone; incomplete beneficiary remains savable/readable with warning; replace/revoke retains history; DOB/adulthood never auto-delete or grant access. See beneficiary-guardians.md. No changes to Trustee or PS-86/87/104/106/116 permissions.
+
+## BE-02 — D-API-47 (proposal, pending group approval, 2026-10-25)
+
+Recipients from a Court document (D-LEGAL-002, ST-18, LV-BASIS-001, LV-HANDOVER-001):
+
+1. On the `COURT` route a recipient named only by the document (C) is created at ST-18 in the same transaction as the document version, stored as a Beneficiary with `origin='COURT_DOCUMENT'` and the exact `origin_dossier_version_id`. NOTARIAL never creates recipients from the document. No new recipient is derived from the Owner list; a person on the Owner list but absent from the approved document (B) has no right.
+2. A recipient without a linked official account does **not** block Legal approval, but **no new delivery** is allowed (`409 HANDOVER_RECIPIENT_ACCOUNT_REQUIRED`, agreed with Long). Other eligible recipients are delivered first. Delivered history is immutable and stays readable by its own account after archive (PS-104).
+3. **Policy change to confirm:** this supersedes the earlier D-API-38 "offline recipient without account" behaviour for new deliveries. Escape hatch: `legacyvault.handover.require-linked-account=false` (default `true`).
+4. Not decided here (open questions, no numbers invented): invitation TTL / rate limit, representation of minors (guardian data from V49 is informational).

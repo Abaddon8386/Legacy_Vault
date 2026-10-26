@@ -7,7 +7,6 @@ import {
   PauseCircle,
   RotateCcw,
   FileText,
-  RefreshCw,
   Clock,
 } from 'lucide-react';
 import {
@@ -68,12 +67,6 @@ export default function LegalDossierReviewPage({
 
   const handleNoteChange = (val) => {
     setNote(val);
-  };
-
-  const handleReset = () => {
-    setDecision('');
-    setNote('');
-    setErrors({});
   };
 
   const decisionOptions = [
@@ -168,15 +161,6 @@ export default function LegalDossierReviewPage({
             )}
           </div>
 
-          <div className="lv-dossier-row">
-            <span className="lv-dossier-label">{t.hashLabel}:</span>
-            <div
-              className={`lv-hash-box ${!initialDossier?.sha256 ? 'lv-hash-box--empty' : ''}`}
-            >
-              {initialDossier?.sha256 || t.hashUnloaded}
-            </div>
-          </div>
-
           {initialDossier?.issuer && (
             <div className="lv-dossier-row">
               <span className="lv-dossier-label">{t.issuerLabel}</span>
@@ -239,7 +223,7 @@ export default function LegalDossierReviewPage({
           {errors.decision && (
             <div className="lv-form-error-msg" role="alert">
               <AlertTriangle size={13} aria-hidden="true" />
-              <span>{t[errors.decision] || errors.decision}</span>
+              <span>{t[errors.decision] || t.decisionInvalid}</span>
             </div>
           )}
 
@@ -270,15 +254,6 @@ export default function LegalDossierReviewPage({
               >
                 <CheckCircle2 size={16} aria-hidden="true" />
                 <span>{t.btnSubmitDecision}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 

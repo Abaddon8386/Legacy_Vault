@@ -6,7 +6,6 @@ import {
   XCircle,
   FileText,
   UserCheck,
-  RefreshCw,
   Info,
 } from 'lucide-react';
 import {
@@ -64,15 +63,6 @@ export default function LegalWillDocumentVerificationPage({
     setValidationStatus(res.isValid ? 'success' : 'error');
   };
 
-  const handleReset = () => {
-    setDocketReference(initialDoc?.docketReference || '');
-    setComparison('');
-    setNotes('');
-    setErrors({});
-    setValidatedOnce(false);
-    setValidationStatus(null);
-  };
-
   return (
     <div className="lv-will-verification-view">
       {/* Page Title Area */}
@@ -116,22 +106,12 @@ export default function LegalWillDocumentVerificationPage({
           <div className="lv-metadata-row">
             <span className="lv-metadata-label">{t.docVersionLabel}</span>
             {initialDoc?.version ? (
-              <span className="lv-metadata-value-badge">Phiên bản {initialDoc.version}</span>
+              <span className="lv-metadata-value-badge">{lang === 'en' ? 'Copy' : 'Bản số'} {initialDoc.version}</span>
             ) : (
               <span className="lv-metadata-value-unloaded">{t.docVersionUnloaded}</span>
             )}
           </div>
 
-          <div className="lv-hash-box-wrap">
-            <span className="lv-metadata-label">{t.docHashLabel}</span>
-            <span className="lv-form-hint">{t.docHashHint}</span>
-            <div
-              className={`lv-hash-box ${!initialDoc?.sha256 ? 'lv-hash-box--empty' : ''}`}
-              title={initialDoc?.sha256 ? 'SHA-256 Hash' : undefined}
-            >
-              {initialDoc?.sha256 || t.docHashUnloaded}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -215,7 +195,7 @@ export default function LegalWillDocumentVerificationPage({
             {errors.comparison && (
               <div className="lv-form-error-msg" role="alert" style={{ marginTop: 8 }}>
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.comparison] || errors.comparison}</span>
+                <span>{t[errors.comparison] || t.willValidationFailure}</span>
               </div>
             )}
           </fieldset>
@@ -279,15 +259,6 @@ export default function LegalWillDocumentVerificationPage({
                 onClick={handleValidateLocal}
               >
                 <span>{t.btnValidateLocal}</span>
-              </button>
-
-              <button
-                type="button"
-                className="lv-btn-reset"
-                onClick={handleReset}
-              >
-                <RefreshCw size={14} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                <span>{t.btnReset}</span>
               </button>
             </div>
 

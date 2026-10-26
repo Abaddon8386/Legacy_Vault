@@ -86,13 +86,13 @@ export function validateBeneficiary(values = {}, lang = 'vi') {
 
   // 4. Phone (optional)
   const trimmedPhone = (values.phone || '').trim();
-  if (trimmedPhone && !PHONE_REGEX.test(trimmedPhone)) {
+  if (trimmedPhone && (trimmedPhone.length > 20 || !PHONE_REGEX.test(trimmedPhone))) {
     errors.phone = msgs.phoneInvalid;
   }
 
   // 5. Email (optional)
   const trimmedEmail = (values.email || '').trim();
-  if (trimmedEmail && !EMAIL_REGEX.test(trimmedEmail)) {
+  if (trimmedEmail && (trimmedEmail.length > 254 || !EMAIL_REGEX.test(trimmedEmail))) {
     errors.email = msgs.emailInvalid;
   }
 

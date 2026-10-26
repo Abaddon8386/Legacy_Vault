@@ -388,25 +388,6 @@
   transform: translateY(0);
 }
 
-.lv-staff-documents-view .lv-btn-reset {
-  display: inline-flex;
-  align-items: center;
-  background-color: #ffffff;
-  color: var(--lv-brand-forest, #164639);
-  border: 1px solid var(--lv-border-medium, #ded9ce);
-  border-radius: 8px;
-  padding: 12px 20px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
-}
-
-.lv-staff-documents-view .lv-btn-reset:hover {
-  border-color: var(--lv-border-hover, #baa375);
-  background-color: #faf8f5;
-}
-
 .lv-staff-documents-view .lv-action-helper-notice {
   display: flex;
   align-items: center;
@@ -464,4 +445,844 @@
   .lv-staff-documents-view .lv-staff-warning-banner {
     padding: 14px 16px;
   }
+
+  .lv-staff-documents-view .lv-case-select-bar {
+    flex-direction: column;
+  }
+
+  .lv-staff-documents-view .lv-btn-load-case {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   PS-96 New UI Components
+   -------------------------------------------------------------------------- */
+
+.lv-staff-documents-view .lv-staff-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  color: #1e40af;
+}
+
+.lv-staff-documents-view .lv-staff-preview-banner__icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.lv-staff-documents-view .lv-staff-preview-banner__badge {
+  display: inline-block;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  margin-right: 8px;
+}
+
+.lv-staff-documents-view .lv-staff-preview-banner__text {
+  font-size: 13px;
+  color: #1e3a8a;
+}
+
+.lv-staff-documents-view .lv-case-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lv-staff-documents-view .lv-case-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.lv-staff-documents-view .lv-case-input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.lv-staff-documents-view .lv-case-input {
+  padding-left: 36px;
+}
+
+.lv-staff-documents-view .lv-btn-load-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13.5px;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.lv-staff-documents-view .lv-btn-load-case:hover:not(:disabled) {
+  background-color: #0f332a;
+}
+
+.lv-staff-documents-view .lv-btn-load-case:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--legal_basis_forwarded {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--legal_basis_provided {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--draft {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.lv-staff-documents-view .lv-dossier-status-pill--on_hold {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.lv-staff-documents-view .lv-dossier-hold-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  color: #9f1239;
+  font-size: 13.5px;
+  margin-top: 12px;
+}
+
+.lv-staff-documents-view .lv-dossier-hold-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lv-staff-documents-view .lv-dossier-hold-banner p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #be123c;
+}
+
+.lv-staff-documents-view .lv-forward-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.lv-staff-documents-view .lv-btn-forward {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-forward--active {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: 1px solid #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.lv-staff-documents-view .lv-btn-forward--active:hover {
+  background-color: #1d4ed8;
+}
+
+.lv-staff-documents-view .lv-btn-forward--disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+  cursor: not-allowed;
+}
+
+.lv-staff-documents-view .lv-forward-helper-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.lv-staff-documents-view .lv-forward-completed-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #059669;
+}
+
+.lv-staff-documents-view .lv-forward-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.lv-staff-documents-view .lv-forward-badge--forwarded {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.lv-staff-documents-view .lv-forward-badge--pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.lv-staff-documents-view .lv-form-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  color: #065f46;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.lv-staff-documents-view .lv-form-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.lv-staff-documents-view .lv-notary-subform {
+  padding: 16px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.lv-staff-documents-view .lv-notary-subform__title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lv-staff-documents-view .lv-btn-submit-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-submit-version:hover:not(:disabled) {
+  background-color: #0f332a;
+}
+
+.lv-staff-documents-view .lv-btn-submit-version:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lv-staff-documents-view .lv-spin {
+  animation: lv-spin 1s linear infinite;
+}
+
+@keyframes lv-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --------------------------------------------------------------------------
+   Staff Tabs Navigation
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-staff-tabs-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px;
+  background: #f4f6f4;
+  border: 1px solid #e1e7e2;
+  border-radius: 10px;
+}
+
+.lv-staff-documents-view .lv-staff-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--lv-text-muted, #6b726b);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 0;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border-radius: 8px;
+}
+
+.lv-staff-documents-view .lv-staff-tab-btn:hover {
+  color: var(--lv-brand-forest, #164639);
+  background-color: rgba(22, 70, 57, 0.05);
+}
+
+.lv-staff-documents-view .lv-staff-tab-btn:focus-visible {
+  outline: 2px solid var(--lv-brand-forest, #164639);
+  outline-offset: 2px;
+}
+
+.lv-staff-documents-view .lv-staff-tab-btn--active,
+.lv-staff-documents-view .lv-staff-tab-btn--active:hover {
+  color: #ffffff;
+  background-color: #164639;
+  box-shadow: 0 2px 6px rgba(22, 70, 57, 0.15);
+}
+
+.lv-staff-documents-view .lv-staff-tab-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background-color: rgba(22, 70, 57, 0.12);
+  color: var(--lv-brand-forest, #164639);
+}
+
+/* --------------------------------------------------------------------------
+   Allocations Scope Management (Finding B)
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-allocations-section {
+  margin-top: 18px;
+  padding: 20px;
+  background-color: #faf8f5;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 12px;
+}
+
+.lv-staff-documents-view .lv-allocations-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.lv-staff-documents-view .lv-allocations-title {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  margin: 0 0 4px;
+}
+
+.lv-staff-documents-view .lv-allocations-desc {
+  font-size: 13px;
+  color: var(--lv-text-muted, #6b726b);
+  margin: 0;
+}
+
+.lv-staff-documents-view .lv-btn-add-allocation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  background-color: #ffffff;
+  color: var(--lv-brand-forest, #164639);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-add-allocation:hover:not(:disabled) {
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+}
+
+.lv-staff-documents-view .lv-allocation-warning-box {
+  background-color: #fff9eb;
+  border: 1px solid #f2c94c;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #946200;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.lv-staff-documents-view .lv-allocations-empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--lv-text-muted, #6b726b);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lv-staff-documents-view .lv-allocations-blocker-text {
+  max-width: 580px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8c5800;
+  background-color: #fff8e6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px dashed #e6b800;
+}
+
+.lv-staff-documents-view .lv-btn-mock-alloc-sample {
+  margin-top: 6px;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #c5a059;
+  color: #8c6b23;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lv-staff-documents-view .lv-allocations-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.lv-staff-documents-view .lv-allocations-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.lv-staff-documents-view .lv-allocations-table th {
+  background-color: #f7f5f0;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--lv-text-dark, #2b332c);
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-staff-documents-view .lv-allocations-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0ece6;
+  vertical-align: middle;
+}
+
+.lv-staff-documents-view .lv-alloc-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #d4cebe;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.lv-staff-documents-view .lv-alloc-input:focus {
+  outline: none;
+  border-color: var(--lv-brand-forest, #164639);
+}
+
+.lv-staff-documents-view .lv-btn-remove-alloc {
+  background: transparent;
+  border: none;
+  color: #b3261e;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-staff-documents-view .lv-btn-remove-alloc:hover:not(:disabled) {
+  background-color: rgba(179, 38, 30, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   Technical Details (Foldable SHA-256)
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-technical-details {
+  margin-top: 16px;
+  border: 1px solid #eae5dc;
+  border-radius: 8px;
+  background-color: #faf9f6;
+  padding: 10px 14px;
+}
+
+.lv-staff-documents-view .lv-technical-details__summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lv-text-muted, #6b726b);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lv-staff-documents-view .lv-technical-details__content {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #eae5dc;
+}
+
+.lv-staff-documents-view .lv-hash-code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  background-color: #f0ece4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #333333;
+  word-break: break-all;
+}
+
+/* --------------------------------------------------------------------------
+   Legacy Notarial Notice Banner
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-legacy-notarial-banner {
+  background-color: #f4f6f8;
+  border: 1px solid #d1d5db;
+  border-left: 4px solid #64748b;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #334155;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.lv-staff-documents-view .lv-legacy-notarial-banner p {
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Dossier Overview Actions
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-dossier-overview-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  flex-wrap: wrap;
+}
+
+.lv-staff-documents-view .lv-btn-go-intake {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-go-intake:hover:not(:disabled) {
+  background-color: #0f332a;
+}
+
+/* --------------------------------------------------------------------------
+   History Table
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-history-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-radius: 8px;
+}
+
+.lv-staff-documents-view .lv-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.lv-staff-documents-view .lv-history-table th {
+  background-color: #f7f5f0;
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--lv-text-dark, #2b332c);
+  border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
+}
+
+.lv-staff-documents-view .lv-history-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0ece6;
+  vertical-align: middle;
+}
+
+.lv-staff-documents-view .lv-version-pill {
+  font-weight: 700;
+  color: var(--lv-brand-forest, #164639);
+  background-color: rgba(22, 70, 57, 0.08);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.lv-staff-documents-view .lv-alloc-count-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background-color: #edf7ed;
+  color: #1e4620;
+  border-radius: 10px;
+}
+
+.lv-staff-documents-view .lv-alloc-count-empty {
+  color: var(--lv-text-muted, #8c8c8c);
+}
+
+/* --------------------------------------------------------------------------
+   Unsaved Draft Confirmation Modal
+   -------------------------------------------------------------------------- */
+.lv-unsaved-modal {
+  max-width: 440px !important;
+  padding: 24px !important;
+}
+
+.lv-unsaved-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.lv-unsaved-modal__icon {
+  color: #b5832a;
+}
+
+.lv-unsaved-modal__header h2 {
+  font-size: 18px;
+  margin: 0;
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-unsaved-modal__body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lv-text-dark, #333333);
+  margin: 0 0 20px;
+}
+
+.lv-unsaved-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.lv-btn-cancel-discard {
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  background: #ffffff;
+  color: var(--lv-text-dark, #333333);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lv-btn-confirm-discard {
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: none;
+  background-color: #b3261e;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lv-staff-back-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.lv-staff-back-link-btn:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.lv-staff-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--lv-text-muted, #666666);
+  font-size: 14px;
+}
+
+
+/* --------------------------------------------------------------------------
+   Document View Buttons (PS-96 & PS-103)
+   -------------------------------------------------------------------------- */
+.lv-staff-documents-view .lv-btn-view-document {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #164639;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lv-staff-documents-view .lv-btn-view-document:hover:not(:disabled) {
+  background-color: #dcfce7;
+  border-color: #86efac;
+}
+
+.lv-staff-documents-view .lv-btn-view-version-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #164639;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lv-staff-documents-view .lv-btn-view-version-file:hover:not(:disabled) {
+  background-color: #dcfce7;
+  border-color: #86efac;
+}
+
+.lv-staff-documents-view .lv-btn-view-document:disabled,
+.lv-staff-documents-view .lv-btn-view-version-file:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Intake uses the same card and control system as the dossier overview. */
+.lv-staff-documents-view { color: #293c31; gap: 22px; }
+.lv-staff-documents-view .lv-staff-form-card { padding: 28px; border-top: 3px solid #37765a; box-shadow: 0 4px 22px #163d2706; }
+.lv-staff-documents-view .lv-staff-form-card__header { padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e8ece5; }
+.lv-staff-documents-view .lv-staff-form-card__header h2 { font-family: inherit; color: #263d2e; font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+.lv-staff-documents-view .lv-staff-form-card__header p { color: #718076; font-size: 13px; margin: 0; line-height: 1.6; }
+.lv-staff-documents-view .lv-intake-form { display: flex; flex-direction: column; gap: 22px; }
+.lv-staff-documents-view .lv-form-row--2cols { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.lv-staff-documents-view .lv-intake-form .lv-form-group { min-width: 0; margin: 0; gap: 7px; }
+.lv-staff-documents-view .lv-intake-form .lv-form-label { color: #344c3d; font-size: 13px; font-weight: 700; margin: 0; }
+.lv-staff-documents-view .lv-intake-form .lv-form-hint { color: #738075; font-size: 12px; line-height: 1.5; margin: 0; }
+.lv-staff-documents-view .lv-form-select,
+.lv-staff-documents-view .lv-form-textarea,
+.lv-staff-documents-view .lv-intake-form .lv-form-input { width: 100%; max-width: 100%; min-height: 46px; font: inherit; font-size: 14px; line-height: 1.5; color: #27382d; background: #fff; border: 1px solid #d8e0d7; border-radius: 9px; padding: 11px 14px; box-sizing: border-box; }
+.lv-staff-documents-view .lv-form-select { cursor: pointer; padding-right: 32px; }
+.lv-staff-documents-view .lv-form-textarea { min-height: 92px; resize: vertical; }
+.lv-staff-documents-view .lv-form-select:focus-visible,
+.lv-staff-documents-view .lv-form-textarea:focus-visible,
+.lv-staff-documents-view .lv-intake-form .lv-form-input:focus { outline: none; border-color: #57846a; box-shadow: 0 0 0 3px #37765a18; }
+.lv-staff-documents-view .lv-intake-form .lv-form-input::placeholder,
+.lv-staff-documents-view .lv-form-textarea::placeholder { color: #859186; font-size: 13px; }
+.lv-staff-documents-view .lv-form-select:disabled,
+.lv-staff-documents-view .lv-form-textarea:disabled,
+.lv-staff-documents-view .lv-intake-form .lv-form-input:disabled { background: #f2f4f0; color: #7b877c; cursor: not-allowed; }
+.lv-staff-documents-view .lv-intake-form .lv-form-input--error { border-color: #bd5b4c; background: #fffafa; }
+.lv-staff-documents-view .lv-field-error { font-size: 12px; font-weight: 600; color: #a83f31; }
+.lv-staff-documents-view .lv-allocations-section { background: #f5f7f2; border-color: #dce5d6; margin-top: 0; padding: 22px; }
+.lv-staff-documents-view .lv-allocations-title { color: #2e5e3e; font-size: 16px; }
+.lv-staff-documents-view .lv-intake-form-actions { border-top: 1px solid #e5eae0; padding-top: 22px; display: flex; justify-content: flex-end; }
+.lv-staff-documents-view .lv-btn-submit-version { min-height: 46px; padding: 12px 22px; border-radius: 9px; }
+@media(max-width:700px) {
+  .lv-staff-documents-view .lv-staff-form-card { padding: 20px 16px; }
+  .lv-staff-documents-view .lv-form-row--2cols { grid-template-columns: 1fr; gap: 22px; }
+  .lv-staff-documents-view .lv-staff-tab-btn { padding: 10px 12px; font-size: 13px; }
+  .lv-staff-documents-view .lv-intake-form-actions > button { width: 100%; }
 }

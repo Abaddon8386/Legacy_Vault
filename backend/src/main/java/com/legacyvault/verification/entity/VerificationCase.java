@@ -10,6 +10,21 @@ import java.util.UUID;
 public class VerificationCase {
 
     public static final String STATUS_OPEN = "OPEN";
+    public static final String STATUS_CLOSED = "CLOSED";
+
+    @Column(name = "closed_handover_session_id")
+    private Long closedHandoverSessionId;
+
+    public Long getClosedHandoverSessionId() { return closedHandoverSessionId; }
+
+    public void complete(LocalDateTime now, Long handoverSessionId) {
+        if (!isOpen()) throw new IllegalStateException("Verification case is not open");
+        java.util.Objects.requireNonNull(handoverSessionId, "handoverSessionId");
+        status = STATUS_CLOSED;
+        closedAt = now;
+        updatedAt = now;
+        closedHandoverSessionId = handoverSessionId;
+    }
     public static final String STATUS_CANCELLED = "CANCELLED";
 
     @Id
@@ -95,6 +110,14 @@ public class VerificationCase {
 
     public UUID getPublicId() {
         return publicId;
+    }
+
+    /** Stable display reference from immutable persisted fields; UUID remains the API key. */
+    public String getCaseNumber() {
+        if (verificationCaseId == null || createdAt == null) {
+            throw new IllegalStateException("Case reference requires a persisted case");
+        }
+        return String.format(java.util.Locale.ROOT, "HS-%04d-%06d", createdAt.getYear(), verificationCaseId);
     }
 
     public Long getVaultId() {
