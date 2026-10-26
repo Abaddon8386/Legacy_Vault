@@ -20,7 +20,7 @@ import com.legacyvault.verification.service.StaffVaultCaseGuard;
 import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 
-/** Read-only metadata catalog visible to the assigned Staff before the Vault is unlocked. */
+/** Read-only metadata for assigned Staff during legal intake and unlocked handover. */
 @Service
 public class StaffAssetCatalogService {
 	private final VerificationCaseRepository cases;
@@ -46,7 +46,8 @@ public class StaffAssetCatalogService {
 		guard.requireOpenForRead(verificationCase.getVaultId(), actor.getUserId());
 		Vault vault = vaults.findById(verificationCase.getVaultId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		if (!isPreUnlockStatus(vault.getStatus())) {
+		if (!isPreUnlockStatus(vault.getStatus()) && !Vault.STATUS_UNLOCKED.equals(vault.getStatus())
+				&& !Vault.STATUS_HANDOVER_IN_PROGRESS.equals(vault.getStatus())) {
 			throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
 		}
 		var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "assetId"));

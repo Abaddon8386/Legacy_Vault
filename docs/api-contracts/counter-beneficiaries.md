@@ -75,3 +75,6 @@ Giới hạn: danh sách không phân trang (số Beneficiary của một kho nh
 ## Cập nhật 22/10/2026 — xác nhận Staff tại quầy
 
 POST identity-attestations lưu biên bản bất biến và cập nhật VERIFIED_AT_COUNTER trong cùng transaction, sau kiểm tra Staff được giao ca OPEN và đúng người/kho. Đây là nguồn trạng thái tương thích cho guard liên kết/giao tài sản hiện có; FE không gửi MATCH hay trạng thái verified. Không tự cập nhật các biên bản cũ; Staff cần ghi nhận lại thao tác tại quầy qua API. Không thay guard Legal/unlock/phân bổ. Menu Staff Bàn giao tài sản mở /staff/handover; vào màn giao chi tiết từ liên kết của phiên để giữ sessionId.
+
+### Metadata tài sản khi bàn giao — 22/10/2026
+GET /staff/verification-cases/{caseId}/assets cho phép Staff được giao ca OPEN đọc assetId/assetType/name trong các trạng thái trước mở khóa hiện có, UNLOCKED và HANDOVER_IN_PROGRESS. Không trả payload, ảnh hoặc bí mật tài sản. Vẫn chặn ACTIVE, ON_HOLD, ARCHIVED và sai assignment. Màn bàn giao ghép metadata theo assetId với eligible-assets; quyền giao vẫn do endpoint giao kiểm tra độc lập.

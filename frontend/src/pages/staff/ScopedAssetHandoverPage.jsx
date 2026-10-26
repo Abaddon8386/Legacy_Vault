@@ -441,6 +441,7 @@ function ScopedAssetHandoverPageContext({
   return (
     <div className="lv-asset-handover-view">
       <StaffWorkflowGuide current="handover" caseId={caseReference} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
+        legalApproved={hasCurrentScope && scopeValidation.isValid && scopeValidation.isApproved}
         caseStatus={displayCaseItem?.status} vaultStatus={displayCaseItem?.vaultStatus} loading={isLoading} error={loadError} />
       {/* Context navigation back link */}
       {caseReference && sessionId && (
@@ -550,9 +551,13 @@ function ScopedAssetHandoverPageContext({
         {(!isLoading && !scopeValidation.isValid) ? (
           <div className="lv-handover-scope-empty" role="status">
             <Package size={32} className="lv-handover-scope-empty__icon" aria-hidden="true" />
-            <h3>{t.scopeMissingTitle}</h3>
-            <p>{t.scopeMissingDesc}</p>
-            {onNavigateCases && (
+            <h3>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'No recipients ready for handover yet' : 'Chưa có người nhận đủ điều kiện bàn giao') : t.scopeMissingTitle}</h3>
+            <p>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'Ask the recipient to submit the case number from Shared with me, then verify their account at the counter. Reload this page after verification.' : 'Người nhận cần nhập mã hồ sơ trong Được chia sẻ với tôi. Staff đối chiếu và xác nhận tài khoản tại quầy, rồi tải lại danh sách tài sản.') : t.scopeMissingDesc}</p>
+            {caseReference && sessionId ? (
+              <a className="lv-btn-navigate-cases" href={`/staff/beneficiary-accounts?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}&lang=${lang}`}>
+                {en ? 'Verify recipient accounts' : 'Đối chiếu tài khoản người nhận'}
+              </a>
+            ) : onNavigateCases && (
               <div style={{ marginTop: '16px' }}>
                 <button
                   type="button"

@@ -14,6 +14,24 @@ public class BeneficiaryConfirmationRecord {
     @Column(name="confirmed_by_user_id",nullable=false,updatable=false) private Long actorId;
     @Column(name="confirmed_at",nullable=false,updatable=false) private LocalDateTime confirmedAt;
     @Column(name="receipt_reference",nullable=false,updatable=false,length=200) private String reference;
+    @Column(name="signed_file_ciphertext",columnDefinition="varbinary(max)") private byte[] signedFile;
+    @Column(name="signed_file_iv",columnDefinition="varbinary(12)") private byte[] signedIv;
+    @Column(name="signed_file_key_version",length=64) private String signedKeyVersion;
+    @Column(name="signed_file_name",length=255) private String signedFileName;
+    @Column(name="signed_file_type",length=100) private String signedFileType;
+    @Column(name="signed_file_sha256",length=64) private String signedSha256;
+    @Column(name="paper_receipt_reference",length=200) private String paperReference;
+    public void setPaperReference(String value){paperReference=value;}
+    public void attachSignedFile(com.legacyvault.common.crypto.EncryptedData encrypted, String name, String type, String hash) {
+        if(signedFile != null) throw new IllegalStateException("Receipt is immutable");
+        signedFile=encrypted.ciphertext(); signedIv=encrypted.iv(); signedKeyVersion=encrypted.keyVersion();
+        signedFileName=name; signedFileType=type; signedSha256=hash;
+    }
+    public boolean hasSignedFile(){return signedFile != null;}
+    public Long getSessionId(){return sessionId;}
+    public String getSignedFileName(){return signedFileName;} public String getSignedFileType(){return signedFileType;}
+    public String getSignedSha256(){return signedSha256;}
+    public com.legacyvault.common.crypto.EncryptedData signedData(){return new com.legacyvault.common.crypto.EncryptedData(signedFile,signedIv,signedKeyVersion);}
     protected BeneficiaryConfirmationRecord() {}
     public BeneficiaryConfirmationRecord(Long sessionId,Long versionId,String scopeHash,Long beneficiaryId,
             Long actorId,LocalDateTime at,String reference) {

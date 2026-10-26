@@ -17,8 +17,9 @@ public class BeneficiaryReconciliationService {
     private final BeneficiaryConfirmationRepository confirmations;
     private final UserRepository users;
     private final AuditService audit;
+    private final com.legacyvault.common.crypto.EncryptionService encryption;
     public BeneficiaryReconciliationService(HandoverCompletionAccess access,BeneficiaryConfirmationRepository confirmations,
-            UserRepository users,AuditService audit){this.access=access;this.confirmations=confirmations;this.users=users;this.audit=audit;}
+            UserRepository users,AuditService audit,com.legacyvault.common.crypto.EncryptionService encryption){this.access=access;this.confirmations=confirmations;this.users=users;this.audit=audit;this.encryption=encryption;}
     @Transactional
     public List<BeneficiaryConfirmationResponse> list(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
         var snapshot=access.lock(caseId,sessionId,actor,true);
@@ -35,6 +36,13 @@ public class BeneficiaryReconciliationService {
     @Transactional
     public BeneficiaryConfirmationResponse confirm(UUID caseId,UUID sessionId,UUID recipientId,
             ConfirmBeneficiaryRequest request,CustomUserPrincipal actor){
+        return confirmInternal(caseId,sessionId,recipientId,request,actor,null,null);
+    }
+    @Transactional
+    public BeneficiaryConfirmationResponse confirmSigned(UUID caseId,UUID sessionId,UUID recipientId,ConfirmBeneficiaryRequest request,CustomUserPrincipal actor,com.legacyvault.will.service.WillFile file,String paperReference){
+        return confirmInternal(caseId,sessionId,recipientId,request,actor,file,paperReference);
+    }
+    private BeneficiaryConfirmationResponse confirmInternal(UUID caseId,UUID sessionId,UUID recipientId,ConfirmBeneficiaryRequest request,CustomUserPrincipal actor,com.legacyvault.will.service.WillFile file,String paperReference){
         if(request==null||request.receiptReference()==null||request.receiptReference().isBlank()
                 ||request.receiptReference().length()>200)throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         var snapshot=access.lock(caseId,sessionId,actor,false);
@@ -49,11 +57,17 @@ public class BeneficiaryReconciliationService {
         if(prior.isPresent()){
             if(!prior.get().getReference().equals(request.receiptReference()))
                 throw new BusinessException(ErrorCode.HANDOVER_CONFIRMATION_CONFLICT);
+            if(file!=null && (!prior.get().hasSignedFile() || !file.sha256().equals(prior.get().getSignedSha256()))) throw new BusinessException(ErrorCode.HANDOVER_CONFIRMATION_CONFLICT);
             return response(prior.get(),sessionId,recipientId);
         }
-        var record=confirmations.saveAndFlush(new BeneficiaryConfirmationRecord(snapshot.session().getId(),
+        var record=new BeneficiaryConfirmationRecord(snapshot.session().getId(),
                 snapshot.version().id(),snapshot.scopeHash(),recipient,actor.userId(),
-                LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS),request.receiptReference()));
+                LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS),request.receiptReference());
+        if(file!=null){
+            record.setPaperReference(paperReference);
+            record.attachSignedFile(encryption.encrypt(file.content(),record.getPublicId().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)),file.fileName(),file.contentType(),file.sha256());
+        }
+        confirmations.saveAndFlush(record);
         audit.record(new AuditEvent(AuditAction.BENEFICIARY_HANDOVER_CONFIRMED,AuditActorType.USER,actor.userId(),
                 snapshot.locked().vault().getVaultId(),"BENEFICIARY_CONFIRMATION",record.getId(),"PENDING","CONFIRMED",null,
                 Map.of("sessionId",sessionId.toString(),"beneficiaryId",recipientId.toString(),
@@ -63,6 +77,6 @@ public class BeneficiaryReconciliationService {
     private BeneficiaryConfirmationResponse response(BeneficiaryConfirmationRecord c,UUID session,UUID recipient){
         var actor=users.findById(c.getActorId()).orElseThrow(()->new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         return new BeneficiaryConfirmationResponse(c.getPublicId(),session,recipient,"CONFIRMED",
-                actor.getPublicId(),c.getConfirmedAt().toInstant(ZoneOffset.UTC),c.getReference());
+                actor.getPublicId(),c.getConfirmedAt().toInstant(ZoneOffset.UTC),c.getReference(),c.hasSignedFile());
     }
 }

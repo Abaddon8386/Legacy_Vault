@@ -220,9 +220,9 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
   globalThis.fetch=async(url,init={})=>{
     if(url.endsWith('/auth/me')) return json(staffUser);
     if(init.method==='POST'){
-      const body=init.body?JSON.parse(init.body):null;posts.push({url,body});
+      const body=init.body instanceof FormData?init.body:(init.body?JSON.parse(init.body):null);posts.push({url,body});
       if(url.endsWith('/deliveries')){assert.deepEqual(body,{recipientId:ids.recipient,assetIds:[ids.assetId]});delivered=true;return json([deliveredItem],201);}
-      if(url.endsWith('/confirmation')){assert.equal(delivered,true);assert.equal(body.receiptReference,'BB-COUNTER-TEST');confirmed=true;return json({beneficiaryId:ids.recipient,status:'CONFIRMED',receiptReference:body.receiptReference});}
+      if(url.endsWith('/confirmation')){assert.equal(delivered,true);assert.equal(body.get('attested'),'true');assert.ok(body.get('file'));assert.equal(body.get('paperReference'),'BB-COUNTER-TEST');confirmed=true;return json({confirmationId:ids.otherCaseId,beneficiaryId:ids.recipient,status:'CONFIRMED',receiptReference:'BN-SERVER-TEST',hasSignedFile:true});}
       if(url.endsWith('/close')){assert.equal(confirmed,true);completed=true;return json({sessionId:ids.sessionId,status:'COMPLETED'});}
       if(url.endsWith('/receipts')){assert.equal(completed,true);assert.equal(body.recipientId,ids.recipient);assert.deepEqual(body.assetIds,[ids.assetId]);const receipt={receiptId:ids.otherCaseId,sessionId:ids.sessionId,recipientId:ids.recipient,assetIds:[ids.assetId]};receipts.push(receipt);return json(receipt,201);}
       if(url.endsWith('/archive')){assert.equal(receipts.length,1);archived=true;return json({caseId:ids.caseId,sessionId:ids.sessionId,caseStatus:'CLOSED',vaultStatus:'ARCHIVED'});}
@@ -248,8 +248,12 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
     assert.equal(host.querySelector('.lv-handover-notice-banner'), null);
     await click('Ghi nhận bàn giao');await click('Xác nhận ghi nhận bàn giao');await click('Xác nhận đã nhận tài sản');
     await change(host.querySelector('select'),ids.recipient);
-    await change(host.querySelector('input[id*="receipt"]') || [...host.querySelectorAll('input')].at(-1),'BB-COUNTER-TEST');
-    await click('Ghi nhận xác nhận');await click('Đóng và lưu trữ hồ sơ');
+    await change(host.querySelector('input[aria-label="Số trên giấy biên nhận"]'),'BB-COUNTER-TEST');
+    await act(async()=>{const input=host.querySelector('input[type=file]');Object.defineProperty(input,'files',{configurable:true,value:[new window.File(['%PDF-1.4 demo'],'signed-demo.pdf',{type:'application/pdf'})]});input.dispatchEvent(new window.Event('change',{bubbles:true}));});
+    await act(async()=>host.querySelector('.lv-confirm-signed-check input').click());
+    assert.equal(host.querySelector('.lv-btn-record-submit').disabled,false);
+    await act(async()=>host.querySelector('.lv-btn-record-submit').click());
+    assert.equal(confirmed,true);await click('Đóng và lưu trữ hồ sơ');
     await click('Đóng phiên bàn giao');
     await change(host.querySelector('select'),ids.recipient);
     await click('Lập biên bản xác nhận');await click('Đóng & Lưu trữ hồ sơ');

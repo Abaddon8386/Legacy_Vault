@@ -20,7 +20,11 @@ class FinalCourtHandoverHttpSqlServerTest extends LegalBasisSqlServerSupport {
     private JsonNode call(String method,String path,Object body,String token,int status) throws Exception {
         var request=HttpRequest.newBuilder(URI.create("http://localhost:"+context.getEnvironment().getProperty("local.server.port")+"/api/v1"+path));
         if(token!=null)request.header("Authorization","Bearer "+token);
-        if(body==null)request.method(method,HttpRequest.BodyPublishers.noBody());
+        if (path.endsWith("/confirmation") && "POST".equals(method)) {
+            String boundary="SignedReceiptFixture";
+            String multipart="--"+boundary+"\r\nContent-Disposition: form-data; name=\"attested\"\r\n\r\ntrue\r\n--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"signed-demo.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.4 synthetic signed-receipt fixture\r\n--"+boundary+"--\r\n";
+            request.header("Content-Type","multipart/form-data; boundary="+boundary).method(method,HttpRequest.BodyPublishers.ofString(multipart));
+        } else if(body==null)request.method(method,HttpRequest.BodyPublishers.noBody());
         else request.header("Content-Type","application/json").method(method,HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
         var response=HttpClient.newHttpClient().send(request.build(),HttpResponse.BodyHandlers.ofString());
         assertEquals(status,response.statusCode(),method+" "+path+": "+response.body());

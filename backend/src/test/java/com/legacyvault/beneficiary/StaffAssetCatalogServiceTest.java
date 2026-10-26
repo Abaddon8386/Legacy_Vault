@@ -109,12 +109,22 @@ class StaffAssetCatalogServiceTest {
 	}
 
 	@Test
-	void postUnlockAndHoldStatusesAreRejectedBeforeAssetQuery() {
-		for (String status : List.of(Vault.STATUS_ON_HOLD, Vault.STATUS_UNLOCKED, Vault.STATUS_HANDOVER_IN_PROGRESS)) {
+	void holdAndArchivedStatusesAreRejectedBeforeAssetQuery() {
+		for (String status : List.of(Vault.STATUS_ON_HOLD, Vault.STATUS_ARCHIVED, Vault.STATUS_ACTIVE)) {
 			when(vault.getStatus()).thenReturn(status);
 			assertThat(codeOf(() -> service.list(CASE_ID, 0, 20))).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
 		}
 		verifyNoInteractions(assets);
+	}
+
+	@Test
+	void assignedStaffCanReadMetadataDuringUnlockedHandover() {
+		when(assets.findByVaultIdAndStatusAndAssetTypeNot(eq(VAULT_ID), eq("ACTIVE"), eq(AssetType.DOCUMENT), any()))
+				.thenReturn(new PageImpl<>(List.of()));
+		for (String status : List.of(Vault.STATUS_UNLOCKED, Vault.STATUS_HANDOVER_IN_PROGRESS)) {
+			when(vault.getStatus()).thenReturn(status);
+			assertThat(service.list(CASE_ID, 0, 20).content()).isEmpty();
+		}
 	}
 
 	private static ErrorCode codeOf(Runnable action) {

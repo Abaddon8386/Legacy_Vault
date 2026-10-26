@@ -327,7 +327,7 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
 
       const caseInput = wrapper.host.querySelector('.lv-confirm-case-bar input');
       const benSelect = wrapper.host.querySelector('.lv-confirm-select');
-      const receiptInput = wrapper.host.querySelector('.lv-confirm-input[placeholder*="BN-2026"]');
+      const receiptInput = wrapper.host.querySelector('input[aria-label="Số trên giấy biên nhận"]');
       const submitBtn = wrapper.host.querySelector('.lv-btn-record-submit');
 
       assert.ok(caseInput, 'Case input must exist');
@@ -482,8 +482,16 @@ test('live confirmation DTOs are joined to recipient names and delivery metadata
     assert.ok(wrapper.host.textContent.includes('Con gái'));
     await act(async () => {
       changeInput(wrapper.host.querySelector('.lv-confirm-select'), recipients[0].beneficiaryId);
-      changeInput(wrapper.host.querySelector('input[placeholder*="BN-"]'), 'BN-DEMO-001');
+      changeInput(wrapper.host.querySelector('input[aria-label="Số trên giấy biên nhận"]'), 'BN-DEMO-001');
     });
+    assert.equal(wrapper.host.querySelector('.lv-btn-record-submit').disabled, true, 'A reference alone must not confirm receipt');
+    await act(async () => {
+      const input=wrapper.host.querySelector('input[type=file]');
+      Object.defineProperty(input,'files',{configurable:true,value:[new window.File(['%PDF-1.4 demo'], 'signed-demo.pdf',{type:'application/pdf'})]});
+      input.dispatchEvent(new window.Event('change',{bubbles:true}));
+    });
+    assert.equal(wrapper.host.querySelector('.lv-btn-record-submit').disabled, true, 'Signed evidence still needs Staff attestation');
+    await act(async () => wrapper.host.querySelector('.lv-confirm-signed-check input').click());
     assert.equal(wrapper.host.querySelector('.lv-btn-record-submit').disabled, false);
   } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
 });

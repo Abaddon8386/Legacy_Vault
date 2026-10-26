@@ -15,6 +15,7 @@ import {
 import {
   fetchBeneficiaryConfirmations,
   fetchEligibleAssets,
+  fetchCompletionProgress,
   confirmBeneficiary,
 } from './handoverSessionService.js';
 import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';
@@ -22,6 +23,7 @@ import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModa
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './BeneficiaryConfirmationPage.css';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
+import SignedReceiptViewer from './SignedReceiptViewer.jsx';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { formatStaffSession } from '../../utils/caseReference.js';
@@ -267,6 +269,22 @@ function BeneficiaryConfirmationPageContext({
   });
   const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState('');
   const [receiptReference, setReceiptReference] = useState('');
+  const evidenceKey = `${caseReference}:${sessionId}:${selectedBeneficiaryId}:${effectiveAccessToken || ''}`;
+  const [evidenceDraft, setEvidenceDraft] = useState(null);
+  const signedFile = evidenceDraft?.key === evidenceKey ? evidenceDraft.file : null;
+  const attested = evidenceDraft?.key === evidenceKey && evidenceDraft.attested === true;
+  const setSignedFile = file => setEvidenceDraft({key:evidenceKey,file,attested:false});
+  const setAttested = value => setEvidenceDraft(previous => ({key:evidenceKey,file:previous?.key===evidenceKey?previous.file:null,attested:value}));
+  const [guideProgress, setGuideProgress] = useState(null);
+  const progressKey = `${caseReference}:${sessionId}:${effectiveAccessToken || ''}`;
+  useEffect(() => {
+    if (!caseReference || !sessionId) return;
+    const controller = new AbortController();
+    fetchCompletionProgress(caseReference, sessionId, { accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang, signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setGuideProgress({ key: progressKey, data }); })
+      .catch(() => { if (!controller.signal.aborted) setGuideProgress({ key: progressKey, data: null }); });
+    return () => controller.abort();
+  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, progressKey, selectedBeneficiaryId]);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
@@ -455,8 +473,8 @@ function BeneficiaryConfirmationPageContext({
     setActionError(null);
 
     const trimmedReceipt = receiptReference.trim();
-    if (!trimmedReceipt) {
-      setErrors({ receiptReference: 'receiptRequired' });
+    if (!signedFile || !attested) {
+      setActionError(lang === 'en' ? 'Attach the signed receipt and confirm the check.' : 'Đính kèm biên nhận đã ký và xác nhận đối chiếu.');
       return;
     }
 
@@ -482,7 +500,7 @@ function BeneficiaryConfirmationPageContext({
         : (effectiveCaseId || caseReference);
 
       const confirmed = await confirmBeneficiary(effectiveTargetCase, sessionId, selectedBeneficiaryId, {
-        receiptReference: trimmedReceipt,
+        receiptReference: trimmedReceipt, file: signedFile, attested,
       }, {
         accessToken: effectiveAccessToken,
         isDevPreview: effectiveIsDevPreview,
@@ -498,6 +516,8 @@ function BeneficiaryConfirmationPageContext({
           if (bId === selectedBeneficiaryId) {
             return {
               ...b,
+              confirmationId: confirmed.confirmationId,
+              hasSignedFile: confirmed.hasSignedFile,
               confirmationStatus: BENEFICIARY_CONFIRM_STATUS.CONFIRMED,
               status: 'CONFIRMED',
               receiptReference: confirmed.receiptReference || trimmedReceipt,
@@ -534,19 +554,21 @@ function BeneficiaryConfirmationPageContext({
     selectedBenObj?.status === 'CONFIRMED';
   const canSubmit = hasValidData &&
     selectedBeneficiaryId &&
-    receiptReference.trim().length > 0 &&
+    Boolean(signedFile) && attested &&
     !isSelectedAlreadyConfirmed &&
     !isSubmitting;
   const confirmationBlocked = isReadOnlyCase ? (lang === 'en' ? 'This case is read-only.' : 'Hồ sơ này chỉ được xem.')
     : !hasValidData ? (lang === 'en' ? 'Select a session and load the recipient data first.' : 'Chọn phiên và tải thông tin người nhận trước.')
       : !selectedBeneficiaryId ? (lang === 'en' ? 'Select the recipient who signed the receipt.' : 'Chọn người nhận đã ký nhận.')
         : isSelectedAlreadyConfirmed ? (lang === 'en' ? 'This recipient is already confirmed.' : 'Người nhận này đã được xác nhận.')
-          : !receiptReference.trim() ? (lang === 'en' ? 'Enter the signed receipt reference.' : 'Nhập số biên nhận hoặc tham chiếu ký nhận.')
+          : !signedFile ? (lang === 'en' ? 'Attach the signed receipt.' : 'Đính kèm biên nhận đã ký.') : !attested ? (lang === 'en' ? 'Confirm the signed receipt check.' : 'Xác nhận đã đối chiếu biên nhận có chữ ký.')
             : isSubmitting ? (lang === 'en' ? 'Wait for confirmation to finish.' : 'Chờ ghi nhận hoàn tất.') : '';
 
   return (
     <div className="lv-beneficiary-confirmation-view">
       <StaffWorkflowGuide current="confirmation" caseId={caseReference} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
+        assets={guideProgress?.key === progressKey ? (guideProgress.data?.assets || guideProgress.data?.assetCompletion) : null}
+        beneficiaries={guideProgress?.key === progressKey ? (guideProgress.data?.beneficiaries || guideProgress.data?.beneficiaryCompletion) : null}
         caseStatus={displayCaseItem?.status} vaultStatus={displayCaseItem?.vaultStatus} confirmationReady={hasValidData} loading={isLoadingSessions} error={sessionLoadError} />
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -962,7 +984,9 @@ function BeneficiaryConfirmationPageContext({
                       </td>
                       <td>
                         {b.receiptReference ? (
-                          <code className="lv-confirm-receipt-code">{b.receiptReference}</code>
+                          <><code className="lv-confirm-receipt-code">{b.receiptReference}</code>
+                          {b.hasSignedFile && b.confirmationId ? <SignedReceiptViewer key={`${caseReference}:${sessionId}:${effectiveAccessToken}:${b.confirmationId}`} caseId={caseReference} sessionId={sessionId} confirmationId={b.confirmationId} accessToken={effectiveAccessToken} lang={lang} onUnauthorized={onUnauthorized} />
+                            : <small>{lang === 'en' ? 'Legacy record: no signed attachment' : 'Bản ghi cũ: chưa có tệp ký nhận'}</small>}</>
                         ) : (
                           <span className="lv-confirm-empty-cell">{t.informationUnavailable}</span>
                         )}
@@ -1028,19 +1052,20 @@ function BeneficiaryConfirmationPageContext({
           </div>
 
           <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
-            <label htmlFor={receiptInputId} className="lv-confirm-label lv-confirm-label--required">
-              {t.receiptInputLabel}
-            </label>
-            <span className="lv-confirm-hint">{t.receiptInputHint}</span>
-            <input
-              id={receiptInputId}
-              type="text"
-              className="lv-confirm-input"
-              placeholder={t.receiptInputPlaceholder}
-              value={receiptReference}
-              onChange={(e) => handleReceiptChange(e.target.value)}
-              disabled={!hasValidData || isSubmitting || isSelectedAlreadyConfirmed}
-            />
+            <label htmlFor={receiptInputId} className="lv-confirm-label lv-confirm-label--required">{lang === 'en' ? 'Signed receipt' : 'Biên nhận đã ký'}</label>
+            <span className="lv-confirm-hint">{lang === 'en' ? 'Upload the full signed receipt (PDF, JPEG or PNG, up to 10 MB). A receipt number is generated when saved.' : 'Tải toàn bộ biên nhận có chữ ký (PDF, JPEG hoặc PNG, tối đa 10 MB). Hệ thống tự tạo mã khi lưu.'}</span>
+            <input className="lv-confirm-signed-file" key={`${caseReference}:${sessionId}:${selectedBeneficiaryId}`} id={receiptInputId} type="file" accept="application/pdf,image/jpeg,image/png" disabled={!hasValidData || !selectedBeneficiaryId || isSubmitting || isSelectedAlreadyConfirmed}
+              onChange={e => {
+                const file=e.target.files?.[0]; setAttested(false);
+                if (file && (file.size > 10*1024*1024 || !['application/pdf','image/jpeg','image/png'].includes(file.type))) {
+                  setSignedFile(null); setActionError(lang === 'en' ? 'Select a PDF, JPEG or PNG up to 10 MB.' : 'Chọn PDF, JPEG hoặc PNG không quá 10 MB.'); e.target.value=''; return;
+                }
+                setSignedFile(file || null); setActionError(null);
+              }} />
+            <details><summary>{lang === 'en' ? 'Paper receipt number (optional)' : 'Số trên giấy biên nhận (tùy chọn)'}</summary>
+              <input aria-label={lang === 'en' ? 'Paper receipt number' : 'Số trên giấy biên nhận'} className="lv-confirm-input" value={receiptReference} maxLength={200} onChange={e => handleReceiptChange(e.target.value)} disabled={!hasValidData || isSubmitting || isSelectedAlreadyConfirmed} />
+            </details>
+            <label className="lv-confirm-signed-check"><input type="checkbox" checked={attested} disabled={!signedFile || isSubmitting || isSelectedAlreadyConfirmed} onChange={e => setAttested(e.target.checked)} />{lang === 'en' ? 'I checked the receipt and the recipient has signed.' : 'Tôi đã đối chiếu biên nhận và người nhận đã ký.'}</label>
             {errors.receiptReference && (
               <div className="lv-confirm-error-msg" role="alert">
                 <AlertTriangle size={13} aria-hidden="true" />
@@ -1063,7 +1088,7 @@ function BeneficiaryConfirmationPageContext({
               className="lv-btn-record-submit"
               disabled={!canSubmit}
               title={!canSubmit ? (!hasValidData ? t.informationUnavailable : t.unavailableNotice) : undefined}
-              aria-label={t.btnRecordConfirmation}
+              aria-label={lang === 'en' ? 'Confirm asset receipt' : 'Xác nhận đã nhận tài sản'}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1087,7 +1112,7 @@ function BeneficiaryConfirmationPageContext({
               ) : (
                 <>
                   <FileCheck size={16} aria-hidden="true" />
-                  <span>{t.btnRecordConfirmation}</span>
+                  <span>{lang === 'en' ? 'Confirm asset receipt' : 'Xác nhận đã nhận tài sản'}</span>
                 </>
               )}
             </button>

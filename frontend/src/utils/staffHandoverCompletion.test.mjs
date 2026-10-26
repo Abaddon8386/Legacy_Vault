@@ -65,7 +65,7 @@ test('PS-97: deliverAssets validates parameters and records item deliveries', as
   assert.ok(items[0].deliveredAt);
 });
 
-test('PS-97: confirmBeneficiary validates receipt reference and updates confirmation status', async () => {
+test('PS-97: confirmBeneficiary requires signed evidence and updates confirmation status', async () => {
   // Empty receipt reference
   await assert.rejects(
     async () => {
@@ -75,14 +75,14 @@ test('PS-97: confirmBeneficiary validates receipt reference and updates confirma
       });
     },
     (err) => {
-      assert.equal(err.code, 'RECEIPT_REFERENCE_REQUIRED');
+      assert.equal(err.code, 'VALIDATION_FAILED');
       return true;
     }
   );
 
   // Valid confirmation
   const res = await confirmBeneficiary('case-001', 'session-001', 'ben-001', {
-    receiptReference: 'REC-CCCD-079-01',
+    receiptReference: 'REC-CCCD-079-01', file: new Blob(['%PDF-1.4'],{type:'application/pdf'}), attested: true,
   }, {
     isDevPreview: true,
     isTest: true,
@@ -146,4 +146,19 @@ test('PS-97: archiveHandoverCase atomically archives vault and closes verificati
   // Check read-only state guard
   assert.equal(isCaseArchived('ARCHIVED', 'CLOSED'), true);
   assert.equal(isCaseArchived('UNLOCKED', 'OPEN'), false);
+});
+
+
+test('Signed receipt confirmation uses multipart and does not require a paper number', async () => {
+ const original=globalThis.fetch;
+ let sent;
+ globalThis.fetch=async (url,options)=>{sent=options;return new Response(JSON.stringify({confirmationId:'synthetic',status:'CONFIRMED',receiptReference:'BN-server',hasSignedFile:true}),{headers:{'Content-Type':'application/json'}});};
+ try {
+  const result=await confirmBeneficiary('case','session','recipient',{file:new Blob(['%PDF-1.4'],{type:'application/pdf'}),attested:true},{accessToken:'synthetic'});
+  assert.ok(sent.body instanceof FormData);
+  assert.equal(sent.body.get('attested'),'true');
+  assert.equal(sent.body.has('paperReference'),false);
+  assert.equal(sent.headers['Content-Type'],undefined);
+  assert.equal(result.hasSignedFile,true);
+ }finally{globalThis.fetch=original;}
 });

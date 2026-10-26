@@ -626,7 +626,7 @@ export async function fetchBeneficiaryConfirmations(caseId, sessionId, options =
 /**
  * PS-67 / PS-97: Xác nhận bàn giao của người thụ hưởng
  */
-export async function confirmBeneficiary(caseId, sessionId, beneficiaryId, { receiptReference }, options = {}) {
+export async function confirmBeneficiary(caseId, sessionId, beneficiaryId, { receiptReference, file, attested }, options = {}) {
   const { accessToken, signal, lang = 'vi' } = options;
 
   if (signal?.aborted) {
@@ -635,31 +635,31 @@ export async function confirmBeneficiary(caseId, sessionId, beneficiaryId, { rec
     throw err;
   }
 
-  if (!receiptReference || !receiptReference.trim()) {
-    const valErr = new Error(lang === 'en' ? 'Receipt reference is required.' : 'Mã biên nhận xác nhận là bắt buộc.');
-    valErr.code = 'RECEIPT_REFERENCE_REQUIRED';
-    throw valErr;
+  if (!file || !attested) {
+    const error = new Error(lang === 'en' ? 'Attach the signed receipt and confirm the check.' : 'Đính kèm biên nhận đã ký và xác nhận đối chiếu.');
+    error.code = 'VALIDATION_FAILED'; throw error;
   }
-
   if (isCounterHandoverSimulationPermitted(options)) {
     const isTest = Boolean(options.isTest || (typeof globalThis !== 'undefined' && globalThis.IS_REACT_ACT_ENVIRONMENT));
     if (!isTest) await new Promise((r) => setTimeout(r, 120));
     return {
       beneficiaryId,
       confirmationStatus: 'CONFIRMED',
-      receiptReference: receiptReference.trim(),
+      receiptReference: receiptReference?.trim() || 'BN-DEMO',
       confirmedAt: new Date().toISOString(),
     };
   }
 
+  const body = new FormData();
+  body.append('file', file); body.append('attested', 'true');
+  if (receiptReference?.trim()) body.append('paperReference', receiptReference.trim());
   const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/handover-sessions/${sessionId}/beneficiaries/${beneficiaryId}/confirmation`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       'Accept-Language': lang,
     },
-    body: JSON.stringify({ receiptReference: receiptReference.trim() }),
+    body,
     signal,
   });
 
