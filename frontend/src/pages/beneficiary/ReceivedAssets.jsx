@@ -1,8 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { readReceivedPage, receivedActions, receivedPreviewAllowed, readReceivedDetail, readReceivedContent, formatDeliveredDate } from './receivedAssetsModel.js';
 import { PREVIEW_SUBJECT, previewReceivedActions } from './receivedAssetsPreview.js';
 import { Modal } from '../../components/common/Modal.jsx';
 import './ReceivedAssets.css';
+
+function ReceivedContent({ text, en }) {
+  let credential = null;
+  let displayText = text;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
+      if (Object.keys(parsed).length === 2 && typeof parsed.username === 'string' && typeof parsed.password === 'string') {
+        credential = parsed;
+      } else {
+        displayText = JSON.stringify(parsed, null, 2);
+      }
+    } else if (Array.isArray(parsed)) {
+      displayText = JSON.stringify(parsed, null, 2);
+    }
+  } catch { /* Plain text is displayed unchanged. */ }
+
+  if (credential) return (
+    <dl className="lv-received-credentials">
+      <div><dt>{en ? 'Username' : 'Tên đăng nhập'}</dt><dd>{credential.username || '—'}</dd></div>
+      <div><dt>{en ? 'Password' : 'Mật khẩu'}</dt><dd>{credential.password || '—'}</dd></div>
+    </dl>
+  );
+  return <pre className="lv-received-content">{displayText || (en ? 'Empty content' : 'Nội dung trống')}</pre>;
+}
+
+function DecryptForm({ en, busy, value, onChange, onSubmit, image = false }) {
+  const id = useId();
+  return (
+    <form className="lv-received-decrypt" onSubmit={onSubmit}>
+      <label htmlFor={id}>{en ? 'Verify your account' : 'Xác thực tài khoản'}</label>
+      <p id={`${id}-hint`}>{en ? 'Enter your account password to view the protected content.' : 'Nhập mật khẩu tài khoản để xem nội dung được bảo vệ.'}</p>
+      <div className="lv-received-decrypt__controls">
+        <input id={id} type="password" maxLength={72} autoComplete="current-password"
+          value={value} onChange={onChange} aria-describedby={`${id}-hint`}
+          placeholder={en ? 'Account password' : 'Mật khẩu tài khoản'}
+          aria-label={en ? (image ? 'Password for image' : 'Password for content') : (image ? 'Mật khẩu xem ảnh' : 'Mật khẩu xem nội dung')} />
+        <button className="lv-received-decrypt__submit" type="submit" disabled={busy || !value.trim()}>
+          {busy ? (en ? 'Verifying…' : 'Đang xác thực…') : (en ? 'Decrypt & View' : 'Giải mã & Xem')}
+        </button>
+      </div>
+    </form>
+  );
+}
 
 function isPasswordOrReauthError(err) {
   if (!err) return false;
@@ -53,7 +97,7 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
         setImagePassword('');
         if (isPasswordOrReauthError(error)) {
           setShowPasswordPrompt(true);
-          setState({ busy: false, blobUrl: null, error });
+          setState({ busy: false, blobUrl: null, error: !pwd && error.code !== 'TOO_MANY_ATTEMPTS' && error.status !== 429 ? null : error });
         } else {
           if (blobRef.current) {
             URL.revokeObjectURL(blobRef.current);
@@ -91,19 +135,8 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
         </button>
       </div>
       {showPasswordPrompt && !state.blobUrl && (
-        <form onSubmit={handlePasswordSubmit} style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="password"
-            maxLength={72}
-            value={imagePassword}
-            onChange={(e) => setImagePassword(e.target.value)}
-            placeholder={en ? 'Account password to decrypt' : 'Mật khẩu tài khoản để giải mã'}
-            aria-label={en ? 'Password for image' : 'Mật khẩu xem ảnh'}
-          />
-          <button type="submit" disabled={state.busy || !imagePassword.trim()}>
-            {en ? 'Decrypt & View' : 'Giải mã & Xem'}
-          </button>
-        </form>
+        <DecryptForm en={en} busy={state.busy} value={imagePassword}
+          onChange={e => setImagePassword(e.target.value)} onSubmit={handlePasswordSubmit} image />
       )}
       {state.error && <p role="alert" className="lv-received-detail__error">{errorMessage(state.error, en)}</p>}
       {state.blobUrl && <img src={state.blobUrl} alt={image.label} className="lv-received-image__img" />}
@@ -152,7 +185,7 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
         setPasswordInput('');
         if (isPasswordOrReauthError(error)) {
           setShowPasswordForm(true);
-          setContent({ busy: false, text: null, error });
+          setContent({ busy: false, text: null, error: !pwd && error.code !== 'TOO_MANY_ATTEMPTS' && error.status !== 429 ? null : error });
         } else {
           setContent({ busy: false, text: null, error: null });
           errorRef.current(error);
@@ -210,7 +243,7 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
             </div>
 
             <div className="lv-received-detail__section">
-              {content.text === null && (
+              {content.text === null && !showPasswordForm && (
                 <button
                   type="button"
                   className="lv-received-detail__btn"
@@ -221,24 +254,13 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
                 </button>
               )}
               {showPasswordForm && content.text === null && (
-                <form onSubmit={handlePasswordSubmit} style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input
-                    type="password"
-                    maxLength={72}
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder={en ? 'Account password to decrypt' : 'Mật khẩu tài khoản để giải mã'}
-                    aria-label={en ? 'Password for content' : 'Mật khẩu xem nội dung'}
-                  />
-                  <button type="submit" disabled={content.busy || !passwordInput.trim()}>
-                    {en ? 'Decrypt & View' : 'Giải mã & Xem'}
-                  </button>
-                </form>
+                <DecryptForm en={en} busy={content.busy} value={passwordInput}
+                  onChange={e => setPasswordInput(e.target.value)} onSubmit={handlePasswordSubmit} />
               )}
               {content.error && <p role="alert" className="lv-received-detail__error">{errorMessage(content.error, en)}</p>}
               {content.text !== null && (
                 <div className="lv-received-detail__content-wrap">
-                  <pre className="lv-received-content">{content.text || (en ? 'Empty content' : 'Nội dung trống')}</pre>
+                  <ReceivedContent text={content.text} en={en} />
                   <button
                     type="button"
                     className="lv-received-detail__btn"
