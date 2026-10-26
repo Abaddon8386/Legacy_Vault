@@ -1,3 +1,4 @@
+import { signedReceiptFileError } from '../../utils/signedReceiptFile.js';
 import { useState, useId, useEffect, useRef } from 'react';
 import {
   FileCheck,
@@ -1054,11 +1055,12 @@ function BeneficiaryConfirmationPageContext({
           <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
             <label htmlFor={receiptInputId} className="lv-confirm-label lv-confirm-label--required">{lang === 'en' ? 'Signed receipt' : 'Biên nhận đã ký'}</label>
             <span className="lv-confirm-hint">{lang === 'en' ? 'Upload the full signed receipt (PDF, JPEG or PNG, up to 10 MB). A receipt number is generated when saved.' : 'Tải toàn bộ biên nhận có chữ ký (PDF, JPEG hoặc PNG, tối đa 10 MB). Hệ thống tự tạo mã khi lưu.'}</span>
-            <input className="lv-confirm-signed-file" key={`${caseReference}:${sessionId}:${selectedBeneficiaryId}`} id={receiptInputId} type="file" accept="application/pdf,image/jpeg,image/png" disabled={!hasValidData || !selectedBeneficiaryId || isSubmitting || isSelectedAlreadyConfirmed}
+            <input className="lv-confirm-signed-file" key={`${caseReference}:${sessionId}:${selectedBeneficiaryId}`} id={receiptInputId} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/jpg,image/png" disabled={!hasValidData || !selectedBeneficiaryId || isSubmitting || isSelectedAlreadyConfirmed}
               onChange={e => {
                 const file=e.target.files?.[0]; setAttested(false);
-                if (file && (file.size > 10*1024*1024 || !['application/pdf','image/jpeg','image/png'].includes(file.type))) {
-                  setSignedFile(null); setActionError(lang === 'en' ? 'Select a PDF, JPEG or PNG up to 10 MB.' : 'Chọn PDF, JPEG hoặc PNG không quá 10 MB.'); e.target.value=''; return;
+                const fileError = signedReceiptFileError(file);
+                if (fileError) {
+                  setSignedFile(null); setActionError(fileError === 'empty' ? (lang === 'en' ? 'The receipt file is empty.' : 'Tệp biên nhận không có nội dung.') : fileError === 'size' ? (lang === 'en' ? 'The receipt must not exceed 10 MB.' : 'Biên nhận không được vượt quá 10 MB.') : (lang === 'en' ? 'Use PDF, JPEG or PNG. Export HEIC/WebP images to JPEG or PNG first.' : 'Chỉ hỗ trợ PDF, JPEG hoặc PNG. Ảnh HEIC/WebP cần xuất sang JPEG hoặc PNG trước.')); e.target.value=''; return;
                 }
                 setSignedFile(file || null); setActionError(null);
               }} />

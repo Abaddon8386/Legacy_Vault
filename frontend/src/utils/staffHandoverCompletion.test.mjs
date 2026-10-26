@@ -162,3 +162,14 @@ test('Signed receipt confirmation uses multipart and does not require a paper nu
   assert.equal(result.hasSignedFile,true);
  }finally{globalThis.fetch=original;}
 });
+
+test('live close and archive reject successful HTTP responses that did not change state', async () => {
+ const original=globalThis.fetch;
+ try {
+  globalThis.fetch=async()=>new Response(JSON.stringify({sessionId:'session',status:'OPEN',caseId:'case',caseStatus:'OPEN',vaultStatus:'HANDOVER_IN_PROGRESS'}),{headers:{'Content-Type':'application/json'}});
+  await assert.rejects(closeHandoverSession('case','session',{accessToken:'synthetic'}),{code:'INVALID_RESPONSE'});
+  await assert.rejects(archiveHandoverCase('case','session',{accessToken:'synthetic'}),{code:'INVALID_RESPONSE'});
+  globalThis.fetch=async()=>new Response(JSON.stringify({caseId:'case',caseStatus:'CLOSED',vaultStatus:'ARCHIVED'}),{headers:{'Content-Type':'application/json'}});
+  assert.equal((await archiveHandoverCase('case','session',{accessToken:'synthetic'})).caseStatus,'CLOSED');
+ } finally {globalThis.fetch=original;}
+});

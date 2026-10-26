@@ -858,7 +858,12 @@ export async function closeHandoverSession(caseId, sessionId, options = {}) {
     throw err;
   }
 
-  return res.json();
+  const result = await res.json();
+  if (result?.sessionId !== sessionId || result.status !== 'COMPLETED') {
+    const error = new Error(lang === 'en' ? 'The server has not confirmed that the session is closed. Reload its status.' : 'Máy chủ chưa xác nhận phiên đã đóng. Hãy tải lại trạng thái.');
+    error.code = 'INVALID_RESPONSE'; throw error;
+  }
+  return result;
 }
 
 /**
@@ -903,6 +908,11 @@ export async function archiveHandoverCase(caseId, sessionId, options = {}) {
     throw err;
   }
 
-  return res.json();
+  const result = await res.json();
+  if (result?.caseId !== caseId || result.caseStatus !== 'CLOSED' || result.vaultStatus !== 'ARCHIVED') {
+    const error = new Error(lang === 'en' ? 'The server has not confirmed case closure and archival. Reload its status.' : 'Máy chủ chưa xác nhận đã đóng và lưu trữ hồ sơ. Hãy tải lại trạng thái.');
+    error.code = 'INVALID_RESPONSE'; throw error;
+  }
+  return result;
 }
 

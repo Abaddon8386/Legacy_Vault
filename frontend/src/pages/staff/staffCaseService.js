@@ -62,7 +62,7 @@ export async function fetchStaffCases(options = {}) {
   const query = new URLSearchParams({ page: String(page), size: String(size) });
   if (status !== 'ALL') query.set('status', status);
   if (q && typeof q === 'string' && q.trim()) query.set('q', q.trim());
-  const raw = await request(`/staff/verification-cases?${query}`, { ...options, expectedStatus: 200 });
+  const raw = await request(`/staff/verification-cases?${query}`, { ...options, cache: 'no-store', expectedStatus: 200 });
   const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
   if (!raw || !Array.isArray(raw.content) || raw.content.length > size) invalid();
   for (const key of ['page', 'size', 'totalElements', 'totalPages']) {
