@@ -11,7 +11,7 @@ function validateCase(data, id) {
   return data;
 }
 export async function loadStaffCase(id, options) {
-  return validateCase(await request(path(id), { ...options, expectedStatus: 200 }), id);
+  return validateCase(await request(path(id), { ...options, cache: 'no-store', expectedStatus: 200 }), id);
 }
 export async function claimStaffCase(id, options) {
   return validateCase(await request(`${path(id)}/claim`, { ...options, method: 'POST', expectedStatus: 200 }), id);

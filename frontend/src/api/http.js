@@ -13,14 +13,14 @@ export class ApiError extends Error {
 }
 export async function request(path, options = {}) {
   const { method = 'GET', body, accessToken, lang = 'vi', signal, fetchFn = globalThis.fetch,
-    expectedStatus } = options;
+    expectedStatus, cache } = options;
   const headers = { Accept: 'application/json', 'Accept-Language': lang === 'en' ? 'en' : 'vi' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   let response;
   try {
     response = await fetchFn(`${API_BASE}${path}`, {
-      method, headers, signal, credentials: 'omit', body: body === undefined ? undefined : JSON.stringify(body),
+      method, headers, signal, ...(cache ? { cache } : {}), credentials: 'omit', body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
     if (error.name === 'AbortError') throw error;

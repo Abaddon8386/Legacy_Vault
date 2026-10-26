@@ -139,7 +139,7 @@ function CloseArchiveContext({
     try {
       await work({...options, signal: controller.signal});
       if (!alive.current || controller.signal.aborted) return;
-      setActionSuccess(t.saved);
+      setActionSuccess(kind === 'close' ? say('Đã đóng phiên bàn giao. Hồ sơ chưa đóng: hoàn tất biên nhận rồi bấm Đóng & Lưu trữ hồ sơ.', 'Handover session closed. The case remains open: complete its receipts, then close and archive the case.') : kind === 'archive' ? say('Đã đóng hồ sơ và lưu trữ kho di sản.', 'Case closed and vault archived.') : t.saved);
       setRevision(value => value + 1);
     } catch (error) {
       if (alive.current && !controller.signal.aborted) {
