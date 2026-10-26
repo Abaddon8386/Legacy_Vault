@@ -173,7 +173,7 @@ test('basis preview uses version content directly without a fabricated attachmen
   const view = await mount({ kind: 'basis', caseId, versionNo: 3, file: meta(), ...options, lang: 'en' });
   try { assert.deepEqual(calls, []); await open(view);
     assert.equal(calls.length, 1); assert.ok(calls[0].endsWith('/basis-dossier/versions/3/content'));
-    assert.equal(view.host.querySelector('a[download]').getAttribute('download'), 'Basis version 3.pdf');
+    assert.equal(view.host.querySelector('a[download]').getAttribute('download'), 'Legal document, copy 3.pdf');
   } finally { await view.close(); }
   assert.deepEqual(revoked, ['blob:test-0']);
 });
@@ -201,7 +201,7 @@ test('desktop preview stays beside the workflow, switches to a mobile dialog and
   } finally { await view.close(); window.matchMedia = previous; }
 });
 for (const [kind, step] of [['death', 'death-verification'], ['original-will', 'will-document-verification'], ['basis', 'dossier-review'], ['basis', 'approval-review'], ['basis', 'controlled-unlock']]) {
-  test(`real Legal ${step} reads its files from PS-103; evidenceReference remains plain text`, async () => {
+  test(`real Legal ${step} reads its files from PS-103; internal evidence references stay hidden`, async () => {
     const reference = 'https://not-a-file.example/evidence-reference';
     const vaultStatus = kind === 'death' ? 'AWAITING_VERIFICATION' : 'LEGAL_BASIS_VERIFICATION';
     const basis = { id: caseId, caseId, route: 'COURT', status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
@@ -235,7 +235,7 @@ for (const [kind, step] of [['death', 'death-verification'], ['original-will', '
         const props = field[Object.keys(field).find(key => key.startsWith('__reactProps'))];
         await act(async () => props.onChange({ target: { value: subjectId } }));
       }
-      assert.match(view.host.textContent, /https:\/\/not-a-file.example\/evidence-reference/);
+      assert.doesNotMatch(view.host.textContent, /https:\/\/not-a-file.example\/evidence-reference/);
       assert.equal([...view.host.querySelectorAll('a')].some(link => link.getAttribute('href') === reference), false);
       assert.equal(calls.some(url => url.endsWith('/content')), false, 'Reading metadata must not prefetch audited content');
       await open(view); assert.ok(view.host.querySelector('iframe'));

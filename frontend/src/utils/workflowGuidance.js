@@ -81,9 +81,9 @@ export function legalBlockedReason(context, action, lang = 'vi') {
     COURT_DECISION_REQUIRED: ['Chưa xác nhận văn bản Tòa án hợp lệ cho phiên bản hiện tại.', 'The current court evidence has not been validated.'],
     LEGAL_DECISION_STALE: ['Phiên bản hoặc phân bổ đã thay đổi. Cần thẩm định/phê duyệt lại.', 'The version or allocation changed. Re-review or re-approval is required.'],
     LEGAL_APPROVAL_REQUIRED: ['Chưa có phê duyệt còn hiệu lực cho phiên bản và phân bổ này.', 'No current approval covers this version and allocation.'],
-    BASIS_DOSSIER_INVALID_STATE: ['Cần văn bản và phân bổ hiện tại đã chuyển Legal, đúng trạng thái xử lý.', 'The current document and allocation must be forwarded to Legal in an eligible state.'],
+    BASIS_DOSSIER_INVALID_STATE: ['Nhân viên cần chuyển văn bản và thông tin phân chia tài sản mới nhất để thẩm định.', 'Staff must forward the latest documents and asset allocations for review.'],
   };
-  return reasons[code]?.[lang === 'en' ? 1 : 0] || text('Máy chủ chưa cho phép thao tác này. Tải lại và kiểm tra các bước thẩm định.', 'The server has not allowed this action. Reload and check the review steps.', lang);
+  return reasons[code]?.[lang === 'en' ? 1 : 0] || text('Chưa thể thực hiện bước này. Tải lại hồ sơ và kiểm tra các bước thẩm định trước đó.', 'This step is not available yet. Reload the case and check the earlier review steps.', lang);
 }
 
 export function legalGuidance({ context, current, caseId, lang = 'vi', loading = false, error = false } = {}) {
@@ -99,7 +99,7 @@ export function legalGuidance({ context, current, caseId, lang = 'vi', loading =
     if (s?.approvalCurrent) states.approval = 'done';
     if (context.caseStatus !== 'OPEN' || ['NOTARIAL', 'ON_HOLD'].includes(context.basisDossier?.route) || context.vaultStatus === 'ON_HOLD') {
       states.approval = 'blocked'; states.unlock = 'blocked'; message = legalBlockedReason(context, 'approval', lang);
-    } else if (context.vaultStatus === 'UNLOCKED') { states.unlock = 'done'; message = text('Kho đã mở khóa. Staff có thể kiểm tra điều kiện bàn giao tại quầy.', 'Vault unlocked. Staff can check counter handover conditions.', lang); }
+    } else if (context.vaultStatus === 'UNLOCKED') { states.unlock = 'done'; message = text('Kho đã mở khóa. Nhân viên có thể kiểm tra điều kiện bàn giao tại quầy.', 'Vault unlocked. Staff can check counter handover conditions.', lang); }
     else if (context.capabilities?.unlock?.allowed) { states.unlock = 'action'; next = 'unlock'; message = text('Đã phê duyệt. Mở khóa là thao tác xác nhận riêng.', 'Approved. Unlocking requires a separate confirmation.', lang); }
     else if (context.capabilities?.approval?.allowed) { states.approval = 'action'; next = 'approval'; message = text('Đủ điều kiện ghi nhận quyết định pháp lý.', 'Ready to record the final legal decision.', lang); }
     else {

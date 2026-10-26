@@ -11,7 +11,7 @@ export const legalBasisRouteI18n = {
     // Hàng đợi / Dữ liệu hồ sơ máy chủ (chưa có API)
     docketSectionTitle: 'Thông tin hồ sơ thẩm định',
     docketUnconnectedTitle: 'Chưa thể tải dữ liệu hồ sơ',
-    docketUnconnectedDesc: 'Chưa thể kết nối danh sách hồ sơ hoặc thông tin căn cứ pháp lý từ máy chủ.',
+    docketUnconnectedDesc: 'Chưa tải được hồ sơ và giấy tờ pháp lý. Vui lòng thử lại sau.',
     recordedStatusLabel: 'Trạng thái hồ sơ hiện tại:',
     recordedStatusUnloaded: 'Chưa thể tải thông tin',
 
@@ -19,8 +19,8 @@ export const legalBasisRouteI18n = {
     formTitle: 'Lựa chọn phương án xử lý',
     formDesc: 'Chọn một phương án xử lý và nhập lý do lựa chọn.',
 
-    docketRefLabel: 'Mã hồ sơ / Tham chiếu',
-    docketRefHint: 'Mã số hồ sơ hoặc mã kho cần thẩm định.',
+    docketRefLabel: 'Số hồ sơ',
+    docketRefHint: 'Số hồ sơ cần thẩm định.',
     docketRefPlaceholder: 'VD: BASIS-ROUTE-2026-001',
 
     // 3 lựa chọn theo AC (không hiển thị mã nội bộ)
@@ -71,7 +71,7 @@ export const legalBasisRouteI18n = {
     // Docket / Server data status (API unready)
     docketSectionTitle: 'Docket Adjudication Information',
     docketUnconnectedTitle: 'Unable to load docket data',
-    docketUnconnectedDesc: 'Unable to retrieve adjudication dockets or legal basis information from the server.',
+    docketUnconnectedDesc: 'The case and legal documents could not be loaded. Please try again later.',
     recordedStatusLabel: 'Current Docket Status:',
     recordedStatusUnloaded: 'Unable to load information',
 
@@ -79,8 +79,8 @@ export const legalBasisRouteI18n = {
     formTitle: 'Handling Option Selection',
     formDesc: 'Select a handling option and provide the selection rationale.',
 
-    docketRefLabel: 'Docket / Reference Identifier',
-    docketRefHint: 'Docket or vault reference identifier.',
+    docketRefLabel: 'Case number',
+    docketRefHint: 'The number of the case being reviewed.',
     docketRefPlaceholder: 'e.g. BASIS-ROUTE-2026-001',
 
     // 3 options per AC (no internal codes displayed)

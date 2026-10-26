@@ -26,7 +26,7 @@ const blockers = {
 };
 export function legalBlocker(code, en) {
   const value = blockers[code];
-  return { text: value?.[en ? 1 : 0] || (en ? 'The server has not provided a recognized reason for this restriction. Check the latest case status or contact the person responsible; no missing document can be identified from this response.' : 'Hệ thống chưa cung cấp lý do khóa được nhận diện. Hãy kiểm tra trạng thái mới nhất hoặc liên hệ người phụ trách; phản hồi này chưa xác định giấy tờ nào còn thiếu.'), step: value?.[2] || null };
+  return { text: value?.[en ? 1 : 0] || (en ? 'This step is not available yet. Reload the case. If you still cannot continue, contact the person handling the case.' : 'Chưa thể thực hiện bước này. Hãy tải lại hồ sơ; nếu vẫn không thể tiếp tục, liên hệ người phụ trách hồ sơ.'), step: value?.[2] || null };
 }
 // Explain an existing disabled action. This is presentation only: callers retain
 // their current eligibility checks and the server remains the authorization gate.
@@ -53,9 +53,9 @@ export function legalStepBlocker(step, { data, documentId, documentCount = 0, ac
   if (action === 'hold') return say('Trạng thái hiện tại không cho phép tạm dừng hồ sơ. Kiểm tra trạng thái mới nhất trước khi tiếp tục.', 'The current state does not allow placing this case on hold. Check the latest case status before continuing.');
   const latest = data.dossier.versions?.reduce((best, item) => !best || item.version > best.version ? item : best, null);
   if (!latest) return say('Chưa có phiên bản văn bản Tòa án. Nhân viên cần tiếp nhận và chuyển văn bản để Pháp lý thẩm định.', 'No court-document version is available. Staff must receive and forward it for Legal assessment.');
-  if (latest.version < data.dossier.requiredVersion) return say('Phiên bản hiện có chưa đáp ứng phiên bản yêu cầu. Nhân viên cần bổ sung và chuyển phiên bản mới để thẩm định.', 'The available version is older than the required version. Staff must provide and forward the new version for assessment.');
+  if (latest.version < data.dossier.requiredVersion) return say('Văn bản đang xem đã được thay thế. Nhân viên cần chuyển bản mới nhất để thẩm định.', 'The available version is older than the required version. Staff must provide and forward the new version for assessment.');
   if (latest.forwardStatus !== 'FORWARDED' || data.dossier.status !== 'LEGAL_BASIS_FORWARDED') return say('Nhân viên chưa chuyển phiên bản văn bản Tòa án hiện tại để thẩm định. Hãy chờ chuyển hồ sơ, không nộp lại quyết định trên bản cũ.', 'Staff have not forwarded the current court-document version for assessment. Wait for the handoff; do not submit a decision against an older version.');
-  return say('Trạng thái hiện tại chưa cho phép thao tác này. Kiểm tra trạng thái hồ sơ và điều kiện xử lý; không suy ra giấy tờ còn thiếu.', 'The current case state does not allow this action. Check the case status and processing conditions; a missing document cannot be inferred.');
+  return say('Chưa thể thực hiện bước này. Hãy tải lại hồ sơ và kiểm tra các bước thẩm định trước đó.', 'This step is not available yet. Reload the case and check the earlier review steps.');
 }
 export function legalDate(value) {
   if (!value) return '—';

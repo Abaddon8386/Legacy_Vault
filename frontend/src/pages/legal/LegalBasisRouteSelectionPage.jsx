@@ -234,7 +234,7 @@ export default function LegalBasisRouteSelectionPage({
             {errors.route && (
               <div className="lv-form-error-msg" role="alert" style={{ marginTop: 8 }}>
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.route] || errors.route}</span>
+                <span>{t[errors.route] || t.validationFailure}</span>
               </div>
             )}
           </fieldset>
@@ -256,7 +256,7 @@ export default function LegalBasisRouteSelectionPage({
             {errors.reason && (
               <div className="lv-form-error-msg" role="alert">
                 <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.reason] || errors.reason}</span>
+                <span>{t[errors.reason] || t.validationFailure}</span>
               </div>
             )}
           </div>

@@ -462,16 +462,16 @@ test('PS-49 Component: Renders 5 review sections, boundary callout, and header w
     assert.equal(Boolean(boundary), true);
     assert.match(boundary.textContent, /thẩm quyền phê duyệt/);
     assert.match(boundary.textContent, /không tự động mở khóa kho di sản/);
-    assert.match(boundary.textContent, /không thay thế lệnh giải mã/);
+    assert.match(boundary.textContent, /Mở khóa cần một lần xác nhận riêng/);
 
     // 3. Section 1: Dossier information
     assert.match(view.host.textContent, /Thông tin tham chiếu hồ sơ/);
     assert.match(view.host.textContent, /DOS-2026-0049/);
     assert.match(view.host.textContent, /Trần Đình Trọng/);
 
-    // 4. Section 2: Integrity & SHA-256 hash
-    assert.match(view.host.textContent, /Văn bản di chúc & Mã băm toàn vẹn/);
-    assert.match(view.host.textContent, /e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855/);
+    // Document contents remain available without exposing storage checksums.
+    assert.match(view.host.textContent, /Văn bản di chúc/);
+    assert.doesNotMatch(view.host.textContent, /e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855|SHA-256|Mã băm|endpoint|HTTP 403/);
 
     // 5. Section 3: Allocation scope table
     assert.match(view.host.textContent, /Phạm vi phân bổ tài sản/);
@@ -620,9 +620,9 @@ test('PS-49 Component: Confirmation modal opens, shows summary, confirms submiss
     assert.equal(Boolean(modal), true);
     assert.match(modal.textContent, /Xác nhận quyết định thẩm định/);
     assert.match(modal.textContent, /DOS-2026-0049/);
-    assert.match(modal.textContent, /Version 2/);
+    assert.match(modal.textContent, /Bản số 2/);
     assert.match(modal.textContent, /Hồ sơ đầy đủ, chữ ký người lập di chúc hợp lệ/);
-    assert.match(modal.textContent, /Thao tác này không tự động mở khóa kho di sản/);
+    assert.match(modal.textContent, /Phê duyệt không tự động mở khóa kho di sản/);
 
     // Cancel modal works
     const cancelBtn = modal.querySelector('button.lv-btn--ghost');
@@ -780,7 +780,8 @@ test('PS-49 Component: Error handling displays retry button on load failure and 
     });
 
     // Error banner shown, form preserved
-    assert.match(view.host.textContent, /Lỗi kết nối máy chủ khi ghi nhận quyết định/);
+    assert.match(view.host.textContent, /Chưa xác nhận được kết quả lưu quyết định/);
+    assert.doesNotMatch(view.host.textContent, /Lỗi kết nối máy chủ khi ghi nhận quyết định/);
     assert.equal(view.host.querySelector('#legal-approval-reason').value, 'Kiểm tra tính năng thử lại');
 
     // Now allow submit and click retry
@@ -833,7 +834,8 @@ test('PS-49 Component: HTTP 401 triggers onUnauthorized and HTTP 403 renders for
   });
   try {
     assert.match(view403.host.textContent, /Không có quyền truy cập/);
-    assert.match(view403.host.textContent, /HTTP 403 Forbidden/);
+    assert.match(view403.host.textContent, /chưa được cấp quyền thẩm định hồ sơ này/);
+    assert.doesNotMatch(view403.host.textContent, /HTTP 403 Forbidden/);
   } finally {
     await view403.close();
   }
@@ -977,7 +979,7 @@ test('PS-49 UI blocks invalid version and missing scope binding without a ready 
  for (const patch of ["SYNTHETIC_APPROVAL_DOSSIERS['dossier-001'].documentVersion = -1;", "delete SYNTHETIC_APPROVAL_DOSSIERS['dossier-001'].scopeFingerprint;"]) {
   const Component=(await loadComponentModule('src/pages/legal/LegalApprovalReviewPage.jsx',false,patch)).default;
   const view=await mount(Component,{isDevPreview:true,lang:'en'});
-  try { assert.match(view.host.textContent,/Approval is blocked/);assert.doesNotMatch(view.host.textContent,/Dossier Ready for Legal Determination/);const review=view.host.querySelector('button[type=submit]');assert.ok(review);assert.equal(review.disabled,true); }
+  try { assert.match(view.host.textContent,/cannot be approved yet/);assert.doesNotMatch(view.host.textContent,/Dossier Ready for Legal Determination/);const review=view.host.querySelector('button[type=submit]');assert.ok(review);assert.equal(review.disabled,true); }
   finally {await view.close();}
  }
 });

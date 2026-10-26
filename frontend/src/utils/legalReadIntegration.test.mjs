@@ -123,13 +123,9 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
     const table = view.host.querySelector('table');
     assert.match(table.textContent, /Family archive/); assert.match(table.textContent, /Cloud account/);
     assert.match(table.textContent, /Recipient A/); assert.match(table.textContent, /Recipient C/);
-    assert.equal(table.querySelectorAll('code').length, 4);
-    for (const code of table.querySelectorAll('code')) {
-      const details = code.closest('details');
-      assert.ok(details); assert.equal(details.open, false);
-      assert.equal(details.querySelector('summary').textContent, lang === 'en' ? 'Technical details' : 'Chi tiết kỹ thuật');
-      assert.ok(details.querySelector('button[aria-label]'), 'References must offer a labeled Copy action');
-    }
+    assert.equal(table.querySelector('code, details'), null);
+    for (const internal of [a, b, c, sha, allocation]) assert.equal(view.host.textContent.includes(internal), false);
+    assert.doesNotMatch(view.host.textContent, /Technical details|Chi tiết kỹ thuật|Checksum|Mã kiểm tra|SHA-256/);
     assert.doesNotMatch(view.host.textContent, /Old B allocation|Recipient B|Old decision/);
     assert.match(table.textContent, lang === 'en' ? /Court document/ : /Từ văn bản Tòa án/);
     assert.match(table.textContent, lang === 'en' ? /Named in version 2/ : /Ghi nhận từ phiên bản 2/);
@@ -255,7 +251,7 @@ for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal cont
     assert.equal(Boolean(view.host.querySelector('form')), false);
     assert.match(view.host.textContent, /reference only/);
     assert.match(view.host.textContent, /CASE-A/);
-    assert.equal(view.host.querySelector('.lv-legal-technical').open, false);
+    assert.equal(view.host.querySelector('.lv-legal-technical'), null);
     assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
     const badge = view.host.querySelector('.lv-legal-case-status');
     assert.equal(badge.textContent, caseStatus === 'CANCELLED' ? 'Verification cancelled' : 'Closed');
