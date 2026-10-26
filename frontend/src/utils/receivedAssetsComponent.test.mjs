@@ -40,6 +40,32 @@ async function loadComponentModule(entry, production = false) {
 
 
 const {default:Received}=await loadComponentModule('src/pages/beneficiary/ReceivedAssets.jsx');
+test('Initial reauth prompt is neutral and provides a labelled password field', async () => {
+ const v=await mount({actions:adapter({content:async()=>{throw Object.assign(new Error('reauth'),{code:'REAUTH_FAILED',status:403});}})});
+ try {
+  const dialog=await open(v);
+  await act(async()=>button(dialog,'Xem nội dung').click());
+  assert.match(dialog.textContent,/Xác thực tài khoản/);
+  assert.equal(dialog.querySelector('[role=alert]'),null);
+  assert.ok(dialog.querySelector('input[autocomplete=current-password]'));
+ }finally{await v.close();}
+});
+test('Revealed credential fields escape text and disappear when hidden; plain text keeps line breaks', async () => {
+ for (const text of [JSON.stringify({username:'demo@example.test',password:'<img src=x>'}), 'Line one\nLine two']) {
+  const v = await mount({actions:adapter({content:async()=>({subjectId:subject,itemId:id,text})})});
+  try {
+   const dialog=await open(v);
+   await act(async()=>button(dialog,'Xem nội dung').click());
+   if(text.startsWith('{')) {
+    assert.deepEqual([...dialog.querySelectorAll('dt')].map(n=>n.textContent),['Tên đăng nhập','Mật khẩu']);
+    assert.deepEqual([...dialog.querySelectorAll('dd')].map(n=>n.textContent),['demo@example.test','<img src=x>']);
+    assert.equal(dialog.querySelector('img'),null);
+   } else assert.equal(dialog.querySelector('.lv-received-content').textContent,text);
+   await act(async()=>button(dialog,'Ẩn nội dung').click());
+   assert.equal(dialog.querySelector('.lv-received-credentials, .lv-received-content'),null);
+  } finally {await v.close();}
+ }
+});
 const subject='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',id='11111111-1111-4111-8111-111111111111',imageId='22222222-2222-4222-8222-222222222222';
 const item={itemId:id,title:'Synthetic received item',sourceLabel:'Synthetic source',deliveryStatus:'DELIVERED',deliveredAt:'2026-10-20T08:00:00Z',sessionStatus:'COMPLETED',vaultStatus:'ARCHIVED',caseStatus:'CLOSED'};
 function adapter(extra={}){return {list:async({page,size})=>({subjectId:subject,page,size,total:1,accountState:'RECEIVED',items:[item]}),detail:async()=>({...item,subjectId:subject,images:[{imageId,label:'Synthetic photo'}]}),content:async()=>({subjectId:subject,itemId:id,text:'Synthetic secret <script>not HTML</script>'}),image:async()=>new Blob(['synthetic'],{type:'image/png'}),...extra};}
