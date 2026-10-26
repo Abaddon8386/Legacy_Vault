@@ -49,12 +49,6 @@
 .lv-legal-facts > div { min-width:0; }
 .lv-legal-facts dt { margin-bottom:4px; color:var(--legal-muted); font-size:13px; }
 .lv-legal-facts dd { margin:0; font-weight:600; overflow-wrap:anywhere; }
-.lv-legal-technical { padding:0 14px; border:1px solid var(--legal-line); border-radius:10px; background:#fafbf8; }
-.lv-legal-technical summary { min-height:44px; padding-block:11px; box-sizing:border-box; color:var(--legal-muted); cursor:pointer; }
-.lv-legal-technical > div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 16px; padding-block:14px; border-block-start:1px solid var(--legal-line); }
-.lv-legal-technical code { grid-column:1; font-size:13px; overflow-wrap:anywhere; user-select:all; }
-.lv-legal-technical button { grid-column:2; grid-row:1 / 3; }
-.lv-legal-technical > p:empty { display:none; }
 .lv-legal-history-item,.lv-legal-document-version { display:grid; gap:16px; padding:18px; border:1px solid #e3e9ee; border-radius:12px; background:#fcfdfe; }
 .lv-legal-history-item + .lv-legal-history-item { margin-top:16px; }
 .lv-legal-route-label { font-weight:600; }
@@ -86,9 +80,6 @@
 .lv-legal-allocation-cell { display:grid; gap:var(--lv-space-2,8px); min-width:0; }
 .lv-legal-allocation-cell p { white-space:pre-wrap; }
 .lv-legal-allocation-cell small { color:var(--legal-muted); font-size:14px; }
-.lv-legal-allocation-cell .lv-legal-technical { padding-inline:8px; }
-.lv-legal-allocation-cell .lv-legal-technical > div { grid-template-columns:minmax(0,1fr); }
-.lv-legal-allocation-cell .lv-legal-technical button { grid-column:1; grid-row:auto; justify-self:start; }
 .lv-legal-court-recipient { color:var(--lv-status-info-text,#35566a); }
 .lv-legal-allocation-mobile-label { display:none; }
 @container (max-width:560px) {
@@ -128,8 +119,6 @@
  .lv-legal-facts { grid-template-columns:minmax(0,1fr); gap:16px; }
  .lv-legal-card-heading { align-items:flex-start; }
  .lv-legal-card-heading h2 { flex-basis:100%; }
- .lv-legal-technical > div { grid-template-columns:minmax(0,1fr); }
- .lv-legal-technical button { grid-column:1; grid-row:auto; justify-self:start; }
  .lv-legal-evidence__meta { min-width:0; }
  .lv-legal-evidence__row button { width:100%; }
 }

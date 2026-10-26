@@ -1,6 +1,6 @@
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
-import { Scale, ShieldCheck, RefreshCw, LogOut, Sparkles, FileText, Hash, AlertTriangle, CheckCircle2, AlertCircle, Eye, Layers, Info } from 'lucide-react';
+import { Scale, ShieldCheck, RefreshCw, LogOut, Sparkles, FileText, AlertTriangle, CheckCircle2, AlertCircle, Eye, Layers, Info } from 'lucide-react';
 import { Button } from '../../components/common/Button.jsx';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { getLegalApprovalTranslations } from './legalApprovalI18n.js';
@@ -121,7 +121,7 @@ function ApprovalReviewContent({
         minute: '2-digit',
       }).format(date);
     } catch {
-      return isoString;
+      return '—';
     }
   };
 
@@ -466,13 +466,13 @@ function ApprovalReviewContent({
             <div className="lv-legal-approval-card" role="alert" style={{ textAlign: 'center', padding: '48px 24px' }}>
               <ShieldCheck size={32} color="#a83232" aria-hidden="true" style={{ margin: '0 auto 12px' }} />
               <h2 style={{ color: '#a83232', margin: '0 0 8px' }}>{t.forbiddenState?.title || 'Không có quyền truy cập'}</h2>
-              <p style={{ color: '#6b726b', marginBottom: '16px' }}>{t.forbiddenState?.desc || loadError.message}</p>
+              <p style={{ color: '#6b726b', marginBottom: '16px' }}>{t.forbiddenState?.desc || t.errorState.title}</p>
             </div>
           ) : loadError ? (
             <div className="lv-legal-approval-card" role="alert" style={{ textAlign: 'center', padding: '48px 24px' }}>
               <AlertCircle size={32} color="#a83232" aria-hidden="true" style={{ margin: '0 auto 12px' }} />
               <h2 style={{ color: '#a83232', margin: '0 0 8px' }}>{t.errorState.title}</h2>
-              <p style={{ color: '#6b726b', marginBottom: '16px' }}>{loadError.message}</p>
+              <p style={{ color: '#6b726b', marginBottom: '16px' }}>{t.errorState.title}</p>
               <Button variant="secondary" onClick={() => setRetryCount((c) => c + 1)}>
                 {t.errorState.btnRetry}
               </Button>
@@ -537,7 +537,7 @@ function ApprovalReviewContent({
                 <div className="lv-legal-approval-callout lv-legal-approval-callout--disputed" role="alert">
                   <AlertCircle size={20} aria-hidden="true" style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                    <span>{submitError.message || t.errorState.title}</span>
+                    <span>{submitError.status === 409 ? (lang === 'en' ? 'The case changed or is not ready for approval. Reload it before continuing.' : 'Hồ sơ đã thay đổi hoặc chưa đủ điều kiện phê duyệt. Hãy tải lại trước khi tiếp tục.') : t.errorState.saveFailed}</span>
                     <Button variant="danger" size="sm" onClick={handleConfirmSubmit} isLoading={isSubmitting}>
                       {t.errorState.btnRetry}
                     </Button>
@@ -552,9 +552,6 @@ function ApprovalReviewContent({
                     <FileText size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
                     <span>{t.dossierSection.title}</span>
                   </h2>
-                  <span className="lv-legal-approval-badge lv-legal-approval-badge--warning">
-                    {dossier.status}
-                  </span>
                 </div>
 
                 <div className="lv-legal-approval-meta-grid">
@@ -569,7 +566,6 @@ function ApprovalReviewContent({
                   <div className="lv-legal-approval-meta-item">
                     <span className="lv-legal-approval-meta-item__label">{t.dossierSection.vaultName}</span>
                     <span className="lv-legal-approval-meta-item__val">{dossier.vaultName || t.dossierSection.unspecified}</span>
-                    {dossier.vaultId && <span className="lv-legal-approval-meta-item__sub">{dossier.vaultId}</span>}
                   </div>
                   <div className="lv-legal-approval-meta-item">
                     <span className="lv-legal-approval-meta-item__label">{t.dossierSection.createdAt}</span>
@@ -582,27 +578,16 @@ function ApprovalReviewContent({
               <section className="lv-legal-approval-card" aria-label={t.integritySection.title}>
                 <div className="lv-legal-approval-card__header">
                   <h2 className="lv-legal-approval-card__title">
-                    <Hash size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
+                    <FileText size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
                     <span>{t.integritySection.title}</span>
                   </h2>
-                  {dossier.documentHash ? (
-                    <span className="lv-legal-approval-badge lv-legal-approval-badge--fresh">
-                      <CheckCircle2 size={12} aria-hidden="true" />
-                      <span>{t.integritySection.hashMatchBadge}</span>
-                    </span>
-                  ) : (
-                    <span className="lv-legal-approval-badge lv-legal-approval-badge--disputed">
-                      <AlertTriangle size={12} aria-hidden="true" />
-                      <span>{t.integritySection.hashUnspecifiedBadge}</span>
-                    </span>
-                  )}
                 </div>
 
                 <div className="lv-legal-approval-meta-grid">
                   <div className="lv-legal-approval-meta-item">
                     <span className="lv-legal-approval-meta-item__label">{t.integritySection.versionLabel}</span>
                     <span className="lv-legal-approval-meta-item__val">
-                      {dossier.documentVersion ? `Version ${dossier.documentVersion}` : t.dossierSection.unspecified}
+                      {dossier.documentVersion ? `${lang === 'en' ? 'Copy' : 'Bản số'} ${dossier.documentVersion}` : t.dossierSection.unspecified}
                     </span>
                   </div>
                   <div className="lv-legal-approval-meta-item">
@@ -616,15 +601,6 @@ function ApprovalReviewContent({
                   </div>
                 </div>
 
-                <div style={{ marginTop: '16px' }} className="lv-legal-approval-meta-item">
-                  <span className="lv-legal-approval-meta-item__label">{t.integritySection.hashLabel}</span>
-                  <div className="lv-legal-approval-meta-item__hash">
-                    {dossier.documentHash || t.dossierSection.unspecified}
-                  </div>
-                  <span className="lv-legal-approval-hint" style={{ marginTop: '6px' }}>
-                    {t.integritySection.hashHint}
-                  </span>
-                </div>
               </section>
 
               {/* 3. Phạm vi Phân bổ Tài sản & Người Thụ hưởng (Allocation Scope) */}
@@ -634,11 +610,6 @@ function ApprovalReviewContent({
                     <Layers size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
                     <span>{t.scopeSection.title}</span>
                   </h2>
-                  {dossier.scopeFingerprint && (
-                    <span className="lv-legal-approval-tag">
-                      <span>{dossier.scopeFingerprint}</span>
-                    </span>
-                  )}
                 </div>
 
                 {dossier.allocationScope && dossier.allocationScope.length > 0 ? (
@@ -714,8 +685,8 @@ function ApprovalReviewContent({
                   <div className="lv-legal-approval-callout lv-legal-approval-callout--stale" role="alert">
                     <AlertTriangle size={22} aria-hidden="true" />
                     <p>{lang === 'en'
-                      ? 'Approval is blocked: document version, hash or allocation scope binding is missing or invalid.'
-                      : 'Chưa thể phê duyệt: phiên bản, mã băm hoặc thông tin ràng buộc phạm vi phân bổ bị thiếu hoặc không hợp lệ.'}</p>
+                      ? 'This case cannot be approved yet. Ask the handling staff member to check the documents and asset allocations.'
+                      : 'Chưa thể phê duyệt hồ sơ này. Nhờ nhân viên phụ trách kiểm tra lại giấy tờ và thông tin phân chia tài sản.'}</p>
                   </div>
                 ) : freshness?.status === 'DISPUTED' ? (
                   <div className="lv-legal-approval-callout lv-legal-approval-callout--disputed" role="alert">
@@ -929,7 +900,7 @@ function ApprovalReviewContent({
 
                   <div className="lv-legal-approval-modal__row">
                     <span className="lv-legal-approval-modal__label">{t.confirmModal.versionLabel}</span>
-                    <span className="lv-legal-approval-modal__val">Version {dossier?.documentVersion}</span>
+                    <span className="lv-legal-approval-modal__val">{lang === 'en' ? 'Copy' : 'Bản số'} {dossier?.documentVersion}</span>
                   </div>
 
                   <div className="lv-legal-approval-modal__row">

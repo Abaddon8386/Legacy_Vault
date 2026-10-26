@@ -14,7 +14,7 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
     refreshingBtn: 'Đang làm mới...',
     pageTitle: 'Phê duyệt hồ sơ',
     pageSubtitle:
-      'Xem xét tính hợp lệ của văn bản di chúc, mã băm SHA-256 và phạm vi phân bổ tài sản trước khi tiến hành mở khóa.',
+      'Kiểm tra giấy tờ và thông tin phân chia tài sản trước khi ghi nhận quyết định.',
 
     // Trợ giúp quy tắc nghiệp vụ thu gọn
     boundary: {
@@ -22,16 +22,16 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       notice1:
         'Quyết định phê duyệt chỉ xác nhận tính hợp lệ của văn bản di chúc và phạm vi phân bổ tài sản trong hồ sơ.',
       notice2:
-        'Thao tác phê duyệt hồ sơ không tự động mở khóa kho di sản và không thay thế lệnh giải mã từ máy chủ.',
+        'Phê duyệt hồ sơ không tự động mở khóa kho di sản. Mở khóa cần một lần xác nhận riêng.',
       notice3:
-        'Phê duyệt phải gắn đúng phiên bản tài liệu, mã băm SHA-256 và phạm vi phân bổ. Khi có cập nhật mới hoặc tranh chấp phát sinh, phê duyệt cũ sẽ hết hiệu lực.',
+        'Nếu giấy tờ, thông tin phân chia hoặc tình trạng tranh chấp thay đổi, cần xem xét lại phê duyệt trước đó.',
     },
 
     // Thanh chọn kịch bản DEV preview
     scenarioBar: {
       label: 'Kịch bản xem trước DEV:',
       complete: 'Hồ sơ đầy đủ (Hợp lệ)',
-      stale: 'Phê duyệt cũ hết hiệu lực (Thay đổi nội dung/mã băm)',
+      stale: 'Hồ sơ đã thay đổi, cần thẩm định lại',
       disputed: 'Hồ sơ đang có tranh chấp',
       missingScope: 'Hồ sơ chưa có phạm vi phân bổ tài sản',
       liveNotice: 'Chế độ thật: Chờ tích hợp dịch vụ',
@@ -57,22 +57,15 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
 
     // Thẻ 2: Phiên bản & Toàn vẹn mã băm SHA-256
     integritySection: {
-      title: 'Văn bản di chúc & Mã băm toàn vẹn (SHA-256)',
+      title: 'Văn bản di chúc',
       versionLabel: 'Phiên bản văn bản',
       fileNameLabel: 'Tệp số hóa lưu trữ',
-      hashLabel: 'Mã băm SHA-256 toàn vẹn',
-      hashMatchBadge: 'Mã băm trong hồ sơ',
-      hashMismatchBadge: 'CẢNH BÁO: Mã băm không khớp',
-      hashUnspecifiedBadge: 'Chưa có mã băm',
       uploadedAtLabel: 'Thời điểm cập nhật bản số hóa',
-      hashHint:
-        'Mã băm SHA-256 bảo đảm tính toàn vẹn của tệp văn bản số hóa. Mọi thay đổi nội dung sẽ làm thay đổi giá trị mã băm.',
     },
 
     // Thẻ 3: Phạm vi phân bổ tài sản & Người thụ hưởng
     scopeSection: {
       title: 'Phạm vi phân bổ tài sản',
-      scopeChecksum: 'Mã kiểm tra phạm vi',
       tableAsset: 'Tài sản phân bổ',
       tableCategory: 'Phân loại',
       tableBeneficiary: 'Người thụ hưởng chỉ định',
@@ -89,7 +82,7 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       title: 'Trạng thái hiệu lực phê duyệt',
       freshTitle: 'Hồ sơ sẵn sàng thẩm định',
       freshDesc:
-        'Hồ sơ có phiên bản tài liệu, mã băm và phạm vi phân bổ để xem xét. Hãy kiểm tra nội dung trước khi quyết định.',
+        'Kiểm tra giấy tờ và thông tin phân chia tài sản trước khi quyết định.',
       staleTitle: 'CẢNH BÁO: Phê duyệt cũ đã hết hiệu lực',
       staleDesc:
         'Nội dung văn bản hoặc phạm vi phân bổ đã được cập nhật sau lần phê duyệt gần nhất. Bắt buộc thẩm định lại theo phiên bản mới.',
@@ -105,15 +98,15 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       prompt: 'Lựa chọn quyết định thẩm định (Bắt buộc):',
       approveOption: 'Chấp thuận hồ sơ (Phê duyệt)',
       approveDesc:
-        'Xác nhận tính hợp lệ của văn bản di chúc, mã băm SHA-256 và phạm vi phân bổ theo quy định.',
+        'Chấp thuận giấy tờ và thông tin phân chia tài sản đang xem.',
       rejectOption: 'Từ chối hồ sơ',
       rejectDesc:
-        'Từ chối do hồ sơ chưa đủ căn cứ pháp lý, sai lệch mã băm hoặc vi phạm điều kiện thừa kế.',
+        'Từ chối khi giấy tờ chưa hợp lệ hoặc thông tin phân chia chưa đủ căn cứ.',
       reasonLabel: 'Lý do & Căn cứ thẩm định (Bắt buộc)',
       reasonPlaceholder:
         'Nhập chi tiết nhận xét, viện dẫn căn cứ hoặc yêu cầu bổ sung nếu có...',
       reasonHint:
-        'Cả hai lựa chọn đều yêu cầu nêu rõ lý do để lưu vào nhật ký kiểm toán.',
+        'Lý do quyết định sẽ được lưu trong lịch sử hồ sơ.',
       btnReview: 'Xem lại & Xác nhận quyết định',
       btnSubmitting: 'Đang ghi nhận...',
       validationDecisionRequired: 'Vui lòng chọn quyết định Chấp thuận hoặc Từ chối.',
@@ -133,11 +126,10 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
         'Vui lòng rà soát lại thông tin trước khi lưu quyết định.',
       dossierLabel: 'Mã hồ sơ:',
       versionLabel: 'Phiên bản tài liệu:',
-      hashLabel: 'Mã băm SHA-256:',
       decisionLabel: 'Quyết định:',
       reasonLabel: 'Lý do ghi nhận:',
       warningAudit:
-        'Quyết định này sẽ được ghi nhận vào nhật ký kiểm toán. Thao tác này không tự động mở khóa kho di sản.',
+        'Quyết định được lưu vào lịch sử hồ sơ. Phê duyệt không tự động mở khóa kho di sản.',
       btnCancel: 'Quay lại chỉnh sửa',
       btnConfirm: 'Xác nhận & Lưu quyết định',
     },
@@ -151,17 +143,17 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       verifier: 'Cán bộ thực hiện',
       decisionLabel: 'Kết quả thẩm định',
       approvedVersion: 'Phiên bản được duyệt',
-      approvedHash: 'Mã băm được duyệt',
       btnCloseReceipt: 'Đóng biên nhận',
     },
 
     // Trạng thái hệ thống & Chế độ thật
     liveNotReady: {
       title: 'Dịch vụ phê duyệt chưa sẵn sàng',
-      desc: 'Hệ thống máy chủ hiện chưa mở endpoint tiếp nhận phê duyệt hồ sơ. Vui lòng thử lại sau khi API sẵn sàng.',
+      desc: 'Chưa thể gửi quyết định lúc này. Vui lòng thử lại sau.',
     },
     errorState: {
       title: 'Không thể tải thông tin hồ sơ',
+      saveFailed: 'Chưa xác nhận được kết quả lưu quyết định. Hãy tải lại hồ sơ trước khi thử lại.',
       btnRetry: 'Thử lại',
     },
     notFoundState: {
@@ -170,7 +162,7 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
     },
     forbiddenState: {
       title: 'Không có quyền truy cập',
-      desc: 'Tài khoản hiện tại không có quyền thực hiện thẩm định hồ sơ (HTTP 403 Forbidden).',
+      desc: 'Tài khoản của bạn chưa được cấp quyền thẩm định hồ sơ này.',
     },
   },
 
@@ -183,7 +175,7 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
     refreshingBtn: 'Refreshing...',
     pageTitle: 'Dossier Approval',
     pageSubtitle:
-      'Review the validity of the digitized will document, SHA-256 hash, and asset allocation scope before unlocking procedures.',
+      'Check the documents and asset allocations before recording your decision.',
 
     // Collapsible Rules & Guidance
     boundary: {
@@ -191,16 +183,16 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       notice1:
         'The approval determination only certifies the validity of the digitized will document and asset allocation scope.',
       notice2:
-        'Approval does not automatically unlock the heritage vault and does not replace cryptographic server authorization.',
+        'Approval does not automatically unlock the vault. Unlocking needs a separate confirmation.',
       notice3:
-        'Approval must bind strictly to the specific document version, SHA-256 hash, and allocation scope. Any modification or newly raised dispute invalidates past approval.',
+        'Changes to the documents, asset allocations or dispute status require the previous approval to be reviewed.',
     },
 
     // DEV Scenario Picker
     scenarioBar: {
       label: 'DEV Preview Scenario:',
       complete: 'Complete Dossier (Valid)',
-      stale: 'Stale Approval (Version/Hash Changed)',
+      stale: 'Case updated; a new review is needed',
       disputed: 'Active Dispute',
       missingScope: 'Missing Asset Allocation Scope',
       liveNotice: 'Live mode: Awaiting service integration',
@@ -226,22 +218,15 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
 
     // Section 2: Version & Hash Integrity
     integritySection: {
-      title: 'Will Document & Integrity Hash (SHA-256)',
+      title: 'Will document',
       versionLabel: 'Document Version',
       fileNameLabel: 'Archived Digitized File',
-      hashLabel: 'SHA-256 Integrity Hash',
-      hashMatchBadge: 'Recorded document hash',
-      hashMismatchBadge: 'WARNING: Hash Mismatch',
-      hashUnspecifiedBadge: 'No Hash Available',
       uploadedAtLabel: 'Version Upload Timestamp',
-      hashHint:
-        'The SHA-256 hash guarantees the cryptographic integrity of the digitized file. If a single byte is altered, the hash changes completely.',
     },
 
     // Section 3: Allocation Scope & Beneficiaries
     scopeSection: {
       title: 'Asset Allocation Scope',
-      scopeChecksum: 'Scope Checksum',
       tableAsset: 'Allocated Asset',
       tableCategory: 'Category',
       tableBeneficiary: 'Designated Beneficiary',
@@ -258,7 +243,7 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       title: 'Approval Freshness & Dispute Status',
       freshTitle: 'Dossier Ready for Legal Determination',
       freshDesc:
-        'Document version, hash and allocation scope are available for review. Check the dossier before recording a decision.',
+        'Check the documents and asset allocations before recording a decision.',
       staleTitle: 'WARNING: Previous Approval is Expired',
       staleDesc:
         'Document contents or allocation scope have been modified since the previous determination. Re-evaluation is mandatory.',
@@ -274,15 +259,15 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       prompt: 'Select Determination (Required):',
       approveOption: 'Approve Dossier',
       approveDesc:
-        'Confirm the validity of the digitized will, SHA-256 hash, and allocation scope under applicable rules.',
+        'Approve the documents and asset allocations being reviewed.',
       rejectOption: 'Reject Dossier',
       rejectDesc:
-        'Reject due to inadequate legal foundation, checksum discrepancy, or statutory inheritance conflict.',
+        'Reject when the documents or asset allocations are not adequately supported.',
       reasonLabel: 'Determination Justification (Required)',
       reasonPlaceholder:
         'Provide detailed findings, references, or required amendments...',
       reasonHint:
-        'Both decisions require a mandatory justification for audit trail logging.',
+        'Your reason will be saved in the case history.',
       btnReview: 'Review Decision',
       btnSubmitting: 'Recording...',
       validationDecisionRequired: 'Please select an approval or rejection decision.',
@@ -299,14 +284,13 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
     confirmModal: {
       title: 'Confirm Legal Determination Decision',
       subtitle:
-        'Please carefully verify the parameters before signing this record into the audit ledger.',
+        'Check the case details before saving your decision.',
       dossierLabel: 'Dossier ID:',
       versionLabel: 'Document Version:',
-      hashLabel: 'SHA-256 Hash:',
       decisionLabel: 'Decision:',
       reasonLabel: 'Recorded Justification:',
       warningAudit:
-        'This determination will be cryptographically logged. This action does NOT unlock the vault.',
+        'Your decision will be saved in the case history. Approval does not automatically unlock the vault.',
       btnCancel: 'Back to Edit',
       btnConfirm: 'Confirm & Sign Determination',
     },
@@ -320,17 +304,17 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
       verifier: 'Reviewed By',
       decisionLabel: 'Determination Result',
       approvedVersion: 'Approved Version',
-      approvedHash: 'Approved SHA-256',
       btnCloseReceipt: 'Dismiss Receipt',
     },
 
     // Error & Live States
     liveNotReady: {
       title: 'Legal Approval Service Not Ready',
-      desc: 'The Backend service endpoint is currently not deployed. Please retry when the live API is connected.',
+      desc: 'Your decision cannot be sent right now. Please try again later.',
     },
     errorState: {
       title: 'Unable to Load Dossier Information',
+      saveFailed: 'Your decision could not be confirmed. Reload the case before trying again.',
       btnRetry: 'Retry',
     },
     notFoundState: {
@@ -339,7 +323,7 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
     },
     forbiddenState: {
       title: 'Access Denied',
-      desc: 'Your account lacks authorization to perform legal approval reviews (HTTP 403 Forbidden).',
+      desc: 'Your account does not have permission to review this case.',
     },
   },
 };

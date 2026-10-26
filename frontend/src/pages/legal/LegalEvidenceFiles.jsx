@@ -54,7 +54,7 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     return () => controller.abort();
   }, [kind, caseId, subjectId, accessToken, attempt]);
   const current = result?.attempt === attempt ? result : null;
-  const files = kind === 'basis' ? [{ ...file, fileName: `${en ? 'Basis version' : 'Phiên bản căn cứ'} ${versionNo}` }] : current?.items;
+  const files = kind === 'basis' ? [{ ...file, fileName: `${en ? 'Legal document, copy' : 'Văn bản pháp lý, bản số'} ${versionNo}` }] : current?.items;
   function close() {
     request.current?.abort(); request.current = null; busy.current = false;
     if (opened.current) { URL.revokeObjectURL(opened.current); opened.current = null; }
@@ -90,7 +90,7 @@ function EvidenceFiles({ kind, caseId, subjectId, versionNo, file, accessToken, 
     <h3>{en ? 'Evidence files' : 'Tệp chứng cứ'}</h3>
     {kind !== 'basis' && !current && <p role="status">{en ? 'Loading files…' : 'Đang tải danh sách tệp…'}</p>}
     {current?.error && <div role="alert"><p>{errorText(current.error)}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div>}
-    {files?.length === 0 && <p>{en ? 'No files are attached to this record.' : 'Bản ghi này chưa có tệp đính kèm.'}</p>}
+    {files?.length === 0 && <p>{en ? 'No files are attached to this document.' : 'Giấy tờ này chưa có tệp đính kèm.'}</p>}
     {files?.map(item => <div key={item.id || versionNo} className="lv-legal-evidence__row"><FileText size={24} className="lv-legal-evidence__icon" aria-hidden="true" />
       <div className="lv-legal-evidence__meta"><span>{item.fileName}</span>
         {item.uploadedAt && <time dateTime={item.uploadedAt}>{legalDate(item.uploadedAt)}</time>}

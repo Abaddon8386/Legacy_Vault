@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import { legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
-import { LegalRecordDetails, LegalTechnicalDetails } from './LegalRecordDetails.jsx';
+import { LegalRecordDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
 import { isSessionActive } from '../../utils/session.js';
 import * as api from './legalLiveService.js';
@@ -311,20 +311,18 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         <option value="">{en ? 'Select a document' : 'Chọn giấy tờ'}</option>{selected.deathDocumentIds.map((id, i) => <option key={id} value={id}>{en ? 'Document' : 'Giấy tờ'} {i + 1}</option>)}
       </select></label>
       {data && <><LegalRecordDetails rows={[[en ? 'Issuing authority' : 'Cơ quan cấp', data.document.issuingAuthority], [en ? 'Document number' : 'Số giấy tờ', data.document.documentNumber], [en ? 'Issue date' : 'Ngày cấp', legalDate(data.document.issuedDate)]]} />
-        <LegalTechnicalDetails en={en} rows={[[en ? 'Evidence reference' : 'Tham chiếu chứng cứ', data.document.evidenceReference]]} />
-        {data.decisions.map((item, i) => <div key={i} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Decision' : 'Quyết định', label(({ APPROVED: 'APPROVE', REJECTED: 'REJECT', NEEDS_CORRECTION: 'REQUEST_MORE' })[item.result], en)], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(item.decidedAt)], [en ? 'Reason' : 'Lý do', item.reason]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Reviewer ID' : 'Mã người xử lý', item.verifierPublicId]]} /></div>)}</>}
+        {data.decisions.map((item, i) => <div key={i} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Decision' : 'Quyết định', label(({ APPROVED: 'APPROVE', REJECTED: 'REJECT', NEEDS_CORRECTION: 'REQUEST_MORE' })[item.result], en)], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(item.decidedAt)], [en ? 'Reason' : 'Lý do', item.reason]]} /></div>)}</>}
       {!busy && data && documentId && <LegalEvidenceFiles {...evidenceProps} kind="death" subjectId={documentId} />}
     </>}
     {step === 'will-document-verification' && data && <>
       {data.originalWillIntakes.length > 0 ? <>
-        <p>{en ? 'Select an original intake to view its attached paper-will files. Digitized version metadata is available for comparison.' : 'Chọn lần tiếp nhận để xem tệp đính kèm của di chúc giấy. Thông tin phiên bản số dùng để đối chiếu.'}</p>
+        <p>{en ? 'Select the received original to open the paper will and compare it with the saved copy.' : 'Chọn bản gốc đã tiếp nhận để xem di chúc giấy và đối chiếu với bản đã lưu.'}</p>
         {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, `${en ? 'Intake' : 'Lần nhận'} ${i + 1}`]))}
-        <LegalTechnicalDetails en={en} rows={data.originalWillIntakes.map((item, index) => [`${en ? 'Intake reference' : 'Tham chiếu lần tiếp nhận'} ${index + 1}`, item.evidenceReference])} />
       </> : <div className="lv-legal-live__notice" role="status"><Info size={20} aria-hidden="true" /><div>
         <strong>{en ? 'No original paper will has been received for this case.' : 'Hồ sơ này chưa có di chúc bản cứng được tiếp nhận.'}</strong>
         {!readOnly && <p>{en ? 'Staff must record the original paper will and attach its scan before Legal can compare it with the digitized version.' : 'Nhân viên cần ghi nhận tiếp nhận di chúc bản cứng và đính kèm bản scan trước khi Pháp lý đối chiếu với bản di chúc số.'}</p>}
       </div></div>}
-      {data.comparisons.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Compared at' : 'Thời gian đối chiếu', legalDate(item.comparedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Reviewer ID' : 'Mã người xử lý', item.checkedBy]]} /></div>)}
+      {data.comparisons.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Compared at' : 'Thời gian đối chiếu', legalDate(item.comparedAt)]]} /></div>)}
       {!busy && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
         <LegalEvidenceFiles {...evidenceProps} kind="original-will" subjectId={draft.originalWillIntakeId} />}
     </>}
@@ -335,9 +333,8 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         <LegalAllocations version={item} lang={lang} />
         {!busy && item.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
           file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />}
-        <LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256], [en ? 'Evidence reference' : 'Tham chiếu chứng cứ', item.evidenceReference]]} />
       </section>)}
-      {data.court?.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /><LegalTechnicalDetails en={en} rows={[[en ? 'Checksum' : 'Mã kiểm tra', item.sha256]]} /></div>)}</>}
+      {data.court?.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /></div>)}</>}
     </section>
     {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel">
       <header className="lv-legal-card-heading"><h2><SquarePen size={20} aria-hidden="true" />{en ? 'Record assessment' : 'Ghi nhận kết luận'}</h2></header>

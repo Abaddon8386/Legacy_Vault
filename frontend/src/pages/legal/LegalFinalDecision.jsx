@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { decideLegalApproval, loadLegalContext, unlockLegalVault } from './legalLiveService.js';
-import { LegalRecordDetails, LegalTechnicalDetails } from './LegalRecordDetails.jsx';
+import { LegalRecordDetails } from './LegalRecordDetails.jsx';
 import { legalBlocker, legalDate, legalReadOnly, legalStatus } from './legalPresentation.js';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import { Modal } from '../../components/common/Modal.jsx';
@@ -92,7 +92,6 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
         ...(context.snapshot ? [[en ? 'Document version' : 'Phiên bản hồ sơ', context.snapshot.currentVersion],
           [en ? 'Court assessment' : 'Kết luận thẩm định quyết định tòa án', legalStatus(context.snapshot.courtResult, en)],
           [en ? 'Current approval' : 'Phê duyệt còn hiệu lực', context.snapshot.approvalCurrent ? (en ? 'Yes' : 'Có') : (en ? 'No' : 'Không')]] : [])]} />
-      <LegalTechnicalDetails en={en} rows={[[en ? 'Case ID' : 'Mã hồ sơ', context.caseId], [en ? 'Document checksum' : 'Mã kiểm tra giấy tờ', context.snapshot?.sha256Hash], [en ? 'Allocation checksum' : 'Mã kiểm tra phân chia', context.snapshot?.allocationHash], [en ? 'Evidence reference' : 'Tham chiếu chứng cứ', documentVersion?.evidenceReference]]} />
       {documentVersion && <LegalAllocations version={documentVersion} lang={lang} />}
       {documentVersion?.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles inlineOnDesktop kind="basis" caseId={context.caseId} versionNo={documentVersion.version}
         file={{ contentType: documentVersion.contentType, sizeBytes: documentVersion.sizeBytes, sha256: documentVersion.sha256 }}

@@ -161,15 +161,6 @@ export default function LegalDossierReviewPage({
             )}
           </div>
 
-          <div className="lv-dossier-row">
-            <span className="lv-dossier-label">{t.hashLabel}:</span>
-            <div
-              className={`lv-hash-box ${!initialDossier?.sha256 ? 'lv-hash-box--empty' : ''}`}
-            >
-              {initialDossier?.sha256 || t.hashUnloaded}
-            </div>
-          </div>
-
           {initialDossier?.issuer && (
             <div className="lv-dossier-row">
               <span className="lv-dossier-label">{t.issuerLabel}</span>
@@ -232,7 +223,7 @@ export default function LegalDossierReviewPage({
           {errors.decision && (
             <div className="lv-form-error-msg" role="alert">
               <AlertTriangle size={13} aria-hidden="true" />
-              <span>{t[errors.decision] || errors.decision}</span>
+              <span>{t[errors.decision] || t.decisionInvalid}</span>
             </div>
           )}
 
