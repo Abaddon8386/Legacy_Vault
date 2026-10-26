@@ -18,7 +18,7 @@ export function workflowUrl(path, { caseId, sessionId, lang = 'vi', preview = fa
 
 // Presentation only. A visited screen is never evidence that a step is complete.
 export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatus, vaultStatus, loading, error,
-  forwarded, sessionStatus, assets, beneficiaries, confirmationReady = false, intakeDestinationNeeded = false, hasReceipts = false, canArchive = false, lang = 'vi', preview = false } = {}) {
+  forwarded, legalApproved = false, sessionStatus, assets, beneficiaries, confirmationReady = false, intakeDestinationNeeded = false, hasReceipts = false, canArchive = false, lang = 'vi', preview = false } = {}) {
   const urls = { intake: '/staff/legal-documents', legal: '/staff/legal-documents', handover: sessionId ? '/staff/asset-handover' : '/staff/handover', confirmation: '/staff/beneficiary-confirmation', archive: '/staff/close-and-archive' };
   const progress = evaluateCompletionProgress(assets, beneficiaries);
   const archived = vaultStatus === 'ARCHIVED';
@@ -26,6 +26,9 @@ export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatu
   const states = Object.fromEntries(Object.keys(urls).map(id => [id, 'waiting']));
   let message = text('Chọn hồ sơ để xem việc cần làm.', 'Select a case to see the next task.', lang), next;
   if (caseId && !loading && !error) {
+    // Only authoritative completion evidence, never a session ID or a visited route.
+    if (forwarded === true || legalApproved === true || ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(vaultStatus)) states.intake = 'done';
+    if (legalApproved === true || ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(vaultStatus)) states.legal = 'done';
     if (vaultStatus === 'ON_HOLD') {
       states.legal = 'blocked'; states.handover = 'blocked';
       message = text('Hồ sơ đang tạm dừng. Xem yêu cầu bổ sung hoặc thẩm định lại.', 'The case is on hold. Check supplementation or re-review requirements.', lang); next = 'intake';
@@ -94,6 +97,11 @@ export function legalGuidance({ context, current, caseId, lang = 'vi', loading =
   let message = text('Đang kiểm tra điều kiện hồ sơ…', 'Checking case conditions…', lang), next;
   if (context && !loading && !error) {
     const s = context.snapshot;
+    const approved = s?.approvalCurrent === true;
+    const unlocked = ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(context.vaultStatus);
+    if (context.capabilities?.approval?.allowed || context.capabilities?.unlock?.allowed || approved || unlocked) states.death = 'done';
+    if (context.willComparison?.latestResult === 'MATCH' && context.willComparison.approvalBlocked === false || approved || unlocked) states.will = 'done';
+    if (unlocked) states.unlock = 'done';
     if (s?.currentVersion > 0 && context.basisDossier?.versions?.some(v => v.version === s.currentVersion && v.forwardStatus === 'FORWARDED')) states.basis = 'done';
     if (s?.reviewFresh && s.courtResult === 'VALID') states.review = 'done';
     if (s?.approvalCurrent) states.approval = 'done';

@@ -17,9 +17,9 @@ async function mount(Component,props={}) { const host=document.createElement('di
 const Preview=await compile();
 test('Rendered preview permits only ticket-specific actions', async()=>{
  const view=await mount(Preview,{isDevPreview:true,lang:'vi'}); const {host}=view;
- try { assert.match(host.textContent,/ĐANG KHÓA/);const select=host.querySelector('select');await act(async()=>{select.value='unlocked';select.dispatchEvent(new window.Event('change',{bubbles:true}));});assert.match(host.textContent,/ĐÃ MỞ KHÓA \(Mô phỏng\)/);assert.equal(host.querySelectorAll('button').length,1); } finally { await view.close(); }
+ try { assert.match(host.textContent,/Đang khóa/);const select=host.querySelector('select');await act(async()=>{select.value='unlocked';select.dispatchEvent(new window.Event('change',{bubbles:true}));});assert.match(host.textContent,/Đã mở khóa \(minh họa\)/);assert.equal(host.querySelectorAll('button').length,1); } finally { await view.close(); }
 });
 test('Real production build rejects preview override without synthetic success', async()=>{
  const Production=await compile(true);const view=await mount(Production,{isDevPreview:true,lang:'vi'});
- try { assert.match(view.host.textContent,/chưa sẵn sàng|BACKEND_NOT_READY/i); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();}
+ try { assert.match(view.host.textContent,/Chưa tải được trạng thái kho/i); assert.equal(view.host.querySelector('form'),null); } finally {await view.close();}
 });

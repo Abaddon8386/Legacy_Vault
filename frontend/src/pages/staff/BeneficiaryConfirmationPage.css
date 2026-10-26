@@ -468,3 +468,10 @@
   color: var(--lv-text-muted, #6b726b);
   font-size: 13px;
 }
+
+.lv-beneficiary-confirmation-view .lv-confirm-signed-check { display:flex; align-items:flex-start; gap:10px; line-height:1.6; margin:16px 0; }
+.lv-beneficiary-confirmation-view .lv-confirm-signed-check input { width:20px; height:20px; flex-shrink:0; margin-top:3px; }
+.lv-beneficiary-confirmation-view .lv-confirm-signed-file { display:block; box-sizing:border-box; width:100%; padding:14px; border:1px dashed #9eb6a6; border-radius:10px; background:#f5f8f3; color:#294c3c; font:inherit; margin:8px 0 14px; }
+.lv-beneficiary-confirmation-view .lv-confirm-signed-file::file-selector-button { padding:10px 16px; margin-right:12px; border:1px solid #b5c8ba; border-radius:8px; background:#fff; color:#294c3c; font:inherit; font-weight:600; cursor:pointer; }
+.lv-beneficiary-confirmation-view .lv-confirm-signed-file:focus-visible { outline:2px solid #ba9857; outline-offset:3px; }
+.lv-beneficiary-confirmation-view .lv-confirm-receipt-code { overflow-wrap:anywhere; white-space:normal; }

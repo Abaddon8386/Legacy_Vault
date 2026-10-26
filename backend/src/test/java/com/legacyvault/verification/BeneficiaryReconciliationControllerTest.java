@@ -26,6 +26,7 @@ class BeneficiaryReconciliationControllerTest {
  @MockitoBean UserRepository users;
  @MockitoBean UserRoleRepository roles;
  @MockitoBean BeneficiaryReconciliationService service;
+ @MockitoBean com.legacyvault.verification.service.SignedReceiptService receipts;
  static final UUID CASE=UUID.randomUUID(),SESSION=UUID.randomUUID(),RECIPIENT=UUID.randomUUID();
  static final String BASE="/api/v1/staff/verification-cases/"+CASE+"/handover-sessions/"+SESSION;
  static org.springframework.test.web.servlet.request.RequestPostProcessor as(String role){
@@ -39,15 +40,15 @@ class BeneficiaryReconciliationControllerTest {
    .content("{\"receiptReference\":\"REF\"}")).andExpect(status().isUnauthorized());
   for(String role:List.of("VAULT_OWNER","BENEFICIARY","LEGAL_VERIFIER")){
    mvc.perform(get(BASE+"/beneficiary-confirmations").with(as(role))).andExpect(status().isForbidden());
-   mvc.perform(post(BASE+"/beneficiaries/"+RECIPIENT+"/confirmation").with(as(role))
-    .contentType(MediaType.APPLICATION_JSON).content("{\"receiptReference\":\"REF\"}")).andExpect(status().isForbidden());
+   mvc.perform(multipart(BASE+"/beneficiaries/"+RECIPIENT+"/confirmation").file(new org.springframework.mock.web.MockMultipartFile("file","signed.pdf","application/pdf","%PDF-1.4".getBytes())).param("attested","true").with(as(role))
+).andExpect(status().isForbidden());
   }
   verifyNoInteractions(service);
  }
  @Test void invalidReferenceNeverReachesUseCase()throws Exception{
   for(String body:List.of("{}","{\"receiptReference\":\"   \"}","{\"receiptReference\":\""+"x".repeat(201)+"\"}")){
    mvc.perform(post(BASE+"/beneficiaries/"+RECIPIENT+"/confirmation").with(as("STAFF_EXECUTOR"))
-    .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
+    .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isUnsupportedMediaType());
   }
   verifyNoInteractions(service);
  }

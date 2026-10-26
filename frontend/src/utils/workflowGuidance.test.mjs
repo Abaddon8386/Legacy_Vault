@@ -7,6 +7,18 @@ test('a later visited Staff screen never marks earlier steps completed', () => {
   assert.ok(model.steps.every(s => s.state !== 'done'));
   assert.ok(model.steps.every(s => s.href));
 });
+test('Staff completes intake/legal from approved scope or unlocked vault, never session ID alone', () => {
+  for (const evidence of [{legalApproved:true}, {vaultStatus:'HANDOVER_IN_PROGRESS'}, {vaultStatus:'UNLOCKED'}]) {
+    const m=staffGuidance({caseId:'case-a',current:'handover',...evidence});
+    assert.equal(m.steps[0].state,'done'); assert.equal(m.steps[1].state,'done');
+  }
+  assert.equal(staffGuidance({caseId:'case-a',sessionId:'session-a'}).steps[1].state,'waiting');
+  assert.equal(staffGuidance({caseId:'case-a',legalApproved:true,error:true}).steps[1].state,'waiting');
+});
+test('Legal completes preceding steps from current approval capabilities and matching will', () => {
+  const m=legalGuidance({context:{caseStatus:'OPEN',vaultStatus:'LEGAL_BASIS_VERIFICATION',willComparison:{latestResult:'MATCH',approvalBlocked:false},capabilities:{approval:{allowed:true}}}});
+  assert.equal(m.steps[0].state,'done'); assert.equal(m.steps[1].state,'done');
+});
 test('Staff guides to confirmation only when delivery counts are exact and distinguishes missing data', () => {
   const opts = { caseId: 'case-a', assets: { delivered: 2, total: 2 }, beneficiaries: { confirmed: 1, total: 2 } };
   assert.equal(staffGuidance(opts).next.id, 'confirmation');

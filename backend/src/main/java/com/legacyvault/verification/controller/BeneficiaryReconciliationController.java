@@ -12,12 +12,17 @@ import java.util.*;
 @PreAuthorize("hasRole('STAFF_EXECUTOR')")
 public class BeneficiaryReconciliationController {
     private final BeneficiaryReconciliationService service;
-    public BeneficiaryReconciliationController(BeneficiaryReconciliationService service){this.service=service;}
+    private final com.legacyvault.verification.service.SignedReceiptService receipts;
+    public BeneficiaryReconciliationController(BeneficiaryReconciliationService service,com.legacyvault.verification.service.SignedReceiptService receipts){this.service=service;this.receipts=receipts;}
     @GetMapping("/beneficiary-confirmations")
     public List<BeneficiaryConfirmationResponse> list(@PathVariable UUID caseId,@PathVariable UUID sessionId,
             @AuthenticationPrincipal CustomUserPrincipal actor){return service.list(caseId,sessionId,actor);}
-    @PostMapping("/beneficiaries/{beneficiaryId}/confirmation")
+    @PostMapping(value="/beneficiaries/{beneficiaryId}/confirmation",consumes="multipart/form-data")
     public BeneficiaryConfirmationResponse confirm(@PathVariable UUID caseId,@PathVariable UUID sessionId,
-            @PathVariable UUID beneficiaryId,@Valid @RequestBody ConfirmBeneficiaryRequest request,
-            @AuthenticationPrincipal CustomUserPrincipal actor){return service.confirm(caseId,sessionId,beneficiaryId,request,actor);}
+            @PathVariable UUID beneficiaryId,@RequestPart("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam boolean attested,@RequestParam(required=false) String paperReference,
+            @AuthenticationPrincipal CustomUserPrincipal actor){return receipts.confirm(caseId,sessionId,beneficiaryId,file,attested,paperReference,actor);}
+    @GetMapping("/beneficiary-confirmations/{confirmationId}/file")
+    public org.springframework.http.ResponseEntity<byte[]> file(@PathVariable UUID caseId,@PathVariable UUID sessionId,
+      @PathVariable UUID confirmationId,@AuthenticationPrincipal CustomUserPrincipal actor){return IntakeFileResponses.of(receipts.read(caseId,sessionId,confirmationId,actor));}
 }
