@@ -21,6 +21,7 @@ export default function VaultOverviewPage({
   onNavigateToLogin,
   onRefreshTrigger,
   onNavigate,
+  onCreated,
 }) {
   const [vault, setVault] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,6 +83,7 @@ export default function VaultOverviewPage({
     }
     if (controller.signal.aborted) return;
     setVault(created);
+    onCreated?.();
     if (isDevPreviewActive) {
       setSelectedScenario('exists');
     }
