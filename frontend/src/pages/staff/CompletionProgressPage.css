@@ -22,7 +22,7 @@
 }
 
 .lv-completion-progress-view .lv-progress-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 26px;
   font-weight: 700;
   color: var(--lv-brand-forest, #164639);
@@ -127,7 +127,7 @@
 }
 
 .lv-completion-progress-view .lv-overall-banner__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 18px;
   font-weight: 700;
   color: var(--lv-brand-forest, #164639);
@@ -228,7 +228,7 @@
 }
 
 .lv-completion-progress-view .lv-metric-card__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 17px;
   font-weight: 700;
   color: var(--lv-brand-forest, #164639);
@@ -290,8 +290,8 @@
 
 .lv-completion-progress-view .lv-metric-percentage {
   font-size: 18px;
-  font-weight: 600;
-  color: var(--lv-accent-gold, #c5a059);
+  font-weight: 700;
+  color: #164639;
 }
 
 .lv-completion-progress-view .lv-progress-track {

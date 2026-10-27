@@ -179,12 +179,12 @@
 .lv-admin-sub-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border: 1px solid #dce4d7;
   border-radius: 6px;
-  color: #52674d;
+  color: #3b5037;
   background: #f1f5ed;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.5;
 }

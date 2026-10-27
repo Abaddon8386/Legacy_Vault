@@ -18,6 +18,8 @@ import {
   fetchEligibleAssets,
   fetchCompletionProgress,
   confirmBeneficiary,
+  fetchHandoverReceipts,
+  fetchHandoverSession,
 } from './handoverSessionService.js';
 import { beneficiaryConfirmationI18n } from './beneficiaryConfirmationI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
@@ -120,6 +122,50 @@ function BeneficiaryConfirmationPageContext({
   const [selectedCaseItem, setSelectedCaseItem] = useState(propCaseItem);
   const displayCaseItem = useStaffCaseMetadata(caseReference, selectedCaseItem || propCaseItem, effectiveAccessToken, lang, effectiveIsDevPreview);
   const isReadOnlyCase = displayCaseItem?.status === 'CLOSED' || displayCaseItem?.vaultStatus === 'ARCHIVED';
+  const [closedHistory, setClosedHistory] = useState(null);
+  const historyKey = `${caseReference}:${sessionId}:${effectiveAccessToken || ''}:${lang}`;
+  useEffect(() => {
+    if (!isReadOnlyCase || !caseReference || !sessionId || !effectiveAccessToken) return;
+    const controller = new AbortController();
+    const options = { accessToken: effectiveAccessToken, lang, signal: controller.signal };
+    Promise.allSettled([
+      fetchBeneficiaryConfirmations(caseReference, sessionId, options),
+      fetchHandoverReceipts(caseReference, sessionId, options),
+      fetchHandoverSession(caseReference, sessionId, options),
+    ])
+      .then(([confirmationsRes, receiptsRes, sessionRes]) => {
+        if (controller.signal.aborted) return;
+        if (confirmationsRes.status === 'rejected') {
+          setClosedHistory({ key: historyKey, error: confirmationsRes.reason });
+          return;
+        }
+        const items = confirmationsRes.value || [];
+        const receipts = receiptsRes.status === 'fulfilled' && Array.isArray(receiptsRes.value) ? receiptsRes.value : [];
+        const sessionData = sessionRes.status === 'fulfilled' && sessionRes.value ? sessionRes.value : null;
+
+        // Ánh xạ tên người nhận chính xác theo beneficiaryId từ biên nhận
+        const mappedItems = items.map((item) => {
+          const matchingReceipt = receipts.find((r) => r.recipientId === item.beneficiaryId || r.beneficiaryId === item.beneficiaryId);
+          return {
+            ...item,
+            beneficiaryName: item.beneficiaryName || matchingReceipt?.recipientName || matchingReceipt?.beneficiaryName || null,
+          };
+        });
+
+        if (sessionData) {
+          setAvailableSessions((prev) => {
+            const exists = prev.some((s) => s.sessionId === sessionData.sessionId);
+            return exists ? prev.map((s) => s.sessionId === sessionData.sessionId ? { ...s, ...sessionData } : s) : [...prev, sessionData];
+          });
+        }
+
+        setClosedHistory({ key: historyKey, items: mappedItems, receipts, session: sessionData });
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setClosedHistory({ key: historyKey, error });
+      });
+    return () => controller.abort();
+  }, [isReadOnlyCase, caseReference, sessionId, effectiveAccessToken, lang, historyKey]);
   const [reloadRevision, setReloadRevision] = useState(0);
   const [sessionLoadError, setSessionLoadError] = useState('');
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
@@ -567,6 +613,11 @@ function BeneficiaryConfirmationPageContext({
 
   return (
     <div className="lv-beneficiary-confirmation-view">
+      {/* Page Title at Top */}
+      <div className="lv-confirm-header" style={{ marginBottom: '14px' }}>
+        <h1 className="lv-confirm-title">{t.pageTitle}</h1>
+      </div>
+
       <StaffWorkflowGuide current="confirmation" caseId={caseReference} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
         assets={guideProgress?.key === progressKey ? (guideProgress.data?.assets || guideProgress.data?.assetCompletion) : null}
         beneficiaries={guideProgress?.key === progressKey ? (guideProgress.data?.beneficiaries || guideProgress.data?.beneficiaryCompletion) : null}
@@ -829,10 +880,7 @@ function BeneficiaryConfirmationPageContext({
         </div>
       )}
 
-      {/* Header */}
-      <div className="lv-confirm-header">
-        <h1 className="lv-confirm-title">{t.pageTitle}</h1>
-      </div>
+
 
       {/* Feedback Banners */}
       {actionSuccess && (
@@ -893,6 +941,29 @@ function BeneficiaryConfirmationPageContext({
           <h2 id="readonly-heading" className="lv-confirm-card__title">
             {lang === 'en' ? 'Closed case — view history' : 'Hồ sơ đã đóng — chỉ xem lịch sử'}
           </h2>
+            {closedHistory?.key === historyKey && closedHistory.error && <p role="alert">{confirmationErrorMessage(closedHistory.error, lang)}</p>}
+            {closedHistory?.key === historyKey && closedHistory.items && <ul aria-label={lang === 'en' ? 'Confirmation history' : 'Lịch sử xác nhận'} className="lv-confirm-history-list" style={{ listStyle: 'none', padding: 0, margin: '14px 0' }}>
+              {closedHistory.items.map((item, index) => {
+                const displayName = item.beneficiaryName || `${lang === 'en' ? 'Recipient' : 'Người nhận'} (${item.beneficiaryId ? item.beneficiaryId.slice(0, 8) + '…' : index + 1})`;
+                const isConfirmed = item.status === 'CONFIRMED' || item.confirmationStatus === 'CONFIRMED';
+                return (
+                  <li key={item.beneficiaryId || index} style={{ margin: '8px 0', padding: '10px 14px', background: '#f8faf7', borderRadius: '8px', border: '1px solid #e2e8e2' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                      <strong style={{ color: '#164639' }}>{displayName}</strong>
+                      <span className={`lv-confirm-status-badge ${isConfirmed ? 'lv-confirm-status-badge--confirmed' : 'lv-confirm-status-badge--pending'}`} style={{ fontSize: '12px' }}>
+                        {isConfirmed ? (lang === 'en' ? 'Confirmed' : 'Đã xác nhận') : (lang === 'en' ? 'Pending' : 'Chưa xác nhận')}
+                      </span>
+                    </div>
+                    {item.receiptReference && (
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#526056' }}>
+                        <span>{lang === 'en' ? 'Receipt reference: ' : 'Mã biên nhận: '}</span>
+                        <code style={{ background: '#edf2ec', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{item.receiptReference}</code>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>}
           <p>{lang === 'en' ? 'New confirmations cannot be recorded after the case is closed or the vault is archived.' : 'Không thể ghi nhận xác nhận mới khi hồ sơ đã đóng hoặc kho đã lưu trữ.'}</p>
           <div className="lv-confirm-form-actions">
             <a className="lv-confirm-btn-select-case" href={`/staff/close-and-archive?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId || '')}`}>

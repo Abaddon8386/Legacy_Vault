@@ -22,7 +22,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 26px;
   font-weight: 700;
   color: var(--lv-brand-forest, #164639);
@@ -97,7 +97,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-card__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 18px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
@@ -166,7 +166,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-scope-empty h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 17px;
   color: var(--lv-brand-forest, #164639);
   margin: 0;
@@ -470,7 +470,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-modal-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 18px;
   font-weight: 700;
   color: var(--lv-brand-forest, #164639);

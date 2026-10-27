@@ -91,6 +91,10 @@ export async function loadLegalContext(caseId, options = {}) {
 export async function loadLegalReviewContext(caseId, options = {}) {
   const value = await request(`${context(caseId, options)}/context`, { ...options, expectedStatus: 200 });
   requireValue(value?.caseId === caseId);
+  if (value.basisDossier === null) {
+    requireValue(value.snapshot === null);
+    return { dossier: null, reviewSnapshot: null };
+  }
   const basis = dossier(value.basisDossier, caseId), snapshot = value.snapshot;
   requireValue(snapshot?.dossierId === basis.id && Number.isSafeInteger(snapshot.currentVersion) && snapshot.currentVersion >= 0);
   if (snapshot.currentVersion === 0) return { dossier: basis, reviewSnapshot: null };

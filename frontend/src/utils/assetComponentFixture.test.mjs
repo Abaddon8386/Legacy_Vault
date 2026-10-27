@@ -188,6 +188,33 @@ async function mount(Component, props) {
   };
 }
 
+test('Read-only asset list disables desktop and mobile edit controls while preserving view', async () => {
+  let views = 0;
+  const view = await mount(AssetListTable, { assets: syntheticAssets, lang: 'vi', query: { page: 0, size: 10, sort: 'createdAt,desc' }, totalElements: syntheticAssets.length, onQueryChange() {}, onViewAsset() { views++; } });
+  try {
+    const buttons = [...view.container.querySelectorAll('button')];
+    const edit = buttons.filter(button => button.textContent.trim() === ASSET_I18N.vi.assets.actions.edit);
+    assert.equal(edit.length, syntheticAssets.length * 2);
+    assert.ok(edit.every(button => button.disabled));
+    const open = buttons.find(button => button.textContent.trim() === ASSET_I18N.vi.assets.actions.view);
+    assert.equal(open.disabled, false);
+    await act(async () => open.click());
+    assert.equal(views, 1);
+  } finally { await view.unmount(); }
+});
+
+test('Read-only assets block creation even when quota enforcement is disabled', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => quotaJson(emptyAssets);
+  const view = await mount(AssetManagementPage, { vaultId: testVaultId, accessToken: 'fixture', readOnly: true });
+  try {
+    assert.equal(view.container.querySelector('.lv-add-btn').disabled, true);
+    assert.equal(view.container.querySelector('.lv-mobile-fab').disabled, true);
+    assert.match(view.container.textContent, /Kho hiện chỉ được xem/);
+    assert.equal(view.container.querySelector('[role=dialog]'), null);
+  } finally { await view.unmount(); globalThis.fetch = original; }
+});
+
 test('AssetSummaryCards: Render chính xác 3 khối thống kê với synthetic fixture data', async () => {
   const view = await mount(AssetSummaryCards, {
     assets: syntheticAssets,

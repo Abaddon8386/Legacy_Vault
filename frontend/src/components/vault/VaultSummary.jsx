@@ -86,6 +86,7 @@ function getSimulationData(lang = 'vi') {
 
 export default function VaultSummary({
   vaultId,
+  vaultStatus = 'ACTIVE',
   ownerId,
   accessToken,
   lang = 'vi',
@@ -190,7 +191,7 @@ export default function VaultSummary({
         )}
       </div>
 
-      {isDmsConfigured && isDmsOverdue && <div className="lv-summary-attention" role="status">
+      {!['ARCHIVED', 'HANDOVER_IN_PROGRESS', 'UNLOCKED'].includes(vaultStatus) && isDmsConfigured && isDmsOverdue && <div className="lv-summary-attention" role="status">
         <div><strong>{en ? 'Activity confirmation needs attention' : 'Cần kiểm tra trạng thái xác nhận hoạt động'}</strong>
           <p>{dmsDescription}{dms.nextCheckAt ? ` · ${formatNextDate(dms.nextCheckAt, lang)}` : ''}</p></div>
         <button type="button" className="lv-summary-cta-btn" onClick={() => onNavigate?.('dms')}>

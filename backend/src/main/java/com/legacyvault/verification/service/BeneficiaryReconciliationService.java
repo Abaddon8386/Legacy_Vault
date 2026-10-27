@@ -22,7 +22,7 @@ public class BeneficiaryReconciliationService {
             UserRepository users,AuditService audit,com.legacyvault.common.crypto.EncryptionService encryption){this.access=access;this.confirmations=confirmations;this.users=users;this.audit=audit;this.encryption=encryption;}
     @Transactional
     public List<BeneficiaryConfirmationResponse> list(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
-        var snapshot=access.lock(caseId,sessionId,actor,true);
+        var snapshot=access.read(caseId,sessionId,actor);
         var saved=confirmations.findBySessionIdAndVersionIdAndScopeHash(snapshot.session().getId(),
                 snapshot.version().id(),snapshot.scopeHash());
         return snapshot.rows().stream().map(ReceiptAllocationRow::beneficiaryPublicId).distinct()

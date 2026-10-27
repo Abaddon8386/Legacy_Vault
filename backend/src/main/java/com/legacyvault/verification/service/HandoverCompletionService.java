@@ -15,7 +15,7 @@ public class HandoverCompletionService {
   BeneficiaryCompletionService beneficiaries){this.access=access;this.assets=assets;this.beneficiaries=beneficiaries;}
  @Transactional
  public HandoverCompletionResponse get(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
-  return evaluate(access.lock(caseId,sessionId,actor,true));
+  return evaluate(access.read(caseId,sessionId,actor));
  }
  @Transactional(propagation=Propagation.MANDATORY)
  public HandoverCompletionResponse evaluate(HandoverCompletionAccess.Snapshot snapshot){

@@ -739,6 +739,7 @@ export async function fetchHandoverReceipts(caseId, sessionId, options = {}) {
         receiptId: 'rec-001',
         sessionId,
         recipientId: 'ben-001',
+        recipientName: options.lang === 'en' ? 'Jane Doe' : 'Nguyễn Thị B',
         assetIds: ['ast-001', 'ast-002'],
         attestationType: 'STAFF_ATTESTATION',
         createdAt: '2026-10-18T10:00:00Z',

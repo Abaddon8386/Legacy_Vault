@@ -16,7 +16,7 @@ public class BeneficiaryCompletionService {
  }
  @Transactional
  public CompletionProgressResponse get(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
-  return calculate(access.lock(caseId,sessionId,actor,true));
+  return calculate(access.read(caseId,sessionId,actor));
  }
  @Transactional(propagation=Propagation.MANDATORY)
  public CompletionProgressResponse calculate(HandoverCompletionAccess.Snapshot s){

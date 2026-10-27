@@ -1,8 +1,8 @@
 .lv-workflow-guide { min-width:0; padding:20px; margin:20px 0; background:#fff; border:1px solid #dce4dc; border-radius:16px; color:#203e33; }
-.lv-workflow-guide h2 { margin:0 0 14px; font:600 18px/1.4 var(--lv-font-serif,Georgia,serif); }
+.lv-workflow-guide h2 { margin:0 0 14px; font:600 18px/1.4 var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif); }
 .lv-workflow-guide ol { display:flex; flex-wrap:wrap; gap:8px; margin:0; padding:0; list-style:none; }
 .lv-workflow-guide li { flex:1 1 115px; margin:0; border-radius:10px; border:1px solid #e2e8e2; }
-.lv-workflow-guide :is(a,.lv-workflow-guide__step) { display:flex; align-items:center; gap:9px; min-height:58px; padding:10px; color:inherit; text-decoration:none; box-sizing:border-box; }
+.lv-workflow-guide :is(a,.lv-workflow-guide__step) { display:flex; align-items:center; gap:9px; min-height:54px; padding:8px 10px; color:inherit; text-decoration:none; box-sizing:border-box; }
 .lv-workflow-guide a { transition:background 180ms ease,box-shadow 180ms ease; }
 .lv-workflow-guide a:hover { background:#f3f7f2; }
 .lv-workflow-guide a:focus-visible { outline:3px solid #c5a059; outline-offset:2px; }
@@ -10,11 +10,23 @@
 .lv-workflow-guide__number { display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:#edf2ec; flex-shrink:0; font-weight:700; font-size:13px; }
 .lv-workflow-guide .is-done .lv-workflow-guide__number { background:#e7f4eb; color:#246244; }
 .lv-workflow-guide__label { min-width:0; overflow-wrap:anywhere; font-size:13px; font-weight:600; }
-.lv-workflow-guide small { display:flex; gap:4px; align-items:center; margin-top:3px; color:#66766b; font-size:11px; font-weight:400; }
+.lv-workflow-guide small { display:flex; gap:4px; align-items:center; margin-top:3px; color:#526056; font-size:11px; font-weight:400; }
 .lv-workflow-guide__next { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid #e4e9e1; }
-.lv-workflow-guide__next p { margin:0; flex:1 1 260px; font-size:13px; line-height:1.6; }
+.lv-workflow-guide__next p { margin:0; flex:1 1 260px; font-size:13px; line-height:1.6; color:#203e33; }
 .lv-workflow-guide__next a { min-height:42px; color:#164639; font-size:13px; font-weight:700; }
 .lv-workflow-action-hint { display:flex; align-items:flex-start; gap:7px; margin:8px 0 16px; font-size:13px; line-height:1.6; color:#765623; }
 .lv-workflow-action-hint svg { flex-shrink:0; margin-top:3px; }
-@media(max-width:600px) { .lv-workflow-guide { padding:14px; } .lv-workflow-guide li { flex-basis:calc(50% - 10px); } .lv-workflow-guide__next a { width:100%; } }
+.lv-workflow-guide__done-bar { display:none; }
+@media(max-width:640px) {
+  .lv-workflow-guide { padding:12px 14px; margin:10px 0; border-radius:12px; }
+  .lv-workflow-guide h2 { margin:0 0 10px; font-size:16px; }
+  .lv-workflow-guide__done-bar { display:block; margin-bottom:8px; }
+  .lv-workflow-guide__done-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; background:#edf5ee; border:1px solid #cfe2d3; border-radius:8px; color:#164639; font-size:12px; font-weight:600; cursor:pointer; }
+  .lv-workflow-guide__done-action { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#3a5c48; font-weight:500; }
+  .lv-workflow-guide li.is-done-mobile-hidden { display:none; }
+  .lv-workflow-guide li { flex-basis:100%; }
+  .lv-workflow-guide :is(a,.lv-workflow-guide__step) { min-height:42px; padding:6px 10px; }
+  .lv-workflow-guide__next { margin-top:10px; padding-top:8px; }
+  .lv-workflow-guide__next a { width:100%; }
+}
 @media(prefers-reduced-motion:reduce) { .lv-workflow-guide a { transition:none; } }
