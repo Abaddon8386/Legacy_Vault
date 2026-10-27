@@ -35,7 +35,7 @@ export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatu
     } else if (archived || closed) {
       message = archived ? text('Hồ sơ đã lưu trữ. Bạn vẫn có thể xem lịch sử.', 'Archived record. History remains available.', lang)
         : text('Hồ sơ đã đóng hoặc hủy; chỉ xem thông tin.', 'This case is closed or cancelled; viewing remains available.', lang);
-      if (archived) states.archive = 'done';
+      if (archived) { states.handover = 'done'; states.confirmation = 'done'; states.archive = 'done'; }
     } else if (canArchive) {
       states.archive = 'action'; states.handover = 'done'; states.confirmation = 'done';
       message = text('Đã đủ điều kiện lưu trữ hồ sơ.', 'The case is ready to archive.', lang); next = 'archive';
@@ -97,27 +97,48 @@ export function legalGuidance({ context, current, caseId, lang = 'vi', loading =
   let message = text('Đang kiểm tra điều kiện hồ sơ…', 'Checking case conditions…', lang), next;
   if (context && !loading && !error) {
     const s = context.snapshot;
-    const approved = s?.approvalCurrent === true;
+    const isArchived = context.vaultStatus === 'ARCHIVED' || context.caseStatus === 'ARCHIVED';
+    const isClosed = ['CLOSED', 'CANCELLED', 'COMPLETED'].includes(context.caseStatus);
+    const approved = s?.approvalCurrent === true || s?.latestDecision?.result === 'APPROVE' || ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(context.vaultStatus);
     const unlocked = ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(context.vaultStatus);
+
     if (context.capabilities?.approval?.allowed || context.capabilities?.unlock?.allowed || approved || unlocked) states.death = 'done';
     if (context.willComparison?.latestResult === 'MATCH' && context.willComparison.approvalBlocked === false || approved || unlocked) states.will = 'done';
-    if (unlocked) states.unlock = 'done';
-    if (s?.currentVersion > 0 && context.basisDossier?.versions?.some(v => v.version === s.currentVersion && v.forwardStatus === 'FORWARDED')) states.basis = 'done';
-    if (s?.reviewFresh && s.courtResult === 'VALID') states.review = 'done';
-    if (s?.approvalCurrent) states.approval = 'done';
-    if (context.caseStatus !== 'OPEN' || ['NOTARIAL', 'ON_HOLD'].includes(context.basisDossier?.route) || context.vaultStatus === 'ON_HOLD') {
+    if (unlocked) { states.unlock = 'done'; states.approval = 'done'; }
+    if (s?.currentVersion > 0 && context.basisDossier?.versions?.some(v => v.version === s.currentVersion && v.forwardStatus === 'FORWARDED') || approved || unlocked) states.basis = 'done';
+    if (s?.reviewFresh && s.courtResult === 'VALID' || approved || unlocked) states.review = 'done';
+    if (approved) states.approval = 'done';
+
+    if (isArchived || isClosed) {
+      if (!approved) states.approval = 'blocked';
+      if (!unlocked) states.unlock = 'blocked';
+      next = undefined;
+      message = isArchived
+        ? text('Hồ sơ đã lưu trữ. Lịch sử phê duyệt và mở khóa chỉ đọc.', 'Archived record. Approval and unlock history is read-only.', lang)
+        : text('Hồ sơ đã đóng; lịch sử pháp lý chỉ đọc.', 'Case is closed; legal history is read-only.', lang);
+    } else if (['NOTARIAL', 'ON_HOLD'].includes(context.basisDossier?.route) || context.vaultStatus === 'ON_HOLD') {
       states.approval = 'blocked'; states.unlock = 'blocked'; message = legalBlockedReason(context, 'approval', lang);
-    } else if (context.vaultStatus === 'UNLOCKED') { states.unlock = 'done'; message = text('Kho đã mở khóa. Nhân viên có thể kiểm tra điều kiện bàn giao tại quầy.', 'Vault unlocked. Staff can check counter handover conditions.', lang); }
-    else if (context.capabilities?.unlock?.allowed) { states.unlock = 'action'; next = 'unlock'; message = text('Đã phê duyệt. Mở khóa là thao tác xác nhận riêng.', 'Approved. Unlocking requires a separate confirmation.', lang); }
-    else if (context.capabilities?.approval?.allowed) { states.approval = 'action'; next = 'approval'; message = text('Đủ điều kiện ghi nhận quyết định pháp lý.', 'Ready to record the final legal decision.', lang); }
-    else {
+    } else if (context.vaultStatus === 'UNLOCKED') {
+      states.unlock = 'done';
+      message = text('Kho đã mở khóa. Staff có thể kiểm tra điều kiện bàn giao tại quầy.', 'Vault unlocked. Staff can check counter handover conditions.', lang);
+    } else if (context.capabilities?.unlock?.allowed) {
+      states.unlock = 'action'; next = 'unlock';
+      message = text('Đã phê duyệt. Mở khóa là thao tác xác nhận riêng.', 'Approved. Unlocking requires a separate confirmation.', lang);
+    } else if (context.capabilities?.approval?.allowed) {
+      states.approval = 'action'; next = 'approval';
+      message = text('Đủ điều kiện ghi nhận quyết định pháp lý.', 'Ready to record the final legal decision.', lang);
+    } else {
       message = legalBlockedReason(context, current === 'controlled-unlock' ? 'unlock' : 'approval', lang);
       if (index >= 4) states[ids[index]] = 'blocked';
       if (context.caseStatus === 'OPEN' && !['NOTARIAL', 'ON_HOLD'].includes(context.basisDossier?.route)) next = states.basis === 'done' ? 'review' : 'basis';
     }
   }
   if (error) message = text('Chưa tải được trạng thái. Tải lại trước khi ra quyết định.', 'Status unavailable. Reload before making a decision.', lang);
-  const steps = ids.map((id, i) => step(id, states[id], lang, workflowUrl(`/legal/${routes[i]}`, { caseId, lang })));
+  const steps = ids.map((id, i) => ({
+    ...step(id, states[id], lang, workflowUrl(`/legal/${routes[i]}`, { caseId, lang })),
+    ...(id === 'approval' && states.approval === 'done' ? { statusLabel: text('Đã phê duyệt', 'Approved', lang) } : {}),
+    ...(id === 'unlock' && states.unlock === 'done' ? { statusLabel: text('Đã mở khóa', 'Unlocked', lang) } : {}),
+  }));
   return { current: ids[index], steps, message, next: next && next !== ids[index] ? { ...steps.find(item => item.id === next), label: text('Đến bước ', 'Go to ', lang) + words[next][lang === 'en' ? 1 : 0].toLowerCase() } : undefined };
 }
 

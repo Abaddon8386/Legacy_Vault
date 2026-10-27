@@ -338,16 +338,118 @@ export default function AdminLogsPage({
 }
 
 const loadDetail = (token, { id, ...options }) => fetchAdminAuditDetail(token, id, options);
+function CopyButton({ text, lang }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    if (!text) return;
+    navigator.clipboard?.writeText(String(text));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      style={{
+        marginLeft: '8px',
+        padding: '2px 8px',
+        fontSize: '11px',
+        borderRadius: '4px',
+        border: '1px solid #dce4dc',
+        background: '#fff',
+        cursor: 'pointer',
+        color: '#164639',
+      }}
+      title={lang === 'en' ? 'Copy to clipboard' : 'Sao chép'}
+    >
+      {copied ? (lang === 'en' ? '✓ Copied' : '✓ Đã chép') : (lang === 'en' ? 'Copy' : 'Sao chép')}
+    </button>
+  );
+}
+
 function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const onFailure = (error) => { if (error.status === 403) onDenied(); };
   const { data, loading, error, apiPending } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
+
+  const formatFullTimestamp = (occurredAt) => {
+    if (!occurredAt) return t.notAvailable;
+    const local = formatAdminTimestamp(occurredAt, lang);
+    try {
+      const utcStr = new Date(occurredAt).toISOString().replace('.000Z', ' UTC').replace('T', ' ');
+      return `${local} (${utcStr})`;
+    } catch {
+      return local;
+    }
+  };
+
   return <Modal isOpen onClose={onClose} title={t.logDetailTitle} closeLabel={t.closeModal}>
-    {loading ? <p role="status">{t.loading}</p> : error ? <p role="alert">{error}</p> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data &&
-      <dl className="lv-admin-detail-list">{[
-        [t.logId, data.id], [t.logTimestamp, formatAdminTimestamp(data.occurredAt, lang)], [t.logActorType, data.actorType],
-        [t.logActorId, data.actorId], [t.logActionCode, data.action], [t.logEntityType, data.entityType],
-        [t.logVaultId, data.vaultId], [t.logTraceId, data.traceId],
-      ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? t.notAvailable}</dd></div>)}</dl>}
+    {loading ? <p role="status">{t.loading}</p> : error ? <p role="alert">{error}</p> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data && (
+      <div>
+        {/* Primary Event Overview: Meaning, Actor, Time */}
+        <section aria-label={lang === 'en' ? 'Event overview' : 'Thông tin sự kiện'} style={{ marginBottom: '18px' }}>
+          <dl className="lv-admin-detail-list">
+            <div>
+              <dt>{t.logActionCode}</dt>
+              <dd>
+                <strong>{adminActionLabel(data.action, lang)}</strong>
+                {adminActionLabel(data.action, lang) !== data.action && (
+                  <span className="lv-admin-code" style={{ marginLeft: '8px' }}>{data.action}</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logEntityType}</dt>
+              <dd>{data.entityType ?? t.notAvailable}</dd>
+            </div>
+            <div>
+              <dt>{t.logActorType}</dt>
+              <dd>{data.actorType ?? t.notAvailable}</dd>
+            </div>
+            <div>
+              <dt>{t.logTimestamp}</dt>
+              <dd>{formatFullTimestamp(data.occurredAt)}</dd>
+            </div>
+          </dl>
+        </section>
+
+        {/* Technical Reference Identifiers (Secondary & Copyable) */}
+        <details open style={{ padding: '12px 14px', background: '#f8faf7', border: '1px solid #e2e8e2', borderRadius: '8px' }}>
+          <summary style={{ fontWeight: 600, fontSize: '13px', color: '#164639', cursor: 'pointer' }}>
+            {lang === 'en' ? 'Technical identifiers & trace' : 'Định danh kỹ thuật & nhật ký vết'}
+          </summary>
+          <dl className="lv-admin-detail-list" style={{ marginTop: '12px', marginBottom: 0 }}>
+            <div>
+              <dt>{t.logId}</dt>
+              <dd>
+                <code>{data.id ?? t.notAvailable}</code>
+                {data.id && <CopyButton text={data.id} lang={lang} />}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logTraceId}</dt>
+              <dd>
+                <code>{data.traceId ?? t.notAvailable}</code>
+                {data.traceId && <CopyButton text={data.traceId} lang={lang} />}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logActorId}</dt>
+              <dd>
+                <code>{data.actorId ?? t.notAvailable}</code>
+                {data.actorId && <CopyButton text={data.actorId} lang={lang} />}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logVaultId}</dt>
+              <dd>
+                <code>{data.vaultId ?? t.notAvailable}</code>
+                {data.vaultId && <CopyButton text={data.vaultId} lang={lang} />}
+              </dd>
+            </div>
+          </dl>
+        </details>
+      </div>
+    )}
   </Modal>;
 }

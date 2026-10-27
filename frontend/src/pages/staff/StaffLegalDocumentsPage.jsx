@@ -34,6 +34,7 @@ import {
   fetchStaffCaseBeneficiaries,
 } from './staffLegalDocumentsService.js';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
+import { listLiveSessions } from './liveHandoverService.js';
 import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
 import './StaffLegalDocumentsPage.css';
 
@@ -71,6 +72,127 @@ export default function StaffLegalDocumentsPage({
   const initialCase = propCaseId || '';
   const [selectedCaseId, setSelectedCaseId] = useState(initialCase);
   const displayCaseItem = useStaffCaseMetadata(selectedCaseId, propCaseItem, effectiveAccessToken, lang, effectiveIsDevPreview);
+  const caseStatus = displayCaseItem?.status;
+  const vaultStatus = displayCaseItem?.vaultStatus;
+  const isCaseMetadataReady = Boolean(displayCaseItem);
+
+  // Preserve or discover historical handover session for closed/archived cases, scoped strictly to (selectedCaseId, effectiveAccessToken)
+  const [discoveredSessionState, setDiscoveredSessionState] = useState({
+    caseId: null,
+    accessToken: null,
+    sessionId: null,
+    sessions: [],
+    status: 'idle', // 'idle' | 'loading' | 'success' | 'empty' | 'error' | 'ambiguous'
+    userSelection: 'UNTOUCHED', // 'UNTOUCHED' | 'SELECTED' | 'CLEARED'
+    selectedSessionId: null,
+  });
+
+  // Verify scope strictly in render before using discovered session
+  const isDiscoveredScopeMatching = Boolean(
+    selectedCaseId &&
+    effectiveAccessToken &&
+    discoveredSessionState.caseId === selectedCaseId &&
+    discoveredSessionState.accessToken === effectiveAccessToken
+  );
+
+  let activeDiscoveredSessionId = '';
+  if (isDiscoveredScopeMatching) {
+    if (discoveredSessionState.userSelection === 'CLEARED') {
+      // User explicitly cleared selection: NEVER fallback to default session!
+      activeDiscoveredSessionId = '';
+    } else if (discoveredSessionState.userSelection === 'SELECTED') {
+      // User explicitly selected a session: verify it belongs to current sessions
+      const isValid = Boolean(
+        discoveredSessionState.selectedSessionId &&
+        discoveredSessionState.sessions?.some(s => s.sessionId === discoveredSessionState.selectedSessionId)
+      );
+      activeDiscoveredSessionId = isValid ? (discoveredSessionState.selectedSessionId || '') : '';
+    } else {
+      // userSelection === 'UNTOUCHED' (Initial state before user interaction)
+      if (discoveredSessionState.status === 'ambiguous') {
+        activeDiscoveredSessionId = '';
+      } else if (discoveredSessionState.status === 'success') {
+        activeDiscoveredSessionId = discoveredSessionState.sessionId || '';
+      }
+    }
+  }
+
+  const effectiveSessionId = propSessionId || activeDiscoveredSessionId || '';
+
+  useEffect(() => {
+    if (propSessionId || !selectedCaseId || !effectiveAccessToken || effectiveIsDevPreview) return;
+    const isClosed = ['CLOSED', 'CANCELLED'].includes(caseStatus) || vaultStatus === 'ARCHIVED';
+    if (!isClosed) return;
+
+    const targetCaseId = selectedCaseId;
+    const targetAccessToken = effectiveAccessToken;
+    const controller = new AbortController();
+
+    listLiveSessions(targetCaseId, { accessToken: targetAccessToken, lang, signal: controller.signal })
+      .then(sessions => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(sessions) || sessions.length === 0) {
+          setDiscoveredSessionState({
+            caseId: targetCaseId,
+            accessToken: targetAccessToken,
+            sessionId: null,
+            sessions: [],
+            status: 'empty',
+            userSelection: 'UNTOUCHED',
+            selectedSessionId: null,
+          });
+          return;
+        }
+
+        const completed = sessions.filter(s => s.status === 'COMPLETED');
+        let pickedId = null;
+        let status = 'success';
+
+        if (completed.length === 1) {
+          pickedId = completed[0].sessionId;
+        } else if (completed.length === 0 && sessions.length === 1) {
+          pickedId = sessions[0].sessionId;
+        } else {
+          // Nhiều phiên hợp lệ hoặc nhiều phiên không xác định duy nhất:
+          // Không tự chọn phiên theo thời gian, vị trí mảng hay ID
+          status = 'ambiguous';
+        }
+
+        setDiscoveredSessionState(prev => {
+          const isSameScope = prev.caseId === targetCaseId && prev.accessToken === targetAccessToken;
+          const userSelection = (isSameScope && prev.userSelection && prev.userSelection !== 'UNTOUCHED')
+            ? prev.userSelection
+            : 'UNTOUCHED';
+          const selectedSessionId = (isSameScope && userSelection === 'SELECTED')
+            ? prev.selectedSessionId
+            : null;
+
+          return {
+            caseId: targetCaseId,
+            accessToken: targetAccessToken,
+            sessionId: pickedId,
+            sessions,
+            status,
+            userSelection,
+            selectedSessionId,
+          };
+        });
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setDiscoveredSessionState({
+          caseId: targetCaseId,
+          accessToken: targetAccessToken,
+          sessionId: null,
+          sessions: [],
+          status: 'error',
+          userSelection: 'UNTOUCHED',
+          selectedSessionId: null,
+        });
+      });
+
+    return () => controller.abort();
+  }, [selectedCaseId, propSessionId, effectiveAccessToken, effectiveIsDevPreview, lang, caseStatus, vaultStatus]);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   // Unsaved changes protection
@@ -220,26 +342,53 @@ export default function StaffLegalDocumentsPage({
       setActionError(null);
 
       try {
-        const [result, assets, beneficiaries] = await Promise.all([
-          fetchBasisDossier(selectedCaseId, {
-            accessToken: effectiveAccessToken,
-            isDevPreview: effectiveIsDevPreview,
-            lang,
-            signal: controller.signal,
-          }),
-          fetchStaffAssetCatalog(selectedCaseId, {
-            accessToken: effectiveAccessToken,
-            isDevPreview: effectiveIsDevPreview,
-            lang,
-            signal: controller.signal,
-          }),
-          fetchStaffCaseBeneficiaries(selectedCaseId, {
-            accessToken: effectiveAccessToken,
-            isDevPreview: effectiveIsDevPreview,
-            lang,
-            signal: controller.signal,
-          }),
-        ]);
+        const isClosedCase = ['CLOSED', 'CANCELLED'].includes(caseStatus) || vaultStatus === 'ARCHIVED';
+
+        // Load basis dossier for history view
+        const dossierPromise = fetchBasisDossier(selectedCaseId, {
+          accessToken: effectiveAccessToken,
+          isDevPreview: effectiveIsDevPreview,
+          lang,
+          signal: controller.signal,
+        });
+
+        // Chỉ gọi API assets & beneficiaries khi hồ sơ đang OPEN để lập phân bổ
+        // Các hồ sơ đã đóng/lưu trữ ở chế độ xem lịch sử, không gọi API chỉ dành cho ca OPEN (tránh 404)
+        let assets = [];
+        let beneficiaries = [];
+
+        const isCaseMetadataLoading = !effectiveIsDevPreview && Boolean(effectiveAccessToken) && !isCaseMetadataReady;
+        if (!isClosedCase && !isCaseMetadataLoading) {
+          try {
+            const [fetchedAssets, fetchedBeneficiaries] = await Promise.all([
+              fetchStaffAssetCatalog(selectedCaseId, {
+                accessToken: effectiveAccessToken,
+                isDevPreview: effectiveIsDevPreview,
+                lang,
+                signal: controller.signal,
+              }),
+              fetchStaffCaseBeneficiaries(selectedCaseId, {
+                accessToken: effectiveAccessToken,
+                isDevPreview: effectiveIsDevPreview,
+                lang,
+                signal: controller.signal,
+              }),
+            ]);
+            assets = fetchedAssets || [];
+            beneficiaries = fetchedBeneficiaries || [];
+          } catch (scopeErr) {
+            // Phân biệt giới hạn đọc lịch sử với dữ liệu không tồn tại:
+            // Nếu API chỉ hỗ trợ ca OPEN trả 404, giữ rỗng để xem lịch sử hồ sơ thay vì làm hỏng toàn trang
+            if (scopeErr?.status === 404 || scopeErr?.code === 'RESOURCE_NOT_FOUND') {
+              assets = [];
+              beneficiaries = [];
+            } else {
+              throw scopeErr;
+            }
+          }
+        }
+
+        const result = await dossierPromise;
 
         if (active && currentCaseIdRef.current === selectedCaseId) {
           setAvailableAssets(assets || []);
@@ -273,7 +422,7 @@ export default function StaffLegalDocumentsPage({
       active = false;
       controller.abort();
     };
-  }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang, en]);
+  }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang, en, caseStatus, vaultStatus, isCaseMetadataReady]);
 
   // Handle case change request (from Context Bar / Modal)
   const handleRequestCaseChange = (caseItem) => {
@@ -647,6 +796,83 @@ export default function StaffLegalDocumentsPage({
       <StaffWorkflowGuide current="intake" caseId={selectedCaseId} sessionId={propSessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
         caseStatus={displayCaseItem?.status} vaultStatus={isRouteOnHold ? 'ON_HOLD' : displayCaseItem?.vaultStatus}
         loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} />
+
+      {(['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || displayCaseItem?.vaultStatus === 'ARCHIVED') && (
+        <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <span>{en ? 'This case is closed or archived. Documents and history are available for reference in read-only mode.' : 'Hồ sơ đã đóng hoặc đã lưu trữ. Văn bản và lịch sử hiển thị ở chế độ chỉ đọc.'}</span>
+            {isDiscoveredScopeMatching && discoveredSessionState.status === 'empty' && (
+              <div style={{ fontSize: '12px', color: '#15803d', marginTop: '2px' }}>
+                {en ? '(No handover session recorded for this case)' : '(Hồ sơ này chưa ghi nhận phiên bàn giao)'}
+              </div>
+            )}
+            {isDiscoveredScopeMatching && discoveredSessionState.status === 'error' && (
+              <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px' }}>
+                {en ? '(Could not load historical handover sessions)' : '(Không thể tải danh sách phiên bàn giao lịch sử)'}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {isDiscoveredScopeMatching && (discoveredSessionState.sessions?.length > 1 || discoveredSessionState.status === 'ambiguous') && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <label htmlFor="staff-historical-session-select" style={{ fontSize: '12px', fontWeight: 600 }}>
+                  {en ? 'Session:' : 'Phiên:'}
+                </label>
+                <select
+                  id="staff-historical-session-select"
+                  value={effectiveSessionId}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setDiscoveredSessionState(prev => ({
+                        ...prev,
+                        userSelection: 'CLEARED',
+                        selectedSessionId: null,
+                      }));
+                    } else {
+                      const isValid = Boolean(discoveredSessionState.sessions?.some(s => s.sessionId === val));
+                      setDiscoveredSessionState(prev => ({
+                        ...prev,
+                        userSelection: isValid ? 'SELECTED' : 'CLEARED',
+                        selectedSessionId: isValid ? val : null,
+                      }));
+                    }
+                  }}
+                  style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', border: '1px solid #86efac', background: '#fff' }}
+                >
+                  <option value="">{en ? '-- Select session --' : '-- Chọn phiên bàn giao --'}</option>
+                  {discoveredSessionState.sessions.map((s, idx) => (
+                    <option key={s.sessionId || idx} value={s.sessionId}>
+                      {s.sessionNumber || (s.sessionId ? s.sessionId.slice(0, 8) : `Session #${idx + 1}`)} ({s.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {effectiveSessionId ? (
+              <a
+                href={`/staff/close-and-archive?caseId=${encodeURIComponent(selectedCaseId)}&sessionId=${encodeURIComponent(effectiveSessionId)}`}
+                style={{ color: '#166534', fontWeight: 600, textDecoration: 'underline' }}
+              >
+                {en ? 'View archive & receipts' : 'Xem lưu trữ & biên nhận'}
+              </a>
+            ) : isDiscoveredScopeMatching && (discoveredSessionState.sessions?.length > 1 || discoveredSessionState.status === 'ambiguous' || discoveredSessionState.userSelection === 'CLEARED') ? (
+              <span
+                style={{ color: '#15803d', fontSize: '12px', fontStyle: 'italic' }}
+              >
+                {en ? 'Please select a handover session to view archive & receipts' : 'Vui lòng chọn phiên bàn giao để xem lưu trữ & biên nhận'}
+              </span>
+            ) : (
+              <a
+                href={`/staff/close-and-archive?caseId=${encodeURIComponent(selectedCaseId)}`}
+                style={{ color: '#166534', fontWeight: 600, textDecoration: 'underline' }}
+              >
+                {en ? 'View archive & receipts' : 'Xem lưu trữ & biên nhận'}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
       {/* Feedback Messages */}
       {actionSuccess && (
         <div className="lv-form-success-banner" role="status">

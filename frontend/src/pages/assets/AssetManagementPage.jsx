@@ -36,6 +36,7 @@ export function AssetManagementPage({
   onNavigateToLogin,
   onRefreshTrigger = 0,
   enforceQuota = false,
+  readOnly = false,
   onNavigateToSubscription,
 }) {
   const t = getAssetTranslations(externalT, lang)
@@ -65,7 +66,7 @@ export function AssetManagementPage({
     return () => { active = false; controller.abort() }
   }, [enforceQuota, accessToken, lang, retry, onRefreshTrigger, onNavigateToLogin])
   const quotaFull = quota && (quota.assetsUsed >= quota.maxAssets || quota.storageUsedBytes >= quota.maxStorageBytes)
-  const addUnavailable = enforceQuota && (quotaLoading || quotaError || !quota || quotaFull)
+  const addUnavailable = readOnly || (enforceQuota && (quotaLoading || quotaError || !quota || quotaFull))
   const submittingRef = useRef(false)
   const createdAssetRef = useRef(null)
   // Edit steps already saved for one asset, so a retry only repeats what failed. files holds the File objects uploaded.
@@ -146,7 +147,7 @@ export function AssetManagementPage({
 
 
   async function handleAddAsset(formData) {
-    if (submittingRef.current) return
+    if (readOnly || submittingRef.current) return
     submittingRef.current = true
     const controller = new AbortController(); mutationRef.current = controller
     setIsSubmitting(true)
@@ -195,7 +196,7 @@ export function AssetManagementPage({
     selectionRef.current?.abort(); setSelection(null); setEditErrorKey(null); editProgressRef.current = null
   }
   async function openAsset(asset, mode) {
-    if (submittingRef.current) return
+    if ((readOnly && mode === 'edit') || submittingRef.current) return
     selectionRef.current?.abort()
     const controller = new AbortController(); selectionRef.current = controller
     setSelection({ mode, loading: true }); setEditErrorKey(null)
@@ -211,7 +212,7 @@ export function AssetManagementPage({
     }
   }
   async function handleUpdateAsset(assetId, patch, { signal } = {}) {
-    if (submittingRef.current) return
+    if (readOnly || submittingRef.current) return
     submittingRef.current = true
     const controller = new AbortController(); mutationRef.current = controller
     const cancel = () => controller.abort()
@@ -280,6 +281,7 @@ export function AssetManagementPage({
 
   return (
     <div className="lv-asset-page">
+      {readOnly && <p role="status">{lang === 'en' ? 'This vault is read-only. Assets cannot be added or edited in its current state.' : 'Kho hiện chỉ được xem. Không thể thêm hoặc sửa tài sản ở trạng thái này.'}</p>}
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -477,7 +479,7 @@ export function AssetManagementPage({
         <AssetListTable assets={filteredAssets} t={t} lang={lang}
           query={query} totalElements={totalElements}
           onQueryChange={next => { closeSelection(); setIsLoading(true); setQuery(next) }}
-          onViewAsset={asset => openAsset(asset,"detail")} onEditAsset={asset => openAsset(asset,"edit")} />
+          onViewAsset={asset => openAsset(asset,"detail")} onEditAsset={readOnly ? undefined : asset => openAsset(asset,"edit")} />
         </>
       )}
 
@@ -507,9 +509,9 @@ export function AssetManagementPage({
           onNavigateToLogin={onNavigateToLogin}
         />
       )}
-      {selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} vaultId={vaultId} accessToken={accessToken} lang={lang} authContext={`${vaultId}:${accessToken}`} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
+      {!readOnly && selection?.asset && selection.mode === 'edit' && <AssetEditModal key={selection.asset.id} isOpen asset={selection.asset} vaultId={vaultId} accessToken={accessToken} lang={lang} authContext={`${vaultId}:${accessToken}`} t={t} onClose={closeSelection} onSubmit={handleUpdateAsset} isSubmitting={isUpdating} errorKey={editErrorKey} />}
       {/* Add Asset Modal */}
-      {isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
+      {!readOnly && isAddModalOpen && <AssetFormModal key={isAddModalOpen ? "open" : "closed"}
         isOpen={true}
         onClose={() => {setIsAddModalOpen(false);createdAssetRef.current=null;setAssetSaved(false);setRetry(v=>v+1)}}
         onSubmit={handleAddAsset}

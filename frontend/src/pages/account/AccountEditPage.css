@@ -41,7 +41,7 @@
 
 .lv-account-edit-view .lv-edit-subtitle {
   font-size: 14.5px;
-  color: #626a64;
+  color: #4a554a;
   margin: 0;
   line-height: 1.5;
 }
@@ -55,7 +55,7 @@
   font-size: 12.5px;
   font-weight: 600;
   background-color: rgba(197, 160, 89, 0.15);
-  color: #8c7036;
+  color: #785d26;
   border: 1px solid rgba(197, 160, 89, 0.35);
 }
 
@@ -112,7 +112,7 @@
 
 .lv-account-edit-view .lv-edit-card__desc {
   font-size: 13.5px;
-  color: #6b726b;
+  color: #4f5950;
   margin: -14px 0 0;
   line-height: 1.5;
 }
@@ -182,14 +182,14 @@
 
 .lv-account-edit-view .lv-input-text:disabled {
   background-color: #f7f6f3;
-  color: #737c75;
+  color: #5c665e;
   border-color: #e5e1d8;
   cursor: not-allowed;
 }
 
 .lv-account-edit-view .lv-form-help {
   font-size: 12.5px;
-  color: #737c75;
+  color: #4f5950;
   line-height: 1.4;
   margin: 0;
 }

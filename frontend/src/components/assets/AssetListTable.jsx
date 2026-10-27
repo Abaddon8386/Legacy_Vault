@@ -175,7 +175,8 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                         variant="secondary"
                         size="sm"
                         className="lv-asset-action-btn"
-                        onClick={() => onEditAsset(asset)}
+                        disabled={!onEditAsset}
+                        onClick={() => onEditAsset?.(asset)}
                       >
                         {t.assets.actions.edit}
                       </Button>
@@ -243,7 +244,8 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                   variant="secondary"
                   size="sm"
                   className="lv-asset-mobile-btn"
-                  onClick={() => onEditAsset(asset)}
+                  disabled={!onEditAsset}
+                  onClick={() => onEditAsset?.(asset)}
                 >
                   {t.assets.actions.edit}
                 </Button>

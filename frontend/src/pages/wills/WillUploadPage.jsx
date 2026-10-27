@@ -159,7 +159,7 @@ const copy = {
 
 const formatNames = { 'application/pdf': 'PDF', 'image/jpeg': 'JPEG', 'image/png': 'PNG' };
 
-export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUnauthorized, onRefreshTrigger }) {
+export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUnauthorized, onRefreshTrigger, readOnly = false }) {
   const language = lang === 'en' ? 'en' : 'vi';
   const t = copy[language];
   const messages = willStatusMessages[language];
@@ -252,12 +252,20 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
       </div>
 
 
+      {readOnly && (
+        <div className="hn-will-readonly-notice" role="status" style={{ padding: '12px 16px', background: '#fafaf7', border: '1px solid #dce4dc', borderRadius: '10px', color: '#3f5647', margin: '0 0 16px', fontSize: '13px' }}>
+          {language === 'en' ? 'This vault is read-only. Will documents cannot be added or updated in its current state.' : 'Kho hiện chỉ được xem. Không thể tạo hoặc thêm phiên bản di chúc ở trạng thái này.'}
+        </div>
+      )}
+
       {/* Actions Bar */}
       <div className="hn-will-header-actions">
         <Button
           variant="primary"
-          onClick={() => setIsCreateModalOpen(true)}
+          disabled={readOnly}
+          onClick={() => !readOnly && setIsCreateModalOpen(true)}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          title={readOnly ? (language === 'en' ? 'Vault is read-only' : 'Kho đang ở chế độ chỉ đọc') : undefined}
         >
           <Plus size={16} />
           <span>{t.uploadNewWillBtn}</span>
@@ -294,7 +302,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
           </div>
           <h2>{t.noWillsTitle}</h2>
           <p className="hn-will-formats">{t.noWillsDesc}</p>
-          <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
+          <Button variant="primary" disabled={readOnly} onClick={() => !readOnly && setIsCreateModalOpen(true)} title={readOnly ? (language === 'en' ? 'Vault is read-only' : 'Kho đang ở chế độ chỉ đọc') : undefined}>
             <Plus size={16} />
             <span>{t.uploadNewWillBtn}</span>
           </Button>
@@ -320,8 +328,10 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                 </div>
                 <Button
                   variant="primary"
-                  onClick={() => setIsVersionModalOpen(true)}
+                  disabled={readOnly}
+                  onClick={() => !readOnly && setIsVersionModalOpen(true)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title={readOnly ? (language === 'en' ? 'Vault is read-only' : 'Kho đang ở chế độ chỉ đọc') : undefined}
                 >
                   <UploadCloud size={16} />
                   <span>{t.uploadNewVersionBtn}</span>
@@ -430,7 +440,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
       )}
 
       {/* Modal: Upload New Version */}
-      {isVersionModalOpen && selectedWill && (
+      {!readOnly && isVersionModalOpen && selectedWill && (
         <UploadVersionModal
           lang={language}
           t={t}

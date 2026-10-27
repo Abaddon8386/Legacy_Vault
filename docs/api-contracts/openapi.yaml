@@ -4376,6 +4376,7 @@ components:
         receiptId: { type: string, format: uuid }
         sessionId: { type: string, format: uuid }
         recipientId: { type: string, format: uuid }
+        recipientName: { type: string, nullable: true }
         assetIds:
           type: array
           items: { type: string, format: uuid }

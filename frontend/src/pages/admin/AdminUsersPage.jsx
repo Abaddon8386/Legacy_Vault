@@ -201,7 +201,22 @@ export default function AdminUsersPage({
             ) : (
               users.map((user) => (
                 <tr key={user.id}>
-                  <td style={{ fontWeight: 600 }}>{user.fullName || t.notAvailable}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    <div className="lv-admin-name-cell">
+                      <span>{user.fullName || t.notAvailable}</span>
+                      <span
+                        className={`lv-admin-mobile-status lv-admin-status-badge lv-admin-status-${(user.status || 'neutral').toLowerCase()}`}
+                      >
+                        {user.status === 'LOCKED'
+                          ? t.statusLocked
+                          : user.status === 'PENDING'
+                          ? t.statusPending
+                          : user.status === 'ACTIVE'
+                          ? t.statusActive
+                          : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
+                      </span>
+                    </div>
+                  </td>
                   <td>{user.email}</td>
                   <td>
                     {user.roles.map((role) => (
@@ -224,7 +239,7 @@ export default function AdminUsersPage({
                         : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
                     </span>
                   </td>
-                  <td>
+                  <td className="lv-admin-cell-actions">
                     <div className="lv-admin-row-actions">
                     <button
                       type="button"
@@ -235,7 +250,7 @@ export default function AdminUsersPage({
                     </button>
                     <button
                       type="button"
-                      className={`lv-admin-btn ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
+                      className={`lv-admin-btn lv-admin-btn-lock ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
                       disabled
                       aria-describedby="admin-lock-policy-notice"
                       title={t.lockPolicyPendingNotice}

@@ -27,6 +27,11 @@ const cases = [
   ['unlock', o => api.unlockLegalVault(id, o), base + '/unlock', 200, unlock, undefined],
 ];
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+test('review context accepts an unclassified case but rejects inconsistent empty snapshots', async () => {
+  const fetchFn = async () => json({ caseId: id, basisDossier: null, snapshot: null });
+  assert.deepEqual(await api.loadLegalReviewContext(id, { ...options, fetchFn }), { dossier: null, reviewSnapshot: null });
+  await assert.rejects(api.loadLegalReviewContext(id, { ...options, fetchFn: async () => json({ caseId: id, basisDossier: null, snapshot: {} }) }), error => error.code === 'INVALID_RESPONSE');
+});
 for (const [name, run, url, status, receipt, body] of cases) {
   test(`${name}: exact Legal URL/method/status/body, authenticated actor and validated receipt`, async () => {
     const controller = new AbortController();

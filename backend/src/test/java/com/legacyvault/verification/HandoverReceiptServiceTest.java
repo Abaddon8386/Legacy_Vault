@@ -100,6 +100,7 @@ class HandoverReceiptServiceTest {
         when(receipt.getSupersedesReceiptId()).thenReturn(null);
         when(receiptAssets.findAssetPublicIds(801L)).thenReturn(List.of(ASSET_PUBLIC_ID));
         when(receipts.findRecipientPublicId(801L)).thenReturn(Optional.of(RECIPIENT_PUBLIC_ID));
+        when(receipts.findRecipientName(801L)).thenReturn(Optional.of("Nguyen Van A"));
         when(receipts.findStaffPublicId(801L)).thenReturn(Optional.of(STAFF_PUBLIC_ID));
         when(sessions.findById(101L)).thenReturn(Optional.of(session));
     }
@@ -122,6 +123,7 @@ class HandoverReceiptServiceTest {
         when(dossier.getLastReviewedAllocationHash()).thenReturn("b".repeat(64));
         var result = (com.legacyvault.verification.dto.HandoverReceiptResponse) create();
         assertThat(result.confirmationType()).isEqualTo(HandoverReceipt.STAFF_ATTESTATION);
+        assertThat(result.recipientName()).isEqualTo("Nguyen Van A");
         verify(receipts).saveAndFlush(any());
         verify(receiptAssets).saveAllAndFlush(any());
         verify(audit).record(any());
@@ -182,11 +184,14 @@ class HandoverReceiptServiceTest {
         when(sessions.findByPublicIdAndVerificationCaseIdAndStaffUserId(SESSION_PUBLIC_ID, 91L, STAFF.userId()))
                 .thenReturn(Optional.of(session));
         when(receipts.findByHandoverSessionIdOrderByConfirmedAtDesc(101L)).thenReturn(List.of(receipt));
-        assertThat(service.list(CASE_PUBLIC_ID, SESSION_PUBLIC_ID, STAFF)).hasSize(1);
+        var items = service.list(CASE_PUBLIC_ID, SESSION_PUBLIC_ID, STAFF);
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).recipientName()).isEqualTo("Nguyen Van A");
 
         when(receipts.findByPublicIdAndHandoverSessionId(RECEIPT_PUBLIC_ID, 101L)).thenReturn(Optional.of(receipt));
-        assertThat(service.get(CASE_PUBLIC_ID, SESSION_PUBLIC_ID, RECEIPT_PUBLIC_ID, STAFF).receiptId())
-                .isEqualTo(RECEIPT_PUBLIC_ID);
+        var single = service.get(CASE_PUBLIC_ID, SESSION_PUBLIC_ID, RECEIPT_PUBLIC_ID, STAFF);
+        assertThat(single.receiptId()).isEqualTo(RECEIPT_PUBLIC_ID);
+        assertThat(single.recipientName()).isEqualTo("Nguyen Van A");
     }
 
     @Test

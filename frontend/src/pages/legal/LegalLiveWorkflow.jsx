@@ -326,6 +326,9 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       {!busy && data.originalWillIntakes.some(item => item.id === draft.originalWillIntakeId) &&
         <LegalEvidenceFiles {...evidenceProps} kind="original-will" subjectId={draft.originalWillIntakeId} />}
     </>}
+    {step === 'dossier-review' && data && !data.dossier && <div role="status" className="lv-legal-live__notice">
+      <p>{en ? 'No legal basis dossier yet. Complete the preceding verification and basis classification steps before reviewing the dossier.' : 'Hồ sơ chưa có căn cứ pháp lý. Hoàn tất xác minh và phân loại căn cứ ở các bước trước khi thẩm định hồ sơ.'}</p>
+    </div>}
     {data?.dossier && <><p className="lv-legal-route-label">{label(data.dossier.route, en)}</p>
       {[...data.dossier.versions].sort((a, b) => b.version - a.version).map(item => <section key={item.version} className="lv-legal-document-version">
         <h3>{en ? `Version ${item.version}` : `Phiên bản ${item.version}`} · {item.version === latest.version ? (en ? 'Current document' : 'Văn bản hiện tại') : (en ? 'Historical document' : 'Văn bản cũ để tra cứu')}</h3>

@@ -216,7 +216,7 @@ export default function VaultOverviewPage({
 
           {/* 1:1 Ownership Policy Footnote — Quiet, balanced editorial policy */}
           {/* Overview Resource & Operational Summary */}
-          <VaultSummary onNavigate={onNavigate} vaultId={vault.id} ownerId={ownerId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} refreshKey={onRefreshTrigger} isSimulation={vault.isSimulation} />
+          <VaultSummary onNavigate={onNavigate} vaultId={vault.id} vaultStatus={vault.status} ownerId={ownerId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} refreshKey={onRefreshTrigger} isSimulation={vault.isSimulation} />
         </div>
       )}
 

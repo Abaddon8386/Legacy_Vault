@@ -183,9 +183,11 @@ public class HandoverReceiptService {
         var session = sessions.findById(receipt.getHandoverSessionId()).orElseThrow(HandoverReceiptService::notFound);
         UUID recipientPublicId = receipts.findRecipientPublicId(receipt.getId())
                 .orElseThrow(HandoverReceiptService::notFound);
+        String recipientName = receipts.findRecipientName(receipt.getId()).orElse(null);
         UUID supersedesPublicId = receipt.getSupersedesReceiptId() == null ? null
                 : receipts.findById(receipt.getSupersedesReceiptId()).map(HandoverReceipt::getPublicId).orElse(null);
         return new HandoverReceiptResponse(receipt.getPublicId(), session.getPublicId(), recipientPublicId,
+                recipientName,
                 receiptAssets.findAssetPublicIds(receipt.getId()),
                 receipts.findStaffPublicId(receipt.getId()).orElseThrow(HandoverReceiptService::notFound),
                 receipt.getDossierVersionNo(), receipt.getSha256Hash(), receipt.getAllocationHash(),

@@ -142,3 +142,64 @@ test('late archive response cannot close or archive the next case',async()=>{
  assert.equal(host.querySelector('.lv-ca-archive-banner'),null);
  }finally{await act(async()=>root.unmount());host.remove();}
 });
+
+test('archived case displays correct recipient name by ID in receipt table and supports VI/EN fallback', async () => {
+  const recipientB = '77777777-7777-4777-8777-777777777777';
+  const receiptsData = [
+    { receiptId: otherCaseId, recipientId: recipient, recipientName: 'REA TEST LINH', assetIds: [assetId], attestationType: 'STAFF_ATTESTATION', confirmedAt: '2026-10-27T04:35:35.375Z' },
+    { receiptId: '88888888-8888-4888-8888-888888888888', recipientId: recipientB, recipientName: 'REA TEST BAO', assetIds: ['99999999-9999-4999-8999-999999999999'], attestationType: 'STAFF_ATTESTATION', confirmedAt: '2026-10-27T04:35:35.472Z' },
+  ];
+  const base = staffFixture({
+    status: 'COMPLETED',
+    caseStatus: 'CLOSED',
+    vaultStatus: 'ARCHIVED',
+    receipts: receiptsData,
+  });
+  globalThis.fetch = async (url) => {
+    if (url.includes('/beneficiaries')) return json([], 404);
+    return base(url);
+  };
+  const vVi = await mount(Close, { lang: 'vi', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
+  try {
+    const table = vVi.host.querySelector('.lv-ca-table');
+    assert.ok(table, 'Receipts table must be present');
+    const rows = [...table.querySelectorAll('tbody tr')];
+    assert.equal(rows.length, 2);
+    const cell0 = rows[0].querySelector('td[title="' + recipient + '"]');
+    assert.ok(cell0, 'Row 0 must link recipient ID via title');
+    assert.equal(cell0.textContent.trim(), 'REA TEST LINH');
+    const cell1 = rows[1].querySelector('td[title="' + recipientB + '"]');
+    assert.ok(cell1, 'Row 1 must link recipient ID via title');
+    assert.equal(cell1.textContent.trim(), 'REA TEST BAO');
+  } finally {
+    await vVi.close();
+  }
+
+  // Verify missing recipientName falls back to localized fallback
+  const missingNameReceipts = [
+    { receiptId: otherCaseId, recipientId: recipient, recipientName: null, assetIds: [assetId] },
+  ];
+  globalThis.fetch = staffFixture({
+    status: 'COMPLETED',
+    caseStatus: 'CLOSED',
+    vaultStatus: 'ARCHIVED',
+    receipts: missingNameReceipts,
+  });
+  const vFallbackVi = await mount(Close, { lang: 'vi', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
+  try {
+    const cell = vFallbackVi.host.querySelector('td[title="' + recipient + '"]');
+    assert.ok(cell);
+    assert.equal(cell.textContent.trim(), 'Chưa có tên người nhận');
+  } finally {
+    await vFallbackVi.close();
+  }
+
+  const vFallbackEn = await mount(Close, { lang: 'en', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
+  try {
+    const cell = vFallbackEn.host.querySelector('td[title="' + recipient + '"]');
+    assert.ok(cell);
+    assert.equal(cell.textContent.trim(), 'Name unavailable');
+  } finally {
+    await vFallbackEn.close();
+  }
+});

@@ -93,7 +93,7 @@ function CloseArchiveContext({
   const vaultStatus = server?.vaultStatus || propVaultStatus || '';
   const isArchived = isCaseArchived(vaultStatus, caseStatus);
   const receipts = server?.receipts || [];
-  const recipientName = id => server?.people?.find(person => person.beneficiaryId === id)?.fullName || id;
+  const recipientName = id => receipts.find(r => r.recipientId === id && r.recipientName)?.recipientName || server?.people?.find(person => person.beneficiaryId === id)?.fullName || id;
   const {isAssetComplete, isBeneficiaryComplete} = evaluateCloseArchivePreconditions(
     server?.progress?.assets || {}, server?.progress?.beneficiaries || {});
   const groups = new Map();
@@ -452,7 +452,7 @@ function CloseArchiveContext({
                     <td>
                       {rc.attestationType === 'STAFF_ATTESTATION' || !rc.attestationType ? (lang === 'en' ? 'Counter confirmation' : 'Xác nhận tại quầy') : (lang === 'en' ? 'Handover receipt' : 'Biên nhận bàn giao')}
                     </td>
-                    <td title={rc.recipientId}>{rc.recipientName || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
+                    <td title={rc.recipientId}>{rc.recipientName?.trim() || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
                     <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
                     <td>
                       <span className="lv-ca-tag">
