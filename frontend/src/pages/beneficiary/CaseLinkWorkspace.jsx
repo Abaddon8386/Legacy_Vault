@@ -48,6 +48,29 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     return () => c.abort();
   }, [ready, caseLinkActions, session?.accessToken, lang, refreshKey, revision]);
 
+  // Auto-refresh when any request is PENDING so Beneficiary sees Staff decision without manual reload
+  const hasPendingRequests = requests.some(r => r.status === 'PENDING');
+  useEffect(() => {
+    if (!ready || !hasPendingRequests) return undefined;
+    const pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && !mutation.current) {
+        setRevision(v => v + 1);
+      }
+    }, 4000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !mutation.current) {
+        setRevision(v => v + 1);
+      }
+    };
+    window.addEventListener('focus', onVisibilityChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      clearInterval(pollTimer);
+      window.removeEventListener('focus', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [ready, hasPendingRequests]);
+
   async function mutate(kind, item) {
     if (mutation.current || !ready || loading || uncertain) return;
     const c = new AbortController(); mutation.current = c; read.current?.abort();
@@ -113,7 +136,24 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
       <div className="lv-link-heading"><h2 id="my-requests-title">{en ? 'My requests' : 'Yêu cầu của tôi'}</h2>
         <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button></div>
       {loading ? <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p> : !error && !requests.length && <p>{en ? 'No requests yet.' : 'Chưa có yêu cầu nào.'}</p>}
-      <ul className="lv-link-requests">{requests.map(item => <li key={item.id}><div><strong>{item.caseNumber || `${en ? 'Request' : 'Yêu cầu'} #${item.id.slice(0, 8)}`}</strong><p>{requestStatusLabel(item.status, lang)}</p></div>
+      <ul className="lv-link-requests">{requests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
+        <div>
+          <strong>{item.caseNumber || `${en ? 'Request' : 'Yêu cầu'} #${item.id.slice(0, 8)}`}</strong>
+          <p>{requestStatusLabel(item.status, lang)}</p>
+          {item.status === 'REJECTED' && (
+            <div className="lv-link-rejected-guidance" style={{ fontSize: '13px', color: '#b91c1c', marginTop: '6px', lineHeight: 1.4 }}>
+              {typeof item.reason === 'string' && item.reason.trim() ? (
+                <p style={{ margin: 0 }}><strong>{en ? 'Reason:' : 'Lý do từ chối:'}</strong> {item.reason.trim()}</p>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  {en
+                    ? 'Your request was declined. Please verify your case information or contact Staff at the counter for assistance.'
+                    : 'Yêu cầu liên kết đã bị từ chối. Vui lòng kiểm tra lại thông tin hồ sơ hoặc liên hệ nhân viên tại quầy để được hỗ trợ giải quyết.'}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
         {item.status === 'PENDING' && typeof caseLinkActions.cancel === 'function' && <Button variant="secondary" disabled={pending || loading || uncertain} onClick={() => mutate('cancel', item)}>{en ? 'Cancel request' : 'Hủy yêu cầu'}</Button>}
         {item.status === 'APPROVED' && !canRead && <Button disabled={pending || !onRefreshAccount} onClick={refreshAccount}>{en ? 'Update account access' : 'Cập nhật quyền tài khoản'}</Button>}
       </li>)}</ul>

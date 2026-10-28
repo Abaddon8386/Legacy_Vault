@@ -12,6 +12,7 @@ import { validateTrustee } from '../../utils/trusteeValidation.js';
 import { validateBeneficiary } from '../../utils/beneficiaryValidation.js';
 import { beneficiaryAge } from '../../utils/beneficiaryAge.js';
 import './TrusteeBeneficiaryPage.css';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import BeneficiaryInvitationCode from '../../components/invitations/BeneficiaryInvitationCode.jsx';
 
 const i18n = {
@@ -650,15 +651,16 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   <label className="lv-tb-label" htmlFor="ben-dob">
                     {t.dobLabel}
                   </label>
-                  <input
+                  <DatePicker
                     id="ben-dob"
-                    type="date" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
+                    disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     max={todayStr}
-                    className={`lv-tb-input ${beneficiaryErrors.dateOfBirth ? 'has-error' : ''}`}
+                    className={beneficiaryErrors.dateOfBirth ? 'has-error' : ''}
                     value={beneficiaryForm.dateOfBirth}
                     aria-describedby={needsGuardian ? 'ben-guardian-notice' : undefined}
-                    onChange={(e) =>
-                      setBeneficiaryForm(prev => ({ ...prev, dateOfBirth: e.target.value }))
+                    lang={lang}
+                    onChange={(val) =>
+                      setBeneficiaryForm(prev => ({ ...prev, dateOfBirth: val }))
                     }
                   />
                   {beneficiaryErrors.dateOfBirth && (

@@ -494,6 +494,12 @@ async function mountComponentHelper() {
     host.remove();
   };
 
+  const renderQuick = (props) => {
+    act(() => {
+      root.render(React.createElement(StaffLegalDocumentsPage, props));
+    });
+  };
+
   return { host, render, getArchiveLink, clickArchiveLink, getSelect, selectSession, getGuidance, unmount };
 }
 
@@ -1257,6 +1263,387 @@ test('F02 Mixed Clear 7: Đổi hồ sơ/token hoặc response cũ trả muộn:
     const linkBAfter = getArchiveLink();
     assert.ok(!linkBAfter?.includes(sessionA), 'Late response from A must not resurrect session on B');
     assert.ok(!linkBAfter?.includes(sessionB));
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+test('Legal Banners: ON_HOLD with real BE response (route ON_HOLD, routeReason null) shows neutral explanation', async () => {
+  const originalFetch = globalThis.fetch;
+  const onHoldCaseId = '11111111-1111-4111-8111-111111111111';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({
+        id: 'dossier-on-hold-01',
+        caseId: onHoldCaseId,
+        route: 'ON_HOLD',
+        status: 'DRAFT',
+        disputeStatus: 'DISPUTED',
+        routeReason: null,
+        classifiedBy: '00000000-0000-4000-8000-000000000001',
+        createdAt: '2026-10-20T00:00:00Z',
+        updatedAt: '2026-10-20T00:00:00Z',
+        requiredVersion: 1,
+        versions: [],
+      });
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: onHoldCaseId,
+      caseItem: defaultCaseItem(onHoldCaseId, { status: 'OPEN', vaultStatus: 'ON_HOLD' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    const holdBanner = host.querySelector('.lv-dossier-hold-banner');
+    assert.ok(holdBanner, 'ON_HOLD banner must be rendered');
+    assert.match(holdBanner.textContent, /TẠM DỪNG/i);
+    // Real BE sends routeReason: null to Staff, UI must render neutral guidance without throwing
+    assert.match(holdBanner.textContent, /quyết định của Ban Pháp lý/i);
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Legal Banners: Supplementation required by real BE (requiredVersion > latest version) shows version requirement', async () => {
+  const originalFetch = globalThis.fetch;
+  const suppCaseId = '33333333-3333-4333-8333-333333333333';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({
+        id: 'dossier-supp-01',
+        caseId: suppCaseId,
+        route: 'COURT',
+        status: 'LEGAL_BASIS_PROVIDED',
+        disputeStatus: 'NONE',
+        routeReason: null,
+        requiredVersion: 2,
+        versions: [
+          {
+            version: 1,
+            legalBasisType: 'COURT_JUDGMENT',
+            issuingAuthority: 'TAND TP. Hà Nội',
+            documentNumber: '01/2026/QĐ-ST',
+            issueDate: '2026-10-10',
+            notes: 'Intake version 1',
+            forwardStatus: 'FORWARDED',
+            current: true,
+            allocations: [],
+          },
+        ],
+      });
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: suppCaseId,
+      caseItem: defaultCaseItem(suppCaseId, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    const banners = host.querySelectorAll('.lv-dossier-hold-banner');
+    const suppBanner = [...banners].find(b => b.textContent.includes('yêu cầu bổ sung') || b.textContent.includes('CHANGES_REQUESTED'));
+    assert.ok(suppBanner, 'Supplementation banner must be rendered when requiredVersion > latestVersion');
+    assert.match(suppBanner.textContent, /phiên bản hồ sơ số 2/i);
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Legal Banners: 403 Forbidden clears dossier and shows authorization error without broken banner', async () => {
+  const originalFetch = globalThis.fetch;
+  const forbiddenCaseId = '44444444-4444-4444-8444-444444444444';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({ code: 'ACCESS_DENIED', message: 'Tài khoản không có quyền truy cập hồ sơ này.' }, 403);
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: forbiddenCaseId,
+      caseItem: defaultCaseItem(forbiddenCaseId, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    const errorEl = host.querySelector('.lv-form-error-banner, [role="alert"]');
+    assert.ok(errorEl, 'Error banner must be present on 403');
+    assert.match(errorEl.textContent, /không có quyền|thất bại|failed/i);
+    // Banners for hold/reject should NOT be rendered
+    assert.equal(host.querySelector('.lv-dossier-hold-banner'), null);
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Legal Banners: Switching case discards late response from previous case', async () => {
+  const originalFetch = globalThis.fetch;
+  const caseX = '55555555-5555-4555-8555-555555555555';
+  const caseY = '66666666-6666-4666-8666-666666666666';
+  let delayedResolveX = null;
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      if (urlStr.includes(caseX)) {
+        return new Promise((resolve) => {
+          delayedResolveX = () => resolve(jsonResponse({
+            id: 'dossier-x',
+            caseId: caseX,
+            route: 'ON_HOLD',
+            status: 'DRAFT',
+            disputeStatus: 'DISPUTED',
+            routeReason: null,
+            requiredVersion: 1,
+            versions: [],
+          }));
+        });
+      }
+      if (urlStr.includes(caseY)) {
+        return jsonResponse({
+          id: 'dossier-y',
+          caseId: caseY,
+          route: 'COURT',
+          status: 'DRAFT',
+          disputeStatus: 'NONE',
+          routeReason: null,
+          requiredVersion: 1,
+          versions: [
+            { version: 1, current: true, fileName: 'caseY-court-basis.pdf', createdAt: '2026-10-20T00:00:00Z' },
+          ],
+        });
+      }
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: caseX,
+      caseItem: defaultCaseItem(caseX, { status: 'OPEN', vaultStatus: 'ON_HOLD' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    await render({
+      caseId: caseY,
+      caseItem: defaultCaseItem(caseY, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    if (delayedResolveX) {
+      await act(async () => {
+        delayedResolveX();
+        await new Promise((r) => setTimeout(r, 60));
+      });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 60));
+      });
+    }
+
+    const holdBanner = host.querySelector('.lv-dossier-hold-banner');
+    assert.equal(holdBanner, null, 'Late ON_HOLD response from caseX must not leak to caseY');
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test('Legal Banners: Initial intake (DRAFT, requiredVersion=1, versions=[]) does not show supplementation banner', async () => {
+  const originalFetch = globalThis.fetch;
+  const initialCaseId = '77777777-7777-4777-8777-777777777777';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({
+        id: 'dossier-initial-01',
+        caseId: initialCaseId,
+        route: 'COURT',
+        status: 'DRAFT',
+        disputeStatus: 'NONE',
+        routeReason: null,
+        requiredVersion: 1,
+        versions: [],
+      });
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: initialCaseId,
+      caseItem: defaultCaseItem(initialCaseId, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    const suppBanner = host.querySelector('.lv-dossier-supplement-banner');
+    assert.equal(suppBanner, null, 'Initial intake must NOT show supplementation banner');
+    assert.equal(host.textContent.includes('yêu cầu bổ sung'), false, 'Initial intake must not mention supplementation');
+    assert.equal(host.textContent.includes('CHANGES_REQUESTED'), false, 'Initial intake must not mention CHANGES_REQUESTED');
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Legal Banners: ON_HOLD blocks upload actions and does NOT guide upload/supplementation', async () => {
+  const originalFetch = globalThis.fetch;
+  const heldCaseId = '88888888-8888-4888-8888-888888888888';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({
+        id: 'dossier-held-01',
+        caseId: heldCaseId,
+        route: 'ON_HOLD',
+        status: 'DRAFT',
+        disputeStatus: 'DISPUTED',
+        routeReason: null,
+        requiredVersion: 2,
+        versions: [
+          { version: 1, forwardStatus: 'FORWARDED', current: true, fileName: 'v1.pdf' }
+        ],
+      });
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: heldCaseId,
+      caseItem: defaultCaseItem(heldCaseId, { status: 'OPEN', vaultStatus: 'ON_HOLD' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    // 1. Hold banner is shown
+    const holdBanner = host.querySelector('.lv-dossier-hold-banner');
+    assert.ok(holdBanner, 'Hold banner must be shown for ON_HOLD');
+    assert.match(holdBanner.textContent, /TẠM DỪNG|tạm giữ/i);
+
+    // 2. Supplementation banner is NOT shown
+    const suppBanner = host.querySelector('.lv-dossier-supplement-banner');
+    assert.equal(suppBanner, null, 'Supplementation banner must NOT be shown when ON_HOLD');
+    assert.equal(host.textContent.includes('Ban Pháp lý yêu cầu bổ sung'), false);
+
+    // 3. Form select is disabled
+    const select = host.querySelector('#staff-legal-doc-type');
+    if (select) {
+      assert.equal(select.disabled, true, 'Form select must be disabled when ON_HOLD');
+    }
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Legal Banners: Dossier with lack of rejection API data does NOT assert rejection', async () => {
+  const originalFetch = globalThis.fetch;
+  const noRejectCaseId = '99999999-9999-4999-8999-999999999999';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({
+        id: 'dossier-no-reject-01',
+        caseId: noRejectCaseId,
+        route: 'COURT',
+        status: 'DRAFT',
+        disputeStatus: 'DISPUTED',
+        routeReason: null,
+        requiredVersion: 1,
+        versions: [],
+      });
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: noRejectCaseId,
+      caseItem: defaultCaseItem(noRejectCaseId, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }),
+      accessToken: 'test-token',
+      lang: 'vi',
+    });
+
+    assert.equal(host.textContent.includes('Hồ sơ căn cứ đã bị Ban Pháp lý từ chối'), false);
+    assert.equal(host.textContent.includes('từ chối (REJECTED)'), false);
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Legal Banners: 401 Unauthorized clears dossier and shows session error banner', async () => {
+  const originalFetch = globalThis.fetch;
+  const unauthCaseId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+  const mockFetch = async (url) => {
+    const urlStr = String(url || '');
+    if (urlStr.includes('basis-dossier')) {
+      return jsonResponse({ code: 'UNAUTHORIZED', message: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.' }, 401);
+    }
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  globalThis.fetch = mockFetch;
+
+  const { render, host, unmount } = await mountComponentHelper();
+  try {
+    await render({
+      caseId: unauthCaseId,
+      caseItem: defaultCaseItem(unauthCaseId, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }),
+      accessToken: 'expired-token',
+      lang: 'vi',
+    });
+
+    const errorEl = host.querySelector('.lv-form-error-banner, [role="alert"]');
+    assert.ok(errorEl, 'Error banner must be shown on 401');
+    assert.match(errorEl.textContent, /hết hạn/i);
+    assert.equal(host.querySelector('.lv-dossier-hold-banner'), null);
   } finally {
     await unmount();
     globalThis.fetch = originalFetch;

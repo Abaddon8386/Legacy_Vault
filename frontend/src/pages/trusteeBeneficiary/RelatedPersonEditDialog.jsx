@@ -1,3 +1,4 @@
+import DatePicker from '../../components/common/DatePicker.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { beneficiaryAge } from '../../utils/beneficiaryAge.js';
@@ -37,9 +38,23 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
     {error&&<p role="alert">{en?'Unable to update. Your changes have been kept; please try again.':'Không thể cập nhật. Nội dung đã nhập được giữ lại; vui lòng thử lại.'}</p>}
     <div className="lv-tb-form-grid">{fields.map(([key,label,type,maxLength])=><div className="lv-tb-field-group" key={key}>
      <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'?' *':''}</label>
-     <input id={'related-edit-'+key} className={`lv-tb-input ${touched[key]&&errors[key]?'has-error':''}`} type={type} maxLength={maxLength} disabled={busy} value={form[key]}
-      max={type==='date'?new Date().toISOString().slice(0,10):undefined} aria-invalid={Boolean(touched[key]&&errors[key])} aria-describedby={[touched[key]&&errors[key]?'related-error-'+key:null,key==='dateOfBirth'&&needsGuardian?'related-guardian-notice':null].filter(Boolean).join(' ')||undefined}
-      onBlur={()=>setTouched(prev=>({...prev,[key]:true}))} onChange={event=>{setForm(prev=>({...prev,[key]:event.target.value}));setError(false);}} />
+     {type === 'date' ? (
+       <DatePicker
+         id={'related-edit-' + key}
+         className={touched[key] && errors[key] ? 'has-error' : ''}
+         disabled={busy}
+         value={form[key]}
+         max={new Date().toISOString().slice(0, 10)}
+         lang={lang}
+         aria-invalid={Boolean(touched[key] && errors[key])}
+         aria-describedby={[touched[key] && errors[key] ? 'related-error-' + key : null, key === 'dateOfBirth' && needsGuardian ? 'related-guardian-notice' : null].filter(Boolean).join(' ') || undefined}
+         onChange={(val) => { setForm(prev => ({ ...prev, [key]: val })); setError(false); }}
+       />
+     ) : (
+       <input id={'related-edit-'+key} className={`lv-tb-input ${touched[key]&&errors[key]?'has-error':''}`} type={type} maxLength={maxLength} disabled={busy} value={form[key]}
+        max={undefined} aria-invalid={Boolean(touched[key]&&errors[key])} aria-describedby={[touched[key]&&errors[key]?'related-error-'+key:null,key==='dateOfBirth'&&needsGuardian?'related-guardian-notice':null].filter(Boolean).join(' ')||undefined}
+        onBlur={()=>setTouched(prev=>({...prev,[key]:true}))} onChange={event=>{setForm(prev=>({...prev,[key]:event.target.value}));setError(false);}} />
+     )}
      {key==='dateOfBirth' && needsGuardian && <p id="related-guardian-notice" className="lv-tb-age-warning" role="status">{guardianNotice}</p>}
      {touched[key]&&errors[key]&&<span id={'related-error-'+key} className="lv-tb-error-text" role="alert">{errors[key]}</span>}
     </div>)}</div>

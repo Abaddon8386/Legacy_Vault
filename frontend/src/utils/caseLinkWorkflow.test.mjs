@@ -7,6 +7,7 @@ import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readDms } from './dmsService.js';
 import { isPersonalRecipient, readLinkRequest } from './caseLinkModel.js';
+import { ApiError } from '../api/http.js';
 
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/shared-with-me' });
 globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -203,4 +204,174 @@ test('Grace rejects invalid minute fields and mismatching saved precision', asyn
     await change(v.host, '#grace-minutes', '5'); await submit(v.host); assert.equal(writes, 1); assert.equal(saved, 0);
     assert.equal(v.host.querySelector('#grace-minutes').value, '5'); await submit(v.host); assert.equal(writes, 1);
   } finally { await v.close(); }
+});
+
+test('Task 4: REJECTED request with explicit reason preserves field from response -> adapter -> UI', async () => {
+  const rejectedWithReason = {
+    id: 'req-rej-01',
+    caseNumber: 'HS-2026-000099',
+    status: 'REJECTED',
+    reason: 'Hồ sơ thiếu chứng minh nhân dân của người nhận',
+  };
+  // 1. Adapter preserves reason
+  const adapted = readLinkRequest(rejectedWithReason);
+  assert.equal(adapted.reason, 'Hồ sơ thiếu chứng minh nhân dân của người nhận');
+
+  // 2. Component renders the explicit reason
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [rejectedWithReason],
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(v.host.textContent, /Lý do từ chối:/);
+    assert.match(v.host.textContent, /Hồ sơ thiếu chứng minh nhân dân của người nhận/);
+  } finally {
+    await v.close();
+  }
+});
+
+test('Task 4: REJECTED request without reason (real BE contract) renders neutral guidance', async () => {
+  const rejectedWithoutReason = {
+    id: 'req-rej-02',
+    caseNumber: 'HS-2026-000100',
+    status: 'REJECTED',
+  };
+  // 1. Adapter succeeds without error
+  const adapted = readLinkRequest(rejectedWithoutReason);
+  assert.equal(adapted.status, 'REJECTED');
+  assert.equal(adapted.reason, undefined);
+
+  // 2. Component renders neutral guidance (VI)
+  const vVi = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [rejectedWithoutReason],
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(vVi.host.textContent, /Yêu cầu liên kết đã bị từ chối/);
+    assert.match(vVi.host.textContent, /liên hệ nhân viên tại quầy/);
+  } finally {
+    await vVi.close();
+  }
+
+  // 3. Component renders neutral guidance (EN)
+  const vEn = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [rejectedWithoutReason],
+      submit: async () => {},
+    },
+    lang: 'en',
+  });
+  try {
+    assert.match(vEn.host.textContent, /Your request was declined/);
+    assert.match(vEn.host.textContent, /contact Staff at the counter/);
+  } finally {
+    await vEn.close();
+  }
+});
+
+
+test('Task 2: REJECTED request with null, empty, or whitespace reason normalizes to neutral guidance', async () => {
+  for (const emptyVal of [null, '', '   ', '\t\n']) {
+    const raw = {
+      id: 'req-empty-01',
+      caseNumber: 'HS-2026-000101',
+      status: 'REJECTED',
+      reason: emptyVal,
+    };
+    const adapted = readLinkRequest(raw);
+    assert.equal(adapted.reason, undefined, `Expected reason for ${JSON.stringify(emptyVal)} to be undefined`);
+  }
+
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [{
+        id: 'req-empty-02',
+        caseNumber: 'HS-2026-000102',
+        status: 'REJECTED',
+        reason: '   ',
+      }],
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(v.host.textContent, /Yêu cầu liên kết đã bị từ chối/);
+    assert.match(v.host.textContent, /liên hệ nhân viên tại quầy/);
+  } finally {
+    await v.close();
+  }
+});
+
+test('Task 2: REJECTED request with invalid type (object, array, number, boolean) throws INVALID_RESPONSE', () => {
+  const invalidTypes = [
+    { text: 'Object error' },
+    ['Array', 'error'],
+    12345,
+    true,
+    false,
+  ];
+
+  for (const badReason of invalidTypes) {
+    assert.throws(
+      () => readLinkRequest({ id: 'req-bad-01', caseNumber: 'HS-2026-000103', status: 'REJECTED', reason: badReason }),
+      (err) => err?.code === 'INVALID_RESPONSE',
+      `Expected INVALID_RESPONSE for reason type ${typeof badReason}`
+    );
+    assert.throws(
+      () => readLinkRequest({ id: 'req-bad-02', caseNumber: 'HS-2026-000104', status: 'REJECTED', rejectionReason: badReason }),
+      (err) => err?.code === 'INVALID_RESPONSE',
+      `Expected INVALID_RESPONSE for rejectionReason type ${typeof badReason}`
+    );
+  }
+});
+
+test('Task 2: REJECTED request with both reason and rejectionReason prioritizes reason', () => {
+  const bothProvided = {
+    id: 'req-both-01',
+    caseNumber: 'HS-2026-000105',
+    status: 'REJECTED',
+    reason: 'Lý do ưu tiên chính',
+    rejectionReason: 'Lý do thứ hai',
+  };
+  const adapted = readLinkRequest(bothProvided);
+  assert.equal(adapted.reason, 'Lý do ưu tiên chính');
+
+  const fallbackToSecond = {
+    id: 'req-both-02',
+    caseNumber: 'HS-2026-000106',
+    status: 'REJECTED',
+    reason: '   ',
+    rejectionReason: 'Lý do thay thế',
+  };
+  const adaptedFallback = readLinkRequest(fallbackToSecond);
+  assert.equal(adaptedFallback.reason, 'Lý do thay thế');
+});
+
+test('Task 2: Adapter error on malformed response does NOT crash page; displays error banner', async () => {
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => {
+        // Simulates adapter throwing INVALID_RESPONSE due to malformed backend payload
+        throw new ApiError('INVALID_RESPONSE');
+      },
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(v.host.textContent, /Chưa xác minh được kết quả/);
+  } finally {
+    await v.close();
+  }
 });

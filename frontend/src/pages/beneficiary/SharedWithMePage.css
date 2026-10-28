@@ -1,4 +1,7 @@
 ﻿.lv-shared-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
   max-width: 960px;
   margin: 0 auto;
   padding: 8px 16px 40px;

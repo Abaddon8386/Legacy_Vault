@@ -1074,3 +1074,149 @@ test('DMS StrictMode - manual retry updates interval input to new API configurat
     globalThis.fetch = originalFetch;
   }
 });
+
+test('DMS: "Tôi vẫn an toàn" button automatically appears when grace period expires without reload', async () => {
+  const originalFetch = globalThis.fetch;
+  const ownerUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  // Server returns TRIGGERED with graceDeadline expired in the past
+  globalThis.fetch = async () => {
+    return new Response(JSON.stringify({
+      ownerId: ownerUuid,
+      status: 'TRIGGERED',
+      checkIntervalDays: 30,
+      gracePeriodDays: 1,
+      lastCheckInAt: '2026-10-15T00:00:00Z',
+      nextCheckAt: '2026-11-14T00:00:00Z',
+      graceDeadline: '2026-10-16T00:00:00Z',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(DMSOverviewPage, {
+          vaultId: 'vlt-auto-cancel',
+          ownerId: ownerUuid,
+          accessToken: 'synthetic',
+          canCancelAlert: true,
+          lang: 'vi',
+        })
+      );
+    });
+
+    const cancelBtn = host.querySelector('.lv-cancel-alert-trigger-btn');
+    assert.ok(cancelBtn, '"Tôi vẫn an toàn" trigger button must automatically appear when grace period expires');
+    assert.match(cancelBtn.textContent, /Tôi vẫn an toàn/i);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Task 3: DMS mutation sequence race: polling starts -> interval save succeeds -> stale polling returns without overwriting schedule', async () => {
+  const originalFetch = globalThis.fetch;
+  const ownerUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  let pollCount = 0;
+  let delayedPollResolve = null;
+
+  const expiredAt = new Date(Date.now() - 5000).toISOString();
+
+  // Initial monitoring config with deadline in the past so polling triggers after clock tick
+  const initialConfig = {
+    ownerId: ownerUuid,
+    status: 'MONITORING',
+    checkIntervalDays: 30,
+    checkIntervalMinutes: 43200,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: expiredAt,
+  };
+
+  const updatedConfig = {
+    ownerId: ownerUuid,
+    status: 'MONITORING',
+    checkIntervalDays: 60,
+    checkIntervalMinutes: 86400,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: new Date(Date.now() + 86400000 * 60).toISOString(),
+  };
+
+  globalThis.fetch = async (url, options = {}) => {
+    const urlStr = String(url || '');
+    const method = options.method || 'GET';
+
+    if (method === 'PUT' || method === 'POST') {
+      return json(updatedConfig);
+    }
+
+    if (urlStr.includes('/dms/config') || urlStr.includes('/dms')) {
+      pollCount++;
+      if (pollCount === 1) {
+        return json(initialConfig);
+      }
+      if (pollCount === 2) {
+        return new Promise((resolve) => {
+          delayedPollResolve = () => resolve(json(initialConfig));
+        });
+      }
+      return json(updatedConfig);
+    }
+    return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(DMSOverviewPage, {
+          vaultId: 'vlt-seq-test',
+          ownerId: ownerUuid,
+          accessToken: 'synthetic',
+          lang: 'vi',
+        })
+      );
+    });
+
+    // Wait for the 1-second clock timer to tick and fire deadline polling
+    await act(async () => new Promise(resolve => setTimeout(resolve, 1300)));
+
+    const intervalInput = host.querySelector('#dms-interval-input');
+    assert.ok(intervalInput, 'Interval input should exist');
+    assert.equal(intervalInput.value, '30');
+
+    assert.ok(delayedPollResolve, 'Polling request #2 should be pending');
+
+    const saveForm = host.querySelector('form.lv-dms-form-group');
+    await act(async () => {
+      const props = intervalInput[Object.keys(intervalInput).find((k) => k.startsWith('__reactProps'))];
+      props.onChange({ target: { value: '60' } });
+    });
+
+    await act(async () => {
+      saveForm.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    assert.equal(intervalInput.value, '60', 'State must reflect updated 60 days interval');
+
+    await act(async () => {
+      delayedPollResolve();
+      await new Promise((r) => setTimeout(r, 60));
+    });
+
+    assert.equal(intervalInput.value, '60', 'Stale polling must NOT overwrite updated interval');
+    assert.ok(pollCount >= 2, 'Polling must remain active after dropping stale response');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});

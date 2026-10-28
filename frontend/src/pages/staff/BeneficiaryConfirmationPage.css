@@ -475,3 +475,36 @@
 .lv-beneficiary-confirmation-view .lv-confirm-signed-file::file-selector-button { padding:10px 16px; margin-right:12px; border:1px solid #b5c8ba; border-radius:8px; background:#fff; color:#294c3c; font:inherit; font-weight:600; cursor:pointer; }
 .lv-beneficiary-confirmation-view .lv-confirm-signed-file:focus-visible { outline:2px solid #ba9857; outline-offset:3px; }
 .lv-beneficiary-confirmation-view .lv-confirm-receipt-code { overflow-wrap:anywhere; white-space:normal; }
+
+/* Signed receipt viewer and modal stacking isolation */
+.lv-beneficiary-confirmation-view .lv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: rgba(15, 23, 42, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.lv-beneficiary-confirmation-view .lv-signed-receipt-viewer {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.lv-beneficiary-confirmation-view .lv-btn-view-receipt {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  min-height: 32px;
+  border-radius: 6px;
+}
+
+.lv-beneficiary-confirmation-view .lv-receipt-view-error {
+  font-size: 12px;
+  color: #b91c1c;
+  margin: 0;
+}

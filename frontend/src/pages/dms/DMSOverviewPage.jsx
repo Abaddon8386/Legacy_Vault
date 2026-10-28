@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import {
   fetchDmsConfig,
   saveDmsConfig,
@@ -48,6 +48,11 @@ export default function DMSOverviewPage({
   const syncedRefreshTriggerRef = useRef(onRefreshTrigger);
   const syncedRefreshKeyRef = useRef(refreshKey);
   const activeOwnerIdRef = useRef(ownerId);
+  const latestAccessTokenRef = useRef(accessToken);
+  const latestLangRef = useRef(lang);
+  const isPollingActiveRef = useRef(false);
+  const visibilityAbortControllerRef = useRef(null);
+  const mutationSeqRef = useRef(0);
   const fetchRequestId = useRef(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [isSavingGrace, setIsSavingGrace] = useState(false);
@@ -65,8 +70,12 @@ export default function DMSOverviewPage({
   const pendingSave = useRef(false);
   const pendingCheckIn = useRef(false);
   const active = useRef(true);
+  useLayoutEffect(() => {
+    latestAccessTokenRef.current = accessToken;
+    latestLangRef.current = lang;
+  }, [accessToken, lang]);
   const mutationController = useRef(null);
-  useEffect(() => { active.current = true; return () => { active.current = false; mutationController.current?.abort(); }; }, []);
+  useEffect(() => { active.current = true; return () => { active.current = false; mutationController.current?.abort(); visibilityAbortControllerRef.current?.abort(); }; }, []);
 
   // Progress and grace-period eligibility are derived from server timestamps, with
   // one page-scoped clock. The interval is cleaned up on unmount/remount.
@@ -159,44 +168,128 @@ export default function DMSOverviewPage({
     Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
     clockNow >= Date.parse(dmsData.nextCheckAt);
   const awaitingGraceDeadline = dmsData?.status === 'TRIGGERED' && !dmsData.graceDeadline;
+  const graceExpired = (dmsData?.status === 'TRIGGERED' || dmsData?.status === 'GRACE_PERIOD_EXCEEDED') &&
+    Number.isFinite(Date.parse(dmsData?.graceDeadline || '')) &&
+    clockNow >= Date.parse(dmsData.graceDeadline);
 
   useEffect(() => {
-    if ((!deadlineReached && !awaitingGraceDeadline) || isDevPreviewActive) return undefined;
+    if ((!deadlineReached && !awaitingGraceDeadline && !graceExpired) || isDevPreviewActive) {
+      isPollingActiveRef.current = false;
+      return undefined;
+    }
 
+    isPollingActiveRef.current = true;
     let stopped = false;
     let timeoutId;
     const controller = new AbortController();
     const pollStatus = async () => {
+      const pollMutationSeq = mutationSeqRef.current;
+      const pollToken = latestAccessTokenRef.current;
+      const pollOwnerId = activeOwnerIdRef.current;
+      const pollLang = latestLangRef.current;
       try {
-        const latest = await fetchDmsConfig({ lang, accessToken, ownerId, signal: controller.signal });
-        if (stopped) return;
+        const latest = await fetchDmsConfig({ lang: pollLang, accessToken: pollToken, ownerId: pollOwnerId, signal: controller.signal });
+        if (stopped || !active.current || controller.signal.aborted) return;
+        if (activeOwnerIdRef.current !== pollOwnerId || latestAccessTokenRef.current !== pollToken) {
+          return;
+        }
+        if (mutationSeqRef.current !== pollMutationSeq) {
+          // Stale response from before a local mutation (save interval, grace, check-in, etc.)
+          // Drop this stale response, but continue polling if the page still requires it!
+          if (!stopped && active.current && !controller.signal.aborted) {
+            timeoutId = window.setTimeout(pollStatus, 3000);
+          }
+          return;
+        }
         if (latest) {
           const triggerHasDeadline = latest.status !== 'TRIGGERED' || Boolean(latest.graceDeadline);
           if (triggerHasDeadline) setDmsData({ ...latest, snapshotTimestamp: Date.now() });
-          if (latest.status === 'MONITORING' || !triggerHasDeadline) timeoutId = window.setTimeout(pollStatus, 5000);
+          // Poll while waiting for server state transition to take effect
+          const stillNeedsPolling = latest.status === 'MONITORING' || !triggerHasDeadline ||
+            (latest.status === 'TRIGGERED' && Number.isFinite(Date.parse(latest.graceDeadline || '')) && Date.now() >= Date.parse(latest.graceDeadline));
+          if (stillNeedsPolling) timeoutId = window.setTimeout(pollStatus, 3000);
         } else {
           setDmsData(null);
         }
       } catch (err) {
-        if (stopped || err.name === 'AbortError') return;
+        if (stopped || !active.current || err.name === 'AbortError' || controller.signal.aborted) return;
         if (err.status === 401) {
-          onUnauthorized?.();
+          stopped = true;
+          isPollingActiveRef.current = false;
+          controller.abort();
+          if (activeOwnerIdRef.current === pollOwnerId && latestAccessTokenRef.current === pollToken) {
+            onUnauthorized?.();
+          }
           return;
         }
-        timeoutId = window.setTimeout(pollStatus, 5000);
+        timeoutId = window.setTimeout(pollStatus, 4000);
       }
     };
 
     timeoutId = window.setTimeout(pollStatus, 0);
     return () => {
       stopped = true;
+      isPollingActiveRef.current = false;
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [deadlineReached, awaitingGraceDeadline, isDevPreviewActive, lang, accessToken, ownerId, onUnauthorized]);
+  }, [deadlineReached, awaitingGraceDeadline, graceExpired, isDevPreviewActive, onUnauthorized]);
+
+  // Tab visibility and focus listener: refresh immediately if expired/overdue upon returning
+  useEffect(() => {
+    if (isDevPreviewActive) return undefined;
+    const handleVisibilityOrFocus = () => {
+      setClockNow(Date.now());
+      if (document.visibilityState === 'visible') {
+        // Skip duplicate overlapping request if background polling loop is actively running
+        if (isPollingActiveRef.current) return;
+
+        const isOverdue = (dmsData?.status === 'MONITORING' && Number.isFinite(Date.parse(dmsData?.nextCheckAt || '')) && Date.now() >= Date.parse(dmsData.nextCheckAt)) ||
+          (dmsData?.status === 'TRIGGERED' && (!dmsData.graceDeadline || (Number.isFinite(Date.parse(dmsData.graceDeadline)) && Date.now() >= Date.parse(dmsData.graceDeadline))));
+        if (isOverdue) {
+          // Abort previous in-flight visibility request before launching a fresh check
+          visibilityAbortControllerRef.current?.abort();
+          const controller = new AbortController();
+          visibilityAbortControllerRef.current = controller;
+
+          const reqToken = latestAccessTokenRef.current;
+          const reqOwnerId = activeOwnerIdRef.current;
+          const reqLang = latestLangRef.current;
+          const reqMutationSeq = mutationSeqRef.current;
+
+          fetchDmsConfig({ lang: reqLang, accessToken: reqToken, ownerId: reqOwnerId, signal: controller.signal })
+            .then(latest => {
+              if (!active.current || controller.signal.aborted) return;
+              // Guard against late response after account/token/lang switch or recent mutation
+              if (mutationSeqRef.current !== reqMutationSeq || activeOwnerIdRef.current !== reqOwnerId || latestAccessTokenRef.current !== reqToken) {
+                return;
+              }
+              if (latest) setDmsData({ ...latest, snapshotTimestamp: Date.now() });
+            })
+            .catch(err => {
+              if (!active.current || controller.signal.aborted || err.name === 'AbortError') return;
+              if (err.status === 401) {
+                if (activeOwnerIdRef.current === reqOwnerId && latestAccessTokenRef.current === reqToken) {
+                  onUnauthorized?.();
+                }
+              }
+            });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    return () => {
+      visibilityAbortControllerRef.current?.abort();
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
+  }, [dmsData, isDevPreviewActive, onUnauthorized]);
 
 
     const handleManualRetry = useCallback(() => {
+    mutationSeqRef.current += 1;
+    visibilityAbortControllerRef.current?.abort();
     setLoading(true);
     setError(null);
     setRefreshKey((k) => k + 1);
@@ -248,6 +341,8 @@ export default function DMSOverviewPage({
     }
 
     pendingSave.current = true;
+    mutationSeqRef.current += 1;
+    visibilityAbortControllerRef.current?.abort();
     // A read started before this mutation must never replace its result.
     ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
@@ -271,6 +366,8 @@ export default function DMSOverviewPage({
         }
       );
       if (!active.current || controller.signal.aborted) return;
+      mutationSeqRef.current += 1;
+      visibilityAbortControllerRef.current?.abort();
       ++fetchRequestId.current;
       syncedContextRef.current = ownerId ?? '__default__';
       syncedRefreshTriggerRef.current = onRefreshTrigger;
@@ -301,6 +398,8 @@ export default function DMSOverviewPage({
     if (cannotCheckIn) return;
     if (pendingCheckIn.current || pendingSave.current) return;
     pendingCheckIn.current = true;
+    mutationSeqRef.current += 1;
+    visibilityAbortControllerRef.current?.abort();
     ++fetchRequestId.current;
     const controller = new AbortController(); mutationController.current = controller;
     setIsCheckingIn(true);
@@ -509,8 +608,10 @@ export default function DMSOverviewPage({
     );
   }
 
-  const isTriggered = dmsData?.status === 'GRACE_PERIOD_EXCEEDED' ||
+  const isGraceEnded = dmsData?.status === 'GRACE_PERIOD_EXCEEDED' || Boolean(graceExpired);
+  const isTriggered = isGraceEnded ||
     (dmsData?.status === 'TRIGGERED' && Boolean(dmsData.graceDeadline));
+  const effectiveDmsStatus = isGraceEnded ? 'GRACE_PERIOD_EXCEEDED' : (dmsData?.status || '');
   const isDeadlinePending = dmsData?.status === 'MONITORING' &&
     Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
     clockNow >= Date.parse(dmsData.nextCheckAt);
@@ -653,8 +754,8 @@ export default function DMSOverviewPage({
             </svg>
           </div>
           <div className="lv-dms-triggered-content">
-            <h2 className="lv-dms-triggered-title">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'Grace period has ended' : 'Đã hết thời gian ân hạn') : (isTriggered ? t.triggeredAlertTitle : t.deadlinePendingTitle)}</h2>
-            <p className="lv-dms-triggered-desc">{dmsData.status === 'GRACE_PERIOD_EXCEEDED' ? (lang === 'en' ? 'The record is awaiting verification. This status does not confirm death or unlock assets.' : 'Hồ sơ đang chờ xác minh. Trạng thái này chưa xác nhận tử vong và chưa mở khóa tài sản.') : (isTriggered ? t.triggeredAlertDesc : t.deadlinePendingDesc)}</p>
+            <h2 className="lv-dms-triggered-title">{isGraceEnded ? (lang === 'en' ? 'Grace period has ended' : 'Đã hết thời gian ân hạn') : (isTriggered ? t.triggeredAlertTitle : t.deadlinePendingTitle)}</h2>
+            <p className="lv-dms-triggered-desc">{isGraceEnded ? (lang === 'en' ? 'The record is awaiting verification. This status does not confirm death or unlock assets.' : 'Hồ sơ đang chờ xác minh. Trạng thái này chưa xác nhận tử vong và chưa mở khóa tài sản.') : (isTriggered ? t.triggeredAlertDesc : t.deadlinePendingDesc)}</p>
             <div className="lv-dms-triggered-actions-row">
               {dmsData.graceDeadline && (
                 <span className="lv-dms-triggered-deadline-tag">
@@ -663,10 +764,10 @@ export default function DMSOverviewPage({
               )}
               {/* PS-24: Owner Cancel Alert action */}
               {accessToken && !onCancelAlert && canCancelAlert === undefined && !customCancelCapability ? <OwnerLiveCancelAlert
-                accessToken={accessToken} ownerId={ownerId} dmsStatus={dmsData.status} lang={lang} isOwner={isOwner}
+                accessToken={accessToken} ownerId={ownerId} dmsStatus={effectiveDmsStatus} lang={lang} isOwner={isOwner}
                 onUnauthorized={onUnauthorized} onRefreshRequired={handleManualRetry} /> : <OwnerCancelAlert
                 lang={lang}
-                dmsStatus={dmsData.status}
+                dmsStatus={effectiveDmsStatus}
                 canCancel={canCancelAlert}
                 customCapability={customCancelCapability}
                 isOwner={isOwner}
@@ -983,7 +1084,11 @@ export default function DMSOverviewPage({
               setIsSavingGrace(value);
               return true;
             }}
-            onSaved={value => setDmsData({ ...value, snapshotTimestamp: Date.now() })} />
+            onSaved={value => {
+              mutationSeqRef.current += 1;
+              visibilityAbortControllerRef.current?.abort();
+              setDmsData({ ...value, snapshotTimestamp: Date.now() });
+            }} />
 
         </div>
       )}

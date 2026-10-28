@@ -1,3 +1,4 @@
+import DatePicker from '../../components/common/DatePicker.jsx';
 import { staffAuthFeedback, useStaffSessionExpiry } from './staffFeedback.js';
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -564,16 +565,16 @@ function IntakeForm({
               <label htmlFor="intake-issuing-date" className="lv-intake-label">
                 <span>{t.fields.issuingDate}</span>
               </label>
-              <input
+              <DatePicker
                 id="intake-issuing-date"
-                type="date"
-                className="lv-intake-input"
+                className={fieldErrors.issuingDate ? 'has-error' : ''}
                 value={formData.issuingDate}
-                onChange={(e) => handleInputChange('issuingDate', e.target.value)}
+                onChange={(val) => handleInputChange('issuingDate', val)}
                 aria-required="false"
                 aria-invalid={Boolean(fieldErrors.issuingDate)}
                 aria-describedby={fieldErrors.issuingDate ? 'err-issuingDate' : undefined}
                 disabled={isSubmitting}
+                lang={lang}
               />
               <span className="lv-intake-field-hint">{t.fields.issuingDateNote}</span>
               {fieldErrors.issuingDate && (

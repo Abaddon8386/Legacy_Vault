@@ -68,6 +68,8 @@ public enum ErrorCode {
 	LEGAL_WORKFLOW_ON_HOLD(409, "error.legalBasis.onHold"),
 	LEGAL_VERIFICATION_INVALID_STATE(409, "error.legalVerification.invalidState"),
 	LEGAL_VERIFICATION_ALREADY_DECIDED(409, "error.legalVerification.alreadyDecided"),
+	ASSET_REQUIRED(422, "error.asset.required"),
+	WILL_REQUIRED(422, "error.will.required"),
 	BENEFICIARY_REQUIRED(422, "error.beneficiary.required"),
 	BENEFICIARY_IDENTITY_NOT_VERIFIED(409, "error.beneficiaryAccount.identityNotVerified"),
 	BENEFICIARY_ACCOUNT_ALREADY_LINKED(409, "error.beneficiaryAccount.alreadyLinked"),

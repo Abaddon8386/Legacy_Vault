@@ -1,0 +1,343 @@
+/* Universal accessible DatePicker styles for LegacyVault */
+
+.lv-datepicker-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  font-family: var(--lv-font-sans, system-ui, -apple-system, sans-serif);
+}
+
+.lv-datepicker-container.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lv-datepicker-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.lv-datepicker-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 72px 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lv-text-main, #1a2e26);
+  background-color: var(--lv-input-bg, #ffffff);
+  border: 1px solid var(--lv-border-input, #ccd8cf);
+  border-radius: 10px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lv-datepicker-input:hover:not(:disabled) {
+  border-color: #9cb5a5;
+}
+
+.lv-datepicker-input:focus {
+  outline: none;
+  border-color: #164639;
+  box-shadow: 0 0 0 3px rgba(22, 70, 57, 0.15);
+}
+
+.lv-datepicker-input:disabled {
+  background-color: #f3f5f3;
+  cursor: not-allowed;
+}
+
+.lv-datepicker-clear-btn {
+  position: absolute;
+  right: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: #71887b;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.lv-datepicker-clear-btn:hover {
+  background-color: #edf2ee;
+  color: #1a2e26;
+}
+
+.lv-datepicker-toggle-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #164639;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.lv-datepicker-toggle-btn:hover:not(:disabled) {
+  background-color: #eef7f2;
+}
+
+.lv-datepicker-toggle-btn:focus-visible {
+  outline: 2px solid #164639;
+  outline-offset: 1px;
+}
+
+.lv-datepicker-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Calendar Popover */
+.lv-datepicker-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1050;
+  width: 320px;
+  max-width: 90vw;
+  background-color: #ffffff;
+  border: 1px solid #d4dfd7;
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(18, 48, 38, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 16px;
+  box-sizing: border-box;
+  animation: lv-datepicker-pop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes lv-datepicker-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.lv-datepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lv-datepicker-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+}
+
+.lv-datepicker-select {
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #164639;
+  background-color: #f4f8f5;
+  border: 1px solid #d4dfd7;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.lv-datepicker-select:hover {
+  background-color: #e7f1eb;
+}
+
+.lv-datepicker-select:focus {
+  border-color: #164639;
+}
+
+.lv-datepicker-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid #e0eae3;
+  border-radius: 8px;
+  color: #164639;
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+
+.lv-datepicker-nav-btn:hover {
+  background-color: #eef7f2;
+}
+
+.lv-datepicker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.lv-datepicker-weekday {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #7b9286;
+  padding: 4px 0;
+}
+
+.lv-datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.lv-datepicker-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 36px;
+  min-width: 36px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a2e26;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.12s, transform 0.08s;
+}
+
+.lv-datepicker-day:hover:not(:disabled) {
+  background-color: #edf5f0;
+}
+
+.lv-datepicker-day.is-outside {
+  color: #a8b8b0;
+}
+
+.lv-datepicker-day.is-today {
+  border-color: #164639;
+  font-weight: 700;
+}
+
+.lv-datepicker-day.is-selected {
+  background-color: #164639 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.lv-datepicker-day.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.lv-datepicker-day:focus-visible {
+  outline: 2px solid #164639;
+  outline-offset: 1px;
+  z-index: 1;
+}
+
+.lv-datepicker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #edf2ee;
+}
+
+.lv-datepicker-footer-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #164639;
+  background: #eef7f2;
+  border: 1px solid #d1e2d8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.lv-datepicker-footer-btn:hover:not(:disabled) {
+  background: #dfeee5;
+}
+
+.lv-datepicker-footer-btn--secondary {
+  background: transparent;
+  border-color: transparent;
+  color: #63776e;
+}
+
+.lv-datepicker-footer-btn--secondary:hover {
+  background: #f4f6f4;
+  color: #1a2e26;
+}
+
+/* Touch targets >= 44px on mobile viewports */
+@media (max-width: 640px) {
+  .lv-datepicker-popover {
+    width: 340px;
+  }
+  .lv-datepicker-day {
+    min-height: 42px;
+    min-width: 42px;
+    font-size: 14px;
+  }
+  .lv-datepicker-nav-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .lv-datepicker-footer-btn {
+    min-height: 38px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+}
+
+/* Error states and inline error feedback */
+.lv-datepicker-input.is-invalid,
+.lv-datepicker-container.has-error .lv-datepicker-input {
+  border-color: #dc2626;
+  background-color: #fffbfa;
+}
+
+.lv-datepicker-input.is-invalid:focus,
+.lv-datepicker-container.has-error .lv-datepicker-input:focus {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.lv-datepicker-error-msg {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #b91c1c;
+  margin-top: 4px;
+  line-height: 1.4;
+}

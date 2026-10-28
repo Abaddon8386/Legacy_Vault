@@ -36,7 +36,7 @@ async function fillCourtForm(host) {
   await change(host.querySelector('.lv-court-editor input[type=text]'), 'Recipient C');
   const inputs = host.querySelectorAll('form input.lv-form-input[type=text]');
   await change(inputs[0], 'Court'); await change(inputs[1], '25/2026');
-  await change(host.querySelector('form input.lv-form-input[type=date]'), '2026-10-01');
+  await change(host.querySelector('.lv-datepicker-input'), '2026-10-01');
   const input = host.querySelector('input[type=file]');
   await act(async () => props(input).onChange({ target: { files: [new File(['%PDF-1.7\n%%EOF'], 'court.pdf', { type: 'application/pdf' })], value: '' } }));
 }
