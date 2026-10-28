@@ -63,10 +63,6 @@ public class WillComparisonService {
     private final WillComparisonRepository comparisonRepository;
     private final AuditService auditService;
 
-    private com.legacyvault.verification.repository.LegalBasisDossierRepository basisDossiers;
-    @org.springframework.beans.factory.annotation.Autowired
-    public void setBasisDossiers(com.legacyvault.verification.repository.LegalBasisDossierRepository value) { basisDossiers = value; }
-
     public WillComparisonService(
             LegalCaseLookupRepository caseLookup,
             VerificationCaseRepository caseRepository,
@@ -141,14 +137,6 @@ public class WillComparisonService {
                 normalize(request.reason())
         ));
 
-        if (request.result() == RecordWillComparisonRequest.Result.MATCH && basisDossiers != null) {
-            basisDossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId()).ifPresent(dossier -> {
-                if (dossier.acceptsIntake() && com.legacyvault.verification.entity.LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) {
-                    vault.markLegalBasisRouted(false);
-                    vault.markLegalBasisVerification();
-                }
-            });
-        }
         // Audit không ghi lý do; hash là metadata toàn vẹn nên được phép ghi.
         auditService.record(new AuditEvent(
                 AuditAction.WILL_COMPARISON_RECORDED,

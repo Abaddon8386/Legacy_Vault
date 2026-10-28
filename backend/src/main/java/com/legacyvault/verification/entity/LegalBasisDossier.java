@@ -111,11 +111,6 @@ public class LegalBasisDossier {
         this.status = STATUS_DRAFT;
     }
 
-    public static LegalBasisDossier receivedByStaff(Long caseId, String route, Long staffId) {
-        var dossier = new LegalBasisDossier(caseId, route, "STAFF_DOCUMENT_INTAKE", DISPUTE_NONE, staffId);
-        dossier.classifiedByUserId = null; // Intake is not a Legal decision.
-        return dossier;
-    }
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
@@ -165,9 +160,9 @@ public class LegalBasisDossier {
 
         if (!ROUTE_ON_HOLD.equals(route)
                 || !STATUS_DRAFT.equals(status)
-                || !(ROUTE_COURT.equals(newRoute) || ROUTE_NOTARIAL.equals(newRoute))) {
+                || !ROUTE_COURT.equals(newRoute)) {
             throw new IllegalStateException(
-                    "Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
+                    "Only an ON_HOLD draft dossier can be reclassified to COURT");
         }
 
         this.route = newRoute;
@@ -177,7 +172,7 @@ public class LegalBasisDossier {
     }
 
     public boolean acceptsIntake() {
-        return ROUTE_COURT.equals(route) || ROUTE_NOTARIAL.equals(route);
+        return ROUTE_COURT.equals(route);
     }
 
     /** A hold invalidates earlier clearance while preserving all versions and assessment history. */
@@ -223,8 +218,7 @@ public class LegalBasisDossier {
 
     /** Legal đã phân loại nhánh hiện hành. */
     public Long getClassifiedByUserId() {
-        return "STAFF_DOCUMENT_INTAKE".equals(routeReason) ? classifiedByUserId
-                : classifiedByUserId != null ? classifiedByUserId : createdByUserId;
+        return classifiedByUserId != null ? classifiedByUserId : createdByUserId;
     }
 
     public Long getCreatedByUserId() {

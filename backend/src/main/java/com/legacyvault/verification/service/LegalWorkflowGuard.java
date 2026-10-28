@@ -37,7 +37,6 @@ public class LegalWorkflowGuard {
         if (transition == null) throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         var locked = access.lock(caseId);
         locked.requireOpen();
-        access.requireComparedWill(locked.verificationCase());
         requireNotOnHold(locked.vault(), locked.dossier());
         var dossier = locked.dossier();
         if ((transition == ProtectedTransition.UNLOCK

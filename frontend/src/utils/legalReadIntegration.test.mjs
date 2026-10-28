@@ -120,7 +120,7 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
   let writes = 0, body;
   globalThis.fetch = transport(() => json(courtContext(a, writes > 0)), (url, init) => {
     assert.ok(url.endsWith('/basis-dossier/decision')); writes++; body = JSON.parse(init.body);
-    return json({ dossierId: a, decision: 'LEGAL_APPROVED', versionNo: 2, sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now });
+    return json({ dossierId: a, decision: 'LEGAL_APPROVED', versionNo: 2, sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now, notification: { id: a, recipientWorkspace: 'STAFF', status: 'RECORDED' } });
   });
   const view = await mount({ ...base, lang });
   try {

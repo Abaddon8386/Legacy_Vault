@@ -33,3 +33,9 @@ test('unmount cancels requests and malformed rows never become clickable notific
  let signal;globalThis.fetch=async(_url,init)=>{signal=init.signal;return new Promise(()=>{});};const pending=await mount();await pending.close();assert.equal(signal.aborted,true);
  globalThis.fetch=async()=>json([{...item,caseId:'not-a-case'}]);const view=await mount();try{await view.expand();assert.equal(view.host.querySelector('li button'),null);assert.match(view.host.textContent,/Chưa tải được/);}finally{await view.close();}
 });
+
+test('an unimplemented notification API is shown as unavailable and never as an empty inbox', async () => {
+ globalThis.fetch=async()=>new Response('{}',{status:404,headers:{'Content-Type':'application/json'}});
+ const view=await mount();
+ try{await view.expand();assert.match(view.host.textContent,/Thông báo hiện chưa khả dụng/);assert.doesNotMatch(view.host.textContent,/Chưa có thông báo/);assert.equal(view.host.querySelector('li button'),null);}finally{await view.close();}
+});

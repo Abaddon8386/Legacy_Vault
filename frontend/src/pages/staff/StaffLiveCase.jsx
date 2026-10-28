@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, useState, useCallback } from 'react';
+import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   loadStaffCase,
   claimStaffCase,
@@ -207,7 +208,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const receipt = await uploadStaffDocumentAttachment(caseId, kind, recordId, file, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
       setSelectedRecordFiles(prev => ({ ...prev, [recordId]: null }));
-      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}. ${en ? 'Legal has been notified.' : 'Đã gửi thông báo cho Pháp lý.'}`);
+      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}.${workflowNotificationFeedback(receipt, 'LEGAL', lang)}`);
       loadRecordAttachments(recordId);
     } catch (err) {
       if (c.signal.aborted) return;
@@ -436,10 +437,10 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
         const file = stagedFile;
         setStagedFile(null);
         try {
-          await uploadStaffDocumentAttachment(caseId, kind, saved.id, file, options);
+          const attachmentReceipt = await uploadStaffDocumentAttachment(caseId, kind, saved.id, file, options);
           if (!signal.aborted) {
             setStagedFile(null);
-            setNotice(en ? 'Document saved with its attachment. Legal has been notified.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm. Đã gửi thông báo cho Pháp lý.');
+            setNotice((en ? 'Document saved with its attachment.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm.') + workflowNotificationFeedback(attachmentReceipt, 'LEGAL', lang));
             loadRecordAttachments(saved.id);
           }
         } catch (attErr) {
@@ -452,7 +453,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           }
         }
       } else {
-        setNotice(en ? 'Document saved successfully. Legal has been notified.' : 'Đã tiếp nhận giấy tờ thành công. Đã gửi thông báo cho Pháp lý.');
+        setNotice((en ? 'Document saved successfully.' : 'Đã tiếp nhận giấy tờ thành công.') + workflowNotificationFeedback(saved, 'LEGAL', lang));
       }
     }); }}>
       <fieldset disabled={busy || closed || !writeReady}>

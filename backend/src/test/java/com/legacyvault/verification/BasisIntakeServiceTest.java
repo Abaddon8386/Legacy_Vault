@@ -1,7 +1,5 @@
 package com.legacyvault.verification;
 
-import static org.mockito.ArgumentMatchers.argThat;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -453,15 +451,17 @@ class BasisIntakeServiceTest {
         assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
             .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
         happyPath("NOTARIAL");
-        service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf());
+        assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
+            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
     }
 
     @Test
-    void notarialIntakeAcceptsCompleteMetadataWithoutGrantingApproval() {
+    void legacyNotarialIntakeCannotWriteEvenWithCompleteNotaryMetadata() {
         happyPath("NOTARIAL");
-        service.intake(CASE_ID,staff,metadata("NOTARIAL_PARTITION"),pdf());
-        verify(versions).saveAndFlush(any());
-        verify(auditService).record(any());
+        assertThatThrownBy(() -> service.intake(CASE_ID,staff,metadata("NOTARIAL_PARTITION"),pdf()))
+            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
+        verify(versions,never()).saveAndFlush(any());
+        verifyNoInteractions(auditService);
     }
 
     @Test
@@ -479,16 +479,20 @@ class BasisIntakeServiceTest {
                         .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
 
         happyPath("COURT");
-        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.empty());
-        when(dossiers.saveAndFlush(any())).thenAnswer(invocation -> {
-            LegalBasisDossier created = invocation.getArgument(0);
-            ReflectionTestUtils.setField(created,"legalBasisDossierId",DOSSIER_DB_ID);
-            ReflectionTestUtils.setField(created,"publicId",UUID.randomUUID());
-            return created;
-        });
-        service.intake(CASE_ID,staff,metadata("COURT_JUDGMENT"),pdf());
-        verify(dossiers).saveAndFlush(argThat(created -> created.getClassifiedByUserId()==null && created.getRoute().equals("COURT")));
-        verify(versions).saveAndFlush(any());
+        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.intake(
+                CASE_ID,
+                staff,
+                metadata("COURT_JUDGMENT"),
+                pdf()
+        )).satisfies(exception ->
+                assertThat(codeOf(exception))
+                        .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+
+        verify(versions, never()).saveAndFlush(any());
+        verifyNoInteractions(auditService);
     }
 
     @Test
@@ -514,7 +518,7 @@ class BasisIntakeServiceTest {
         // Vault ở trạng thái không cho phép tiếp nhận phải bị từ chối.
         for (String status : new String[]{
                 "ON_HOLD",
-                "UNLOCKED",
+                "WILL_VERIFICATION",
                 "LEGAL_BASIS_VERIFICATION"
         }) {
             happyPath("COURT");

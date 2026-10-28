@@ -1,3 +1,4 @@
+import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
 import CourtAllocationEditor from '../../components/staff/CourtAllocationEditor.jsx';
 import { buildCourtAllocations, courtAllocationError } from '../../utils/courtAllocationModel.js';
 import { useState, useId, useEffect, useRef, useCallback } from 'react';
@@ -613,7 +614,7 @@ export default function StaffLegalDocumentsPage({
       setDossier(transfer.dossier);
       handleResetForm();setActiveTab('overview');
       if(!transfer.error) {
-        setActionSuccess(en ? 'Documents saved and sent to Legal. Legal has been notified.' : 'Đã lưu và chuyển giấy tờ thẩm định. Đã gửi thông báo cho Pháp lý.');
+        setActionSuccess((en ? 'Documents saved and sent to Legal.' : 'Đã lưu và chuyển giấy tờ thẩm định.') + workflowNotificationFeedback(transfer.dossier, 'LEGAL', lang));
       } else if([401,403].includes(transfer.error.status)) {
         setDossier(null);setAvailableAssets([]);setAvailableBeneficiaries([]);
         if(transfer.error.status===401)onUnauthorized?.();
@@ -712,7 +713,7 @@ export default function StaffLegalDocumentsPage({
       }
 
       setDossier(updatedDossier);
-      setActionSuccess(t.forwardSuccessNotice + (en ? ' Legal has been notified.' : ' Đã gửi thông báo cho Pháp lý.'));
+      setActionSuccess(t.forwardSuccessNotice + workflowNotificationFeedback(updatedDossier, 'LEGAL', lang));
     } catch (err) {
       if (
         controller.signal.aborted ||

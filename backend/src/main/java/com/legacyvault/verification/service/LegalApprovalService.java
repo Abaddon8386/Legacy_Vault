@@ -59,13 +59,13 @@ public class LegalApprovalService {
         if (caseId == null || request == null || request.decision() == null
                 || request.versionNo() == null || request.versionNo() < 1
                 || request.sha256Hash() == null || request.allocationHash() == null
-                || (request.reason() == null || request.reason().isBlank() || request.reason().trim().length() > 1000)) {
+                || (request.decision() == LegalApprovalRequest.Decision.REJECT
+                && (request.reason() == null || request.reason().isBlank()))) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
         LegalBasisCaseAccess.LockedCase locked = access.lock(caseId);
         locked.requireOpen();
-        access.requireComparedWill(locked.verificationCase());
         LegalBasisDossier dossier = locked.dossier();
         Vault vault = locked.vault();
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);

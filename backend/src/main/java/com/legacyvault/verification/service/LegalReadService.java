@@ -64,7 +64,7 @@ public class LegalReadService {
                     x.getReviewedAt()==null?null:x.getReviewedAt().toInstant(ZoneOffset.UTC))).orElse(null);
             String courtResult=version==null?null:courtDecisions.findFirstByDossierVersionIdOrderByIdDesc(version.id()).map(CourtDecision::getResult).orElse(null);
             snapshot=new Snapshot(d.getPublicId(),latest,d.getRequiredVersionNo(),version==null?null:version.sha256(),hash,d.getDisputeStatus(),d.getReviewStatus(),fresh,current,decision,courtResult);
-            ErrorCode base=will.approvalBlocked()?ErrorCode.BASIS_DOSSIER_INVALID_STATE:baseBlocker(c,v,d,version);
+            ErrorCode base=baseBlocker(c,v,d,version);
             if(base==null) base=court.blocker(d);
             approvalReason=base!=null?base:(fresh?null:ErrorCode.LEGAL_DECISION_STALE);
             unlockReason=base;

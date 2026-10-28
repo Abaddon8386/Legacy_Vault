@@ -168,7 +168,7 @@ class LegalBasisDossierControllerTest {
 
     @Test
     void decision_isLegalOnlyAndUsesAuthenticatedPrincipal() throws Exception {
-        String body = "{\"decision\":\"APPROVE\",\"reason\":\"Reviewed\",\"versionNo\":1,\"sha256Hash\":\""
+        String body = "{\"decision\":\"APPROVE\",\"versionNo\":1,\"sha256Hash\":\""
                 + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"}";
         when(legalApprovalService.decide(eq(CASE_ID), any(), any())).thenReturn(
                 new LegalApprovalResponse(DOSSIER_ID, "LEGAL_APPROVED", 1, "a".repeat(64),

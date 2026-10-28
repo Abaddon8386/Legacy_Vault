@@ -20,12 +20,12 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
  useEffect(()=>{if(!expanded)return;const close=event=>{if(event.type==='keydown'&&event.key!=='Escape')return;if(event.type==='pointerdown'&&details.current?.contains(event.target))return;details.current?.removeAttribute('open');if(event.type==='keydown')details.current?.querySelector('summary').focus();};document.addEventListener('pointerdown',close);document.addEventListener('keydown',close);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',close);};},[expanded]);
  useEffect(()=>{
   if(!token)return;
-  const c=new AbortController();current.current=c;let timer,busy=false;
-  async function load(){if(busy||document.hidden)return;busy=true;
-   try{const items=await request('/workflow-notifications?workspace='+role,{accessToken:token,signal:c.signal,expectedStatus:200});
+  const c=new AbortController();current.current=c;let timer,busy=false,unavailable=false;
+  async function load(){if(busy||unavailable||document.hidden)return;busy=true;
+   try{const items=await request('/workflow-notifications?workspace='+role,{accessToken:token,signal:c.signal,expectedStatus:200,cache:'no-store'});
     if(!Array.isArray(items)||!items.every(x=>uuid(x.id)&&uuid(x.caseId)&&typeof x.caseNumber==='string'&&Object.hasOwn(labels,x.action)&&(x.reason==null||(typeof x.reason==='string'&&x.reason.length<=1000))&&typeof x.read==='boolean'&&Number.isFinite(Date.parse(x.occurredAt))))throw Error('Invalid notifications');
     if(!c.signal.aborted)setResult({token,role,items});
-   }catch{if(!c.signal.aborted)setResult({token,role,error:true});}finally{busy=false;}}
+   }catch(error){if(!c.signal.aborted){unavailable=[404,501].includes(error.status);setResult({token,role,error:true,unavailable});}}finally{busy=false;}}
   load();timer=setInterval(load,15000);document.addEventListener('visibilitychange',load);window.addEventListener('lv-workflow-notifications-changed',load);
   return()=>{c.abort();clearInterval(timer);document.removeEventListener('visibilitychange',load);window.removeEventListener('lv-workflow-notifications-changed',load);};
  },[token,role,attempt]);
@@ -40,6 +40,6 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   }catch{if(!c?.signal.aborted)setResult({token,role,error:true});}finally{if(!c?.signal.aborted)setOpening(null);}}
  return <details ref={details} onToggle={event=>setExpanded(event.currentTarget.open)} className="lv-workflow-notifications"><summary aria-label={en?'Notifications':'Thông báo'}><Bell size={20} aria-hidden="true"/><span>{en?'Notifications':'Thông báo'}</span>{visible?.items?.some(x=>!x.read)&&<span className="lv-workflow-notifications__dot" aria-label={en?'Unread notifications':'Có thông báo chưa đọc'}/>}</summary>
   {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}><h2>{en?'Recent notifications':'Thông báo gần đây'}</h2>
-   {!visible?<p role="status">{en?'Loading…':'Đang tải…'}</p>:visible.error?<div role="alert"><p>{en?'Notifications could not be loaded.':'Chưa tải được thông báo.'}</p><button type="button" onClick={()=>setAttempt(x=>x+1)}>{en?'Try again':'Thử lại'}</button></div>:!visible.items.length?<p>{en?'No notifications yet.':'Chưa có thông báo.'}</p>:<ul>{visible.items.map(item=><li key={item.id}><button type="button" disabled={!!opening} className={item.read?'':'is-unread'} onClick={()=>open(item)}><strong>{labels[item.action][en?1:0]}</strong><span>{item.caseNumber}{!item.read&&(en?' · Unread':' · Chưa đọc')}</span>{item.reason && <span>{item.reason}</span>}<time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString(en?'en-GB':'vi-VN')}</time></button></li>)}</ul>}
+   {!visible?<p role="status">{en?'Loading…':'Đang tải…'}</p>:visible.error?<div role="alert"><p>{visible.unavailable?(en?'Notifications are not available yet.':'Thông báo hiện chưa khả dụng.'):(en?'Notifications could not be loaded.':'Chưa tải được thông báo.')}</p><button type="button" onClick={()=>setAttempt(x=>x+1)}>{en?'Try again':'Thử lại'}</button></div>:!visible.items.length?<p>{en?'No notifications yet.':'Chưa có thông báo.'}</p>:<ul>{visible.items.map(item=><li key={item.id}><button type="button" disabled={!!opening} className={item.read?'':'is-unread'} onClick={()=>open(item)}><strong>{labels[item.action][en?1:0]}</strong><span>{item.caseNumber}{!item.read&&(en?' · Unread':' · Chưa đọc')}</span>{item.reason && <span>{item.reason}</span>}<time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString(en?'en-GB':'vi-VN')}</time></button></li>)}</ul>}
   </section>}</details>;
 }

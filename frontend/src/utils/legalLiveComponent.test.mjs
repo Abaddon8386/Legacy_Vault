@@ -73,7 +73,7 @@ test('Death decision requires selected server document; duplicate clicks locked,
     await view.render({ ...base, lang: 'vi' }); assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     await submit(view.host); await submit(view.host); assert.equal(writes, 1);
     await act(async () => { saved = true; finish(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })); });
-    assert.match(view.host.textContent, /Đã lưu quyết định/); assert.match(view.host.textContent, /Đã gửi thông báo cho Nhân viên/);
+    assert.match(view.host.textContent, /Đã lưu quyết định/); assert.doesNotMatch(view.host.textContent, /Đã gửi thông báo cho Nhân viên/);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
     assert.doesNotMatch(view.host.textContent, /Xem trạng thái mới/);
   } finally { await view.close(); }

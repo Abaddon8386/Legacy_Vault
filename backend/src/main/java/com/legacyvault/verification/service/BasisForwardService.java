@@ -42,9 +42,6 @@ public class BasisForwardService {
     private final LegalBasisLockedState lockedState;
     private final LegalBasisReviewService reviewService;
 
-    private WillComparisonService comparisons;
-    @org.springframework.beans.factory.annotation.Autowired
-    public void setComparisons(WillComparisonService comparisons) { this.comparisons = comparisons; }
     public BasisForwardService(
             StaffCaseLockRepository staffCases,
             VerificationCaseRepository caseRepository,
@@ -99,8 +96,7 @@ public class BasisForwardService {
         }
 
         if (!verificationCase.isOpen()
-                || !java.util.Set.of(Vault.STATUS_AWAITING_VERIFICATION, Vault.STATUS_DOCUMENT_VERIFICATION,
-                    Vault.STATUS_WILL_VERIFICATION, Vault.STATUS_AWAITING_LEGAL_BASIS).contains(vault.getStatus())) {
+                || !Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
@@ -136,9 +132,7 @@ public class BasisForwardService {
         String vaultStatusBefore = vault.getStatus();
 
         dossier.markForwarded();
-        if (Vault.STATUS_WILL_VERIFICATION.equals(vault.getStatus()) && comparisons != null
-                && !comparisons.isApprovalBlocked(verificationCase.getVerificationCaseId())) vault.markLegalBasisRouted(false);
-        if (Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) vault.markLegalBasisVerification();
+        vault.markLegalBasisVerification();
 
         auditService.record(new AuditEvent(
                 AuditAction.LEGAL_BASIS_FORWARDED,
@@ -162,8 +156,7 @@ public class BasisForwardService {
          * PS-37: đánh giá snapshot sau khi forward.
          * REVIEW_REQUIRED là kết quả nghiệp vụ hợp lệ, không phải exception.
          */
-        if (Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus()))
-            reviewService.evaluateAfterChange(verificationCase.getPublicId());
+        reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
         return views.view(verificationCase, false);
     }

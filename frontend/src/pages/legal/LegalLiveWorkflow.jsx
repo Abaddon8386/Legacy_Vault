@@ -1,3 +1,4 @@
+import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
 import { useEffect, useRef, useState } from 'react';
 import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import { legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
@@ -150,8 +151,9 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked.' : 'Đã mở khóa kho.')
     : visibleReceipt?.reviewRequired ? (en ? 'Supplementation requested.' : 'Đã yêu cầu bổ sung giấy tờ.')
     : (en ? 'Decision saved.' : 'Đã lưu quyết định.');
+  const notificationFeedback = workflowNotificationFeedback(visibleReceipt, 'STAFF', lang);
   const confirmation = visibleReceipt && <FeedbackNotice className="lv-workflow-feedback" tone="success" title={outcome}>
-    <p>{en ? 'A notification has been sent to Staff.' : 'Đã gửi thông báo cho Nhân viên.'}</p>
+    {notificationFeedback && <p>{notificationFeedback.trim()}</p>}
     {!current && <p>{en ? 'Checking the latest case status before further action.' : 'Đang kiểm tra trạng thái mới nhất trước khi tiếp tục.'}</p>}
     {current?.error && <p>{en ? 'Saved successfully, but the latest case status could not be loaded. Retry before continuing.' : 'Thao tác đã lưu, nhưng chưa tải được trạng thái mới nhất. Hãy thử lại trước khi tiếp tục.'}</p>}
   </FeedbackNotice>;

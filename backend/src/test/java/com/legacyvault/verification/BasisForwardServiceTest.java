@@ -296,7 +296,7 @@ class BasisForwardServiceTest {
         for (String status : new String[]{
                 "ON_HOLD",
                 "LEGAL_BASIS_VERIFICATION",
-                "UNLOCKED"
+                "WILL_VERIFICATION"
         }) {
             happyPath(dossier("LEGAL_BASIS_PROVIDED"), 1);
 

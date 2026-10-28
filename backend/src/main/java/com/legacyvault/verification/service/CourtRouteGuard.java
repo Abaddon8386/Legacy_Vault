@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Branch-specific file clearance for approval/unlock/handover; never performs those transitions. */
+/** A partial legal gate for future approval/unlock/handover callers; never performs those transitions. */
 @Component
 public class CourtRouteGuard {
     private final CourtDecisionRepository decisions;
@@ -27,13 +27,10 @@ public class CourtRouteGuard {
 
     /** Side-effect-free inspection for context reads; does not mark a transaction rollback-only. */
     public ErrorCode blocker(LegalBasisDossier dossier) {
-        if (!java.util.Set.of("COURT", "NOTARIAL").contains(dossier.getRoute())) return ErrorCode.COURT_DECISION_REQUIRED;
+        if (!LegalBasisDossier.ROUTE_COURT.equals(dossier.getRoute())) return ErrorCode.COURT_DECISION_REQUIRED;
         int current = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
         var evidence = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), current)
                 .orElse(null);
-        if (LegalBasisDossier.ROUTE_NOTARIAL.equals(dossier.getRoute()))
-            return LegalBasisDossier.DISPUTE_NONE.equals(dossier.getDisputeStatus()) && evidence != null && current >= dossier.getRequiredVersionNo() && evidence.isNotarialReviewable()
-                ? null : ErrorCode.BASIS_DOSSIER_INVALID_STATE;
         if (evidence == null || current < dossier.getRequiredVersionNo() || !evidence.isReviewable()) return ErrorCode.COURT_DECISION_REQUIRED;
         var decision = decisions.findFirstByDossierVersionIdOrderByIdDesc(evidence.id())
                 .orElse(null);

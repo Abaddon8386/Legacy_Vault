@@ -52,14 +52,6 @@ public class LegalBasisCaseAccess {
         return new LockedContext(vault, verificationCase, dossier);
     }
 
-    private WillComparisonService comparisons;
-    @org.springframework.beans.factory.annotation.Autowired
-    public void setComparisons(WillComparisonService comparisons) { this.comparisons = comparisons; }
-    public void requireComparedWill(VerificationCase verificationCase) {
-        if (comparisons == null) throw new IllegalStateException("Will comparison gate is unavailable");
-        if (comparisons.isApprovalBlocked(verificationCase.getVerificationCaseId()))
-            throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
-    }
     public record LockedContext(Vault vault, VerificationCase verificationCase, LegalBasisDossier dossier) { }
 
     private static BusinessException missing() { return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND); }

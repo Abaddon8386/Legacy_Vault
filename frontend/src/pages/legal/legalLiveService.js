@@ -1,4 +1,4 @@
-// Legal reads and mutations follow staff-legal-workflow.md, including the supported notarial branch.
+// Uses current Legal APIs; notarial processing requires the BE changes proposed in the PR.
 import { ApiError, request } from '../../api/http.js';
 import { isUuid, isUtcDate } from '../../api/contracts.js';
 
@@ -79,7 +79,7 @@ export async function loadLegalContext(caseId, options = {}) {
   for (const key of ['approval', 'unlock']) {
     const action = capabilities?.[key];
     requireValue(typeof action?.allowed === 'boolean' && (action.allowed ? action.blockedReason === null : text(action.blockedReason)));
-    if (action.allowed) requireValue(value.willComparison.approvalBlocked === false && value.willComparison.latestResult === 'MATCH' && ['COURT', 'NOTARIAL'].includes(basis?.route) && value.caseStatus === 'OPEN' && value.vaultStatus === 'LEGAL_BASIS_VERIFICATION'
+    if (action.allowed) requireValue(['COURT', 'NOTARIAL'].includes(basis?.route) && value.caseStatus === 'OPEN' && value.vaultStatus === 'LEGAL_BASIS_VERIFICATION'
       && snapshot?.currentVersion > 0 && snapshot.reviewFresh && (basis.route === 'NOTARIAL' || snapshot.courtResult === 'VALID')
       && (key !== 'unlock' || snapshot.approvalCurrent));
   }
