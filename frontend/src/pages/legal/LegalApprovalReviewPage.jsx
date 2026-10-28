@@ -1,3 +1,5 @@
+import { trackOwnerSurface } from '../../components/layout/ownerSurfaceMotion.js';
+import '../../components/layout/OwnerSurfaces.css';
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
 import { Scale, ShieldCheck, RefreshCw, LogOut, Sparkles, FileText, AlertTriangle, CheckCircle2, AlertCircle, Eye, Layers, Info } from 'lucide-react';
@@ -301,7 +303,7 @@ function ApprovalReviewContent({
   const isLiveNotReady = loadError?.code === 'BACKEND_NOT_READY' || loadError?.status === 503;
 
   return (
-    <div className="lv-legal-approval-root">
+    <div className="lv-legal-approval-root lv-legal-surfaces" onPointerMove={trackOwnerSurface}>
       {/* Top Header */}
       <header className="lv-legal-approval-header" role="banner">
         <div className="lv-legal-approval-header__inner">
@@ -546,7 +548,7 @@ function ApprovalReviewContent({
               )}
 
               {/* 1. Thông tin Tham chiếu Hồ sơ Di sản */}
-              <section className="lv-legal-approval-card" aria-label={t.dossierSection.title}>
+              <section className="lv-legal-approval-card lv-surface-card" aria-label={t.dossierSection.title}>
                 <div className="lv-legal-approval-card__header">
                   <h2 className="lv-legal-approval-card__title">
                     <FileText size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
@@ -575,7 +577,7 @@ function ApprovalReviewContent({
               </section>
 
               {/* 2. Phiên bản Văn bản Di chúc & Mã băm Toàn vẹn (SHA-256) */}
-              <section className="lv-legal-approval-card" aria-label={t.integritySection.title}>
+              <section className="lv-legal-approval-card lv-surface-card" aria-label={t.integritySection.title}>
                 <div className="lv-legal-approval-card__header">
                   <h2 className="lv-legal-approval-card__title">
                     <FileText size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
@@ -604,7 +606,7 @@ function ApprovalReviewContent({
               </section>
 
               {/* 3. Phạm vi Phân bổ Tài sản & Người Thụ hưởng (Allocation Scope) */}
-              <section className="lv-legal-approval-card" aria-label={t.scopeSection.title}>
+              <section className="lv-legal-approval-card lv-surface-card" aria-label={t.scopeSection.title}>
                 <div className="lv-legal-approval-card__header">
                   <h2 className="lv-legal-approval-card__title">
                     <Layers size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
@@ -662,7 +664,7 @@ function ApprovalReviewContent({
               </section>
 
               {/* 4. Tình trạng Hiệu lực Phê duyệt & Tranh chấp */}
-              <section className="lv-legal-approval-card" aria-label={t.approvalStatusSection.title}>
+              <section className="lv-legal-approval-card lv-surface-card" aria-label={t.approvalStatusSection.title}>
                 <div className="lv-legal-approval-card__header">
                   <h2 className="lv-legal-approval-card__title">
                     <ShieldCheck size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />
@@ -732,7 +734,7 @@ function ApprovalReviewContent({
               </section>
 
               {/* 5. Biểu mẫu Quyết định Thẩm định Pháp lý */}
-              <section className="lv-legal-approval-card" aria-label={t.decisionSection.title}>
+              <section className="lv-legal-approval-card lv-surface-card" aria-label={t.decisionSection.title}>
                 <div className="lv-legal-approval-card__header">
                   <h2 className="lv-legal-approval-card__title">
                     <Scale size={18} className="lv-legal-approval-card__title-icon" aria-hidden="true" />

@@ -140,7 +140,7 @@ export default function AdminLogsPage({
       )}
 
       {/* Filters Toolbar */}
-      <form className="lv-admin-toolbar" onSubmit={handleFilterSubmit} role="search" aria-label={t.logsTitle}>
+      <form className="lv-admin-toolbar lv-surface-card" onSubmit={handleFilterSubmit} role="search" aria-label={t.logsTitle}>
         <div className="lv-admin-toolbar-inputs">
           <label className="lv-admin-field">
             <span>{t.thAction}</span>
@@ -229,6 +229,7 @@ export default function AdminLogsPage({
         <p>{lang === 'en' ? 'Recorded events' : 'Sự kiện đã ghi nhận'}{total !== null && !loading && <> <strong>({total})</strong></>}</p>
         <span className="lv-admin-scroll-hint">{lang === 'en' ? 'Scroll horizontally to see all columns' : 'Cuộn ngang để xem đầy đủ các cột'}</span>
       </div>
+      <div className="lv-admin-table-frame lv-surface-card">
       <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'Audit log table' : 'Bảng nhật ký'}>
         <table className="lv-admin-table" aria-label={t.logsTitle}>
           <thead>
@@ -302,6 +303,7 @@ export default function AdminLogsPage({
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Pagination */}
