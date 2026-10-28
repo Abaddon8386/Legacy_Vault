@@ -207,7 +207,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const receipt = await uploadStaffDocumentAttachment(caseId, kind, recordId, file, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
       setSelectedRecordFiles(prev => ({ ...prev, [recordId]: null }));
-      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}`);
+      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}. ${en ? 'Legal has been notified.' : 'Đã gửi thông báo cho Pháp lý.'}`);
       loadRecordAttachments(recordId);
     } catch (err) {
       if (c.signal.aborted) return;
@@ -439,7 +439,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           await uploadStaffDocumentAttachment(caseId, kind, saved.id, file, options);
           if (!signal.aborted) {
             setStagedFile(null);
-            setNotice(en ? 'Document saved with its attachment.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm.');
+            setNotice(en ? 'Document saved with its attachment. Legal has been notified.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm. Đã gửi thông báo cho Pháp lý.');
             loadRecordAttachments(saved.id);
           }
         } catch (attErr) {
@@ -452,7 +452,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           }
         }
       } else {
-        setNotice(en ? 'Document saved successfully.' : 'Đã tiếp nhận giấy tờ thành công.');
+        setNotice(en ? 'Document saved successfully. Legal has been notified.' : 'Đã tiếp nhận giấy tờ thành công. Đã gửi thông báo cho Pháp lý.');
       }
     }); }}>
       <fieldset disabled={busy || closed || !writeReady}>

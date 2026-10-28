@@ -16,7 +16,7 @@ const session = { accessToken: 'fixture-token', expiresAt: Date.now() + 3600000,
 function contextFixture(caseId = a, approved = false) {
   return { caseId, caseNumber: 'CASE-' + (caseId === a ? 'A' : 'B'), vaultId: b, caseStatus: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION',
     deathDocuments: [{ id: caseId, documentType: 'DEATH_CERTIFICATE', receivedAt: now }],
-    willComparison: { caseId, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: true, originalWillIntakes: [], wills: [], comparisons: [] },
+    willComparison: { caseId, vaultStatus: 'LEGAL_BASIS_VERIFICATION', approvalBlocked: false, latestResult:'MATCH', originalWillIntakes: [], wills: [], comparisons: [] },
     basisDossier: { id: a, caseId, route: 'COURT', status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
       versions: [{ version: 1, sha256: sha, forwardStatus: 'FORWARDED' }] },
     snapshot: { dossierId: a, currentVersion: 1, requiredVersion: 1, sha256Hash: sha, allocationHash: allocation, disputeStatus: 'NONE',
@@ -62,7 +62,11 @@ async function mount(props = base, Component = Screen) {
   await render(props);
   return { host, render, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
-const change = (element, value) => act(async () => element[Object.keys(element).find(key => key.startsWith('__reactProps'))].onChange({ target: { value, checked: value } }));
+const change = (element, value) => act(async () => {
+  element[Object.keys(element).find(key => key.startsWith('__reactProps'))].onChange({ target: { value, checked: value } });
+  const reason=element.closest('form')?.querySelector('textarea');
+  if(value==='APPROVE'&&reason&&!reason.value)reason[Object.keys(reason).find(key=>key.startsWith('__reactProps'))].onChange({target:{value:'Reviewed scope'}});
+});
 const submit = async host => {
   await act(async () => host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
   const confirm = host.querySelector('[data-legal-confirm]');
@@ -92,7 +96,7 @@ test('PS-102 queue uses Legal endpoint, paging and headers; invalid envelopes fa
 test('PS-102 context validates case, document references, snapshot hashes and capabilities', async () => {
   assert.equal((await api.loadLegalContext(a, { ...options, fetchFn: async () => json(contextFixture()) })).snapshot.allocationHash, allocation);
   for (const alter of [value => { value.caseId = b; }, value => { value.snapshot.sha256Hash = allocation; },
-    value => { value.capabilities.approval.allowed = 'true'; }, value => { value.basisDossier.route = 'NOTARIAL'; },
+    value => { value.capabilities.approval.allowed = 'true'; }, value => { value.basisDossier.route = 'UNAPPROVED'; },
     value => { value.deathDocuments = [{ id: 'internal-id' }]; }, value => { value.snapshot = null; }]) {
     const value = contextFixture(); alter(value);
     await assert.rejects(api.loadLegalContext(a, { ...options, fetchFn: async () => json(value) }), { code: 'INVALID_RESPONSE' });
@@ -134,9 +138,9 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
     assert.equal(view.host.querySelector('[type=submit]').disabled, false);
     await submit(view.host);
     assert.equal(writes, 1);
-    assert.deepEqual(body, { decision: 'APPROVE', reason: '', versionNo: 2, sha256Hash: sha, allocationHash: allocation });
+    assert.deepEqual(body, { decision: 'APPROVE', reason: 'Reviewed scope', versionNo: 2, sha256Hash: sha, allocationHash: allocation });
     assert.ok(view.host.querySelector('a[href*="controlled-unlock"]'), 'Next action is navigation; approval must never submit unlock');
-    assert.match(view.host.textContent, lang === 'en' ? /latest case status is shown/ : /Trạng thái hồ sơ mới nhất/);
+    assert.match(view.host.textContent, lang === 'en' ? /notification has been sent to Staff/ : /Đã gửi thông báo cho Nhân viên/);
   } finally { await view.close(); }
 });
 
@@ -153,7 +157,7 @@ for (const status of [401, 403, 404, 500]) test(`post-save context HTTP ${status
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('table'), null);
     if (status !== 500) assert.doesNotMatch(view.host.textContent, /Decision saved|Recipient C/);
     else {
-      assert.match(view.host.textContent, /Your decision was saved/);
+      assert.match(view.host.textContent, /Saved successfully/);
       await click(view.host, 'Retry');
       assert.ok(view.host.querySelector('table')); assert.equal(writes, 1);
       assert.equal(view.host.querySelector('[type=submit]').disabled, true);
@@ -188,7 +192,7 @@ for (const decision of ['APPROVE', 'REJECT']) test(`final ${decision} reads cont
     await submit(view.host); await submit(view.host);
     assert.equal(reads, 3); assert.equal(writes, 1);
     assert.deepEqual(body, { decision, versionNo: 1, sha256Hash: sha, allocationHash: allocation, reason: 'Reviewed scope' });
-    assert.match(view.host.textContent, /Decision saved/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    assert.match(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
     assert.equal(view.host.querySelector('form select').value, '', 'A saved decision must require a new explicit selection');
   } finally { await view.close(); }
 });
@@ -220,7 +224,7 @@ test('controlled unlock is a separate confirmed request, never implicit after ap
   const view = await mount({ ...base, step: 'controlled-unlock' });
   try { assert.equal(view.host.querySelector('[type=submit]').disabled, true);
     await change(view.host.querySelector('[type=checkbox]'), true); await submit(view.host); await submit(view.host);
-    assert.equal(writes, 1); assert.match(view.host.textContent, /Decision saved/);
+    assert.equal(writes, 1); assert.match(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/);
   } finally { await view.close(); }
 });
 
@@ -263,7 +267,7 @@ for (const status of [403, 409, 500]) test(`mutation HTTP ${status} cannot show 
   globalThis.fetch = transport(() => json(contextFixture()), () => json({ code: 'CONFLICT' }, status));
   const view = await mount();
   try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
-    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved/);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/);
     if (status === 403) assert.equal(view.host.querySelector('form'), null);
     else assert.equal(view.host.querySelector('[type=submit]').disabled, true);
   } finally { await view.close(); }
@@ -287,7 +291,7 @@ test('queue revalidation after a token change removes active forms and pending r
   try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
     deny = true; await view.render({ ...base, session: { ...session, accessToken: 'rotated-fixture-token' } }); assert.equal(signal.aborted, true);
     await act(async () => finish(json({}))); assert.equal(view.host.querySelector('form'), null);
-    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved/);
+    assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/);
   } finally { await view.close(); }
 });
 
@@ -312,7 +316,7 @@ test('actual App Legal route uses default queue/context adapters without injecte
   } finally { await view.close(); }
 });
 
-test('actual App Legal navigation is sidebar-only, covers six steps and retains case/language on desktop and mobile', async () => {
+test('actual App Legal navigation is sidebar-only, covers five steps and retains case/language on desktop and mobile', async () => {
   const App = await component('src/App.jsx');
   let writes = 0;
   globalThis.fetch = async (url, init) => {
@@ -328,8 +332,8 @@ test('actual App Legal navigation is sidebar-only, covers six steps and retains 
     const view = await mount({}, App);
     try {
       const items = () => [...view.host.querySelectorAll('.lv-sidebar-nav .lv-nav-item')];
-      assert.equal(items().length, 6);
-      assert.equal(new Set(items().map(item => item.textContent)).size, 6);
+      assert.equal(items().length, 5);
+      assert.equal(new Set(items().map(item => item.textContent)).size, 5);
       assert.equal(view.host.querySelector('.lv-legal-live nav'), null);
       assert.equal(view.host.querySelector('.lv-legal-process, .lv-legal-stages'), null);
       assert.equal(view.host.querySelector('.lv-header-right .lv-header-action-btn'), null, 'Legal has no global reload button');
@@ -356,28 +360,12 @@ test('actual App Legal navigation is sidebar-only, covers six steps and retains 
   assert.equal(writes, 0);
 });
 
-test('COURT classification is available after death verification without a will or synthetic MATCH', async () => {
-  const value = contextFixture(); value.basisDossier = null; value.snapshot = null; value.vaultStatus = 'DOCUMENT_VERIFICATION';
-  value.willComparison.vaultStatus = value.vaultStatus;
-  value.capabilities = { approval: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' }, unlock: { allowed: false, blockedReason: 'BASIS_DOSSIER_INVALID_STATE' } };
-  let writes = 0;
-  globalThis.fetch = async (url, init) => {
-    if (url.endsWith('/context')) return json(value);
-    if (url.includes('verification-cases?')) return json(pageFixture());
-    if (url.endsWith('will-comparisons')) return json(value.willComparison);
-    if (init.method === 'POST') {
-      writes++; assert.deepEqual(JSON.parse(init.body), { route: 'COURT', routeReason: 'Court evidence expected' });
-      return json({ ...contextFixture().basisDossier, classifiedBy: a }, 201);
-    }
-    return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
-  };
-  const view = await mount({ ...base, step: 'basis-route-selection' });
-  try {
-    assert.equal([...view.host.querySelectorAll('form option')].some(option => option.value === 'NOTARIAL'), false);
-    await change(view.host.querySelector('form select'), 'COURT'); await change(view.host.querySelector('textarea'), 'Court evidence expected');
-    assert.equal(view.host.querySelector('[type=submit]').disabled, false);
-    await submit(view.host); assert.equal(writes, 1); assert.match(view.host.textContent, /Decision saved/);
-  } finally { await view.close(); }
+test('basis assessment cannot classify or approve an absent distribution dossier', async () => {
+  const value=contextFixture();value.basisDossier=null;value.snapshot=null;value.vaultStatus='DOCUMENT_VERIFICATION';value.willComparison.vaultStatus=value.vaultStatus;
+  value.capabilities={approval:{allowed:false,blockedReason:'BASIS_DOSSIER_INVALID_STATE'},unlock:{allowed:false,blockedReason:'BASIS_DOSSIER_INVALID_STATE'}};
+  let writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST')writes++;if(url.endsWith('/context'))return json(value);if(url.includes('verification-cases?'))return json(pageFixture());if(url.endsWith('will-comparisons'))return json(value.willComparison);return json({code:'RESOURCE_NOT_FOUND'},404);};
+  const view=await mount({...base,step:'basis-route-selection'});
+  try{assert.equal(view.host.querySelector('[type=submit]').disabled,true);assert.equal(view.host.querySelector('option[value=NOTARIAL]'),null);assert.equal(writes,0);}finally{await view.close();}
 });
 
 test('queue paging requests the next server page rather than treating the first page as all cases', async () => {

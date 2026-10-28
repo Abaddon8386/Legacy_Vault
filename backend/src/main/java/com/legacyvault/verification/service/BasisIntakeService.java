@@ -168,7 +168,8 @@ public class BasisIntakeService {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }
 
-        if (!Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
+        if (!java.util.Set.of(Vault.STATUS_AWAITING_VERIFICATION, Vault.STATUS_DOCUMENT_VERIFICATION,
+                Vault.STATUS_WILL_VERIFICATION, Vault.STATUS_AWAITING_LEGAL_BASIS).contains(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
@@ -176,7 +177,9 @@ public class BasisIntakeService {
          * Bước 5: Chỉ khóa dossier sau Vault và VerificationCase.
          */
         LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+                .orElseGet(() -> dossiers.saveAndFlush(LegalBasisDossier.receivedByStaff(
+                        verificationCase.getVerificationCaseId(), "NOTARIAL_PARTITION".equals(metadata.legalBasisType())
+                                ? LegalBasisDossier.ROUTE_NOTARIAL : LegalBasisDossier.ROUTE_COURT, staffUserId)));
         lockedState.refresh(dossier);
 
         if (!dossier.acceptsIntake()) {
@@ -309,7 +312,8 @@ public class BasisIntakeService {
          *
          * Phương thức được gọi trong cùng transaction.
          */
-        reviewService.evaluateAfterChange(verificationCase.getPublicId());
+        if (Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus()))
+            reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
         return views.view(verificationCase, false);
     }

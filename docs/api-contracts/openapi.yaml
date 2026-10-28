@@ -31,6 +31,65 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/workflow-notifications:
+    get:
+      tags: [Staff, Legal]
+      summary: Recent in-app workflow notifications within the selected role and case scope
+      x-status: implemented
+      parameters:
+        - in: query
+          name: workspace
+          required: true
+          schema: {type: string, enum: [STAFF, LEGAL]}
+      responses:
+        '200':
+          description: Latest 50 visible items, Cache-Control no-store; see staff-legal-workflow.md
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, caseId, caseNumber, action, occurredAt, read]
+                  properties:
+                    id: {type: string, format: uuid}
+                    caseId: {type: string, format: uuid}
+                    caseNumber: {type: string}
+                    action: {type: string}
+                    reason: {type: string, nullable: true, maxLength: 1000}
+                    occurredAt: {type: string, format: date-time}
+                    read: {type: boolean}
+        '401': {description: Authentication required}
+        '403': {description: Wrong workspace role}
+  /api/v1/workflow-notifications/{id}/read:
+    put:
+      tags: [Staff, Legal]
+      summary: Acknowledge a visible notification for the current user
+      x-status: implemented
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, format: uuid}
+        - in: query
+          name: workspace
+          required: true
+          schema: {type: string, enum: [STAFF, LEGAL]}
+      responses:
+        '200':
+          description: Persisted idempotent acknowledgement, Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, read]
+                properties:
+                  id: {type: string, format: uuid}
+                  read: {type: boolean, enum: [true]}
+        '401': {description: Authentication required}
+        '403': {description: Wrong workspace role}
+        '404': {description: Missing or out-of-scope notification}
+
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian:
     $ref: "./guardian.openapi.yaml#/paths/~1api~1v1~1vaults~1{vaultId}~1beneficiaries~1{beneficiaryId}~1guardian"
   /api/v1/vaults/{vaultId}/beneficiaries/{beneficiaryId}/guardian/revoke:
@@ -4226,13 +4285,13 @@ components:
     LegalApprovalRequest:
       type: object
       additionalProperties: false
-      required: [decision, versionNo, sha256Hash, allocationHash]
+      required: [decision, versionNo, sha256Hash, allocationHash, reason]
       properties:
         decision: { type: string, enum: [APPROVE, REJECT] }
         versionNo: { type: integer, minimum: 1 }
         sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
         allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
-        reason: { type: string, maxLength: 1000, description: Bắt buộc khi decision là REJECT }
+        reason: { type: string, maxLength: 1000, minLength: 1, description: Bắt buộc cho cả APPROVE và REJECT }
     LegalApprovalResponse:
       type: object
       required: [dossierId, decision, versionNo, sha256Hash, allocationHash, decidedBy, decidedAt]
@@ -4858,13 +4917,13 @@ components:
       type: object
       required: [route, routeReason]
       properties:
-        route: { type: string, enum: [COURT, ON_HOLD] }
+        route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
         routeReason: { type: string, minLength: 1, maxLength: 1000, description: Lý do và chứng cứ phân loại }
     BasisIntakeMetadata:
       type: object
       required: [legalBasisType, issuingAuthority, documentNumber, issueDate]
       properties:
-        legalBasisType: { type: string, enum: [COURT_JUDGMENT, COURT_DECISION] }
+        legalBasisType: { type: string, enum: [NOTARIAL_PARTITION, COURT_JUDGMENT, COURT_DECISION] }
         issuingAuthority: { type: string, maxLength: 255 }
         documentNumber: { type: string, maxLength: 100 }
         issueDate: { type: string, format: date }

@@ -379,7 +379,7 @@ test('PS-96/PS-88: fetchStaffCaseBeneficiaries requests beneficiaries and return
 
 // --- F02 Real Component Mount & Render Tests (JSDOM / React / Vite Harness) ---
 import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const req = createRequire(import.meta.url);
 const React = req('react');
@@ -394,7 +394,7 @@ globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const builtComponent = await build({
-  root: 'C:/Users/hai/Downloads/FALL26/SWP/Legacy_Vault/frontend',
+  root: fileURLToPath(new URL('../..', import.meta.url)),
   configFile: false,
   logLevel: 'silent',
   build: {

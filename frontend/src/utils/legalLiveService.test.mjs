@@ -23,7 +23,7 @@ const cases = [
   ['review', o => api.reviewLegalDossier(id, { action: 'review', reason: 'Reviewed' }, o), base + '/basis-dossier/review', 200, review, { reason: 'Reviewed', versionNo: 1, sha256Hash: digest, allocationHash: allocation, disputeStatus: 'NONE' }],
   ['supplement', o => api.reviewLegalDossier(id, { action: 'request-supplementation', reason: 'Reviewed' }, o), base + '/basis-dossier/request-supplementation', 200, { ...review, reviewRequired: true, reviewStatus: 'REVIEW_REQUIRED' }, { reason: 'Reviewed' }],
   ['court', o => api.decideCourt(id, { version: 1, result: 'VALID', reason: 'Reviewed' }, o), base + '/basis-dossier/court-decisions', 201, court, { version: 1, result: 'VALID', reason: 'Reviewed' }],
-  ['approval', o => api.decideLegalApproval(id, { decision: 'APPROVE', versionNo: 1, sha256Hash: digest, allocationHash: allocation }, o), base + '/basis-dossier/decision', 200, approval, { decision: 'APPROVE', versionNo: 1, sha256Hash: digest, allocationHash: allocation, reason: '' }],
+  ['approval', o => api.decideLegalApproval(id, { decision: 'APPROVE', reason: 'Reviewed scope', versionNo: 1, sha256Hash: digest, allocationHash: allocation }, o), base + '/basis-dossier/decision', 200, approval, { decision: 'APPROVE', versionNo: 1, sha256Hash: digest, allocationHash: allocation, reason: 'Reviewed scope' }],
   ['unlock', o => api.unlockLegalVault(id, o), base + '/unlock', 200, unlock, undefined],
 ];
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });

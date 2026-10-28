@@ -38,7 +38,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const capability = context.capabilities[unlocking ? 'unlock' : 'approval'];
   const readOnly = legalReadOnly(context);
   const allowed = capability.allowed && !needsReload && !pending && !readOnly;
-  const complete = unlocking ? confirmed : ['APPROVE', 'REJECT'].includes(decision) && (decision !== 'REJECT' || reason.trim());
+  const complete = unlocking ? confirmed : ['APPROVE', 'REJECT'].includes(decision) && Boolean(reason.trim());
   const blocker = legalBlocker(capability.blockedReason, en);
   const blockerPath = LEGAL_NAVIGATION_REGISTRY.find(item => item.id === blocker.step)?.path;
   const blockerUrl = blockerPath ? `${blockerPath}?${new URLSearchParams({ caseId: context.caseId, lang })}` : null;
@@ -47,7 +47,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
     : needsReload ? (en ? 'Reload the record before continuing.' : 'Tải lại hồ sơ trước khi tiếp tục.')
       : !capability.allowed ? legalBlockedReason(context, unlocking ? 'unlock' : 'approval', lang)
         : !complete ? unlocking ? (en ? 'Confirm the unlocking checkbox.' : 'Đánh dấu xác nhận mở khóa.')
-          : decision === 'REJECT' ? (en ? 'Enter the rejection reason.' : 'Nhập lý do từ chối.')
+          : ['APPROVE', 'REJECT'].includes(decision) ? (en ? 'Enter the decision reason.' : 'Nhập lý do cho quyết định.')
             : (en ? 'Select a decision.' : 'Chọn quyết định.') : '';
   async function submit() {
     if (!allowed || !complete || lock.current) return;
@@ -90,14 +90,14 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       </header>
       <LegalRecordDetails rows={[[en ? 'Case' : 'Hồ sơ', context.caseNumber], [en ? 'Status' : 'Trạng thái', legalStatus(context.caseStatus === 'CANCELLED' ? 'CANCELLED' : context.vaultStatus, en)],
         ...(context.snapshot ? [[en ? 'Document version' : 'Phiên bản hồ sơ', context.snapshot.currentVersion],
-          [en ? 'Court assessment' : 'Kết luận thẩm định quyết định tòa án', legalStatus(context.snapshot.courtResult, en)],
+          ...(context.basisDossier?.route === 'COURT' ? [[en ? 'Court assessment' : 'Kết luận thẩm định quyết định tòa án', legalStatus(context.snapshot.courtResult, en)]] : []),
           [en ? 'Current approval' : 'Phê duyệt còn hiệu lực', context.snapshot.approvalCurrent ? (en ? 'Yes' : 'Có') : (en ? 'No' : 'Không')]] : [])]} />
       {documentVersion && <LegalAllocations version={documentVersion} lang={lang} />}
       {documentVersion?.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles inlineOnDesktop kind="basis" caseId={context.caseId} versionNo={documentVersion.version}
         file={{ contentType: documentVersion.contentType, sizeBytes: documentVersion.sizeBytes, sha256: documentVersion.sha256 }}
         accessToken={session.accessToken} lang={lang} onUnauthorized={onUnauthorized} onDenied={failure => { setError(failure); setNeedsReload(true); onDenied?.(failure); }} />}
       {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.'}</p>}
-      {context.basisDossier?.route === 'NOTARIAL' && <p>{en ? 'Legacy notarial record — read-only.' : 'Hồ sơ công chứng cũ — chỉ đọc.'}</p>}
+      {context.basisDossier?.route === 'NOTARIAL' && <p>{en ? 'Distribution based on notarized documents.' : 'Phân chia theo hồ sơ công chứng.'}</p>}
       </section>
       {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">
         <header className="lv-legal-card-heading"><h2>{unlocking ? <LockKeyhole size={20} aria-hidden="true" /> : <ShieldCheck size={20} aria-hidden="true" />}{unlocking ? (en ? 'Controlled unlock' : 'Mở khóa có kiểm soát') : (en ? 'Approval decision' : 'Quyết định phê duyệt')}</h2></header>
@@ -108,8 +108,8 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
           : <><label>{en ? 'Decision' : 'Quyết định'}<select value={decision} disabled={!allowed} required onChange={event => setDecision(event.target.value)}>
             <option value="">{en ? 'Select' : 'Chọn'}</option><option value="APPROVE">{en ? 'Approve' : 'Chấp thuận'}</option>
             <option value="REJECT">{en ? 'Reject' : 'Từ chối'}</option></select></label>
-          <label>{en ? 'Reason (required for rejection)' : 'Lý do (bắt buộc khi từ chối)'}<textarea value={reason} maxLength={1000}
-            required={decision === 'REJECT'} disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
+          <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea value={reason} maxLength={1000}
+            required disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
         <button type="submit" disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
         <WorkflowActionHint id="legal-action-blocked" reason={blocked} />
       </form>

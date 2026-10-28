@@ -17,7 +17,7 @@ public interface LegalBasisDossierVersionRepository extends JpaRepository<LegalB
         select new com.legacyvault.verification.repository.CourtEvidenceVersion(
             v.dossierVersionId, v.versionNo, v.sha256Hash, v.legalBasisType, v.issuingAuthority,
             v.documentNumber, v.issueDate, v.forwardStatus,
-            case when v.encryptedFileContent is not null and v.fileSizeBytes > 0 then true else false end)
+            case when v.encryptedFileContent is not null and v.fileSizeBytes > 0 then true else false end, v.notaryAuthority, v.notarialDocumentNumber, v.notarizedAt)
         from LegalBasisDossierVersion v
         where v.legalBasisDossierId = :dossierId and v.versionNo = :versionNo
         """)

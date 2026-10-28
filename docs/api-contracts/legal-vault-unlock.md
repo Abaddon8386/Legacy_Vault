@@ -1,3 +1,5 @@
+> **28/10/2026 — updated workflow:** [Staff–Legal workflow](staff-legal-workflow.md) supersedes earlier COURT-only, read-only NOTARIAL and optional-will restrictions below. Valid notarized documents are supported; death verification, matching will comparison, basis assessment, reasoned final decision and separate unlocking are required. Existing scope/snapshot checks remain.
+
 # Legal Vault Unlock — PS-59 (LV-LEG-001)
 
 `POST /api/v1/legal-verifications/verification-cases/{caseId}/unlock` chỉ dành cho `LEGAL_VERIFIER`.

@@ -1,3 +1,5 @@
+> **28/10/2026 — updated workflow:** [Staff–Legal workflow](staff-legal-workflow.md) supersedes earlier COURT-only, read-only NOTARIAL and optional-will restrictions below. Valid notarized documents are supported; death verification, matching will comparison, basis assessment, reasoned final decision and separate unlocking are required. Existing scope/snapshot checks remain.
+
 # Đối chiếu di chúc giấy gốc với bản scan — PS-40 (ST-15, LV-WILL-001)
 
 **Trạng thái:** đã triển khai (nhánh `feature/PS-40-will-original-comparison`). Các điểm là **đề xuất chờ nhóm xác nhận** được

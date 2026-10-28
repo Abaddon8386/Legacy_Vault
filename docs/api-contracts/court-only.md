@@ -1,3 +1,5 @@
+> **28/10/2026 — updated workflow:** [Staff–Legal workflow](staff-legal-workflow.md) supersedes earlier COURT-only, read-only NOTARIAL and optional-will restrictions below. Valid notarized documents are supported; death verification, matching will comparison, basis assessment, reasoned final decision and separate unlocking are required. Existing scope/snapshot checks remain.
+
 > **Stale-review fix:** POST `/basis-dossier/review` now requires `reason`, `versionNo`, `sha256Hash`, `allocationHash`, `disputeStatus` from the context snapshot displayed to Legal. Missing snapshot returns 400; any mismatch returns 409 LEGAL_DECISION_STALE before writes/audit, under Vault -> Case -> Dossier locks. Reason-only legacy clients must upgrade; no fallback to reviewing the newest version. Request-supplementation still takes only reason. FE captures the snapshot on load and sends it unchanged on review; it must not fetch a new hash at click time and silently attest that version.
 
 # PS-102 — COURT-only, 20/10/2026

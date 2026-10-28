@@ -1,3 +1,4 @@
+import WorkflowNotifications from '../common/WorkflowNotifications.jsx';
 import { isPersonalRecipient } from '../../utils/caseLinkModel.js';
 import { trackOwnerSurface } from './ownerSurfaceMotion.js';
 import './OwnerSurfaces.css';
@@ -884,6 +885,7 @@ export default function AppShell({
             )}
 
             {/* Language Toggle Pill */}
+            {(isStaff || isLegal) && <WorkflowNotifications key={session?.accessToken || 'anonymous'} session={session} role={role} lang={lang} />}
             <LanguageToggle lang={lang} onToggleLang={onToggleLang} />
           </div>
         </header>

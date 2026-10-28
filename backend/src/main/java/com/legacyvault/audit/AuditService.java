@@ -38,6 +38,10 @@ public class AuditService {
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private org.springframework.context.ApplicationEventPublisher publisher;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setEventPublisher(org.springframework.context.ApplicationEventPublisher publisher) { this.publisher = publisher; }
+    public record RecordedEvent(AuditEvent event, Long auditId) {}
 
     public AuditService(
             AuditLogRepository auditLogRepository,
@@ -83,6 +87,7 @@ public class AuditService {
         );
 
         auditLogRepository.saveAndFlush(log);
+        if (publisher != null) publisher.publishEvent(new RecordedEvent(event, log.getId()));
     }
 
     private String normalizeStateJson(String state) {

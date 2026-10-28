@@ -230,7 +230,7 @@ for (const [kind, step] of [['death', 'death-verification'], ['original-will', '
     const session = { accessToken: options.accessToken, expiresAt: Date.now() + 60000, user: { id: caseId, roles: ['LEGAL_VERIFIER'] } };
     const view = await mount({ session, step, caseId, lang: 'en' }, Workflow);
     try {
-      if (kind !== 'basis') {
+      if (kind === 'original-will' && view.host.querySelectorAll('select').length > 3) {
         const field = view.host.querySelectorAll('select')[1];
         const props = field[Object.keys(field).find(key => key.startsWith('__reactProps'))];
         await act(async () => props.onChange({ target: { value: subjectId } }));

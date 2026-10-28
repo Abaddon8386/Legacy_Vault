@@ -1,4 +1,4 @@
-// Legal reads and mutations follow PS-102 and the COURT-only contract.
+// Legal reads and mutations follow staff-legal-workflow.md, including the supported notarial branch.
 import { ApiError, request } from '../../api/http.js';
 import { isUuid, isUtcDate } from '../../api/contracts.js';
 
@@ -79,12 +79,12 @@ export async function loadLegalContext(caseId, options = {}) {
   for (const key of ['approval', 'unlock']) {
     const action = capabilities?.[key];
     requireValue(typeof action?.allowed === 'boolean' && (action.allowed ? action.blockedReason === null : text(action.blockedReason)));
-    if (action.allowed) requireValue(basis?.route === 'COURT' && value.caseStatus === 'OPEN' && value.vaultStatus === 'LEGAL_BASIS_VERIFICATION'
-      && snapshot?.currentVersion > 0 && snapshot.reviewFresh && snapshot.courtResult === 'VALID'
+    if (action.allowed) requireValue(value.willComparison.approvalBlocked === false && value.willComparison.latestResult === 'MATCH' && ['COURT', 'NOTARIAL'].includes(basis?.route) && value.caseStatus === 'OPEN' && value.vaultStatus === 'LEGAL_BASIS_VERIFICATION'
+      && snapshot?.currentVersion > 0 && snapshot.reviewFresh && (basis.route === 'NOTARIAL' || snapshot.courtResult === 'VALID')
       && (key !== 'unlock' || snapshot.approvalCurrent));
   }
   return { caseId, caseNumber: value.caseNumber, vaultId: value.vaultId, caseStatus: value.caseStatus, vaultStatus: value.vaultStatus,
-    deathDocuments: value.deathDocuments.map(({ id, documentType, receivedAt }) => ({ id, documentType, receivedAt })),
+    willComparison: value.willComparison, deathDocuments: value.deathDocuments.map(({ id, documentType, receivedAt }) => ({ id, documentType, receivedAt })),
     basisDossier: basis, snapshot, capabilities, evaluatedAt: value.evaluatedAt };
 }
 // Capture a server-computed review snapshot when loading the dossier for display.
@@ -143,7 +143,7 @@ export async function compareWill(caseId, data, options = {}) {
 }
 export async function classifyLegalDossier(caseId, data, options = {}) {
   const url = context(caseId, options);
-  requireValue((options.reclassification ? ['COURT'] : ['COURT', 'ON_HOLD']).includes(data.route), 'VALIDATION_FAILED');
+  requireValue((options.reclassification ? ['COURT', 'NOTARIAL'] : ['COURT', 'NOTARIAL', 'ON_HOLD']).includes(data.route), 'VALIDATION_FAILED');
   const value = await request(`${url}/basis-dossier${options.reclassification ? '/reclassification' : ''}`, {
     ...options, method: 'POST', body: { route: data.route, routeReason: reason(data.routeReason) }, expectedStatus: options.reclassification ? 200 : 201,
   });
@@ -195,7 +195,7 @@ export async function decideLegalApproval(caseId, data, options = {}) {
   requireValue(isUuid(options.dossierId) && ['APPROVE', 'REJECT'].includes(data.decision) && version(data.versionNo)
     && hash(data.sha256Hash) && hash(data.allocationHash), 'VALIDATION_FAILED');
   const body = { decision: data.decision, versionNo: data.versionNo, sha256Hash: data.sha256Hash, allocationHash: data.allocationHash,
-    reason: reason(data.reason, data.decision === 'REJECT') };
+    reason: reason(data.reason) };
   const value = await request(`${url}/basis-dossier/decision`, { ...options, method: 'POST', body, expectedStatus: 200 });
   requireValue(value?.dossierId === options.dossierId && value.decision === `LEGAL_${body.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED'}`
     && value.versionNo === body.versionNo && value.sha256Hash?.toLowerCase() === body.sha256Hash.toLowerCase()

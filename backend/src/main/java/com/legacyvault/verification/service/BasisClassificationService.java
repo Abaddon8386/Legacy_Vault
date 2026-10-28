@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/** PS-102: COURT-only writes; optional will comparison never substitutes court validation.
- * Legacy NOTARIAL records remain readable without automatic conversion. Lock Vault -> Case -> Dossier. */
+/** Legal basis classification/resumption. Normal Staff intake no longer requires manual preclassification.
+ * Both NOTARIAL and COURT evidence retain versioned review and protected approval/unlock gates. */
 @Service
 public class BasisClassificationService {
 
@@ -121,9 +121,6 @@ public class BasisClassificationService {
 
     private static String validate(ClassifyBasisRequest request) {
         if (request == null || request.route() == null || request.routeReason() == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-        }
-        if (request.route() == ClassifyBasisRequest.Route.NOTARIAL) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         String reason = request.routeReason().trim();
