@@ -167,9 +167,22 @@ class LegalBasisDossierControllerTest {
     }
 
     @Test
+    void decision_requiresReasonForApproveAndRejectAndCapsItAt1000() throws Exception {
+        String head = "{\"decision\":\"%s\",\"versionNo\":1,\"sha256Hash\":\"" + "a".repeat(64)
+                + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"%s}";
+        for (String decision : new String[] {"APPROVE", "REJECT"}) {
+            for (String reason : new String[] {"", ",\"reason\":null", ",\"reason\":\"   \"",
+                    ",\"reason\":\"" + "x".repeat(1001) + "\""}) {
+                review("/decision", head.formatted(decision, reason), legal()).andExpect(status().isBadRequest());
+            }
+        }
+        verifyNoInteractions(legalApprovalService);
+    }
+
+    @Test
     void decision_isLegalOnlyAndUsesAuthenticatedPrincipal() throws Exception {
         String body = "{\"decision\":\"APPROVE\",\"versionNo\":1,\"sha256Hash\":\""
-                + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"}";
+                + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\",\"reason\":\"Checked\"}";
         when(legalApprovalService.decide(eq(CASE_ID), any(), any())).thenReturn(
                 new LegalApprovalResponse(DOSSIER_ID, "LEGAL_APPROVED", 1, "a".repeat(64),
                         "b".repeat(64), LEGAL.publicId(), LocalDateTime.parse("2026-10-18T10:00:00")));

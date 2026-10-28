@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CourtOnlySqlServerTest extends HandoverCompletionSqlSupport {
-    @Test void legacyNotarialIsReadableButCannotReviewApproveForwardIntakeUnlockOrDeliver() {
+    @Test void legacyNotarialWithoutDeedIsReadableButCannotApproveUnlockDeliverForwardOrIntake() {
         var r=ready(false);var f=r.f();
         jdbc.update("UPDATE dbo.legal_basis_dossiers SET route='NOTARIAL' WHERE verification_case_id=?",f.caseId());
         jdbc.update("UPDATE dbo.vaults SET status='LEGAL_BASIS_VERIFICATION' WHERE vault_id=?",f.vaultId());
@@ -17,7 +17,6 @@ class CourtOnlySqlServerTest extends HandoverCompletionSqlSupport {
         assertFalse(read.capabilities().approval().allowed());assertFalse(read.capabilities().unlock().allowed());
         var s=read.snapshot();
         assertThrows(BusinessException.class,()->context.getBean(LegalApprovalService.class).decide(f.publicCaseId(),f.legal(),new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE,1,s.sha256Hash(),s.allocationHash(),"Legacy bypass")));
-        assertThrows(BusinessException.class,()->context.getBean(LegalBasisReviewService.class).recordCompletedReviewByCasePublicId(f.publicCaseId(),f.userId(),"Legacy bypass"));
         assertThrows(BusinessException.class,()->context.getBean(LegalVaultUnlockService.class).unlock(f.publicCaseId(),f.legal()));
         jdbc.update("UPDATE dbo.vaults SET status='UNLOCKED' WHERE vault_id=?",f.vaultId());
         assertThrows(BusinessException.class,()->deliver(r));

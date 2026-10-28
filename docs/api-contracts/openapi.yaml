@@ -4226,13 +4226,13 @@ components:
     LegalApprovalRequest:
       type: object
       additionalProperties: false
-      required: [decision, versionNo, sha256Hash, allocationHash]
+      required: [decision, versionNo, sha256Hash, allocationHash, reason]
       properties:
         decision: { type: string, enum: [APPROVE, REJECT] }
         versionNo: { type: integer, minimum: 1 }
         sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
         allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
-        reason: { type: string, maxLength: 1000, description: Bắt buộc khi decision là REJECT }
+        reason: { type: string, minLength: 1, maxLength: 1000, description: 'Bắt buộc cho cả APPROVE và REJECT; không được chỉ gồm khoảng trắng' }
     LegalApprovalResponse:
       type: object
       required: [dossierId, decision, versionNo, sha256Hash, allocationHash, decidedBy, decidedAt]

@@ -175,6 +175,14 @@ public class LegalBasisDossier {
         return ROUTE_COURT.equals(route);
     }
 
+    /**
+     * Routes Legal may review, approve and unlock. Unlike {@link #acceptsIntake()} this includes NOTARIAL, which can
+     * only reach Legal through an already forwarded record; new intake/forward/hold stay COURT-only.
+     */
+    public boolean isLegalReviewable() {
+        return ROUTE_COURT.equals(route) || ROUTE_NOTARIAL.equals(route);
+    }
+
     /** A hold invalidates earlier clearance while preserving all versions and assessment history. */
     public void placeOnHold(String reason, String dispute, Long legalUserId, int requiredVersion) {
         if (!acceptsIntake() || requiredVersion < 1) throw new IllegalStateException("Invalid hold transition");
