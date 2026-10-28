@@ -26,6 +26,12 @@ Context capabilities.approval/unlock contain allowed and blockedReason. They are
 
 User decision: keep existing business records and guards, physical Staff verification outside the system, server actor/time and paper evidence reference. No identity upload/OCR, no identity inference from invitation/account linking. PS-88/93/106 own further counter-attestation/invitation contract changes; no invented expiry, digital signature or scanned receipt upload. SQL fixtures with VERIFIED_AT_COUNTER test guards only and are not proof of a real meeting. FE adapters and browser E2E for PS-95/96/97/99/100/101 remain their integration scope.
 
-## Legacy NOTARIAL review (branch legal-review-approval-unlock)
+## NOTARIAL distribution document (PR #227 follow-up)
 
-Decision of the team lead: Legal can review, approve and unlock a **legacy NOTARIAL dossier that is already forwarded**. New NOTARIAL classification, intake, forward and hold remain closed (COURT-only above). A NOTARIAL dossier needs: a stored forwarded `NOTARIAL_PARTITION` file with notary authority, deed number and non-future date; no recorded dispute; latest will comparison MATCH; plus the usual fresh review, exact snapshot and current approval. Blockers: `BASIS_DOSSIER_INVALID_STATE` (deed/dispute), `WILL_NOT_VERIFIED` (will). `POST .../basis-dossier/decision` now requires a non-blank `reason` (max 1000) for **APPROVE and REJECT**; APPROVE still never unlocks.
+Supersedes the COURT-only intake rules above for the distribution document. Legal need not classify first; the route follows the document actually submitted.
+
+- `POST .../staff/verification-cases/{caseId}/basis-dossier/versions` and `.../versions/{version}/forward` are allowed when the vault is `DOCUMENT_VERIFICATION`, `WILL_VERIFICATION` or `AWAITING_LEGAL_BASIS` (death document already decided by Legal). `AWAITING_VERIFICATION`, `ON_HOLD`, `LEGAL_BASIS_VERIFICATION` and later remain `409 BASIS_DOSSIER_INVALID_STATE`.
+- If the case has no dossier, the first upload opens one: `NOTARIAL_PARTITION` -> NOTARIAL (dispute `NONE`), `COURT_JUDGMENT`/`COURT_DECISION` -> COURT (dispute `DISPUTED`). No classifier is recorded, no `LEGAL_BASIS_CLASSIFIED` audit, no forward, no approval. A later `classify` on that case returns `409 BASIS_DOSSIER_ALREADY_EXISTS`.
+- NOTARIAL uploads need `notaryAuthority`, `notarialDocumentNumber`, `notarizedAt` (`400` otherwise) and cannot create recipients from the document. Legal may classify or reclassify (from ON_HOLD) to NOTARIAL again.
+- Forward moves the vault to `LEGAL_BASIS_VERIFICATION`. Legal review, decision and unlock stay separate: APPROVE never unlocks, and NOTARIAL additionally needs a stored deed with notary/number/date, no dispute and a MATCH will comparison (`BASIS_DOSSIER_INVALID_STATE` / `WILL_NOT_VERIFIED`).
+- `decision` requires a non-blank `reason` (max 1000) for APPROVE and REJECT.

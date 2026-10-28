@@ -168,15 +168,21 @@ public class BasisIntakeService {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }
 
-        if (!Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
+        if (!vault.isLegalBasisIntakeState()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
         /*
          * Bước 5: Chỉ khóa dossier sau Vault và VerificationCase.
+         * Chưa có dossier (Legal chưa phân loại): mở dossier theo loại giấy tờ thực tế được nộp. Vault đang bị khóa
+         * nên hai request không tạo được hai dossier.
          */
-        LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        LegalBasisDossier existing = dossiers
+                .findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId()).orElse(null);
+        boolean openedByIntake = existing == null;
+        LegalBasisDossier dossier = openedByIntake
+                ? dossiers.saveAndFlush(openDossier(verificationCase.getVerificationCaseId(), metadata, staffUserId))
+                : existing;
         lockedState.refresh(dossier);
 
         if (!dossier.acceptsIntake()) {
@@ -284,17 +290,19 @@ public class BasisIntakeService {
                 null,
                 null,
                 null,
-                Map.of(
-                        "dossierId", dossier.getPublicId().toString(),
-                        "verificationCaseId", verificationCase.getPublicId().toString(),
-                        "version", saved.getVersionNo(),
-                        "legalBasisType", metadata.legalBasisType(),
-                        "sha256", saved.getSha256Hash(),
-                        "sizeBytes", scan.size(),
-                        "allocationCount", lines.size(),
-                        "courtRecipientCount", courtRecipients.size(),
-                        "courtRecipientIds", courtRecipients.values().stream()
-                                .map(recipient -> recipient.getPublicId().toString()).sorted().toList()
+                Map.ofEntries(
+                        Map.entry("dossierId", dossier.getPublicId().toString()),
+                        Map.entry("verificationCaseId", verificationCase.getPublicId().toString()),
+                        Map.entry("version", saved.getVersionNo()),
+                        Map.entry("legalBasisType", metadata.legalBasisType()),
+                        Map.entry("route", dossier.getRoute()),
+                        Map.entry("dossierOpenedByIntake", openedByIntake),
+                        Map.entry("sha256", saved.getSha256Hash()),
+                        Map.entry("sizeBytes", scan.size()),
+                        Map.entry("allocationCount", lines.size()),
+                        Map.entry("courtRecipientCount", courtRecipients.size()),
+                        Map.entry("courtRecipientIds", courtRecipients.values().stream()
+                                .map(recipient -> recipient.getPublicId().toString()).sorted().toList())
                 ),
                 STEP_ID,
                 RULE_ID
@@ -312,6 +320,19 @@ public class BasisIntakeService {
         reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
         return views.view(verificationCase, false);
+    }
+
+    /** Route follows the submitted document type; an unknown type is a validation error. */
+    private static LegalBasisDossier openDossier(Long verificationCaseId, BasisIntakeMetadata metadata, Long staffUserId) {
+        String type = metadata.legalBasisType();
+        String route = "NOTARIAL_PARTITION".equals(type) ? LegalBasisDossier.ROUTE_NOTARIAL
+                : ("COURT_JUDGMENT".equals(type) || "COURT_DECISION".equals(type)) ? LegalBasisDossier.ROUTE_COURT : null;
+        if (route == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        String dispute = LegalBasisDossier.ROUTE_NOTARIAL.equals(route)
+                ? LegalBasisDossier.DISPUTE_NONE : LegalBasisDossier.DISPUTE_DISPUTED;
+        return LegalBasisDossier.openedByIntake(verificationCaseId, route, dispute, staffUserId);
     }
 
     /**

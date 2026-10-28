@@ -154,7 +154,7 @@ public class LegalBasisReviewService {
         }
 
         boolean validVaultState =
-                Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())
+                vault.isLegalBasisIntakeState()
                         || Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus());
 
         if (!validVaultState) {

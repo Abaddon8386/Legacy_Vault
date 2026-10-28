@@ -450,18 +450,58 @@ class BasisIntakeServiceTest {
         happyPath("COURT");
         assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
             .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        // A NOTARIAL dossier takes the notarial deed (metadata() carries notary authority, number and date).
         happyPath("NOTARIAL");
-        assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf()))
-            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
+        service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf());
+        happyPath("NOTARIAL");
+        assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("COURT_JUDGMENT"), pdf()))
+            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
     }
 
     @Test
-    void legacyNotarialIntakeCannotWriteEvenWithCompleteNotaryMetadata() {
+    void notarialIntakeNeedsCompleteNotaryMetadata() {
         happyPath("NOTARIAL");
-        assertThatThrownBy(() -> service.intake(CASE_ID,staff,metadata("NOTARIAL_PARTITION"),pdf()))
-            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.BASIS_DOSSIER_INVALID_STATE));
+        var base = metadata("NOTARIAL_PARTITION");
+        var missingNotary = new BasisIntakeMetadata(base.legalBasisType(), base.issuingAuthority(), base.documentNumber(),
+                base.issueDate(), null, base.notarialDocumentNumber(), base.notarizedAt(), base.evidenceReference(),
+                base.notes(), base.allocations());
+        assertThatThrownBy(() -> service.intake(CASE_ID, staff, missingNotary, pdf()))
+            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
         verify(versions,never()).saveAndFlush(any());
         verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void withoutADossier_intakeOpensOneFromTheDocumentTypeWithoutClassifyingIt() {
+        happyPath("COURT");
+        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.empty());
+        when(dossiers.saveAndFlush(any(LegalBasisDossier.class))).thenAnswer(invocation -> {
+            LegalBasisDossier opened = invocation.getArgument(0);
+            ReflectionTestUtils.setField(opened, "legalBasisDossierId", DOSSIER_DB_ID);
+            ReflectionTestUtils.setField(opened, "publicId", UUID.randomUUID());
+            return opened;
+        });
+
+        service.intake(CASE_ID, staff, metadata("NOTARIAL_PARTITION"), pdf());
+
+        var opened = org.mockito.ArgumentCaptor.forClass(LegalBasisDossier.class);
+        verify(dossiers).saveAndFlush(opened.capture());
+        assertThat(opened.getValue().getRoute()).isEqualTo("NOTARIAL");
+        assertThat(opened.getValue().getDisputeStatus()).isEqualTo("NONE");
+        assertThat(opened.getValue().getCreatedByUserId()).isEqualTo(STAFF_ID);
+        // Staff intake is not a Legal classification and never forwards or approves anything.
+        assertThat(ReflectionTestUtils.getField(opened.getValue(), "classifiedByUserId")).isNull();
+        assertThat(opened.getValue().getStatus()).isEqualTo("LEGAL_BASIS_PROVIDED");
+    }
+
+    @Test
+    void withoutADossier_anUnknownDocumentTypeIsRejectedBeforeAnythingIsSaved() {
+        happyPath("COURT");
+        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.intake(CASE_ID, staff, metadata("SOMETHING_ELSE"), pdf()))
+            .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.VALIDATION_FAILED));
+        verify(dossiers, never()).saveAndFlush(any());
+        verify(versions, never()).saveAndFlush(any());
     }
 
     @Test
@@ -477,10 +517,6 @@ class BasisIntakeServiceTest {
         )).satisfies(exception ->
                 assertThat(codeOf(exception))
                         .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
-
-        happyPath("COURT");
-        when(dossiers.findByVerificationCaseIdForUpdate(CASE_DB_ID))
-                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.intake(
                 CASE_ID,
@@ -518,7 +554,7 @@ class BasisIntakeServiceTest {
         // Vault ở trạng thái không cho phép tiếp nhận phải bị từ chối.
         for (String status : new String[]{
                 "ON_HOLD",
-                "WILL_VERIFICATION",
+                "AWAITING_VERIFICATION",
                 "LEGAL_BASIS_VERIFICATION"
         }) {
             happyPath("COURT");
