@@ -889,7 +889,7 @@ export default function AppShell({
         </header>
 
         {/* Scrollable Content Container */}
-        <main id="main-content" className={`lv-shell-content ${isStaff ? 'lv-staff-surfaces' : ['vault', 'assets', 'dms', 'wills', 'beneficiaries', 'subscription', 'shared-with-me'].includes(currentTab) ? 'lv-owner-surfaces' : ''}`} onPointerMove={trackOwnerSurface}>
+        <main id="main-content" className={`lv-shell-content ${isStaff ? 'lv-staff-surfaces' : isLegal ? 'lv-legal-surfaces' : isAdmin ? 'lv-admin-surfaces' : ['vault', 'assets', 'dms', 'wills', 'beneficiaries', 'subscription', 'shared-with-me'].includes(currentTab) ? 'lv-owner-surfaces' : ''}`} onPointerMove={trackOwnerSurface}>
           {children}
         </main>
       </div>

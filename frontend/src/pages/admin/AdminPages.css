@@ -400,6 +400,26 @@
   font-size: 12px;
 }
 
+/* Keep the animated outline outside the horizontal scrolling region. */
+.lv-admin-table-frame {
+  min-inline-size: 0;
+  padding: 3px;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lv-admin-surfaces .lv-admin-table-frame.lv-surface-card::after {
+  inset: 0;
+}
+
+.lv-admin-table-frame > .lv-admin-table-container {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  border-radius: inherit;
+}
+
 .lv-admin-table-container {
   min-inline-size: 0;
   overflow-x: auto;

@@ -71,7 +71,7 @@ export default function AdminHome({
         <h2 id="overview-metrics-heading" className="lv-admin-section-heading">{t.metricsHeading}</h2>
         <div className="lv-admin-overview-grid">
           {metrics.map(([key, Icon]) => (
-            <div className="lv-admin-metric-card" key={key}>
+            <div className="lv-admin-metric-card lv-surface-card" key={key}>
               <div className="lv-admin-metric-top">
                 <div className="lv-admin-metric-label">{t[key]}</div>
                 <span className="lv-admin-metric-icon"><Icon size={19} aria-hidden="true" /></span>
@@ -83,7 +83,7 @@ export default function AdminHome({
       </section>
 
       <div className="lv-admin-overview-panels">
-        <section className="lv-admin-card-section" aria-labelledby="role-distribution-title">
+        <section className="lv-admin-card-section lv-surface-card" aria-labelledby="role-distribution-title">
           <h2 id="role-distribution-title" className="lv-admin-card-title">{t.roleDistributionHeading}</h2>
           <p className="lv-admin-card-help">{t.roleDistributionHelp}</p>
           <div className="lv-admin-role-bars">
@@ -99,7 +99,7 @@ export default function AdminHome({
           <h2 id="admin-shortcuts-title" className="lv-admin-section-heading">{en ? 'Quick access' : 'Truy cập nhanh'}</h2>
           <div className="lv-admin-action-cards">
             {actions.map(([title, description, label, onClick], index) => (
-              <div className="lv-admin-action-card" key={title}>
+              <div className="lv-admin-action-card lv-surface-card" key={title}>
                 <h3 className="lv-admin-action-card-title">{title}</h3>
                 <p className="lv-admin-action-card-desc">{description}</p>
                 <button type="button" className={`lv-admin-btn lv-admin-btn-${index === 0 ? 'primary' : 'secondary'}`} onClick={onClick}>

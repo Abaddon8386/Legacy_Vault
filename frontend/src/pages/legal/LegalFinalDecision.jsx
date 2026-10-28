@@ -84,7 +84,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       ? (en ? 'The record changed or is no longer eligible. Reload before continuing.' : 'Hồ sơ đã thay đổi hoặc không còn đủ điều kiện. Hãy tải lại trước khi tiếp tục.')
       : (en ? 'The operation could not be confirmed. Reload the record before retrying.' : 'Chưa xác nhận được kết quả thao tác. Hãy tải lại hồ sơ trước khi thử lại.')}</p>}
     {!denied && <>
-      <section className="lv-legal-live__card lv-legal-documents">
+      <section className="lv-legal-live__card lv-legal-documents lv-surface-card">
       <header className="lv-legal-card-heading"><h2><FileCheck2 size={20} aria-hidden="true" />{en ? 'Case assessment' : 'Thông tin thẩm định'}</h2>
         {(error || needsReload) && <button type="button" disabled={pending} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{result ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
       </header>
@@ -99,7 +99,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.'}</p>}
       {context.basisDossier?.route === 'NOTARIAL' && <p>{en ? 'Legacy notarial record — read-only.' : 'Hồ sơ công chứng cũ — chỉ đọc.'}</p>}
       </section>
-      {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel">
+      {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">
         <header className="lv-legal-card-heading"><h2>{unlocking ? <LockKeyhole size={20} aria-hidden="true" /> : <ShieldCheck size={20} aria-hidden="true" />}{unlocking ? (en ? 'Controlled unlock' : 'Mở khóa có kiểm soát') : (en ? 'Approval decision' : 'Quyết định phê duyệt')}</h2></header>
         {!capability.allowed && <div className="lv-legal-live__notice" role="status"><div><strong>{en ? 'This record does not currently meet the processing conditions.' : 'Hồ sơ hiện chưa đáp ứng điều kiện xử lý.'}</strong><p>{blocker.text}</p>{blockerUrl && <a href={blockerUrl}>{legalStepTitle(blocker.step, lang)}<ArrowRight size={16} aria-hidden="true" /></a>}</div></div>}
         <form onSubmit={event => { event.preventDefault(); if (allowed && complete) setConfirmOpen(true); }}>

@@ -69,7 +69,7 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
   const money=n=>new Intl.NumberFormat(en?'en-US':'vi-VN').format(n)+' VND';
   const date=value=>value?new Date(value).toLocaleString(en?'en-GB':'vi-VN',{timeZone:'UTC'})+' UTC':'—';
   return <section className="lv-payments" aria-label={en?'Payment transactions':'Giao dịch thanh toán'}>
-    <form className="lv-payment-filters" onSubmit={submit}>
+    <form className="lv-payment-filters lv-surface-card" onSubmit={submit}>
       <label>{en?'Account email or reference':'Email tài khoản hoặc mã tham chiếu'}
         <input value={draft.query} maxLength={254} onChange={e=>setDraft({...draft,query:e.target.value})}/></label>
       <label>{en?'Status':'Trạng thái'}<select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}>
@@ -86,13 +86,13 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
     {current?.data&&<>
       <p role="status">{en?'Results':'Kết quả'}: {current.data.totalElements}</p>
       {current.data.content.length===0?<p className="lv-payment-empty">{en?'No matching transactions.':'Không có giao dịch phù hợp.'}</p>:
-        <div className="lv-payment-table-wrap" tabIndex={0} role="region" aria-label={en?'Payment transaction table':'Bảng giao dịch thanh toán'}><table className="lv-admin-sub-table">
+        <div className="lv-payment-table-frame lv-surface-card"><div className="lv-payment-table-wrap" tabIndex={0} role="region" aria-label={en?'Payment transaction table':'Bảng giao dịch thanh toán'}><table className="lv-admin-sub-table">
           <thead><tr>{[en?'Created (UTC)':'Tạo lúc (UTC)',en?'Account':'Tài khoản',en?'Plan / version':'Gói / phiên bản',en?'Amount':'Số tiền',en?'Status':'Trạng thái',en?'Details':'Chi tiết'].map(h=><th key={h}>{h}</th>)}</tr></thead>
           <tbody>{current.data.content.map(x=><tr key={x.paymentId}>
             <td>{date(x.createdAt)}</td><td>{x.accountEmail}</td><td>{x.planCode} / v{x.catalogVersion}</td>
             <td>{money(x.amountVnd)}</td><td>{textStatus(x.status)}</td>
             <td><button type="button" onClick={()=>view(x.paymentId)} aria-label={(en?'View transaction ':'Xem giao dịch ')+x.checkoutReference}>{en?'View':'Xem'}</button></td>
-          </tr>)}</tbody></table></div>}
+          </tr>)}</tbody></table></div></div>}
       <div className="lv-payment-pagination">
         <button type="button" disabled={filters.page===0} onClick={()=>change({...filters,page:filters.page-1})}>{en?'Previous':'Trước'}</button>
         <span>{current.data.totalPages===0?0:filters.page+1} / {current.data.totalPages}</span>

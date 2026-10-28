@@ -104,7 +104,7 @@ export default function LegalBasisRouteSelectionPage({
       </section>
 
       {/* Docket Metadata & Server State Section */}
-      <section className="lv-docket-card" aria-labelledby="docket-heading">
+      <section className="lv-docket-card lv-surface-card" aria-labelledby="docket-heading">
         <div className="lv-docket-card__header">
           <h2 id="docket-heading">{t.docketSectionTitle}</h2>
         </div>
@@ -132,7 +132,7 @@ export default function LegalBasisRouteSelectionPage({
       </section>
 
       {/* Basis Route Selection Form */}
-      <section className="lv-form-card" aria-labelledby="form-heading">
+      <section className="lv-form-card lv-surface-card" aria-labelledby="form-heading">
         <div className="lv-form-card__header">
           <h2 id="form-heading">{t.formTitle}</h2>
           <p>{t.formDesc}</p>
