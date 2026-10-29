@@ -30,50 +30,138 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   const recordStage = useCallback(stage => setReceivedStage(stage), []);
   const mutation = useRef(null);
   const read = useRef(null);
+  const pollTimerRef = useRef(null);
+  const runPollRef = useRef(null);
+  const uncertainRef = useRef(false);
   const onUnauthorizedRef = useRef(onUnauthorized);
   useEffect(() => { onUnauthorizedRef.current = onUnauthorized; }, [onUnauthorized]);
   const ready = eligible && typeof caseLinkActions?.submit === 'function' && typeof caseLinkActions?.listOwn === 'function';
-  useEffect(() => () => { mutation.current?.abort(); read.current?.abort(); }, []);
+  useEffect(() => () => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    mutation.current?.abort();
+    read.current?.abort();
+  }, []);
+
+  // Perform a background poll without aborting an already in-flight read or flashing loading state
+  const runPoll = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (!ready || mutation.current || read.current || uncertainRef.current) return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+
+    const c = new AbortController();
+    read.current = c;
+    Promise.resolve()
+      .then(() => caseLinkActions.listOwn({ accessToken: session?.accessToken, signal: c.signal, lang }))
+      .then(raw => {
+        if (c.signal.aborted || read.current !== c || mutation.current || uncertainRef.current) return;
+        const nextList = readLinkRequests(raw);
+        setRequests(nextList);
+        setError(null);
+        uncertainRef.current = false;
+        setUncertain(false);
+        if (nextList.some(r => r.status === 'PENDING')) {
+          pollTimerRef.current = setTimeout(() => runPollRef.current?.(), 4000);
+        }
+      })
+      .catch(err => {
+        if (c.signal.aborted || read.current !== c || mutation.current || uncertainRef.current) return;
+        setError(err);
+        if (err.status === 401) {
+          onUnauthorizedRef.current?.();
+          return;
+        }
+        pollTimerRef.current = setTimeout(() => runPollRef.current?.(), 4000);
+      })
+      .finally(() => {
+        if (read.current === c) read.current = null;
+      });
+  }, [ready, caseLinkActions, session?.accessToken, lang]);
+
+  useEffect(() => {
+    runPollRef.current = runPoll;
+  }, [runPoll]);
+
   useEffect(() => {
     if (!ready || mutation.current) return undefined;
-    const c = new AbortController(); read.current = c;
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    read.current?.abort();
+    const c = new AbortController();
+    read.current = c;
     // Async reads and their completion are scoped to the current account.
     Promise.resolve().then(() => { if (!c.signal.aborted) setLoading(true); });
-    Promise.resolve().then(() => caseLinkActions.listOwn({ accessToken: session?.accessToken, signal: c.signal, lang })).then(raw => {
-      if (c.signal.aborted) return;
-      setRequests(readLinkRequests(raw)); setError(null); setUncertain(false);
-    }).catch(err => {
-      if (!c.signal.aborted) { setError(err); if (err.status === 401) onUnauthorizedRef.current?.(); }
-    }).finally(() => { if (!c.signal.aborted) setLoading(false); });
-    return () => c.abort();
-  }, [ready, caseLinkActions, session?.accessToken, lang, refreshKey, revision]);
+    Promise.resolve()
+      .then(() => caseLinkActions.listOwn({ accessToken: session?.accessToken, signal: c.signal, lang }))
+      .then(raw => {
+        if (c.signal.aborted || read.current !== c || mutation.current) return;
+        const nextList = readLinkRequests(raw);
+        setRequests(nextList);
+        setError(null);
+        uncertainRef.current = false;
+        setUncertain(false);
+        if (nextList.some(r => r.status === 'PENDING')) {
+          pollTimerRef.current = setTimeout(runPoll, 4000);
+        }
+      })
+      .catch(err => {
+        if (!c.signal.aborted && read.current === c && !mutation.current) {
+          setError(err);
+          if (err.status === 401) onUnauthorizedRef.current?.();
+        }
+      })
+      .finally(() => {
+        if (read.current === c) read.current = null;
+        if (!c.signal.aborted) setLoading(false);
+      });
+    return () => {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      if (read.current === c) read.current = null;
+      c.abort();
+    };
+  }, [ready, caseLinkActions, session?.accessToken, lang, refreshKey, revision, runPoll]);
 
-  // Auto-refresh when any request is PENDING so Beneficiary sees Staff decision without manual reload
+  // Auto-refresh when any request is PENDING so Beneficiary sees Staff decision without manual reload.
+  // Wait for in-flight request and mutations to settle before scheduling the next poll; never abort an active poll on timer/focus.
   const hasPendingRequests = requests.some(r => r.status === 'PENDING');
   useEffect(() => {
-    if (!ready || !hasPendingRequests) return undefined;
-    const pollTimer = setInterval(() => {
-      if (document.visibilityState === 'visible' && !mutation.current) {
-        setRevision(v => v + 1);
+    if (!ready || !hasPendingRequests || uncertain) {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
-    }, 4000);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !mutation.current) {
-        setRevision(v => v + 1);
+      return undefined;
+    }
+    if (!loading && !pending && !read.current && !mutation.current && !pollTimerRef.current) {
+      pollTimerRef.current = setTimeout(runPoll, 4000);
+    }
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible' && !uncertainRef.current && !mutation.current && !read.current) {
+        runPoll();
       }
     };
-    window.addEventListener('focus', onVisibilityChange);
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onVisibilityOrFocus);
+    document.addEventListener('visibilitychange', onVisibilityOrFocus);
     return () => {
-      clearInterval(pollTimer);
-      window.removeEventListener('focus', onVisibilityChange);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus);
     };
-  }, [ready, hasPendingRequests]);
+  }, [ready, hasPendingRequests, loading, pending, uncertain, runPoll]);
 
   async function mutate(kind, item) {
     if (mutation.current || !ready || loading || uncertain) return;
-    const c = new AbortController(); mutation.current = c; read.current?.abort();
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    const c = new AbortController(); mutation.current = c; read.current?.abort(); read.current = null;
     setPending(true); setError(null); setNotice(null);
     try {
       const raw = kind === 'submit'
@@ -86,6 +174,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
       setNotice(kind); if (kind === 'submit') setCode('');
     } catch (err) {
       if (c.signal.aborted) return;
+      uncertainRef.current = true;
       setError(err); setUncertain(true);
       if (err.status === 401) onUnauthorizedRef.current?.();
     } finally {
@@ -94,7 +183,12 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   }
   async function refreshAccount() {
     if (!onRefreshAccount || mutation.current) return;
-    const c = new AbortController(); mutation.current = c; setPending(true); setError(null);
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    const c = new AbortController(); mutation.current = c; read.current?.abort(); read.current = null;
+    setPending(true); setError(null);
     try { await onRefreshAccount({ signal: c.signal }); if (!c.signal.aborted) setReadRevision(v => v + 1); }
     catch (err) { if (!c.signal.aborted) { setError(err); if (err.status === 401) onUnauthorizedRef.current?.(); } }
     finally { if (mutation.current === c) { mutation.current = null; if (!c.signal.aborted) setPending(false); } }

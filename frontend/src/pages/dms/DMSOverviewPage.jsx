@@ -50,7 +50,9 @@ export default function DMSOverviewPage({
   const activeOwnerIdRef = useRef(ownerId);
   const latestAccessTokenRef = useRef(accessToken);
   const latestLangRef = useRef(lang);
+  const onUnauthorizedRef = useRef(onUnauthorized);
   const isPollingActiveRef = useRef(false);
+  const pollAbortControllerRef = useRef(null);
   const visibilityAbortControllerRef = useRef(null);
   const mutationSeqRef = useRef(0);
   const fetchRequestId = useRef(0);
@@ -73,9 +75,18 @@ export default function DMSOverviewPage({
   useLayoutEffect(() => {
     latestAccessTokenRef.current = accessToken;
     latestLangRef.current = lang;
-  }, [accessToken, lang]);
+    onUnauthorizedRef.current = onUnauthorized;
+  }, [accessToken, lang, onUnauthorized]);
   const mutationController = useRef(null);
-  useEffect(() => { active.current = true; return () => { active.current = false; mutationController.current?.abort(); visibilityAbortControllerRef.current?.abort(); }; }, []);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      mutationController.current?.abort();
+      pollAbortControllerRef.current?.abort();
+      visibilityAbortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Progress and grace-period eligibility are derived from server timestamps, with
   // one page-scoped clock. The interval is cleaned up on unmount/remount.
@@ -92,16 +103,27 @@ export default function DMSOverviewPage({
     return Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
   }, [accessToken, isDevPreview, showDevToolbar]);
 
+  // Once the backend deadline has passed, the displayed status can remain the
+  // old MONITORING snapshot until its scheduler runs. Poll for the authoritative
+  // backend transition so the overdue notice appears without leaving this page.
+  const deadlineReached = dmsData?.status === 'MONITORING' &&
+    Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
+    clockNow >= Date.parse(dmsData.nextCheckAt);
+  const awaitingGraceDeadline = dmsData?.status === 'TRIGGERED' && !dmsData.graceDeadline;
+  const graceExpired = (dmsData?.status === 'TRIGGERED' || dmsData?.status === 'GRACE_PERIOD_EXCEEDED') &&
+    Number.isFinite(Date.parse(dmsData?.graceDeadline || '')) &&
+    clockNow >= Date.parse(dmsData.graceDeadline);
+  const needsPolling = Boolean((deadlineReached || awaitingGraceDeadline || graceExpired) && !isDevPreviewActive);
+
   // Data fetching with intelligent sync, race condition protection and context reset
   useEffect(() => {
     let ignore = false;
-    const controller = new AbortController();
-    const currentRequestId = ++fetchRequestId.current;
-
     const currentContextKey = ownerId ?? '__default__';
     const isOwnerChanged = activeOwnerIdRef.current !== ownerId;
     if (isOwnerChanged) {
       activeOwnerIdRef.current = ownerId;
+      pollAbortControllerRef.current?.abort();
+      visibilityAbortControllerRef.current?.abort();
       // Cleanly reset inputs, errors and responses of previous owner/context
       setFieldErrors({});
       setSaveError('');
@@ -120,9 +142,31 @@ export default function DMSOverviewPage({
     const isDevPreviewActive = Boolean(import.meta.env.DEV && !accessToken && (isDevPreview || showDevToolbar || hasPreview));
     const scenario = isDevPreviewActive ? (searchParams.get('scenario') || 'monitoring') : undefined;
 
-    fetchDmsConfig({ scenario, isDevPreview: isDevPreviewActive, lang, accessToken, ownerId, signal: controller.signal })
+    const isExplicitRefresh =
+      syncedContextRef.current !== currentContextKey ||
+      syncedRefreshTriggerRef.current !== onRefreshTrigger ||
+      syncedRefreshKeyRef.current !== refreshKey;
+
+    // Avoid overlapping duplicate fetch when background polling is already active for the current owner:
+    // the polling effect reacts to accessToken/ownerId directly and restarts the poll cycle cleanly.
+    if (!isOwnerChanged && !isExplicitRefresh && needsPolling) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const currentRequestId = ++fetchRequestId.current;
+    const reqToken = accessToken;
+    const reqOwnerId = ownerId;
+
+    fetchDmsConfig({ scenario, isDevPreview: isDevPreviewActive, lang, accessToken: reqToken, ownerId: reqOwnerId, signal: controller.signal })
       .then((data) => {
-        if (!ignore && currentRequestId === fetchRequestId.current) {
+        if (
+          !ignore &&
+          !controller.signal.aborted &&
+          currentRequestId === fetchRequestId.current &&
+          activeOwnerIdRef.current === reqOwnerId &&
+          latestAccessTokenRef.current === reqToken
+        ) {
           setDmsData(data ? { ...data, snapshotTimestamp: Date.now() } : null);
           const needsSync =
             syncedContextRef.current !== currentContextKey ||
@@ -147,8 +191,15 @@ export default function DMSOverviewPage({
         }
       })
       .catch((err) => {
-        if (!ignore && currentRequestId === fetchRequestId.current && err.name !== 'AbortError') {
-          if (err.status === 401) { onUnauthorized?.(); return; }
+        if (
+          !ignore &&
+          !controller.signal.aborted &&
+          currentRequestId === fetchRequestId.current &&
+          err.name !== 'AbortError' &&
+          activeOwnerIdRef.current === reqOwnerId &&
+          latestAccessTokenRef.current === reqToken
+        ) {
+          if (err.status === 401) { onUnauthorizedRef.current?.(); return; }
           setError(err);
           setDmsData(null);
           setLoading(false);
@@ -159,46 +210,62 @@ export default function DMSOverviewPage({
       ignore = true;
       controller.abort();
     };
-  }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, onUnauthorized]);
-
-  // Once the backend deadline has passed, the displayed status can remain the
-  // old MONITORING snapshot until its scheduler runs. Poll for the authoritative
-  // backend transition so the overdue notice appears without leaving this page.
-  const deadlineReached = dmsData?.status === 'MONITORING' &&
-    Number.isFinite(Date.parse(dmsData.nextCheckAt || '')) &&
-    clockNow >= Date.parse(dmsData.nextCheckAt);
-  const awaitingGraceDeadline = dmsData?.status === 'TRIGGERED' && !dmsData.graceDeadline;
-  const graceExpired = (dmsData?.status === 'TRIGGERED' || dmsData?.status === 'GRACE_PERIOD_EXCEEDED') &&
-    Number.isFinite(Date.parse(dmsData?.graceDeadline || '')) &&
-    clockNow >= Date.parse(dmsData.graceDeadline);
+  }, [isDevPreview, showDevToolbar, lang, onRefreshTrigger, refreshKey, accessToken, ownerId, needsPolling]);
 
   useEffect(() => {
-    if ((!deadlineReached && !awaitingGraceDeadline && !graceExpired) || isDevPreviewActive) {
+    if (!needsPolling) {
       isPollingActiveRef.current = false;
+      pollAbortControllerRef.current?.abort();
+      pollAbortControllerRef.current = null;
       return undefined;
     }
 
     isPollingActiveRef.current = true;
     let stopped = false;
-    let timeoutId;
-    const controller = new AbortController();
+    let timeoutId = null;
+    let reqController = null;
+
+    const scheduleNextPoll = (delayMs = 3000) => {
+      if (stopped || !active.current) return;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(pollStatus, delayMs);
+    };
+
     const pollStatus = async () => {
+      timeoutId = null;
+      if (stopped || !active.current) return;
+      // Wait if a local mutation is currently in-flight so poll and mutation never overlap
+      if (pendingSave.current || pendingCheckIn.current) {
+        scheduleNextPoll(1000);
+        return;
+      }
+
       const pollMutationSeq = mutationSeqRef.current;
-      const pollToken = latestAccessTokenRef.current;
-      const pollOwnerId = activeOwnerIdRef.current;
+      const pollToken = accessToken;
+      const pollOwnerId = ownerId;
       const pollLang = latestLangRef.current;
+
+      reqController?.abort();
+      reqController = new AbortController();
+      pollAbortControllerRef.current = reqController;
+      const currentController = reqController;
+
       try {
-        const latest = await fetchDmsConfig({ lang: pollLang, accessToken: pollToken, ownerId: pollOwnerId, signal: controller.signal });
-        if (stopped || !active.current || controller.signal.aborted) return;
+        const latest = await fetchDmsConfig({
+          lang: pollLang,
+          accessToken: pollToken,
+          ownerId: pollOwnerId,
+          signal: currentController.signal,
+        });
+        if (stopped || !active.current) return;
         if (activeOwnerIdRef.current !== pollOwnerId || latestAccessTokenRef.current !== pollToken) {
+          // Account or token changed; the effect cleanup + re-run handles starting the new token's poll cycle.
           return;
         }
-        if (mutationSeqRef.current !== pollMutationSeq) {
+        if (currentController.signal.aborted || mutationSeqRef.current !== pollMutationSeq) {
           // Stale response from before a local mutation (save interval, grace, check-in, etc.)
-          // Drop this stale response, but continue polling if the page still requires it!
-          if (!stopped && active.current && !controller.signal.aborted) {
-            timeoutId = window.setTimeout(pollStatus, 3000);
-          }
+          // Drop this stale response, but continue polling if this effect is still active!
+          scheduleNextPoll(3000);
           return;
         }
         if (latest) {
@@ -207,33 +274,50 @@ export default function DMSOverviewPage({
           // Poll while waiting for server state transition to take effect
           const stillNeedsPolling = latest.status === 'MONITORING' || !triggerHasDeadline ||
             (latest.status === 'TRIGGERED' && Number.isFinite(Date.parse(latest.graceDeadline || '')) && Date.now() >= Date.parse(latest.graceDeadline));
-          if (stillNeedsPolling) timeoutId = window.setTimeout(pollStatus, 3000);
+          if (stillNeedsPolling) scheduleNextPoll(3000);
         } else {
           setDmsData(null);
         }
       } catch (err) {
-        if (stopped || !active.current || err.name === 'AbortError' || controller.signal.aborted) return;
-        if (err.status === 401) {
-          stopped = true;
-          isPollingActiveRef.current = false;
-          controller.abort();
-          if (activeOwnerIdRef.current === pollOwnerId && latestAccessTokenRef.current === pollToken) {
-            onUnauthorized?.();
+        if (stopped || !active.current) return;
+        if (activeOwnerIdRef.current !== pollOwnerId || latestAccessTokenRef.current !== pollToken) {
+          return;
+        }
+        if (err.name === 'AbortError' || currentController.signal.aborted) {
+          // Aborted by an in-page mutation/retry while effect is still active: keep polling schedule alive
+          if (!stopped && active.current) {
+            scheduleNextPoll(3000);
           }
           return;
         }
-        timeoutId = window.setTimeout(pollStatus, 4000);
+        if (err.status === 401) {
+          stopped = true;
+          isPollingActiveRef.current = false;
+          currentController.abort();
+          if (activeOwnerIdRef.current === pollOwnerId && latestAccessTokenRef.current === pollToken) {
+            onUnauthorizedRef.current?.();
+          }
+          return;
+        }
+        scheduleNextPoll(4000);
+      } finally {
+        if (pollAbortControllerRef.current === currentController) {
+          pollAbortControllerRef.current = null;
+        }
       }
     };
 
-    timeoutId = window.setTimeout(pollStatus, 0);
+    scheduleNextPoll(0);
     return () => {
       stopped = true;
       isPollingActiveRef.current = false;
-      window.clearTimeout(timeoutId);
-      controller.abort();
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      reqController?.abort();
+      if (pollAbortControllerRef.current === reqController) {
+        pollAbortControllerRef.current = null;
+      }
     };
-  }, [deadlineReached, awaitingGraceDeadline, graceExpired, isDevPreviewActive, onUnauthorized]);
+  }, [needsPolling, accessToken, ownerId]);
 
   // Tab visibility and focus listener: refresh immediately if expired/overdue upon returning
   useEffect(() => {
@@ -270,7 +354,7 @@ export default function DMSOverviewPage({
               if (!active.current || controller.signal.aborted || err.name === 'AbortError') return;
               if (err.status === 401) {
                 if (activeOwnerIdRef.current === reqOwnerId && latestAccessTokenRef.current === reqToken) {
-                  onUnauthorized?.();
+                  onUnauthorizedRef.current?.();
                 }
               }
             });
@@ -284,11 +368,12 @@ export default function DMSOverviewPage({
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [dmsData, isDevPreviewActive, onUnauthorized]);
+  }, [dmsData, isDevPreviewActive]);
 
 
     const handleManualRetry = useCallback(() => {
     mutationSeqRef.current += 1;
+    pollAbortControllerRef.current?.abort();
     visibilityAbortControllerRef.current?.abort();
     setLoading(true);
     setError(null);
@@ -1080,6 +1165,10 @@ export default function DMSOverviewPage({
             onBusyChange={value => {
               if (value && (pendingSave.current || pendingCheckIn.current)) return false;
               pendingSave.current = value;
+              if (value) {
+                mutationSeqRef.current += 1;
+                visibilityAbortControllerRef.current?.abort();
+              }
               ++fetchRequestId.current;
               setIsSavingGrace(value);
               return true;

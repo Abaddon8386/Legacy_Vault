@@ -87,6 +87,7 @@ export function DatePicker({
   const isEn = lang === 'en';
 
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState(null);
   const [inputValue, setInputValue] = useState(() => {
     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return formatIsoToDisplay(value, isEn);
@@ -189,17 +190,55 @@ export function DatePicker({
     }
   }, [inputValue, isEn, min, max, required]);
 
-  // Click outside listener to close calendar popover
+  // Click outside listener to close calendar popover & position popover inside viewport
   useEffect(() => {
     if (!isOpen) return;
+    const updatePosition = () => {
+      const wrap = containerRef.current;
+      if (!wrap || typeof window === 'undefined') return;
+      const rect = wrap.getBoundingClientRect();
+      const vw = window.innerWidth || 1024;
+      const vh = window.innerHeight || 768;
+      const isMobile = vw <= 640;
+      const popWidth = isMobile ? Math.min(326, vw - 4) : 320;
+      const estimatedHeight = 408;
+
+      let left = isMobile ? Math.round((vw - popWidth) / 2) : Math.round(rect.left);
+      if (left + popWidth > vw - 2) left = Math.max(2, vw - popWidth - 2);
+      if (left < 2) left = 2;
+
+      let top = Math.round(rect.bottom + 6);
+      if (top + estimatedHeight > vh - 8) {
+        const aboveTop = Math.round(rect.top - estimatedHeight - 6);
+        if (aboveTop >= 8) {
+          top = aboveTop;
+        } else {
+          const maxAllowedTop = Math.max(8, vh - estimatedHeight - 8);
+          top = Math.min(top, maxAllowedTop);
+        }
+      }
+
+      setPopoverStyle({
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${left}px`,
+        width: `${popWidth}px`,
+      });
+    };
+
+    updatePosition();
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
       }
     };
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
     return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
@@ -317,47 +356,89 @@ export function DatePicker({
   };
 
   // Keyboard navigation inside calendar
+  const focusDayOnNextTick = (selector) => {
+    const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 0);
+    schedule(() => {
+      const targetBtn = calendarRef.current?.querySelector(selector);
+      if (targetBtn && typeof targetBtn.focus === 'function') {
+        targetBtn.focus();
+      }
+    });
+  };
+
   const handleKeyDownCalendar = (e) => {
     if (!isOpen) {
       if (e.key === 'ArrowDown' && e.altKey) {
         e.preventDefault();
         setIsOpen(true);
+        focusDayOnNextTick(
+          `button.lv-datepicker-day[data-iso="${focusedDate}"], button.lv-datepicker-day:not(:disabled)`
+        );
       }
       return;
     }
 
     if (e.key === 'Escape') {
       e.preventDefault();
+      e.stopPropagation();
       setIsOpen(false);
       inputRef.current?.focus();
       return;
     }
 
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
-      e.preventDefault();
-      const current = new Date(focusedDate || todayIso);
-      let nextDate = new Date(current);
+    const target = e.target;
+    const dayButton = target?.closest?.('button.lv-datepicker-day');
+    const isInput = target === inputRef.current;
 
-      if (e.key === 'ArrowLeft') nextDate.setDate(current.getDate() - 1);
-      if (e.key === 'ArrowRight') nextDate.setDate(current.getDate() + 1);
-      if (e.key === 'ArrowUp') nextDate.setDate(current.getDate() - 7);
-      if (e.key === 'ArrowDown') nextDate.setDate(current.getDate() + 7);
-      if (e.key === 'Home') nextDate.setDate(1);
-      if (e.key === 'End') {
-        const lastDay = new Date(Date.UTC(current.getFullYear(), current.getMonth() + 1, 0)).getUTCDate();
-        nextDate.setDate(lastDay);
+    if (dayButton) {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+        e.preventDefault();
+        const activeIso = dayButton.getAttribute('data-iso') || focusedDate || todayIso;
+        const current = new Date(activeIso);
+        const nextDate = new Date(current);
+
+        if (e.key === 'ArrowLeft') nextDate.setDate(current.getDate() - 1);
+        if (e.key === 'ArrowRight') nextDate.setDate(current.getDate() + 1);
+        if (e.key === 'ArrowUp') nextDate.setDate(current.getDate() - 7);
+        if (e.key === 'ArrowDown') nextDate.setDate(current.getDate() + 7);
+        if (e.key === 'Home') nextDate.setDate(1);
+        if (e.key === 'End') {
+          const lastDay = new Date(Date.UTC(current.getFullYear(), current.getMonth() + 1, 0)).getUTCDate();
+          nextDate.setDate(lastDay);
+        }
+        if (e.key === 'PageUp') nextDate.setMonth(current.getMonth() - 1);
+        if (e.key === 'PageDown') nextDate.setMonth(current.getMonth() + 1);
+
+        const nextIso = nextDate.toISOString().slice(0, 10);
+        setFocusedDate(nextIso);
+        setNavYear(nextDate.getFullYear());
+        setNavMonth(nextDate.getMonth());
+        focusDayOnNextTick(`button.lv-datepicker-day[data-iso="${nextIso}"]`);
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        const dayIso = dayButton.getAttribute('data-iso') || focusedDate;
+        if (dayIso && !isDateDisabled(dayIso)) {
+          selectDate(dayIso);
+        }
       }
-      if (e.key === 'PageUp') nextDate.setMonth(current.getMonth() - 1);
-      if (e.key === 'PageDown') nextDate.setMonth(current.getMonth() + 1);
+      return;
+    }
 
-      const nextIso = nextDate.toISOString().slice(0, 10);
-      setFocusedDate(nextIso);
-      setNavYear(nextDate.getFullYear());
-      setNavMonth(nextDate.getMonth());
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (focusedDate && !isDateDisabled(focusedDate)) {
-        selectDate(focusedDate);
+    if (isInput) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        focusDayOnNextTick(
+          `button.lv-datepicker-day[data-iso="${focusedDate}"], button.lv-datepicker-day:not(:disabled)`
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleInputBlur();
+        const trimmed = inputValue.trim();
+        const parsed = parseDisplayToIso(trimmed, isEn);
+        if (!trimmed || (parsed && !isDateDisabled(parsed))) {
+          setIsOpen(false);
+        }
       }
     }
   };
@@ -482,6 +563,7 @@ export function DatePicker({
         <div
           ref={calendarRef}
           className="lv-datepicker-popover"
+          style={popoverStyle || undefined}
           role="dialog"
           aria-modal="true"
           aria-label={isEn ? 'Choose date' : 'Chọn ngày'}
@@ -556,6 +638,7 @@ export function DatePicker({
                 <button
                   key={idx}
                   type="button"
+                  data-iso={cell.iso}
                   tabIndex={isFocused ? 0 : -1}
                   disabled={isDisabled}
                   onClick={() => selectDate(cell.iso)}

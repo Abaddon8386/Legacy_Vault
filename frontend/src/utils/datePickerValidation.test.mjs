@@ -405,3 +405,225 @@ test('Real Form Integration: Clearing optional vs required date behaves accordin
     host2.remove();
   }
 });
+
+test('DatePicker popover: opens/closes, selects date without submitting form, and Escape stops propagation to parent dialog', async () => {
+  let submitCount = 0;
+  let parentEscCount = 0;
+
+  function DialogWithDatePicker() {
+    const [date, setDate] = useState('2014-08-15');
+    return React.createElement(
+      'div',
+      {
+        onKeyDown: (e) => {
+          if (e.key === 'Escape') parentEscCount++;
+        },
+      },
+      React.createElement(
+        'form',
+        {
+          onSubmit: (e) => {
+            e.preventDefault();
+            submitCount++;
+          },
+        },
+        React.createElement(DatePicker, {
+          value: date,
+          onChange: setDate,
+          lang: 'vi',
+        })
+      )
+    );
+  }
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(React.createElement(DialogWithDatePicker));
+    });
+
+    const toggleBtn = host.querySelector('.lv-datepicker-toggle-btn');
+    const input = host.querySelector('.lv-datepicker-input');
+    assert.equal(input.value, '15/08/2014');
+    assert.equal(host.querySelector('.lv-datepicker-popover'), null);
+
+    // Open popover via toggle button
+    await act(async () => {
+      toggleBtn.click();
+    });
+    const popover = host.querySelector('.lv-datepicker-popover');
+    assert.ok(popover, 'Popover must be open after clicking toggle button');
+
+    // Press Escape inside DatePicker container -> closes popover, does NOT bubble to parent dialog
+    const container = host.querySelector('.lv-datepicker-container');
+    await act(async () => {
+      container.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    assert.equal(host.querySelector('.lv-datepicker-popover'), null, 'Popover must close on Escape');
+    assert.equal(parentEscCount, 0, 'Escape when popover is open must not bubble to parent modal listener');
+    assert.equal(document.activeElement, input, 'Focus must return to date input after Escape');
+
+    // Re-open via Alt+ArrowDown and select day 10 (2014-08-10)
+    await act(async () => {
+      container.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true, cancelable: true }));
+    });
+    assert.ok(host.querySelector('.lv-datepicker-popover'), 'Popover must open on Alt+ArrowDown');
+
+    const day10 = host.querySelector('button.lv-datepicker-day[data-iso="2014-08-10"]');
+    assert.ok(day10, 'Day button 2014-08-10 must exist');
+    await act(async () => {
+      day10.click();
+    });
+
+    assert.equal(input.value, '10/08/2014', 'Input must update to 10/08/2014 after clicking day');
+    assert.equal(host.querySelector('.lv-datepicker-popover'), null, 'Popover must close after selecting day');
+    assert.equal(submitCount, 0, 'Selecting a date must NOT trigger form submit');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+test('DatePicker keyboard scope: Enter/Space on month navigation, select, Today, and Close do not select old date; Enter/Space on day selects focused day; input navigation keys are not hijacked', async () => {
+  const emitted = [];
+  function ControlledDatePicker() {
+    const [date, setDate] = useState('2026-03-15');
+    return React.createElement(DatePicker, {
+      value: date,
+      onChange: (next) => {
+        emitted.push(next);
+        setDate(next);
+      },
+      lang: 'vi',
+    });
+  }
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(React.createElement(ControlledDatePicker));
+    });
+
+    const toggleBtn = host.querySelector('.lv-datepicker-toggle-btn');
+    const input = host.querySelector('.lv-datepicker-input');
+    assert.equal(input.value, '15/03/2026');
+
+    // 1. Open popover
+    await act(async () => {
+      toggleBtn.click();
+    });
+    assert.ok(host.querySelector('.lv-datepicker-popover'), 'Popover should open');
+
+    // 2. Focus "Next month" (Tháng sau) button and press Enter -> must NOT select old date or close popover
+    const navButtons = host.querySelectorAll('.lv-datepicker-nav-btn');
+    const prevBtn = navButtons[0];
+    const nextBtn = navButtons[1];
+    const selects = host.querySelectorAll('.lv-datepicker-select');
+    const monthSelect = selects[0];
+    assert.equal(monthSelect.value, '2', 'Initial month should be March (index 2)');
+
+    nextBtn.focus();
+    await act(async () => {
+      const enterEv = new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      const notPrevented = nextBtn.dispatchEvent(enterEv);
+      assert.equal(notPrevented, true, 'Enter on Next month button must NOT be preventDefaulted by container');
+      if (notPrevented) nextBtn.click();
+    });
+
+    assert.ok(host.querySelector('.lv-datepicker-popover'), 'Popover must remain open after Enter on Next month');
+    assert.equal(monthSelect.value, '3', 'Month must advance to April (index 3)');
+    assert.equal(emitted.length, 0, 'Enter on Next month must NOT emit old date');
+
+    // 3. Focus "Previous month" (Tháng trước) button and press Space -> must NOT select old date or close popover
+    prevBtn.focus();
+    await act(async () => {
+      const spaceEv = new window.KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+      const notPrevented = prevBtn.dispatchEvent(spaceEv);
+      assert.equal(notPrevented, true, 'Space on Previous month button must NOT be preventDefaulted by container');
+      if (notPrevented) prevBtn.click();
+    });
+    assert.ok(host.querySelector('.lv-datepicker-popover'), 'Popover must remain open after Space on Previous month');
+    assert.equal(monthSelect.value, '2', 'Month must return to March (index 2)');
+    assert.equal(emitted.length, 0, 'Space on Previous month must NOT emit old date');
+
+    // 4. Focus month <select> and press ArrowDown / Enter -> must NOT be intercepted or close popover
+    monthSelect.focus();
+    await act(async () => {
+      const arrowEv = new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+      const enterEv = new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      assert.equal(monthSelect.dispatchEvent(arrowEv), true, 'ArrowDown on <select> must not be preventDefaulted');
+      assert.equal(monthSelect.dispatchEvent(enterEv), true, 'Enter on <select> must not be preventDefaulted');
+    });
+    assert.ok(host.querySelector('.lv-datepicker-popover'), 'Popover must stay open when using <select> via keyboard');
+    assert.equal(emitted.length, 0, 'Keyboard on <select> must NOT select old date');
+
+    // 5. Focus text <input> while popover is open -> ArrowLeft/ArrowRight/Home/End must NOT be hijacked
+    input.focus();
+    await act(async () => {
+      for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']) {
+        const ev = new window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        const notPrevented = input.dispatchEvent(ev);
+        assert.equal(notPrevented, true, `${key} on text input must NOT be preventDefaulted`);
+      }
+    });
+
+    // 6. Focus day cell 2026-03-15, press ArrowRight -> moves to 2026-03-16, then press Enter -> selects 2026-03-16 and closes popover
+    const day15 = host.querySelector('button.lv-datepicker-day[data-iso="2026-03-15"]');
+    assert.ok(day15, 'Day 2026-03-15 button must exist');
+    day15.focus();
+    await act(async () => {
+      day15.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    const day16 = host.querySelector('button.lv-datepicker-day[data-iso="2026-03-16"]');
+    assert.equal(day16.getAttribute('tabindex'), '0', 'Day 2026-03-16 should become the roving focus target');
+
+    day16.focus();
+    await act(async () => {
+      const enterDayEv = new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      const notPrevented = day16.dispatchEvent(enterDayEv);
+      assert.equal(notPrevented, false, 'Enter on day cell is handled directly to select that day');
+    });
+    assert.equal(input.value, '16/03/2026', 'Enter on focused day cell must select 2026-03-16');
+    assert.equal(emitted.at(-1), '2026-03-16');
+    assert.equal(host.querySelector('.lv-datepicker-popover'), null, 'Popover must close after selecting day via Enter');
+
+    // 7. Re-open popover and test Space on day cell 2026-03-20
+    await act(async () => {
+      toggleBtn.click();
+    });
+    const day20 = host.querySelector('button.lv-datepicker-day[data-iso="2026-03-20"]');
+    day20.focus();
+    await act(async () => {
+      day20.dispatchEvent(new window.KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+    });
+    assert.equal(input.value, '20/03/2026', 'Space on focused day cell must select 2026-03-20');
+    assert.equal(host.querySelector('.lv-datepicker-popover'), null, 'Popover must close after selecting day via Space');
+
+    // 8. Re-open popover and test Enter on "Đóng" (Close) button
+    await act(async () => {
+      toggleBtn.click();
+    });
+    const footerBtns = host.querySelectorAll('.lv-datepicker-footer-btn');
+    const closeBtn = footerBtns[1];
+    closeBtn.focus();
+    const beforeCloseValue = input.value;
+    await act(async () => {
+      const enterCloseEv = new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      const notPrevented = closeBtn.dispatchEvent(enterCloseEv);
+      assert.equal(notPrevented, true, 'Enter on Close button must use native button activation');
+      if (notPrevented) closeBtn.click();
+    });
+    assert.equal(host.querySelector('.lv-datepicker-popover'), null, 'Popover must close after Enter on Close button');
+    assert.equal(input.value, beforeCloseValue, 'Close button must not overwrite current date');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

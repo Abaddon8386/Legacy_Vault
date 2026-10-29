@@ -22,7 +22,7 @@
 .lv-datepicker-input {
   width: 100%;
   min-height: 44px;
-  padding: 10px 72px 10px 14px;
+  padding: 10px 92px 10px 14px;
   font-size: 14px;
   line-height: 1.5;
   color: var(--lv-text-main, #1a2e26);
@@ -56,12 +56,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 50%;
+  border-radius: 8px;
   color: #71887b;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
@@ -74,16 +76,16 @@
 
 .lv-datepicker-toggle-btn {
   position: absolute;
-  right: 4px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  min-height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   background: transparent;
   border: none;
@@ -109,16 +111,16 @@
 
 /* Calendar Popover */
 .lv-datepicker-popover {
-  position: absolute;
+  position: fixed;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 1050;
+  z-index: 1200;
   width: 320px;
-  max-width: 90vw;
+  max-width: calc(100vw - 4px);
   background-color: #ffffff;
   border: 1px solid #d4dfd7;
   border-radius: 14px;
-  box-shadow: 0 12px 28px rgba(18, 48, 38, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 12px 28px rgba(18, 48, 38, 0.14), 0 2px 6px rgba(0, 0, 0, 0.05);
   padding: 16px;
   box-sizing: border-box;
   animation: lv-datepicker-pop 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -175,10 +177,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   background: transparent;
   border: 1px solid #e0eae3;
@@ -273,13 +275,18 @@
 }
 
 .lv-datepicker-footer-btn {
-  padding: 6px 14px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 13px;
   font-weight: 600;
   color: #164639;
   background: #eef7f2;
   border: 1px solid #d1e2d8;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.15s;
 }
@@ -302,19 +309,36 @@
 /* Touch targets >= 44px on mobile viewports */
 @media (max-width: 640px) {
   .lv-datepicker-popover {
-    width: 340px;
+    width: min(326px, calc(100vw - 4px));
+    max-width: none;
+    padding: 10px 4px;
+  }
+  .lv-datepicker-weekdays,
+  .lv-datepicker-grid {
+    grid-template-columns: repeat(7, 44px);
+    gap: 0;
+    justify-content: center;
   }
   .lv-datepicker-day {
-    min-height: 42px;
-    min-width: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     font-size: 14px;
   }
   .lv-datepicker-nav-btn {
     width: 44px;
     height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .lv-datepicker-select {
+    min-height: 44px;
+    padding: 6px 8px;
   }
   .lv-datepicker-footer-btn {
-    min-height: 38px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 8px 16px;
     font-size: 13px;
   }

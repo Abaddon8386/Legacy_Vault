@@ -1220,3 +1220,112 @@ test('Task 3: DMS mutation sequence race: polling starts -> interval save succee
     globalThis.fetch = originalFetch;
   }
 });
+
+test('DMS polling lifecycle on accessToken change: aborts/ignores in-flight poll for old token, continues polling with new token without overlapping requests, and ignores late 401 from old token', async () => {
+  const originalFetch = globalThis.fetch;
+  const ownerUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const expiredAt = new Date(Date.now() - 5000).toISOString();
+  const graceFuture = new Date(Date.now() + 86400000).toISOString();
+
+  const overdueMonitoring = {
+    ownerId: ownerUuid,
+    status: 'MONITORING',
+    checkIntervalDays: 30,
+    checkIntervalMinutes: 43200,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: expiredAt,
+  };
+
+  const triggeredWithGrace = {
+    ownerId: ownerUuid,
+    status: 'TRIGGERED',
+    checkIntervalDays: 30,
+    checkIntervalMinutes: 43200,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: expiredAt,
+    triggeredAt: expiredAt,
+    graceDeadline: graceFuture,
+  };
+
+  const dmsRequests = [];
+  let unauthorizedCalls = 0;
+
+  globalThis.fetch = async (url, options = {}) => {
+    const urlStr = String(url || '');
+    if (!urlStr.includes('/dms')) {
+      return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+    }
+    const authHeader = options.headers?.Authorization || options.headers?.authorization || '';
+    const signal = options.signal;
+    if (dmsRequests.length === 0) {
+      dmsRequests.push({ url: urlStr, authHeader, signal });
+      return json(overdueMonitoring);
+    }
+    let resolveReq;
+    const promise = new Promise((resolve) => {
+      resolveReq = resolve;
+    });
+    dmsRequests.push({ url: urlStr, authHeader, signal, resolve: resolveReq });
+    return promise;
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  const renderWithToken = (token) =>
+    React.createElement(DMSOverviewPage, {
+      vaultId: 'vlt-token-poll',
+      ownerId: ownerUuid,
+      accessToken: token,
+      lang: 'vi',
+      onUnauthorized: () => {
+        unauthorizedCalls++;
+      },
+    });
+
+  try {
+    // 1. Mount with token-1 -> initial load #1 resolves immediately with overdueMonitoring
+    await act(async () => {
+      root.render(renderWithToken('token-1'));
+    });
+    // Wait for the 0ms poll timeout to fire poll request #2
+    await act(async () => new Promise((r) => setTimeout(r, 30)));
+
+    assert.equal(dmsRequests.length, 2, 'Polling request #2 should start for overdue MONITORING');
+    assert.equal(dmsRequests[1].authHeader, 'Bearer token-1');
+    assert.equal(dmsRequests[1].signal.aborted, false);
+
+    // 2. While poll request #2 (token-1) is still in-flight, refresh accessToken to token-2!
+    await act(async () => {
+      root.render(renderWithToken('token-2'));
+    });
+    await act(async () => new Promise((r) => setTimeout(r, 30)));
+
+    assert.equal(dmsRequests[1].signal.aborted, true, 'In-flight poll request #2 with old token-1 must be aborted on token change');
+    assert.equal(dmsRequests.length, 3, 'Exactly ONE new poll request (#3) must start with token-2 (no duplicate overlapping fetch)');
+    assert.equal(dmsRequests[2].authHeader, 'Bearer token-2');
+    assert.equal(dmsRequests[2].signal.aborted, false);
+
+    // 3. Even if the old request #2 resolves late with 401 Unauthorized, it must NOT call onUnauthorized or affect state
+    await act(async () => {
+      dmsRequests[1].resolve(json({ code: 'UNAUTHORIZED' }, 401));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    assert.equal(unauthorizedCalls, 0, 'Late 401 from old token-1 must NEVER log out the new token-2 session');
+
+    // 4. Resolve poll request #3 (token-2) with TRIGGERED + future graceDeadline -> UI updates to TRIGGERED!
+    await act(async () => {
+      dmsRequests[2].resolve(json(triggeredWithGrace));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/, 'New token poll must update DMS state to TRIGGERED');
+    assert.equal(unauthorizedCalls, 0);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
