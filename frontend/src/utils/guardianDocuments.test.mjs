@@ -75,3 +75,68 @@ test('asset create then failed document upload retries files without creating a 
   assert.equal(creates,1);assert.equal(uploads,2);assert.equal(v.host.querySelector('form'),null);
  }finally{await v.close();globalThis.fetch=old;}
 });
+test('guardian panel UI states: empty, minor warning, inline field validation + focus, keep draft on error, save & revoke success (VI/EN)',async()=>{
+ const old=globalThis.fetch;let putShouldFail=true,writes=0;
+ globalThis.fetch=async(url,init={})=>{
+  if(init.method==='PUT'){
+   writes++;
+   if(putShouldFail)return json({code:'INTERNAL_ERROR'},500);
+   return json({...ctx,revision:1,guardianRecommended:false,guardian:{id:other,fullName:'Phạm Hoàng Lan',relationship:'Mẹ ruột',email:'lan.pham@example.com',phone:'0901234567'}});
+  }
+  if(init.method==='DELETE'){
+   return json({...ctx,revision:2,guardianRecommended:true,guardian:null});
+  }
+  if(url.includes('/history')){
+   return json({content:[{id:other,fullName:'Phạm Hoàng Lan',relationship:'Mẹ ruột',email:'lan.pham@example.com',phone:'0901234567',createdAt:'2026-10-20T08:30:00Z',endedAt:null,endReason:null}],page:0,size:5,totalElements:1,totalPages:1});
+  }
+  return json(ctx);
+ };
+ const v=await mount(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyễn Minh Châu',beneficiaryRelationship:'Con gái',isMinorHint:true,accessToken:'token-1',lang:'vi'});
+ try{
+  assert.match(v.host.textContent,/Cho người thụ hưởng: Nguyễn Minh Châu \(Con gái\)/);
+  assert.match(v.host.textContent,/Dưới 18 tuổi \(Chưa thành niên\)/);
+  await act(async()=>button(v.host,'Người giám hộ').click());
+  assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
+  assert.match(v.host.textContent,/Nên bổ sung người giám hộ cho người thụ hưởng chưa thành niên\./);
+  assert.match(v.host.textContent,/không phải Người thi hành bên ngoài \(Trustee\)/);
+  await act(async()=>button(v.host,'Thêm / thay thế người giám hộ').click());
+  const form=v.host.querySelector('form');
+  const inputs=v.host.querySelectorAll('input');
+  await act(async()=>form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(writes,0);
+  assert.equal(document.activeElement,inputs[0]);
+  assert.match(v.host.textContent,/Vui lòng nhập họ và tên người giám hộ\./);
+  assert.match(v.host.textContent,/Vui lòng nhập mối quan hệ với người thụ hưởng\./);
+  assert.match(v.host.textContent,/Cần ít nhất email hoặc số điện thoại liên hệ\./);
+  await act(async()=>props(inputs[0]).onChange({target:{value:'Phạm Hoàng Lan'}}));
+  await act(async()=>props(inputs[1]).onChange({target:{value:'Mẹ ruột'}}));
+  await act(async()=>props(inputs[2]).onChange({target:{value:'bad-email'}}));
+  await act(async()=>form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(writes,0);
+  assert.equal(document.activeElement,inputs[2]);
+  assert.match(v.host.textContent,/Địa chỉ email chưa đúng định dạng\./);
+  assert.equal(inputs[0].value,'Phạm Hoàng Lan');
+  await act(async()=>props(inputs[2]).onChange({target:{value:'lan.pham@example.com'}}));
+  await act(async()=>props(inputs[3]).onChange({target:{value:'0901234567'}}));
+  await act(async()=>form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(writes,1);
+  assert.match(v.host.textContent,/Chưa thực hiện được\. Vui lòng thử lại hoặc tải lại\./);
+  assert.equal(v.host.querySelectorAll('input')[0].value,'Phạm Hoàng Lan');
+  putShouldFail=false;
+  await act(async()=>v.host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(writes,2);
+  assert.match(v.host.textContent,/Đã lưu thông tin người giám hộ thành công\./);
+  assert.match(v.host.textContent,/Người giám hộ hiện hành/);
+  assert.match(v.host.textContent,/Phạm Hoàng Lan/);
+  await act(async()=>button(v.host,'Lịch sử người giám hộ').click());
+  assert.match(v.host.textContent,/20\/10\/2026/);
+  assert.match(v.host.textContent,/Hiện hành/);
+  await act(async()=>button(v.host,'Thu hồi người giám hộ').click());
+  await act(async()=>button(v.host,'Xác nhận thu hồi').click());
+  assert.match(v.host.textContent,/Đã thu hồi thông tin người giám hộ hiện hành\./);
+  assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
+  await act(async()=>v.root.render(React.createElement(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyen Minh Chau',isMinorHint:true,accessToken:'token-1',lang:'en'})));
+  assert.match(v.host.textContent,/For beneficiary: Nguyen Minh Chau/);
+  assert.match(v.host.textContent,/Under 18 \(Minor\)/);
+ }finally{await v.close();globalThis.fetch=old;}
+});
