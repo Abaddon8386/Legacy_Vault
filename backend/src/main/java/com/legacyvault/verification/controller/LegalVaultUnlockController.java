@@ -2,7 +2,7 @@ package com.legacyvault.verification.controller;
 
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.dto.LegalVaultUnlockResponse;
-import com.legacyvault.verification.service.LegalVaultUnlockService;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,9 +16,9 @@ import java.util.UUID;
 @RequestMapping("/api/v1/legal-verifications/verification-cases/{caseId}/unlock")
 @PreAuthorize("hasRole('LEGAL_VERIFIER')")
 public class LegalVaultUnlockController {
-    private final LegalVaultUnlockService service;
+    private final DistributionWorkflowService service;
 
-    public LegalVaultUnlockController(LegalVaultUnlockService service) {
+    public LegalVaultUnlockController(DistributionWorkflowService service) {
         this.service = service;
     }
 

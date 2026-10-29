@@ -12,6 +12,7 @@ import { validateTrustee } from '../../utils/trusteeValidation.js';
 import { validateBeneficiary } from '../../utils/beneficiaryValidation.js';
 import { beneficiaryAge } from '../../utils/beneficiaryAge.js';
 import './TrusteeBeneficiaryPage.css';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import BeneficiaryInvitationCode from '../../components/invitations/BeneficiaryInvitationCode.jsx';
 
 const i18n = {
@@ -191,6 +192,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
  const pending=useRef(false),alive=useRef(true),mutation=useRef(null),loadRequest=useRef(null);
  const trusteeDialog=useRef(null),beneficiaryDialog=useRef(null);
   const benTabRef = useRef(null), trusteeTabRef = useRef(null);
+  const beneficiaryFieldRefs = useRef({}), trusteeFieldRefs = useRef({});
  const locale=useRef(lang);useEffect(()=>{locale.current=lang},[lang]);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;mutation.current?.abort()}},[]);
  const lastActiveElementRef = useRef(null);
@@ -345,7 +347,18 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
   event.preventDefault();if(pending.current)return;
   const isTrustee=kind==='trustee',data=isTrustee?trusteeForm:beneficiaryForm;
   const errors=isTrustee?validateTrustee(data,lang):validateBeneficiary(data,lang);
-  (isTrustee?setTrusteeErrors:setBeneficiaryErrors)(errors);if(Object.keys(errors).length)return;
+  (isTrustee?setTrusteeErrors:setBeneficiaryErrors)(errors);
+  if(Object.keys(errors).length){
+   const order=isTrustee?['fullName','phone','email','relationship']:['fullName','relationship','dateOfBirth','phone','email'];
+   const firstKey=order.find(k=>Boolean(errors[k]));
+   const targetEl=(isTrustee?trusteeFieldRefs:beneficiaryFieldRefs).current[firstKey]
+    || (typeof document!=='undefined'?document.getElementById(isTrustee?`trustee-${firstKey==='fullName'?'fullname':firstKey}`:`ben-${firstKey==='fullName'?'fullname':firstKey==='dateOfBirth'?'dob':firstKey}`):null);
+   if(targetEl){
+    if(typeof targetEl.scrollIntoView==='function'){try{targetEl.scrollIntoView({behavior:'smooth',block:'center'});}catch{targetEl.scrollIntoView();}}
+    if(typeof targetEl.focus==='function')targetEl.focus();
+   }
+   return;
+  }
   pending.current=true;const controller=new AbortController();mutation.current=controller;
   (isTrustee?setIsSubmittingTrustee:setIsSubmittingBeneficiary)(true);
   try{
@@ -549,21 +562,23 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                 >
                   {t.beneficiaryListTitle} ({beneficiaries.length})
                 </h3>
-                {beneficiaries.map((b) => (
+                {beneficiaries.map((b) => {
+                  const bAge = beneficiaryAge(b.dateOfBirth);
+                  const bIsMinor = bAge !== null && bAge < 18;
+                  return (
                   <div key={b.id} className="lv-tb-entity-card">
                     <div className="lv-tb-entity-header">
-                      <span className="lv-tb-entity-name">{b.fullName}</span>
-                      <span className="lv-tb-account-status">{b.hasAccount
-                        ? (lang === 'en' ? 'Account linked' : 'Đã liên kết tài khoản')
-                        : (lang === 'en' ? 'Account not linked' : 'Chưa liên kết tài khoản')}</span>
+                      <div className="lv-tb-entity-identity">
+                        <span className="lv-tb-entity-name">{b.fullName}</span>
+                        <span className="lv-tb-badge-appointed">
+                          {b.relationship || (lang === 'vi' ? 'Người thụ hưởng' : 'Beneficiary')}
+                        </span>
+                        <span className="lv-tb-account-status">{b.hasAccount
+                          ? (lang === 'en' ? 'Account linked' : 'Đã liên kết tài khoản')
+                          : (lang === 'en' ? 'Account not linked' : 'Chưa liên kết tài khoản')}</span>
+                      </div>
                       {!isDevPreviewActive && <button type="button" className="lv-tb-btn-secondary" onClick={()=>setEditTarget({kind:'beneficiary',person:b})}>{lang==='en'?'Edit':'Chỉnh sửa'}</button>}
-                      <span className="lv-tb-badge-appointed">
-                        {b.relationship || (lang === 'vi' ? 'Người thụ hưởng' : 'Beneficiary')}
-                      </span>
                     </div>
-                    {!isDevPreviewActive && <GuardianPanel vaultId={vaultId} beneficiaryId={b.id} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} />}
-                    {!isDevPreviewActive && !b.hasAccount && <BeneficiaryInvitationCode vaultId={vaultId} beneficiaryId={b.id}
-                      accessToken={accessToken} lang={lang} loadInvitation={onLoadInvitation} />}
                     <div className="lv-tb-entity-grid">
                       <div className="lv-tb-entity-prop">
                         <span className="lv-tb-prop-label">{t.dobLabel}</span>
@@ -578,8 +593,24 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                         <span className="lv-tb-prop-value">{b.email || '—'}</span>
                       </div>
                     </div>
+                    {!isDevPreviewActive && (
+                      <GuardianPanel
+                        vaultId={vaultId}
+                        beneficiaryId={b.id}
+                        beneficiaryName={b.fullName}
+                        beneficiaryRelationship={b.relationship}
+                        beneficiaryDob={b.dateOfBirth}
+                        isMinorHint={bIsMinor}
+                        accessToken={accessToken}
+                        lang={lang}
+                        onUnauthorized={onUnauthorized}
+                      />
+                    )}
+                    {!isDevPreviewActive && !b.hasAccount && <BeneficiaryInvitationCode vaultId={vaultId} beneficiaryId={b.id}
+                      accessToken={accessToken} lang={lang} loadInvitation={onLoadInvitation} />}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -650,15 +681,16 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   <label className="lv-tb-label" htmlFor="ben-dob">
                     {t.dobLabel}
                   </label>
-                  <input
+                  <DatePicker
                     id="ben-dob"
-                    type="date" disabled={isSubmittingTrustee || isSubmittingBeneficiary}
+                    disabled={isSubmittingTrustee || isSubmittingBeneficiary}
                     max={todayStr}
-                    className={`lv-tb-input ${beneficiaryErrors.dateOfBirth ? 'has-error' : ''}`}
+                    className={beneficiaryErrors.dateOfBirth ? 'has-error' : ''}
                     value={beneficiaryForm.dateOfBirth}
                     aria-describedby={needsGuardian ? 'ben-guardian-notice' : undefined}
-                    onChange={(e) =>
-                      setBeneficiaryForm(prev => ({ ...prev, dateOfBirth: e.target.value }))
+                    lang={lang}
+                    onChange={(val) =>
+                      setBeneficiaryForm(prev => ({ ...prev, dateOfBirth: val }))
                     }
                   />
                   {beneficiaryErrors.dateOfBirth && (

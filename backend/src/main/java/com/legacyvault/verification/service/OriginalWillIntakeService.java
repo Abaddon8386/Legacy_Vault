@@ -44,19 +44,19 @@ public class OriginalWillIntakeService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final LegalBasisLockedState state;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     public OriginalWillIntakeService(
             StaffCaseLockRepository caseRepository,
             OriginalWillIntakeRepository intakeRepository,
             UserRepository userRepository,
             AuditService auditService,
-            LegalBasisLockedState state
-    ) {
+            LegalBasisLockedState state, com.legacyvault.notification.WorkflowNotificationService notifications) {
         this.caseRepository = caseRepository;
         this.intakeRepository = intakeRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
-        this.state = state;
+        this.state = state; this.notifications = notifications;
     }
 
     @Transactional
@@ -103,6 +103,7 @@ public class OriginalWillIntakeService {
                 RULE_ID
         ));
 
+        notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "ORIGINAL_WILL_RECEIVED", "ORIGINAL_WILL_RECEIVED:" + saved.getPublicId(), null);
         return OriginalWillIntakeResponse.from(saved, verificationCase.getPublicId(), principal.publicId());
     }
 

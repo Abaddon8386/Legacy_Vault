@@ -123,9 +123,6 @@ public class BasisReclassificationService {
                 || request.route() == ClassifyBasisRequest.Route.ON_HOLD) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
-        if (request.route() == ClassifyBasisRequest.Route.NOTARIAL) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
-        }
         String reason = request.routeReason().trim();
         if (reason.isEmpty() || reason.length() > 1000) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);

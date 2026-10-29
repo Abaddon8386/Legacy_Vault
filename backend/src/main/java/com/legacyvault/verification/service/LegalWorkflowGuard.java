@@ -44,7 +44,7 @@ public class LegalWorkflowGuard {
                 || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus()))
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         int latest = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());
-        if (!dossier.acceptsIntake() || latest < dossier.getRequiredVersionNo())
+        if (!dossier.isLegalReviewable() || latest < dossier.getRequiredVersionNo())
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         var version = versions.findCourtEvidence(dossier.getLegalBasisDossierId(), latest)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE));

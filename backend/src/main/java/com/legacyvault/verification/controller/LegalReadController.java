@@ -3,6 +3,7 @@ package com.legacyvault.verification.controller;
 import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.common.web.PageResponse;
 import com.legacyvault.verification.dto.LegalReadDtos.*;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 import com.legacyvault.verification.service.LegalReadService;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,7 +16,8 @@ import java.util.UUID;
 @PreAuthorize("hasRole('LEGAL_VERIFIER')")
 public class LegalReadController {
     private final LegalReadService reads;
-    public LegalReadController(LegalReadService reads) { this.reads=reads; }
+    private final DistributionWorkflowService distribution;
+    public LegalReadController(LegalReadService reads, DistributionWorkflowService distribution) { this.reads=reads; this.distribution=distribution; }
     @GetMapping
     public ResponseEntity<PageResponse<QueueItem>> queue(@AuthenticationPrincipal CustomUserPrincipal principal,
         @RequestParam(required=false) String status,@RequestParam(required=false) String route,
@@ -24,6 +26,6 @@ public class LegalReadController {
     }
     @GetMapping("/{caseId}/context")
     public ResponseEntity<Context> context(@AuthenticationPrincipal CustomUserPrincipal principal,@PathVariable UUID caseId) {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(reads.context(principal,caseId));
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(distribution.legalContext(principal,caseId));
     }
 }

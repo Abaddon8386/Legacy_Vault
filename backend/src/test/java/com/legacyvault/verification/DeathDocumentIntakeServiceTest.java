@@ -50,7 +50,7 @@ class DeathDocumentIntakeServiceTest {
     private final AuditService auditService = mock(AuditService.class);
     private final DeathDocumentIntakeService service = new DeathDocumentIntakeService(caseRepository,
             recordRepository, userRepository, auditService,
-            mock(com.legacyvault.verification.service.LegalBasisLockedState.class));
+            mock(com.legacyvault.verification.service.LegalBasisLockedState.class), mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
