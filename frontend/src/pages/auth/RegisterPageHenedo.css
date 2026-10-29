@@ -79,6 +79,7 @@
 .henedo-field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
   gap: 12px;
 }
 
@@ -87,7 +88,7 @@
   justify-content: flex-start;
   gap: 3px;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #2b302c;
   margin-bottom: 5px;
@@ -100,9 +101,9 @@
 
 .hn-hint {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
-  color: #8c918b;
+  color: #5f6b62;
 }
 
 .henedo-input {
@@ -111,7 +112,7 @@
   border: 1px solid #ded9ce;
   border-radius: 14px;
   color: #1f2421;
-  font-size: 13.5px;
+  font-size: 15px;
   padding: 10px 13px;
   min-height: 48px;
   box-sizing: border-box;
@@ -185,7 +186,7 @@
 
 .henedo-error-msg {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: #c25149;
   margin-top: 4px;
   line-height: 1.35;
@@ -202,7 +203,7 @@
   align-items: flex-start;
   gap: 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   color: #6b726b;
   line-height: 1.7;
   user-select: none;

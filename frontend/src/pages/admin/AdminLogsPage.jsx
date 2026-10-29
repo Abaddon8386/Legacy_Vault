@@ -85,11 +85,6 @@ export default function AdminLogsPage({
     return (
       <div>
         <div style={{ fontWeight: 600 }}>{log.actorName || t.actorUser}</div>
-        {log.actorId && (
-          <div className="lv-admin-code">
-            ID: {log.actorId}
-          </div>
-        )}
       </div>
     );
   };
@@ -141,7 +136,7 @@ export default function AdminLogsPage({
 
       {/* Filters Toolbar */}
       <form className="lv-admin-toolbar lv-surface-card" onSubmit={handleFilterSubmit} role="search" aria-label={t.logsTitle}>
-        <div className="lv-admin-toolbar-inputs">
+        <div className="lv-admin-toolbar-inputs lv-admin-log-filters">
           <label className="lv-admin-field">
             <span>{t.thAction}</span>
           <select
@@ -231,7 +226,7 @@ export default function AdminLogsPage({
       </div>
       <div className="lv-admin-table-frame lv-surface-card">
       <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'Audit log table' : 'Bảng nhật ký'}>
-        <table className="lv-admin-table" aria-label={t.logsTitle}>
+        <table className="lv-admin-table lv-admin-log-table" aria-label={t.logsTitle}>
           <thead>
             <tr>
               <th scope="col">{t.thTimestamp}</th>
@@ -274,13 +269,11 @@ export default function AdminLogsPage({
                     >
                       {adminActionLabel(log.action, lang)}
                     </span>
-                    {adminActionLabel(log.action, lang) !== log.action && <span className="lv-admin-code">{log.action}</span>}
                   </td>
                   <td>
                     {log.entityType ? (
                       <span style={{ fontSize: 12 }}>
                         <strong>{log.entityType}</strong>
-                        {log.vaultId && <div className="lv-admin-code">{t.logVaultId} {log.vaultId}</div>}
                       </span>
                     ) : (
                       '—'

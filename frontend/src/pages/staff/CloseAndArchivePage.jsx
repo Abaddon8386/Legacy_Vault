@@ -161,6 +161,11 @@ function CloseArchiveContext({
 
   return (
     <div className="lv-close-archive-view">
+      {/* Header */}
+      <header className="lv-ca-header">
+        <h1 className="lv-ca-title">{t.pageTitle}</h1>
+      </header>
+
       <StaffWorkflowGuide current="archive" caseId={caseId} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
         caseStatus={caseStatus} vaultStatus={vaultStatus} sessionStatus={sessionStatus} loading={loading} error={loadError}
         assets={server?.progress?.assets} beneficiaries={server?.progress?.beneficiaries} hasReceipts={hasReceipts} canArchive={canArchive} />
@@ -233,12 +238,6 @@ function CloseArchiveContext({
           </div>
         </section>
       )}
-
-      {/* Header */}
-      <header className="lv-ca-header">
-        <h1 className="lv-ca-title">{t.pageTitle}</h1>
-      </header>
-
       {/* Staff Case Context Bar */}
       <StaffCaseContextBar
         caseId={caseId}
