@@ -9,7 +9,7 @@ Staff visibility requires both the recorded recipient and the current case assig
 Legal visibility follows the existing Legal workspace, which can access all cases.
 Read state is separate per account. Unknown/out-of-scope read updates return 404.
 
-V54 creates dedicated notifications and read receipts. No audit context is exposed.
+V55 creates dedicated notifications and read receipts. No audit context is exposed.
 Recording joins the business transaction (MANDATORY); storage errors propagate.
 Case locking and a unique case/event key serialize duplicate event recording.
 RECORDED means database persistence inside the current transaction, not delivery or reading.
@@ -31,5 +31,5 @@ Outstanding before PS-134 can be marked complete:
 - Publish the full OpenAPI definitions alongside the completed receipt integration.
 
 Local environment: localhost:1433, SQLEXPRESS and MSSQLLocalDB were unreachable.
-V54 has not been applied to a real SQL Server. No application/shared database was changed.
+V55 has not been applied to a real SQL Server. No application/shared database was changed.
 This is a partial implementation and must remain a draft PR.
