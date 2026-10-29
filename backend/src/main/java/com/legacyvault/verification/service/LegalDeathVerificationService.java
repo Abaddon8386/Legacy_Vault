@@ -35,6 +35,7 @@ import java.util.UUID;
 
 @Service
 public class LegalDeathVerificationService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     private static final String ENTITY_TYPE = "LEGAL_VERIFICATION";
     private static final String STEP_ID = "ST-12";
@@ -56,7 +57,8 @@ public class LegalDeathVerificationService {
             VaultRepository vaultRepository,
             AuditService auditService,
             UserRepository userRepository
-    ) {
+    , com.legacyvault.notification.WorkflowNotificationService notifications) {
+        this.notifications = notifications;
         this.deathDocumentRecordRepository = deathDocumentRecordRepository;
         this.legalVerificationRepository = legalVerificationRepository;
         this.verificationCaseRepository = verificationCaseRepository;
@@ -190,6 +192,7 @@ public class LegalDeathVerificationService {
                 RULE_ID
         ));
 
+        notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_DEATH_DOCUMENT_DECIDED", "death-decision:" + deathRecord.getPublicId(), request.reason().trim());
         return new LegalDeathDecisionResponse(
                 deathRecord.getPublicId(),
                 verificationCase.getPublicId(),
