@@ -1,3 +1,4 @@
+import DatePicker from '../../components/common/DatePicker.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { beneficiaryAge } from '../../utils/beneficiaryAge.js';
@@ -12,7 +13,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
  const needsGuardian=!isTrustee && age!==null && age<18;
  const guardianNotice=en?'A guardian is recommended. Save, then open Guardian to add the contact.':'Nên bổ sung người giám hộ. Lưu rồi mở mục Người giám hộ để thêm thông tin.';
  const [touched,setTouched]=useState({}),[busy,setBusy]=useState(false),[error,setError]=useState(false);
- const request=useRef(null),pending=useRef(false);
+ const request=useRef(null),pending=useRef(false),fieldRefs=useRef({});
  const dialog=useModalFocus(true,onClose);
  useEffect(()=>()=>{request.current?.abort();},[]);
  const errors=(isTrustee?validateTrustee:validateBeneficiary)(form,lang);
@@ -20,7 +21,15 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
  async function submit(event){
   event.preventDefault();if(pending.current)return;
   setTouched(Object.fromEntries(fields.map(([key])=>[key,true])));
-  if(Object.keys(errors).length)return;
+  const firstErrKey=fields.map(([key])=>key).find(key=>Boolean(errors[key]));
+  if(firstErrKey){
+   const el=fieldRefs.current[firstErrKey]||document.getElementById('related-edit-'+firstErrKey);
+   if(el){
+    if(typeof el.scrollIntoView==='function')el.scrollIntoView({behavior:'smooth',block:'center'});
+    if(typeof el.focus==='function')el.focus();
+   }
+   return;
+  }
   pending.current=true;setBusy(true);setError(false);
   const controller=new AbortController();request.current=controller;
   try {
@@ -37,11 +46,25 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
     {error&&<p role="alert">{en?'Unable to update. Your changes have been kept; please try again.':'Không thể cập nhật. Nội dung đã nhập được giữ lại; vui lòng thử lại.'}</p>}
     <div className="lv-tb-form-grid">{fields.map(([key,label,type,maxLength])=><div className="lv-tb-field-group" key={key}>
      <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'?' *':''}</label>
-     <input id={'related-edit-'+key} className={`lv-tb-input ${touched[key]&&errors[key]?'has-error':''}`} type={type} maxLength={maxLength} disabled={busy} value={form[key]}
-      max={type==='date'?new Date().toISOString().slice(0,10):undefined} aria-invalid={Boolean(touched[key]&&errors[key])} aria-describedby={[touched[key]&&errors[key]?'related-error-'+key:null,key==='dateOfBirth'&&needsGuardian?'related-guardian-notice':null].filter(Boolean).join(' ')||undefined}
-      onBlur={()=>setTouched(prev=>({...prev,[key]:true}))} onChange={event=>{setForm(prev=>({...prev,[key]:event.target.value}));setError(false);}} />
-     {key==='dateOfBirth' && needsGuardian && <p id="related-guardian-notice" className="lv-tb-age-warning" role="status">{guardianNotice}</p>}
+     {type === 'date' ? (
+       <DatePicker
+         id={'related-edit-' + key}
+         className={touched[key] && errors[key] ? 'has-error' : ''}
+         disabled={busy}
+         value={form[key]}
+         max={new Date().toISOString().slice(0, 10)}
+         lang={lang}
+         aria-invalid={Boolean(touched[key] && errors[key])}
+         aria-describedby={[touched[key] && errors[key] ? 'related-error-' + key : null, key === 'dateOfBirth' && needsGuardian ? 'related-guardian-notice' : null].filter(Boolean).join(' ') || undefined}
+         onChange={(val) => { setForm(prev => ({ ...prev, [key]: val })); setError(false); }}
+       />
+     ) : (
+       <input ref={el=>{fieldRefs.current[key]=el;}} id={'related-edit-'+key} className={`lv-tb-input ${touched[key]&&errors[key]?'has-error':''}`} type={type} maxLength={maxLength} disabled={busy} value={form[key]}
+        max={undefined} aria-invalid={Boolean(touched[key]&&errors[key])} aria-describedby={[touched[key]&&errors[key]?'related-error-'+key:null,key==='dateOfBirth'&&needsGuardian?'related-guardian-notice':null].filter(Boolean).join(' ')||undefined}
+        onBlur={()=>setTouched(prev=>({...prev,[key]:true}))} onChange={event=>{setForm(prev=>({...prev,[key]:event.target.value}));setError(false);}} />
+     )}
      {touched[key]&&errors[key]&&<span id={'related-error-'+key} className="lv-tb-error-text" role="alert">{errors[key]}</span>}
+     {key==='dateOfBirth' && needsGuardian && <p id="related-guardian-notice" className="lv-tb-age-warning" role="status">{guardianNotice}</p>}
     </div>)}</div>
     <div className="lv-tb-actions-row"><button type="button" className="lv-tb-btn-secondary" onClick={onClose}>{en?'Cancel':'Hủy'}</button><button type="submit" className="lv-tb-btn-primary" disabled={busy}>{busy?(en?'Saving…':'Đang lưu…'):(en?'Save changes':'Lưu thay đổi')}</button></div>
    </form>
