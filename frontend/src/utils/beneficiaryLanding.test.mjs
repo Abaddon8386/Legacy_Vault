@@ -6,7 +6,6 @@ import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createSession, storeSession, readStoredSession } from './session.js';
-import { readUser } from '../api/contracts.js';
 import {
   linkExistingBeneficiaryAccount,
   createAndLinkBeneficiaryAccount,
@@ -58,7 +57,6 @@ async function component(entry, stubLogin = false) {
 }
 
 const App = await component('src/App.jsx', true);
-const BeneficiaryHome = await component('src/pages/beneficiary/BeneficiaryHome.jsx');
 
 const refreshUser = { id: '99999999-9999-4999-8999-999999999999', fullName: 'Refresh Test', email: 'refresh@example.test', roles: ['BENEFICIARY'] };
 const refreshJson = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
@@ -82,10 +80,10 @@ for (const failure of ['401', 'wrong-user']) {
       assert.equal(window.location.pathname, '/login');
       assert.equal(readStoredSession(), null);
       await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent === 'Test sign in').click());
-      assert.equal(window.location.pathname, '/beneficiary');
-      assert.ok(view.host.querySelector('#beneficiary-home-title'));
+      assert.equal(window.location.pathname, '/shared-with-me');
+      assert.ok(view.host.querySelector('#shared-heading'));
       await act(async () => refreshButton(view.host).click());
-      assert.ok(view.host.querySelector('#beneficiary-home-title'));
+      assert.ok(view.host.querySelector('#shared-heading'));
       assert.equal(calls, 4);
     } finally { await view.close(); globalThis.fetch = originalFetch; delete globalThis.__testUser; }
   });
@@ -120,8 +118,8 @@ for (const action of ['unmount', 'logout-and-relogin']) {
       await act(async () => finish(refreshJson({ ...refreshUser, roles: ['VAULT_OWNER'] })));
       if (!closed) {
         assert.equal(readStoredSession().user.id, nextUser.id);
-        assert.equal(window.location.pathname, '/beneficiary');
-        assert.ok(view.host.querySelector('#beneficiary-home-title'));
+        assert.equal(window.location.pathname, '/shared-with-me');
+        assert.ok(view.host.querySelector('#shared-heading'));
       }
     } finally {
       if (!closed) await view.close();
@@ -144,7 +142,7 @@ test('Refresh network failure keeps expiry and supports retry', async () => {
     assert.match(view.host.textContent, /Lỗi kết nối/);
     assert.equal(readStoredSession().expiresAt, session.expiresAt);
     await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.includes('Thử lại')).click());
-    assert.ok(view.host.querySelector('#beneficiary-home-title'));
+    assert.ok(view.host.querySelector('#shared-heading'));
     assert.equal(calls, 3);
   } finally { await view.close(); globalThis.fetch = originalFetch; }
 });
@@ -166,154 +164,6 @@ async function mount(Component, props = {}) {
     },
   };
 }
-
-// -------------------------------------------------------------------------
-// SECTION A: UI & Neutral Content Verification (No Speculative Information)
-// -------------------------------------------------------------------------
-
-test('BeneficiaryHome - renders neutral profile without fake ACTIVE default and no speculative contacts in VI', async () => {
-  const user = {
-    id: '11111111-1111-4111-8111-111111111111',
-    fullName: 'Trần Minh Quang',
-    email: 'quang.tran@example.test',
-    phoneNumber: '0912345678',
-    roles: ['BENEFICIARY'],
-    // status is undefined from BE to verify neutral handling
-  };
-
-  const view = await mount(BeneficiaryHome, { lang: 'vi', user });
-  try {
-    const text = view.host.textContent;
-    // 1. Account info
-    assert.match(text, /Thông tin dành cho Người thụ hưởng/);
-    assert.match(text, /Trần Minh Quang/);
-    assert.match(text, /quang\.tran@example\.test/);
-    assert.match(text, /0912345678/);
-    assert.match(text, /Cổng Người Thụ Hưởng/);
-    assert.doesNotMatch(text, /Người Thụ Hưởng Hợp Pháp/);
-    assert.doesNotMatch(text, /Verified Beneficiary/);
-    assert.doesNotMatch(text, /ROLE_BENEFICIARY/);
-
-    // 2. Regulatory boundary checks
-    assert.match(text, /Quy định pháp lý & Giới hạn vận hành/);
-    assert.match(text, /Mã mời chỉ có tác dụng liên kết tài khoản/);
-    assert.match(text, /KHÔNG đồng nghĩa với việc bạn được xem chi tiết tài sản/);
-    assert.match(text, /Đăng nhập không cấp quyền truy cập kho của Chủ sở hữu hoặc giải mã tài sản/);
-    assert.match(text, /không cung cấp cổng tài sản bí mật/);
-
-    // 3. 4-step counter handover process (no technical jargon like VERIFIED_AT_COUNTER in title)
-    assert.match(text, /Quy trình tiếp nhận di sản tại quầy/);
-    assert.match(text, /Đối chiếu danh tính trực tiếp tại quầy/);
-    assert.doesNotMatch(text, /VERIFIED_AT_COUNTER/);
-    assert.doesNotMatch(text, /lưu trữ vĩnh viễn/);
-
-    // 4. Contact Staff box - completely free of fake email and fake hours
-    assert.match(text, /Liên hệ Nhân viên quầy tiếp nhận/);
-    assert.doesNotMatch(text, /support@legacyvault\.vn/);
-    assert.doesNotMatch(text, /08:30/);
-  } finally {
-    await view.close();
-  }
-});
-
-test('BeneficiaryHome - renders English translation cleanly without placeholders or technical route leakages', async () => {
-  const user = {
-    id: '22222222-2222-4222-8222-222222222222',
-    fullName: 'Alice Vance',
-    email: 'alice@example.test',
-    phoneNumber: null,
-    roles: ['BENEFICIARY'],
-    status: 'ACTIVE',
-  };
-
-  const view = await mount(BeneficiaryHome, { lang: 'en', user });
-  try {
-    const text = view.host.textContent;
-    assert.match(text, /Beneficiary Information/);
-    assert.match(text, /Alice Vance/);
-    assert.match(text, /Information unavailable/);
-    assert.match(text, /Active/);
-    assert.match(text, /Beneficiary Portal/);
-    assert.doesNotMatch(text, /Verified Beneficiary/);
-    assert.match(text, /Important Legal & Operational Boundaries/);
-    assert.match(text, /Invitation codes are used solely to link your login account/);
-    assert.match(text, /Inheritance Handover Procedure/);
-    assert.match(text, /In-Person Identity Verification/);
-    assert.doesNotMatch(text, /support@legacyvault\.vn/);
-  } finally {
-    await view.close();
-  }
-});
-
-test('BeneficiaryHome - multi-role detection offers clean switchers without technical route URLs', async () => {
-  const multiRoleUser = {
-    id: '33333333-3333-4333-8333-333333333333',
-    fullName: 'Đỗ Văn Thành',
-    email: 'thanh.do@example.test',
-    roles: ['BENEFICIARY', 'VAULT_OWNER', 'STAFF_EXECUTOR'],
-  };
-
-  let navigatedTo = null;
-  const view = await mount(BeneficiaryHome, {
-    lang: 'vi',
-    user: multiRoleUser,
-    onNavigatePortal: (path) => {
-      navigatedTo = path;
-    },
-  });
-
-  try {
-    const text = view.host.textContent;
-    assert.match(text, /Tài khoản có nhiều vai trò hoạt động/);
-
-    // Button labels should NOT include raw routes like (/vault) or (/staff/cases)
-    const vaultBtn = [...view.host.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Kho di sản');
-    assert.ok(vaultBtn);
-    await act(async () => vaultBtn.click());
-    assert.equal(navigatedTo, '/vault');
-
-    const staffBtn = [...view.host.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Cổng Nhân viên');
-    assert.ok(staffBtn);
-    await act(async () => staffBtn.click());
-    assert.equal(navigatedTo, '/staff/cases');
-  } finally {
-    await view.close();
-  }
-});
-
-test('BeneficiaryHome - error state renders honest retry and logout buttons', async () => {
-  let refreshed = false;
-  let loggedOut = false;
-
-  const view = await mount(BeneficiaryHome, {
-    lang: 'vi',
-    errorMessage: 'Lỗi kết nối máy chủ. Vui lòng thử lại.',
-    onRefresh: () => {
-      refreshed = true;
-    },
-    onLogout: () => {
-      loggedOut = true;
-    },
-  });
-
-  try {
-    const text = view.host.textContent;
-    assert.match(text, /Thông tin tạm thời chưa khả dụng/);
-    assert.match(text, /Lỗi kết nối máy chủ/);
-
-    const retryBtn = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Thử lại'));
-    assert.ok(retryBtn);
-    await act(async () => retryBtn.click());
-    assert.equal(refreshed, true);
-
-    const logoutBtn = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Đăng xuất'));
-    assert.ok(logoutBtn);
-    await act(async () => logoutBtn.click());
-    assert.equal(loggedOut, true);
-  } finally {
-    await view.close();
-  }
-});
 
 // -------------------------------------------------------------------------
 // SECTION B: Adapter Receipt Validation & Strict Contract Verification
@@ -621,187 +471,4 @@ test('Live Form validation - strictly enforces phone pattern, password requireme
 // SECTION D: App Integration, Refresh, Session Expiry & Role Revocation
 // -------------------------------------------------------------------------
 
-test('App integration - Multi-role user has access to Beneficiary portal from Account popover and can return to Vault', async () => {
-  storeSession(null);
-  window.history.replaceState({}, '', '/vault');
-
-  const multiUser = {
-    id: '11111111-1111-4111-8111-111111111111',
-    fullName: 'Hoàng Minh',
-    email: 'hoang.minh@example.test',
-    roles: ['VAULT_OWNER', 'BENEFICIARY'],
-  };
-
-  storeSession(
-    createSession({
-      accessToken: 'synthetic-multi',
-      tokenType: 'Bearer',
-      expiresInSeconds: 3600,
-      user: multiUser,
-    })
-  );
-
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (url.includes('/auth/me')) {
-      return new Response(JSON.stringify(multiUser), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  };
-
-  const view = await mount(App);
-  try {
-    // 1. Initially at /vault
-    assert.equal(window.location.pathname, '/vault');
-
-    // 2. Open Account popover menu
-    const badgeBtn = view.host.querySelector('.lv-user-badge-card');
-    assert.ok(badgeBtn);
-    await act(async () => badgeBtn.click());
-
-    // 3. Find Beneficiary Portal menu item and click it
-    const beneficiaryMenuItem = [...view.host.querySelectorAll('.lv-account-menu-item')].find((btn) =>
-      btn.textContent.includes('Cổng Người thụ hưởng')
-    );
-    assert.ok(beneficiaryMenuItem, 'Account popover must include Beneficiary Portal link for multi-role user');
-    await act(async () => beneficiaryMenuItem.click());
-
-    // 4. Now at /beneficiary
-    assert.equal(window.location.pathname, '/beneficiary');
-    assert.ok(view.host.querySelector('#beneficiary-home-title'));
-
-    // 5. From Beneficiary home, multi-role box allows returning to Vault
-    const returnVaultBtn = [...view.host.querySelectorAll('button')].find((btn) =>
-      btn.textContent.trim() === 'Kho di sản'
-    );
-    assert.ok(returnVaultBtn, 'Beneficiary home must display quick switcher to Vault');
-    await act(async () => returnVaultBtn.click());
-    assert.equal(window.location.pathname, '/vault');
-  } finally {
-    await view.close();
-    globalThis.fetch = originalFetch;
-    storeSession(null);
-  }
-});
-
-test('App integration - Refresh calls /auth/me, updates roles, keeps expiry, and redirects if role is revoked', async () => {
-  storeSession(null);
-  window.history.replaceState({}, '', '/beneficiary');
-
-  const userId = '88888888-8888-4888-8888-888888888888';
-  let currentUserPayload = {
-    id: userId,
-    fullName: 'Lê Thảo My',
-    email: 'thaomy@example.test',
-    roles: ['BENEFICIARY', 'VAULT_OWNER'],
-  };
-
-  const initialExpiry = Date.now() + 1800 * 1000;
-  const initialSession = {
-    accessToken: 'valid-refresh-token',
-    expiresAt: initialExpiry,
-    user: currentUserPayload,
-  };
-  storeSession(initialSession);
-
-  let meCallCount = 0;
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (url.includes('/auth/me')) {
-      meCallCount++;
-      return new Response(JSON.stringify(currentUserPayload), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  };
-
-  const view = await mount(App);
-  try {
-    assert.equal(window.location.pathname, '/beneficiary');
-
-    // Trigger refresh button from BeneficiaryHome
-    const refreshBtn = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Làm mới'));
-    assert.ok(refreshBtn, 'Beneficiary page must contain real refresh button');
-    await act(async () => refreshBtn.click());
-
-    assert.ok(meCallCount >= 1, 'Refresh must trigger real /auth/me network call');
-    // Session expiresAt must NOT be extended on refresh
-    assert.equal(readStoredSession().expiresAt, initialExpiry);
-
-    // Now simulate BE revoking BENEFICIARY role (e.g. only VAULT_OWNER remains)
-    currentUserPayload = {
-      id: userId,
-      fullName: 'Lê Thảo My',
-      email: 'thaomy@example.test',
-      roles: ['VAULT_OWNER'], // BENEFICIARY removed
-    };
-
-    const refreshBtn2 = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Làm mới'));
-    assert.ok(refreshBtn2);
-    await act(async () => refreshBtn2.click());
-
-    // Navigation must redirect out of /beneficiary to /vault as user lost BENEFICIARY role
-    assert.equal(window.location.pathname, '/vault');
-  } finally {
-    await view.close();
-    globalThis.fetch = originalFetch;
-    storeSession(null);
-  }
-});
-
-for (const lang of ['vi', 'en']) {
-  test(`Beneficiary invitation link preserves ${lang}`, async () => {
-    const view = await mount(BeneficiaryHome, { user: refreshUser, lang });
-    try {
-      const link = view.host.querySelector('a[href^="/invitations"]');
-      assert.ok(link);
-      const destination = new URL(link.href);
-      assert.equal(destination.pathname, '/invitations');
-      assert.equal(destination.searchParams.get('lang'), lang);
-    } finally { await view.close(); }
-  });
-  test(`Beneficiary phone ${lang}: auth projection without phone does not claim the profile is incomplete`, async () => {
-    const { phoneNumber: _phoneNumber, ...withoutPhone } = refreshUser;
-    const projected = readUser(withoutPhone);
-    assert.equal(Object.hasOwn(projected, 'phoneNumber'), false, 'An absent phone stays absent; do not invent a value');
-    const view = await mount(BeneficiaryHome, { user: projected, lang });
-    try {
-      const detail = [...view.host.querySelectorAll('.lv-ben-detail-item')].find(item => item.textContent.includes(lang === 'en' ? 'Phone Number' : 'Số điện thoại'));
-      assert.ok(detail);
-      assert.match(detail.textContent, lang === 'en' ? /Information unavailable/ : /Thông tin chưa khả dụng/);
-      assert.doesNotMatch(detail.textContent, /Not provided|Chưa cập nhật/);
-    } finally { await view.close(); }
-  });
-  test(`Beneficiary phone ${lang}: PS-79 profile phone is preserved and displayed`, async () => {
-    const projected = readUser({ ...refreshUser, phoneNumber: '0901234567' });
-    const view = await mount(BeneficiaryHome, { user: projected, lang });
-    try {
-      const detail = [...view.host.querySelectorAll('.lv-ben-detail-item')].find(item => item.textContent.includes(lang === 'en' ? 'Phone Number' : 'Số điện thoại'));
-      assert.match(detail.textContent, /0901234567/);
-    } finally { await view.close(); }
-  });
-  for (const path of ['/admin', '/admin/subscriptions']) {
-    test(`Admin beneficiary menu ${lang} ${path}: multi-role account reaches beneficiary portal`, async () => {
-      const admin = { ...refreshUser, roles: ['ADMIN', 'BENEFICIARY'] };
-      window.history.replaceState({}, '', `${path}?lang=${lang}`);
-      storeSession(createSession({ accessToken: 'admin-beneficiary-test', tokenType: 'Bearer', expiresInSeconds: 3600, user: admin }));
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = async url => url.includes('/auth/me') ? refreshJson(admin) : refreshJson({ code: 'BACKEND_NOT_READY' }, 503);
-      const view = await mount(App);
-      try {
-        await act(async () => view.host.querySelector('.lv-user-badge-card').click());
-        const entry = [...view.host.querySelectorAll('.lv-account-menu-item')].find(item => item.textContent.includes(lang === 'en' ? 'Beneficiary Portal' : 'Cổng Người thụ hưởng'));
-        assert.ok(entry);
-        await act(async () => entry.click());
-        assert.equal(window.location.pathname, '/beneficiary');
-        assert.ok(view.host.querySelector('#beneficiary-home-title'));
-        assert.deepEqual(readStoredSession().user.roles, ['ADMIN', 'BENEFICIARY']);
-      } finally { await view.close(); globalThis.fetch = originalFetch; }
-    });
-  }
-}
+// The separate portal switcher was replaced by unified-account App regressions.

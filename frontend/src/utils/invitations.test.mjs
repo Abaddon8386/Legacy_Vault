@@ -238,8 +238,8 @@ test('actual App uses only refreshed server roles and does not force a multi-rol
     await change(view.host, '#invitation-code', 'Code'); await submit(view.host);
     assert.equal(reads, 2); assert.deepEqual(readStoredSession().user.roles, ['VAULT_OWNER', 'BENEFICIARY']);
     assert.equal(window.location.pathname, '/invitations'); assert.match(view.host.textContent, /access confirmed/);
-    await click(view.host, 'Go to beneficiary page'); assert.equal(window.location.pathname, '/beneficiary');
-    assert.ok(view.host.querySelector('#beneficiary-home-title'), 'PS-90 landing remains available after PS-89 acceptance');
+    await click(view.host, 'Go to beneficiary page'); assert.equal(window.location.pathname, '/shared-with-me');
+    assert.ok(view.host.querySelector('#shared-heading'), 'PS-90 landing remains available after PS-89 acceptance');
     assert.match(view.host.textContent, /Test account/);
     const expiry = readStoredSession().expiresAt;
     const refresh = [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Refresh');

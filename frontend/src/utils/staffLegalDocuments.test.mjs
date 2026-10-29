@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 import {
@@ -49,7 +50,7 @@ test('PS-96: resolvePostLoginRoute directs pure Staff to /staff/legal-documents'
   assert.equal(resolvePostLoginRoute({ roles: ['STAFF_EXECUTOR'] }), '/staff/legal-documents');
   assert.equal(resolvePostLoginRoute({ roles: ['LEGAL_VERIFIER'] }), '/legal/death-verification');
   assert.equal(resolvePostLoginRoute({ roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'] }), '/vault');
-  assert.equal(resolvePostLoginRoute({ roles: ['BENEFICIARY'] }), '/beneficiary');
+  assert.equal(resolvePostLoginRoute({ roles: ['BENEFICIARY'] }), '/shared-with-me');
 });
 
 test('PS-96: validateStaffLegalDocumentForm validates required fields, future dates, notary details, and evidence file', () => {
@@ -394,7 +395,7 @@ globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const builtComponent = await build({
-  root: 'C:/Users/hai/Downloads/FALL26/SWP/Legacy_Vault/frontend',
+  root: fileURLToPath(new URL('../../', import.meta.url)),
   configFile: false,
   logLevel: 'silent',
   build: {
