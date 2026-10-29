@@ -301,7 +301,6 @@ export default function AppShell({
     : isBeneficiary
       ? [
           { id: 'shared-with-me', labelVi: 'Được chia sẻ với tôi', labelEn: 'Shared with me', status: 'ACTIVE' },
-          { id: 'beneficiary-home', labelVi: 'Thông tin thụ hưởng', labelEn: 'Beneficiary Information', status: 'ACTIVE' },
         ]
     : isStaff
     ? STAFF_NAVIGATION_REGISTRY
@@ -647,25 +646,6 @@ export default function AppShell({
                 </a></li>}
                 {hasSession && resolvedUser?.roles && (
                   <>
-                    {!isBeneficiary && (resolvedUser.roles.includes('BENEFICIARY') || resolvedUser.roles.includes('ROLE_BENEFICIARY')) && (
-                      <li role="none">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="lv-account-menu-item"
-                          onClick={() => {
-                            setIsAccountMenuOpen(false);
-                            setMobileMenuOpen(false);
-                            if (typeof onNavigateTab === 'function') onNavigateTab('beneficiary-home');
-                          }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          </svg>
-                          <span>{lang === 'en' ? 'Beneficiary Portal' : 'Cổng Người thụ hưởng'}</span>
-                        </button>
-                      </li>
-                    )}
                     {isBeneficiary && resolvedUser.roles.includes('VAULT_OWNER') && (
                       <li role="none">
                         <button

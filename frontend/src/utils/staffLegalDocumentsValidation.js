@@ -43,7 +43,7 @@ export function resolvePostLoginRoute(user) {
     return '/admin';
   }
   if (roles.includes('BENEFICIARY') && !roles.includes('VAULT_OWNER')) {
-    return '/beneficiary';
+    return '/shared-with-me';
   }
   return roles.length ? '/vault' : '/shared-with-me';
 }

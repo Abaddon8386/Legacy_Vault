@@ -1,7 +1,4 @@
 import SharedWithMePage from './pages/beneficiary/SharedWithMePage.jsx';
-import ReceivedAssets from './pages/beneficiary/ReceivedAssets.jsx';
-import LanguageToggle from './components/common/LanguageToggle.jsx';
-import BeneficiaryHome from './pages/beneficiary/BeneficiaryHome.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
 import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
@@ -514,11 +511,19 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   }, [setStaffContextSessionId]);
 
   const navigateTo = useCallback(path => {
+    if (path.split('?')[0] === '/beneficiary') path = path.replace('/beneficiary', '/shared-with-me');
     const nextIdx = (historyIndexRef.current || 0) + 1;
     historyIndexRef.current = nextIdx;
     window.history.pushState({ lvIdx: nextIdx }, '', path);
     setLocation(path);
   }, []);
+
+  // Old bookmarks keep their query/language, without a second personal portal.
+  useEffect(() => {
+    if (location.split('?')[0] !== '/beneficiary') return;
+    const target = location.replace('/beneficiary', '/shared-with-me');
+    window.history.replaceState(window.history.state, '', target);
+  }, [location]);
 
   const logout = useCallback(() => {
     profileSessionRef.current = null;
@@ -719,7 +724,8 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     setIsEditFormDirty(false);
     setPendingNavigationTarget(null);
   };
-  const path = location.split('?')[0];
+  const rawPath = location.split('?')[0];
+  const path = rawPath === '/beneficiary' ? '/shared-with-me' : rawPath;
   const isSharedWithMeRoute = path === '/shared-with-me';
   if (path === '/forgot-password' || path === '/reset-password') {
     return <PasswordRecoveryRoute key={location} mode={path === '/reset-password' ? 'reset' : 'request'} initialLang={new URLSearchParams(location.split('?')[1] || '').get('lang')}
@@ -779,9 +785,9 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         setSession(previous => previous?.accessToken === current.accessToken && previous.user.id === user.id ? { ...previous, user } : previous);
         setInvitationIntent(false); setPendingInvitationCode('');
         // Multi-role landing belongs to its separate FE task; do not choose an Owner role here.
-        if (user.roles.length === 1 && user.roles[0] === 'BENEFICIARY') navigateTo('/beneficiary');
+        if (user.roles.length === 1 && user.roles[0] === 'BENEFICIARY') navigateTo('/shared-with-me');
       }}
-      onContinue={() => navigateTo('/beneficiary')} />;
+      onContinue={() => navigateTo('/shared-with-me')} />;
   }
   if (path === '/admin' || path === '/admin/overview' || path === '/admin/users' || path === '/admin/subscriptions' || path === '/admin/logs') {
     if (!isSessionActive(session)) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
@@ -792,7 +798,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       : 'admin-home';
     return <AppShell role="ADMIN" session={session} user={session?.user || null} lang={lang} currentTab={currentTab}
       isAuthenticated={isSessionActive(session)} onToggleLang={setLang} onLogout={isSessionActive(session) ? logout : null}
-      onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : tab === 'beneficiary-home' ? '/beneficiary' : tab === 'admin-subscriptions' ? '/admin/subscriptions' : tab === 'admin-users' ? '/admin/users' : tab === 'admin-logs' ? '/admin/logs' : '/admin')}>
+      onNavigateTab={tab => navigateTo(tab === 'account-profile' ? '/account/profile' : tab === 'account-edit' ? '/account/edit' : tab === 'admin-subscriptions' ? '/admin/subscriptions' : tab === 'admin-users' ? '/admin/users' : tab === 'admin-logs' ? '/admin/logs' : '/admin')}>
       {currentTab === 'admin-subscriptions'
         ? <AdminSubscriptionPage lang={lang} accessToken={session?.token || session?.accessToken} onUnauthorized={logout} onNavigateHome={() => navigateTo('/admin')} />
         : currentTab === 'admin-users'
@@ -818,7 +824,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     }
 
     const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
-    const shellRole = preview ? (new URLSearchParams(location.split('?')[1] || '').get('role') === 'BENEFICIARY' ? 'BENEFICIARY' : 'OWNER') : (userRoles.includes('VAULT_OWNER') ? 'OWNER' : userRoles.includes('BENEFICIARY') || !userRoles.length ? 'BENEFICIARY' : 'OWNER');
+    const shellRole = preview ? (new URLSearchParams(location.split('?')[1] || '').get('role') === 'BENEFICIARY' ? 'BENEFICIARY' : 'OWNER') : (userRoles.includes('STAFF_EXECUTOR') ? 'STAFF' : userRoles.includes('LEGAL_VERIFIER') ? 'LEGAL' : userRoles.includes('ADMIN') ? 'ADMIN' : userRoles.includes('VAULT_OWNER') ? 'OWNER' : 'BENEFICIARY');
 
     return (
       <div className="lv-app-root">
@@ -835,6 +841,12 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           onNavigateTab={handleExecuteNavigation}
         >
+          <div className="lv-page-actions">
+            <button type="button" className="lv-shared-btn" disabled={isRefreshing} onClick={handleRefresh}>
+              {isRefreshing ? (lang === 'en' ? 'Refreshing…' : 'Đang làm mới…') : (lang === 'en' ? 'Refresh' : 'Làm mới tài khoản')}
+            </button>
+            {refreshError && <div role="alert">{refreshError} <button type="button" onClick={handleRefresh}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button></div>}
+          </div>
           <SharedWithMePage
             key={`${session?.user?.id || 'anon'}:${session?.accessToken || ''}`}
             lang={lang}
@@ -848,83 +860,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             session={session}
             onUnauthorized={logout}
             refreshKey={refreshTrigger}
-          />
-        </AppShell>
-      </div>
-    );
-  }
-
-  if (path === '/beneficiary' && preview && !isSessionActive(session)) return <main style={{ maxWidth: 1100, margin: 'auto', padding: 24 }}>
-    <LanguageToggle lang={lang} onToggleLang={setLang} />
-    <a href="/login">{lang === 'en' ? 'Sign in' : 'Đăng nhập'}</a>
-    <ReceivedAssets lang={lang} isDevPreview scenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'} />
-  </main>;
-  if (path === '/beneficiary') {
-    if (!isSessionActive(session)) return <LoginPage onNavigateToForgotPassword={navigateTo} invitationMode={invitationIntent} onCancelInvitation={cancelInvitation} onNavigateToInvitations={navigateTo} onAuthenticated={establishSession} onNavigateToRegister={() => navigateTo(authPath('/register'))} />;
-    const userRoles = Array.isArray(session?.user?.roles) ? session.user.roles : [];
-    if (!userRoles.includes('BENEFICIARY') && !userRoles.includes('ROLE_BENEFICIARY')) {
-      return (
-        <main role="alert">
-          <p>{lang === 'en' ? 'This page requires a beneficiary account.' : 'Trang này dành cho tài khoản người thụ hưởng.'}</p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-            <button onClick={logout}>{lang === 'en' ? 'Sign out' : 'Đăng xuất'}</button>
-            {userRoles.includes('VAULT_OWNER') && (
-              <button type="button" onClick={() => navigateTo('/vault')}>{lang === 'en' ? 'Back to Vault' : 'Về Kho di sản'}</button>
-            )}
-            {userRoles.includes('STAFF_EXECUTOR') && (
-              <button type="button" onClick={() => navigateTo('/staff/cases')}>{lang === 'en' ? 'Staff Portal' : 'Cổng Nhân viên'}</button>
-            )}
-            {userRoles.includes('LEGAL_VERIFIER') && (
-              <button type="button" onClick={() => navigateTo('/legal/death-verification')}>{lang === 'en' ? 'Legal Portal' : 'Cổng Pháp lý'}</button>
-            )}
-          </div>
-        </main>
-      );
-    }
-    return (
-      <div className="lv-app-root">
-        <AppShell
-          role="BENEFICIARY"
-          session={session}
-          user={session.user}
-          lang={lang}
-          currentTab="beneficiary-home"
-          isAuthenticated={isSessionActive(session)}
-          onToggleLang={setLang}
-          onLogout={isSessionActive(session) ? logout : null}
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
-          onNavigateTab={tab => {
-            if (tab === 'home') navigateTo(`/?lang=${lang}`);
-            else if (tab === 'shared-with-me') {
-              const curScenario = new URLSearchParams(location.split('?')[1] || '').get('scenario');
-              navigateTo(preview ? `/shared-with-me?preview=true${curScenario ? `&scenario=${encodeURIComponent(curScenario)}` : ''}` : '/shared-with-me');
-            }
-            else if (tab === 'account-profile') navigateTo(resolveAccountRoute('/account/profile'));
-            else if (tab === 'account-edit') navigateTo(resolveAccountRoute('/account/edit'));
-            else if (tab === 'vault') navigateTo('/vault');
-            else if (tab === 'cases') navigateTo('/staff/cases');
-            else if (tab === 'legal-documents') navigateTo('/staff/legal-documents');
-            else if (tab === 'death-verification') navigateTo('/legal/death-verification');
-            else if (tab === 'admin-home') navigateTo('/admin');
-            else navigateTo('/beneficiary');
-          }}
-        >
-          <BeneficiaryHome
-            receivedAssetActions={effectiveBeneficiaryAssetActions}
-            receivedRefreshKey={refreshTrigger}
-            lang={lang}
-            isDevPreview={preview}
-            previewScenario={new URLSearchParams(location.split('?')[1] || '').get('scenario') || 'received'}
-            user={session?.user || null}
-            session={session}
-            onOpenProfile={() => navigateTo(resolveAccountRoute('/account/profile'))}
-            onOpenEditProfile={() => navigateTo(resolveAccountRoute('/account/edit'))}
-            onNavigatePortal={(route) => navigateTo(route)}
-            onLogout={logout}
-            onRefresh={handleRefresh}
-            isRefreshing={isRefreshing}
-            errorMessage={refreshError}
           />
         </AppShell>
       </div>
@@ -1035,7 +970,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     const selectedCaseId = new URLSearchParams(location.split('?')[1] || '').get('caseId') || '';
     const navigateLegalTab = tab => {
       if (tab === 'account-profile' || tab === 'account-edit') return navigateTo(resolveAccountRoute(tab === 'account-profile' ? '/account/profile' : '/account/edit'));
-      if (tab === 'beneficiary-home') return navigateTo('/beneficiary');
       const target = Object.keys(legalLiveTabs).find(route => route !== '/legal' && legalLiveTabs[route] === tab);
       if (target) { const params = new URLSearchParams({ lang }); if (selectedCaseId) params.set('caseId', selectedCaseId); navigateTo(`${target}?${params}`); }
     };
@@ -1098,7 +1032,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             } else if (tab === 'shared-with-me') {
           const curScenario = new URLSearchParams(location.split('?')[1] || '').get('scenario');
           navigateTo(preview ? `/shared-with-me?preview=true${curScenario ? `&scenario=${encodeURIComponent(curScenario)}` : ''}` : '/shared-with-me');
-        } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1142,7 +1075,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     } else if (targetTab === 'admin-users') { navigateTo('/admin/users');
     } else if (targetTab === 'admin-subscriptions') { navigateTo('/admin/subscriptions');
     } else if (targetTab === 'admin-logs') { navigateTo('/admin/logs');
-    } else if (targetTab === 'beneficiary-home') { navigateTo('/beneficiary');
     } else if (targetTab === 'account-profile') {
       navigateTo(resolveAccountRoute('/account/profile'));
     } else if (targetTab === 'account-edit') {
@@ -1590,7 +1522,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1649,7 +1580,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
               navigateTo(preview ? '/legal/basis-route-selection?preview=true' : '/legal/basis-route-selection');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1708,7 +1638,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
               navigateTo(preview ? '/legal/will-document-verification?preview=true' : '/legal/will-document-verification');
             } else if (tab === 'dossier-review') {
               navigateTo(preview ? '/legal/dossier-review?preview=true' : '/legal/dossier-review');
-            } else if (tab === 'beneficiary-home') { navigateTo('/beneficiary');
             } else if (tab === 'account-profile') {
               navigateTo(resolveAccountRoute('/account/profile'));
             } else if (tab === 'account-edit') {
@@ -1744,8 +1673,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         } else if (tab === 'shared-with-me') {
           const curScenario3 = new URLSearchParams(location.split('?')[1] || '').get('scenario');
           navigateTo(preview ? `/shared-with-me?preview=true${curScenario3 ? `&scenario=${encodeURIComponent(curScenario3)}` : ''}` : '/shared-with-me');
-        } else if (tab === 'beneficiary-home') {
-          navigateTo('/beneficiary');
         } else if (tab === 'account-profile') {
           navigateTo(resolveAccountRoute('/account/profile'));
         } else if (tab === 'account-edit') {

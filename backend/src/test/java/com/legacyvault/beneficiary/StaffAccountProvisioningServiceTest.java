@@ -22,6 +22,10 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.common.security.StaffContextService;
 import com.legacyvault.user.entity.User;
+import com.legacyvault.user.entity.UserRole;
+import com.legacyvault.user.entity.Role;
+import com.legacyvault.user.repository.RoleRepository;
+import com.legacyvault.user.repository.UserRoleRepository;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
@@ -37,12 +41,18 @@ class StaffAccountProvisioningServiceTest {
 	private final UserRepository users = mock(UserRepository.class);
 	private final PasswordEncoder encoder = mock(PasswordEncoder.class);
 	private final AuditService audit = mock(AuditService.class);
+	private final RoleRepository roles = mock(RoleRepository.class);
+	private final UserRoleRepository userRoles = mock(UserRoleRepository.class);
 	private final StaffAccountProvisioningService service = new StaffAccountProvisioningService(staff, caseLookup, users,
-			encoder, audit);
+			encoder, audit, roles, userRoles);
 	private final User actor = mock(User.class);
 	private final VerificationCase ownedCase = mock(VerificationCase.class);
 
 	StaffAccountProvisioningServiceTest() {
+		Role ownerRole = mock(Role.class);
+		when(ownerRole.getRoleId()).thenReturn(1L);
+		when(ownerRole.getRoleCode()).thenReturn("ROLE_VAULT_OWNER");
+		when(roles.findByRoleCode("ROLE_VAULT_OWNER")).thenReturn(Optional.of(ownerRole));
 		when(actor.getUserId()).thenReturn(STAFF_ID);
 		when(staff.requireStaff()).thenReturn(actor);
 		when(ownedCase.isOpen()).thenReturn(true);
@@ -72,7 +82,12 @@ class StaffAccountProvisioningServiceTest {
 		assertThat(saved.getValue().getEmail()).isEqualTo("new@example.com");
 		assertThat(saved.getValue().getPasswordHash()).isEqualTo("$2a$hash");
 		assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
-		// No role and no recipient involvement: the service has no dependency that could grant either.
+		ArgumentCaptor<UserRole> personalRole = ArgumentCaptor.forClass(UserRole.class);
+        verify(userRoles).save(personalRole.capture());
+        assertThat(personalRole.getValue().getRole().getRoleCode()).isEqualTo("ROLE_VAULT_OWNER");
+        assertThat(personalRole.getValue().getUser()).isSameAs(saved.getValue());
+        assertThat(personalRole.getValue().getAssignedByUserId()).isEqualTo(STAFF_ID);
+        verify(roles, never()).findByRoleCode("ROLE_BENEFICIARY");
 		verify(audit).record(eq(STAFF_ID), eq(9L), eq("BENEFICIARY_ACCOUNT_CREATED_UNLINKED"), eq("USER"), any(),
 				eq("USER"), anyMap());
 	}

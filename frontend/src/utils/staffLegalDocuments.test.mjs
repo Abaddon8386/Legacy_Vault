@@ -49,7 +49,7 @@ test('PS-96: resolvePostLoginRoute directs pure Staff to /staff/legal-documents'
   assert.equal(resolvePostLoginRoute({ roles: ['STAFF_EXECUTOR'] }), '/staff/legal-documents');
   assert.equal(resolvePostLoginRoute({ roles: ['LEGAL_VERIFIER'] }), '/legal/death-verification');
   assert.equal(resolvePostLoginRoute({ roles: ['VAULT_OWNER', 'STAFF_EXECUTOR'] }), '/vault');
-  assert.equal(resolvePostLoginRoute({ roles: ['BENEFICIARY'] }), '/beneficiary');
+  assert.equal(resolvePostLoginRoute({ roles: ['BENEFICIARY'] }), '/shared-with-me');
 });
 
 test('PS-96: validateStaffLegalDocumentForm validates required fields, future dates, notary details, and evidence file', () => {

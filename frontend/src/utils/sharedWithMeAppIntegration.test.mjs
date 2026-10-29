@@ -395,6 +395,109 @@ test('SharedWithMePage - partial state renders only delivered items', async () =
 
 // --- PS-105 REGRESSION TESTS ---
 
+test('counter-created personal Owner can create their own vault and use Shared with me without a portal switch', async () => {
+  const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Counter account', email: 'personal@example.test', roles: ['VAULT_OWNER'] };
+  window.history.replaceState({}, '', '/vault');
+  window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt: Date.now() + 3600000 }));
+  const oldFetch = globalThis.fetch;
+  const writes = [];
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method && options.method !== 'GET') writes.push(url);
+    const body = url.endsWith('/auth/me') ? user : url.includes('/vaults?')
+      ? { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 } : { code: 'RESOURCE_NOT_FOUND' };
+    return new Response(JSON.stringify(body), { status: url.endsWith('/auth/me') || url.includes('/vaults?') ? 200 : 404, headers: { 'Content-Type': 'application/json' } });
+  };
+  const v = await mount(App, { caseLinkActions: { listOwn: async () => [], submit: async () => {} } });
+  try {
+    const create = [...v.host.querySelectorAll('button')].find(b => /Khởi tạo kho/.test(b.textContent));
+    assert.ok(create, 'Owner permission exposes the explicit create-vault action');
+    const nav = text => [...v.host.querySelectorAll('.lv-nav-item')].find(b => b.textContent.includes(text));
+    await act(async () => nav('Được chia sẻ với tôi').click());
+    assert.equal(window.location.pathname, '/shared-with-me');
+    assert.ok(v.host.querySelector('#case-link-number'));
+    await act(async () => nav('Kho di sản số').click());
+    assert.equal(window.location.pathname, '/vault');
+    assert.deepEqual(writes, [], 'Navigation must not create a vault or link automatically');
+  } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
+});
+
+for (const roles of [[], ['BENEFICIARY'], ['VAULT_OWNER'], ['VAULT_OWNER', 'BENEFICIARY']]) {
+  test(`legacy URL uses a single shared workspace and actual server capabilities: ${roles.join(',') || 'unlinked'}`, async () => {
+    const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Personal account', email: 'personal@example.test', roles };
+    window.history.replaceState({}, '', '/beneficiary?lang=en');
+    const historyLength = window.history.length;
+    window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt: Date.now() + 3600000 }));
+    const oldFetch = globalThis.fetch;
+    const urls = [];
+    globalThis.fetch = async url => {
+      urls.push(url);
+      assert.ok(url.endsWith('/auth/me'), 'Shared workspace must not fetch the personal vault');
+      return new Response(JSON.stringify(user), { headers: { 'Content-Type': 'application/json' } });
+    };
+    let receivedReads = 0;
+    const v = await mount(App, {
+      caseLinkActions: { listOwn: async () => [], submit: async () => { throw Error('unused'); } },
+      beneficiaryAssetActions: { list: async () => { receivedReads++; return { items: [], page: 0, totalElements: 0, totalPages: 0 }; } },
+    });
+    try {
+      assert.equal(window.location.pathname, '/shared-with-me');
+      assert.equal(window.history.length, historyLength, 'Legacy redirect must replace history, avoiding a Back-button loop');
+      assert.equal(new URLSearchParams(window.location.search).get('lang'), 'en');
+      assert.ok(v.host.querySelector('#shared-heading'));
+      assert.equal(v.host.querySelector('#beneficiary-home-title'), null);
+      const nav = v.host.querySelector('.lv-sidebar-nav');
+      assert.equal([...nav.querySelectorAll('button')].filter(b => b.textContent.includes('Shared with me')).length, 1);
+      assert.equal(nav.textContent.includes('Heritage Vault'), roles.includes('VAULT_OWNER'));
+      assert.deepEqual(JSON.parse(window.sessionStorage.getItem('legacyvault.session.v1')).user.roles, roles);
+      if (!roles.includes('BENEFICIARY')) assert.equal(receivedReads, 0);
+      await act(async () => v.host.querySelector('.lv-user-badge-card').click());
+      assert.doesNotMatch(v.host.querySelector('.lv-account-popover')?.textContent || v.host.textContent, /Beneficiary Portal|Beneficiary Information/);
+      assert.ok(urls.length > 0);
+    } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
+  });
+}
+
+test('canonical account refresh preserves expiry and removes revoked capabilities without leaving shared workspace', async () => {
+  let user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Personal', email: 'personal@example.test', roles: ['VAULT_OWNER', 'BENEFICIARY'] };
+  const expiresAt = Date.now() + 3600000;
+  window.history.replaceState({}, '', '/shared-with-me');
+  window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt }));
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(user), { headers: { 'Content-Type': 'application/json' } });
+  const v = await mount(App, {
+    caseLinkActions: { listOwn: async () => [], submit: async () => {} },
+    beneficiaryAssetActions: { list: async () => ({ items: [], page: 0, totalElements: 0, totalPages: 0 }) },
+  });
+  try {
+    user = { ...user, roles: ['BENEFICIARY'] };
+    const button = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
+    await act(async () => button.click());
+    assert.equal(window.location.pathname, '/shared-with-me');
+    assert.equal(JSON.parse(window.sessionStorage.getItem('legacyvault.session.v1')).expiresAt, expiresAt);
+    assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản số/);
+    assert.ok(v.host.querySelector('#shared-heading'));
+  } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
+});
+
+for (const internalRole of ['ADMIN', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
+  test(`legacy URL does not put internal ${internalRole} account in the Owner workspace`, async () => {
+    const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Internal', email: 'internal@example.test', roles: [internalRole, 'BENEFICIARY'] };
+    window.history.replaceState({}, '', '/beneficiary');
+    window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt: Date.now() + 3600000 }));
+    const oldFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response(JSON.stringify(user), { headers: { 'Content-Type': 'application/json' } });
+    let reads = 0;
+    const v = await mount(App, {
+      caseLinkActions: { listOwn: async () => { reads++; return []; }, submit: async () => {} },
+      beneficiaryAssetActions: { list: async () => ({ items: [], page: 0, totalElements: 0, totalPages: 0 }) },
+    });
+    try {
+      assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản số|Giám sát hoạt động/);
+      assert.equal(reads, 0, 'Internal roles cannot request personal recipient links');
+    } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
+  });
+}
+
 test('Regression Finding 1: Existing Bene landing Shared with me button must navigate actual App to /shared-with-me', async () => {
   window.history.replaceState({}, '', '/beneficiary');
   const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Regression Bene', email: 'bene@example.test', roles: ['BENEFICIARY'] };

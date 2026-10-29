@@ -159,6 +159,30 @@ public class AuthService {
                 .sorted()
                 .toList();
 
+        // Personal account policy (29/10/2026): repair legacy counter-created / Beneficiary-only
+        // accounts individually at authenticated login, never through a bulk migration or invitation.
+        // A closed allowlist excludes internal and unknown roles, including mixed internal accounts.
+        if (securityRoles.stream().allMatch("ROLE_BENEFICIARY"::equals)) {
+            User locked = userRepository.findActiveAccountForUpdate(user.getUserId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+            if (locked.getAuthVersion() != user.getAuthVersion()) {
+                throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+            }
+            List<String> currentRoles = userRoleRepository.findByUserIdWithRole(user.getUserId()).stream()
+                    .map(UserRole::getRole).map(Role::getRoleCode).distinct().sorted().toList();
+            if (currentRoles.stream().allMatch("ROLE_BENEFICIARY"::equals)) {
+                Role ownerRole = roleRepository.findByRoleCode(DEFAULT_ROLE)
+                        .orElseThrow(() -> new IllegalStateException("Required role not found: " + DEFAULT_ROLE));
+                userRoleRepository.saveAndFlush(new UserRole(locked, ownerRole));
+                securityRoles = java.util.stream.Stream.concat(currentRoles.stream(), java.util.stream.Stream.of(DEFAULT_ROLE))
+                        .sorted().toList();
+                recordProfileAudit(AuditAction.AUTH_PROFILE_UPDATED, user.getUserId(),
+                        Map.of("result", "SUCCESS", "changedFields", List.of("personalOwnerRole")));
+            } else {
+                securityRoles = currentRoles;
+            }
+        }
+
         String accessToken = jwtService.generateAccessToken(
                 user.getPublicId(),
                 user.getEmail(),
