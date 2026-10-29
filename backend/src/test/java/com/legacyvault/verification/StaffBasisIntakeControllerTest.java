@@ -39,8 +39,7 @@ import com.legacyvault.user.repository.UserRoleRepository;
 import com.legacyvault.verification.controller.StaffBasisIntakeController;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.service.BasisDossierViewService;
-import com.legacyvault.verification.service.BasisForwardService;
-import com.legacyvault.verification.service.BasisIntakeService;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 
 /** PS-41: hợp đồng HTTP của /staff/verification-cases/{caseId}/basis-dossier (multipart: metadata + file). */
 @WebMvcTest(controllers = StaffBasisIntakeController.class)
@@ -67,13 +66,12 @@ class StaffBasisIntakeControllerTest {
     private UserRoleRepository userRoleRepository;
 
     @MockitoBean
-    private BasisIntakeService intake;
+    private DistributionWorkflowService intake;
 
     @MockitoBean
     private BasisDossierViewService views;
 
-    @MockitoBean
-    private BasisForwardService forwardService;
+
 
     private static RequestPostProcessor as(String role) {
         return authentication(new UsernamePasswordAuthenticationToken(STAFF, null,
@@ -104,7 +102,7 @@ class StaffBasisIntakeControllerTest {
 
     @Test
     void receive_returns201WithLocation_forStaff() throws Exception {
-        when(intake.intake(eq(CASE_ID), any(), any(), any())).thenReturn(DOSSIER);
+        when(intake.receive(eq(CASE_ID), any(), any(), any())).thenReturn(DOSSIER);
 
         receive(metadata("COURT_JUDGMENT", "045/2026"), true, staff())
                 .andExpect(status().isCreated())
@@ -125,7 +123,7 @@ class StaffBasisIntakeControllerTest {
 
     @Test
     void receive_missingMetadataPart_returns400_notServerError() throws Exception {
-        when(intake.intake(eq(CASE_ID), any(), isNull(), any()))
+        when(intake.receive(eq(CASE_ID), any(), isNull(), any()))
                 .thenThrow(new BusinessException(ErrorCode.VALIDATION_FAILED));
 
         receive(null, true, staff()).andExpect(status().isBadRequest())
@@ -134,7 +132,7 @@ class StaffBasisIntakeControllerTest {
 
     @Test
     void receive_mapsErrors_andRoles() throws Exception {
-        when(intake.intake(eq(CASE_ID), any(), any(), any()))
+        when(intake.receive(eq(CASE_ID), any(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
                 .thenThrow(new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE))
                 .thenThrow(new BusinessException(ErrorCode.UNSUPPORTED_MEDIA_TYPE))
@@ -167,7 +165,7 @@ class StaffBasisIntakeControllerTest {
 
     @Test
     void forward_returns200_forStaffOnly() throws Exception {
-        when(forwardService.forward(eq(CASE_ID), eq(2), any())).thenReturn(DOSSIER);
+        when(intake.forward(eq(CASE_ID), eq(2), any())).thenReturn(DOSSIER);
 
         mockMvc.perform(post(URL + "/versions/{version}/forward", CASE_ID, 2).with(staff()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.route").value("NOTARIAL"));
@@ -178,7 +176,7 @@ class StaffBasisIntakeControllerTest {
 
     @Test
     void forward_mapsErrors_andRejectsVersionBelowOne() throws Exception {
-        when(forwardService.forward(eq(CASE_ID), eq(1), any()))
+        when(intake.forward(eq(CASE_ID), eq(1), any()))
                 .thenThrow(new BusinessException(ErrorCode.BASIS_VERSION_STALE))
                 .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 

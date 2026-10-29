@@ -37,14 +37,16 @@ class LegalRouteSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
-    void absentWillDoesNotBlockCourtButNotarialIsRejectedWithoutWrites() {
+    void absentWillDoesNotBlockClassification_andNotarialIsAcceptedAlongsideCourt() {
         var f = fixture(false);
         jdbc.update("UPDATE dbo.vaults SET status='DOCUMENT_VERIFICATION' WHERE vault_id=?",f.vaultId());
-        var error=assertThrows(BusinessException.class,()->service().classify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(Route.NOTARIAL,"Legacy client")));
-        assertEquals(ErrorCode.VALIDATION_FAILED,error.getErrorCode());
-        assertEquals(0,count("legal_basis_dossiers","verification_case_id=?",f.caseId()));
         assertEquals("COURT",service().classify(f.publicCaseId(),f.legal(),new ClassifyBasisRequest(Route.COURT,"Court evidence next")).route());
         assertEquals(0,count("will_comparisons","verification_case_id=?",f.caseId()));
+        var notarial = fixture(false);
+        jdbc.update("UPDATE dbo.vaults SET status='DOCUMENT_VERIFICATION' WHERE vault_id=?",notarial.vaultId());
+        assertEquals("NOTARIAL",service().classify(notarial.publicCaseId(),notarial.legal(),new ClassifyBasisRequest(Route.NOTARIAL,"Notarial deed expected")).route());
+        assertEquals("NONE",jdbc.queryForObject("SELECT dispute_status FROM dbo.legal_basis_dossiers WHERE verification_case_id=?",String.class,notarial.caseId()));
+        assertEquals("AWAITING_LEGAL_BASIS",jdbc.queryForObject("SELECT status FROM dbo.vaults WHERE vault_id=?",String.class,notarial.vaultId()));
     }
 
     @Test

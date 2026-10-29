@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 import {
@@ -394,7 +395,7 @@ globalThis.document = dom.window.document;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const builtComponent = await build({
-  root: 'C:/Users/hai/Downloads/FALL26/SWP/Legacy_Vault/frontend',
+  root: fileURLToPath(new URL('../../', import.meta.url)),
   configFile: false,
   logLevel: 'silent',
   build: {

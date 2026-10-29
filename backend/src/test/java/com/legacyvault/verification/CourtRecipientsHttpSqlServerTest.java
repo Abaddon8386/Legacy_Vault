@@ -100,7 +100,7 @@ class CourtRecipientsHttpSqlServerTest extends LegalBasisSqlServerSupport {
     void courtSplitsEstateBetweenAandC_BhasNoRight_unlinkedCIsBlockedUntilLinked_partialDeliveryShowsOnlyDelivered()
             throws Exception {
         String password = "Synthetic-Court-2026";
-        var f = fixture(false);
+        var f = fixture(true);
         jdbc.update("UPDATE dbo.vaults SET status='DOCUMENT_VERIFICATION' WHERE vault_id=?", f.vaultId());
         jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles "
                 + "WHERE role_code IN ('ROLE_LEGAL_VERIFIER','ROLE_STAFF_EXECUTOR')", f.userId());
@@ -161,12 +161,13 @@ class CourtRecipientsHttpSqlServerTest extends LegalBasisSqlServerSupport {
         assertFalse(lineC.get("accountLinked").asBoolean());
 
         var state = snapshot.get("snapshot");
+        call("POST", legal + "/basis-dossier/court-decisions", Map.of("version", 1, "result", "VALID",
+                "reason", "Synthetic court review"), staff, 201);
+        completeDistribution(f);
         call("POST", legal + "/basis-dossier/review", Map.of("reason", "Synthetic exact version",
                 "versionNo", state.get("currentVersion").asInt(), "sha256Hash", state.get("sha256Hash").asText(),
                 "allocationHash", state.get("allocationHash").asText(), "disputeStatus", state.get("disputeStatus").asText()),
                 staff, 200);
-        call("POST", legal + "/basis-dossier/court-decisions", Map.of("version", 1, "result", "VALID",
-                "reason", "Synthetic court review"), staff, 201);
         call("POST", legal + "/basis-dossier/decision", Map.of("decision", "APPROVE", "versionNo", 1,
                 "sha256Hash", state.get("sha256Hash").asText(), "allocationHash", state.get("allocationHash").asText(),
                 "reason", "Synthetic final approval"), staff, 200);

@@ -16,11 +16,13 @@ import java.util.UUID;
 
 @Service
 public class LegalVaultUnlockService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
     private final LegalWorkflowGuard workflow;
     private final VaultRepository vaults;
     private final AuditService audit;
 
-    public LegalVaultUnlockService(LegalWorkflowGuard workflow, VaultRepository vaults, AuditService audit) {
+    public LegalVaultUnlockService(LegalWorkflowGuard workflow, VaultRepository vaults, AuditService audit, com.legacyvault.notification.WorkflowNotificationService notifications) {
+        this.notifications = notifications;
         this.workflow = workflow;
         this.vaults = vaults;
         this.audit = audit;
@@ -41,6 +43,7 @@ public class LegalVaultUnlockService {
                 Map.of("casePublicId", locked.verificationCase().getPublicId().toString(),
                         "stepId", "ST-22", "ruleId", "LV-LEG-001"),
                 "ST-22", "LV-LEG-001"));
+        notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_VAULT_UNLOCKED", "unlock:" + caseId, null);
         return new LegalVaultUnlockResponse(locked.verificationCase().getPublicId(), saved.getPublicId(),
                 saved.getStatus(), principal.publicId(), saved.getUpdatedAt());
     }
