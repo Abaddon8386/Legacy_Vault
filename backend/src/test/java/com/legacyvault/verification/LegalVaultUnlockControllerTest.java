@@ -7,7 +7,7 @@ import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.user.repository.UserRoleRepository;
 import com.legacyvault.verification.controller.LegalVaultUnlockController;
 import com.legacyvault.verification.dto.LegalVaultUnlockResponse;
-import com.legacyvault.verification.service.LegalVaultUnlockService;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -42,7 +42,7 @@ class LegalVaultUnlockControllerTest {
     @MockitoBean private JwtService jwtService;
     @MockitoBean private UserRepository userRepository;
     @MockitoBean private UserRoleRepository userRoleRepository;
-    @MockitoBean private LegalVaultUnlockService service;
+    @MockitoBean private DistributionWorkflowService service;
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor as(String role) {
         return authentication(authenticated(LEGAL, null, createAuthorityList("ROLE_" + role)));

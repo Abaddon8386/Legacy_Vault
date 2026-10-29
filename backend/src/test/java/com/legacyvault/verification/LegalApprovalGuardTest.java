@@ -41,6 +41,7 @@ class LegalApprovalGuardTest {
     void setUp() {
         when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
         when(dossier.getRoute()).thenReturn("COURT");
+        when(dossier.isLegalReviewable()).thenReturn(true);
         when(dossier.getReviewStatus()).thenReturn("FRESH");
         when(dossier.getLastReviewedVersionNo()).thenReturn(VERSION_NO);
         when(dossier.getLastReviewedSha256Hash()).thenReturn(HASH);

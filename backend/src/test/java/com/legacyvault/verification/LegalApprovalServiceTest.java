@@ -75,6 +75,7 @@ class LegalApprovalServiceTest {
         when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
         when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_NOTARIAL);
         when(dossier.acceptsIntake()).thenReturn(true);
+        when(dossier.isLegalReviewable()).thenReturn(true);
         when(dossier.getRequiredVersionNo()).thenReturn(1);
         when(dossier.getReviewStatus()).thenReturn("FRESH");
         when(dossier.getLastReviewedVersionNo()).thenReturn(VERSION_NO);
@@ -93,7 +94,7 @@ class LegalApprovalServiceTest {
     @Test
     void approve_persistsDecisionSnapshotAndAuditAtomically() {
         var response = service.decide(CASE_ID, principal,
-                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null));
+                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved"));
 
         assertThat(response.decision()).isEqualTo("LEGAL_APPROVED");
         assertThat(response.decidedBy()).isEqualTo(principal.publicId());
@@ -137,26 +138,26 @@ class LegalApprovalServiceTest {
 
     @Test
     void mismatchedVersionHashOrAllocationScope_isRejectedWithoutDecision() {
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO - 1, HASH, ALLOCATION_HASH, null));
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, "b".repeat(64), ALLOCATION_HASH, null));
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, "c".repeat(64), null));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO - 1, HASH, ALLOCATION_HASH, "Approved"));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, "b".repeat(64), ALLOCATION_HASH, "Approved"));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, "c".repeat(64), "Approved"));
         verifyNoInteractions(history, audit);
     }
 
     @Test
     void changedAuthoritativeVersionHashOrAllocation_invalidatesReviewSnapshot() {
         when(dossier.getLastReviewedVersionNo()).thenReturn(VERSION_NO - 1);
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved"));
         when(dossier.getLastReviewedVersionNo()).thenReturn(VERSION_NO);
         when(dossier.getLastReviewedSha256Hash()).thenReturn("b".repeat(64));
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved"));
         when(dossier.getLastReviewedSha256Hash()).thenReturn(HASH);
         when(dossier.getLastReviewedAllocationHash()).thenReturn("c".repeat(64));
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved"));
         when(dossier.getLastReviewedAllocationHash()).thenReturn(ALLOCATION_HASH);
         when(allocations.findRowsByDossier(DOSSIER_ID)).thenReturn(List.of(
                 new AllocationRow(VERSION_NO, UUID.randomUUID(), UUID.randomUUID(), "scope changed")));
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved"));
         verifyNoInteractions(history, audit);
     }
 
@@ -164,17 +165,17 @@ class LegalApprovalServiceTest {
     void holdOrReviewRequiredBlocksDecision() {
         when(vault.getStatus()).thenReturn(Vault.STATUS_ON_HOLD);
         assertThatThrownBy(() -> service.decide(CASE_ID, principal,
-                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null)))
+                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved")))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
         when(vault.getStatus()).thenReturn(Vault.STATUS_LEGAL_BASIS_VERIFICATION);
         when(dossier.getReviewStatus()).thenReturn("REVIEW_REQUIRED");
-        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null));
+        assertStale(request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved"));
         when(dossier.getReviewStatus()).thenReturn("FRESH");
         when(dossier.getRoute()).thenReturn(LegalBasisDossier.ROUTE_ON_HOLD);
         assertThatThrownBy(() -> service.decide(CASE_ID, principal,
-                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null)))
+                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved")))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
@@ -185,7 +186,7 @@ class LegalApprovalServiceTest {
     void auditFailurePropagatesSoCallerTransactionCanRollback() {
         doThrow(new IllegalStateException("audit unavailable")).when(audit).record(any());
         assertThatThrownBy(() -> service.decide(CASE_ID, principal,
-                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, null)))
+                request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved")))
                 .isInstanceOf(IllegalStateException.class);
         verify(history).save(any(LegalBasisReviewHistory.class));
     }

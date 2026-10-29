@@ -4,8 +4,7 @@ import com.legacyvault.common.security.CustomUserPrincipal;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.BasisIntakeMetadata;
 import com.legacyvault.verification.service.BasisDossierViewService;
-import com.legacyvault.verification.service.BasisForwardService;
-import com.legacyvault.verification.service.BasisIntakeService;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.MediaType;
@@ -32,14 +31,11 @@ import java.util.UUID;
 @PreAuthorize("hasRole('STAFF_EXECUTOR')")
 public class StaffBasisIntakeController {
 
-    private final BasisIntakeService intake;
-    private final BasisForwardService forwarding;
+    private final DistributionWorkflowService distribution;
     private final BasisDossierViewService views;
 
-    public StaffBasisIntakeController(BasisIntakeService intake, BasisForwardService forwarding,
-            BasisDossierViewService views) {
-        this.intake = intake;
-        this.forwarding = forwarding;
+    public StaffBasisIntakeController(DistributionWorkflowService distribution, BasisDossierViewService views) {
+        this.distribution = distribution;
         this.views = views;
     }
 
@@ -51,7 +47,7 @@ public class StaffBasisIntakeController {
             @RequestPart(name = "file", required = false) MultipartFile file,
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        BasisDossierResponse updated = intake.intake(caseId, principal, metadata, file);
+        BasisDossierResponse updated = distribution.receive(caseId, principal, metadata, file);
         URI location = URI.create("/api/v1/staff/verification-cases/" + caseId + "/basis-dossier");
         return ResponseEntity.created(location).body(updated);
     }
@@ -63,7 +59,7 @@ public class StaffBasisIntakeController {
             @PathVariable @Min(1) int version,
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return forwarding.forward(caseId, version, principal);
+        return distribution.forward(caseId, version, principal);
     }
 
     @GetMapping

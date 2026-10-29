@@ -24,7 +24,7 @@ An unassigned case does not produce a Staff notification or RECORDED receipt.
 
 Outstanding before PS-134 can be marked complete:
 - Hook attachment upload, basis intake/forward/review, will comparison and final approval/rejection.
-- Integrate distribution-workflow actions once their business APIs are available on develop.
+- Connect the distribution-workflow actions now available from develop (PR #227).
 - Add notification receipts to the existing mutation DTOs and confirm FE #226 action handling.
 - Exercise HTTP role checks, multi-account read state, concurrent retry and transaction rollback
   against real SQL Server and the FE. Unit mocks do not establish these properties end-to-end.
@@ -33,3 +33,6 @@ Outstanding before PS-134 can be marked complete:
 Local environment: localhost:1433, SQLEXPRESS and MSSQLLocalDB were unreachable.
 V55 has not been applied to a real SQL Server. No application/shared database was changed.
 This is a partial implementation and must remain a draft PR.
+
+Develop compatibility: merged develop 62618ba; V54 distribution events and V55 notifications have distinct versions. Business notification integration remains partial as listed above.
+Validation after merging develop: Maven clean test excluding *SqlServerTest and LegacyvaultBackendApplicationTests completed successfully: 748 total, 745 passed, 3 skipped, 0 failures/errors. SQL Server execution remains unverified.

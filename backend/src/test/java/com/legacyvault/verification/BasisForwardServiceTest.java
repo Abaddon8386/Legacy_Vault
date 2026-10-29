@@ -169,6 +169,20 @@ class BasisForwardServiceTest {
     }
 
     @Test
+    void forwardIsAllowedOnceTheDeathDocumentIsDecided_andMovesTheVaultToLegalVerification() {
+        for (String status : new String[]{"DOCUMENT_VERIFICATION", "WILL_VERIFICATION", "AWAITING_LEGAL_BASIS"}) {
+            LegalBasisDossier dossier = dossier("LEGAL_BASIS_PROVIDED");
+            Vault vault = happyPath(dossier, 1);
+            ReflectionTestUtils.setField(vault, "status", status);
+
+            service.forward(CASE_ID, 1, staff);
+
+            assertThat(vault.getStatus()).as(status).isEqualTo("LEGAL_BASIS_VERIFICATION");
+            assertThat(dossier.getStatus()).isEqualTo("LEGAL_BASIS_FORWARDED");
+        }
+    }
+
+    @Test
     void latestVersion_isForwarded_dossierForwarded_vaultMovesToVerification_andAudits() {
         LegalBasisDossier dossier = dossier("LEGAL_BASIS_PROVIDED");
         Vault vault = happyPath(dossier, 2);
@@ -296,7 +310,7 @@ class BasisForwardServiceTest {
         for (String status : new String[]{
                 "ON_HOLD",
                 "LEGAL_BASIS_VERIFICATION",
-                "WILL_VERIFICATION"
+                "AWAITING_VERIFICATION"
         }) {
             happyPath(dossier("LEGAL_BASIS_PROVIDED"), 1);
 

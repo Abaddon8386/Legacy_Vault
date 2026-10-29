@@ -78,7 +78,7 @@ public class LegalReadService {
         if(!c.isOpen()) return ErrorCode.BASIS_DOSSIER_INVALID_STATE;
         if(Vault.STATUS_ON_HOLD.equals(vault.getStatus()) || LegalBasisDossier.ROUTE_ON_HOLD.equals(d.getRoute())) return ErrorCode.LEGAL_WORKFLOW_ON_HOLD;
         if(!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus()) || !LegalBasisDossier.STATUS_FORWARDED.equals(d.getStatus())
-            || !d.acceptsIntake() || version==null || version.version()<d.getRequiredVersionNo() || !"FORWARDED".equals(version.forwardStatus())
+            || !d.isLegalReviewable() || version==null || version.version()<d.getRequiredVersionNo() || !"FORWARDED".equals(version.forwardStatus())
             || version.sha256()==null || version.sha256().isBlank()) return ErrorCode.BASIS_DOSSIER_INVALID_STATE;
         return null;
     }

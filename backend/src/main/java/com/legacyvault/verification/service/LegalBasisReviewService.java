@@ -154,7 +154,7 @@ public class LegalBasisReviewService {
         }
 
         boolean validVaultState =
-                Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())
+                vault.isLegalBasisIntakeState()
                         || Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus());
 
         if (!validVaultState) {
@@ -265,7 +265,7 @@ public class LegalBasisReviewService {
 
         // Kiểm tra hold trước khi kiểm tra trạng thái nghiệp vụ.
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -347,7 +347,7 @@ public class LegalBasisReviewService {
 
         // Phải chạy trước các kiểm tra trạng thái Vault và dossier.
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -417,7 +417,7 @@ public class LegalBasisReviewService {
             LegalBasisDossier dossier,
             Long vaultId
     ) {
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
@@ -573,7 +573,7 @@ public class LegalBasisReviewService {
             Long reviewerUserId,
             String reason
     ) {
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
