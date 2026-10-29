@@ -48,7 +48,7 @@ class OriginalWillIntakeServiceTest {
     private final AuditService auditService = mock(AuditService.class);
     private final OriginalWillIntakeService service = new OriginalWillIntakeService(caseRepository, intakeRepository,
             userRepository, auditService,
-            mock(com.legacyvault.verification.service.LegalBasisLockedState.class));
+            mock(com.legacyvault.verification.service.LegalBasisLockedState.class), mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 

@@ -44,19 +44,19 @@ public class DeathDocumentIntakeService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final LegalBasisLockedState state;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     public DeathDocumentIntakeService(
             StaffCaseLockRepository caseRepository,
             DeathDocumentRecordRepository recordRepository,
             UserRepository userRepository,
             AuditService auditService,
-            LegalBasisLockedState state
-    ) {
+            LegalBasisLockedState state, com.legacyvault.notification.WorkflowNotificationService notifications) {
         this.caseRepository = caseRepository;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
-        this.state = state;
+        this.state = state; this.notifications = notifications;
     }
 
     @Transactional
@@ -106,6 +106,7 @@ public class DeathDocumentIntakeService {
                 RULE_ID
         ));
 
+        notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "DEATH_DOCUMENT_RECORDED", "DEATH_DOCUMENT_RECORDED:" + saved.getPublicId(), null);
         return DeathDocumentRecordResponse.from(saved, verificationCase.getPublicId(), principal.publicId());
     }
 
