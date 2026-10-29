@@ -16,6 +16,7 @@ Quyết định: Thái yêu cầu sửa khác biệt giữa tài khoản tự đ
 - `/shared-with-me` là đường vào nhận di sản chung. `/beneficiary` cũ chuyển bằng replace, giữ query/ngôn ngữ; không render cổng thông tin Beneficiary riêng.
 - Xóa component/CSS `BeneficiaryHome` không còn dùng và nhánh điều hướng nội bộ `beneficiary-home`; giữ kiểm thử chuyển hướng, phiên, API và quyền nhận trong workspace chung.
 - Sidebar có đúng một mục nhận di sản, không có lựa chọn đổi cổng Beneficiary. Tài khoản có Owner thấy chức năng kho riêng và nhận di sản trong cùng shell.
+- Tài khoản Staff/Legal/Admin có thêm quyền Beneficiary giữ workspace nghiệp vụ và có đường vào `/shared-with-me` trong menu tài khoản, giữ ngôn ngữ. Đây là trang nhận dùng chung, không cấp Owner hoặc cho phép gửi yêu cầu liên kết cá nhân. Sidebar nghiệp vụ vẫn dùng được khi đang xem tài sản nhận.
 - Phiên Bene-only/không role cũ vẫn vào Shared with me, không giả quyền Owner hoặc gọi API quản lý kho khi BE chưa trả quyền đó.
 - Quyền đọc dữ liệu nhận vẫn theo principal–recipient–item DELIVERED; có Owner, mã mời hoặc liên kết không tự mở nội dung trước bàn giao. Giữ quyền lịch sử sau archive.
 

@@ -375,7 +375,7 @@ export default function AppShell({
         <nav className="lv-sidebar-nav" aria-label="Menu chức năng">
           <span className="lv-nav-heading">{t.navSectionTitle}</span>
           <ul className="lv-nav-list">
-            {navList.filter((item) => item.status === 'ACTIVE' && (item.id !== 'shared-with-me' || isBeneficiary || isPersonalRecipient(resolvedUser?.roles || []))).map((item) => (
+            {navList.filter((item) => item.status === 'ACTIVE' && (item.id !== 'shared-with-me' || isBeneficiary || resolvedUser?.roles?.includes('BENEFICIARY') || isPersonalRecipient(resolvedUser?.roles || []))).map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -644,6 +644,13 @@ export default function AppShell({
                   href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
                   {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
                 </a></li>}
+                {hasSession && (isStaff || isLegal || isAdmin) && resolvedUser?.roles?.includes('BENEFICIARY') && (
+                  <li role="none">
+                    <a role="menuitem" className="lv-account-menu-item" href={`/shared-with-me?lang=${lang}`} style={{ textDecoration: 'none' }}>
+                      {lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi'}
+                    </a>
+                  </li>
+                )}
                 {hasSession && resolvedUser?.roles && (
                   <>
                     {isBeneficiary && resolvedUser.roles.includes('VAULT_OWNER') && (
