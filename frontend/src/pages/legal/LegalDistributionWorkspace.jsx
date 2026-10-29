@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import DistributionWorkflowOverview from '../../workflows/DistributionWorkflowOverview.jsx';
 import { canUseDistributionAction, documentMatchesWorkflow, distributionFinalReady, preflightDistributionFinal } from '../../workflows/distributionWorkflowService.js';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalFinalDecision from './LegalFinalDecision.jsx';
+import LegalHoldControls from './LegalHoldControls.jsx';
+import { legalReadOnly } from './legalPresentation.js';
 
-export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onUnauthorized, onDenied }) {
+export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied }) {
   const en = lang === 'en', data = workflow.data;
   const [draft, setDraft] = useState({ scope: '', reason: '' });
+  const operation = useRef(false), [holdPending, setHoldPending] = useState(false);
+  const onHold = context.basisDossier?.route === 'ON_HOLD' || context.vaultStatus === 'ON_HOLD';
   const scope = `${context.caseId}:${session.accessToken}:${data?.phase}:${data?.document?.version}:${data?.allocation?.version}`;
   const reason = draft.scope === scope ? draft.reason : '';
   const matches = documentMatchesWorkflow(data, context.basisDossier);
-  const can = action => canUseDistributionAction(data, action, 'LEGAL') && (action === 'requestDocuments' || matches);
+  const can = action => !onHold && !holdPending && !legalReadOnly(context) && canUseDistributionAction(data, action, 'LEGAL') && (action === 'requestDocuments' || matches);
   const request = data?.phase === 'DOCUMENT_REQUEST_NEEDED';
   const documents = data?.phase === 'DOCUMENTS_UNDER_REVIEW';
   const allocations = data?.phase === 'ALLOCATIONS_UNDER_REVIEW';
@@ -20,12 +24,22 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   async function submit(event) {
     event.preventDefault();
     const action = event.nativeEvent?.submitter?.value || actions[0]?.[0];
-    if (!can(action) || !reason.trim() || reason.trim().length > 1000) return;
-    const saved = await workflow.run(action, { reason });
-    if (saved) { setDraft({ scope, reason: '' }); onComplete?.(); }
+    if (operation.current || !can(action) || !reason.trim() || reason.trim().length > 1000) return;
+    operation.current = true;
+    try {
+      const saved = await workflow.run(action, { reason });
+      if (saved) { setDraft({ scope, reason: '' }); onComplete?.(); }
+    } finally { operation.current = false; }
   }
+  const holdControls = <LegalHoldControls key={`${context.caseId}:${session.accessToken}`} context={context} session={session} lang={lang}
+    disabled={workflow.pending} onUnauthorized={onUnauthorized} onDenied={onDenied}
+    claimOperation={() => { if (operation.current || workflow.pending) return false; operation.current = true; setHoldPending(true); return true; }}
+    releaseOperation={() => { operation.current = false; setHoldPending(false); }}
+    onComplete={receipt => receipt ? onSaved?.(receipt) : onComplete?.()} />;
+  if (onHold) return holdControls;
   return <>
     <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} />
+    {holdControls}
     {data?.document && <section className="lv-legal-step-data lv-surface-card">
       <h2>{en ? 'Submitted distribution documents' : 'Giấy tờ phân chia đã nộp'}</h2>
       {!matches ? <p role="alert">{en ? 'The document version changed. Reload the case before deciding.' : 'Phiên bản giấy tờ đã thay đổi. Tải lại hồ sơ trước khi quyết định.'}</p>

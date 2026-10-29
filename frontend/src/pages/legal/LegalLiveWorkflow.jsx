@@ -146,9 +146,12 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   }, [selected.caseId, session, contextLoader, attempt]);
   const current = result?.attempt === attempt && result.session === session && result.contextLoader === contextLoader ? result : null;
   const distribution = useDistributionWorkflow({ caseId: selected.caseId, workspace: 'LEGAL', accessToken: session.accessToken, lang,
-    enabled: !!current?.data && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied });
+    enabled: !!current?.data && current.data.basisDossier?.route !== 'ON_HOLD' && current.data.vaultStatus !== 'ON_HOLD'
+      && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
-  const outcome = visibleReceipt?.decision === 'LEGAL_REJECTED'
+  const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
+    : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case processing resumed.' : 'Đã tiếp tục xử lý hồ sơ.')
+    : visibleReceipt?.decision === 'LEGAL_REJECTED'
     ? (en ? 'Case approval rejected.' : 'Đã từ chối phê duyệt hồ sơ.')
     : visibleReceipt?.decision === 'LEGAL_APPROVED' ? (en ? 'Case approved.' : 'Đã phê duyệt hồ sơ.')
     : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked.' : 'Đã mở khóa kho.')
@@ -193,7 +196,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     </div>
     {step === 'basis-route-selection'
       ? <LegalDistributionWorkspace workflow={distribution} session={session} context={context} lang={lang}
-          onComplete={() => setAttempt(value => value + 1)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
+          onComplete={() => setAttempt(value => value + 1)} onSaved={saved} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : ['approval-review', 'controlled-unlock'].includes(step)
       ? <LegalDistributionFinalWorkspace workflow={distribution} session={session} context={context} step={step} lang={lang}
         draft={draft} setDraft={setDraft} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
