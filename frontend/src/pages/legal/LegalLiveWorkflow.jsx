@@ -7,7 +7,8 @@ import { LegalRecordDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
 import { isSessionActive } from '../../utils/session.js';
 import * as api from './legalLiveService.js';
-import LegalFinalDecision from './LegalFinalDecision.jsx';
+import LegalDistributionWorkspace, { LegalDistributionFinalWorkspace } from './LegalDistributionWorkspace.jsx';
+import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
@@ -144,6 +145,8 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     return () => controller.abort();
   }, [selected.caseId, session, contextLoader, attempt]);
   const current = result?.attempt === attempt && result.session === session && result.contextLoader === contextLoader ? result : null;
+  const distribution = useDistributionWorkflow({ caseId: selected.caseId, workspace: 'LEGAL', accessToken: session.accessToken, lang,
+    enabled: !!current?.data && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
   const outcome = visibleReceipt?.decision === 'LEGAL_REJECTED'
     ? (en ? 'Case approval rejected.' : 'Đã từ chối phê duyệt hồ sơ.')
@@ -166,7 +169,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   if (!current) return <>{confirmation}<p role="status">{en ? 'Loading case context…' : 'Đang tải thông tin hồ sơ…'}</p></>;
   if (current.error) return <>{![401, 403, 404].includes(current.error.status) && confirmation}<div role="alert"><p>{knownErrors[current.error.status]?.[en ? 1 : 0] || (en ? 'Unable to load case information.' : 'Không thể tải thông tin hồ sơ.')}</p>
     <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div></>;
-  const guideModel = legalGuidance({ context: guidanceStale ? null : current.data, error: guidanceStale, current: step, caseId: selected.caseId, lang });
+  const guideModel = legalGuidance({ context: guidanceStale ? null : { ...current.data, distributionWorkflow: distribution.data }, error: guidanceStale, current: step, caseId: selected.caseId, lang });
   if (guidanceStale) guideModel.message = en ? 'Reload the record to check the next step.' : 'Tải lại hồ sơ để kiểm tra bước tiếp theo.';
   const guide = <WorkflowGuide lang={lang} onNavigate={onNavigate} model={guideModel} />;
   const context = current.data;
@@ -188,8 +191,11 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       </div>
       {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
     </div>
-    {['approval-review', 'controlled-unlock'].includes(step)
-      ? <LegalFinalDecision session={session} context={context} step={step} lang={lang}
+    {step === 'basis-route-selection'
+      ? <LegalDistributionWorkspace workflow={distribution} session={session} context={context} lang={lang}
+          onComplete={() => setAttempt(value => value + 1)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
+      : ['approval-review', 'controlled-unlock'].includes(step)
+      ? <LegalDistributionFinalWorkspace workflow={distribution} session={session} context={context} step={step} lang={lang}
         draft={draft} setDraft={setDraft} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id) }}
         step={step === 'basis-route-selection' ? 'dossier-review' : step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved}

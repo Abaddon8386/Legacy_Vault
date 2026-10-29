@@ -39,3 +39,11 @@ test('an unimplemented notification API is shown as unavailable and never as an 
  const view=await mount();
  try{await view.expand();assert.match(view.host.textContent,/Thông báo hiện chưa khả dụng/);assert.doesNotMatch(view.host.textContent,/Chưa có thông báo/);assert.equal(view.host.querySelector('li button'),null);}finally{await view.close();}
 });
+
+test('document acceptance and allocation corrections open the Staff allocation tab for the exact case', async () => {
+  const destinations = [];
+  globalThis.fetch = async (_url, init) => init.method === 'PUT' ? json({ id, read: true }) : json([{ ...item, action: 'DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED' }]);
+  const view = await mount({ session: { accessToken: 'staff-token' }, role: 'STAFF', lang: 'vi', onNavigate: url => destinations.push(url) });
+  try { await view.expand(); await act(async () => view.host.querySelector('li button').click()); assert.deepEqual(destinations, ['/staff/legal-documents?caseId=' + caseId + '&lang=vi&tab=allocations']); }
+  finally { await view.close(); }
+});

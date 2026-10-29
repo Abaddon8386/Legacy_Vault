@@ -3,6 +3,12 @@ import { Bell } from 'lucide-react';
 import { request } from '../../api/http.js';
 import './WorkflowNotifications.css';
 const labels={
+ DISTRIBUTION_DOCUMENTS_REQUESTED:['Legal đã yêu cầu giấy tờ phân chia','Legal requested distribution documents'],
+ DISTRIBUTION_DOCUMENTS_APPROVED:['Căn cứ đã duyệt, Staff có thể lập phân bổ','Documents accepted; Staff can prepare allocations'],
+ DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED:['Legal yêu cầu bổ sung giấy tờ','Legal requested additional documents'],
+ DISTRIBUTION_ALLOCATIONS_SUBMITTED:['Staff đã gửi phân bổ để kiểm tra','Staff submitted allocations for review'],
+ DISTRIBUTION_ALLOCATIONS_APPROVED:['Legal đã chấp thuận phân bổ','Legal accepted the allocations'],
+ DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED:['Legal yêu cầu sửa phân bổ','Legal requested allocation corrections'],
  VERIFICATION_CASE_CLAIMED:['Nhân viên đã nhận xử lý hồ sơ','Staff assigned to the case'],
  DEATH_DOCUMENT_RECORDED:['Đã tiếp nhận giấy tờ khai tử','Death document received'], ORIGINAL_WILL_RECEIVED:['Đã tiếp nhận di chúc','Original will received'],
  INTAKE_ATTACHMENT_UPLOADED:['Có tệp giấy tờ mới','New document uploaded'], LEGAL_DEATH_DOCUMENT_DECIDED:['Đã có kết quả xác minh tử vong','Death verification updated'],
@@ -36,7 +42,9 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    if(c?.signal.aborted)return;
    const intakeEvent=['VERIFICATION_CASE_CLAIMED','DEATH_DOCUMENT_RECORDED','ORIGINAL_WILL_RECEIVED','INTAKE_ATTACHMENT_UPLOADED','LEGAL_DEATH_DOCUMENT_DECIDED','WILL_COMPARISON_RECORDED'].includes(item.action);
    const tab=role==='STAFF'?(intakeEvent?'/staff/cases':'/staff/legal-documents'):item.action==='LEGAL_VAULT_UNLOCKED'?'/legal/controlled-unlock':item.action==='LEGAL_BASIS_DECIDED'?'/legal/approval-review':item.action==='VERIFICATION_CASE_CLAIMED'||item.action==='DEATH_DOCUMENT_RECORDED'||item.action==='INTAKE_ATTACHMENT_UPLOADED'?'/legal/death-verification':item.action==='ORIGINAL_WILL_RECEIVED'||item.action==='WILL_COMPARISON_RECORDED'?'/legal/will-document-verification':'/legal/basis-route-selection';
-   onNavigate(tab+'?'+new URLSearchParams({caseId:item.caseId,lang}));
+   const params=new URLSearchParams({caseId:item.caseId,lang});
+   if(role==='STAFF'&&['DISTRIBUTION_DOCUMENTS_APPROVED','DISTRIBUTION_ALLOCATIONS_SUBMITTED','DISTRIBUTION_ALLOCATIONS_APPROVED','DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED'].includes(item.action))params.set('tab','allocations');
+   onNavigate(tab+'?'+params);
   }catch{if(!c?.signal.aborted)setResult({token,role,error:true});}finally{if(!c?.signal.aborted)setOpening(null);}}
  return <details ref={details} onToggle={event=>setExpanded(event.currentTarget.open)} className="lv-workflow-notifications"><summary aria-label={en?'Notifications':'Thông báo'}><Bell size={20} aria-hidden="true"/><span>{en?'Notifications':'Thông báo'}</span>{visible?.items?.some(x=>!x.read)&&<span className="lv-workflow-notifications__dot" aria-label={en?'Unread notifications':'Có thông báo chưa đọc'}/>}</summary>
   {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}><h2>{en?'Recent notifications':'Thông báo gần đây'}</h2>

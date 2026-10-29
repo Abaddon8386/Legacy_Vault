@@ -22,7 +22,7 @@ function legalDecisionScope(value) {
     value.capabilities.unlock.allowed, value.capabilities.unlock.blockedReason]);
 }
 
-export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged }) {
+export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged, workflowReadOnly = false, beforeCommit }) {
   const en = lang === 'en', unlocking = step === 'controlled-unlock';
   const { decision = '', reason = '', confirmed = false } = draft;
   const setDecision = value => setDraft(previous => ({ ...previous, decision: value }));
@@ -36,7 +36,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const controller = useRef(null), lock = useRef(false);
   useEffect(() => () => controller.current?.abort(), []);
   const capability = context.capabilities[unlocking ? 'unlock' : 'approval'];
-  const readOnly = legalReadOnly(context);
+  const readOnly = legalReadOnly(context) || workflowReadOnly;
   const allowed = capability.allowed && !needsReload && !pending && !readOnly;
   const complete = unlocking ? confirmed : ['APPROVE', 'REJECT'].includes(decision) && Boolean(reason.trim());
   const blocker = legalBlocker(capability.blockedReason, en);
@@ -62,6 +62,8 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       if (legalDecisionScope(fresh) !== legalDecisionScope(context) || !fresh.capabilities[unlocking ? 'unlock' : 'approval'].allowed) {
         throw Object.assign(new Error('LEGAL_DECISION_STALE'), { status: 409 });
       }
+      await beforeCommit?.(fresh, options);
+      if (current.signal.aborted) return;
       const receipt = unlocking ? await unlockLegalVault(context.caseId, { ...options, vaultId: context.vaultId })
         : await decideLegalApproval(context.caseId, { decision, reason, versionNo: context.snapshot.currentVersion,
           sha256Hash: context.snapshot.sha256Hash, allocationHash: context.snapshot.allocationHash }, { ...options, dossierId: context.snapshot.dossierId });
@@ -96,7 +98,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       {documentVersion?.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles inlineOnDesktop kind="basis" caseId={context.caseId} versionNo={documentVersion.version}
         file={{ contentType: documentVersion.contentType, sizeBytes: documentVersion.sizeBytes, sha256: documentVersion.sha256 }}
         accessToken={session.accessToken} lang={lang} onUnauthorized={onUnauthorized} onDenied={failure => { setError(failure); setNeedsReload(true); onDenied?.(failure); }} />}
-      {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.'}</p>}
+      {readOnly && <p className="lv-legal-live__notice" role="status">{workflowReadOnly && !legalReadOnly(context) ? (en ? 'This step is not ready. You can review the documents while awaiting the preceding decisions.' : 'Hồ sơ chưa đến bước này. Bạn có thể xem giấy tờ trong khi chờ các bước trước hoàn tất.') : (en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.')}</p>}
       {context.basisDossier?.route === 'NOTARIAL' && <p>{en ? 'Distribution based on notarized documents.' : 'Phân chia theo hồ sơ công chứng.'}</p>}
       </section>
       {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">

@@ -1262,3 +1262,57 @@ test('F02 Mixed Clear 7: Đổi hồ sơ/token hoặc response cũ trả muộn:
     globalThis.fetch = originalFetch;
   }
 });
+
+test('New flow: Staff uploads requested documents without an allocation editor or catalogue prerequisite', async () => {
+  const originalFetch = globalThis.fetch, calls = [];
+  const capabilities = Object.fromEntries(['requestDocuments', 'uploadDocuments', 'forwardDocuments', 'approveDocuments', 'requestDocumentSupplementation', 'submitAllocations', 'approveAllocations', 'requestAllocationChanges'].map(action => [action, { allowed: action === 'uploadDocuments', blockedReason: action === 'uploadDocuments' ? null : 'WAIT' }]));
+  const value = { caseId: caseA, revision: 1, phase: 'AWAITING_DOCUMENTS', prerequisites: { deathApproved: true, willMatched: true }, request: { id: caseA, reason: 'Nộp văn bản phân chia hợp lệ' }, document: null, allocation: null, capabilities };
+  globalThis.fetch = async (url, init) => { calls.push({ url, init }); return url.endsWith('/distribution-workflow') ? jsonResponse(value) : jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404); };
+  const { host, render, unmount } = await mountComponentHelper();
+  try {
+    await render({ caseId: caseA, caseItem: defaultCaseItem(caseA, { status: 'OPEN', vaultStatus: 'AWAITING_LEGAL_BASIS' }), accessToken: 'token-1', lang: 'vi' });
+    await act(async () => host.querySelector('#tab-btn-intake').click());
+    const panel = host.querySelector('#panel-intake');
+    assert.equal(panel.querySelector('.lv-court-editor'), null);
+    assert.equal(panel.querySelector('button[type=submit]').disabled, false);
+    assert.match(panel.textContent, /chỉ tải giấy tờ|chỉ tải giấy/);
+    for (const type of ['NOTARIAL_PARTITION', 'COURT_JUDGMENT', 'COURT_DECISION']) assert.equal(panel.querySelector('option[value="' + type + '"]').disabled, false);
+    assert.equal(calls.some(call => /\/assets\?|\/beneficiaries$/.test(call.url)), false, 'Document intake must not depend on asset/recipient catalogues');
+    await act(async () => host.querySelector('#tab-btn-allocations').click());
+    assert.equal(host.querySelector('#panel-allocations form'), null, 'Allocations remain locked before document approval');
+    assert.match(host.querySelector('#panel-allocations').textContent, /Legal đã duyệt/);
+  } finally { await unmount(); globalThis.fetch = originalFetch; }
+});
+
+test('New flow: accepted documents unlock a separate JSON allocation submission without reuploading a file', async () => {
+  const originalFetch = globalThis.fetch, writes = [];
+  const sha = 'a'.repeat(64);
+  const capabilities = Object.fromEntries(['requestDocuments', 'uploadDocuments', 'forwardDocuments', 'approveDocuments', 'requestDocumentSupplementation', 'submitAllocations', 'approveAllocations', 'requestAllocationChanges'].map(action => [action, { allowed: action === 'submitAllocations', blockedReason: action === 'submitAllocations' ? null : 'WAIT' }]));
+  let submitted = false;
+  const model = () => ({ caseId: caseA, revision: submitted ? 2 : 1, phase: submitted ? 'ALLOCATIONS_UNDER_REVIEW' : 'AWAITING_ALLOCATIONS', prerequisites: { deathApproved: true, willMatched: true }, request: { id: caseA, reason: 'Giấy tờ phân chia' },
+    document: { version: 1, sha256: sha, status: 'APPROVED' }, allocation: null,
+    capabilities: submitted ? Object.fromEntries(Object.keys(capabilities).map(action => [action, { allowed: false, blockedReason: 'WAIT' }])) : capabilities });
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'POST') { writes.push({ url, body: JSON.parse(init.body) }); submitted = true; return jsonResponse({ caseId: caseA, action: 'submitAllocations', revision: 2 }); }
+    if (url.endsWith('/distribution-workflow')) return jsonResponse(model());
+    if (url.endsWith('/basis-dossier')) return jsonResponse({ caseId: caseA, route: 'NOTARIAL', status: 'LEGAL_BASIS_FORWARDED', versions: [{ version: 1, sha256: sha, forwardStatus: 'FORWARDED' }] });
+    if (url.includes('/assets?')) return jsonResponse({ content: [{ assetId: caseA, name: 'Kho ảnh gia đình' }], last: true, totalPages: 1, page: 0, size: 100, totalElements: 1 });
+    if (url.endsWith('/beneficiaries')) return jsonResponse([{ beneficiaryId: caseB, fullName: 'Nguyễn An' }]);
+    return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+  const { host, render, unmount } = await mountComponentHelper();
+  const change = async (element, value) => act(async () => element[Object.keys(element).find(key => key.startsWith('__reactProps'))].onChange({ target: { value } }));
+  try {
+    await render({ caseId: caseA, caseItem: defaultCaseItem(caseA, { status: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION' }), accessToken: 'token-1', lang: 'vi' });
+    await act(async () => host.querySelector('#tab-btn-allocations').click());
+    const panel = host.querySelector('#panel-allocations');
+    await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent.includes('Thêm phân bổ')).click());
+    const selects = panel.querySelectorAll('select'); assert.equal(selects.length, 2);
+    await change(selects[0], caseA); await change(selects[1], caseB); await change(panel.querySelector('textarea'), 'Toàn bộ kho ảnh');
+    await act(async () => panel.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+    assert.equal(writes.length, 1); assert.match(writes[0].url, /distribution-workflow\/submit-allocations$/);
+    assert.deepEqual(writes[0].body.allocations, [{ assetId: caseA, beneficiaryId: caseB, description: 'Toàn bộ kho ảnh' }]);
+    assert.equal(writes[0].body.documentVersion, 1); assert.equal(Object.hasOwn(writes[0].body, 'file'), false);
+    assert.match(host.textContent, /Đã gửi phân bổ/); assert.doesNotMatch(host.textContent, /Đã gửi thông báo cho Pháp lý/);
+  } finally { await unmount(); globalThis.fetch = originalFetch; }
+});

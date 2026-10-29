@@ -1,3 +1,4 @@
+import { distributionFixture } from './testFixtures/distribution.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
@@ -74,10 +75,12 @@ const submit = async host => {
 };
 const click = (host, text) => act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === text).click());
 function transport(readContext = () => contextFixture(), write = () => assert.fail('Unexpected mutation')) {
+  let latestContext;
   return async (url, init) => {
     if (url.endsWith('/auth/me')) return json(user);
     if (init.method === 'POST') return write(url, init);
-    if (url.endsWith('/context')) return readContext(url, init);
+    if (url.endsWith('/context')) { const response = await readContext(url, init); if (response.ok) latestContext = await response.clone().json(); return response; }
+    if (url.endsWith('/distribution-workflow')) return json(distributionFixture(latestContext));
     if (url.includes('verification-cases?')) return json(pageFixture(Number(new URL(url, 'http://local').searchParams.get('page'))));
     assert.fail('Unexpected endpoint: ' + url);
   };
@@ -301,7 +304,7 @@ test('legacy NOTARIAL and missing dossier remain read-only with no fabricated el
     if (legacy) value.basisDossier.route = 'NOTARIAL'; else { value.basisDossier = null; value.snapshot = null; }
     globalThis.fetch = transport(() => json(value));
     const view = await mount();
-    try { assert.equal(view.host.querySelector('[type=submit]').disabled, true); } finally { await view.close(); }
+    try { assert.equal(view.host.querySelector('[type=submit]')?.disabled ?? true, true); } finally { await view.close(); }
   }
 });
 
@@ -365,7 +368,7 @@ test('basis assessment cannot classify or approve an absent distribution dossier
   value.capabilities={approval:{allowed:false,blockedReason:'BASIS_DOSSIER_INVALID_STATE'},unlock:{allowed:false,blockedReason:'BASIS_DOSSIER_INVALID_STATE'}};
   let writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST')writes++;if(url.endsWith('/context'))return json(value);if(url.includes('verification-cases?'))return json(pageFixture());if(url.endsWith('will-comparisons'))return json(value.willComparison);return json({code:'RESOURCE_NOT_FOUND'},404);};
   const view=await mount({...base,step:'basis-route-selection'});
-  try{assert.equal(view.host.querySelector('[type=submit]').disabled,true);assert.equal(view.host.querySelector('option[value=NOTARIAL]'),null);assert.equal(writes,0);}finally{await view.close();}
+  try{assert.equal(view.host.querySelector('form'),null);assert.match(view.host.textContent,/not available yet/);assert.equal(view.host.querySelector('option[value=NOTARIAL]'),null);assert.equal(writes,0);}finally{await view.close();}
 });
 
 test('queue paging requests the next server page rather than treating the first page as all cases', async () => {

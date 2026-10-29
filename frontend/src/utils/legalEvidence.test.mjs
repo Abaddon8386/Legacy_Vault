@@ -1,3 +1,4 @@
+import { distributionFixture } from './testFixtures/distribution.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -221,6 +222,7 @@ for (const [kind, step] of [['death', 'death-verification'], ['original-will', '
       if (url.includes('verification-cases?')) return json({ content: [{ caseId, caseNumber: 'CASE-TEST', vaultId: fileId, caseStatus: 'OPEN', vaultStatus,
         route: 'COURT', openedAt: now }], page: 0, size: 20, totalElements: 1, totalPages: 1 });
       if (url.endsWith('/context')) return json(context);
+      if (url.endsWith('/distribution-workflow')) return json(distributionFixture(context, step === 'dossier-review' ? 'DOCUMENTS_UNDER_REVIEW' : step === 'controlled-unlock' ? 'APPROVED' : 'FINAL_APPROVAL'));
       if (url.endsWith('will-comparisons')) return json(context.willComparison);
       if (url.endsWith('court-decisions')) return json([]);
       if (url.endsWith('/basis-dossier')) return json(basis);
