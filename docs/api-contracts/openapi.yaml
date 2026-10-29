@@ -2843,8 +2843,13 @@ paths:
       summary: Staff tiếp nhận văn bản căn cứ đã số hóa (PS-41, ST-18)
       description: |
         `multipart/form-data` gồm `metadata` (JSON) và `file` (PDF/JPEG/PNG, tối đa 10 MB). Server tính SHA-256, mã hóa nội dung
-        và sinh `file_reference`; không có API tải xuống. Chỉ khi Staff đã nhận ca, ca OPEN, Vault AWAITING_LEGAL_BASIS và hồ sơ
-        có nhánh COURT. NOTARIAL lịch sử chỉ đọc, mọi ghi mới bị chặn. Tiếp nhận không đồng nghĩa đã duyệt.
+        và sinh `file_reference`; không có API tải xuống. Tiếp nhận không đồng nghĩa đã duyệt.
+        Quy trình phân chia mới: chỉ nhận khi Staff đã nhận ca, ca OPEN, Vault DOCUMENT_VERIFICATION/WILL_VERIFICATION/AWAITING_LEGAL_BASIS
+        và [distribution-workflow](#) đang ở phase AWAITING_DOCUMENTS (Legal đã yêu cầu giấy tờ, khai tử đã duyệt, di chúc MATCH);
+        ngoài phase đó là 409 DISTRIBUTION_NOT_CURRENT_STEP / DISTRIBUTION_PREREQUISITES_PENDING. Chưa có dossier thì lần tải đầu mở dossier
+        theo loại giấy tờ thực tế (NOTARIAL_PARTITION -> NOTARIAL, COURT_* -> COURT; không ghi người phân loại). Loại NOTARIAL_PARTITION cần
+        notaryAuthority, notarialDocumentNumber, notarizedAt. `metadata.allocations` phải trống hoặc bỏ qua: gửi kèm phân bổ là 400;
+        phân bổ được lập ở bước riêng `distribution-workflow/submit-allocations`.
         Không áp hạn mức subscription theo tổng byte hoặc số phiên bản của ca.
       x-status: implemented
       parameters:
@@ -3180,6 +3185,183 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LinkRequestDecision' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/staff/verification-cases/{caseId}/distribution-workflow:
+    get:
+      tags: [Staff]
+      summary: Distribution workflow of a case, Staff view (PR #226 contract)
+      description: |
+        ROLE_STAFF_EXECUTOR and a case assigned to the caller (otherwise 404). The phase is derived on the server from the stored
+        events and the dossier; `revision` changes whenever a workflow action is recorded or a version is forwarded.
+        Upload and forward remain `POST .../basis-dossier/versions` and `.../versions/{version}/forward`; they are only accepted in
+        phase AWAITING_DOCUMENTS and an upload that carries allocations is rejected with 400.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Current workflow
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DistributionWorkflowView' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/staff/verification-cases/{caseId}/distribution-workflow/submit-allocations:
+    post:
+      tags: [Staff]
+      summary: Staff submits the allocation prepared for the accepted document
+      description: |
+        Phase AWAITING_ALLOCATIONS only. Body: `revision`, `documentVersion`, `documentSha256` (the accepted document) and a non-empty
+        `allocations` list. Every asset and recipient must belong to the case vault. A resubmission retires the previous allocation of
+        the same document version (rows become SUPERSEDED, kept as history) and makes any earlier Legal review stale. Nothing is approved.
+        409 DISTRIBUTION_WORKFLOW_STALE when the revision or the document snapshot changed; 409 DISTRIBUTION_NOT_CURRENT_STEP otherwise out of phase.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DistributionWorkflowActionBody' }
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DistributionWorkflowReceipt' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow:
+    get:
+      tags: [Legal]
+      summary: Distribution workflow of a case, Legal view (PR #226 contract)
+      description: ROLE_LEGAL_VERIFIER. Same model as the Staff view; capabilities of Staff-only steps are not allowed.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Current workflow
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DistributionWorkflowView' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow/request-documents:
+    post:
+      tags: [Legal]
+      summary: Legal asks for the distribution documents (first step)
+      description: Phase DOCUMENT_REQUEST_NEEDED; needs death verification and a MATCH will comparison. Body `revision` and a non-blank `reason` (max 1000). Chooses no court/notarial route.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DistributionWorkflowActionBody' }
+      responses:
+        '200': { description: Recorded, content: { application/json: { schema: { $ref: '#/components/schemas/DistributionWorkflowReceipt' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow/approve-documents:
+    post:
+      tags: [Legal]
+      summary: Legal accepts the forwarded document
+      description: |
+        Phase DOCUMENTS_UNDER_REVIEW. Body `revision`, `documentVersion`, `documentSha256` of the forwarded version and a non-blank `reason`.
+        COURT: the stored file and court metadata must be reviewable and the acceptance records the VALID court assessment of this version.
+        NOTARIAL: stored deed with notary, number and date, no dispute, MATCH will. It creates no allocation and is not the final approval.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DistributionWorkflowActionBody' }
+      responses:
+        '200': { description: Recorded, content: { application/json: { schema: { $ref: '#/components/schemas/DistributionWorkflowReceipt' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow/request-document-supplementation:
+    post:
+      tags: [Legal]
+      summary: Legal returns the document to Staff with a reason
+      description: Phase DOCUMENTS_UNDER_REVIEW. Same body as approve-documents. Returns the dossier to PROVIDED and the vault to AWAITING_LEGAL_BASIS (the existing supplementation step), then Staff uploads and forwards a new version.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DistributionWorkflowActionBody' }
+      responses:
+        '200': { description: Recorded, content: { application/json: { schema: { $ref: '#/components/schemas/DistributionWorkflowReceipt' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow/approve-allocations:
+    post:
+      tags: [Legal]
+      summary: Legal accepts the submitted allocation
+      description: Phase ALLOCATIONS_UNDER_REVIEW. Body `revision`, the document snapshot, `allocationVersion`, `allocationSha256` and a non-blank `reason`. Records Legal's review of the exact snapshot, so no separate review call is needed before the final decision. Separate from the final approval and from unlock.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DistributionWorkflowActionBody' }
+      responses:
+        '200': { description: Recorded, content: { application/json: { schema: { $ref: '#/components/schemas/DistributionWorkflowReceipt' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/v1/legal-verifications/verification-cases/{caseId}/distribution-workflow/request-allocation-changes:
+    post:
+      tags: [Legal]
+      summary: Legal asks Staff to correct the allocation
+      description: Phase ALLOCATIONS_UNDER_REVIEW. Same body as approve-allocations. The phase returns to AWAITING_ALLOCATIONS and `feedback` carries the reason.
+      x-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DistributionWorkflowActionBody' }
+      responses:
+        '200': { description: Recorded, content: { application/json: { schema: { $ref: '#/components/schemas/DistributionWorkflowReceipt' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -4226,13 +4408,13 @@ components:
     LegalApprovalRequest:
       type: object
       additionalProperties: false
-      required: [decision, versionNo, sha256Hash, allocationHash]
+      required: [decision, versionNo, sha256Hash, allocationHash, reason]
       properties:
         decision: { type: string, enum: [APPROVE, REJECT] }
         versionNo: { type: integer, minimum: 1 }
         sha256Hash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
         allocationHash: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
-        reason: { type: string, maxLength: 1000, description: Bắt buộc khi decision là REJECT }
+        reason: { type: string, minLength: 1, maxLength: 1000, description: 'Bắt buộc cho cả APPROVE và REJECT; không được chỉ gồm khoảng trắng' }
     LegalApprovalResponse:
       type: object
       required: [dossierId, decision, versionNo, sha256Hash, allocationHash, decidedBy, decidedAt]
@@ -4473,6 +4655,9 @@ components:
             - BENEFICIARY_LINK_REQUEST_LIMIT
             - BENEFICIARY_LINK_REQUEST_NOT_PENDING
             - BENEFICIARY_LEGACY_LINK_DISABLED
+            - DISTRIBUTION_NOT_CURRENT_STEP
+            - DISTRIBUTION_PREREQUISITES_PENDING
+            - DISTRIBUTION_WORKFLOW_STALE
             - BENEFICIARY_INVITATION_ALREADY_EXISTS
             - BENEFICIARY_INVITATION_ALREADY_USED
             - BENEFICIARY_INVITATION_STALE
@@ -5195,6 +5380,94 @@ components:
         status: { type: string, enum: [APPROVED, REJECTED] }
         beneficiaryId: { type: string, format: uuid, nullable: true, description: Present only when APPROVED }
         accountId: { type: string, format: uuid, nullable: true, description: Present only when APPROVED }
+    DistributionWorkflowView:
+      type: object
+      required: [caseId, revision, phase, prerequisites, request, document, allocation, capabilities, feedback]
+      properties:
+        caseId: { type: string, format: uuid }
+        revision: { type: integer, format: int64, minimum: 0 }
+        phase:
+          type: string
+          enum: [PREREQUISITES_PENDING, DOCUMENT_REQUEST_NEEDED, AWAITING_DOCUMENTS, DOCUMENTS_UNDER_REVIEW, AWAITING_ALLOCATIONS, ALLOCATIONS_UNDER_REVIEW, FINAL_APPROVAL, APPROVED, UNLOCKED, CLOSED]
+        prerequisites:
+          type: object
+          required: [deathApproved, willMatched]
+          properties:
+            deathApproved: { type: boolean }
+            willMatched: { type: boolean }
+        request:
+          nullable: true
+          type: object
+          required: [id, reason]
+          properties:
+            id: { type: string, format: uuid }
+            reason: { type: string, maxLength: 1000 }
+        document:
+          nullable: true
+          type: object
+          required: [version, sha256, status]
+          properties:
+            version: { type: integer, minimum: 1 }
+            sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+            status: { type: string, enum: [PENDING, APPROVED, CHANGES_REQUESTED] }
+        allocation:
+          nullable: true
+          type: object
+          required: [version, documentVersion, sha256, status, items]
+          properties:
+            version: { type: integer, minimum: 1 }
+            documentVersion: { type: integer, minimum: 1 }
+            sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+            status: { type: string, enum: [SUBMITTED, APPROVED, CHANGES_REQUESTED] }
+            items:
+              type: array
+              items:
+                type: object
+                required: [assetId, beneficiaryId, assetName, recipientName, description]
+                properties:
+                  assetId: { type: string, format: uuid }
+                  beneficiaryId: { type: string, format: uuid }
+                  assetName: { type: string }
+                  recipientName: { type: string }
+                  description: { type: string }
+        capabilities:
+          type: object
+          description: One entry per action (requestDocuments, uploadDocuments, forwardDocuments, approveDocuments, requestDocumentSupplementation, submitAllocations, approveAllocations, requestAllocationChanges). blockedReason is null exactly when allowed.
+          additionalProperties:
+            type: object
+            required: [allowed, blockedReason]
+            properties:
+              allowed: { type: boolean }
+              blockedReason: { type: string, nullable: true }
+        feedback: { type: string, nullable: true, maxLength: 1000 }
+    DistributionWorkflowActionBody:
+      type: object
+      required: [revision]
+      properties:
+        revision: { type: integer, format: int64, minimum: 0 }
+        reason: { type: string, maxLength: 1000 }
+        documentVersion: { type: integer, minimum: 1 }
+        documentSha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocationVersion: { type: integer, minimum: 1 }
+        allocationSha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        allocations:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [assetId]
+            properties:
+              assetId: { type: string, format: uuid }
+              beneficiaryId: { type: string, format: uuid, nullable: true }
+              description: { type: string, maxLength: 2000, nullable: true }
+              courtRecipient: { type: object, nullable: true, description: Court route only, same shape as a beneficiary upsert }
+    DistributionWorkflowReceipt:
+      type: object
+      required: [caseId, action, revision]
+      properties:
+        caseId: { type: string, format: uuid }
+        action: { type: string }
+        revision: { type: integer, format: int64 }
     IdentityVerificationRequest:
       type: object
       required: [documentType, result]

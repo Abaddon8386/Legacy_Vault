@@ -95,8 +95,7 @@ public class BasisForwardService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
-        if (!verificationCase.isOpen()
-                || !Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
+        if (!verificationCase.isOpen() || !vault.isLegalBasisIntakeState()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 

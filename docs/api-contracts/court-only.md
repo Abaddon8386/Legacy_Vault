@@ -25,3 +25,26 @@ Context capabilities.approval/unlock contain allowed and blockedReason. They are
 ## Counter evidence and boundaries
 
 User decision: keep existing business records and guards, physical Staff verification outside the system, server actor/time and paper evidence reference. No identity upload/OCR, no identity inference from invitation/account linking. PS-88/93/106 own further counter-attestation/invitation contract changes; no invented expiry, digital signature or scanned receipt upload. SQL fixtures with VERIFIED_AT_COUNTER test guards only and are not proof of a real meeting. FE adapters and browser E2E for PS-95/96/97/99/100/101 remain their integration scope.
+
+## Distribution workflow (PR #227 follow-up, contract of PR #226)
+
+Supersedes the COURT-only intake rules above for the distribution document. Legal does not pick a route first; the route follows the document actually submitted. The phase is derived on the server; `GET .../distribution-workflow` (Staff: `/staff/verification-cases/{caseId}`, Legal: `/legal-verifications/verification-cases/{caseId}`) returns `revision`, `phase`, `prerequisites`, `request`, `document`, `allocation`, one `capabilities` entry per action and `feedback`.
+
+| Phase | Who acts | Endpoint |
+|---|---|---|
+| PREREQUISITES_PENDING | - | death document decided and will comparison MATCH are required |
+| DOCUMENT_REQUEST_NEEDED | Legal | `POST .../request-documents` |
+| AWAITING_DOCUMENTS | Staff | existing `POST .../basis-dossier/versions` (upload) then `.../versions/{version}/forward` |
+| DOCUMENTS_UNDER_REVIEW | Legal | `approve-documents` or `request-document-supplementation` |
+| AWAITING_ALLOCATIONS | Staff | `POST .../submit-allocations` |
+| ALLOCATIONS_UNDER_REVIEW | Legal | `approve-allocations` or `request-allocation-changes` |
+| FINAL_APPROVAL | Legal | existing `basis-dossier/review` then `basis-dossier/decision` |
+| APPROVED | Legal | existing `POST .../unlock` |
+| UNLOCKED / CLOSED | - | read only |
+
+- Every POST carries `revision` (409 `DISTRIBUTION_WORKFLOW_STALE` if it moved) and, for document/allocation steps, the `documentVersion`/`documentSha256` (and `allocationVersion`/`allocationSha256`) the caller looked at. Reasons are required (non-blank, max 1000) except for `submit-allocations`.
+- Upload and forward are only accepted in AWAITING_DOCUMENTS (vault DOCUMENT_VERIFICATION, WILL_VERIFICATION or AWAITING_LEGAL_BASIS; never AWAITING_VERIFICATION). Upload stores the document only: `metadata.allocations` must be empty (400 otherwise). If the case has no dossier the first upload opens one from the document type (NOTARIAL_PARTITION -> NOTARIAL, COURT_* -> COURT) without recording a classifier. Forward moves the vault to LEGAL_BASIS_VERIFICATION; it approves nothing.
+- `approve-documents` needs a reviewable stored document. COURT: the stored file and court metadata must be reviewable, and Legal's acceptance records the VALID court assessment of exactly that version (there is no separate court-conclusion step in the new workflow; upload alone never counts as valid). NOTARIAL: a stored deed with notary, number and date, no recorded dispute and a MATCH will comparison. It is not an allocation and not the final approval.
+- `submit-allocations` replaces the allocation of the accepted document version (old rows become `SUPERSEDED`, kept as history) and makes an earlier final review stale. `approve-allocations` is not the final approval either, but it records Legal's review of the exact current snapshot (version, hash, allocation hash, dispute), so the old "complete review" call is no longer needed before `decision`. A dispute or any change after that review makes `decision` fail with 409 LEGAL_DECISION_STALE.
+- `basis-dossier/decision` (APPROVE and REJECT, non-blank `reason` max 1000) is accepted only in FINAL_APPROVAL/APPROVED and `unlock` only in APPROVED; the Legal context `capabilities.approval/unlock` reflect that with `blockedReason`.
+- Not covered: notifications (no service or owner yet).

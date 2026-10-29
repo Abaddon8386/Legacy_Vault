@@ -71,6 +71,7 @@ class LegalBasisReviewServiceTest {
             when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
             when(dossier.getRoute()).thenReturn("COURT");
             when(dossier.acceptsIntake()).thenReturn(true);
+            when(dossier.isLegalReviewable()).thenReturn(true);
             when(dossier.getDisputeStatus()).thenReturn("NONE");
             when(dossier.getReviewStatus()).thenReturn("FRESH");
             when(dossier.getLastReviewedVersionNo()).thenReturn(1);

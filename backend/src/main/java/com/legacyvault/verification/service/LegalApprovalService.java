@@ -59,8 +59,8 @@ public class LegalApprovalService {
         if (caseId == null || request == null || request.decision() == null
                 || request.versionNo() == null || request.versionNo() < 1
                 || request.sha256Hash() == null || request.allocationHash() == null
-                || (request.decision() == LegalApprovalRequest.Decision.REJECT
-                && (request.reason() == null || request.reason().isBlank()))) {
+                || request.reason() == null || request.reason().isBlank()
+                || request.reason().trim().length() > 1000) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
@@ -71,7 +71,7 @@ public class LegalApprovalService {
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())
                 || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())
-                || !dossier.acceptsIntake()) {
+                || !dossier.isLegalReviewable()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
