@@ -82,6 +82,20 @@
   gap: 12px;
 }
 
+/* Share label, input and error tracks so a single error cannot shift its input. */
+.henedo-field-row > .henedo-field-group {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+  row-gap: 0;
+  align-content: start;
+}
+
+.henedo-field-row > .henedo-field-group > .henedo-label {
+  align-self: end;
+}
+
 .henedo-label {
   display: flex;
   justify-content: flex-start;

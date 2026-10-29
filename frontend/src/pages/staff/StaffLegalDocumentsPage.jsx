@@ -26,7 +26,9 @@ import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import {
   validateStaffLegalDocumentForm,
   getStaffLegalDocumentErrorMessage,
+  formatStaffLegalDocumentErrors,
 } from '../../utils/staffLegalDocumentsValidation.js';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import {
   fetchBasisDossier,
   receiveAndForwardBasisVersion,
@@ -504,6 +506,24 @@ export default function StaffLegalDocumentsPage({
   const isRouteCourt = dossier?.route === 'COURT';
   const canReceiveBasis = (!dossier || isRouteCourt || isRouteNotarial) && canUseDistributionAction(distribution.data, 'uploadDocuments', 'STAFF');
   const isLatestForwarded = latestVersion?.forwardStatus === 'FORWARDED';
+
+  // Phân biệt tiếp nhận lần đầu với yêu cầu bổ sung theo dữ liệu BE thực tế:
+  // - Nếu chưa có phiên bản nào (versions = []) và requiredVersion <= 1: Tiếp nhận lần đầu, KHÔNG báo Legal yêu cầu bổ sung.
+  // - Nếu đã có phiên bản trước đó (hasPriorVersions) và requiredVersion > latestVersion.version: Legal yêu cầu phiên bản bổ sung mới.
+  // - Khi ON_HOLD: tuyệt đối không hiển thị banner bổ sung hoặc hướng dẫn upload vì thao tác đang bị chặn.
+  const hasPriorVersions = Boolean(latestVersion && Number.isInteger(latestVersion.version) && latestVersion.version > 0);
+  const isSupplementationRequired = Boolean(
+    !isRouteOnHold &&
+    dossier?.requiredVersion &&
+    hasPriorVersions &&
+    dossier.requiredVersion > latestVersion.version
+  );
+  const isNeutralVersionRequirement = Boolean(
+    !isRouteOnHold &&
+    !hasPriorVersions &&
+    dossier?.requiredVersion &&
+    dossier.requiredVersion > 1
+  );
   const forwardBlocked = !selectedCaseId ? (en ? 'Select a case first.' : 'Chọn hồ sơ trước.')
     : isDossierLoading || isForwarding || isSubmitting ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
       : dossierError ? (en ? 'Reload the dossier to check its status.' : 'Tải lại hồ sơ để kiểm tra trạng thái.')
@@ -531,10 +551,34 @@ export default function StaffLegalDocumentsPage({
       ...(legalBasisType === 'NOTARIAL_PARTITION' ? { notaryAuthority: issuer, notarialDocumentNumber: documentNumber, notarizedAt: issuanceDate } : {}),
     }, { lang, requireFile: true });
 
-    const newErrors = { ...validation.errors };
+    const newErrors = formatStaffLegalDocumentErrors(validation.errors, lang);
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      // Auto-scroll and focus to the first invalid field while keeping entered inputs intact
+      const fieldOrder = [
+        { key: 'issuer', id: issuerId },
+        { key: 'documentNumber', id: docNumId },
+        { key: 'issuanceDate', id: dateId },
+        { key: 'file', selector: '.lv-evidence-dropzone, .lv-evidence-uploader, [data-field="file"], input[type="file"]' },
+        { key: 'allocations', selector: '#allocations-section, .lv-btn-add-allocation, .lv-allocations-section' },
+      ];
+      for (const field of fieldOrder) {
+        if (newErrors[field.key]) {
+          const el = field.id ? document.getElementById(field.id) : document.querySelector(field.selector);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (typeof el.focus === 'function') {
+              if (el.tagName === 'DIV' && !el.hasAttribute('tabIndex')) {
+                el.setAttribute('tabIndex', '-1');
+              }
+              const interactive = el.querySelector?.('button, [role="button"], input, select, textarea') || el;
+              interactive.focus();
+            }
+            break;
+          }
+        }
+      }
       return;
     }
     setErrors({});
@@ -994,6 +1038,43 @@ export default function StaffLegalDocumentsPage({
                 <div>
                   <strong>{t.dossierOnHoldTitle}</strong>
                   <p>{t.dossierOnHoldDesc}</p>
+                  {dossier?.routeReason ? (
+                    <p style={{ marginTop: 4, fontStyle: 'italic' }}><strong>{en ? 'Reason:' : 'Lý do:'}</strong> {dossier.routeReason}</p>
+                  ) : (
+                    <p style={{ marginTop: 4, fontStyle: 'italic', color: '#64748b' }}>
+                      {en ? 'The dossier is placed on hold by Legal decision. Please wait for further guidance.' : 'Hồ sơ đang tạm giữ theo quyết định của Ban Pháp lý. Vui lòng chờ hướng dẫn.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* LV-SUPP-001: Supplementation required by real BE contract (requiredVersion > latest version with prior history) */}
+            {isSupplementationRequired && (
+              <div className="lv-dossier-hold-banner lv-dossier-supplement-banner" role="status" style={{ marginBottom: 20, borderColor: '#fed7aa', backgroundColor: '#fff7ed', color: '#9a3412' }}>
+                <AlertTriangle size={20} className="lv-dossier-hold-icon" style={{ color: '#ea580c' }} aria-hidden="true" />
+                <div>
+                  <strong>{t.dossierSupplementationTitle}</strong>
+                  <p>{t.dossierSupplementationDesc}</p>
+                  <p style={{ marginTop: 4, fontStyle: 'italic', color: '#7c2d12' }}>
+                    {en
+                      ? `Legal requires supplementation: please submit dossier version ${dossier.requiredVersion}.`
+                      : `Ban Pháp lý yêu cầu bổ sung: vui lòng tiếp nhận phiên bản hồ sơ số ${dossier.requiredVersion}.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isNeutralVersionRequirement && (
+              <div className="lv-dossier-hold-banner" role="status" style={{ marginBottom: 20, borderColor: '#fed7aa', backgroundColor: '#fff7ed', color: '#9a3412' }}>
+                <AlertTriangle size={20} className="lv-dossier-hold-icon" style={{ color: '#ea580c' }} aria-hidden="true" />
+                <div>
+                  <strong>{t.dossierNeutralVersionTitle || (en ? 'Dossier Version Requirement' : 'Yêu cầu phiên bản hồ sơ')}</strong>
+                  <p style={{ marginTop: 4, fontStyle: 'italic', color: '#7c2d12' }}>
+                    {en
+                      ? `Please submit dossier version ${dossier.requiredVersion}.`
+                      : `Vui lòng tiếp nhận phiên bản hồ sơ số ${dossier.requiredVersion}.`}
+                  </p>
                 </div>
               </div>
             )}
@@ -1145,6 +1226,36 @@ export default function StaffLegalDocumentsPage({
                 <div>
                   <strong>{t.dossierOnHoldTitle}</strong>
                   <p>{t.dossierOnHoldDesc}</p>
+                  {dossier?.routeReason && <p style={{ marginTop: 4, fontStyle: 'italic' }}><strong>{en ? 'Reason:' : 'Lý do:'}</strong> {dossier.routeReason}</p>}
+                </div>
+              </div>
+            )}
+
+            {isSupplementationRequired && (
+              <div className="lv-dossier-hold-banner lv-dossier-supplement-banner" role="status" style={{ marginBottom: 20, borderColor: '#fed7aa', backgroundColor: '#fff7ed', color: '#9a3412' }}>
+                <AlertTriangle size={20} className="lv-dossier-hold-icon" style={{ color: '#ea580c' }} aria-hidden="true" />
+                <div>
+                  <strong>{t.dossierSupplementationTitle}</strong>
+                  <p>{t.dossierSupplementationDesc}</p>
+                  <p style={{ marginTop: 4, fontStyle: 'italic', color: '#7c2d12' }}>
+                    {en
+                      ? `Legal requires supplementation: please submit dossier version ${dossier.requiredVersion}.`
+                      : `Ban Pháp lý yêu cầu bổ sung: vui lòng tiếp nhận phiên bản hồ sơ số ${dossier.requiredVersion}.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isNeutralVersionRequirement && (
+              <div className="lv-dossier-hold-banner" role="status" style={{ marginBottom: 20, borderColor: '#fed7aa', backgroundColor: '#fff7ed', color: '#9a3412' }}>
+                <AlertTriangle size={20} className="lv-dossier-hold-icon" style={{ color: '#ea580c' }} aria-hidden="true" />
+                <div>
+                  <strong>{t.dossierNeutralVersionTitle || (en ? 'Dossier Version Requirement' : 'Yêu cầu phiên bản hồ sơ')}</strong>
+                  <p style={{ marginTop: 4, fontStyle: 'italic', color: '#7c2d12' }}>
+                    {en
+                      ? `Please submit dossier version ${dossier.requiredVersion}.`
+                      : `Vui lòng tiếp nhận phiên bản hồ sơ số ${dossier.requiredVersion}.`}
+                  </p>
                 </div>
               </div>
             )}
@@ -1179,14 +1290,16 @@ export default function StaffLegalDocumentsPage({
                     id={issuerId}
                     type="text"
                     className={`lv-form-input ${errors.issuer ? 'lv-form-input--error' : ''}`}
+                    aria-invalid={Boolean(errors.issuer)}
+                    aria-describedby={errors.issuer ? `${issuerId}-error` : undefined}
                     placeholder={t.issuerPlaceholder}
                     value={issuer}
-                    onChange={(e) => setIssuer(e.target.value)}
+                    onChange={(e) => { setIssuer(e.target.value); if (errors.issuer) setErrors(prev => ({ ...prev, issuer: '' })); }}
                     disabled={isSubmitting || !canReceiveBasis}
                     maxLength={255}
                   />
                   {errors.issuer ? (
-                    <span className="lv-field-error" role="alert">{errors.issuer}</span>
+                    <span id={`${issuerId}-error`} className="lv-field-error" role="alert">{errors.issuer}</span>
                   ) : (
                     <span className="lv-form-hint">{t.issuerHint}</span>
                   )}
@@ -1200,14 +1313,16 @@ export default function StaffLegalDocumentsPage({
                     id={docNumId}
                     type="text"
                     className={`lv-form-input ${errors.documentNumber ? 'lv-form-input--error' : ''}`}
+                    aria-invalid={Boolean(errors.documentNumber)}
+                    aria-describedby={errors.documentNumber ? `${docNumId}-error` : undefined}
                     placeholder={t.documentNumberPlaceholder}
                     value={documentNumber}
-                    onChange={(e) => setDocumentNumber(e.target.value)}
+                    onChange={(e) => { setDocumentNumber(e.target.value); if (errors.documentNumber) setErrors(prev => ({ ...prev, documentNumber: '' })); }}
                     disabled={isSubmitting || !canReceiveBasis}
                     maxLength={100}
                   />
                   {errors.documentNumber ? (
-                    <span className="lv-field-error" role="alert">{errors.documentNumber}</span>
+                    <span id={`${docNumId}-error`} className="lv-field-error" role="alert">{errors.documentNumber}</span>
                   ) : (
                     <span className="lv-form-hint">{t.documentNumberHint}</span>
                   )}
@@ -1220,17 +1335,23 @@ export default function StaffLegalDocumentsPage({
                   <label htmlFor={dateId} className="lv-form-label">
                     {t.issuanceDateLabel}
                   </label>
-                  <input
+                  <DatePicker
                     id={dateId}
-                    type="date"
-                    className={`lv-form-input ${errors.issuanceDate ? 'lv-form-input--error' : ''}`}
+                    className={errors.issuanceDate ? 'lv-datepicker--error' : ''}
                     value={issuanceDate}
-                    onChange={(e) => setIssuanceDate(e.target.value)}
+                    onChange={(val) => {
+                      setIssuanceDate(val);
+                      if (errors.issuanceDate) setErrors(prev => ({ ...prev, issuanceDate: '' }));
+                    }}
                     disabled={isSubmitting || !canReceiveBasis}
                     max={new Date().toISOString().split('T')[0]}
+                    lang={lang}
+                    aria-label={t.issuanceDateLabel}
+                    aria-invalid={Boolean(errors.issuanceDate)}
+                    aria-describedby={errors.issuanceDate ? `${dateId}-error` : undefined}
                   />
                   {errors.issuanceDate ? (
-                    <span className="lv-field-error" role="alert">{errors.issuanceDate}</span>
+                    <span id={`${dateId}-error`} className="lv-field-error" role="alert">{errors.issuanceDate}</span>
                   ) : (
                     <span className="lv-form-hint">{t.issuanceDateHint}</span>
                   )}
@@ -1276,6 +1397,7 @@ export default function StaffLegalDocumentsPage({
                 <label className="lv-form-label">{t.fileUploadLabel}</label>
                 <EvidenceFileUploader
                   file={evidenceFile}
+                  error={errors.file}
                   onFileChange={(file) => {
                     setEvidenceFile(file);
                     setErrors((previous) => ({ ...previous, file: undefined }));

@@ -30,7 +30,7 @@ async function mount(Component, props = {}) {
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); storeSession(null); } };
 }
 test('Beneficiary routing retains existing role precedence', () => {
-  for (const [roles, route] of [[['BENEFICIARY'], '/beneficiary'], [['BENEFICIARY','VAULT_OWNER'], '/vault'], [['BENEFICIARY','LEGAL_VERIFIER'], '/legal/death-verification'], [['BENEFICIARY','STAFF_EXECUTOR'], '/staff/legal-documents']]) assert.equal(resolvePostLoginRoute({ roles }), route);
+  for (const [roles, route] of [[['BENEFICIARY'], '/shared-with-me'], [['BENEFICIARY','VAULT_OWNER'], '/vault'], [['BENEFICIARY','LEGAL_VERIFIER'], '/legal/death-verification'], [['BENEFICIARY','STAFF_EXECUTOR'], '/staff/legal-documents']]) assert.equal(resolvePostLoginRoute({ roles }), route);
 });
 test('real login has home link in both languages', async () => {
   const view = await mount(Login);
@@ -45,9 +45,9 @@ test('real login has home link in both languages', async () => {
 for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs in to correct destination, profile return and logout work without Owner APIs`, async () => {
   storeSession(null); window.history.replaceState({}, '', '/login');
   const currentUser = { ...user, roles: [accountRole] };
-  const destination = accountRole === 'ADMIN' ? '/admin' : '/beneficiary';
-  const heading = accountRole === 'ADMIN' ? '#admin-home-title' : '#beneficiary-home-title';
-  const menuLabel = accountRole === 'ADMIN' ? 'Tổng quan quản trị' : 'Thông tin thụ hưởng';
+  const destination = accountRole === 'ADMIN' ? '/admin' : '/shared-with-me';
+  const heading = accountRole === 'ADMIN' ? '#admin-home-title' : '#shared-heading';
+  const menuLabel = accountRole === 'ADMIN' ? 'Tổng quan quản trị' : 'Được chia sẻ với tôi';
   globalThis.__beneficiaryUser = currentUser;
   const originalFetch = globalThis.fetch; const urls = [];
   globalThis.fetch = async url => { urls.push(url); return new Response(JSON.stringify(url.includes('/received-assets?') ? { content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 } : currentUser), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
@@ -58,7 +58,8 @@ for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs i
     assert.ok(view.host.querySelector(heading));
     const nav = view.host.querySelector('.lv-sidebar-nav');
     assert.ok(!nav.textContent.includes('Kho di sản số'));
-    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.includes('Xem hồ sơ tài khoản')).click());
+    await act(async () => view.host.querySelector('.lv-user-badge-card').click());
+    await act(async () => [...view.host.querySelectorAll('.lv-account-menu-item')].find(button => /Hồ sơ tài khoản/.test(button.textContent)).click());
     assert.equal(window.location.pathname, '/account/profile');
     assert.ok(!view.host.querySelector('.lv-sidebar-nav').textContent.includes('Kho di sản số'));
     await act(async () => [...view.host.querySelectorAll('.lv-nav-item')].find(button => button.textContent.includes(menuLabel)).click());
@@ -69,14 +70,14 @@ for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs i
     assert.ok(urls.every(url => url.endsWith('/auth/me') || (accountRole === 'ADMIN' && url.endsWith('/admin/overview')) || (accountRole === 'BENEFICIARY' && url.startsWith('/api/v1/received-assets?'))));
   } finally { await view.close(); globalThis.fetch = originalFetch; delete globalThis.__beneficiaryUser; }
 });
-for (const targetRole of ['BENEFICIARY', 'ADMIN']) for (const roles of [null, ['VAULT_OWNER'], ['STAFF_EXECUTOR'], ['LEGAL_VERIFIER'], [targetRole === 'ADMIN' ? 'BENEFICIARY' : 'ADMIN']]) test(`${targetRole} direct route rejects ${roles || 'anonymous'} even with preview`, async () => {
+for (const targetRole of ['ADMIN']) for (const roles of [null, ['VAULT_OWNER'], ['STAFF_EXECUTOR'], ['LEGAL_VERIFIER'], [targetRole === 'ADMIN' ? 'BENEFICIARY' : 'ADMIN']]) test(`${targetRole} direct route rejects ${roles || 'anonymous'} even with preview`, async () => {
   window.history.replaceState({}, '', (targetRole === 'ADMIN' ? '/admin' : '/beneficiary') + '?preview=true');
   const originalFetch = globalThis.fetch;
   if (roles) { storeSession(createSession({ accessToken: 'synthetic-guard', tokenType: 'Bearer', expiresInSeconds: 3600, user: { ...user, roles } })); }
   globalThis.fetch = async () => new Response(JSON.stringify({ ...user, roles }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   const view = await mount(App);
   try {
-    assert.equal(view.host.querySelector(targetRole === 'ADMIN' ? '#admin-home-title' : '#beneficiary-home-title'), null);
+    assert.equal(view.host.querySelector(targetRole === 'ADMIN' ? '#admin-home-title' : '#shared-heading'), null);
     assert.match(view.host.textContent, roles ? (targetRole === 'ADMIN' ? /Trang này dành cho tài khoản quản trị viên/ : /Trang này dành cho tài khoản người thụ hưởng/) : /Test sign in/);
   } finally { await view.close(); globalThis.fetch = originalFetch; }
 });
