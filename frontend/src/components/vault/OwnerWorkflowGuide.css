@@ -1,6 +1,6 @@
-.lv-owner-workflow { max-width: 1200px; margin: 8px auto 0; padding: 0; }
+.lv-owner-workflow { max-width: 1200px; margin: 24px auto 0; padding: 0 24px; }
 .lv-owner-workflow .lv-workflow-guide { margin: 0; }
 .lv-owner-workflow__reload { display: block; margin: 8px 0 0 auto; padding: 8px 12px; border: 1px solid #cbd8cf; border-radius: 8px; background: #f7f9f6; color: #21483d; font: inherit; font-size: 13px; cursor: pointer; }
 .lv-owner-workflow__reload:disabled { opacity: .5; cursor: wait; }
 .lv-owner-workflow__reload:focus-visible { outline: 2px solid #c5a059; outline-offset: 3px; }
-@media(max-width: 600px) { .lv-owner-workflow { padding: 0; margin-top: 8px; } }
+@media(max-width: 600px) { .lv-owner-workflow { padding: 0 16px; margin-top: 16px; } }

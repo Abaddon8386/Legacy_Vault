@@ -790,21 +790,3 @@
     white-space: nowrap;
   }
 }
-
-/* Keep the two ends of the date range together and equally sized. */
-.lv-admin-log-filters { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); }
-.lv-admin-log-filters > .lv-admin-field { grid-column:span 2; }
-.lv-admin-log-filters > .lv-admin-filter-actions { grid-column:span 2; justify-content:flex-end; }
-@media(max-width:640px) {
-  .lv-admin-log-filters { grid-template-columns:minmax(0,1fr); }
-  .lv-admin-log-filters > .lv-admin-field,
-  .lv-admin-log-filters > .lv-admin-filter-actions { grid-column:1; }
-}
-
-.lv-admin-log-table { min-inline-size:880px; }
-.lv-admin-log-table :is(th,td) { overflow-wrap:anywhere; }
-.lv-admin-log-table td:first-child { white-space:nowrap; }
-@media(max-width:640px) {
-  .lv-admin-log-table { min-inline-size:720px; }
-  .lv-admin-log-table td:first-child { white-space:normal; }
-}
