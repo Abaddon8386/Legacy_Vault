@@ -1074,3 +1074,258 @@ test('DMS StrictMode - manual retry updates interval input to new API configurat
     globalThis.fetch = originalFetch;
   }
 });
+
+test('DMS: "Tôi vẫn an toàn" button automatically appears when grace period expires without reload', async () => {
+  const originalFetch = globalThis.fetch;
+  const ownerUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  // Server returns TRIGGERED with graceDeadline expired in the past
+  globalThis.fetch = async () => {
+    return new Response(JSON.stringify({
+      ownerId: ownerUuid,
+      status: 'TRIGGERED',
+      checkIntervalDays: 30,
+      gracePeriodDays: 1,
+      lastCheckInAt: '2026-10-15T00:00:00Z',
+      nextCheckAt: '2026-11-14T00:00:00Z',
+      graceDeadline: '2026-10-16T00:00:00Z',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(DMSOverviewPage, {
+          vaultId: 'vlt-auto-cancel',
+          ownerId: ownerUuid,
+          accessToken: 'synthetic',
+          canCancelAlert: true,
+          lang: 'vi',
+        })
+      );
+    });
+
+    const cancelBtn = host.querySelector('.lv-cancel-alert-trigger-btn');
+    assert.ok(cancelBtn, '"Tôi vẫn an toàn" trigger button must automatically appear when grace period expires');
+    assert.match(cancelBtn.textContent, /Tôi vẫn an toàn/i);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Task 3: DMS mutation sequence race: polling starts -> interval save succeeds -> stale polling returns without overwriting schedule', async () => {
+  const originalFetch = globalThis.fetch;
+  const ownerUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  let pollCount = 0;
+  let delayedPollResolve = null;
+
+  const expiredAt = new Date(Date.now() - 5000).toISOString();
+
+  // Initial monitoring config with deadline in the past so polling triggers after clock tick
+  const initialConfig = {
+    ownerId: ownerUuid,
+    status: 'MONITORING',
+    checkIntervalDays: 30,
+    checkIntervalMinutes: 43200,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: expiredAt,
+  };
+
+  const updatedConfig = {
+    ownerId: ownerUuid,
+    status: 'MONITORING',
+    checkIntervalDays: 60,
+    checkIntervalMinutes: 86400,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: new Date(Date.now() + 86400000 * 60).toISOString(),
+  };
+
+  globalThis.fetch = async (url, options = {}) => {
+    const urlStr = String(url || '');
+    const method = options.method || 'GET';
+
+    if (method === 'PUT' || method === 'POST') {
+      return json(updatedConfig);
+    }
+
+    if (urlStr.includes('/dms/config') || urlStr.includes('/dms')) {
+      pollCount++;
+      if (pollCount === 1) {
+        return json(initialConfig);
+      }
+      if (pollCount === 2) {
+        return new Promise((resolve) => {
+          delayedPollResolve = () => resolve(json(initialConfig));
+        });
+      }
+      return json(updatedConfig);
+    }
+    return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(DMSOverviewPage, {
+          vaultId: 'vlt-seq-test',
+          ownerId: ownerUuid,
+          accessToken: 'synthetic',
+          lang: 'vi',
+        })
+      );
+    });
+
+    // Wait for the 1-second clock timer to tick and fire deadline polling
+    await act(async () => new Promise(resolve => setTimeout(resolve, 1300)));
+
+    const intervalInput = host.querySelector('#dms-interval-input');
+    assert.ok(intervalInput, 'Interval input should exist');
+    assert.equal(intervalInput.value, '30');
+
+    assert.ok(delayedPollResolve, 'Polling request #2 should be pending');
+
+    const saveForm = host.querySelector('form.lv-dms-form-group');
+    await act(async () => {
+      const props = intervalInput[Object.keys(intervalInput).find((k) => k.startsWith('__reactProps'))];
+      props.onChange({ target: { value: '60' } });
+    });
+
+    await act(async () => {
+      saveForm.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    assert.equal(intervalInput.value, '60', 'State must reflect updated 60 days interval');
+
+    await act(async () => {
+      delayedPollResolve();
+      await new Promise((r) => setTimeout(r, 60));
+    });
+
+    assert.equal(intervalInput.value, '60', 'Stale polling must NOT overwrite updated interval');
+    assert.ok(pollCount >= 2, 'Polling must remain active after dropping stale response');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('DMS polling lifecycle on accessToken change: aborts/ignores in-flight poll for old token, continues polling with new token without overlapping requests, and ignores late 401 from old token', async () => {
+  const originalFetch = globalThis.fetch;
+  const ownerUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const expiredAt = new Date(Date.now() - 5000).toISOString();
+  const graceFuture = new Date(Date.now() + 86400000).toISOString();
+
+  const overdueMonitoring = {
+    ownerId: ownerUuid,
+    status: 'MONITORING',
+    checkIntervalDays: 30,
+    checkIntervalMinutes: 43200,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: expiredAt,
+  };
+
+  const triggeredWithGrace = {
+    ownerId: ownerUuid,
+    status: 'TRIGGERED',
+    checkIntervalDays: 30,
+    checkIntervalMinutes: 43200,
+    gracePeriodDays: 1,
+    lastCheckInAt: new Date(Date.now() - 86400000).toISOString(),
+    nextCheckAt: expiredAt,
+    triggeredAt: expiredAt,
+    graceDeadline: graceFuture,
+  };
+
+  const dmsRequests = [];
+  let unauthorizedCalls = 0;
+
+  globalThis.fetch = async (url, options = {}) => {
+    const urlStr = String(url || '');
+    if (!urlStr.includes('/dms')) {
+      return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+    }
+    const authHeader = options.headers?.Authorization || options.headers?.authorization || '';
+    const signal = options.signal;
+    if (dmsRequests.length === 0) {
+      dmsRequests.push({ url: urlStr, authHeader, signal });
+      return json(overdueMonitoring);
+    }
+    let resolveReq;
+    const promise = new Promise((resolve) => {
+      resolveReq = resolve;
+    });
+    dmsRequests.push({ url: urlStr, authHeader, signal, resolve: resolveReq });
+    return promise;
+  };
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+
+  const renderWithToken = (token) =>
+    React.createElement(DMSOverviewPage, {
+      vaultId: 'vlt-token-poll',
+      ownerId: ownerUuid,
+      accessToken: token,
+      lang: 'vi',
+      onUnauthorized: () => {
+        unauthorizedCalls++;
+      },
+    });
+
+  try {
+    // 1. Mount with token-1 -> initial load #1 resolves immediately with overdueMonitoring
+    await act(async () => {
+      root.render(renderWithToken('token-1'));
+    });
+    // Wait for the 0ms poll timeout to fire poll request #2
+    await act(async () => new Promise((r) => setTimeout(r, 30)));
+
+    assert.equal(dmsRequests.length, 2, 'Polling request #2 should start for overdue MONITORING');
+    assert.equal(dmsRequests[1].authHeader, 'Bearer token-1');
+    assert.equal(dmsRequests[1].signal.aborted, false);
+
+    // 2. While poll request #2 (token-1) is still in-flight, refresh accessToken to token-2!
+    await act(async () => {
+      root.render(renderWithToken('token-2'));
+    });
+    await act(async () => new Promise((r) => setTimeout(r, 30)));
+
+    assert.equal(dmsRequests[1].signal.aborted, true, 'In-flight poll request #2 with old token-1 must be aborted on token change');
+    assert.equal(dmsRequests.length, 3, 'Exactly ONE new poll request (#3) must start with token-2 (no duplicate overlapping fetch)');
+    assert.equal(dmsRequests[2].authHeader, 'Bearer token-2');
+    assert.equal(dmsRequests[2].signal.aborted, false);
+
+    // 3. Even if the old request #2 resolves late with 401 Unauthorized, it must NOT call onUnauthorized or affect state
+    await act(async () => {
+      dmsRequests[1].resolve(json({ code: 'UNAUTHORIZED' }, 401));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    assert.equal(unauthorizedCalls, 0, 'Late 401 from old token-1 must NEVER log out the new token-2 session');
+
+    // 4. Resolve poll request #3 (token-2) with TRIGGERED + future graceDeadline -> UI updates to TRIGGERED!
+    await act(async () => {
+      dmsRequests[2].resolve(json(triggeredWithGrace));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/, 'New token poll must update DMS state to TRIGGERED');
+    assert.equal(unauthorizedCalls, 0);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});

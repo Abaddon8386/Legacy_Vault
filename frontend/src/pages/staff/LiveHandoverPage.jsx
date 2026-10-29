@@ -27,11 +27,20 @@ function errorText(error, en, caseItem) {
   }
   const texts = {
     HANDOVER_SESSION_ALREADY_OPEN: ['Đã có phiên mở. Tải lại để chọn phiên hiện có.', 'A session is already open. Reload to select it.'],
-    HANDOVER_SESSION_INVALID_STATE: ['Hồ sơ/kho chưa đủ điều kiện hoặc phiên đã thay đổi. Tải lại trước khi thao tác.', 'Case/vault is not eligible or the session has changed. Reload before continuing.'],
+    HANDOVER_SESSION_INVALID_STATE: [
+      'Phiên bàn giao hoặc hồ sơ hiện không ở trạng thái cho phép thao tác này. Vui lòng kiểm tra lại phiên đang chọn hoặc mở phiên mới nếu phiên cũ đã kết thúc.',
+      'This handover session or case is not in an eligible state for this action. Please check the selected session or open a new one if the previous session has ended.'
+    ],
     RESOURCE_NOT_FOUND: ['Không tìm thấy hoặc hồ sơ/phiên không được giao cho bạn. Hãy nhận hồ sơ ở danh sách nếu phù hợp.', 'Case/session not found or not assigned to you. Claim an eligible case in the case queue.'],
     INVALID_RESPONSE: ['Dữ liệu máy chủ không hợp lệ. Chưa xác nhận thao tác thành công.', 'Invalid server response. The action has not been confirmed.'],
-    LEGAL_APPROVAL_REQUIRED: ['Cần phê duyệt Legal còn hiệu lực trước khi mở phiên.', 'A current Legal approval is required before opening a session.'],
-    LEGAL_WORKFLOW_ON_HOLD: ['Hồ sơ pháp lý đang tạm giữ; chưa thể mở phiên bàn giao.', 'The legal workflow is on hold; a handover session cannot be opened.'],
+    LEGAL_APPROVAL_REQUIRED: [
+      'Cần có phê duyệt Pháp lý còn hiệu lực trước khi mở phiên bàn giao. Nhân viên vui lòng kiểm tra tiến trình thẩm định tại mục Hồ sơ căn cứ.',
+      'A valid Legal approval is required before opening a handover session. Staff should verify review progress in the Legal Basis Documents section.'
+    ],
+    LEGAL_WORKFLOW_ON_HOLD: [
+      'Hồ sơ đang ở trạng thái Tạm dừng (ON_HOLD) từ Pháp lý. Nhân viên vui lòng kiểm tra mục Hồ sơ căn cứ để bổ sung giấy tờ phân chia theo yêu cầu trước khi mở phiên bàn giao.',
+      'The dossier is ON HOLD by Legal. Staff should check the Legal Basis Documents page to supplement partition documents as requested before opening a handover session.'
+    ],
   };
   return texts[error?.code]?.[en ? 1 : 0] || (en ? 'Unable to complete the request. Reload to check the latest state before retrying.' : 'Chưa thực hiện được yêu cầu. Tải lại để kiểm tra trạng thái mới nhất trước khi thử lại.');
 }
@@ -181,6 +190,26 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         <p><span>{en ? 'Opened' : 'Thời gian mở'}</span><strong>{sessionTime(selected.openedAt, en)}</strong></p>
         {selected.closedAt && <p><span>{en ? 'Closed' : 'Thời gian kết thúc'}</span><strong>{sessionTime(selected.closedAt, en)}</strong></p>}
       </div>
+      {selected.status === 'CANCELLED' && (
+        <div className="lv-session-cancelled-guidance" role="status" style={{
+          padding: '12px 16px',
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fef3c7',
+          borderLeft: '4px solid #f59e0b',
+          borderRadius: '8px',
+          color: '#92400e',
+          margin: '12px 0',
+          fontSize: '13.5px',
+          lineHeight: '1.5'
+        }}>
+          <strong>{en ? 'This session has been cancelled' : 'Phiên bàn giao này đã bị hủy'}</strong>
+          <p style={{ margin: '4px 0 0' }}>
+            {en
+              ? 'No further asset deliveries can be made in this session. You can view its history, choose another active session, or open a new handover session above if conditions are met.'
+              : 'Không thể tiếp tục bàn giao tài sản trong phiên đã hủy. Bạn có thể xem lịch sử phiên, chọn một phiên đang mở khác hoặc mở phiên bàn giao mới ở trên nếu đủ điều kiện.'}
+          </p>
+        </div>
+      )}
       <details className="lv-session-guidance"><summary>{en ? 'Session reference' : 'Mã tham chiếu phiên'}</summary><code>{selected.sessionId}</code></details>
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
       {selected.status === 'OPEN' && <div className="lv-handover-next-step">

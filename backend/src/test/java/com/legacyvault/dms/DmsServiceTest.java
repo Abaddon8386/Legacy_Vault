@@ -16,6 +16,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 
+import com.legacyvault.asset.entity.Asset;
+import com.legacyvault.asset.repository.AssetRepository;
+import com.legacyvault.will.repository.WillAssetRepository;
 import com.legacyvault.beneficiary.BeneficiaryRepository;
 import com.legacyvault.common.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
@@ -27,6 +30,34 @@ import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.vault.service.VaultService;
 
 class DmsServiceTest {
+
+	@Test
+	void refusesToEnableDmsWithoutHeritageAsset() {
+		Fixture fixture = new Fixture();
+		when(fixture.assetRepository.findByVaultIdAndAssetTypeNot(eq(15L), any(), any()))
+				.thenReturn(new PageImpl<>(List.of()));
+
+		BusinessException error = assertThrows(BusinessException.class,
+				() -> fixture.service.configure(new DmsDtos.ConfigureRequest(30)));
+
+		assertEquals(ErrorCode.ASSET_REQUIRED, error.getErrorCode());
+		verify(fixture.configs, never()).saveAndFlush(any());
+		verify(fixture.audit, never()).record(any(), any(), any(), any(), any(), any(), any());
+	}
+
+	@Test
+	void refusesToEnableDmsWithoutWill() {
+		Fixture fixture = new Fixture();
+		when(fixture.willAssetRepository.findWills(eq(15L), any()))
+				.thenReturn(new PageImpl<>(List.of()));
+
+		BusinessException error = assertThrows(BusinessException.class,
+				() -> fixture.service.configure(new DmsDtos.ConfigureRequest(30)));
+
+		assertEquals(ErrorCode.WILL_REQUIRED, error.getErrorCode());
+		verify(fixture.configs, never()).saveAndFlush(any());
+		verify(fixture.audit, never()).record(any(), any(), any(), any(), any(), any(), any());
+	}
 
 	@Test
 	void refusesToEnableDmsWithoutBeneficiary() {
@@ -194,11 +225,13 @@ class DmsServiceTest {
 		final Vault vault = mock(Vault.class);
 		final DmsConfigRepository configs = mock(DmsConfigRepository.class);
 		final BeneficiaryRepository beneficiaries = mock(BeneficiaryRepository.class);
+		final AssetRepository assetRepository = mock(AssetRepository.class);
+		final WillAssetRepository willAssetRepository = mock(WillAssetRepository.class);
 		final VaultRepository vaults = mock(VaultRepository.class);
 		final VaultService vaultService = mock(VaultService.class);
 		final OwnerContextService owners = mock(OwnerContextService.class);
 		final AuditService audit = mock(AuditService.class);
-		final DmsService service = new DmsService(configs, beneficiaries, vaults, vaultService, owners,
+		final DmsService service = new DmsService(configs, beneficiaries, assetRepository, willAssetRepository, vaults, vaultService, owners,
 				new DmsPolicy(1, 32767, 1), audit);
 
 		Fixture() {
@@ -208,6 +241,8 @@ class DmsServiceTest {
 			when(owners.requireOwner()).thenReturn(owner);
 			when(vaults.findByOwnerUserId(eq(5L), any())).thenReturn(new PageImpl<>(List.of(vault)));
 			when(vault.getStatus()).thenReturn("ACTIVE");
+			when(assetRepository.findByVaultIdAndAssetTypeNot(eq(15L), any(), any())).thenReturn(new PageImpl<>(List.of(mock(Asset.class))));
+			when(willAssetRepository.findWills(eq(15L), any())).thenReturn(new PageImpl<>(List.of(mock(Asset.class))));
 		}
 	}
 }

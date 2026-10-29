@@ -27,6 +27,7 @@ import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx'
 import './BeneficiaryConfirmationPage.css';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import SignedReceiptViewer from './SignedReceiptViewer.jsx';
+import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { formatStaffSession } from '../../utils/caseReference.js';
@@ -336,6 +337,7 @@ function BeneficiaryConfirmationPageContext({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [activeReceiptPreview, setActiveReceiptPreview] = useState(null);
 
   const activeCaseRef = useRef(initialCase);
   const confirmationController = useRef(null);
@@ -1057,7 +1059,7 @@ function BeneficiaryConfirmationPageContext({
                       <td>
                         {b.receiptReference ? (
                           <><code className="lv-confirm-receipt-code">{b.receiptReference}</code>
-                          {b.hasSignedFile && b.confirmationId ? <SignedReceiptViewer key={`${caseReference}:${sessionId}:${effectiveAccessToken}:${b.confirmationId}`} caseId={caseReference} sessionId={sessionId} confirmationId={b.confirmationId} accessToken={effectiveAccessToken} lang={lang} onUnauthorized={onUnauthorized} />
+                          {b.hasSignedFile && b.confirmationId ? <SignedReceiptViewer key={`${caseReference}:${sessionId}:${effectiveAccessToken}:${b.confirmationId}`} caseId={caseReference} sessionId={sessionId} confirmationId={b.confirmationId} accessToken={effectiveAccessToken} lang={lang} onUnauthorized={onUnauthorized} onViewReceipt={setActiveReceiptPreview} />
                             : <small>{lang === 'en' ? 'Legacy record: no signed attachment' : 'Bản ghi cũ: chưa có tệp ký nhận'}</small>}</>
                         ) : (
                           <span className="lv-confirm-empty-cell">{t.informationUnavailable}</span>
@@ -1195,6 +1197,22 @@ function BeneficiaryConfirmationPageContext({
         </form>
       </section>
       </>}
+      {/* Global Root Receipt Preview Modal - Escapes card stacking contexts */}
+      {activeReceiptPreview && (
+        <EvidencePreviewModal
+          isOpen={true}
+          blobUrl={activeReceiptPreview.blobUrl}
+          contentType={activeReceiptPreview.contentType}
+          fileName={activeReceiptPreview.fileName || 'signed-receipt'}
+          lang={lang}
+          onClose={() => {
+            if (activeReceiptPreview.blobUrl) {
+              URL.revokeObjectURL(activeReceiptPreview.blobUrl);
+            }
+            setActiveReceiptPreview(null);
+          }}
+        />
+      )}
     </div>
   );
 }

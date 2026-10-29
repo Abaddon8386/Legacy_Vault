@@ -1275,7 +1275,20 @@
 .lv-staff-documents-view .lv-form-textarea:disabled,
 .lv-staff-documents-view .lv-intake-form .lv-form-input:disabled { background: #f2f4f0; color: #7b877c; cursor: not-allowed; }
 .lv-staff-documents-view .lv-intake-form .lv-form-input--error { border-color: #bd5b4c; background: #fffafa; }
-.lv-staff-documents-view .lv-field-error { font-size: 12px; font-weight: 600; color: #a83f31; }
+.lv-staff-documents-view .lv-field-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+.lv-staff-documents-view .lv-datepicker--error .lv-datepicker-input {
+  border-color: #b91c1c;
+  background-color: #fef2f2;
+}
 .lv-staff-documents-view .lv-allocations-section { background: #f5f7f2; border-color: #dce5d6; margin-top: 0; padding: 22px; }
 .lv-staff-documents-view .lv-allocations-title { color: #2e5e3e; font-size: 16px; }
 .lv-staff-documents-view .lv-intake-form-actions { border-top: 1px solid #e5eae0; padding-top: 22px; display: flex; justify-content: flex-end; }

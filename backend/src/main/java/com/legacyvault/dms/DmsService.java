@@ -9,7 +9,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.legacyvault.asset.entity.AssetType;
+import com.legacyvault.asset.repository.AssetRepository;
 import com.legacyvault.beneficiary.BeneficiaryRepository;
+import com.legacyvault.will.repository.WillAssetRepository;
 import com.legacyvault.common.audit.AuditService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
@@ -24,6 +27,8 @@ public class DmsService {
 
 	private final DmsConfigRepository configs;
 	private final BeneficiaryRepository beneficiaries;
+	private final AssetRepository assetRepository;
+	private final WillAssetRepository willAssetRepository;
 	private final VaultRepository vaults;
 	private final VaultService vaultService;
 	private final OwnerContextService owners;
@@ -31,10 +36,13 @@ public class DmsService {
 	private final AuditService audit;
 
 	public DmsService(DmsConfigRepository configs, BeneficiaryRepository beneficiaries,
+			AssetRepository assetRepository, WillAssetRepository willAssetRepository,
 			VaultRepository vaults, VaultService vaultService, OwnerContextService owners,
 			DmsPolicy policy, AuditService audit) {
 		this.configs = configs;
 		this.beneficiaries = beneficiaries;
+		this.assetRepository = assetRepository;
+		this.willAssetRepository = willAssetRepository;
 		this.vaults = vaults;
 		this.vaultService = vaultService;
 		this.owners = owners;
@@ -49,6 +57,12 @@ public class DmsService {
 		Integer graceMinutes = policy.resolveGraceMinutes(request);
 		Vault vault = ownerVault(owner.getUserId());
 		vaultService.requireEditableVaultForUpdate(vault.getPublicId(), owner.getUserId());
+		if (assetRepository.findByVaultIdAndAssetTypeNot(vault.getVaultId(), AssetType.DOCUMENT, PageRequest.of(0, 1)).getTotalElements() < 1) {
+			throw new BusinessException(ErrorCode.ASSET_REQUIRED);
+		}
+		if (willAssetRepository.findWills(vault.getVaultId(), PageRequest.of(0, 1)).getTotalElements() < 1) {
+			throw new BusinessException(ErrorCode.WILL_REQUIRED);
+		}
 		if (beneficiaries.countByVault_VaultId(vault.getVaultId()) < 1) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_REQUIRED);
 		}

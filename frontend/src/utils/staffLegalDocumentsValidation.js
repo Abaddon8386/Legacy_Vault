@@ -86,9 +86,12 @@ export function validateStaffLegalDocumentForm(formValues = {}, options = {}) {
   if (!issuanceDate || typeof issuanceDate !== 'string' || !issuanceDate.trim()) {
     errors.issuanceDate = STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUANCE_DATE_REQUIRED;
   } else {
-    const timestamp = Date.parse(issuanceDate);
+    const trimmedDate = issuanceDate.trim();
     const todayStr = new Date().toISOString().slice(0, 10);
-    if (isNaN(timestamp) || issuanceDate > todayStr) {
+    const isIso = /^\d{4}-\d{2}-\d{2}$/.test(trimmedDate);
+    const dateObj = isIso ? new Date(trimmedDate + 'T00:00:00Z') : null;
+    const isValidCalendar = Boolean(dateObj && Number.isFinite(dateObj.getTime()) && dateObj.toISOString().slice(0, 10) === trimmedDate);
+    if (!isValidCalendar || trimmedDate > todayStr) {
       errors.issuanceDate = STAFF_LEGAL_DOCS_ERROR_KEYS.ISSUANCE_DATE_INVALID;
     }
   }
@@ -102,8 +105,12 @@ export function validateStaffLegalDocumentForm(formValues = {}, options = {}) {
     if (!hasNotaryOrg || !hasNotaryNum || !hasNotaryDate) {
       errors.notary = STAFF_LEGAL_DOCS_ERROR_KEYS.NOTARY_REQUIRED;
     } else {
+      const trimmedNotary = notarizedAt.trim();
       const todayStr = new Date().toISOString().slice(0, 10);
-      if (notarizedAt > todayStr || isNaN(Date.parse(notarizedAt))) {
+      const isIso = /^\d{4}-\d{2}-\d{2}$/.test(trimmedNotary);
+      const dateObj = isIso ? new Date(trimmedNotary + 'T00:00:00Z') : null;
+      const isValidCalendar = Boolean(dateObj && Number.isFinite(dateObj.getTime()) && dateObj.toISOString().slice(0, 10) === trimmedNotary);
+      if (!isValidCalendar || trimmedNotary > todayStr) {
         errors.notary = STAFF_LEGAL_DOCS_ERROR_KEYS.NOTARY_REQUIRED;
       }
     }

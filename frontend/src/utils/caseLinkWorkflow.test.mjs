@@ -7,6 +7,7 @@ import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readDms } from './dmsService.js';
 import { isPersonalRecipient, readLinkRequest } from './caseLinkModel.js';
+import { ApiError } from '../api/http.js';
 
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/shared-with-me' });
 globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -203,4 +204,435 @@ test('Grace rejects invalid minute fields and mismatching saved precision', asyn
     await change(v.host, '#grace-minutes', '5'); await submit(v.host); assert.equal(writes, 1); assert.equal(saved, 0);
     assert.equal(v.host.querySelector('#grace-minutes').value, '5'); await submit(v.host); assert.equal(writes, 1);
   } finally { await v.close(); }
+});
+
+test('Task 4: REJECTED request with explicit reason preserves field from response -> adapter -> UI', async () => {
+  const rejectedWithReason = {
+    id: 'req-rej-01',
+    caseNumber: 'HS-2026-000099',
+    status: 'REJECTED',
+    reason: 'Hồ sơ thiếu chứng minh nhân dân của người nhận',
+  };
+  // 1. Adapter preserves reason
+  const adapted = readLinkRequest(rejectedWithReason);
+  assert.equal(adapted.reason, 'Hồ sơ thiếu chứng minh nhân dân của người nhận');
+
+  // 2. Component renders the explicit reason
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [rejectedWithReason],
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(v.host.textContent, /Lý do từ chối:/);
+    assert.match(v.host.textContent, /Hồ sơ thiếu chứng minh nhân dân của người nhận/);
+  } finally {
+    await v.close();
+  }
+});
+
+test('Task 4: REJECTED request without reason (real BE contract) renders neutral guidance', async () => {
+  const rejectedWithoutReason = {
+    id: 'req-rej-02',
+    caseNumber: 'HS-2026-000100',
+    status: 'REJECTED',
+  };
+  // 1. Adapter succeeds without error
+  const adapted = readLinkRequest(rejectedWithoutReason);
+  assert.equal(adapted.status, 'REJECTED');
+  assert.equal(adapted.reason, undefined);
+
+  // 2. Component renders neutral guidance (VI)
+  const vVi = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [rejectedWithoutReason],
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(vVi.host.textContent, /Yêu cầu liên kết đã bị từ chối/);
+    assert.match(vVi.host.textContent, /liên hệ nhân viên tại quầy/);
+  } finally {
+    await vVi.close();
+  }
+
+  // 3. Component renders neutral guidance (EN)
+  const vEn = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [rejectedWithoutReason],
+      submit: async () => {},
+    },
+    lang: 'en',
+  });
+  try {
+    assert.match(vEn.host.textContent, /Your request was declined/);
+    assert.match(vEn.host.textContent, /contact Staff at the counter/);
+  } finally {
+    await vEn.close();
+  }
+});
+
+
+test('Task 2: REJECTED request with null, empty, or whitespace reason normalizes to neutral guidance', async () => {
+  for (const emptyVal of [null, '', '   ', '\t\n']) {
+    const raw = {
+      id: 'req-empty-01',
+      caseNumber: 'HS-2026-000101',
+      status: 'REJECTED',
+      reason: emptyVal,
+    };
+    const adapted = readLinkRequest(raw);
+    assert.equal(adapted.reason, undefined, `Expected reason for ${JSON.stringify(emptyVal)} to be undefined`);
+  }
+
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => [{
+        id: 'req-empty-02',
+        caseNumber: 'HS-2026-000102',
+        status: 'REJECTED',
+        reason: '   ',
+      }],
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(v.host.textContent, /Yêu cầu liên kết đã bị từ chối/);
+    assert.match(v.host.textContent, /liên hệ nhân viên tại quầy/);
+  } finally {
+    await v.close();
+  }
+});
+
+test('Task 2: REJECTED request with invalid type (object, array, number, boolean) throws INVALID_RESPONSE', () => {
+  const invalidTypes = [
+    { text: 'Object error' },
+    ['Array', 'error'],
+    12345,
+    true,
+    false,
+  ];
+
+  for (const badReason of invalidTypes) {
+    assert.throws(
+      () => readLinkRequest({ id: 'req-bad-01', caseNumber: 'HS-2026-000103', status: 'REJECTED', reason: badReason }),
+      (err) => err?.code === 'INVALID_RESPONSE',
+      `Expected INVALID_RESPONSE for reason type ${typeof badReason}`
+    );
+    assert.throws(
+      () => readLinkRequest({ id: 'req-bad-02', caseNumber: 'HS-2026-000104', status: 'REJECTED', rejectionReason: badReason }),
+      (err) => err?.code === 'INVALID_RESPONSE',
+      `Expected INVALID_RESPONSE for rejectionReason type ${typeof badReason}`
+    );
+  }
+});
+
+test('Task 2: REJECTED request with both reason and rejectionReason prioritizes reason', () => {
+  const bothProvided = {
+    id: 'req-both-01',
+    caseNumber: 'HS-2026-000105',
+    status: 'REJECTED',
+    reason: 'Lý do ưu tiên chính',
+    rejectionReason: 'Lý do thứ hai',
+  };
+  const adapted = readLinkRequest(bothProvided);
+  assert.equal(adapted.reason, 'Lý do ưu tiên chính');
+
+  const fallbackToSecond = {
+    id: 'req-both-02',
+    caseNumber: 'HS-2026-000106',
+    status: 'REJECTED',
+    reason: '   ',
+    rejectionReason: 'Lý do thay thế',
+  };
+  const adaptedFallback = readLinkRequest(fallbackToSecond);
+  assert.equal(adaptedFallback.reason, 'Lý do thay thế');
+});
+
+test('Task 2: Adapter error on malformed response does NOT crash page; displays error banner', async () => {
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: {
+      listOwn: async () => {
+        // Simulates adapter throwing INVALID_RESPONSE due to malformed backend payload
+        throw new ApiError('INVALID_RESPONSE');
+      },
+      submit: async () => {},
+    },
+    lang: 'vi',
+  });
+  try {
+    assert.match(v.host.textContent, /Chưa xác minh được kết quả/);
+  } finally {
+    await v.close();
+  }
+});
+
+test('CaseLinkWorkspace polling: slow response (> 4s) is not aborted by poll timer or focus/visibility, stops when no longer PENDING, and aborts on account/token switch', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  let calls = 0;
+  const signals = [];
+  const resolvers = [];
+
+  const pendingItem = { id: 'req-slow-01', caseNumber: 'HS-2026-000777', status: 'PENDING' };
+  const approvedItem = { id: 'req-slow-01', caseNumber: 'HS-2026-000777', status: 'APPROVED' };
+
+  const actions = {
+    listOwn: ({ signal }) => {
+      calls++;
+      signals.push(signal);
+      return new Promise((resolve) => {
+        resolvers.push(resolve);
+      });
+    },
+    submit: async () => {},
+  };
+
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: actions,
+    lang: 'vi',
+  });
+
+  try {
+    // Initial read #1 is in-flight
+    assert.equal(calls, 1, 'Initial listOwn call should be started');
+    assert.equal(signals[0].aborted, false);
+
+    // Simulate slow initial read taking 6 seconds (> 4s poll delay) + focus/visibility events while in-flight
+    await act(async () => {
+      t.mock.timers.tick(6000);
+      window.dispatchEvent(new window.Event('focus'));
+      document.dispatchEvent(new window.Event('visibilitychange'));
+    });
+    assert.equal(calls, 1, 'No concurrent poll must start while initial read is in-flight');
+    assert.equal(signals[0].aborted, false, 'Slow initial read (> 4s) must NOT be aborted');
+
+    // Resolve initial read #1 with PENDING status -> schedules poll #2 in 4000ms
+    await act(async () => {
+      resolvers[0]([pendingItem]);
+    });
+    assert.match(v.host.textContent, /Chờ Staff đối chiếu/);
+    assert.equal(calls, 1, 'Poll #2 waits for 4000ms timeout after read #1 settles');
+
+    // Advance 4000ms -> poll #2 starts
+    await act(async () => {
+      t.mock.timers.tick(4000);
+    });
+    assert.equal(calls, 2, 'Poll #2 starts 4000ms after read #1 completed');
+    assert.equal(signals[1].aborted, false);
+
+    // Now simulate poll #2 taking 9 seconds (> 2x 4000ms) and window focus firing mid-flight
+    await act(async () => {
+      t.mock.timers.tick(4500);
+      window.dispatchEvent(new window.Event('focus'));
+      document.dispatchEvent(new window.Event('visibilitychange'));
+      t.mock.timers.tick(4500);
+    });
+    assert.equal(calls, 2, 'No overlapping poll #3 while slow poll #2 (9s) is still in-flight');
+    assert.equal(signals[1].aborted, false, 'Slow poll #2 (> 4s) must NOT be aborted by timer or focus');
+
+    // Resolve slow poll #2 with APPROVED status -> no more PENDING requests, polling must stop!
+    await act(async () => {
+      resolvers[1]([approvedItem]);
+    });
+    assert.match(v.host.textContent, /Đã liên kết/);
+
+    // Advance another 12000ms and fire focus -> no more polls because status is APPROVED
+    await act(async () => {
+      t.mock.timers.tick(12000);
+      window.dispatchEvent(new window.Event('focus'));
+    });
+    assert.equal(calls, 2, 'Polling must stop once no request is PENDING');
+
+    // Now test account/token change while a poll is in-flight:
+    // First manual reload returns PENDING again
+    await click(v.host, 'Tải lại trạng thái');
+    assert.equal(calls, 3);
+    await act(async () => {
+      resolvers[2]([pendingItem]);
+    });
+    // Trigger poll #4 via 4000ms timer
+    await act(async () => {
+      t.mock.timers.tick(4000);
+    });
+    assert.equal(calls, 4, 'Poll #4 is now in-flight for first account');
+    assert.equal(signals[3].aborted, false);
+
+    // Switch session token/account while poll #4 is in-flight
+    await v.render({
+      session: { user: { id: 'owner-b', roles: ['VAULT_OWNER'] }, accessToken: 'token-b' },
+      caseLinkActions: actions,
+      lang: 'vi',
+    });
+    assert.equal(signals[3].aborted, true, 'Switching account/token must abort in-flight poll of previous account');
+  } finally {
+    await v.close();
+    t.mock.timers.reset();
+  }
+});
+
+test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling continues -> remaining request transitions to APPROVED/REJECTED -> UI updates and polling stops', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  let listCalls = 0;
+  let cancelCalls = 0;
+  const resolvers = [];
+
+  const reqA = { id: 'req-multi-a', caseNumber: 'HS-2026-000201', status: 'PENDING' };
+  const reqB = { id: 'req-multi-b', caseNumber: 'HS-2026-000202', status: 'PENDING' };
+  const reqACancelled = { id: 'req-multi-a', caseNumber: 'HS-2026-000201', status: 'CANCELLED' };
+  const reqBRejected = {
+    id: 'req-multi-b',
+    caseNumber: 'HS-2026-000202',
+    status: 'REJECTED',
+    reason: 'Chưa khớp giấy tờ tùy thân tại quầy',
+  };
+
+  const actions = {
+    listOwn: () => {
+      listCalls++;
+      return new Promise((resolve) => {
+        resolvers.push(resolve);
+      });
+    },
+    submit: async ({ caseNumber }) => ({
+      id: 'req-multi-c',
+      caseNumber,
+      status: 'PENDING',
+    }),
+    cancel: async ({ requestId }) => {
+      cancelCalls++;
+      assert.equal(requestId, reqA.id);
+      return reqACancelled;
+    },
+  };
+
+  const v = await mount(Shared, {
+    ...base,
+    caseLinkActions: actions,
+    lang: 'vi',
+  });
+
+  try {
+    // 1. Initial load returns 2 PENDING requests (reqA and reqB)
+    assert.equal(listCalls, 1, 'Initial listOwn #1 called');
+    await act(async () => {
+      resolvers[0]([reqA, reqB]);
+    });
+    assert.match(v.host.textContent, /HS-2026-000201/);
+    assert.match(v.host.textContent, /HS-2026-000202/);
+
+    // 2. Cancel the first PENDING request (reqA) while poll timer is waiting
+    const cancelBtns = [...v.host.querySelectorAll('button')].filter((el) =>
+      el.textContent.includes('Hủy yêu cầu')
+    );
+    assert.equal(cancelBtns.length, 2, 'Both PENDING requests should have Cancel buttons');
+    await act(async () => {
+      cancelBtns[0].click();
+    });
+    assert.equal(cancelCalls, 1, 'Cancel mutation executed for reqA');
+    assert.match(v.host.textContent, /Đã hủy yêu cầu/);
+
+    // Only reqB remains PENDING; advance 4000ms -> polling MUST continue and fire listOwn #2!
+    await act(async () => {
+      t.mock.timers.tick(4000);
+    });
+    assert.equal(
+      listCalls,
+      2,
+      'Polling must continue after cancelling 1 of 2 PENDING requests because reqB is still PENDING'
+    );
+
+    // 3. Resolve poll #2: reqB transitions to REJECTED (so 0 PENDING requests remain)
+    await act(async () => {
+      resolvers[1]([reqACancelled, reqBRejected]);
+    });
+    assert.match(v.host.textContent, /Chưa khớp giấy tờ tùy thân tại quầy/);
+
+    // 4. Advance another 12000ms and fire focus -> polling must stay stopped because no PENDING remains
+    await act(async () => {
+      t.mock.timers.tick(12000);
+      window.dispatchEvent(new window.Event('focus'));
+    });
+    assert.equal(listCalls, 2, 'Polling must stop once the remaining request transitions out of PENDING');
+
+    // 5. Submit 2 new PENDING requests -> cancel one -> remaining transitions to APPROVED -> polling stops;
+    //    also verify failed mutation sets uncertain and pauses background polling until explicit reload
+    let failCancel = false;
+    const reqC = { id: 'req-multi-c', caseNumber: 'HS-2026-000203', status: 'PENDING' };
+    const reqD = { id: 'req-multi-d', caseNumber: 'HS-2026-000204', status: 'PENDING' };
+    const reqCCancelled = { id: 'req-multi-c', caseNumber: 'HS-2026-000203', status: 'CANCELLED' };
+    const reqDApproved = { id: 'req-multi-d', caseNumber: 'HS-2026-000204', status: 'APPROVED' };
+
+    actions.cancel = async ({ requestId }) => {
+      cancelCalls++;
+      if (failCancel) throw new Error('network');
+      assert.equal(requestId, reqC.id);
+      return reqCCancelled;
+    };
+
+    await click(v.host, 'Tải lại trạng thái');
+    assert.equal(listCalls, 3);
+    await act(async () => {
+      resolvers[2]([reqC, reqD]);
+    });
+
+    // First, simulate failed cancel mutation -> uncertain = true -> background polling must NOT overwrite uncertain state
+    failCancel = true;
+    const cancelBtns2 = [...v.host.querySelectorAll('button')].filter((el) =>
+      el.textContent.includes('Hủy yêu cầu')
+    );
+    await act(async () => {
+      cancelBtns2[0].click();
+    });
+    await act(async () => {
+      t.mock.timers.tick(8000);
+      window.dispatchEvent(new window.Event('focus'));
+    });
+    assert.equal(listCalls, 3, 'Background polling must pause while mutation outcome is uncertain');
+    const cancelBtnsWhileUncertain = [...v.host.querySelectorAll('button')].filter((el) =>
+      el.textContent.includes('Hủy yêu cầu')
+    );
+    assert.equal(cancelBtnsWhileUncertain[0].disabled, true, 'Cancel button remains disabled while uncertain until explicit reload');
+
+    // Explicit status reload clears uncertain -> cancel reqC succeeds -> polling continues -> reqD becomes APPROVED -> polling stops
+    failCancel = false;
+    await click(v.host, 'Tải lại trạng thái');
+    assert.equal(listCalls, 4);
+    await act(async () => {
+      resolvers[3]([reqC, reqD]);
+    });
+
+    const cancelBtnsAfterReload = [...v.host.querySelectorAll('button')].filter((el) =>
+      el.textContent.includes('Hủy yêu cầu')
+    );
+    await act(async () => {
+      cancelBtnsAfterReload[0].click();
+    });
+    await act(async () => {
+      t.mock.timers.tick(4000);
+    });
+    assert.equal(listCalls, 5, 'Polling continues after cancelling reqC while reqD is still PENDING');
+
+    await act(async () => {
+      resolvers[4]([reqCCancelled, reqDApproved]);
+    });
+    assert.match(v.host.textContent, /Đã liên kết/);
+
+    await act(async () => {
+      t.mock.timers.tick(12000);
+    });
+    assert.equal(listCalls, 5, 'Polling stops once reqD transitions to APPROVED');
+  } finally {
+    await v.close();
+    t.mock.timers.reset();
+  }
 });

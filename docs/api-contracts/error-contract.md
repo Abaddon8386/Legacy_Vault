@@ -112,6 +112,8 @@ Lỗi validation:
 | `BASIS_DOSSIER_ALREADY_EXISTS` | 409 | Ca đã có hồ sơ căn cứ (PS-41) |
 | `BASIS_DOSSIER_INVALID_STATE` | 409 | Ca, Vault hoặc hồ sơ căn cứ không ở trạng thái cho phép thao tác (PS-41, PS-42, PS-43) |
 | `BASIS_VERSION_STALE` | 409 | Phiên bản được chuyển không phải phiên bản mới nhất của hồ sơ (PS-42) |
+| ASSET_REQUIRED | 422 | Bật DMS khi Vault chưa có tài sản thừa kế |
+| WILL_REQUIRED | 422 | Bật DMS khi Vault chưa có bản di chúc |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
 | `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
@@ -127,6 +129,8 @@ Lỗi validation:
 | `code` | HTTP | Ticket | Khi nào |
 |---|---|---|---|
 | `VAULT_ALREADY_EXISTS` | 409 | PS-12 | Owner đã có Vault (DB giới hạn mỗi Owner một Vault) |
+| ASSET_REQUIRED | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có tài sản thừa kế nào |
+| WILL_REQUIRED | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có bản di chúc nào |
 | `BENEFICIARY_REQUIRED` | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có Beneficiary nào |
 | `TRUSTEE_ALREADY_EXISTS` | 409 | PS-19 | Vault đã có Trustee hiện hành khi tạo thêm |
 | `VAULT_NOT_EDITABLE` | 409 | PS-19/20/22 | Vault không còn ở trạng thái Owner được phép sửa |
