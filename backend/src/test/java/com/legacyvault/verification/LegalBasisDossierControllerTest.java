@@ -15,7 +15,7 @@ import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.LegalBasisReviewService;
-import com.legacyvault.verification.service.LegalApprovalService;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -112,7 +112,7 @@ class LegalBasisDossierControllerTest {
     private LegalBasisReviewService legalBasisReviewService;
 
     @MockitoBean
-    private LegalApprovalService legalApprovalService;
+    private DistributionWorkflowService legalApprovalService;
 
     private static RequestPostProcessor as(String role) {
         return authentication(

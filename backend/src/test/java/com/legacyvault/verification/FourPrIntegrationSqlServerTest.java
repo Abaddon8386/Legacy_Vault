@@ -18,7 +18,7 @@ class FourPrIntegrationSqlServerTest extends LegalBasisSqlServerSupport {
         } catch(ClassNotFoundException e) {return false;}
     }
     @Test void minuteDmsCourtSnapshotApprovalOverviewAndRedactedAuditWorkTogetherWithCurrentRoles() throws Exception {
-        var f=fixture(false);
+        var f=fixture(true);
         // Preverified case fixture; physical death/counter evidence is not being asserted by this test.
         jdbc.update("UPDATE dbo.vaults SET status='ACTIVE' WHERE vault_id=?",f.vaultId());
         jdbc.update("INSERT dbo.beneficiaries(vault_id,full_name) VALUES(?,'DMS trial fixture')",f.vaultId());
@@ -35,8 +35,9 @@ class FourPrIntegrationSqlServerTest extends LegalBasisSqlServerSupport {
         intakeVersion(f,"COURT_JUDGMENT");context.getBean(BasisForwardService.class).forward(f.publicCaseId(),1,f.legal());
         var ctx=call("GET",legal+"/context",null,token,200);var snapshot=(Map<?,?>)ctx.get("snapshot");
         Map<String,Object> review=Map.of("reason","Viewed exact fixture","versionNo",snapshot.get("currentVersion"),"sha256Hash",snapshot.get("sha256Hash"),"allocationHash",snapshot.get("allocationHash"),"disputeStatus",snapshot.get("disputeStatus"));
-        call("POST",legal+"/basis-dossier/review",review,token,200);
         call("POST",legal+"/basis-dossier/court-decisions",Map.of("version",1,"result","VALID","reason","Fixture current court"),token,201);
+        completeDistribution(f);
+        call("POST",legal+"/basis-dossier/review",review,token,200);
         call("POST",legal+"/basis-dossier/decision",Map.of("decision","APPROVE","versionNo",1,"sha256Hash",snapshot.get("sha256Hash"),"allocationHash",snapshot.get("allocationHash"),"reason","Fixture final approval"),token,200);
         assertEquals("LEGAL_BASIS_VERIFICATION",jdbc.queryForObject("SELECT status FROM dbo.vaults WHERE vault_id=?",String.class,f.vaultId()));
         call("POST",legal+"/unlock",null,token,200);assertEquals("UNLOCKED",jdbc.queryForObject("SELECT status FROM dbo.vaults WHERE vault_id=?",String.class,f.vaultId()));
@@ -47,7 +48,7 @@ class FourPrIntegrationSqlServerTest extends LegalBasisSqlServerSupport {
         var events=(List<?>)audits.get("content");var actions=events.stream().map(x->((Map<?,?>)x).get("action")).toList();
         for(String action:List.of("DMS_CONFIGURED","DMS_CHECKED_IN","LEGAL_BASIS_REVIEW_RECORDED","LEGAL_BASIS_DECIDED"))assertTrue(actions.contains(action));
         for(Object event:events) {var e=(Map<?,?>)event;assertNotNull(UUID.fromString((String)e.get("id")));assertFalse(e.containsKey("details"));assertFalse(e.containsKey("sha256Hash"));}
-        assertEquals(0,count("will_comparisons","verification_case_id=?",f.caseId()),"Court path must not synthesize MATCH");
+        assertEquals(1,count("will_comparisons","verification_case_id=?",f.caseId()),"The workflow never records a will comparison itself");
         jdbc.update("DELETE dbo.user_roles WHERE user_id=? AND role_id IN (SELECT role_id FROM dbo.roles WHERE role_code IN ('ROLE_LEGAL_VERIFIER','ROLE_VAULT_OWNER'))",f.userId());
         call("GET",legal+"/context",null,token,403);call("GET","/dms",null,token,403);call("GET","/admin/overview",null,token,200);
     }

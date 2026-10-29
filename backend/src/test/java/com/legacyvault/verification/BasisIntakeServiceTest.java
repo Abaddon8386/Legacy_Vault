@@ -707,26 +707,19 @@ class BasisIntakeServiceTest {
     }
 
     @Test
-    void scope_mustBePresent_unique_andInsideTheCasesVault() {
+    void uploadWithoutAllocationsStoresTheDocumentAndNoAllocation() {
         happyPath("COURT");
 
-        assertThatThrownBy(() -> service.intake(
-                CASE_ID,
-                staff,
-                metadataWith(null),
-                pdf()
-        )).satisfies(exception ->
-                assertThat(codeOf(exception))
-                        .isEqualTo(ErrorCode.VALIDATION_FAILED));
+        service.intake(CASE_ID, staff, metadataWith(List.of()), pdf());
 
-        assertThatThrownBy(() -> service.intake(
-                CASE_ID,
-                staff,
-                metadataWith(List.of()),
-                pdf()
-        )).satisfies(exception ->
-                assertThat(codeOf(exception))
-                        .isEqualTo(ErrorCode.VALIDATION_FAILED));
+        verify(versions).saveAndFlush(any(LegalBasisDossierVersion.class));
+        verify(allocationRepository).saveAll(List.of());
+        verify(allocationRepository, never()).supersedeForVersion(any());
+    }
+
+    @Test
+    void scope_mustBeUnique_andInsideTheCasesVault() {
+        happyPath("COURT");
 
         AllocationInput line = new AllocationInput(
                 ASSET_ID,

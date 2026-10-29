@@ -31,7 +31,7 @@ class FinalCourtHandoverHttpSqlServerTest extends LegalBasisSqlServerSupport {
         return json.readTree(response.body());
     }
     @Test void courtApprovalUnlockCounterLinkDeliveryConfirmationCloseReceiptArchiveAndReadAgain() throws Exception {
-        var f=fixture(false);
+        var f=fixture(true);
         jdbc.update("UPDATE dbo.vaults SET status='DOCUMENT_VERIFICATION' WHERE vault_id=?",f.vaultId());
         jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code IN ('ROLE_LEGAL_VERIFIER','ROLE_STAFF_EXECUTOR')",f.userId());
         String staff=context.getBean(JwtService.class).generateAccessToken(f.legal().publicId(),f.legal().email(),List.of("ROLE_LEGAL_VERIFIER","ROLE_STAFF_EXECUTOR"));
@@ -41,13 +41,14 @@ class FinalCourtHandoverHttpSqlServerTest extends LegalBasisSqlServerSupport {
         // Setup only the intake file in the fixture; all subsequent workflow mutations use HTTP.
         context.getBean(BasisForwardService.class).forward(f.publicCaseId(),1,f.legal());
         var snapshot=call("GET",legal+"/context",null,staff,200).get("snapshot");
-        call("POST",legal+"/basis-dossier/review",Map.of("reason","Synthetic exact version","versionNo",snapshot.get("currentVersion").asInt(),"sha256Hash",snapshot.get("sha256Hash").asText(),"allocationHash",snapshot.get("allocationHash").asText(),"disputeStatus",snapshot.get("disputeStatus").asText()),staff,200);
         call("POST",legal+"/basis-dossier/court-decisions",Map.of("version",1,"result","VALID","reason","Synthetic court review"),staff,201);
+        completeDistribution(f);
+        call("POST",legal+"/basis-dossier/review",Map.of("reason","Synthetic exact version","versionNo",snapshot.get("currentVersion").asInt(),"sha256Hash",snapshot.get("sha256Hash").asText(),"allocationHash",snapshot.get("allocationHash").asText(),"disputeStatus",snapshot.get("disputeStatus").asText()),staff,200);
         call("POST",legal+"/basis-dossier/decision",Map.of("decision","APPROVE","versionNo",1,"sha256Hash",snapshot.get("sha256Hash").asText(),"allocationHash",snapshot.get("allocationHash").asText(),"reason","Synthetic final approval"),staff,200);
         assertEquals("LEGAL_BASIS_VERIFICATION",jdbc.queryForObject("SELECT status FROM dbo.vaults WHERE vault_id=?",String.class,f.vaultId()));
         call("POST",legal+"/unlock",null,staff,200);
         String recipient=jdbc.queryForObject("SELECT CAST(public_id AS varchar(36)) FROM dbo.beneficiaries WHERE vault_id=?",String.class,f.vaultId());
-        long assetId=jdbc.queryForObject("SELECT asset_id FROM dbo.assets WHERE vault_id=?",Long.class,f.vaultId());
+        long assetId=jdbc.queryForObject("SELECT asset_id FROM dbo.assets WHERE vault_id=? AND asset_type<>'DOCUMENT'",Long.class,f.vaultId());
         var repo=context.getBean(AssetRepository.class);
         tx.execute(status->{var asset=repo.findById(assetId).orElseThrow();asset.setEncryptedPayload(context.getBean(EncryptionService.class).encrypt("synthetic received content",AssetService.associatedData(asset)));repo.saveAndFlush(asset);return null;});
         String asset=jdbc.queryForObject("SELECT CAST(public_id AS varchar(36)) FROM dbo.assets WHERE asset_id=?",String.class,assetId);

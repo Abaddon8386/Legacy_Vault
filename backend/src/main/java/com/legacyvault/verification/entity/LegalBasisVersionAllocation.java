@@ -24,6 +24,7 @@ public class LegalBasisVersionAllocation {
     public static final String STATUS_DRAFT = "DRAFT";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
+    public static final String STATUS_SUPERSEDED = "SUPERSEDED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
