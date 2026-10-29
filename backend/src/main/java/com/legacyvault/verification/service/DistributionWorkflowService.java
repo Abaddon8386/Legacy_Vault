@@ -23,6 +23,7 @@ import com.legacyvault.vault.entity.Vault;
 import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.BasisIntakeMetadata;
+import com.legacyvault.verification.dto.CourtDecisionRequest;
 import com.legacyvault.verification.dto.DistributionWorkflowDtos.ActionBody;
 import com.legacyvault.verification.dto.DistributionWorkflowDtos.AllocationInfo;
 import com.legacyvault.verification.dto.DistributionWorkflowDtos.AllocationItem;
@@ -105,7 +106,11 @@ public class DistributionWorkflowService {
             String phase, Prerequisites prerequisites, DistributionWorkflowEvent request, BasisVersionRow document,
             String documentStatus, BasisVersionRow latestStored, DistributionWorkflowEvent submitted, String allocationStatus,
             List<AllocationRow> allocationRows, String allocationHash, List<DistributionWorkflowEvent> events,
-            String feedback) {
+            String feedback, BasisVersionRow forwardedDocument, String forwardedStatus) {
+        boolean documentForwarded() {
+            return document != null && "FORWARDED".equals(document.forwardStatus());
+        }
+
         boolean onHold() {
             return Vault.STATUS_ON_HOLD.equals(vault.getStatus())
                     || (dossier != null && LegalBasisDossier.ROUTE_ON_HOLD.equals(dossier.getRoute()));
@@ -124,6 +129,7 @@ public class DistributionWorkflowService {
     private final CourtRouteGuard routeGuard;
     private final LegalApprovalGuard approvals;
     private final LegalBasisReviewService review;
+    private final CourtDecisionService courtDecisions;
     private final BasisIntakeService intake;
     private final BasisForwardService forwarding;
     private final LegalApprovalService approvalService;
@@ -135,7 +141,8 @@ public class DistributionWorkflowService {
             LegalCaseLookupRepository lookup, VaultRepository vaults, LegalBasisDossierRepository dossiers,
             LegalBasisDossierVersionRepository versions, LegalBasisVersionAllocationRepository allocations,
             DistributionWorkflowEventRepository events, WillComparisonService wills, CourtRouteGuard routeGuard,
-            LegalApprovalGuard approvals, LegalBasisReviewService review, BasisIntakeService intake,
+            LegalApprovalGuard approvals, LegalBasisReviewService review, CourtDecisionService courtDecisions,
+            BasisIntakeService intake,
             BasisForwardService forwarding, LegalApprovalService approvalService, LegalVaultUnlockService unlockService,
             LegalReadService reads, AuditService audit) {
         this.access = access;
@@ -150,6 +157,7 @@ public class DistributionWorkflowService {
         this.routeGuard = routeGuard;
         this.approvals = approvals;
         this.review = review;
+        this.courtDecisions = courtDecisions;
         this.intake = intake;
         this.forwarding = forwarding;
         this.approvalService = approvalService;
@@ -278,6 +286,12 @@ public class DistributionWorkflowService {
             case "approveDocuments" -> {
                 requireReason(reason);
                 requireDocumentSnapshot(state, body);
+                if (LegalBasisDossier.ROUTE_COURT.equals(state.dossier().getRoute())) {
+                    // The FE no longer has a separate court-conclusion step: accepting the court document records a VALID
+                    // assessment of exactly this version (evidence was verified reviewable by the phase check above).
+                    courtDecisions.record(caseId, principal, new CourtDecisionRequest(state.document().versionNo(),
+                            CourtDecisionRequest.Result.VALID, reason));
+                }
                 eventAction = DistributionWorkflowEvent.APPROVE_DOCUMENTS;
                 auditAction = AuditAction.DISTRIBUTION_DOCUMENTS_APPROVED;
             }
@@ -311,6 +325,15 @@ public class DistributionWorkflowService {
                 allocationVersion = state.submitted().getAllocationVersion();
                 allocationSha = state.submitted().getAllocationSha256();
                 boolean approve = "approveAllocations".equals(action);
+                if (approve) {
+                    // Accepting the allocation is the Legal review of the exact snapshot: record it here so the final
+                    // decision does not depend on a separate "complete review" step. Only the stored document the caller
+                    // looked at may be reviewed.
+                    if (state.latestStored() == null || state.latestStored().versionNo() != state.document().versionNo()) {
+                        throw new BusinessException(ErrorCode.DISTRIBUTION_WORKFLOW_STALE);
+                    }
+                    review.recordCompletedReviewByCasePublicId(caseId, actorId, reason);
+                }
                 eventAction = approve ? DistributionWorkflowEvent.APPROVE_ALLOCATIONS
                         : DistributionWorkflowEvent.REQUEST_ALLOCATION_CHANGES;
                 auditAction = approve ? AuditAction.DISTRIBUTION_ALLOCATIONS_APPROVED
@@ -352,7 +375,9 @@ public class DistributionWorkflowService {
         List<DistributionWorkflowEvent> log = events.findByVerificationCaseIdOrderByEventNoAsc(found.getVerificationCaseId());
         List<BasisVersionRow> rows = dossier == null ? List.of() : versions.findRows(dossier.getLegalBasisDossierId());
         BasisVersionRow latestStored = rows.isEmpty() ? null : rows.get(0);
-        BasisVersionRow document = rows.stream().filter(r -> "FORWARDED".equals(r.forwardStatus())).findFirst().orElse(null);
+        // The document is the latest STORED version, so Staff see what they just uploaded and can forward exactly that version.
+        BasisVersionRow document = latestStored;
+        BasisVersionRow forwardedDocument = rows.stream().filter(r -> "FORWARDED".equals(r.forwardStatus())).findFirst().orElse(null);
         long forwarded = rows.stream().filter(r -> "FORWARDED".equals(r.forwardStatus())).count();
         long revision = log.size() + forwarded;
 
@@ -360,16 +385,12 @@ public class DistributionWorkflowService {
                 !wills.isApprovalBlocked(found.getVerificationCaseId()));
         DistributionWorkflowEvent request = last(log, DistributionWorkflowEvent.REQUEST_DOCUMENTS);
 
-        String documentStatus = null;
+        String documentStatus = documentStatus(log, document);
+        String forwardedStatus = documentStatus(log, forwardedDocument);
         String feedback = null;
-        if (document != null) {
-            DistributionWorkflowEvent decision = lastMatching(log, e -> e.getDocumentVersion() != null
-                    && e.getDocumentVersion() == document.versionNo() && document.sha256Hash().equalsIgnoreCase(e.getDocumentSha256())
-                    && (DistributionWorkflowEvent.APPROVE_DOCUMENTS.equals(e.getAction())
-                    || DistributionWorkflowEvent.REQUEST_DOCUMENT_SUPPLEMENTATION.equals(e.getAction())));
-            documentStatus = decision == null ? "PENDING"
-                    : DistributionWorkflowEvent.APPROVE_DOCUMENTS.equals(decision.getAction()) ? "APPROVED" : "CHANGES_REQUESTED";
-            if (decision != null && "CHANGES_REQUESTED".equals(documentStatus)) feedback = decision.getReason();
+        if ("CHANGES_REQUESTED".equals(documentStatus)) {
+            feedback = lastMatching(log, e -> DistributionWorkflowEvent.REQUEST_DOCUMENT_SUPPLEMENTATION.equals(e.getAction())
+                    && e.getDocumentVersion() != null && e.getDocumentVersion() == document.versionNo()).getReason();
         }
 
         DistributionWorkflowEvent submitted = last(log, DistributionWorkflowEvent.SUBMIT_ALLOCATIONS);
@@ -394,7 +415,18 @@ public class DistributionWorkflowService {
         String phase = phase(found, vault, dossier, prerequisites, request, document, documentStatus, latestStored, submitted,
                 allocationStatus);
         return new State(found, vault, dossier, revision, phase, prerequisites, request, document, documentStatus, latestStored,
-                submitted, allocationStatus, allocationRows, allocationHash, log, feedback);
+                submitted, allocationStatus, allocationRows, allocationHash, log, feedback, forwardedDocument, forwardedStatus);
+    }
+
+    /** PENDING until Legal decides on exactly this version and hash; a new version never inherits an older decision. */
+    private static String documentStatus(List<DistributionWorkflowEvent> log, BasisVersionRow row) {
+        if (row == null) return null;
+        DistributionWorkflowEvent decision = lastMatching(log, e -> e.getDocumentVersion() != null
+                && e.getDocumentVersion() == row.versionNo() && row.sha256Hash().equalsIgnoreCase(e.getDocumentSha256())
+                && (DistributionWorkflowEvent.APPROVE_DOCUMENTS.equals(e.getAction())
+                || DistributionWorkflowEvent.REQUEST_DOCUMENT_SUPPLEMENTATION.equals(e.getAction())));
+        return decision == null ? "PENDING"
+                : DistributionWorkflowEvent.APPROVE_DOCUMENTS.equals(decision.getAction()) ? "APPROVED" : "CHANGES_REQUESTED";
     }
 
     private String phase(VerificationCase found, Vault vault, LegalBasisDossier dossier, Prerequisites prerequisites,
@@ -404,7 +436,9 @@ public class DistributionWorkflowService {
         if (UNLOCKED_VAULT_STATES.contains(vault.getStatus())) return UNLOCKED;
         if (!prerequisites.deathApproved() || !prerequisites.willMatched()) return PREREQUISITES_PENDING;
         if (request == null) return DOCUMENT_REQUEST_NEEDED;
-        if (document == null || "CHANGES_REQUESTED".equals(documentStatus)) return AWAITING_DOCUMENTS;
+        if (document == null || !"FORWARDED".equals(document.forwardStatus()) || "CHANGES_REQUESTED".equals(documentStatus)) {
+            return AWAITING_DOCUMENTS;
+        }
         if ("PENDING".equals(documentStatus)) return DOCUMENTS_UNDER_REVIEW;
         boolean current = submitted != null && submitted.getDocumentVersion() == document.versionNo();
         if (!current || "CHANGES_REQUESTED".equals(allocationStatus)) return AWAITING_ALLOCATIONS;
@@ -426,8 +460,11 @@ public class DistributionWorkflowService {
                     : ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP;
             capabilities.put(action, new Capability(blocker == null, blocker == null ? null : blocker.name()));
         }
-        DocumentInfo document = state.document() == null ? null
-                : new DocumentInfo(state.document().versionNo(), state.document().sha256Hash(), state.documentStatus());
+        // Legal only see a version Staff already forwarded; Staff also see the version they stored and have not forwarded yet.
+        boolean legalView = LEGAL.equals(workspace) && !state.documentForwarded();
+        BasisVersionRow shown = legalView ? state.forwardedDocument() : state.document();
+        String shownStatus = legalView ? state.forwardedStatus() : state.documentStatus();
+        DocumentInfo document = shown == null ? null : new DocumentInfo(shown.versionNo(), shown.sha256Hash(), shownStatus);
         AllocationInfo allocation = null;
         if (state.submitted() != null) {
             List<AllocationItem> items = new ArrayList<>();
@@ -450,11 +487,23 @@ public class DistributionWorkflowService {
         if (!RULES.get(action).phase().equals(state.phase())) return ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP;
         if (state.onHold()) return ErrorCode.LEGAL_WORKFLOW_ON_HOLD;
         return switch (action) {
-            case "approveDocuments" -> routeGuard.blocker(state.dossier());
+            case "approveDocuments" -> documentBlocker(state);
             case "forwardDocuments" -> state.latestStored() == null || "FORWARDED".equals(state.latestStored().forwardStatus())
                     ? ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP : null;
             default -> null;
         };
+    }
+
+    /**
+     * Can Legal accept the forwarded document? COURT: the stored file and its court metadata must be reviewable (Legal's
+     * acceptance then records the VALID assessment); NOTARIAL and others keep the route evidence rules.
+     */
+    private ErrorCode documentBlocker(State state) {
+        if (!LegalBasisDossier.ROUTE_COURT.equals(state.dossier().getRoute())) {
+            return routeGuard.blocker(state.dossier());
+        }
+        var evidence = versions.findCourtEvidence(state.dossier().getLegalBasisDossierId(), state.document().versionNo()).orElse(null);
+        return evidence != null && evidence.isReviewable() ? null : ErrorCode.COURT_EVIDENCE_REQUIRED;
     }
 
     private void requirePhase(State state, String action, String workspace) {

@@ -6,6 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,6 +22,9 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legacyvault.auth.JwtService;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 import com.legacyvault.verification.dto.AllocationInput;
@@ -26,7 +33,7 @@ import com.legacyvault.verification.dto.DistributionWorkflowDtos.ActionBody;
 import com.legacyvault.verification.dto.DistributionWorkflowDtos.View;
 import com.legacyvault.verification.dto.LegalApprovalRequest;
 import com.legacyvault.verification.service.DistributionWorkflowService;
-import com.legacyvault.verification.service.LegalBasisReviewService;
+import com.legacyvault.verification.service.CourtDecisionService;
 
 /**
  * Distribution workflow on real SQL Server (PR #226 contract): request -> upload/forward -> document assessment ->
@@ -67,6 +74,11 @@ class DistributionWorkflowSqlServerTest extends LegalBasisSqlServerSupport {
     private BasisIntakeMetadata notarialMetadata(List<AllocationInput> allocations) {
         return new BasisIntakeMetadata("NOTARIAL_PARTITION", "Notary Office 1", "045/2026", LocalDate.of(2026, 1, 1),
                 "Notary Office 1", "045/2026", LocalDate.of(2026, 1, 1), "Receipt", null, allocations);
+    }
+
+    private BasisIntakeMetadata courtMetadata() {
+        return new BasisIntakeMetadata("COURT_JUDGMENT", "People's Court", "12/2026", LocalDate.of(2026, 1, 1),
+                null, null, null, "Receipt", null, List.of());
     }
 
     private MockMultipartFile pdf() {
@@ -138,7 +150,10 @@ class DistributionWorkflowSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals("WILL_VERIFICATION", vaultStatus(f), "receiving a document never moves the vault");
         v = view(f, STAFF);
         assertEquals("AWAITING_DOCUMENTS", v.phase());
-        assertNull(v.document(), "only a forwarded version is the document under assessment");
+        assertEquals(1, v.document().version(), "Staff see the version they just stored");
+        assertEquals("PENDING", v.document().status());
+        assertTrue(v.capabilities().get("forwardDocuments").allowed());
+        assertNull(view(f, LEGAL).document(), "Legal only see a version Staff already forwarded");
 
         // Forward exactly the stored version.
         assertEquals(ErrorCode.RESOURCE_NOT_FOUND, codeOf(() -> workflow().forward(f.publicCaseId(), 2, f.legal())));
@@ -207,10 +222,9 @@ class DistributionWorkflowSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f));
 
         // Final review, final approval, then the separate unlock.
+        // Accepting the allocation reviewed the exact snapshot: no separate "complete review" call is needed any more.
         var legalContext = workflow().legalContext(f.legal(), f.publicCaseId());
-        assertFalse(legalContext.capabilities().approval().allowed(), "a fresh review of the exact snapshot is still needed");
-        context.getBean(LegalBasisReviewService.class).recordCompletedReviewByCasePublicId(f.publicCaseId(), f.userId(), "Snapshot checked");
-        legalContext = workflow().legalContext(f.legal(), f.publicCaseId());
+        assertTrue(legalContext.snapshot().reviewFresh());
         assertTrue(legalContext.capabilities().approval().allowed());
         assertFalse(legalContext.capabilities().unlock().allowed());
         var s = legalContext.snapshot();
@@ -305,5 +319,206 @@ class DistributionWorkflowSqlServerTest extends LegalBasisSqlServerSupport {
             pool.shutdownNow();
         }
         assertEquals(1, count("distribution_workflow_events", "verification_case_id=?", f.caseId()));
+    }
+
+    @Test
+    void courtFlow_acceptingTheDocumentRecordsTheAssessment_soNoSeparateCourtOrReviewStepIsNeeded() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the court judgment"));
+        workflow().receive(f.publicCaseId(), f.legal(), courtMetadata(), pdf());
+        workflow().forward(f.publicCaseId(), 1, f.legal());
+        var v = view(f, LEGAL);
+        assertEquals("DOCUMENTS_UNDER_REVIEW", v.phase());
+        assertTrue(v.capabilities().get("approveDocuments").allowed(), "the stored court file is reviewable");
+        assertEquals(0, context.getBean(CourtDecisionService.class).history(f.publicCaseId()).size(), "upload is not an assessment");
+
+        act(f, LEGAL, "approveDocuments", body(v, "The judgment is valid"));
+        var decisions = context.getBean(CourtDecisionService.class).history(f.publicCaseId());
+        assertEquals(1, decisions.size());
+        assertEquals("VALID", decisions.get(0).result());
+        assertEquals(1, decisions.get(0).version());
+
+        UUID asset = asset(f.vaultId(), "House"), recipient = recipient(f.vaultId(), "Recipient C");
+        act(f, STAFF, "submitAllocations", submit(view(f, STAFF), asset, recipient, "All of it"));
+        var legalContext = workflow().legalContext(f.legal(), f.publicCaseId());
+        assertFalse(legalContext.capabilities().approval().allowed(), "the allocation is not accepted yet");
+        act(f, LEGAL, "approveAllocations", allocationBody(view(f, LEGAL), "Allocation matches the judgment"));
+
+        legalContext = workflow().legalContext(f.legal(), f.publicCaseId());
+        assertEquals("VALID", legalContext.snapshot().courtResult());
+        assertTrue(legalContext.snapshot().reviewFresh());
+        assertTrue(legalContext.capabilities().approval().allowed());
+        assertFalse(legalContext.capabilities().unlock().allowed());
+
+        // A dispute that appeared after the review still blocks the final decision.
+        var s = legalContext.snapshot();
+        var decision = new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, s.currentVersion(), s.sha256Hash(), s.allocationHash(), "Checked");
+        jdbc.update("UPDATE dbo.legal_basis_dossiers SET dispute_status='UNDETERMINED' WHERE verification_case_id=?", f.caseId());
+        assertEquals(ErrorCode.LEGAL_DECISION_STALE, codeOf(() -> workflow().decide(f.publicCaseId(), f.legal(), decision)));
+        jdbc.update("UPDATE dbo.legal_basis_dossiers SET dispute_status='DISPUTED' WHERE verification_case_id=?", f.caseId());
+
+        workflow().decide(f.publicCaseId(), f.legal(), decision);
+        assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f), "APPROVE does not unlock");
+        workflow().unlock(f.publicCaseId(), f.legal());
+        assertEquals("UNLOCKED", vaultStatus(f));
+    }
+
+    @Test
+    void uploadReturnsTheStoredVersion_andAFailedForwardLeavesItReadyToForwardWithoutUploadingAgain() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the deed"));
+
+        var saved = workflow().receive(f.publicCaseId(), f.legal(), notarialMetadata(List.of()), pdf());
+        assertEquals(f.publicCaseId(), saved.caseId());
+        assertEquals(1, saved.versions().size());
+        assertEquals(1, saved.versions().get(0).version());
+        assertEquals("NOT_FORWARDED", saved.versions().get(0).forwardStatus());
+        assertEquals("LEGAL_BASIS_PROVIDED", saved.status());
+
+        // A forward that fails (wrong version) changes nothing and loses nothing.
+        assertEquals(ErrorCode.RESOURCE_NOT_FOUND, codeOf(() -> workflow().forward(f.publicCaseId(), 2, f.legal())));
+        assertEquals(1, count("legal_basis_dossier_versions", "forward_status='NOT_FORWARDED' AND legal_basis_dossier_id IN "
+                + "(SELECT legal_basis_dossier_id FROM dbo.legal_basis_dossiers WHERE verification_case_id=?)", f.caseId()));
+        assertTrue(view(f, STAFF).capabilities().get("forwardDocuments").allowed());
+
+        // The retry forwards the very version that was stored; no second upload happened.
+        var forwarded = workflow().forward(f.publicCaseId(), saved.versions().get(0).version(), f.legal());
+        assertEquals("LEGAL_BASIS_FORWARDED", forwarded.status());
+        assertEquals("FORWARDED", forwarded.versions().get(0).forwardStatus());
+        assertEquals(1, forwarded.versions().size());
+        assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f));
+    }
+
+    /** The same two HTTP calls the Staff screen makes: multipart upload, then forward of the version the upload returned. */
+    @Test
+    void overHttp_theUploadResponseCarriesTheStoredVersion_andForwardingItSucceeds() throws Exception {
+        var f = fixture(true);
+        jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles "
+                + "WHERE role_code IN ('ROLE_LEGAL_VERIFIER','ROLE_STAFF_EXECUTOR')", f.userId());
+        String token = context.getBean(JwtService.class).generateAccessToken(f.legal().publicId(), f.legal().email(),
+                List.of("ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR"));
+        var json = new ObjectMapper();
+        String base = "http://localhost:" + context.getEnvironment().getProperty("local.server.port") + "/api/v1";
+        String staffCase = base + "/staff/verification-cases/" + f.publicCaseId();
+
+        var asked = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(
+                        base + "/legal-verifications/verification-cases/" + f.publicCaseId() + "/distribution-workflow/request-documents"))
+                .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"revision\":0,\"reason\":\"Bring the deed\"}")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, asked.statusCode(), asked.body());
+
+        // allocations is [] exactly as the FE sends it.
+        String metadata = "{\"legalBasisType\":\"NOTARIAL_PARTITION\",\"issuingAuthority\":\"Notary Office 1\",\"documentNumber\":\"045/2026\","
+                + "\"issueDate\":\"2026-01-01\",\"notaryAuthority\":\"Notary Office 1\",\"notarialDocumentNumber\":\"045/2026\","
+                + "\"notarizedAt\":\"2026-01-01\",\"evidenceReference\":null,\"notes\":null,\"allocations\":[]}";
+        String boundary = "----lv" + UUID.randomUUID();
+        byte[] body = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n" + metadata
+                + "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"deed.pdf\"\r\nContent-Type: application/pdf\r\n\r\n"
+                + "%PDF-1.4\nSynthetic deed\n%%EOF\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
+        var upload = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(staffCase + "/basis-dossier/versions"))
+                .header("Authorization", "Bearer " + token).header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(201, upload.statusCode(), upload.body());
+        JsonNode stored = json.readTree(upload.body());
+        assertEquals(f.publicCaseId().toString(), stored.get("caseId").asText());
+        int version = 0;
+        for (JsonNode item : stored.get("versions")) version = Math.max(version, item.get("version").asInt());
+        assertEquals(1, version);
+
+        // The Staff screen reloads the workflow before forwarding and requires document.version === the uploaded version.
+        var reloaded = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(staffCase + "/distribution-workflow"))
+                .header("Authorization", "Bearer " + token).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, reloaded.statusCode(), reloaded.body());
+        JsonNode workflowAfterUpload = json.readTree(reloaded.body());
+        assertEquals("AWAITING_DOCUMENTS", workflowAfterUpload.get("phase").asText());
+        assertEquals(version, workflowAfterUpload.get("document").get("version").asInt());
+        assertTrue(workflowAfterUpload.get("capabilities").get("forwardDocuments").get("allowed").asBoolean());
+
+        var forward = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(staffCase + "/basis-dossier/versions/" + version + "/forward"))
+                .header("Authorization", "Bearer " + token).POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, forward.statusCode(), forward.body());
+        JsonNode forwarded = json.readTree(forward.body());
+        assertEquals(f.publicCaseId().toString(), forwarded.get("caseId").asText());
+        assertEquals("LEGAL_BASIS_FORWARDED", forwarded.get("status").asText());
+        assertEquals("FORWARDED", forwarded.get("versions").get(0).get("forwardStatus").asText());
+    }
+
+    /** Request, upload, forward and accept the NOTARIAL deed, then submit an allocation: Legal now reviews the allocation. */
+    private Fixture toAllocationReview() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the deed"));
+        upload(f);
+        workflow().forward(f.publicCaseId(), 1, f.legal());
+        act(f, LEGAL, "approveDocuments", body(view(f, LEGAL), "Deed is valid"));
+        act(f, STAFF, "submitAllocations", submit(view(f, STAFF), asset(f.vaultId(), "Savings"), recipient(f.vaultId(), "Recipient A"), "All of it"));
+        return f;
+    }
+
+    @Test
+    void aFailedAllocationAcceptanceLeavesNoReviewBehind_andSuccessRecordsExactlyOne() {
+        var f = toAllocationReview();
+        var v = view(f, LEGAL);
+        assertEquals("ALLOCATIONS_UNDER_REVIEW", v.phase());
+
+        // Stale allocation snapshot: refused before anything is written.
+        assertEquals(ErrorCode.DISTRIBUTION_WORKFLOW_STALE, codeOf(() -> act(f, LEGAL, "approveAllocations",
+                new ActionBody(v.revision(), "ok", v.document().version(), v.document().sha256(), v.allocation().version(), "e".repeat(64), null))));
+        assertEquals(ErrorCode.VALIDATION_FAILED, codeOf(() -> act(f, LEGAL, "approveAllocations", allocationBody(v, " "))));
+        assertEquals(0, count("audit_logs", "action='LEGAL_BASIS_REVIEW_RECORDED' AND vault_id=?", f.vaultId()));
+        assertEquals(0, count("distribution_workflow_events", "verification_case_id=? AND action='APPROVE_ALLOCATIONS'", f.caseId()));
+        assertFalse(workflow().legalContext(f.legal(), f.publicCaseId()).snapshot().reviewFresh());
+
+        act(f, LEGAL, "approveAllocations", allocationBody(v, "Allocation matches the deed"));
+        assertEquals(1, count("audit_logs", "action='LEGAL_BASIS_REVIEW_RECORDED' AND vault_id=?", f.vaultId()));
+        assertEquals(1, count("distribution_workflow_events", "verification_case_id=? AND action='APPROVE_ALLOCATIONS'", f.caseId()));
+        var snapshot = workflow().legalContext(f.legal(), f.publicCaseId()).snapshot();
+        assertTrue(snapshot.reviewFresh());
+        assertEquals(v.document().sha256(), snapshot.sha256Hash());
+        assertEquals(v.allocation().sha256(), snapshot.allocationHash(), "the review covers the exact allocation that was accepted");
+    }
+
+    @Test
+    void anAllocationChangedAfterAcceptanceCannotBeApprovedOrUnlocked() {
+        var f = toAllocationReview();
+        act(f, LEGAL, "approveAllocations", allocationBody(view(f, LEGAL), "Allocation matches the deed"));
+        var s = workflow().legalContext(f.legal(), f.publicCaseId()).snapshot();
+        var decision = new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, s.currentVersion(), s.sha256Hash(), s.allocationHash(), "Checked");
+
+        jdbc.update("UPDATE dbo.legal_basis_version_allocations SET allocation_description='Changed behind the back' WHERE status<>'SUPERSEDED' AND dossier_version_id IN "
+                + "(SELECT v.dossier_version_id FROM dbo.legal_basis_dossier_versions v JOIN dbo.legal_basis_dossiers d ON d.legal_basis_dossier_id=v.legal_basis_dossier_id WHERE d.verification_case_id=?)", f.caseId());
+
+        var after = view(f, LEGAL);
+        assertEquals("AWAITING_ALLOCATIONS", after.phase(), "rows that no longer match what Legal accepted must be submitted again");
+        assertEquals("CHANGES_REQUESTED", after.allocation().status());
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> workflow().decide(f.publicCaseId(), f.legal(), decision)));
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> workflow().unlock(f.publicCaseId(), f.legal())));
+        assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f));
+        assertEquals(0, count("audit_logs", "action='LEGAL_VAULT_UNLOCKED' AND vault_id=?", f.vaultId()));
+    }
+
+    @Test
+    void aCourtAssessmentBelongsToOneVersion_andASupplementedVersionStartsWithoutOne() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the court judgment"));
+        workflow().receive(f.publicCaseId(), f.legal(), courtMetadata(), pdf());
+        workflow().forward(f.publicCaseId(), 1, f.legal());
+        act(f, LEGAL, "requestDocumentSupplementation", body(view(f, LEGAL), "The seal is missing"));
+        assertEquals(0, context.getBean(CourtDecisionService.class).history(f.publicCaseId()).size(),
+                "asking for more documents records no conclusion");
+
+        workflow().receive(f.publicCaseId(), f.legal(), courtMetadata(), pdf());
+        assertEquals(0, context.getBean(CourtDecisionService.class).history(f.publicCaseId()).size(), "upload is not an assessment");
+        workflow().forward(f.publicCaseId(), 2, f.legal());
+        assertEquals(0, context.getBean(CourtDecisionService.class).history(f.publicCaseId()).size(), "forward is not an assessment");
+        var v = view(f, LEGAL);
+        assertEquals(2, v.document().version());
+        assertEquals("PENDING", v.document().status(), "version 2 does not inherit anything from version 1");
+
+        act(f, LEGAL, "approveDocuments", body(v, "The new judgment is valid"));
+        var decisions = context.getBean(CourtDecisionService.class).history(f.publicCaseId());
+        assertEquals(1, decisions.size());
+        assertEquals(2, decisions.get(0).version());
+        assertEquals("VALID", decisions.get(0).result());
     }
 }

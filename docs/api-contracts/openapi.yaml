@@ -3286,8 +3286,8 @@ paths:
       summary: Legal accepts the forwarded document
       description: |
         Phase DOCUMENTS_UNDER_REVIEW. Body `revision`, `documentVersion`, `documentSha256` of the forwarded version and a non-blank `reason`.
-        Requires the route evidence to be valid (COURT: a VALID court assessment; NOTARIAL: stored deed with notary, number and date, no dispute,
-        MATCH will). It creates no allocation and is not the final approval.
+        COURT: the stored file and court metadata must be reviewable and the acceptance records the VALID court assessment of this version.
+        NOTARIAL: stored deed with notary, number and date, no dispute, MATCH will. It creates no allocation and is not the final approval.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/CaseId'
@@ -3329,7 +3329,7 @@ paths:
     post:
       tags: [Legal]
       summary: Legal accepts the submitted allocation
-      description: Phase ALLOCATIONS_UNDER_REVIEW. Body `revision`, the document snapshot, `allocationVersion`, `allocationSha256` and a non-blank `reason`. Separate from the final approval and from unlock.
+      description: Phase ALLOCATIONS_UNDER_REVIEW. Body `revision`, the document snapshot, `allocationVersion`, `allocationSha256` and a non-blank `reason`. Records Legal's review of the exact snapshot, so no separate review call is needed before the final decision. Separate from the final approval and from unlock.
       x-status: implemented
       parameters:
         - $ref: '#/components/parameters/CaseId'
