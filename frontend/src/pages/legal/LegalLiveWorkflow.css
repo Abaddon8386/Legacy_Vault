@@ -126,3 +126,7 @@
  .lv-legal-evidence__row button { width:100%; }
 }
 @media (prefers-reduced-motion:reduce) { .lv-legal-live button { transition:none; } }
+
+.lv-legal-live .lv-workflow-feedback { padding:10px 14px; gap:10px; border-radius:10px; box-shadow:none; }
+.lv-legal-live .lv-workflow-feedback .lv-feedback__content { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
+.lv-legal-live .lv-workflow-feedback p { font-size:14px; margin:0; }

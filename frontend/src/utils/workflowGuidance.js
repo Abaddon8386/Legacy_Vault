@@ -4,7 +4,7 @@ const words = {
   intake: ['Tiếp nhận', 'Intake'], legal: ['Thẩm định pháp lý', 'Legal review'],
   handover: ['Bàn giao', 'Handover'], confirmation: ['Xác nhận đã nhận', 'Confirm receipt'], archive: ['Đóng và lưu trữ', 'Close and archive'],
   account: ['Tài khoản', 'Account'], request: ['Gửi mã hồ sơ', 'Submit case number'], link: ['Staff đối chiếu', 'Staff verification'], assets: ['Tài sản đã nhận', 'Received assets'],
-  death: ['Giấy tờ khai tử', 'Death documents'], will: ['Đối chiếu di chúc', 'Compare will'], basis: ['Căn cứ Tòa án', 'Court basis'], review: ['Thẩm định phân bổ', 'Review allocation'], approval: ['Phê duyệt', 'Approval'], unlock: ['Mở khóa', 'Unlock'],
+  death: ['Giấy tờ khai tử', 'Death documents'], will: ['Đối chiếu di chúc', 'Compare will'], basis: ['Thẩm định căn cứ', 'Basis assessment'], review: ['Thẩm định phân bổ', 'Review allocation'], approval: ['Phê duyệt', 'Approval'], unlock: ['Mở khóa', 'Unlock'],
 };
 const text = (vi, en, lang) => lang === 'en' ? en : vi;
 const step = (id, state, lang, href) => ({ id, state, label: words[id][lang === 'en' ? 1 : 0], href });
@@ -18,7 +18,7 @@ export function workflowUrl(path, { caseId, sessionId, lang = 'vi', preview = fa
 
 // Presentation only. A visited screen is never evidence that a step is complete.
 export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatus, vaultStatus, loading, error,
-  forwarded, legalApproved = false, sessionStatus, assets, beneficiaries, confirmationReady = false, intakeDestinationNeeded = false, hasReceipts = false, canArchive = false, lang = 'vi', preview = false } = {}) {
+  forwarded, distributionWorkflow, legalApproved = false, sessionStatus, assets, beneficiaries, confirmationReady = false, intakeDestinationNeeded = false, hasReceipts = false, canArchive = false, lang = 'vi', preview = false } = {}) {
   const urls = { intake: '/staff/legal-documents', legal: '/staff/legal-documents', handover: sessionId ? '/staff/asset-handover' : '/staff/handover', confirmation: '/staff/beneficiary-confirmation', archive: '/staff/close-and-archive' };
   const progress = evaluateCompletionProgress(assets, beneficiaries);
   const archived = vaultStatus === 'ARCHIVED';
@@ -62,9 +62,26 @@ export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatu
       message = text('Đã chuyển Legal. Chờ thẩm định, phê duyệt và mở khóa.', 'Sent to Legal. Await review, approval and unlocking.', lang);
     } else if (forwarded === false) {
       states.intake = 'action'; states.handover = 'blocked'; next = 'intake';
-      message = text('Hoàn thiện văn bản Tòa án và phân bổ rồi chuyển Legal.', 'Complete the court document and allocation, then forward to Legal.', lang);
+      message = text('Tiếp nhận giấy tờ Legal yêu cầu; chỉ lập phân bổ sau khi căn cứ được duyệt.', 'Receive the requested documents; prepare allocations after Legal accepts them.', lang);
     } else {
       message = text('Xem hồ sơ căn cứ để kiểm tra bước đang chờ; chưa có dữ liệu xác nhận hoàn tất.', 'Check the basis dossier for outstanding tasks; completion is not yet confirmed.', lang); next = 'intake';
+    }
+  }
+  if (distributionWorkflow && !['UNLOCKED', 'CLOSED'].includes(distributionWorkflow.phase)) {
+    const phase = distributionWorkflow.phase;
+    const messages = {
+      DOCUMENT_REQUEST_NEEDED: ['Chờ Legal yêu cầu giấy tờ phân chia sau khi duyệt khai tử và đối chiếu di chúc.', 'Await Legal’s distribution document request.'],
+      AWAITING_DOCUMENTS: ['Người nộp mang giấy tờ về; Staff chỉ tải giấy tờ, chưa lập phân bổ.', 'Upload the applicant’s documents. Do not prepare allocations yet.'],
+      DOCUMENTS_UNDER_REVIEW: ['Chờ Legal duyệt căn cứ hoặc yêu cầu bổ sung kèm lý do.', 'Await Legal’s document assessment or supplementation request.'],
+      AWAITING_ALLOCATIONS: ['Căn cứ đã duyệt. Mở tab Phân bổ tài sản rồi gửi Legal kiểm tra.', 'Documents accepted. Open Asset allocations and send them for review.'],
+      ALLOCATIONS_UNDER_REVIEW: ['Chờ Legal kiểm tra từng tài sản và người nhận.', 'Await Legal’s check of each asset and recipient.'],
+      FINAL_APPROVAL: ['Phân bổ đã chấp thuận. Chờ phê duyệt hồ sơ rồi mở kho riêng.', 'Allocations accepted. Await final approval and separate unlocking.'],
+      APPROVED: ['Hồ sơ đã duyệt; chờ Legal xác nhận mở kho.', 'Case approved; await separate vault unlocking.'],
+    };
+    if (messages[phase]) {
+      message = messages[phase][lang === 'en' ? 1 : 0];
+      states.intake = ['AWAITING_DOCUMENTS', 'AWAITING_ALLOCATIONS'].includes(phase) ? 'action' : 'done';
+      states.legal = states.intake === 'action' ? 'waiting' : 'action'; next = 'intake';
     }
   }
   if (caseId && loading) message = text('Đang kiểm tra trạng thái hồ sơ…', 'Checking case status…', lang);
@@ -77,7 +94,6 @@ export function legalBlockedReason(context, action, lang = 'vi') {
   if (!context) return text('Chọn hồ sơ và tải lại trạng thái.', 'Select a case and reload its status.', lang);
   if (context.caseStatus !== 'OPEN') return text('Hồ sơ không còn mở; chỉ xem lịch sử.', 'The case is no longer open; history is read-only.', lang);
   if (context.basisDossier?.route === 'ON_HOLD' || context.vaultStatus === 'ON_HOLD') return text('Hồ sơ đang tạm dừng. Cần xử lý yêu cầu bổ sung/thẩm định lại.', 'The case is on hold. Resolve supplementation or re-review.', lang);
-  if (context.basisDossier?.route === 'NOTARIAL') return text('Hồ sơ công chứng cũ chỉ được xem lịch sử.', 'Legacy notarial records are read-only.', lang);
   const code = context.capabilities?.[action]?.blockedReason;
   const reasons = {
     LEGAL_WORKFLOW_ON_HOLD: ['Hồ sơ đang tạm dừng. Cần xử lý yêu cầu bổ sung/thẩm định lại.', 'The case is on hold. Resolve supplementation or re-review.'],
@@ -90,55 +106,39 @@ export function legalBlockedReason(context, action, lang = 'vi') {
 }
 
 export function legalGuidance({ context, current, caseId, lang = 'vi', loading = false, error = false } = {}) {
-  const ids = ['death', 'will', 'basis', 'review', 'approval', 'unlock'];
-  const routes = ['death-verification', 'will-document-verification', 'basis-route-selection', 'dossier-review', 'approval-review', 'controlled-unlock'];
-  const index = routes.indexOf(current);
+  const ids = ['death', 'will', 'basis', 'approval', 'unlock'];
+  const routes = ['death-verification', 'will-document-verification', 'basis-route-selection', 'approval-review', 'controlled-unlock'];
+  const index = routes.indexOf(current === 'dossier-review' ? 'basis-route-selection' : current);
   const states = Object.fromEntries(ids.map(id => [id, 'waiting']));
   let message = text('Đang kiểm tra điều kiện hồ sơ…', 'Checking case conditions…', lang), next;
   if (context && !loading && !error) {
-    const s = context.snapshot;
-    const isArchived = context.vaultStatus === 'ARCHIVED' || context.caseStatus === 'ARCHIVED';
-    const isClosed = ['CLOSED', 'CANCELLED', 'COMPLETED'].includes(context.caseStatus);
-    const approved = s?.approvalCurrent === true || s?.latestDecision?.result === 'APPROVE' || ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(context.vaultStatus);
-    const unlocked = ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(context.vaultStatus);
-
-    if (context.capabilities?.approval?.allowed || context.capabilities?.unlock?.allowed || approved || unlocked) states.death = 'done';
-    if (context.willComparison?.latestResult === 'MATCH' && context.willComparison.approvalBlocked === false || approved || unlocked) states.will = 'done';
-    if (unlocked) { states.unlock = 'done'; states.approval = 'done'; }
-    if (s?.currentVersion > 0 && context.basisDossier?.versions?.some(v => v.version === s.currentVersion && v.forwardStatus === 'FORWARDED') || approved || unlocked) states.basis = 'done';
-    if (s?.reviewFresh && s.courtResult === 'VALID' || approved || unlocked) states.review = 'done';
-    if (approved) states.approval = 'done';
-
-    if (isArchived || isClosed) {
-      if (!approved) states.approval = 'blocked';
-      if (!unlocked) states.unlock = 'blocked';
-      next = undefined;
-      message = isArchived
-        ? text('Hồ sơ đã lưu trữ. Lịch sử phê duyệt và mở khóa chỉ đọc.', 'Archived record. Approval and unlock history is read-only.', lang)
-        : text('Hồ sơ đã đóng; lịch sử pháp lý chỉ đọc.', 'Case is closed; legal history is read-only.', lang);
-    } else if (['NOTARIAL', 'ON_HOLD'].includes(context.basisDossier?.route) || context.vaultStatus === 'ON_HOLD') {
-      states.approval = 'blocked'; states.unlock = 'blocked'; message = legalBlockedReason(context, 'approval', lang);
-    } else if (context.vaultStatus === 'UNLOCKED') {
-      states.unlock = 'done';
-      message = text('Kho đã mở khóa. Staff có thể kiểm tra điều kiện bàn giao tại quầy.', 'Vault unlocked. Staff can check counter handover conditions.', lang);
-    } else if (context.capabilities?.unlock?.allowed) {
-      states.unlock = 'action'; next = 'unlock';
-      message = text('Đã phê duyệt. Mở khóa là thao tác xác nhận riêng.', 'Approved. Unlocking requires a separate confirmation.', lang);
-    } else if (context.capabilities?.approval?.allowed) {
-      states.approval = 'action'; next = 'approval';
-      message = text('Đủ điều kiện ghi nhận quyết định pháp lý.', 'Ready to record the final legal decision.', lang);
-    } else {
-      message = legalBlockedReason(context, current === 'controlled-unlock' ? 'unlock' : 'approval', lang);
-      if (index >= 4) states[ids[index]] = 'blocked';
-      if (context.caseStatus === 'OPEN' && !['NOTARIAL', 'ON_HOLD'].includes(context.basisDossier?.route)) next = states.basis === 'done' ? 'review' : 'basis';
-    }
+    const status = context.vaultStatus, phase = context.distributionWorkflow?.phase;
+    const closed = ['CLOSED', 'CANCELLED', 'COMPLETED', 'ARCHIVED'].includes(context.caseStatus) || ['ARCHIVED', 'COMPLETED'].includes(status);
+    const unlocked = ['UNLOCKED', 'HANDOVER_IN_PROGRESS', 'ARCHIVED'].includes(status);
+    const approved = ['APPROVED', 'UNLOCKED'].includes(phase) || unlocked;
+    const deathDone = ['DOCUMENT_VERIFICATION', 'WILL_VERIFICATION', 'AWAITING_LEGAL_BASIS', 'LEGAL_BASIS_VERIFICATION', 'ON_HOLD'].includes(status) || unlocked;
+    const willDone = context.willComparison?.latestResult === 'MATCH' && context.willComparison.approvalBlocked === false;
+    if (deathDone) states.death = 'done';
+    if (willDone || approved) states.will = 'done';
+    if (['FINAL_APPROVAL', 'APPROVED', 'UNLOCKED'].includes(phase) || approved) states.basis = 'done';
+    if (approved) states.approval = 'done'; if (unlocked) states.unlock = 'done';
+    if (closed) { if (!approved) states.approval = 'blocked'; if (!unlocked) states.unlock = 'blocked'; message = text('Hồ sơ đã kết thúc xử lý; chỉ xem lịch sử.', 'This record is closed; history is read-only.', lang); }
+    else if (unlocked) message = text('Kho đã mở khóa. Nhân viên tiếp tục bàn giao.', 'Vault unlocked. Staff can continue handover.', lang);
+    else if (phase === 'APPROVED' && context.capabilities?.unlock?.allowed) { next = 'unlock'; message = text('Đã phê duyệt. Kiểm tra và xác nhận mở khóa kho.', 'Approval recorded. Review and confirm vault unlocking.', lang); }
+    else if (phase === 'FINAL_APPROVAL' && context.capabilities?.approval?.allowed) { next = 'approval'; message = text('Đã kiểm tra phân bổ. Duyệt hoặc từ chối hồ sơ kèm lý do.', 'Allocations checked. Approve or reject the case with a reason.', lang); }
+    else if (!deathDone) { next = 'death'; message = text('Kiểm tra giấy chứng tử và ghi kết quả xác minh.', 'Check the death document and record the decision.', lang); }
+    else if (!willDone) { next = 'will'; message = text('Đối chiếu di chúc trước khi yêu cầu giấy tờ phân chia.', 'Compare the will before requesting distribution documents.', lang); }
+    else { next = 'basis'; const messages = {
+      DOCUMENT_REQUEST_NEEDED: ['Yêu cầu giấy tờ phân chia lần đầu, nêu rõ nội dung người nộp cần chuẩn bị.', 'Request distribution documents and explain what the applicant must provide.'],
+      AWAITING_DOCUMENTS: ['Chờ người nộp mang giấy tờ về cho Staff tải lên.', 'Await documents brought to Staff by the applicant.'],
+      DOCUMENTS_UNDER_REVIEW: ['Thẩm định giấy tờ; duyệt căn cứ hoặc yêu cầu bổ sung.', 'Assess the documents; accept them or request supplementation.'],
+      AWAITING_ALLOCATIONS: ['Căn cứ đã duyệt. Chờ Staff lập phân bổ tài sản và người nhận.', 'Documents accepted. Await Staff’s asset and recipient allocations.'],
+      ALLOCATIONS_UNDER_REVIEW: ['Kiểm tra từng tài sản/người nhận; chấp thuận hoặc yêu cầu Staff sửa.', 'Check each asset and recipient; accept or request corrections.'],
+    }; message = messages[phase]?.[lang === 'en' ? 1 : 0] || text('Mở thẩm định căn cứ để kiểm tra yêu cầu giấy tờ và bước đang chờ.', 'Open basis assessment to check the document request and current step.', lang); }
+    if (next) states[next] = next === 'basis' && ['AWAITING_DOCUMENTS', 'AWAITING_ALLOCATIONS'].includes(phase) ? 'waiting' : 'action';
   }
   if (error) message = text('Chưa tải được trạng thái. Tải lại trước khi ra quyết định.', 'Status unavailable. Reload before making a decision.', lang);
-  const steps = ids.map((id, i) => ({
-    ...step(id, states[id], lang, workflowUrl(`/legal/${routes[i]}`, { caseId, lang })),
-    ...(id === 'approval' && states.approval === 'done' ? { statusLabel: text('Đã phê duyệt', 'Approved', lang) } : {}),
-    ...(id === 'unlock' && states.unlock === 'done' ? { statusLabel: text('Đã mở khóa', 'Unlocked', lang) } : {}),
-  }));
+  const steps = ids.map((id, i) => step(id, states[id], lang, workflowUrl('/legal/' + routes[i], { caseId, lang })));
   return { current: ids[index], steps, message, next: next && next !== ids[index] ? { ...steps.find(item => item.id === next), label: text('Đến bước ', 'Go to ', lang) + words[next][lang === 'en' ? 1 : 0].toLowerCase() } : undefined };
 }
 

@@ -1,7 +1,7 @@
 export const staffLegalDocumentsI18n = {
   vi: {
     pageTitle: 'Hồ sơ căn cứ pháp lý',
-    formSubtitle: 'Quản lý thông tin văn bản căn cứ pháp lý và chuẩn bị hồ sơ chuyển sang ban pháp lý thẩm định.',
+    formSubtitle: 'Nhận giấy tờ Legal yêu cầu, chuyển thẩm định, rồi lập phân bổ sau khi căn cứ được duyệt.',
 
     // Cảnh báo quy tắc nghiệp vụ
     staffNoticeTitle: 'Lưu ý hồ sơ căn cứ pháp lý',
@@ -22,7 +22,7 @@ export const staffLegalDocumentsI18n = {
     // Trạng thái hồ sơ
     dossierSectionTitle: 'Thông tin hồ sơ và phiên bản lưu trữ',
     dossierStatusLabel: 'Trạng thái hồ sơ:',
-    routeLabel: 'Nhánh căn cứ pháp lý:',
+    routeLabel: 'Nguồn giấy tờ đã nộp:',
     dossierVersionLabel: 'Phiên bản hồ sơ lưu trữ:',
     dossierHashLabel: 'Mã băm SHA-256 lưu trữ:',
     forwardStatusLabel: 'Trạng thái chuyển pháp chế:',
@@ -33,9 +33,9 @@ export const staffLegalDocumentsI18n = {
     dossierHashUnloaded: 'Chưa có mã băm',
 
     // Nhánh & Trạng thái dịch
-    routeNotarial: 'Công chứng (NOTARIAL)',
+    routeNotarial: 'Công chứng',
     routeCourt: 'Tòa án',
-    routeOnHold: 'Tạm dừng (ON_HOLD)',
+    routeOnHold: 'Tạm dừng',
     statusDraft: 'Bản thảo (Chờ tiếp nhận văn bản)',
     statusProvided: 'Đã tiếp nhận văn bản (Chờ chuyển Pháp chế)',
     statusForwarded: 'Đã chuyển Pháp chế thẩm định',
@@ -58,7 +58,7 @@ export const staffLegalDocumentsI18n = {
 
     // Biểu mẫu thông tin văn bản căn cứ
     formTitle: 'Tiếp nhận văn bản',
-    formDesc: 'Điền thông tin văn bản, đính kèm bản số hóa và phân bổ cho người nhận.',
+    formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Legal duyệt căn cứ.',
     legalBasisTypeLabel: 'Loại văn bản căn cứ (Bắt buộc)',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
     typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',

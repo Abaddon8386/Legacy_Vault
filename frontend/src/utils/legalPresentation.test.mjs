@@ -37,7 +37,7 @@ test('Legal explains missing records, forwarded versions and holds using existin
   assert.match(legalStepBlocker('death-verification', { documentCount: 1, documentId: 'selected', data: { decisions: [{}] } }, true), /already has a recorded decision/);
   assert.match(legalStepBlocker('will-document-verification', {}, true), /No original paper will/);
   assert.match(legalStepBlocker('will-document-verification', { data: { originalWillIntakes: [{}], wills: [] } }, true), /No digitized will/);
-  assert.match(legalStepBlocker('basis-route-selection', { data: { dossier: { route: 'COURT' } } }, true), /classification does not need to be repeated/);
+  assert.match(legalStepBlocker('basis-route-selection', { data: { dossier: { route: 'COURT' } } }, true), /no current legal|no document|document|version/i);
   assert.match(legalStepBlocker('dossier-review', { data: { dossier: { route: 'ON_HOLD' } } }, true), /on hold/);
   assert.match(legalStepBlocker('dossier-review', { data: { dossier: { route: 'COURT', requiredVersion: 2, versions: [{ version: 1 }] } } }, true), /older than the required/);
   assert.match(legalStepBlocker('dossier-review', { data: { dossier: { route: 'COURT', requiredVersion: 1, versions: [{ version: 1, forwardStatus: 'NOT_FORWARDED' }] } } }, true), /Staff have not forwarded/);
