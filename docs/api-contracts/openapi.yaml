@@ -1112,6 +1112,99 @@ paths:
         '429': { $ref: '#/components/responses/RecoveryRateLimited' }
         '503': { $ref: '#/components/responses/RecoveryUnavailable' }
 
+  /api/v1/auth/email-verification:
+    get:
+      tags: [Auth]
+      summary: Trạng thái xác minh email của chính tài khoản đang đăng nhập (PS-116)
+      x-status: implemented
+      description: Account comes from the JWT principal; no ID or email is accepted. `requestAvailable` is false when verified, ineligible (no password login), or verification mail is not enabled. See email-verification.md.
+      responses:
+        '200':
+          description: Current verification state
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmailVerificationStatus' }
+              examples:
+                unverified: { value: { verified: false, verifiedAt: null, requestAvailable: true, lastRequestState: QUEUED, lastRequestedAt: '2026-10-30T03:00:00' } }
+                verified: { value: { verified: true, verifiedAt: '2026-10-30T03:05:00', requestAvailable: false, lastRequestState: PROVIDER_ACCEPTED, lastRequestedAt: '2026-10-30T03:00:00' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '503':
+          description: EMAIL_VERIFICATION_UNAVAILABLE (infrastructure failure)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /api/v1/auth/email-verification/requests:
+    post:
+      tags: [Auth]
+      summary: Yêu cầu gửi hoặc gửi lại email xác minh (PS-116)
+      x-status: implemented
+      description: >-
+        First request and resend are the same operation. Queues a delivery job for the caller's current email;
+        the credential is minted only when the worker prepares the job and is never returned. 202 means QUEUED,
+        not sent and not provider-accepted: read `lastRequestState` from the status endpoint.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailVerificationRequest' }
+      responses:
+        '202':
+          description: Queued
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [QUEUED] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          description: EMAIL_ALREADY_VERIFIED, or EMAIL_VERIFICATION_NOT_APPLICABLE (account has no password login)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503':
+          description: EMAIL_VERIFICATION_UNAVAILABLE; verification mail not enabled or infrastructure failure
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /api/v1/auth/email-verification/confirm:
+    post:
+      tags: [Auth]
+      summary: Xác nhận email bằng credential một lần (PS-116)
+      x-status: implemented
+      security: []
+      description: Public. The credential identifies the account. Atomically consumes the credential and sets `email_verified_at`. Never logs in, unlocks, changes roles or links beneficiaries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailVerificationConfirm' }
+      responses:
+        '204':
+          description: Email verified
+          headers:
+            Cache-Control: { schema: { type: string, enum: [no-store] } }
+        '400':
+          description: EMAIL_VERIFICATION_INVALID for unknown/expired/used/revoked/wrong-email/ineligible credentials (indistinguishable), or input validation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '429': { $ref: '#/components/responses/RecoveryRateLimited' }
+        '503':
+          description: EMAIL_VERIFICATION_UNAVAILABLE
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /api/v1/auth/register:
     post:
       tags: [Auth]
@@ -4581,6 +4674,10 @@ components:
           enum:
             - RECOVERY_INVALID
             - RECOVERY_UNAVAILABLE
+            - EMAIL_VERIFICATION_INVALID
+            - EMAIL_VERIFICATION_UNAVAILABLE
+            - EMAIL_ALREADY_VERIFIED
+            - EMAIL_VERIFICATION_NOT_APPLICABLE
             - RATE_LIMITED
             - PASSWORD_POLICY
             - REAUTH_FAILED
@@ -4704,6 +4801,28 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254, writeOnly: true }
         locale: { type: string, enum: [vi, en], default: vi }
+    EmailVerificationRequest:
+      type: object
+      properties:
+        locale: { type: string, enum: [vi, en], default: vi }
+    EmailVerificationConfirm:
+      type: object
+      required: [credential]
+      properties:
+        credential: { type: string, maxLength: 128, writeOnly: true, description: Canonical base64url 256-bit secret issued for EMAIL_VERIFICATION only; recovery and invitation credentials are rejected }
+    EmailVerificationStatus:
+      type: object
+      required: [verified, verifiedAt, requestAvailable, lastRequestState, lastRequestedAt]
+      properties:
+        verified: { type: boolean }
+        verifiedAt: { type: string, format: date-time, nullable: true, description: UTC, server-written only }
+        requestAvailable: { type: boolean }
+        lastRequestState:
+          type: string
+          nullable: true
+          enum: [QUEUED, PROVIDER_ACCEPTED, FAILED, SKIPPED]
+          description: PROVIDER_ACCEPTED means the mail provider accepted the message, not that it reached the inbox
+        lastRequestedAt: { type: string, format: date-time, nullable: true }
     PasswordRecoveryReset:
       type: object
       required: [credential, password]

@@ -33,7 +33,7 @@ class AuthProfileServiceTest {
     private final JwtService jwt = mock(JwtService.class);
     private final AuditService audit = mock(AuditService.class);
     private final PasswordReauthService reauth = mock(PasswordReauthService.class);
-    private final AuthService service = new AuthService(users, roles, userRoles, encoder, jwt, audit, reauth);
+    private final AuthService service = new AuthService(users, roles, userRoles, encoder, jwt, audit, reauth, mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
     private final Long userId = 8L;
     private final UUID publicId = UUID.randomUUID();
     private final User user = mock(User.class);

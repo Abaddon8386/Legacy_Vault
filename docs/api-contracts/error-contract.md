@@ -192,6 +192,10 @@ PS-113: `BENEFICIARY_GUARDIAN_STALE` — HTTP 409, reload guardian context/revis
 
 400 RECOVERY_INVALID normalizes invalid/expired/used/revoked/ineligible credentials; 400 PASSWORD_POLICY is shared password policy rejection. DTO validation remains VALIDATION_FAILED (password field maps to FE PASSWORD_POLICY). 429 RATE_LIMITED has Retry-After:900; 503 RECOVERY_UNAVAILABLE covers missing email configuration or infrastructure failure without account-specific provider errors. No token/password/account status is echoed. See password-recovery.md.
 
+## PS-116 email verification
+
+400 `EMAIL_VERIFICATION_INVALID` normalizes unknown/expired/used/revoked/wrong-email/ineligible credentials (no oracle). 409 `EMAIL_ALREADY_VERIFIED` and 409 `EMAIL_VERIFICATION_NOT_APPLICABLE` are returned only to the authenticated owner of the account (no password login, e.g. Google-only). 429 `RATE_LIMITED` per account on request (60 s cooldown, 3/15 min, 5/24 h) and per IP on confirm (5/15 min); 503 `EMAIL_VERIFICATION_UNAVAILABLE` when verification mail is not enabled or infrastructure fails. See [email-verification.md](email-verification.md).
+
 ## BE-01 link requests
 | Code | HTTP |
 |---|---|

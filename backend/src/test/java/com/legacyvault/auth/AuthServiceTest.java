@@ -32,7 +32,7 @@ class AuthServiceTest {
         JwtService jwt = mock(JwtService.class);
         AuditService audit = mock(AuditService.class);
         AuthService service = new AuthService(users, roles, userRoles, passwords, jwt, audit,
-                mock(PasswordReauthService.class));
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
         User user = mock(User.class);
         Role role = new Role();
         role.setRoleCode("ROLE_VAULT_OWNER");
@@ -66,7 +66,7 @@ class AuthServiceTest {
         UserRepository users = mock(UserRepository.class);
         AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
                 mock(PasswordEncoder.class), mock(JwtService.class), mock(AuditService.class),
-                mock(PasswordReauthService.class));
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
         User user = mock(User.class);
         when(users.findByEmail("user@example.test")).thenReturn(Optional.of(user));
         when(user.getStatus()).thenReturn("LOCKED");

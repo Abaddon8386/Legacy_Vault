@@ -24,12 +24,16 @@ public class ResendRecoveryMailTransport implements RecoveryMailTransport {
         this.config=config; this.json=json; this.client=client;
     }
     @Override public void send(String recipient, String locale, String credential) {
-        if(!config.ready() || !config.permits(recipient)) throw new IllegalStateException("Recovery delivery unavailable");
+        if(!config.ready()) throw new IllegalStateException("Recovery delivery unavailable");
         boolean en="en".equals(locale);
+        sendMessage(recipient,en?"Reset your LegacyVault password":"Đặt lại mật khẩu LegacyVault",
+                (en?"This link expires in 15 minutes. If you did not request it, ignore this email.\n":"Liên kết hết hạn sau 15 phút. Bỏ qua email nếu bạn không yêu cầu.\n")+config.link(credential));
+    }
+    /** Single Resend call site, also used by PS-116. Same fixed endpoint, no redirects, recipient allowlist enforced. */
+    public void sendMessage(String recipient, String subject, String text) {
+        if(!config.providerReady() || !config.permits(recipient)) throw new IllegalStateException("Recovery delivery unavailable");
         try {
-            String body=json.writeValueAsString(Map.of("from",config.sender(),"to",List.of(recipient),
-                    "subject",en?"Reset your LegacyVault password":"Đặt lại mật khẩu LegacyVault",
-                    "text",(en?"This link expires in 15 minutes. If you did not request it, ignore this email.\n":"Liên kết hết hạn sau 15 phút. Bỏ qua email nếu bạn không yêu cầu.\n")+config.link(credential)));
+            String body=json.writeValueAsString(Map.of("from",config.sender(),"to",List.of(recipient),"subject",subject,"text",text));
             var request=HttpRequest.newBuilder(URI.create("https://api.resend.com/emails"))
                     .timeout(Duration.ofSeconds(10)).header("Authorization","Bearer "+config.apiKey())
                     .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
