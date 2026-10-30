@@ -464,7 +464,7 @@ test('live confirmation DTOs are joined to recipient names and delivery metadata
   globalThis.fetch = async url => {
     if (url.endsWith('/'+sessionId)) return staffFixture()(url);
     const data = url.endsWith('/beneficiaries') ? recipients
-      : url.endsWith('/deliveries') ? recipients.map(person => ({...deliveredItem, recipientId: person.beneficiaryId}))
+      : url.endsWith('/eligible-assets') ? recipients.map(person => ({assetId:deliveredItem.assetId, recipientId:person.beneficiaryId, description:'All', deliveryStatus:'DELIVERED'}))
       : recipients.map(person => ({beneficiaryId: person.beneficiaryId, sessionId, status: 'PENDING'}));
     return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
   };
@@ -720,4 +720,32 @@ test('unclaimed cases guide Staff to claim the case instead of showing a session
     assert.match(view.host.textContent, /Hồ sơ chưa được nhận xử lý/);
     assert.ok(view.host.querySelector('a[href^="/staff/cases?"]'));
   } finally {await view.close();globalThis.fetch=originalFetch;}
+});
+
+test('partial delivery of one out of two allocations never reports the recipient fully delivered', async () => {
+  const originalFetch = globalThis.fetch;
+  const caseId = '11111111-1111-4111-8111-111111111111', sessionId = deliveredItem.sessionId;
+  let allDelivered = false;
+  const fixture = staffFixture();
+  globalThis.fetch = async url => {
+    let data;
+    if (url.endsWith('/eligible-assets')) data = [
+      {assetId:deliveredItem.assetId,recipientId:deliveredItem.recipientId,description:'First asset',deliveryStatus:'DELIVERED'},
+      {assetId:caseId,recipientId:deliveredItem.recipientId,description:'Second asset',deliveryStatus:allDelivered?'DELIVERED':'ELIGIBLE'},
+    ];
+    else if (url.endsWith('/beneficiary-confirmations')) data = [{beneficiaryId:deliveredItem.recipientId,sessionId,status:'PENDING'}];
+    else return fixture(url);
+    return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});
+  };
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  let view;
+  try {
+    view = await mount(BeneficiaryConfirmationPage, {caseId,sessionId,accessToken:'partial-fixture',lang:'vi'});
+    const row = view.host.querySelector('tbody tr');
+    assert.ok(row); assert.doesNotMatch(row.textContent, /Đã giao tài sản/);
+    await view.close(); view = null;
+    allDelivered = true;
+    view = await mount(BeneficiaryConfirmationPage, {caseId,sessionId,accessToken:'partial-fixture',lang:'vi'});
+    assert.match(view.host.querySelector('tbody tr').textContent, /Đã giao tài sản/);
+  } finally {if(view) await view.close(); globalThis.fetch=originalFetch;}
 });

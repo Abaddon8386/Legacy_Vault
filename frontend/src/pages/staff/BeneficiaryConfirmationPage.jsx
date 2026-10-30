@@ -16,6 +16,7 @@ import {
 import {
   fetchBeneficiaryConfirmations,
   fetchHandoverDeliveries,
+  fetchEligibleAssets,
   fetchCompletionProgress,
   confirmBeneficiary,
   fetchHandoverReceipts,
@@ -426,13 +427,19 @@ function BeneficiaryConfirmationPageContext({
       lang,
       signal: controller.signal,
     };
-    Promise.all([
+    (async () => {
+      const sessionData = effectiveIsDevPreview ? null : await fetchHandoverSession(effectiveTargetCase, sessionId, options);
+      const openSession = sessionData?.status === 'OPEN';
+      const [list, people, assets] = await Promise.all([
       fetchBeneficiaryConfirmations(effectiveTargetCase, sessionId, options),
       effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(effectiveTargetCase, options),
-      effectiveIsDevPreview ? Promise.resolve([]) : fetchHandoverDeliveries(effectiveTargetCase, sessionId, options),
-      effectiveIsDevPreview ? Promise.resolve(null) : fetchHandoverSession(effectiveTargetCase, sessionId, options),
-    ])
-      .then(([list, people, assets, sessionData]) => {
+      effectiveIsDevPreview ? Promise.resolve([]) : openSession
+        ? fetchEligibleAssets(effectiveTargetCase, sessionId, options)
+        : fetchHandoverDeliveries(effectiveTargetCase, sessionId, options),
+      ]);
+      return {list, people, assets, sessionData, openSession};
+    })()
+      .then(({list, people, assets, sessionData, openSession}) => {
         if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
           if (sessionData) setAvailableSessions(previous => [...previous.filter(item => item.sessionId !== sessionData.sessionId), sessionData]);
           setFetchedKey(currentKey);
@@ -442,8 +449,9 @@ function BeneficiaryConfirmationPageContext({
             return normalizeBeneficiaryItem({ ...b,
               fullName: person?.fullName || b.fullName || b.beneficiaryName,
               relationship: person?.relationship || b.relationship,
-              deliveryStatus: allocated.length > 0
-                ? (allocated.every(item => item.status === 'DELIVERED') ? 'DELIVERED' : 'PENDING')
+              // Delivery history contains only delivered items, not the full allocation scope.
+              deliveryStatus: openSession
+                ? (allocated.length > 0 && allocated.every(item => item.deliveryStatus === 'DELIVERED') ? 'DELIVERED' : 'PENDING')
                 : b.deliveryStatus,
             }, lang);
           });

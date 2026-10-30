@@ -270,3 +270,20 @@ test('Removing discovery while case is open clears the old case and disables sel
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('select').disabled, true); assert.doesNotMatch(view.host.textContent, /Authority A/); }
   finally { await view.close(); }
 });
+
+test('a successful waiting workflow keeps a refresh action and loads the other role latest phase', async () => {
+  let ready = false, reads = 0;
+  globalThis.fetch = async url => {
+    if (url.endsWith('/distribution-workflow')) { reads++; return json(workflowFixture(ready ? 'DOCUMENTS_UNDER_REVIEW' : 'AWAITING_DOCUMENTS', 'approveDocuments')); }
+    return json([]);
+  };
+  const view = await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});
+  try {
+    assert.equal(view.host.querySelector('form'),null);
+    const before = reads; ready = true;
+    await click(view.host,'Refresh case status');
+    assert.ok(reads > before);
+    assert.ok(view.host.querySelector('form'));
+    assert.ok([...view.host.querySelectorAll('button')].some(button=>button.textContent==='Accept documents'));
+  } finally {await view.close();}
+});

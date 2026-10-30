@@ -31,7 +31,8 @@ export default function DistributionWorkflowOverview({ workflow, workspace, lang
   const feedback = value?.phase !== 'CLOSED' ? value?.feedback : null;
   const failure = workflow.error ? workflowFailure(workflow.error, lang) : null;
   return <>
-    {failure && <section className="lv-distribution-context" role="alert"><h2>{workflow.error.code === 'BACKEND_NOT_READY' ? (en ? 'The workflow service is not available yet' : 'Dịch vụ xử lý chưa sẵn sàng') : failure.title}</h2><p>{failure.description}</p><button type="button" onClick={workflow.refresh}>{en ? 'Check again' : 'Kiểm tra lại'}</button></section>}
+    <div className="lv-distribution-refresh"><button type="button" onClick={workflow.refresh} disabled={workflow.loading || workflow.pending}>{workflow.loading ? (en ? 'Checking status…' : 'Đang kiểm tra trạng thái…') : (en ? 'Refresh case status' : 'Cập nhật trạng thái hồ sơ')}</button></div>
+    {failure && <section className="lv-distribution-context" role="alert"><h2>{workflow.error.code === 'BACKEND_NOT_READY' ? (en ? 'The workflow service is not available yet' : 'Dịch vụ xử lý chưa sẵn sàng') : failure.title}</h2><p>{failure.description}</p></section>}
     {(request || feedback) && <section className="lv-distribution-context">
       {request && <div><h2>{en ? 'Documents requested by Legal' : 'Giấy tờ Legal yêu cầu'}</h2><p>{request}</p></div>}
       {feedback && <div><h2>{en ? 'Latest assessment' : 'Ý kiến xử lý gần nhất'}</h2><p>{feedback}</p></div>}
