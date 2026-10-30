@@ -39,7 +39,7 @@ Bad fields or recipients outside the current direct-beneficiary set return 400.
 
 ## Persistence, concurrency and integration
 
-V56 handover_group_events is append-only. Latest case revision is the current gate state;
+V57 handover_group_events is append-only. Latest case revision is the current gate state;
 events retain original state/request, present-recipient IDs, actor/time/reason and retry fingerprint.
 Unique(case,revision) and unique(case,actor,key) are final database constraints.
 No legal ON_HOLD/vault status change, no per-allocation holds, no scheduler.
