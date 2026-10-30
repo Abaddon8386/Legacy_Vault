@@ -77,7 +77,7 @@ test('close gate data must be invalidated immediately when changing case',async(
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try{await act(async()=>root.render(React.createElement(Close,props)));assert.equal(host.querySelector('.lv-ca-btn-primary').disabled,false);
  await act(async()=>root.render(React.createElement(Close,{...props,caseId:otherCaseId,sessionId:otherSessionId})));
- assert.equal(host.querySelector('.lv-ca-btn-primary').disabled,true);}finally{await act(async()=>root.unmount());host.remove();}
+ assert.equal(host.querySelector('.lv-ca-btn-primary'),null);assert.match(host.textContent,/Loading case completion/);}finally{await act(async()=>root.unmount());host.remove();}
 });
 test('receipt selection uses exact server delivery relationship; props cannot forge scope',async()=>{
  let body;const base=staffFixture({status:'COMPLETED',deliveries:[deliveredItem]});
@@ -116,7 +116,7 @@ test('archived history reload does not call protected progress and locks mutatio
 });
 test('load failure and missing status never enable close; retry can recover',async()=>{
  let failing=true;globalThis.fetch=async url=>failing?json({code:'LEGAL_DECISION_STALE'},409):staffFixture()(url);
- const v=await mount(Close);try{assert.equal(find(v.host,'Close Handover Session').disabled,true);failing=false;await act(async()=>find(v.host,'Retry').click());assert.equal(find(v.host,'Close Handover Session').disabled,false);}finally{await v.close();}
+ const v=await mount(Close);try{assert.equal(find(v.host,'Close Handover Session'),undefined);assert.match(v.host.textContent,/Legal reassessment required/);failing=false;await act(async()=>find(v.host,'Retry').click());assert.equal(find(v.host,'Close Handover Session').disabled,false);}finally{await v.close();}
 });
 test('StrictMode and language changes preserve receipt selection and render VI/EN labels',async()=>{
  globalThis.fetch=staffFixture({status:'COMPLETED',deliveries:[deliveredItem]});
@@ -165,11 +165,11 @@ test('archived case displays correct recipient name by ID in receipt table and s
     assert.ok(table, 'Receipts table must be present');
     const rows = [...table.querySelectorAll('tbody tr')];
     assert.equal(rows.length, 2);
-    const cell0 = rows[0].querySelector('td[title="' + recipient + '"]');
-    assert.ok(cell0, 'Row 0 must link recipient ID via title');
+    const cell0 = rows[0].querySelectorAll('td')[2];
+    assert.equal(cell0.hasAttribute('title'), false, 'Recipient UUID must not be exposed in a tooltip');
     assert.equal(cell0.textContent.trim(), 'REA TEST LINH');
-    const cell1 = rows[1].querySelector('td[title="' + recipientB + '"]');
-    assert.ok(cell1, 'Row 1 must link recipient ID via title');
+    const cell1 = rows[1].querySelectorAll('td')[2];
+    assert.equal(cell1.hasAttribute('title'), false, 'Recipient UUID must not be exposed in a tooltip');
     assert.equal(cell1.textContent.trim(), 'REA TEST BAO');
   } finally {
     await vVi.close();
@@ -187,7 +187,7 @@ test('archived case displays correct recipient name by ID in receipt table and s
   });
   const vFallbackVi = await mount(Close, { lang: 'vi', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
   try {
-    const cell = vFallbackVi.host.querySelector('td[title="' + recipient + '"]');
+    const cell = vFallbackVi.host.querySelector('tbody tr').querySelectorAll('td')[2];
     assert.ok(cell);
     assert.equal(cell.textContent.trim(), 'Chưa có tên người nhận');
   } finally {
@@ -196,7 +196,7 @@ test('archived case displays correct recipient name by ID in receipt table and s
 
   const vFallbackEn = await mount(Close, { lang: 'en', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
   try {
-    const cell = vFallbackEn.host.querySelector('td[title="' + recipient + '"]');
+    const cell = vFallbackEn.host.querySelector('tbody tr').querySelectorAll('td')[2];
     assert.ok(cell);
     assert.equal(cell.textContent.trim(), 'Name unavailable');
   } finally {

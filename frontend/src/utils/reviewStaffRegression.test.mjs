@@ -38,7 +38,7 @@ test('Review: live receipt request must never contain synthetic recipient or ass
   try{await act(async()=>find(vWithData.host,'Generate Staff Receipt')?.click());assert.ok(body);assert.equal(body.recipientId,recipient);assert.deepEqual(body.assetIds,[recipient]);assert.notEqual(body.recipientId,sessionId);assert.notEqual(body.assetIds[0],caseId);}finally{await vWithData.close();}
 });
 test('Review: BE-confirmed beneficiary must be displayed as confirmed',async()=>{
-  globalThis.fetch=async()=>json([{confirmationId:caseId,sessionId,beneficiaryId:recipient,status:'CONFIRMED',confirmedBy:caseId,confirmedAt:'2026-10-20T08:00:00Z',receiptReference:'REVIEW'}]);
+  globalThis.fetch=async(url)=>url.endsWith('/beneficiary-confirmations')?json([{confirmationId:caseId,sessionId,beneficiaryId:recipient,status:'CONFIRMED',confirmedBy:caseId,confirmedAt:'2026-10-20T08:00:00Z',receiptReference:'REVIEW'}]):staffFixture({deliveries:[deliveredItem]})(url);
   const v=await mount(Confirm,{initialBeneficiaries:[]});
   try{const option=[...v.host.querySelectorAll('option')].find(o=>o.value===recipient);assert.ok(option);assert.match(option.textContent,/confirmed/i);}finally{await v.close();}
 });
@@ -46,14 +46,15 @@ test('Review: live confirmation page must not continuously reload its unchanged 
   const reads=[];globalThis.fetch=async(url)=>{
     reads.push(url);
     if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:recipient,fullName:'Test recipient'}]);
-    if(url.endsWith('/eligible-assets'))return json([{recipientId:recipient,deliveryStatus:'DELIVERED'}]);
+    if(url.endsWith('/deliveries'))return json([deliveredItem]);
+    if(url.endsWith('/'+sessionId))return staffFixture()(url);
     return json([{confirmationId:null,sessionId,beneficiaryId:recipient,status:'PENDING',confirmedBy:null,confirmedAt:null,receiptReference:null}]);
   };
   const v=await mount(Confirm);
   try{
     const select=v.host.querySelector('.lv-confirm-select');
     await act(async()=>{select.value=recipient;select.dispatchEvent(new dom.window.Event('change',{bubbles:true}));});
-    for(const endpoint of ['/beneficiary-confirmations','/beneficiaries','/eligible-assets'])
+    for(const endpoint of ['/beneficiary-confirmations','/beneficiaries','/deliveries'])
       assert.equal(reads.filter(url=>url.endsWith(endpoint)).length,1,'Unchanged context must load each resource only once: '+endpoint);
   }finally{await v.close();}
 });

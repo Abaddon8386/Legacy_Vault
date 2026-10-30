@@ -19,3 +19,12 @@
 .lv-distribution-review-list strong, .lv-distribution-review-list span { display: block; overflow-wrap: anywhere; }
 
 .lv-distribution-actions button, .lv-distribution-workflow button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+
+/* A single page-level progress guide; this panel only contains actual requests. */
+.lv-distribution-context { display: grid; gap: 16px; padding: 20px; margin: 0; border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
+.lv-distribution-context h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.4; }
+.lv-distribution-context p { margin: 0; font-size: 16px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lv-distribution-context button { justify-self: start; min-height: 44px; padding: 10px 16px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #164639; font-family: inherit; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.lv-distribution-workflow.lv-surface-card { border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
+.lv-distribution-workflow.lv-surface-card > h2 { font-size: 21px; line-height: 1.4; margin: 0 0 12px; }
+.lv-distribution-workflow.lv-surface-card > p { font-size: 16px; line-height: 1.6; }

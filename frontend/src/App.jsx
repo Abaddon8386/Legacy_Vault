@@ -1,3 +1,4 @@
+import StaffSessionBoundary from './components/staff/StaffSessionBoundary.jsx';
 import SharedWithMePage from './pages/beneficiary/SharedWithMePage.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
@@ -890,6 +891,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
+          <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout} requireSession={false}>
           <CounterHandoverPage
             counterLinkActions={counterLinkActions}
             key={session?.user.id || 'preview'}
@@ -905,6 +907,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             onCaseChange={handleSelectStaffCase}
             onSelectSession={handleSelectStaffSession}
           />
+          </StaffSessionBoundary>
         </StaffShell>
       </div>
     );
@@ -1331,6 +1334,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           onNavigateCompletionProgress={() => navigateTo(buildStaffRoute('/staff/completion-progress'))}
           onNavigateBeneficiaryConfirmation={() => navigateTo(buildStaffRoute('/staff/beneficiary-confirmation'))}
         >
+          <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout} operation="delivery">
           <ScopedAssetHandoverPage
             lang={lang}
             preview={preview}
@@ -1345,6 +1349,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             onUnauthorized={logout}
             onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
+          </StaffSessionBoundary>
         </StaffShell>
       </div>
     );
@@ -1372,6 +1377,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           user={session?.user || null}
           onNavigateTab={handleExecuteNavigation}
         >
+          <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout}>
           <BeneficiaryConfirmationPage
             lang={lang}
             preview={preview}
@@ -1387,6 +1393,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             onUnauthorized={logout}
             onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
+          </StaffSessionBoundary>
         </AppShell>
       </div>
     );
@@ -1414,6 +1421,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           user={session?.user || null}
           onNavigateTab={handleExecuteNavigation}
         >
+          <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout}>
           <CompletionProgressPage
             lang={lang}
             preview={preview}
@@ -1429,6 +1437,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             onUnauthorized={logout}
             onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
+          </StaffSessionBoundary>
         </AppShell>
       </div>
     );
@@ -1456,6 +1465,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           user={session?.user || null}
           onNavigateTab={handleExecuteNavigation}
         >
+          <StaffSessionBoundary caseId={staffCaseId} sessionId={staffSessionId} accessToken={session?.accessToken} lang={lang} preview={preview} revision={refreshTrigger} onCaseChange={handleSelectStaffCase} onSessionChange={handleSelectStaffSession} onUnauthorized={logout}>
           <CloseAndArchivePage
             lang={lang}
             preview={preview}
@@ -1470,6 +1480,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
             onUnauthorized={logout}
             onNavigateCases={() => navigateTo(buildStaffRoute('/staff/cases'))}
           />
+          </StaffSessionBoundary>
         </AppShell>
       </div>
     );

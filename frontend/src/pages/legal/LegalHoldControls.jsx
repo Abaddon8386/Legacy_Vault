@@ -60,7 +60,7 @@ export default function LegalHoldControls({ context, session, lang = 'vi', disab
       </label>
       <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea required maxLength={1000} value={reason}
         disabled={disabled || pending || !!error} onChange={event => setReason(event.target.value)} /></label>
-      <button type="submit" disabled={disabled || pending || !!error || !choice || !reason.trim()}>
+      <button type="submit" className={resume ? 'lv-decision--positive' : undefined} disabled={disabled || pending || !!error || !choice || !reason.trim()}>
         {resume ? (en ? 'Resume processing' : 'Tiếp tục xử lý') : (en ? 'Confirm hold' : 'Xác nhận tạm dừng')}</button>
     </form>}
     {pending && <p role="status">{en ? 'Saving the case status…' : 'Đang lưu trạng thái hồ sơ…'}</p>}

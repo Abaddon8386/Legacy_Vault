@@ -410,7 +410,7 @@ test('live completion DTO renders real counts and changing session clears the pr
 });
 
 test('PS-55 Component Regression: Case Switching Isolation & Stale Response Discard', async (t) => {
-  await t.test('switching case via input wipes case A data, resets metrics to indeterminate, and avoids retaining A progress', async () => {
+  await t.test('switching selected case wipes case A data, resets metrics to indeterminate, and avoids retaining A progress', async () => {
     const wrapper = await mount(CompletionProgressPage, {
       caseReference: 'CASE-A',
       initialAssetData: { delivered: 4, total: 4 },
@@ -423,14 +423,10 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.ok(wrapper.host.textContent.includes('2 / 2'), 'Should show 2 / 2 for Case A beneficiaries');
       assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), 'Case A should be eligible for completion');
 
-      const caseInput = wrapper.host.querySelector('.lv-progress-input');
-      assert.ok(caseInput, 'Case input must exist');
-      assert.equal(caseInput.value, 'CASE-A');
+      assert.equal(wrapper.host.querySelector('.lv-progress-technical'), null);
 
       // 2. Switch case A -> B directly via input without clearing to blank first
-      await act(async () => {
-        changeInput(caseInput, 'CASE-B');
-      });
+      await wrapper.render({caseReference:'CASE-B'});
 
       // VERIFY: Case A data must be wiped immediately!
       assert.equal(wrapper.host.textContent.includes('4 / 4'), false, 'Case A asset ratio must NOT remain');
@@ -517,17 +513,12 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
     });
 
     try {
-      const caseInput = wrapper.host.querySelector('.lv-progress-input');
 
       // 1. Trigger fetch for CASE-A
-      await act(async () => {
-        changeInput(caseInput, 'CASE-A');
-      });
+      await wrapper.render({caseReference:'CASE-A', onFetchProgress:fakeFetcher});
 
       // 2. Before A resolves, user switches to CASE-B!
-      await act(async () => {
-        changeInput(caseInput, 'CASE-B');
-      });
+      await wrapper.render({caseReference:'CASE-B', onFetchProgress:fakeFetcher});
 
       // 3. Late response for CASE-A returns now!
       await act(async () => {
@@ -692,7 +683,7 @@ test('session list failure is visible and retry reloads the list', async () => {
   } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
 });
 
-test('direct case links resolve a readable case number and keep UUID input collapsed', async () => {
+test('direct case links resolve a readable case number and omit technical UUID input', async () => {
   const originalFetch = globalThis.fetch;
   const caseId = '11111111-1111-4111-8111-111111111111';
   globalThis.fetch = async url => {
@@ -706,8 +697,7 @@ test('direct case links resolve a readable case number and keep UUID input colla
   try {
     assert.equal(wrapper.host.querySelector('.lv-staff-context-bar__code').textContent, 'HS-2026-000007');
     const technical = wrapper.host.querySelector('.lv-progress-technical');
-    assert.equal(technical.open, false);
-    assert.equal(technical.querySelector('input').value, caseId);
+    assert.equal(technical, null);
     assert.ok(wrapper.host.textContent.includes('1 / 2'), 'Real progress still renders when data exists');
   } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
 });

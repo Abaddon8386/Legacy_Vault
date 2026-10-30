@@ -1,19 +1,8 @@
 import FeedbackNotice from '../components/common/FeedbackNotice.jsx';
 import { workflowNotificationFeedback } from '../utils/workflowNotificationFeedback.js';
 import './DistributionWorkflow.css';
+import { workflowFailure } from '../utils/workflowFeedback.js';
 
-const phases = {
-  PREREQUISITES_PENDING: ['Chờ duyệt khai tử và đối chiếu di chúc', 'Awaiting death verification and will comparison'],
-  DOCUMENT_REQUEST_NEEDED: ['Legal cần yêu cầu giấy tờ phân chia', 'Legal must request distribution documents'],
-  AWAITING_DOCUMENTS: ['Chờ người nộp mang giấy tờ về cho Staff', 'Awaiting documents from the applicant'],
-  DOCUMENTS_UNDER_REVIEW: ['Legal đang thẩm định giấy tờ phân chia', 'Legal is reviewing distribution documents'],
-  AWAITING_ALLOCATIONS: ['Đã duyệt căn cứ · Staff lập phân bổ', 'Documents accepted · Staff prepares allocations'],
-  ALLOCATIONS_UNDER_REVIEW: ['Legal kiểm tra từng tài sản và người nhận', 'Legal checks each asset and recipient'],
-  FINAL_APPROVAL: ['Đã kiểm tra phân bổ · Chờ duyệt hồ sơ', 'Allocations checked · Awaiting final approval'],
-  APPROVED: ['Đã phê duyệt · Mở kho là bước riêng', 'Approved · Unlocking is a separate step'],
-  UNLOCKED: ['Kho đã mở · Staff tiếp tục bàn giao', 'Vault unlocked · Staff continues handover'],
-  CLOSED: ['Hồ sơ đã kết thúc · Chỉ xem', 'Case closed · Read only'],
-};
 const outcomes = {
   requestDocuments: ['Đã gửi yêu cầu giấy tờ phân chia.', 'Distribution documents requested.'],
   approveDocuments: ['Đã duyệt căn cứ. Staff có thể lập phân bổ.', 'Documents approved. Staff can prepare allocations.'],
@@ -38,25 +27,15 @@ export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
 }
 export default function DistributionWorkflowOverview({ workflow, workspace, lang = 'vi' }) {
   const en = lang === 'en', value = workflow.data;
-  const steps = en ? ['Legal requests documents', 'Staff uploads documents', 'Legal approves documents', 'Staff prepares allocations', 'Legal checks allocations']
-    : ['Legal yêu cầu giấy tờ', 'Staff tải giấy tờ', 'Legal duyệt căn cứ', 'Staff lập phân bổ', 'Legal kiểm tra phân bổ'];
-  const indexes = { DOCUMENT_REQUEST_NEEDED: 0, AWAITING_DOCUMENTS: 1, DOCUMENTS_UNDER_REVIEW: 2, AWAITING_ALLOCATIONS: 3, ALLOCATIONS_UNDER_REVIEW: 4, FINAL_APPROVAL: 5, APPROVED: 5, UNLOCKED: 5 };
-  const current = indexes[value?.phase] ?? -1;
-  return <section className="lv-distribution-workflow lv-surface-card" aria-label={en ? 'Distribution workflow' : 'Quy trình giấy tờ và phân bổ'}>
-    <h2>{en ? 'Distribution documents and allocations' : 'Giấy tờ phân chia và phân bổ'}</h2>
-    <ol className="lv-distribution-stages">{steps.map((label, index) => <li key={label} aria-current={index === current ? 'step' : undefined}
-      className={index < current ? 'is-done' : index === current ? 'is-current' : ''}><span aria-hidden="true">{index + 1}</span>{label}</li>)}</ol>
-    {workflow.loading ? <p role="status">{en ? 'Checking the current step…' : 'Đang kiểm tra bước hiện tại…'}</p>
-      : workflow.error ? <div role="status"><p>{[404, 501].includes(workflow.error.status)
-        ? (en ? 'This workflow is not available yet. Existing documents can still be viewed; changes require the service to be ready.' : 'Quy trình này hiện chưa khả dụng. Bạn vẫn có thể xem giấy tờ đã lưu; thao tác mới cần chờ hệ thống sẵn sàng.')
-        : (en ? 'The current step could not be checked. Reload before making changes.' : 'Chưa kiểm tra được bước hiện tại. Tải lại trước khi thao tác.')}</p>
-        <button type="button" onClick={workflow.refresh}>{en ? 'Check again' : 'Kiểm tra lại'}</button></div>
-      : value ? <><p className="lv-distribution-next" role="status">{phases[value.phase][en ? 1 : 0]}</p>
-        {value.request && <div className="lv-distribution-request"><strong>{en ? 'Requested documents' : 'Giấy tờ cần nộp'}</strong><p>{value.request.reason}</p></div>}
-        {value.feedback && <div className="lv-distribution-request"><strong>{en ? 'Latest feedback' : 'Ý kiến xử lý gần nhất'}</strong><p>{value.feedback}</p></div>}
-        <button type="button" onClick={workflow.refresh} disabled={workflow.pending}>{en ? 'Refresh case status' : 'Kiểm tra lại trạng thái'}</button>
-        {value.phase === 'AWAITING_DOCUMENTS' && <p>{en ? 'The applicant obtains court or notarized documents outside this system, then brings them to Staff. Allocations are prepared after Legal accepts the documents.' : 'Người nộp tự làm giấy tờ tại Tòa án hoặc tổ chức công chứng, sau đó mang về cho Staff. Chỉ lập phân bổ sau khi Legal duyệt căn cứ.'}</p>}
-      </> : <p>{en ? 'Select a case to check the next step.' : 'Chọn hồ sơ để kiểm tra bước tiếp theo.'}</p>}
+  const request = value?.phase === 'AWAITING_DOCUMENTS' ? value.request?.reason : null;
+  const feedback = value?.phase !== 'CLOSED' ? value?.feedback : null;
+  const failure = workflow.error ? workflowFailure(workflow.error, lang) : null;
+  return <>
+    {failure && <section className="lv-distribution-context" role="alert"><h2>{workflow.error.code === 'BACKEND_NOT_READY' ? (en ? 'The workflow service is not available yet' : 'Dịch vụ xử lý chưa sẵn sàng') : failure.title}</h2><p>{failure.description}</p><button type="button" onClick={workflow.refresh}>{en ? 'Check again' : 'Kiểm tra lại'}</button></section>}
+    {(request || feedback) && <section className="lv-distribution-context">
+      {request && <div><h2>{en ? 'Documents requested by Legal' : 'Giấy tờ Legal yêu cầu'}</h2><p>{request}</p></div>}
+      {feedback && <div><h2>{en ? 'Latest assessment' : 'Ý kiến xử lý gần nhất'}</h2><p>{feedback}</p></div>}
+    </section>}
     <DistributionFeedback workflow={workflow} workspace={workspace} lang={lang} />
-  </section>;
+  </>;
 }

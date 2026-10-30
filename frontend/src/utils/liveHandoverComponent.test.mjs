@@ -57,7 +57,7 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
  assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng'),undefined);
  const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
- await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.ok(v.host.textContent.includes(sid));assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
+ await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('a.lv-handover-primary-action')?.search,'?caseId='+cid+'&sessionId='+sid);assert.equal(v.host.textContent.includes(sid),false);assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
 });
 test('Existing OPEN restored via list/detail; cancellation only after confirmation and server response',async()=>{
  const calls=[];globalThis.fetch=async(url,init)=>{calls.push({url,init});return json(init.method==='PATCH'?{...receipt,status:'CANCELLED',closedAt:'2026-10-20T07:00:00'}:url.endsWith(sid)?receipt:[receipt]);};
@@ -69,7 +69,7 @@ test('Existing OPEN restored via list/detail; cancellation only after confirmati
 test('409 open race requires reload and adopts server session without retrying POST',async()=>{
  let opens=0,lists=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){opens++;return json({code:'HANDOVER_SESSION_ALREADY_OPEN'},409);}if(url.endsWith(sid))return json(receipt);return json(++lists===1?[]:[receipt]);};
  const v=await mount();await act(async()=>btn(v.host,'Mở phiên bàn giao').click());assert.match(v.host.querySelector('[role=alert]').textContent,/Đã có phiên mở/);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
- await act(async()=>btn(v.host,'Tải lại phiên').click());assert.ok(v.host.textContent.includes(sid));assert.equal(opens,1);await v.close();
+ await act(async()=>btn(v.host,'Tải lại phiên').click());assert.equal(v.host.querySelector('a.lv-handover-primary-action')?.search,'?caseId='+cid+'&sessionId='+sid);assert.equal(v.host.textContent.includes(sid),false);assert.equal(opens,1);await v.close();
 });
 test('401 notifies logout; no fake account data; closed session is read-only in accounts mode',async()=>{
  let expired=0;globalThis.fetch=async()=>json({code:'UNAUTHENTICATED'},401);let v=await mount({onLogout(){expired++;}});assert.equal(expired,1);assert.match(v.host.textContent,/hết hạn/);await v.close();

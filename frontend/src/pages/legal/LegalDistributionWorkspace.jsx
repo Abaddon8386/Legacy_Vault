@@ -62,7 +62,7 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
         <label>{request ? (en ? 'Documents needed and reason' : 'Giấy tờ cần nộp và lý do') : (en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa')}
           <textarea required maxLength={1000} value={reason} disabled={workflow.pending}
             onChange={event => setDraft({ scope, reason: event.target.value })} /></label>
-        <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" key={action} value={action}
+        <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" className={action.startsWith('approve') ? 'lv-decision--positive' : 'lv-decision--neutral'} key={action} value={action}
           disabled={workflow.pending || !reason.trim() || !can(action)}>{title}</button>)}</div>
       </form>
     </section>}

@@ -5,6 +5,7 @@ import { fetchHandoverReceipts, fetchCompletionProgress, fetchHandoverSession, f
 import { loadStaffCase } from './staffLiveService.js';
 import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
 import { closeAndArchiveI18n } from './closeAndArchiveI18n.js';
+import { workflowFailure } from '../../utils/workflowFeedback.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CloseAndArchivePage.css';
@@ -53,6 +54,7 @@ function CloseArchiveContext({
 
   useEffect(() => {
     const controller = new AbortController();
+    if (!caseId || !sessionId) return () => controller.abort();
     const opts = {accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang, signal: controller.signal};
     async function load() {
       try {
@@ -60,7 +62,6 @@ function CloseArchiveContext({
         if (controller.signal.aborted) return;
         setLoading(true);
         setLoadError(null);
-        if (!caseId || !sessionId) throw new Error(t.contextRequired);
         const [session, caseInfo, receipts, deliveries] = await Promise.all([
           propSessionStatus ? Promise.resolve({status: propSessionStatus}) : fetchHandoverSession(caseId, sessionId, opts),
           propCaseStatus ? Promise.resolve({status: propCaseStatus}) :
@@ -78,7 +79,7 @@ function CloseArchiveContext({
         if (controller.signal.aborted) return;
         setServer({revision, caseInfo, sessionStatus: session.status, caseStatus: caseInfo.status, vaultStatus: caseInfo.vaultStatus, people, receipts, deliveries, progress});
       } catch (error) {
-        if (!controller.signal.aborted) { setServer(null); setLoadError(error.message || t.loadFailed); }
+        if (!controller.signal.aborted) { setServer(null); setLoadError(error); }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -159,6 +160,12 @@ function CloseArchiveContext({
   const resolveVaultLabel = status => ({ARCHIVED:t.statusVaultArchived, UNLOCKED:t.statusVaultOpen, HANDOVER_IN_PROGRESS:t.statusSessionInProgress, LOCKED:t.statusVaultLocked}[status] || t.statusUnavailable);
   const resolveCaseLabel = status => ({OPEN:t.statusCaseInProgress, CLOSED:t.statusCaseClosed, CANCELLED:t.cancelled}[status] || t.statusUnavailable);
 
+  if (!caseId || !sessionId) return <section className="lv-staff-context-state" role="status"><h1>{lang === 'en' ? 'Select a case and handover session' : 'Chọn hồ sơ và phiên bàn giao'}</h1><p>{lang === 'en' ? 'Case completion becomes available after the preceding handover steps.' : 'Hoàn tất hồ sơ được thực hiện sau các bước bàn giao và ký nhận. Chưa chọn phiên không phải lỗi hệ thống.'}</p><div className="lv-staff-context-state__actions"><a href={`/staff/handover${caseId ? '?caseId='+encodeURIComponent(caseId) : ''}`}>{lang === 'en' ? 'Go to counter handover' : 'Đến bàn giao tại quầy'}</a></div></section>;
+  if (loadError) {
+    const feedback = workflowFailure(loadError, lang);
+    return <section className="lv-staff-context-state" role={feedback.kind === 'waiting' || feedback.kind === 'changed' ? 'status' : 'alert'}><h1>{feedback.title}</h1><p>{feedback.description}</p><div className="lv-staff-context-state__actions"><button type="button" onClick={() => setRevision(value => value + 1)}>{t.retry}</button><a href="/staff/cases">{lang === 'en' ? 'Choose case' : 'Chọn lại hồ sơ'}</a></div></section>;
+  }
+  if (loading) return <section className="lv-staff-context-state" role="status"><h1>{lang === 'en' ? 'Loading case completion…' : 'Đang tải thông tin hoàn tất hồ sơ…'}</h1></section>;
   return (
     <div className="lv-close-archive-view">
       <StaffWorkflowGuide current="archive" caseId={caseId} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
@@ -447,12 +454,12 @@ function CloseArchiveContext({
                 {receipts.map((rc, idx) => (
                   <tr key={rc.receiptId || rc.id || rc.code || idx}>
                     <td>
-                      <span className="lv-ca-code-badge" title={rc.receiptId || rc.code}>{rc.code || `${lang === 'en' ? 'Receipt' : 'Biên nhận'} ${String(idx + 1).padStart(2, '0')}`}</span>
+                      <span className="lv-ca-code-badge">{rc.code || `${lang === 'en' ? 'Receipt' : 'Biên nhận'} ${String(idx + 1).padStart(2, '0')}`}</span>
                     </td>
                     <td>
                       {rc.attestationType === 'STAFF_ATTESTATION' || !rc.attestationType ? (lang === 'en' ? 'Counter confirmation' : 'Xác nhận tại quầy') : (lang === 'en' ? 'Handover receipt' : 'Biên nhận bàn giao')}
                     </td>
-                    <td title={rc.recipientId}>{rc.recipientName?.trim() || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
+                    <td>{rc.recipientName?.trim() || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
                     <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
                     <td>
                       <span className="lv-ca-tag">
@@ -541,7 +548,7 @@ function CloseArchiveContext({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
-                  {lang === 'en' ? 'Archive Vault & Close Case' : 'Lưu trữ kho di sản & Đóng ca'}
+                  {lang === 'en' ? 'Complete case' : 'Hoàn tất hồ sơ'}
                 </strong>
                 <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
                   {t.step2Desc}

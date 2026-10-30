@@ -226,7 +226,7 @@ export default function StaffCaseSelectorModal({
                       >
                         <td>
                           <span className="lv-case-modal-code">
-                            {formatCaseReference(item.caseNumber || item.caseId || item.id)}
+                            {formatCaseReference(item.caseNumber || (en ? 'Case number unavailable' : 'Chưa tải được số hồ sơ'))}
                           </span>
                         </td>
                         <td>

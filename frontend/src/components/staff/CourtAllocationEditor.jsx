@@ -11,7 +11,7 @@ export default function CourtAllocationEditor({ rows, assets, recipients, onAdd,
     ['email', en ? 'Contact email (optional)' : 'Email liên hệ (tùy chọn)', 'email', 254],
   ];
   return <section className="lv-court-editor" aria-label={en ? 'Document allocations' : 'Phân chia theo văn bản'}>
-    {!hideHeading && <div className="lv-court-editor__heading"><h3>{en ? 'Asset allocations' : 'Phân bổ tài sản'}</h3><button type="button" onClick={onAdd} disabled={disabled}><Plus size={16} aria-hidden="true" />{en ? 'Add allocation' : 'Thêm phân bổ'}</button></div>}
+    {!hideHeading && <div className="lv-court-editor__heading"><h3>{en ? 'Asset allocations' : 'Phân bổ tài sản'}</h3><button type="button" onClick={() => onAdd()} disabled={disabled}><Plus size={16} aria-hidden="true" />{en ? 'Add allocation' : 'Thêm phân bổ'}</button></div>}
     {!rows.length && <p>{en ? 'Add the assets and recipients named in the document.' : 'Thêm tài sản và người nhận đúng theo văn bản.'}</p>}
     {rows.map((row, index) => <fieldset key={row.id} className="lv-court-editor__row" disabled={disabled}>
       <legend>{en ? `Allocation ${index + 1}` : `Phân bổ ${index + 1}`}</legend>
@@ -23,7 +23,9 @@ export default function CourtAllocationEditor({ rows, assets, recipients, onAdd,
         <label className="lv-court-editor__description">{en ? 'Allocation stated in the document' : 'Phần được hưởng theo văn bản'}<textarea maxLength={2000} value={row.description} onChange={event => onChange(index, 'description', event.target.value)} /></label>
       </div>
       {row.recipientKind === 'court' && <p className="lv-court-editor__notice">{en ? 'The recipient is recorded with this document version. No account is created or linked here.' : 'Người nhận được ghi theo phiên bản văn bản này. Thao tác này chưa tạo hoặc liên kết tài khoản.'}</p>}
-      <button type="button" onClick={() => onRemove(index)} aria-label={en ? `Remove allocation ${index + 1}` : `Xóa phân bổ ${index + 1}`}><Trash2 size={16} aria-hidden="true" />{en ? 'Remove' : 'Xóa'}</button>
+      <div className="lv-court-editor__row-actions"><button type="button" disabled={!row.assetId || disabled} onClick={() => onAdd({assetId:row.assetId})}><Plus size={16} aria-hidden="true" />{en ? 'Add another recipient for this asset' : 'Thêm người nhận cho tài sản này'}</button>
+      <button type="button" onClick={() => onRemove(index)} aria-label={en ? `Remove allocation ${index + 1}` : `Xóa phân bổ ${index + 1}`}><Trash2 size={16} aria-hidden="true" />{en ? 'Remove' : 'Xóa'}</button></div>
     </fieldset>)}
+    {rows.length > 0 && !hideHeading && <button className="lv-court-editor__add" type="button" onClick={() => onAdd()} disabled={disabled}><Plus size={16} aria-hidden="true" />{en ? 'Add allocation' : 'Thêm phân bổ'}</button>}
   </section>;
 }

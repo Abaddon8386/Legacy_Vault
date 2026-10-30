@@ -257,7 +257,7 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
     await click('Đóng phiên bàn giao');
     assert.match(host.textContent,/Đã đóng phiên bàn giao\. Hồ sơ chưa đóng/);
     await change(host.querySelector('select'),ids.recipient);
-    await click('Lập biên bản xác nhận');await click('Đóng & Lưu trữ hồ sơ');
+    await click('Lập biên bản xác nhận');await click('Hoàn tất hồ sơ');
     assert.equal(archived,true);assert.ok(host.querySelector('.lv-ca-archive-banner'));
     await act(async()=>root.unmount());root=createRoot(host);
     await act(async()=>root.render(React.createElement(ProdApp)));
@@ -358,7 +358,9 @@ test('PS-96/97/98 Integration: Switching case resets sessionId and clears previo
   const session = makeStaffSession();
   globalThis.fetch = async (url) => {
     if (String(url).includes('/auth/me')) return json(session.user);
-    return json({});
+    if (String(url).includes('/verification-cases?')) return json({content:[{caseId:ids.otherCaseId,caseNumber:'HS-2026-000004',status:'OPEN',vaultName:'Case B',ownerName:'Test owner',triggeredAt:'2026-10-20T08:00:00Z',closedAt:null}],page:0,size:5,totalElements:1,totalPages:1});
+    if (String(url).endsWith(ids.otherCaseId)) return json({caseId:ids.otherCaseId,caseNumber:'HS-2026-000004',status:'OPEN',assignmentStatus:'UNASSIGNED_CLAIMABLE'});
+    return staffFixture()(url);
   };
   storeSession(session);
   window.history.replaceState(
@@ -1064,7 +1066,7 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
         201
       );
     }
-    return json({});
+    return staffFixture()(url);
   };
 
   storeSession(makeStaffSession());

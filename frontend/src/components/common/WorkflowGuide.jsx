@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, Clock3, LockKeyhole, ArrowRight, ChevronDown, Che
 import './WorkflowGuide.css';
 
 const icons = { done: CheckCircle2, waiting: Clock3, action: Circle, blocked: LockKeyhole };
-export default function WorkflowGuide({ model, lang = 'vi', onNavigate, title }) {
+export default function WorkflowGuide({ model, lang = 'vi', onNavigate, title, showNext = true }) {
   const id = useId(), en = lang === 'en';
   const [showDoneOnMobile, setShowDoneOnMobile] = useState(false);
   const labels = en ? { done: 'Complete', waiting: 'Waiting', action: 'To do', blocked: 'Not eligible' }
@@ -44,9 +44,9 @@ export default function WorkflowGuide({ model, lang = 'vi', onNavigate, title })
         {item.href ? <a href={item.href} onClick={event => link(event, item.href)}>{content}</a> : <span className="lv-workflow-guide__step">{content}</span>}
       </li>;
     })}</ol>
-    <div className="lv-workflow-guide__next"><p role="status">{model.message}</p>
+    {showNext && <div className="lv-workflow-guide__next"><p role="status">{model.message}</p>
       {model.next?.href && <a href={model.next.href} onClick={event => link(event, model.next.href)}>{model.next.label}<ArrowRight size={16} aria-hidden="true" /></a>}
-    </div>
+    </div>}
   </section>;
 }
 
