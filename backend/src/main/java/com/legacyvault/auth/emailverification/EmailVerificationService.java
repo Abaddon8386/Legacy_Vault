@@ -65,19 +65,27 @@ public class EmailVerificationService {
         return ids.isEmpty()?null:ids.getFirst();
     }
 
-    /** Mints the credential for a claimed job exactly once; the raw value exists only in the returned Delivery. */
+    /**
+     * Mints the credential for a claimed job exactly once; the raw value exists only in the returned Delivery.
+     * Lock order is User -> Job -> Credential, the same as an email change: the job is read without taking a lock,
+     * the User is locked, and only then is the job moved on with a status-conditional update. A job that an email
+     * change skipped (or another worker prepared) while this call waited for the User lock updates zero rows.
+     */
     @Transactional
     public Delivery prepare(Long jobId) {
-        var jobs=jdbc.query("UPDATE dbo.email_verification_jobs SET status='PREPARED' OUTPUT inserted.user_id,inserted.email_fingerprint,inserted.locale,inserted.requested_at WHERE job_id=? AND status='CLAIMED'",
+        var jobs=jdbc.query("SELECT user_id,email_fingerprint,locale,requested_at FROM dbo.email_verification_jobs WHERE job_id=? AND status='CLAIMED'",
                 (rs,n)->new Job(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getObject(4,LocalDateTime.class)),jobId);
         if(jobs.isEmpty()) return null;
         Job job=jobs.getFirst();
+        // These two exits hold only the job row and take no further lock afterwards.
         if(!config.ready()) { mark(jobId,"SKIPPED"); return null; }
         // A job older than one credential lifetime is stale: the worker may have been off for a long time.
         if(job.requestedAt().isBefore(now().minusMinutes(config.ttlMinutes()))) { mark(jobId,"SKIPPED"); return null; }
         User user=users.findActiveAccountForUpdate(job.userId()).orElse(null);
         if(user==null) { mark(jobId,"SKIPPED"); return null; }
         entities.refresh(user);
+        // Still CLAIMED? Anyone who changed it did so under the User lock we now hold, so this check is race-free.
+        if(jdbc.update("UPDATE dbo.email_verification_jobs SET status='PREPARED' WHERE job_id=? AND status='CLAIMED'",jobId)!=1) return null;
         if(user.getEmailVerifiedAt()!=null || !eligible(user) || !job.fingerprint().equals(fingerprint(user))) {
             mark(jobId,"SKIPPED"); return null;
         }
@@ -125,12 +133,13 @@ public class EmailVerificationService {
 
     /**
      * Called by AuthService inside the email-change transaction: open credentials die with the old address and
-     * queued jobs for it are dropped. Nothing new is sent; the user must ask again.
+     * queued jobs for it are dropped. Nothing new is sent; the user must ask again. The caller already holds the
+     * User lock; jobs then credentials is the same order prepare and cleanup use.
      */
     @Transactional
     public void revokeForEmailChange(Long userId) {
-        jdbc.update("UPDATE dbo.email_verification_credentials SET revoked_at=SYSUTCDATETIME() WHERE user_id=? AND consumed_at IS NULL AND revoked_at IS NULL",userId);
         jdbc.update("UPDATE dbo.email_verification_jobs SET status='SKIPPED' WHERE user_id=? AND status IN ('QUEUED','CLAIMED','PREPARED')",userId);
+        jdbc.update("UPDATE dbo.email_verification_credentials SET revoked_at=SYSUTCDATETIME() WHERE user_id=? AND consumed_at IS NULL AND revoked_at IS NULL",userId);
     }
 
     @Transactional
