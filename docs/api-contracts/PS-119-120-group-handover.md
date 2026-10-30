@@ -67,3 +67,9 @@ Core representative and freshness decisions were confirmed by the user on 30/10/
 Technical failure does not imply absence: transaction rollback leaves no new state; a previously
 committed delivery is retained. No new policy automatically reverses or retries completed delivery.
 PS-119 design review and PS-120 SQL/E2E acceptance still require team review before marking Done.
+
+SQL verification update (30/10/2026): all 52 affected handover SQL regression tests and
+3 group SQL tests passed on real local SQL Server (55/55, zero skipped). V57 applied in
+disposable databases and teardown left none behind. Earlier missing-connection statements
+are historical; see ../verification/PS-236-sql-regression-2026-10-30.md for evidence and
+remaining unverified concurrent-race, audit-failure, restart and browser E2E scenarios.

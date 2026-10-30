@@ -63,3 +63,12 @@ NOT VERIFIED: the reviewer's exact 28/52 SQL regression count, their PR235 1109-
 or that all affected SQL integration scenarios now pass on SQL Server. No master URL is configured
 in process/User/Machine scope. No live database was changed. Team SQL rerun is required before
 claiming the 28 integration failures resolved or approving merge.
+
+## Real SQL rerun — supersedes missing-connection limitation above
+
+On 30/10/2026, commit 666cc97 ran all 52 handover regression tests plus 3 group SQL tests
+against local SQL Server using temporary Windows-authenticated master configuration:
+55 passed, no failures/errors/skips. All fixture databases were dropped (remaining count 0).
+V57 migration and the affected SQL/HTTP fixture flows are now verified by that run.
+See PS-236-sql-regression-2026-10-30.md for per-class counts and the concurrency/browser/
+process-restart checks that are still NOT VERIFIED. No runtime change was needed.
