@@ -31,6 +31,17 @@ class ResendRecoveryMailTransportTest {
         assertEquals("Recovery delivery unavailable",failure.getMessage()); assertNull(failure.getCause());
         verify(client,times(1)).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
     }
+    @Test void sharedSendMessageNeedsOnlyProviderSettingsNotRecoveryEnablementAndStillEnforcesAllowlist() throws Exception {
+        var client=mock(HttpClient.class); HttpResponse<Void> response=mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200); when(client.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        var recoveryOff=new RecoveryConfiguration(false,"fixture-api-key","sender@example.test","","recipient@example.test");
+        var transport=new ResendRecoveryMailTransport(recoveryOff,new ObjectMapper(),client);
+        transport.sendMessage("recipient@example.test","subject","body");
+        verify(client,times(1)).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
+        assertThrows(IllegalStateException.class,()->transport.send("recipient@example.test","en","secret"));
+        assertThrows(IllegalStateException.class,()->transport.sendMessage("not-approved@example.test","subject","body"));
+        verify(client,times(1)).send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class));
+    }
     @Test void disabledOrUnapprovedRecipientNeverMakesNetworkCall() {
         var client=mock(HttpClient.class);
         var disabled=new ResendRecoveryMailTransport(new RecoveryConfiguration(false,"","","",""),new ObjectMapper(),client);

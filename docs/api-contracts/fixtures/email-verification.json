@@ -1,0 +1,19 @@
+{
+  "description": "PS-116 example responses. Synthetic data; the credential is never returned by any API.",
+  "status": {
+    "neverRequested": { "verified": false, "verifiedAt": null, "requestAvailable": true, "lastRequestState": null, "lastRequestedAt": null },
+    "queued": { "verified": false, "verifiedAt": null, "requestAvailable": true, "lastRequestState": "QUEUED", "lastRequestedAt": "2026-10-30T03:00:00" },
+    "providerAccepted": { "verified": false, "verifiedAt": null, "requestAvailable": true, "lastRequestState": "PROVIDER_ACCEPTED", "lastRequestedAt": "2026-10-30T03:00:00" },
+    "failed": { "verified": false, "verifiedAt": null, "requestAvailable": true, "lastRequestState": "FAILED", "lastRequestedAt": "2026-10-30T03:00:00" },
+    "verified": { "verified": true, "verifiedAt": "2026-10-30T03:05:00", "requestAvailable": false, "lastRequestState": "PROVIDER_ACCEPTED", "lastRequestedAt": "2026-10-30T03:00:00" },
+    "notConfigured": { "verified": false, "verifiedAt": null, "requestAvailable": false, "lastRequestState": null, "lastRequestedAt": null }
+  },
+  "requestAccepted": { "status": "QUEUED" },
+  "errors": {
+    "invalidCredential": { "status": 400, "code": "EMAIL_VERIFICATION_INVALID" },
+    "alreadyVerified": { "status": 409, "code": "EMAIL_ALREADY_VERIFIED" },
+    "notApplicable": { "status": 409, "code": "EMAIL_VERIFICATION_NOT_APPLICABLE" },
+    "rateLimited": { "status": 429, "code": "RATE_LIMITED" },
+    "unavailable": { "status": 503, "code": "EMAIL_VERIFICATION_UNAVAILABLE" }
+  }
+}

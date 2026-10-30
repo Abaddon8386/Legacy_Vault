@@ -36,7 +36,8 @@ class PersonalAccountLoginTest {
     final PasswordEncoder passwords = mock(PasswordEncoder.class);
     final JwtService jwt = mock(JwtService.class);
     final AuthService service = new AuthService(users, roles, userRoles, passwords, jwt,
-            mock(AuditService.class), mock(PasswordReauthService.class));
+            mock(AuditService.class), mock(PasswordReauthService.class),
+            mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
     final User user = mock(User.class);
 
     PersonalAccountLoginTest() {
