@@ -26,7 +26,7 @@ class HandoverArchiveServiceTest {
  final LegalBasisLockedState state=mock(LegalBasisLockedState.class);
  final AuditService audit=mock(AuditService.class);
  final HandoverArchiveService service=new HandoverArchiveService(casesAccess,access,completion,close,
-  sessions,evidence,receipts,receiptAssets,cases,vaults,state,audit);
+  sessions,evidence,receipts,receiptAssets,cases,vaults,state,audit, org.mockito.Mockito.mock(com.legacyvault.verification.group.GroupHandoverService.class));
  final UUID caseId=UUID.randomUUID(),sessionId=UUID.randomUUID();
  final CustomUserPrincipal actor=new CustomUserPrincipal(1L,UUID.randomUUID(),"staff@example.test");
  final Vault vault=new Vault();

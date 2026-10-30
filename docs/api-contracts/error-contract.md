@@ -200,3 +200,8 @@ PS-113: `BENEFICIARY_GUARDIAN_STALE` — HTTP 409, reload guardian context/revis
 | `BENEFICIARY_LINK_REQUEST_LIMIT` | 429 |
 | `BENEFICIARY_LINK_REQUEST_NOT_PENDING` | 409 |
 | `BENEFICIARY_LEGACY_LINK_DISABLED` | 410 |
+
+PS-119/120: GROUP_HANDOVER_BLOCKED (409, error.groupHandover.blocked) means missing/stale
+attendance, active suspension or no current Staff reopen request. GROUP_HANDOVER_STALE
+(409, error.groupHandover.stale) means revision mismatch or reused idempotency key with
+different payload. Neither code discloses another account or changes business state.

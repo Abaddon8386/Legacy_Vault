@@ -13,13 +13,14 @@ import java.time.*;
 import java.util.*;
 @Service
 public class BeneficiaryReconciliationService {
+private final com.legacyvault.verification.group.GroupHandoverService group;
     private final HandoverCompletionAccess access;
     private final BeneficiaryConfirmationRepository confirmations;
     private final UserRepository users;
     private final AuditService audit;
     private final com.legacyvault.common.crypto.EncryptionService encryption;
     public BeneficiaryReconciliationService(HandoverCompletionAccess access,BeneficiaryConfirmationRepository confirmations,
-            UserRepository users,AuditService audit,com.legacyvault.common.crypto.EncryptionService encryption){this.access=access;this.confirmations=confirmations;this.users=users;this.audit=audit;this.encryption=encryption;}
+            UserRepository users,AuditService audit,com.legacyvault.common.crypto.EncryptionService encryption, com.legacyvault.verification.group.GroupHandoverService group){this.group=group;this.access=access;this.confirmations=confirmations;this.users=users;this.audit=audit;this.encryption=encryption;}
     @Transactional
     public List<BeneficiaryConfirmationResponse> list(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
         var snapshot=access.read(caseId,sessionId,actor);
@@ -46,6 +47,7 @@ public class BeneficiaryReconciliationService {
         if(request==null||request.receiptReference()==null||request.receiptReference().isBlank()
                 ||request.receiptReference().length()>200)throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         var snapshot=access.lock(caseId,sessionId,actor,false);
+        group.requireReady(caseId,sessionId,actor);
         var rows=snapshot.rows().stream().filter(r->r.beneficiaryPublicId().equals(recipientId)).toList();
         if(rows.isEmpty()||rows.stream().anyMatch(r->!Beneficiary.VERIFIED_AT_COUNTER.equals(r.beneficiaryIdentityVerificationStatus())))
             throw new BusinessException(ErrorCode.HANDOVER_RECIPIENT_NOT_ELIGIBLE);
