@@ -13,8 +13,8 @@ export default function StaffCaseContextBar({
   const en = lang === 'en';
   const hasCase = Boolean(caseId);
 
-  const rawCode = caseItem?.caseNumber || caseItem?.caseId || caseId || '';
-  const displayCaseRef = rawCode ? formatCaseReference(rawCode) : '';
+  const rawCode = caseItem?.caseNumber || (!/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(caseId) ? caseId : '');
+  const displayCaseRef = rawCode ? formatCaseReference(rawCode) : (en ? 'Loading case…' : 'Đang tải hồ sơ…');
 
   const statusLabel = caseItem?.status === 'OPEN'
     ? (en ? 'Open' : 'Đang mở')
@@ -47,7 +47,7 @@ export default function StaffCaseContextBar({
                   {sessionId && (
                     <span className="lv-staff-context-session">
                       <Layers size={13} aria-hidden="true" />
-                      <span title={sessionId}>{en ? 'Session selected' : 'Đã chọn phiên'}</span>
+                      <span>{en ? 'Session selected' : 'Đã chọn phiên'}</span>
                     </span>
                   )}
                 </div>

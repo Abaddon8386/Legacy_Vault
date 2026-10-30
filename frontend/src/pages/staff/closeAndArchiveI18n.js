@@ -9,7 +9,7 @@ export const closeAndArchiveI18n = {
     loadFailed: 'Chưa tải được thông tin phiên. Vui lòng thử lại.', contextRequired: 'Vui lòng chọn hồ sơ và phiên bàn giao.',
     saved: 'Đã ghi nhận. Đang tải lại dữ liệu.', cancelled: 'Đã hủy',
     recipientLabel: 'Người nhận biên bản', selectRecipient: 'Chọn người nhận', receiptScope: 'Tài sản đã giao trong phiên',
-    pageTitle: 'Đóng & Lưu trữ hồ sơ',
+    pageTitle: 'Hoàn tất hồ sơ',
     pageSubtitle: 'Tóm tắt biên nhận, thẩm định điều kiện hoàn tất và lưu trữ hồ sơ di sản.',
 
     // Server status section
@@ -83,7 +83,7 @@ export const closeAndArchiveI18n = {
 
     // Action section
     actionHeading: 'Thực hiện đóng & lưu trữ',
-    btnExecuteCloseArchive: 'Đóng & Lưu trữ hồ sơ',
+    btnExecuteCloseArchive: 'Hoàn tất hồ sơ',
     functionUnavailableNotice: 'Chức năng hiện chưa khả dụng',
     step1Title: 'Bước 1: Đóng phiên bàn giao',
     step1DescPending: 'Yêu cầu hoàn tất 2 cổng nghiệm thu kép (Bàn giao tài sản 100% & Xác nhận thụ hưởng 100%).',
@@ -92,7 +92,7 @@ export const closeAndArchiveI18n = {
     step1BtnDone: 'Phiên đã đóng',
     receiptBtnText: 'Lập biên bản xác nhận',
     step2Title: 'Bước 2: Lưu trữ kho di sản & Đóng ca',
-    step2Desc: 'Lưu trữ vĩnh viễn kho di sản và hoàn tất đóng ca xác minh sau khi có biên bản.',
+    step2Desc: 'Kết thúc xử lý sau khi đủ ký nhận và biên nhận Staff; giữ hồ sơ để tra cứu.',
     step2Btn: 'Lưu trữ kho di sản & Đóng ca',
   },
   en: {
@@ -100,7 +100,7 @@ export const closeAndArchiveI18n = {
     loadFailed: 'Session information could not be loaded. Please retry.', contextRequired: 'Select a case and handover session.',
     saved: 'Recorded. Refreshing data.', cancelled: 'Cancelled',
     recipientLabel: 'Receipt recipient', selectRecipient: 'Select a recipient', receiptScope: 'Assets delivered in this session',
-    pageTitle: 'Close & Archive Case',
+    pageTitle: 'Complete case',
     pageSubtitle: 'Review receipt summary, verify completion criteria, and archive heritage dossier.',
 
     // Server status section
@@ -174,7 +174,7 @@ export const closeAndArchiveI18n = {
 
     // Action section
     actionHeading: 'Execute Case Closure',
-    btnExecuteCloseArchive: 'Close & Archive Case',
+    btnExecuteCloseArchive: 'Complete case',
     functionUnavailableNotice: 'This function is currently unavailable',
     step1Title: 'Step 1: Close Handover Session',
     step1DescPending: 'Requires dual completion gates (Asset delivery 100% & Beneficiary confirmation 100%).',
@@ -183,7 +183,7 @@ export const closeAndArchiveI18n = {
     step1BtnDone: 'Session Completed',
     receiptBtnText: 'Generate Staff Receipt',
     step2Title: 'Step 2: Archive Vault & Close Case',
-    step2Desc: 'Permanently archive vault and close verification case once receipts are issued.',
+    step2Desc: 'Finish processing after all receipt requirements are met; retain the case history.',
     step2Btn: 'Archive Vault & Close Case',
   },
 };

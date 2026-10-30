@@ -112,7 +112,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
             <option value="REJECT">{en ? 'Reject' : 'Từ chối'}</option></select></label>
           <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea value={reason} maxLength={1000}
             required disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
-        <button type="submit" disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
+        <button type="submit" className={decision === 'REJECT' && !unlocking ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
         <WorkflowActionHint id="legal-action-blocked" reason={blocked} />
       </form>
       {result && <p className="lv-legal-live__success" role="status">{en ? 'Decision saved. Select “View latest status” to continue.' : 'Đã lưu quyết định. Chọn “Xem trạng thái mới” để tiếp tục.'}
@@ -124,7 +124,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
           : (en ? 'Approval applies to the current document version and asset allocations. Unlocking remains a separate action.' : 'Phê duyệt áp dụng cho phiên bản giấy tờ và thông tin phân chia hiện tại. Mở khóa vẫn là một thao tác riêng.')}</p>
         <LegalRecordDetails rows={[[en ? 'Case' : 'Hồ sơ', context.caseNumber], [en ? 'Version' : 'Phiên bản', context.snapshot?.currentVersion], ...(!unlocking ? [[en ? 'Decision' : 'Quyết định', decision === 'REJECT' ? (en ? 'Reject' : 'Từ chối') : (en ? 'Approve' : 'Chấp thuận')], [en ? 'Reason' : 'Lý do', reason || '—']] : [])]} />
         <div className="lv-legal-dialog-actions"><button type="button" onClick={() => setConfirmOpen(false)}>{en ? 'Go back' : 'Quay lại kiểm tra'}</button>
-          <button type="button" className={decision === 'REJECT' && !unlocking ? 'lv-legal-danger' : 'lv-legal-primary'} data-legal-confirm onClick={submit}>{en ? 'Confirm decision' : 'Xác nhận quyết định'}</button></div>
+          <button type="button" className={decision === 'REJECT' && !unlocking ? 'lv-legal-danger lv-decision--negative' : 'lv-legal-primary lv-decision--positive'} data-legal-confirm onClick={submit}>{en ? 'Confirm decision' : 'Xác nhận quyết định'}</button></div>
       </Modal>
     </>}
     {denied && <button type="button" disabled={pending} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{en ? 'Try again' : 'Thử lại'}</button>}

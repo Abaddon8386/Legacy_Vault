@@ -15,6 +15,7 @@ import {
 } from '../../utils/beneficiaryConfirmationValidation.js';
 import {
   fetchBeneficiaryConfirmations,
+  fetchHandoverDeliveries,
   fetchEligibleAssets,
   fetchCompletionProgress,
   confirmBeneficiary,
@@ -106,7 +107,6 @@ function BeneficiaryConfirmationPageContext({
   onNavigateCases = null,
 }) {
   const t = beneficiaryConfirmationI18n[lang] || beneficiaryConfirmationI18n.vi;
-  const caseInputId = useId();
   const benSelectId = useId();
   const receiptInputId = useId();
 
@@ -121,7 +121,10 @@ function BeneficiaryConfirmationPageContext({
   const [sessionId, setSessionId] = useState(initialSession);
   const [availableSessions, setAvailableSessions] = useState([]);
   const [selectedCaseItem, setSelectedCaseItem] = useState(propCaseItem);
+  const selectedSession = availableSessions.find(item => item.sessionId === sessionId);
+  const isReadOnlySession = ['COMPLETED', 'CANCELLED'].includes(selectedSession?.status);
   const displayCaseItem = useStaffCaseMetadata(caseReference, selectedCaseItem || propCaseItem, effectiveAccessToken, lang, effectiveIsDevPreview);
+  const caseUnassigned = displayCaseItem?.assignmentStatus === 'UNASSIGNED_CLAIMABLE';
   const isReadOnlyCase = displayCaseItem?.status === 'CLOSED' || displayCaseItem?.vaultStatus === 'ARCHIVED';
   const [closedHistory, setClosedHistory] = useState(null);
   const historyKey = `${caseReference}:${sessionId}:${effectiveAccessToken || ''}:${lang}`;
@@ -209,7 +212,7 @@ function BeneficiaryConfirmationPageContext({
 
   useEffect(() => {
     if (
-      sessionId ||
+      sessionId || caseUnassigned ||
       !caseReference ||
       !effectiveAccessToken ||
       effectiveIsDevPreview ||
@@ -292,6 +295,7 @@ function BeneficiaryConfirmationPageContext({
     return () => controller.abort();
   }, [
     sessionId,
+    caseUnassigned,
     caseReference,
     propCaseItem?.caseId,
     resolvedCaseUuid,
@@ -326,13 +330,13 @@ function BeneficiaryConfirmationPageContext({
   const [guideProgress, setGuideProgress] = useState(null);
   const progressKey = `${caseReference}:${sessionId}:${effectiveAccessToken || ''}`;
   useEffect(() => {
-    if (!caseReference || !sessionId) return;
+    if (isReadOnlyCase || !caseReference || !sessionId) return;
     const controller = new AbortController();
     fetchCompletionProgress(caseReference, sessionId, { accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang, signal: controller.signal })
       .then(data => { if (!controller.signal.aborted) setGuideProgress({ key: progressKey, data }); })
       .catch(() => { if (!controller.signal.aborted) setGuideProgress({ key: progressKey, data: null }); });
     return () => controller.abort();
-  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, progressKey, selectedBeneficiaryId]);
+  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, progressKey, selectedBeneficiaryId, isReadOnlyCase]);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
@@ -403,7 +407,7 @@ function BeneficiaryConfirmationPageContext({
       return;
     }
 
-    if (!caseReference || !sessionId || propBeneficiaries || (initialBeneficiaries && initialBeneficiaries.length > 0)) {
+    if (caseUnassigned || !caseReference || !sessionId || propBeneficiaries || (initialBeneficiaries && initialBeneficiaries.length > 0)) {
       return;
     }
 
@@ -423,13 +427,21 @@ function BeneficiaryConfirmationPageContext({
       lang,
       signal: controller.signal,
     };
-    Promise.all([
+    (async () => {
+      const sessionData = effectiveIsDevPreview ? null : await fetchHandoverSession(effectiveTargetCase, sessionId, options);
+      const openSession = sessionData?.status === 'OPEN';
+      const [list, people, assets] = await Promise.all([
       fetchBeneficiaryConfirmations(effectiveTargetCase, sessionId, options),
       effectiveIsDevPreview ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(effectiveTargetCase, options),
-      effectiveIsDevPreview ? Promise.resolve([]) : fetchEligibleAssets(effectiveTargetCase, sessionId, options),
-    ])
-      .then(([list, people, assets]) => {
+      effectiveIsDevPreview ? Promise.resolve([]) : openSession
+        ? fetchEligibleAssets(effectiveTargetCase, sessionId, options)
+        : fetchHandoverDeliveries(effectiveTargetCase, sessionId, options),
+      ]);
+      return {list, people, assets, sessionData, openSession};
+    })()
+      .then(({list, people, assets, sessionData, openSession}) => {
         if (!controller.signal.aborted && activeCaseRef.current === caseReference) {
+          if (sessionData) setAvailableSessions(previous => [...previous.filter(item => item.sessionId !== sessionData.sessionId), sessionData]);
           setFetchedKey(currentKey);
           const normalized = (Array.isArray(list) ? list : []).map((b) => {
             const person = people.find(item => item.beneficiaryId === b.beneficiaryId);
@@ -437,8 +449,9 @@ function BeneficiaryConfirmationPageContext({
             return normalizeBeneficiaryItem({ ...b,
               fullName: person?.fullName || b.fullName || b.beneficiaryName,
               relationship: person?.relationship || b.relationship,
-              deliveryStatus: allocated.length > 0
-                ? (allocated.every(item => item.deliveryStatus === 'DELIVERED') ? 'DELIVERED' : 'PENDING')
+              // Delivery history contains only delivered items, not the full allocation scope.
+              deliveryStatus: openSession
+                ? (allocated.length > 0 && allocated.every(item => item.deliveryStatus === 'DELIVERED') ? 'DELIVERED' : 'PENDING')
                 : b.deliveryStatus,
             }, lang);
           });
@@ -460,38 +473,7 @@ function BeneficiaryConfirmationPageContext({
     return () => {
       controller.abort();
     };
-  }, [caseReference, effectiveCaseId, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, isReadOnlyCase, reloadRevision, onUnauthorized, fetchedKey]);
-
-  const handleCaseChange = (newCase) => {
-    confirmationController.current?.abort();
-    confirmationController.current = null;
-    setIsSubmitting(false);
-    activeCaseRef.current = newCase;
-    setFetchedKey('');
-    setCaseReference(newCase);
-    setResolvedCaseUuid(isUuid(newCase) ? newCase : '');
-    setSelectedCaseItem(null);
-    setSessionId('');
-    setAvailableSessions([]);
-    setSessionLoadError('');
-    setIsLoadingSessions(false);
-    setBeneficiaries([]);
-    setLoadedCaseId('');
-    setSelectedBeneficiaryId('');
-    setReceiptReference('');
-    setErrors({});
-    setActionSuccess(null);
-    setActionError(null);
-
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      if (newCase) url.searchParams.set('caseId', newCase);
-      else url.searchParams.delete('caseId');
-      url.searchParams.delete('sessionId');
-      window.history.replaceState(window.history.state, '', url.pathname + url.search);
-    }
-    onCaseChange?.(newCase, null);
-  };
+  }, [caseReference, effectiveCaseId, sessionId, propBeneficiaries, initialBeneficiaries, onFetchBeneficiaries, loadBeneficiaries, effectiveAccessToken, effectiveIsDevPreview, lang, isReadOnlyCase, caseUnassigned, reloadRevision, onUnauthorized, fetchedKey]);
 
   const handleBeneficiarySelect = (benId) => {
     setSelectedBeneficiaryId(benId);
@@ -516,7 +498,7 @@ function BeneficiaryConfirmationPageContext({
   // Submit xác nhận người thụ hưởng
   const handleSubmitConfirmation = async (e) => {
     e.preventDefault();
-    if (isReadOnlyCase || errors.fetch || confirmationController.current || isSubmitting || !selectedBeneficiaryId) return;
+    if (caseUnassigned || isReadOnlyCase || isReadOnlySession || errors.fetch || confirmationController.current || isSubmitting || !selectedBeneficiaryId) return;
 
     setActionSuccess(null);
     setActionError(null);
@@ -590,7 +572,7 @@ function BeneficiaryConfirmationPageContext({
   };
 
   const hasValidData =
-    !isReadOnlyCase && Boolean(caseReference) &&
+    !caseUnassigned && !isReadOnlyCase && Boolean(caseReference) &&
     loadedCaseId === caseReference &&
     Array.isArray(beneficiaries) &&
     beneficiaries.length > 0;
@@ -601,7 +583,7 @@ function BeneficiaryConfirmationPageContext({
   const isSelectedAlreadyConfirmed =
     selectedBenObj?.confirmationStatus === BENEFICIARY_CONFIRM_STATUS.CONFIRMED ||
     selectedBenObj?.status === 'CONFIRMED';
-  const canSubmit = hasValidData &&
+  const canSubmit = hasValidData && !isReadOnlySession &&
     selectedBeneficiaryId &&
     Boolean(signedFile) && attested &&
     !isSelectedAlreadyConfirmed &&
@@ -748,7 +730,8 @@ function BeneficiaryConfirmationPageContext({
       )}
 
       {/* State 2: Đang tải danh sách phiên */}
-      {caseReference && !sessionId && isLoadingSessions && !effectiveIsDevPreview && (
+      {caseUnassigned && <section className="lv-confirm-card" role="status"><h2 className="lv-confirm-card__title">{lang === 'en' ? 'This case has not been claimed' : 'Hồ sơ chưa được nhận xử lý'}</h2><p>{lang === 'en' ? 'Claim this case from the case queue before opening a handover session.' : 'Staff cần nhận xử lý hồ sơ trong danh sách ca xác minh trước khi mở phiên bàn giao.'}</p><a className="lv-confirm-btn-select-case" href={`/staff/cases?caseId=${encodeURIComponent(caseReference)}`}>{lang === 'en' ? 'Open case queue' : 'Đến hồ sơ để nhận xử lý'}</a></section>}
+      {caseReference && !caseUnassigned && !sessionId && isLoadingSessions && !effectiveIsDevPreview && (
         <section className="lv-confirm-card lv-confirm-state-card" aria-busy="true" aria-live="polite">
           <div className="lv-confirm-state-content">
             <RefreshCw size={22} className="lv-confirm-state-spinner" aria-hidden="true" />
@@ -767,7 +750,7 @@ function BeneficiaryConfirmationPageContext({
       )}
 
       {/* State 3: Tải phiên thất bại (có nguyên nhân và nút thử lại) */}
-      {caseReference && !sessionId && !isLoadingSessions && sessionLoadError && !effectiveIsDevPreview && (
+      {caseReference && !caseUnassigned && !sessionId && !isLoadingSessions && sessionLoadError && !effectiveIsDevPreview && (
         <section className="lv-confirm-card lv-confirm-state-card lv-confirm-state-card--error" role="alert">
           <div className="lv-confirm-state-content">
             <AlertTriangle size={24} className="lv-confirm-state-icon lv-confirm-state-icon--error" aria-hidden="true" />
@@ -792,7 +775,7 @@ function BeneficiaryConfirmationPageContext({
       )}
 
       {/* State 4: Tải thành công nhưng không có phiên phù hợp */}
-      {caseReference && !sessionId && !isLoadingSessions && !sessionLoadError && availableSessions.length === 0 && !effectiveIsDevPreview && (
+      {caseReference && !caseUnassigned && !sessionId && !isLoadingSessions && !sessionLoadError && availableSessions.length === 0 && !effectiveIsDevPreview && (
         <section className="lv-confirm-card lv-confirm-state-card lv-confirm-state-card--warning" role="region">
           <div className="lv-confirm-state-content">
             <HelpCircle size={24} className="lv-confirm-state-icon lv-confirm-state-icon--warning" aria-hidden="true" />
@@ -898,70 +881,25 @@ function BeneficiaryConfirmationPageContext({
         </div>
       )}
 
-      {/* Case Selection Card */}
-      <details className="lv-confirm-technical"><summary>{lang === 'en' ? 'Technical case reference' : 'Mã kỹ thuật hồ sơ'}</summary>
-      <section className="lv-confirm-card" aria-labelledby="case-card-heading">
-        <div className="lv-confirm-case-bar">
-          <div className="lv-confirm-input-group">
-            <label htmlFor={caseInputId} className="lv-confirm-label" id="case-card-heading">
-              {t.caseSelectLabel}
-            </label>
-            <input
-              id={caseInputId}
-              type="text"
-              className="lv-confirm-input"
-              placeholder={t.caseSelectPlaceholder}
-              value={caseReference}
-              onChange={(e) => handleCaseChange(e.target.value)}
-            />
-          </div>
-          <button
-            type="button"
-            className="lv-confirm-btn-select-case"
-            onClick={() => setIsSelectorOpen(true)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid #164639',
-              backgroundColor: '#164639',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
-          </button>
-
-        </div>
-      </section>
-
-      </details>
       {isReadOnlyCase && (
-        <section className="lv-confirm-card" aria-labelledby="readonly-heading">
+        <section className="lv-confirm-card lv-confirm-history-card" aria-labelledby="readonly-heading">
           <h2 id="readonly-heading" className="lv-confirm-card__title">
             {lang === 'en' ? 'Closed case — view history' : 'Hồ sơ đã đóng — chỉ xem lịch sử'}
           </h2>
             {closedHistory?.key === historyKey && closedHistory.error && <p role="alert">{confirmationErrorMessage(closedHistory.error, lang)}</p>}
             {closedHistory?.key === historyKey && closedHistory.items && <ul aria-label={lang === 'en' ? 'Confirmation history' : 'Lịch sử xác nhận'} className="lv-confirm-history-list" style={{ listStyle: 'none', padding: 0, margin: '14px 0' }}>
               {closedHistory.items.map((item, index) => {
-                const displayName = item.beneficiaryName || `${lang === 'en' ? 'Recipient' : 'Người nhận'} (${item.beneficiaryId ? item.beneficiaryId.slice(0, 8) + '…' : index + 1})`;
+                const displayName = item.beneficiaryName || `${lang === 'en' ? 'Recipient' : 'Người nhận'} (${index + 1})`;
                 const isConfirmed = item.status === 'CONFIRMED' || item.confirmationStatus === 'CONFIRMED';
                 return (
                   <li key={item.beneficiaryId || index} style={{ margin: '8px 0', padding: '10px 14px', background: '#f8faf7', borderRadius: '8px', border: '1px solid #e2e8e2' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                       <strong style={{ color: '#164639' }}>{displayName}</strong>
-                      <span className={`lv-confirm-status-badge ${isConfirmed ? 'lv-confirm-status-badge--confirmed' : 'lv-confirm-status-badge--pending'}`} style={{ fontSize: '12px' }}>
+                      <span className={`lv-confirm-status-badge ${isConfirmed ? 'lv-confirm-status-badge--confirmed' : 'lv-confirm-status-badge--pending'}`}>
                         {isConfirmed ? (lang === 'en' ? 'Confirmed' : 'Đã xác nhận') : (lang === 'en' ? 'Pending' : 'Chưa xác nhận')}
                       </span>
                     </div>
-                    {item.receiptReference && (
-                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#526056' }}>
-                        <span>{lang === 'en' ? 'Receipt reference: ' : 'Mã biên nhận: '}</span>
-                        <code style={{ background: '#edf2ec', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{item.receiptReference}</code>
-                      </div>
-                    )}
+                    {item.hasSignedFile && item.confirmationId && <SignedReceiptViewer caseId={caseReference} sessionId={sessionId} confirmationId={item.confirmationId} accessToken={effectiveAccessToken} lang={lang} onUnauthorized={onUnauthorized} onViewReceipt={setActiveReceiptPreview} />}
                   </li>
                 );
               })}
@@ -977,7 +915,7 @@ function BeneficiaryConfirmationPageContext({
           </div>
         </section>
       )}
-      {!isReadOnlyCase && errors.fetch && (
+      {!isReadOnlyCase && !caseUnassigned && errors.fetch && (
         <section className="lv-confirm-card">
           <p className="lv-confirm-error-msg" role="alert"><AlertTriangle size={18} aria-hidden="true" />{errors.fetch}</p>
           <button type="button" className="lv-confirm-btn-select-case" onClick={() => {
@@ -1075,7 +1013,7 @@ function BeneficiaryConfirmationPageContext({
       </section>
 
       {/* Staff Record Confirmation Form */}
-      <section className="lv-confirm-card lv-staff-glow" aria-labelledby="form-heading">
+      {!isReadOnlySession && <section className="lv-confirm-card lv-staff-glow" aria-labelledby="form-heading">
         <div className="lv-confirm-card__header">
           <h2 id="form-heading" className="lv-confirm-card__title">
             {t.formHeading}
@@ -1195,7 +1133,8 @@ function BeneficiaryConfirmationPageContext({
 
           </div>
         </form>
-      </section>
+      </section>}
+      {isReadOnlySession && <section className="lv-confirm-card" role="status"><h2 className="lv-confirm-card__title">{lang === 'en' ? 'This handover session has ended' : 'Phiên bàn giao đã kết thúc'}</h2><p>{lang === 'en' ? 'Receipt records remain available above. New confirmations cannot be added to this session.' : 'Bạn có thể xem ký nhận đã ghi ở trên. Phiên này không nhận thêm xác nhận mới.'}</p><a className="lv-confirm-btn-select-case" href={`/staff/close-and-archive?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}`}>{lang === 'en' ? 'View case completion' : 'Xem hoàn tất hồ sơ'}</a></section>}
       </>}
       {/* Global Root Receipt Preview Modal - Escapes card stacking contexts */}
       {activeReceiptPreview && (

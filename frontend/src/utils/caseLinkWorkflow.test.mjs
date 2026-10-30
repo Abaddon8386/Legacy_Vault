@@ -101,6 +101,32 @@ test('Staff matches fixed account to court recipient and records evidence before
     assert.match(v.host.textContent, /chỉ xem được tài sản sau bàn giao/);
   } finally { await v.close(); }
 });
+test('Staff decline requires confirmation, can be cancelled, and resets when changing requests', async () => {
+  let writes = 0, sent;
+  const actions = { listRecipients: async () => [recipient], listPending: async () => [req], reject: async data => { writes++; sent = data; return { ...req, status: 'REJECTED' }; } };
+  const v = await mount(Counter, { caseId: 'case-a', caseItem, accessToken: 'staff', actions });
+  try {
+    await click(v.host, 'Từ chối yêu cầu');
+    assert.equal(v.host.querySelector('#counter-link-reject-confirmation'), null);
+    await change(v.host, 'select', req.id);
+    await click(v.host, 'Từ chối yêu cầu');
+    assert.equal(writes, 0);
+    assert.match(v.host.querySelector('#counter-link-reject-confirmation').textContent, /c@example.test/);
+    await click(v.host, 'Giữ yêu cầu');
+    assert.equal(writes, 0);
+    assert.equal(v.host.querySelector('#counter-link-reject-confirmation'), null);
+    await click(v.host, 'Từ chối yêu cầu');
+    await change(v.host, 'select', '');
+    assert.equal(v.host.querySelector('#counter-link-reject-confirmation'), null);
+    await change(v.host, 'select', req.id);
+    await click(v.host, 'Từ chối yêu cầu');
+    await click(v.host, 'Xác nhận từ chối');
+    assert.equal(writes, 1);
+    assert.deepEqual(sent, { caseId: 'case-a', requestId: req.id });
+    assert.match(v.host.textContent, /Đã từ chối yêu cầu/);
+  } finally { await v.close(); }
+});
+
 test('Staff create-only clears password immediately and never calls approve', async () => {
   let finish, sent, approvals = 0;
   const actions = { listRecipients: async () => [recipient], listPending: async () => [], createAccount: data => { sent = data; return new Promise(resolve => { finish = resolve; }); }, approve: () => { approvals++; } };

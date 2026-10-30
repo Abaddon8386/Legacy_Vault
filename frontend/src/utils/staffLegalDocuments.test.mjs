@@ -1685,7 +1685,7 @@ test('New flow: accepted documents unlock a separate JSON allocation submission 
     if (url.endsWith('/distribution-workflow')) return jsonResponse(model());
     if (url.endsWith('/basis-dossier')) return jsonResponse({ caseId: caseA, route: 'NOTARIAL', status: 'LEGAL_BASIS_FORWARDED', versions: [{ version: 1, sha256: sha, forwardStatus: 'FORWARDED' }] });
     if (url.includes('/assets?')) return jsonResponse({ content: [{ assetId: caseA, name: 'Kho ảnh gia đình' }], last: true, totalPages: 1, page: 0, size: 100, totalElements: 1 });
-    if (url.endsWith('/beneficiaries')) return jsonResponse([{ beneficiaryId: caseB, fullName: 'Nguyễn An' }]);
+    if (url.endsWith('/beneficiaries')) return jsonResponse([{ beneficiaryId: caseB, fullName: 'Nguyễn An' }, { beneficiaryId: caseA, fullName: 'Nguyễn Bình' }]);
     return jsonResponse({ code: 'RESOURCE_NOT_FOUND' }, 404);
   };
   const { host, render, unmount } = await mountComponentHelper();
@@ -1697,9 +1697,18 @@ test('New flow: accepted documents unlock a separate JSON allocation submission 
     await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent.includes('Thêm phân bổ')).click());
     const selects = panel.querySelectorAll('select'); assert.equal(selects.length, 2);
     await change(selects[0], caseA); await change(selects[1], caseB); await change(panel.querySelector('textarea'), 'Toàn bộ kho ảnh');
+    await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent.includes('Thêm người nhận cho tài sản này')).click());
+    const rows = panel.querySelectorAll('.lv-court-editor__row');
+    assert.equal(rows.length, 2, 'A second recipient can be added after completing the first row');
+    assert.equal(rows[0].querySelector('textarea').value, 'Toàn bộ kho ảnh', 'Adding a recipient preserves the first draft');
+    assert.equal(rows[1].querySelector('select').value, caseA, 'The new row keeps the same asset');
+    await change(rows[1].querySelectorAll('select')[1], caseA);
+    await change(rows[0].querySelector('textarea'), 'Một nửa kho ảnh');
+    await change(rows[1].querySelector('textarea'), 'Một nửa còn lại');
+
     await act(async () => panel.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
     assert.equal(writes.length, 1); assert.match(writes[0].url, /distribution-workflow\/submit-allocations$/);
-    assert.deepEqual(writes[0].body.allocations, [{ assetId: caseA, beneficiaryId: caseB, description: 'Toàn bộ kho ảnh' }]);
+    assert.deepEqual(writes[0].body.allocations, [{ assetId: caseA, beneficiaryId: caseB, description: 'Một nửa kho ảnh' }, { assetId: caseA, beneficiaryId: caseA, description: 'Một nửa còn lại' }]);
     assert.equal(writes[0].body.documentVersion, 1); assert.equal(Object.hasOwn(writes[0].body, 'file'), false);
     assert.match(host.textContent, /Đã gửi phân bổ/); assert.doesNotMatch(host.textContent, /Đã gửi thông báo cho Pháp lý/);
   } finally { await unmount(); globalThis.fetch = originalFetch; }

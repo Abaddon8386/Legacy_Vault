@@ -860,7 +860,8 @@ function ApprovalReviewContent({
                   <div className="lv-legal-approval-form-actions">
                     <Button
                       type="submit"
-                      variant="primary"
+                      variant={decision === 'REJECT' ? 'danger' : 'primary'}
+                      className={decision === 'REJECT' ? 'lv-decision--negative' : 'lv-decision--positive'}
                       size="lg"
                       disabled={isSubmitting || !freshness?.canApprove}
                     >
@@ -931,7 +932,7 @@ function ApprovalReviewContent({
                   <Button variant="ghost" onClick={handleCloseConfirmModal} disabled={isSubmitting}>
                     {t.confirmModal.btnCancel}
                   </Button>
-                  <Button variant="primary" onClick={handleConfirmSubmit} isLoading={isSubmitting}>
+                  <Button variant={decision === 'REJECT' ? 'danger' : 'primary'} className={decision === 'REJECT' ? 'lv-decision--negative' : 'lv-decision--positive'} onClick={handleConfirmSubmit} isLoading={isSubmitting}>
                     <ShieldCheck size={16} aria-hidden="true" style={{ marginRight: '6px' }} />
                     <span>{isSubmitting ? t.decisionSection.btnSubmitting : t.confirmModal.btnConfirm}</span>
                   </Button>

@@ -368,7 +368,7 @@ test('basis assessment cannot classify or approve an absent distribution dossier
   value.capabilities={approval:{allowed:false,blockedReason:'BASIS_DOSSIER_INVALID_STATE'},unlock:{allowed:false,blockedReason:'BASIS_DOSSIER_INVALID_STATE'}};
   let writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST')writes++;if(url.endsWith('/context'))return json(value);if(url.includes('verification-cases?'))return json(pageFixture());if(url.endsWith('will-comparisons'))return json(value.willComparison);return json({code:'RESOURCE_NOT_FOUND'},404);};
   const view=await mount({...base,step:'basis-route-selection'});
-  try{assert.equal(view.host.querySelector('form'),null);assert.match(view.host.textContent,/not available yet/);assert.equal(view.host.querySelector('option[value=NOTARIAL]'),null);assert.equal(writes,0);}finally{await view.close();}
+  try{assert.equal(view.host.querySelector('form'),null);assert.match(view.host.textContent,/unavailable|outside this account/);assert.equal(view.host.querySelector('option[value=NOTARIAL]'),null);assert.equal(writes,0);}finally{await view.close();}
 });
 
 test('queue paging requests the next server page rather than treating the first page as all cases', async () => {

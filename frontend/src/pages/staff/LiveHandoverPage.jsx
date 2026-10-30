@@ -8,6 +8,7 @@ import '../../components/layout/OwnerSurfaces.css';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import StaffCaseLinkPanel from './StaffCaseLinkPanel.jsx';
+import { workflowFailure } from '../../utils/workflowFeedback.js';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
 
 function sessionTime(value, en) {
@@ -20,6 +21,7 @@ function sessionTime(value, en) {
 function errorText(error, en, caseItem) {
   const auth = staffAuthFeedback(error, en ? 'en' : 'vi');
   if (auth) return `${auth.title}. ${auth.description}`;
+  if (error?.status === 404) return workflowFailure(error, en ? 'en' : 'vi').description;
   if ((error?.code === 'RESOURCE_NOT_FOUND' || error?.status === 404) && caseItem?.status === 'CLOSED') {
     return en
       ? 'This verification case is closed. Counter identity checks and account management are only available for open cases.'
@@ -210,7 +212,6 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           </p>
         </div>
       )}
-      <details className="lv-session-guidance"><summary>{en ? 'Session reference' : 'Mã tham chiếu phiên'}</summary><code>{selected.sessionId}</code></details>
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
       {selected.status === 'OPEN' && <div className="lv-handover-next-step">
         <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>

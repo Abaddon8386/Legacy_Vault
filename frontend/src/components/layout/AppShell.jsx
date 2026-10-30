@@ -12,6 +12,7 @@ import {
 } from '../../utils/accountProfileValidation.js';
 import './AppShell.css';
 import './WorkspaceFoundation.css';
+import './WorkflowForms.css';
 import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 
 /**

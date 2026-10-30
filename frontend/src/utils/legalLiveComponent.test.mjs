@@ -122,7 +122,7 @@ test('Will picks original/version/hash from authorized overview, sends only cont
 });
 test('unavailable distribution API never advertises final approval or unlock', async () => {
  globalThis.fetch=async()=>json({},404);
- for(const step of ['approval-review','controlled-unlock']) { const view=await mount({...base,step});try{assert.match(view.host.textContent,/not available yet/);assert.equal(view.host.querySelector('form'),null);}finally{await view.close();} }
+ for(const step of ['approval-review','controlled-unlock']) { const view=await mount({...base,step});try{assert.match(view.host.textContent,/unavailable|outside this account/);assert.equal(view.host.querySelector('form'),null);}finally{await view.close();} }
 });
 
 test('Saving automatically refreshes parent context and document while preserving the selected document and draft', async () => {
@@ -204,7 +204,7 @@ const makeDossier = (route = 'COURT') => ({ id: a, caseId: a, route, status: 'LE
   versions: [{ version: 1, sha256: digest, forwardStatus: 'FORWARDED', documentNumber: 'Basis 1' }], classifiedBy: a });
 const distributionContext=()=>({caseId:a,vaultId:b,caseStatus:'OPEN',vaultStatus:'LEGAL_BASIS_VERIFICATION',deathDocuments:[],willComparison:{latestResult:'MATCH',approvalBlocked:false},basisDossier:makeDossier(),snapshot:{allocationHash:digest},capabilities:{approval:{allowed:false},unlock:{allowed:false}}});
 function workflowFixture(phase,action){const value=distributionFixture(distributionContext(),phase);if(phase==='DOCUMENT_REQUEST_NEEDED'){value.request=null;value.document=null;value.allocation=null;}else if(phase==='DOCUMENTS_UNDER_REVIEW'){value.document.status='PENDING';value.allocation=null;}else if(phase==='ALLOCATIONS_UNDER_REVIEW')value.allocation.status='SUBMITTED';value.capabilities[action]={allowed:true,blockedReason:null};return value;}
-test('unimplemented workflow has no route selector or fabricated action',async()=>{globalThis.fetch=async()=>json({},404);const view=await mount({...base,step:'basis-route-selection'});try{assert.equal(getSelect(view.host,'Legal basis'),undefined);assert.equal(view.host.querySelector('form'),null);assert.match(view.host.textContent,/not available yet/);}finally{await view.close();}});
+test('unimplemented workflow has no route selector or fabricated action',async()=>{globalThis.fetch=async()=>json({},404);const view=await mount({...base,step:'basis-route-selection'});try{assert.equal(getSelect(view.host,'Legal basis'),undefined);assert.equal(view.host.querySelector('form'),null);assert.match(view.host.textContent,/unavailable|outside this account/);}finally{await view.close();}});
 for(const [action,phase,title,path] of [
  ['requestDocuments','DOCUMENT_REQUEST_NEEDED','Request distribution documents','request-documents'],
  ['approveDocuments','DOCUMENTS_UNDER_REVIEW','Accept documents','approve-documents'],
@@ -269,4 +269,21 @@ test('Removing discovery while case is open clears the old case and disables sel
   try { await selectDocument(view.host, a); await view.render({ ...base, discovery: null });
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('select').disabled, true); assert.doesNotMatch(view.host.textContent, /Authority A/); }
   finally { await view.close(); }
+});
+
+test('a successful waiting workflow keeps a refresh action and loads the other role latest phase', async () => {
+  let ready = false, reads = 0;
+  globalThis.fetch = async url => {
+    if (url.endsWith('/distribution-workflow')) { reads++; return json(workflowFixture(ready ? 'DOCUMENTS_UNDER_REVIEW' : 'AWAITING_DOCUMENTS', 'approveDocuments')); }
+    return json([]);
+  };
+  const view = await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});
+  try {
+    assert.equal(view.host.querySelector('form'),null);
+    const before = reads; ready = true;
+    await click(view.host,'Refresh case status');
+    assert.ok(reads > before);
+    assert.ok(view.host.querySelector('form'));
+    assert.ok([...view.host.querySelectorAll('button')].some(button=>button.textContent==='Accept documents'));
+  } finally {await view.close();}
 });

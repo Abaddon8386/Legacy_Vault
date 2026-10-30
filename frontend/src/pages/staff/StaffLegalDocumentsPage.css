@@ -1299,3 +1299,18 @@
   .lv-staff-documents-view .lv-staff-tab-btn { padding: 10px 12px; font-size: 13px; }
   .lv-staff-documents-view .lv-intake-form-actions > button { width: 100%; }
 }
+
+/* Document facts are a compact list, with badges sized to their text. */
+.lv-staff-documents-view .lv-dossier-specs-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px 24px; padding: 20px; border: 1px solid #e0e5dc; border-radius: 12px; background: #f8faf6; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-dossier-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; margin: 0; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-dossier-label { font-size: 14px; color: #52655a; font-weight: 500; }
+.lv-staff-documents-view .lv-dossier-specs-grid :is(.lv-dossier-value-text,.lv-dossier-value-badge,.lv-forward-badge) { font-size: 16px; line-height: 1.5; max-width: 100%; overflow-wrap: anywhere; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-forward-badge { display: inline-flex; width: auto; border-radius: 8px; padding: 4px 10px; background: #e6f2e8; color: #20563e; }
+.lv-staff-documents-view .lv-dossier-overview-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-top: 18px; }
+.lv-staff-documents-view .lv-dossier-overview-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid #aec1b3; border-radius: 9px; font-size: 14px; font-weight: 600; }
+.lv-staff-documents-view .lv-dossier-overview-actions .lv-btn-forward-legal:not(:disabled) { background: #164639; color: #fff; border-color: #164639; }
+.lv-staff-documents-view .lv-dossier-overview-actions .lv-btn-forward-legal:not(:disabled):hover { background: #0c2b22; border-color: #0c2b22; }
+.lv-staff-documents-view .lv-dossier-overview-actions .lv-btn-go-intake { background: #fff; color: #164639; }
+.lv-staff-documents-view .lv-dossier-overview-actions > button:disabled { background: #edf0eb; color: #748077; border-color: #d8dfd8; opacity: 1; cursor: not-allowed; }
+@media(max-width:640px) { .lv-staff-documents-view .lv-dossier-specs-grid { grid-template-columns: minmax(0,1fr); padding: 16px; } }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-forward-badge--not-forwarded { background: #fff3d8; color: #76541b; }

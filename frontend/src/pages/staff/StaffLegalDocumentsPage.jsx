@@ -41,6 +41,7 @@ import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.j
 import { listLiveSessions } from './liveHandoverService.js';
 import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
 import './StaffLegalDocumentsPage.css';
+import { formatStaffSession } from '../../utils/caseReference.js';
 
 export default function StaffLegalDocumentsPage({
   lang = 'vi',
@@ -474,12 +475,12 @@ export default function StaffLegalDocumentsPage({
   }, [selectedCaseId, effectiveAccessToken, distribution.data?.phase, distribution.data?.document?.version, lang, en, onUnauthorized]);
 
   // Allocations management (Finding B)
-  const handleAddAllocation = () => {
+  const handleAddAllocation = (seed) => {
     setAllocations((prev) => [
       ...prev,
       {
         id: 'alloc-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6),
-        assetId: '',
+        assetId: seed?.assetId || '',
         beneficiaryId: '',
         recipientKind: 'existing',
         courtRecipient: {},
@@ -837,7 +838,7 @@ export default function StaffLegalDocumentsPage({
       <StaffWorkflowGuide current="intake" caseId={selectedCaseId} sessionId={propSessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
         caseStatus={displayCaseItem?.status} vaultStatus={isRouteOnHold ? 'ON_HOLD' : displayCaseItem?.vaultStatus}
         loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} distributionWorkflow={distribution.data} />
-      {selectedCaseId && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} />}
+      {selectedCaseId && !dossierError && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} />}
 
       {(['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || displayCaseItem?.vaultStatus === 'ARCHIVED') && (
         <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
@@ -885,7 +886,7 @@ export default function StaffLegalDocumentsPage({
                   <option value="">{en ? '-- Select session --' : '-- Chọn phiên bàn giao --'}</option>
                   {discoveredSessionState.sessions.map((s, idx) => (
                     <option key={s.sessionId || idx} value={s.sessionId}>
-                      {s.sessionNumber || (s.sessionId ? s.sessionId.slice(0, 8) : `Session #${idx + 1}`)} ({s.status})
+                      {formatStaffSession(s, lang)}
                     </option>
                   ))}
                 </select>
@@ -1129,27 +1130,6 @@ export default function StaffLegalDocumentsPage({
               </div>
             )}
 
-            {/* Chi tiết kỹ thuật thu gọn (Tránh lộ raw SHA-256 trên giao diện chính) */}
-            {latestVersion?.sha256 && (
-              <details className="lv-technical-details">
-                <summary className="lv-technical-details__summary">
-                  <span>{t.technicalDetailsTitle}</span>
-                </summary>
-                <div className="lv-technical-details__content">
-                  <div className="lv-dossier-row">
-                    <span className="lv-dossier-label">{t.dossierHashLabel}</span>
-                    <code className="lv-hash-code">{latestVersion.sha256}</code>
-                  </div>
-                  {latestVersion.sizeBytes && (
-                    <div className="lv-dossier-row">
-                      <span className="lv-dossier-label">{en ? 'File size:' : 'Kích thước tệp:'}</span>
-                      <span>{(latestVersion.sizeBytes / 1024).toFixed(1)} KB</span>
-                    </div>
-                  )}
-                </div>
-              </details>
-            )}
-
             {/* Action Bar trong Tab Tổng quan */}
             <div className="lv-dossier-overview-actions">
               {latestVersion && (
@@ -1172,7 +1152,7 @@ export default function StaffLegalDocumentsPage({
                   )}
                 </button>
               )}
-              {selectedCaseId && (
+              {selectedCaseId && !isLatestForwarded && !['CLOSED','CANCELLED'].includes(displayCaseItem?.status) && (
                 <button
                   type="button"
                   className="lv-btn-forward-legal"
@@ -1193,7 +1173,7 @@ export default function StaffLegalDocumentsPage({
                 </button>
               )}
 
-              <button
+              {!['CLOSED','CANCELLED'].includes(displayCaseItem?.status) && <button
                 type="button"
                 className="lv-btn-go-intake"
                 onClick={() => setActiveTab('intake')}
@@ -1201,7 +1181,7 @@ export default function StaffLegalDocumentsPage({
               >
                 <Plus size={16} aria-hidden="true" />
                 <span>{t.btnGoToIntake}</span>
-              </button>
+              </button>}
             </div>
             <WorkflowActionHint id="forward-blocked-reason" reason={forwardBlocked} />
           </section>
@@ -1357,7 +1337,8 @@ export default function StaffLegalDocumentsPage({
                   )}
                 </div>
 
-                <div className="lv-form-group">
+                <details className="lv-form-group lv-workflow-optional">
+                  <summary>{t.evidenceReferenceLabel}</summary>
                   <label htmlFor={evidenceRefId} className="lv-form-label">
                     {t.evidenceReferenceLabel}
                   </label>
@@ -1372,11 +1353,12 @@ export default function StaffLegalDocumentsPage({
                     maxLength={500}
                   />
                   <span className="lv-form-hint">{t.evidenceReferenceHint}</span>
-                </div>
+                </details>
               </div>
 
               {/* Ghi chú */}
-              <div className="lv-form-group">
+              <details className="lv-form-group lv-workflow-optional">
+                <summary>{t.notesLabel}</summary>
                 <label htmlFor={notesId} className="lv-form-label">
                   {t.notesLabel}
                 </label>
@@ -1390,7 +1372,7 @@ export default function StaffLegalDocumentsPage({
                   rows={2}
                   maxLength={1000}
                 />
-              </div>
+              </details>
 
               {/* Tệp số hóa */}
               <div className="lv-form-group">

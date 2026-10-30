@@ -611,7 +611,8 @@ function IntakeForm({
             </div>
 
             {/* Ghi chú hiện trạng bản cứng (Tùy chọn) */}
-            <div className="lv-intake-field lv-intake-field--full" data-field="physicalNotes">
+            <details className="lv-intake-field lv-intake-field--full lv-workflow-optional" data-field="physicalNotes">
+              <summary>{t.fields.physicalNotes}</summary>
               <label htmlFor="intake-notes" className="lv-intake-label">
                 <span>{t.fields.physicalNotes}</span>
               </label>
@@ -624,7 +625,7 @@ function IntakeForm({
                 onChange={(e) => handleInputChange('physicalNotes', e.target.value)}
                 disabled={isSubmitting}
               />
-            </div>
+            </details>
           </div>
         </section>
 
@@ -635,8 +636,8 @@ function IntakeForm({
             <span>{t.sections.review}</span>
           </h2>
 
-          <div className="lv-intake-review-card">
-            <h3 className="lv-intake-review-card__heading">{t.review.summaryTitle}</h3>
+          <details className="lv-intake-review-card">
+            <summary>{t.review.summaryTitle}</summary>
             <div className="lv-intake-review-list">
               <div className="lv-intake-review-row">
                 <span className="lv-intake-review-k">{t.review.submitterLabel}</span>
@@ -687,7 +688,7 @@ function IntakeForm({
                 </span>
               </div>
             </div>
-          </div>
+          </details>
 
           {/* Action Buttons */}
           <div className="lv-intake-actions-bar">

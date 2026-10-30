@@ -15,6 +15,7 @@ import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavi
 import './LegalLiveWorkflow.css';
 import WorkflowGuide, { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { legalGuidance } from '../../utils/workflowGuidance.js';
+import { workflowFailure } from '../../utils/workflowFeedback.js';
 
 const paths = Object.fromEntries(LEGAL_NAVIGATION_REGISTRY.map(item => [item.id, item.path]));
 const statusIcons = { neutral: Archive, warning: Clock3, success: CircleCheck, info: Info, error: CircleAlert };
@@ -170,8 +171,11 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     setAttempt(value => value + 1);
   };
   if (!current) return <>{confirmation}<p role="status">{en ? 'Loading case context…' : 'Đang tải thông tin hồ sơ…'}</p></>;
-  if (current.error) return <>{![401, 403, 404].includes(current.error.status) && confirmation}<div role="alert"><p>{knownErrors[current.error.status]?.[en ? 1 : 0] || (en ? 'Unable to load case information.' : 'Không thể tải thông tin hồ sơ.')}</p>
-    <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div></>;
+  if (current.error) {
+    const feedback = workflowFailure(current.error, lang);
+    return <>{![401,403,404].includes(current.error.status) && confirmation}<div role={['waiting','changed'].includes(feedback.kind) ? 'status' : 'alert'}><h2>{feedback.title}</h2><p>{feedback.description}</p>
+      <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button></div></>;
+  }
   const guideModel = legalGuidance({ context: guidanceStale ? null : { ...current.data, distributionWorkflow: distribution.data }, error: guidanceStale, current: step, caseId: selected.caseId, lang });
   if (guidanceStale) guideModel.message = en ? 'Reload the record to check the next step.' : 'Tải lại hồ sơ để kiểm tra bước tiếp theo.';
   const guide = <WorkflowGuide lang={lang} onNavigate={onNavigate} model={guideModel} />;
@@ -324,7 +328,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     {readOnly && <p className="lv-legal-live__notice" role="status">{en ? 'This record is available for reference only. Editing is no longer available.' : 'Hồ sơ đã kết thúc xử lý. Bạn có thể tra cứu thông tin, không thể chỉnh sửa.'}</p>}
     {busy && <p role="status">{en ? 'Processing…' : 'Đang xử lý…'}</p>}
     {error && <p role="alert">{!data ? (error.status === 401 || error.status === 403 ? knownErrors[error.status][en ? 1 : 0]
-      : error.status === 404 ? (en ? 'No accessible legal documents were found for this case. Check with Staff whether the documents have been forwarded for review.' : 'Chưa tìm thấy hồ sơ pháp lý được phép truy cập. Hãy kiểm tra với nhân viên xem giấy tờ đã được chuyển thẩm định chưa.')
+      : error.status === 404 ? (en ? 'The selected document is unavailable or outside this account’s scope. Select the case/document again.' : 'Không truy cập được giấy tờ đã chọn. Giấy tờ có thể không tồn tại hoặc không thuộc phạm vi tài khoản; chọn lại hồ sơ/giấy tờ.')
       : (en ? 'Unable to load the case documents. Select “Try again” to reload them.' : 'Chưa tải được giấy tờ của hồ sơ. Chọn “Thử lại” để tải lại.')) : knownErrors[error.status]?.[en ? 1 : 0] || (error.code === 'VALIDATION_FAILED'
       ? (en ? 'Check your selections and reason (maximum 1000 characters).' : 'Kiểm tra lựa chọn và lý do (tối đa 1000 ký tự).')
       : (en ? 'The operation could not be confirmed. Reload to check its status before retrying.' : 'Chưa xác nhận được kết quả thao tác. Hãy tải lại để kiểm tra trạng thái trước khi thử lại.'))}</p>}
@@ -378,7 +382,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         {draft.action === 'hold' && pick('cause', en ? 'Cause' : 'Nguyên nhân', ['NEW_DISPUTE', 'INSUFFICIENT_EVIDENCE'])}
       </>}
       <label>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}<textarea value={draft.reason || ''} maxLength={1000} disabled={busy} required={step !== 'will-document-verification' || draft.result !== 'MATCH'} onChange={e => set('reason', e.target.value)} /></label>
-      <div className="lv-legal-form-actions"><button type="submit" disabled={!eligible || !fieldsComplete} aria-describedby={!eligible || !fieldsComplete ? 'legal-review-blocked' : undefined}><FileCheck2 size={18} aria-hidden="true" />{en ? 'Record decision' : 'Ghi nhận quyết định'}</button></div>
+      <div className="lv-legal-form-actions"><button type="submit" className={draft.decision === 'REJECT' || ['MISMATCH', 'INVALID'].includes(draft.result) ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!eligible || !fieldsComplete} aria-describedby={!eligible || !fieldsComplete ? 'legal-review-blocked' : undefined}><FileCheck2 size={18} aria-hidden="true" />{en ? 'Record decision' : 'Ghi nhận quyết định'}</button></div>
       <WorkflowActionHint id="legal-review-blocked" reason={!eligible ? disabledReason : !fieldsComplete ? (en ? 'Complete the selections and enter a reason above.' : 'Chọn đầy đủ thông tin và nhập lý do phía trên.') : ''} />
     </form></section>}
   </div>;

@@ -1,4 +1,4 @@
-import { useState, useId, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -58,7 +58,6 @@ function CompletionProgressContext({
   onNavigateCases = null,
 }) {
   const t = completionProgressI18n[lang] || completionProgressI18n.vi;
-  const caseInputId = useId();
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const effectiveIsDevPreview = Boolean(isDevPreview || preview);
@@ -485,45 +484,6 @@ function CompletionProgressContext({
         onUnauthorized={onUnauthorized}
       />
 
-      {/* Case Selector Card */}
-      <details className="lv-progress-technical"><summary>{lang === 'en' ? 'Technical case reference' : 'Mã kỹ thuật hồ sơ'}</summary>
-      <section className="lv-progress-card" aria-labelledby="case-select-heading">
-        <div className="lv-progress-case-bar">
-          <div className="lv-progress-input-group">
-            <label htmlFor={caseInputId} className="lv-progress-label" id="case-select-heading">
-              {t.caseSelectLabel}
-            </label>
-            <input
-              id={caseInputId}
-              type="text"
-              className="lv-progress-input"
-              placeholder={t.caseSelectPlaceholder}
-              value={caseReference}
-              onChange={(e) => handleCaseChange(e.target.value)}
-            />
-          </div>
-          <button
-            type="button"
-            className="lv-progress-btn-select-case"
-            onClick={() => setIsSelectorOpen(true)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid #164639',
-              backgroundColor: '#164639',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
-          </button>
-        </div>
-      </section>
-
-      </details>
       {/* Session Switcher Bar (when multiple sessions exist) */}
       {activeTrimmed && selectedSessionId && sessions.length > 1 && (
         <div className="lv-progress-session-bar">
