@@ -5468,6 +5468,15 @@ components:
         caseId: { type: string, format: uuid }
         action: { type: string }
         revision: { type: integer, format: int64 }
+        notification:
+          type: object
+          nullable: true
+          description: Persisted in the same business transaction; RECORDED does not confirm delivery or reading. Null when no Staff is assigned.
+          required: [id, recipientWorkspace, status]
+          properties:
+            id: { type: string, format: uuid }
+            recipientWorkspace: { type: string, enum: [STAFF, LEGAL] }
+            status: { type: string, enum: [RECORDED] }
     IdentityVerificationRequest:
       type: object
       required: [documentType, result]
