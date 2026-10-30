@@ -103,8 +103,8 @@ public class OriginalWillIntakeService {
                 RULE_ID
         ));
 
-        notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "ORIGINAL_WILL_RECEIVED", "ORIGINAL_WILL_RECEIVED:" + saved.getPublicId(), null);
-        return OriginalWillIntakeResponse.from(saved, verificationCase.getPublicId(), principal.publicId());
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "ORIGINAL_WILL_RECEIVED", "ORIGINAL_WILL_RECEIVED:" + saved.getPublicId(), null);
+        return OriginalWillIntakeResponse.from(saved, verificationCase.getPublicId(), principal.publicId()).withNotification(notification);
     }
 
     @Transactional(readOnly = true)

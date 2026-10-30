@@ -192,7 +192,7 @@ public class LegalDeathVerificationService {
                 RULE_ID
         ));
 
-        notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_DEATH_DOCUMENT_DECIDED", "death-decision:" + deathRecord.getPublicId(), request.reason().trim());
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_DEATH_DOCUMENT_DECIDED", "death-decision:" + deathRecord.getPublicId(), request.reason().trim());
         return new LegalDeathDecisionResponse(
                 deathRecord.getPublicId(),
                 verificationCase.getPublicId(),
@@ -202,7 +202,7 @@ public class LegalDeathVerificationService {
                 verification.getRemarks(),
                 verificationCase.getStatus(),
                 vaultStatusAfter
-        );
+        ).withNotification(notification);
     }
 
     /**

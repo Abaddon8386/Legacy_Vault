@@ -59,6 +59,7 @@ import java.util.UUID;
  */
 @Service
 public class BasisIntakeService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
     static final String STEP_ID = "ST-18";
@@ -96,8 +97,9 @@ public class BasisIntakeService {
             LegalBasisLockedState lockedState,
             LegalBasisReviewService reviewService,
             @Value("${legacyvault.will.max-file-bytes:10485760}")
-            long maxFileBytes
+            long maxFileBytes, com.legacyvault.notification.WorkflowNotificationService notifications
     ) {
+        this.notifications = notifications;
         this.staffCases = staffCases;
         this.vaultRepository = vaultRepository;
         this.dossiers = dossiers;
@@ -293,7 +295,8 @@ public class BasisIntakeService {
          */
         reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
-        return views.view(verificationCase, false);
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "LEGAL_BASIS_RECEIVED", "basis:" + saved.getPublicId(), null);
+        return views.view(verificationCase, false).withNotification(notification);
     }
 
     /** Route follows the submitted document type; an unknown type is a validation error. */

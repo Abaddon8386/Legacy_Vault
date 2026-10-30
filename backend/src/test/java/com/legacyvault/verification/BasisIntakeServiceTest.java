@@ -100,7 +100,7 @@ class BasisIntakeServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final BasisDossierViewService views =
-            mock(BasisDossierViewService.class);
+            mock(BasisDossierViewService.class, org.mockito.Mockito.RETURNS_MOCKS);
     private final AuditService auditService =
             mock(AuditService.class);
     private final LegalBasisLockedState lockedState =
@@ -124,7 +124,7 @@ class BasisIntakeServiceTest {
             lockedState,
             reviewService,
             MAX_FILE_BYTES
-    );
+    , org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(
             STAFF_ID,

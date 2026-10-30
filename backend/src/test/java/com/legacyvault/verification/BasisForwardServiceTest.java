@@ -60,7 +60,7 @@ class BasisForwardServiceTest {
     private final VaultRepository vaultRepository = mock(VaultRepository.class);
     private final LegalBasisDossierRepository dossiers = mock(LegalBasisDossierRepository.class);
     private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
-    private final BasisDossierViewService views = mock(BasisDossierViewService.class);
+    private final BasisDossierViewService views = mock(BasisDossierViewService.class, org.mockito.Mockito.RETURNS_MOCKS);
     private final AuditService auditService = mock(AuditService.class);
     private final LegalBasisLockedState lockedState = mock(LegalBasisLockedState.class);
     private final LegalBasisReviewService legalBasisReviewService = mock(LegalBasisReviewService.class);
@@ -75,7 +75,7 @@ class BasisForwardServiceTest {
             auditService,
             lockedState,
             legalBasisReviewService
-    );
+    , org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(
             STAFF_ID,
@@ -188,6 +188,7 @@ class BasisForwardServiceTest {
         Vault vault = happyPath(dossier, 2);
 
         BasisDossierResponse expected = mock(BasisDossierResponse.class);
+        when(expected.withNotification(null)).thenReturn(expected);
 
         when(views.view(
                 any(VerificationCase.class),

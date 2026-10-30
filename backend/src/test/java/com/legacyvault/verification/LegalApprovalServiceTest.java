@@ -58,7 +58,7 @@ class LegalApprovalServiceTest {
     private final LegalBasisVersionAllocationRepository allocations = mock(LegalBasisVersionAllocationRepository.class);
     private final LegalBasisReviewHistoryRepository history = mock(LegalBasisReviewHistoryRepository.class);
     private final AuditService audit = mock(AuditService.class);
-    private final LegalApprovalService service = new LegalApprovalService(access, versions, allocations, history, audit, org.mockito.Mockito.mock(com.legacyvault.verification.service.CourtRouteGuard.class));
+    private final LegalApprovalService service = new LegalApprovalService(access, versions, allocations, history, audit, org.mockito.Mockito.mock(com.legacyvault.verification.service.CourtRouteGuard.class), org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
     private final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final Vault vault = mock(Vault.class);

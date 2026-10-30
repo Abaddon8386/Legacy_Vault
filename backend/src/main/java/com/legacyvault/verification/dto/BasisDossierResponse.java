@@ -8,8 +8,7 @@ import java.util.UUID;
  * Hồ sơ căn cứ phân chia của một ca. {@code routeReason} chỉ có khi người xem là Legal (lý do phân loại có thể chứa
  * thông tin tranh chấp); với Staff nó là {@code null}. {@code versions} mới nhất trước.
  */
-public record BasisDossierResponse(
-        UUID id,
+public record BasisDossierResponse(UUID id,
         UUID caseId,
         String route,
         String status,
@@ -19,6 +18,17 @@ public record BasisDossierResponse(
         Instant createdAt,
         Instant updatedAt,
         List<BasisVersionResponse> versions,
-        int requiredVersion
-) {
+        int requiredVersion, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+    public BasisDossierResponse(UUID id,
+        UUID caseId,
+        String route,
+        String status,
+        String disputeStatus,
+        String routeReason,
+        UUID classifiedBy,
+        Instant createdAt,
+        Instant updatedAt,
+        List<BasisVersionResponse> versions,
+        int requiredVersion) { this(id, caseId, route, status, disputeStatus, routeReason, classifiedBy, createdAt, updatedAt, versions, requiredVersion, null); }
+    public BasisDossierResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new BasisDossierResponse(id, caseId, route, status, disputeStatus, routeReason, classifiedBy, createdAt, updatedAt, versions, requiredVersion, receipt); }
 }

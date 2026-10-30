@@ -31,3 +31,19 @@ hooks, full inbox OpenAPI/action enum/fixtures, HTTP authorization tests, SQL co
 rollback/read/reassignment coverage and FE E2E. This patch alone does not complete PS-135.
 SQL fixture execution failed before setup: LEGAL_SQLSERVER_MASTER_URL absent (URL cannot
 be null). No real SQL Server behavior is verified by the unit tests.
+
+Follow-up patch: inherited four hooks now return notification in their mutation DTOs.
+Added WILL_COMPARISON_RECORDED (Staff recipient; will:<comparison UUID>),
+LEGAL_BASIS_RECEIVED (Legal; basis:<version UUID>), LEGAL_BASIS_FORWARDED
+(Legal; forward:<dossier UUID>:<version>) and LEGAL_BASIS_DECIDED
+(Staff; decision:<dossier UUID>:<version>:<decision>) with receipt in their DTOs.
+The old DTO constructors remain available; read responses have null notification.
+Existing FE WorkflowNotifications action labels/routing accept these action names.
+RECORDED does not claim that the UI has received/read the event.
+
+Remaining: attachment and review/hold/rereview hooks, full inbox contract/fixtures,
+HTTP/security and SQL/E2E verification. PS-135 remains partial.
+SQL database safety check: migration versions are unique; no migration was changed.
+Existing SQL test DB name is LegacyVault_LegalTest_<random UUID>, so parallel runs
+do not target the application DB or reuse a fixed test DB name. The fixture accepts
+only a master connection via LEGAL_SQLSERVER_MASTER_URL. No DB rename/reset was done.
