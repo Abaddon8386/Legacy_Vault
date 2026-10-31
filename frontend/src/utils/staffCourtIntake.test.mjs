@@ -29,6 +29,8 @@ async function mount(Page, extra = {}) {
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
 function transport(state = { uploaded: false, forwarded: false }) {
+  const currentDossier = () => ({ ...dossier, status: state.forwarded ? 'LEGAL_BASIS_FORWARDED' : 'DRAFT',
+    versions: state.uploaded ? [{ version: 1, forwardStatus: state.forwarded ? 'FORWARDED' : 'NOT_FORWARDED' }] : [] });
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).endsWith('/distribution-workflow')) return json(distributionFixture(a, {
       allowed: state.forwarded ? [] : [state.uploaded ? 'forwardDocuments' : 'uploadDocuments'],
@@ -37,10 +39,11 @@ function transport(state = { uploaded: false, forwarded: false }) {
     }));
     if (options.method === 'POST' && String(url).endsWith('/forward')) {
       state.forwarded = true;
-      return json({ ...dossier, status: 'LEGAL_BASIS_FORWARDED', versions: [{ version: 1, forwardStatus: 'FORWARDED' }] });
+      state.forwardCalls = (state.forwardCalls || 0) + 1;
+      return json(currentDossier());
     }
     assert.ok(String(url).endsWith('/basis-dossier'), 'Document intake does not read allocation catalogues');
-    return json(dossier);
+    return json(currentDossier());
   };
 }
 async function fillCourtForm(host) {
@@ -71,6 +74,8 @@ test('requested document intake submits evidence without allocations or recipien
     assert.equal(calls[0].beneficiaryId, undefined); assert.equal(calls[0].accountId, undefined);
     assert.equal(calls[0].documentNumber, '25/2026');
     assert.equal(state.forwarded, true, 'Uploaded evidence is forwarded through the separate server capability');
+    assert.equal(state.forwardCalls, 1);
+    assert.ok(view.host.querySelector('.lv-forward-badge--forwarded'), 'Confirmed server state survives workflow refresh');
   } finally { await view.close(); }
 });
 test('failed requested document upload keeps metadata/file draft; confirmed retry forwards evidence exactly once', async () => {
@@ -89,7 +94,11 @@ test('failed requested document upload keeps metadata/file draft; confirmed retr
     assert.equal(view.host.querySelector('form input.lv-form-input[type=text]').value, 'Court');
     assert.match(view.host.textContent, /court.pdf/);
     await act(async () => view.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
-    assert.equal(calls, 2); assert.deepEqual(metadata[1], metadata[0]); assert.equal(state.forwarded, true); assert.equal(Boolean(view.host.querySelector('.lv-form-success-banner')), true);
+    assert.equal(calls, 2);
+    assert.deepEqual(metadata[1], metadata[0]);
+    assert.equal(state.forwarded, true);
+    assert.equal(state.forwardCalls, 1);
+    assert.ok(view.host.querySelector('.lv-forward-badge--forwarded'), 'Persisted confirmation remains after automatic dossier refresh');
   } finally { await view.close(); }
 });
 test('mixed A/C delivery keeps C visible with a reason, blocks its checkbox/button, and still allows A', async () => {
