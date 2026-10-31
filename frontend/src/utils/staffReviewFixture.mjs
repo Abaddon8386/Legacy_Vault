@@ -11,6 +11,8 @@ export function staffFixture({status = 'OPEN', closed = false, deliveries = [], 
     openedAt: '2026-10-20T08:00:00Z', closedAt: status === 'OPEN' ? null : '2026-10-20T09:00:00Z',
   };
   return (url) => {
+    // Explicit synthetic attendance already recorded; scenarios testing attendance use their own state machine.
+    if (url.endsWith('/group-handover')) return json({state:{status:'READY',revision:1,allPresent:true,attendanceId:ids.assetId,requestId:null,snapshot:'fixture-snapshot'},snapshot:'fixture-snapshot',requiredRecipientIds:[ids.recipient],deliveryAllowed:true});
     if (url.endsWith('/completion-progress')) return json({assets:{completed:ready?1:0,total:1}, beneficiaries:{completed:ready?1:0,total:1},ready,reason:ready?'READY':'PENDING'});
     if (url.endsWith('/deliveries')) return json(deliveries);
     if (url.endsWith('/receipts')) return json(receipts);
