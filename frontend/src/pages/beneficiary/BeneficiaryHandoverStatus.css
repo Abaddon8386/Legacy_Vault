@@ -1,0 +1,5 @@
+.lv-beneficiary-handover{display:grid;gap:14px;min-width:0;background:#fff;border:1px solid #dce4dc;border-radius:14px;padding:24px;color:#234237;}
+.lv-beneficiary-handover h2{font-size:21px;margin:0;}.lv-beneficiary-handover h3{font-size:18px;margin:0;}.lv-beneficiary-handover p{font-size:16px;line-height:1.6;margin:0;}
+.lv-beneficiary-handover ul{display:grid;gap:16px;padding:0;margin:0;list-style:none;}.lv-beneficiary-handover li{display:grid;gap:10px;border-top:1px solid #dce4dc;padding-top:16px;overflow-wrap:anywhere;}
+.lv-beneficiary-handover button{min-height:44px;padding:10px 16px;justify-self:start;font:inherit;background:#fff;color:#164639;border:1px solid #a3b8aa;border-radius:8px;cursor:pointer;}.lv-beneficiary-handover [role=alert]{color:#9b3329;}
+@media(max-width:640px){.lv-beneficiary-handover{padding:16px;}}
