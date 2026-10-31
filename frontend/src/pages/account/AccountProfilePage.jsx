@@ -23,6 +23,7 @@ import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
 import { linkGoogleAccount } from '../../utils/googleLinkService.js';
 import { getAuthMessage } from '../../utils/loginService.js';
 import './AccountProfilePage.css';
+import {EmailVerificationPanel} from '../auth/EmailVerification.jsx';
 
 export default function AccountProfilePage({
   session = null,
@@ -279,6 +280,7 @@ export default function AccountProfilePage({
           </div>
         )}
       </header>
+      {session?.accessToken && !preview && <EmailVerificationPanel session={session} lang={lang} />}
 
       {/* Temporary Feedback Callout */}
       {activeFeedback && (
