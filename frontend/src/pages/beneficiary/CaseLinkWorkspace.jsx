@@ -5,6 +5,7 @@ import { Button } from '../../components/common/Button.jsx';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { isPersonalRecipient, readLinkRequest, readLinkRequests, requestStatusLabel, caseLinkError } from '../../utils/caseLinkModel.js';
 import ReceivedAssets from './ReceivedAssets.jsx';
+import BeneficiaryHandoverStatus from './BeneficiaryHandoverStatus.jsx';
 import './SharedWithMePage.css';
 
 export default function CaseLinkWorkspace(props) {
@@ -196,8 +197,9 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   const hasDeliveredAssets = ['PARTIAL', 'RECEIVED'].includes(receivedStage);
 
   const assetsSection = canRead ? (
+    <><BeneficiaryHandoverStatus userId={session?.user?.id || user?.id || 'preview'} accessToken={session?.accessToken} lang={lang} loadStatus={caseLinkActions?.loadHandoverStatus} preview={preview} />
     <ReceivedAssets actions={receivedAssetActions} userId={session?.user?.id || user?.id} accessToken={session?.accessToken} lang={lang}
-      isDevPreview={preview} scenario={previewScenario} onUnauthorized={onUnauthorized} refreshKey={`${refreshKey}:${readRevision}`} onStageChange={recordStage} />
+      isDevPreview={preview} scenario={previewScenario} onUnauthorized={onUnauthorized} refreshKey={`${refreshKey}:${readRevision}`} onStageChange={recordStage} /></>
   ) : (
     <section className="lv-shared-card lv-owner-card" role="note">
       <h2>{en ? 'Received assets' : 'Tài sản đã nhận'}</h2>
