@@ -1,4 +1,5 @@
 import { deliveryReadiness, deliveryBlockedReason } from '../../utils/deliveryReadiness.js';
+import StaffGroupHandover from '../../components/staff/StaffGroupHandover.jsx';
 import { useState, useId, useEffect, useRef } from 'react';
 import {
   ShieldAlert,
@@ -43,6 +44,10 @@ export default function ScopedAssetHandoverPage(props) {
     props.caseId || props.caseReference || query.get('caseId'),
     props.sessionId || query.get('sessionId'),
   ]);
+  const caseId = props.caseId || props.caseReference || query.get('caseId');
+  const sessionId = props.sessionId || query.get('sessionId');
+  const accessToken = props.accessToken || props.session?.accessToken;
+  if (accessToken && caseId && sessionId) return <StaffGroupHandover caseId={caseId} sessionId={sessionId} accessToken={accessToken} lang={props.lang} onUnauthorized={props.onUnauthorized}><ScopedAssetHandoverPageContext key={key} {...props} /></StaffGroupHandover>;
   return <ScopedAssetHandoverPageContext key={key} {...props} />;
 }
 
