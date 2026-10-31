@@ -340,11 +340,11 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
       {!recordsLoading && records.length > 0 && (
         <ul className="lv-staff-records-list">
-          {records.map(item => (
+          {[...records].sort((left,right)=>Date.parse(left.receivedAt)-Date.parse(right.receivedAt)||left.id.localeCompare(right.id)).map((item,index) => (
             <li key={item.id} className="lv-staff-record-item">
               <div className="lv-staff-record-summary">
                 <span className={`lv-intake-document-icon ${kind === 'original-will-intakes' ? 'is-will' : ''}`}><FileText size={22} aria-hidden="true" /></span>
-                <div className="lv-intake-document-meta"><strong>{item.documentNumber || item.deliveredByName}</strong><time dateTime={item.receivedAt}>{en ? 'Received: ' : 'Tiếp nhận: '}{Number.isNaN(new Date(item.receivedAt).getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(item.receivedAt))}</time></div>
+                <div className="lv-intake-document-meta"><strong>{en?'Document':'Giấy tờ'} {index+1} · {item.documentNumber || item.deliveredByName}</strong><time dateTime={item.receivedAt}>{en ? 'Received: ' : 'Tiếp nhận: '}{Number.isNaN(new Date(item.receivedAt).getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(item.receivedAt))}</time></div>
                 <button
                   type="button"
                   className="lv-staff-btn-toggle-att"

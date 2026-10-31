@@ -75,7 +75,9 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
   const selected = snapshot?.requests.find(r => r.id === requestId);
   const recipient = snapshot?.recipients.find(r => r.beneficiaryId === recipientId);
   const locked = !open || loading || pending || uncertain || !snapshot;
-  const canApprove = !locked && ready && typeof actions?.approve === 'function' && selected && recipient && !recipient.accountLinked && checked && evidence.trim();
+  // Adapter opt-in only after BE publishes its replacement attestation contract.
+  const evidenceRequired = !ready || actions?.counterEvidenceMode !== 'OPTIONAL';
+  const canApprove = !locked && ready && typeof actions?.approve === 'function' && selected && recipient && !recipient.accountLinked && checked && (!evidenceRequired || evidence.trim());
   const matchBlocked = !open ? (en ? 'Select an open case.' : 'Chọn hồ sơ đang mở.')
     : loading || pending ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
       : uncertain ? (en ? 'Reload to check the latest status.' : 'Tải lại để kiểm tra trạng thái mới nhất.')
@@ -83,7 +85,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
           : !selected ? (en ? 'Select a pending account request.' : 'Chọn yêu cầu tài khoản đang chờ.')
             : !recipient ? (en ? 'Select the recipient in this case.' : 'Chọn người nhận trong hồ sơ.')
               : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
-                : !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
+                : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
                   : !checked ? (en ? 'Confirm the account and recipient match.' : 'Xác nhận đã đối chiếu đúng người nhận và tài khoản.') : '';
   async function perform(kind, payload) {
     if (mutation.current || locked) return;
@@ -131,7 +133,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
       <ol>
         <li>{en ? 'Recipient signs in → Shared with me → enters this case number → Submit request.' : 'Người nhận đăng nhập → Được chia sẻ với tôi → nhập mã hồ sơ trên → Gửi yêu cầu.'}</li>
         <li>{en ? 'Staff reloads requests, selects the requesting account and the matching recipient below.' : 'Staff bấm Tải lại trạng thái, chọn tài khoản gửi yêu cầu và đúng người nhận trong hồ sơ bên dưới.'}</li>
-        <li>{en ? 'Verify identity at the counter, enter the record reference and confirm the link.' : 'Đối chiếu người tại quầy, nhập mã biên bản và xác nhận liên kết.'}</li>
+        <li>{en ? 'Verify identity at the counter and confirm the account link.' : 'Đối chiếu người tại quầy và xác nhận liên kết tài khoản.'}</li>
       </ol>
       <p>{en ? 'Submitting the case number does not grant asset access.' : 'Nhập mã hồ sơ chưa cấp quyền xem tài sản.'}</p>
       </details>
@@ -144,12 +146,12 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
     {open && <>
       {loading && <p role="status">{en ? 'Loading recipients and requests…' : 'Đang tải người nhận và yêu cầu…'}</p>}
       {snapshot && <div className="lv-counter-link__match">
-        <div className="lv-counter-link__columns">
+        <div className={`lv-counter-link__columns${evidenceRequired?'':' is-reference-free'}`}>
           <label>{en ? 'Requesting account' : 'Tài khoản gửi yêu cầu'}<select value={requestId} disabled={locked || !ready} onChange={e => { setRequestId(e.target.value); clearMatch(); }}><option value="">{en ? 'Select a pending request' : 'Chọn yêu cầu chờ đối chiếu'}</option>{snapshot.requests.map(r => <option key={r.id} value={r.id}>{r.accountName} — {r.accountEmail}</option>)}</select></label>
           <label>{en ? 'Recipient in this case' : 'Người nhận trong hồ sơ'}<select value={recipientId} disabled={locked} onChange={e => { setRecipientId(e.target.value); setChecked(false); setEvidence(''); }}><option value="">{en ? 'Select a recipient' : 'Chọn người nhận để đối chiếu'}</option>{snapshot.recipients.map(r => <option key={r.beneficiaryId} value={r.beneficiaryId} disabled={r.accountLinked}>{r.fullName}{r.accountLinked ? (en ? ' — Linked' : ' — Đã liên kết') : ''}</option>)}</select></label>
-          <label>{en ? 'Counter record reference' : 'Mã chứng từ đối chiếu'}<input placeholder={en ? 'Reference on the counter record' : 'Số trên chứng từ đối chiếu tại quầy'} aria-describedby="counter-evidence-help" value={evidence} maxLength={200} disabled={locked || !recipient} onChange={e => setEvidence(e.target.value)} /></label>
+          {evidenceRequired && <label>{en ? 'Counter record reference' : 'Mã chứng từ đối chiếu'}<input placeholder={en ? 'Reference on the counter record' : 'Số trên chứng từ đối chiếu tại quầy'} aria-describedby="counter-evidence-help" value={evidence} maxLength={200} disabled={locked || !recipient} onChange={e => setEvidence(e.target.value)} /></label>}
         </div>
-        <p id="counter-evidence-help" className="lv-counter-link__empty">{en ? 'Use the reference on the counter identity-check record. This is separate from the signed asset receipt uploaded after handover.' : 'Nhập số trên chứng từ ghi nhận đối chiếu tại quầy. Đây là bước liên kết tài khoản, khác với biên nhận có chữ ký tải lên sau bàn giao.'}</p>
+        {evidenceRequired && <p id="counter-evidence-help" className="lv-counter-link__empty">{en ? 'Use the reference on the counter identity-check record. This is separate from the signed asset receipt uploaded after handover.' : 'Nhập số trên chứng từ ghi nhận đối chiếu tại quầy. Đây là bước liên kết tài khoản, khác với biên nhận có chữ ký tải lên sau bàn giao.'}</p>}
         {ready && !snapshot.requests.length && <p className="lv-counter-link__empty">{en ? 'No pending requests. Ask the recipient to enter this case number in Shared with me, then reload here.' : 'Chưa có yêu cầu chờ. Người nhận nhập mã hồ sơ trong Được chia sẻ với tôi, sau đó bạn tải lại trạng thái.'}</p>}
         {(selected || recipient) && <div className="lv-counter-link__identity">
           {selected && <span><strong>{selected.accountName}</strong> · {selected.accountEmail}</span>}
@@ -160,7 +162,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
           <div className="lv-counter-link__decision-hint"><WorkflowActionHint id="account-link-blocked" reason={matchBlocked} /></div>
           <div className="lv-counter-link__actions">
             {typeof actions?.reject === 'function' && <Button variant="danger" disabled={locked || !selected} aria-expanded={rejectOpen} aria-controls="counter-link-reject-confirmation" onClick={() => setRejectOpen(value => !value)}><X size={16} aria-hidden="true" />{en ? 'Decline request' : 'Từ chối yêu cầu'}</Button>}
-            <Button disabled={!canApprove} aria-describedby={matchBlocked ? 'account-link-blocked' : undefined} isLoading={pending} onClick={() => perform('approve', { recipientId, evidenceReference: evidence.trim() })}><Check size={16} aria-hidden="true" />{en ? 'Confirm account link' : 'Xác nhận liên kết'}</Button>
+            <Button disabled={!canApprove} aria-describedby={matchBlocked ? 'account-link-blocked' : undefined} isLoading={pending} onClick={() => perform('approve', { recipientId, ...(evidence.trim()?{evidenceReference:evidence.trim()}:{}) })}><Check size={16} aria-hidden="true" />{en ? 'Confirm account link' : 'Xác nhận liên kết'}</Button>
             {!ready && <Button variant="secondary" disabled={locked || !recipient || recipient.accountLinked || !evidence.trim()} onClick={() => perform('attest')}>{en ? 'Record in-person check only' : 'Chỉ lưu đối chiếu giấy tờ'}</Button>}
           </div>
         </div>

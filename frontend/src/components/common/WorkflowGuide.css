@@ -30,3 +30,5 @@
   .lv-workflow-guide__next a { width:100%; }
 }
 @media(prefers-reduced-motion:reduce) { .lv-workflow-guide a { transition:none; } }
+.lv-workflow-guide__next a { min-height:44px; box-sizing:border-box; padding:10px 14px; border:1px solid #a3b8aa; border-radius:8px; display:inline-flex; align-items:center; font-size:14px; }
+.lv-workflow-guide__next p { font-size:16px; line-height:1.6; }

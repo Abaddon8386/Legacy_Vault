@@ -31,6 +31,21 @@ const click = async (host, name) => act(async () => [...host.querySelectorAll('b
 const submit = async host => act(async () => { props(host.querySelector('form')).onSubmit({ preventDefault() {} }); });
 const detail = (id = a, changes = {}) => ({ deathDocumentPublicId: id, verificationCasePublicId: id, verificationCaseStatus: 'OPEN', vaultStatus: 'AWAITING_VERIFICATION', document: { issuingAuthority: 'Authority A', documentNumber: 'Doc A' }, decisions: [], ...changes });
 const originalFetch = globalThis.fetch;
+
+test('paper intake histories never bleed into another paper and a recorded conclusion cannot be recorded again',async()=>{
+ let writes=0;const old={id:a,originalWillIntakeId:a,version:1,result:'MATCH',comparedAt:now};
+ globalThis.fetch=async(_url,init)=>{if(init.method==='POST')writes++;return json({caseId:a,vaultStatus:'WILL_VERIFICATION',approvalBlocked:false,originalWillIntakes:[{id:b,receivedAt:'2026-10-31T08:00:00Z'},{id:a,receivedAt:now}],wills:[{id:a,versions:[{version:1,sha256:digest}]}],comparisons:[old]});};
+ const v=await mount({...base,step:'will-document-verification'});try{const select=getSelect(v.host,'Original intake');assert.match(select.querySelector(`option[value="${b}"]`).textContent,/Intake 2/);assert.match(select.querySelector(`option[value="${a}"]`).textContent,/Intake 1/);
+ await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await change(getSelect(v.host,'Comparison result'),'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(writes,0);
+ await change(select,b);assert.equal(getSelect(v.host,'Comparison result').value,'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);
+ }finally{await v.close();}
+});
+
+test('focus revalidates other-role workflow changes and parent context without a page reload',async()=>{
+ Object.defineProperty(document,'hidden',{configurable:true,value:false});
+ let ready=false,contextReads=0;globalThis.fetch=async()=>json(workflowFixture(ready?'DOCUMENTS_UNDER_REVIEW':'AWAITING_DOCUMENTS','approveDocuments'));
+ const v=await mount({...base,step:'basis-route-selection',contextLoader:async()=>{contextReads++;return distributionContext();}});try{assert.equal(v.host.querySelector('form'),null);const before=contextReads;ready=true;await act(async()=>window.dispatchEvent(new window.Event('focus')));assert.ok(contextReads>before);assert.ok(v.host.querySelector('form'));}finally{await v.close();}
+});
 test.afterEach(() => { globalThis.fetch = originalFetch; });
 
 test('Explicitly disabled discovery remains unavailable without requests or fabricated success', async () => {

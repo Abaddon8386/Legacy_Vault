@@ -1,4 +1,5 @@
 import DatePicker from '../../components/common/DatePicker.jsx';
+import DateTimePicker from '../../components/common/DateTimePicker.jsx';
 import { staffAuthFeedback, useStaffSessionExpiry } from './staffFeedback.js';
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -590,13 +591,12 @@ function IntakeForm({
                 <span>{t.fields.intakeDateTime}</span>
                 <span className="lv-intake-required" aria-hidden="true">*</span>
               </label>
-              <input
+              <DateTimePicker
                 id="intake-datetime"
-                type="datetime-local"
-                className="lv-intake-input"
+                lang={lang}
+                required
                 value={formData.intakeDateTime}
                 onChange={(e) => handleInputChange('intakeDateTime', e.target.value)}
-                onInput={(e) => handleInputChange('intakeDateTime', e.currentTarget.value)}
                 aria-required="true"
                 aria-invalid={Boolean(fieldErrors.intakeDateTime)}
                 aria-describedby={fieldErrors.intakeDateTime ? 'err-intakeDateTime' : undefined}

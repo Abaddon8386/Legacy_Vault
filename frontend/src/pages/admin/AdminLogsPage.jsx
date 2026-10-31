@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DatePicker from '../../components/common/DatePicker.jsx';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n } from './adminI18n.js';
 import { adminActionLabel, formatAdminTimestamp } from './adminPresentation.js';
@@ -186,23 +187,21 @@ export default function AdminLogsPage({
           </div>
           <div className="lv-admin-field">
             <label htmlFor="log-from-date">{t.fromDate}</label>
-            <input
+            <DatePicker
               id="log-from-date"
-              type="date"
-              className="lv-admin-input"
+              lang={lang}
               value={fromDate}
-              onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+              onChange={(value) => { setFromDate(value); setPage(1); }}
             />
           </div>
 
           <div className="lv-admin-field">
             <label htmlFor="log-to-date">{t.toDate}</label>
-            <input
+            <DatePicker
               id="log-to-date"
-              type="date"
-              className="lv-admin-input"
+              lang={lang}
               value={toDate}
-              onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+              onChange={(value) => { setToDate(value); setPage(1); }}
             />
           </div>
 

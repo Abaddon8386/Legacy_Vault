@@ -6,9 +6,10 @@ import LegalFinalDecision from './LegalFinalDecision.jsx';
 import LegalHoldControls from './LegalHoldControls.jsx';
 import { legalReadOnly } from './legalPresentation.js';
 
-export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied }) {
+export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied, draftState, onDraftStateChange }) {
   const en = lang === 'en', data = workflow.data;
-  const [draft, setDraft] = useState({ scope: '', reason: '' });
+  const [localDraft, setLocalDraft] = useState({ scope: '', reason: '' });
+  const draft=draftState || localDraft, setDraft=onDraftStateChange || setLocalDraft;
   const operation = useRef(false), [holdPending, setHoldPending] = useState(false);
   const onHold = context.basisDossier?.route === 'ON_HOLD' || context.vaultStatus === 'ON_HOLD';
   const scope = `${context.caseId}:${session.accessToken}:${data?.phase}:${data?.document?.version}:${data?.allocation?.version}`;
