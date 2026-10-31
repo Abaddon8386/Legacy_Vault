@@ -35,6 +35,7 @@ import java.util.UUID;
 
 @Service
 public class HandoverReceiptService {
+private final com.legacyvault.verification.group.GroupHandoverService group;
     private static final String STEP_ID = "ST-28";
     private static final String RULE_ID = "LV-LEG-001";
 
@@ -52,7 +53,8 @@ public class HandoverReceiptService {
             HandoverReceiptRepository receipts, HandoverReceiptAssetRepository receiptAssets,
             LegalWorkflowGuard workflow, LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations, AuditService audit,
-            com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository evidence) {
+            com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository evidence, com.legacyvault.verification.group.GroupHandoverService group) {
+this.group=group;
         this.cases = cases;
         this.sessions = sessions;
         this.receipts = receipts;
@@ -89,6 +91,7 @@ public class HandoverReceiptService {
                         sessionPublicId, verificationCase.getVerificationCaseId(), staffId)
                 .orElseThrow(HandoverReceiptService::notFound);
         if (session.getStatus() != HandoverSessionStatus.COMPLETED) throw invalidState();
+        group.requireReady(casePublicId,sessionPublicId,principal);
         var proof = evidence.findBySessionId(session.getId()).orElseThrow(HandoverReceiptService::invalidState);
 
         int currentVersionNo = versions.findMaxVersionNo(dossier.getLegalBasisDossierId());

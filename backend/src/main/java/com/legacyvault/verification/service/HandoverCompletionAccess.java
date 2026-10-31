@@ -74,7 +74,7 @@ public class HandoverCompletionAccess {
             throw new BusinessException(ErrorCode.HANDOVER_SESSION_INVALID_STATE);
         return snapshot(locked,session);
     }
-    private Snapshot snapshot(LegalBasisCaseAccess.LockedCase locked,HandoverSession session) {
+    public Snapshot snapshot(LegalBasisCaseAccess.LockedCase locked,HandoverSession session) {
         Long dossierId=locked.dossier().getLegalBasisDossierId();
         int number=versions.findMaxVersionNo(dossierId);
         var version=versions.findCourtEvidence(dossierId,number)

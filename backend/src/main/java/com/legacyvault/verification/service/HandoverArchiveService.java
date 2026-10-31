@@ -13,6 +13,7 @@ import java.time.*;
 import java.util.*;
 @Service
 public class HandoverArchiveService {
+private final com.legacyvault.verification.group.GroupHandoverService group;
  private final HandoverSessionCaseAccess casesAccess;
  private final HandoverCompletionAccess access;
  private final HandoverCompletionService completion;
@@ -28,7 +29,8 @@ public class HandoverArchiveService {
  public HandoverArchiveService(HandoverSessionCaseAccess casesAccess,HandoverCompletionAccess access,
   HandoverCompletionService completion,HandoverCloseService close,HandoverSessionRepository sessions,
   HandoverCompletionEvidenceRepository evidence,HandoverReceiptRepository receipts,HandoverReceiptAssetRepository receiptAssets,
-  VerificationCaseRepository cases,VaultRepository vaults,LegalBasisLockedState state,AuditService audit){
+  VerificationCaseRepository cases,VaultRepository vaults,LegalBasisLockedState state,AuditService audit, com.legacyvault.verification.group.GroupHandoverService group){
+this.group=group;
   this.casesAccess=casesAccess;this.access=access;this.completion=completion;this.close=close;this.sessions=sessions;
   this.evidence=evidence;this.receipts=receipts;this.receiptAssets=receiptAssets;this.cases=cases;
   this.vaults=vaults;this.state=state;this.audit=audit;
@@ -51,6 +53,7 @@ public class HandoverArchiveService {
    return response(initial.vault(),initial.verificationCase(),sessionId);
   }
   var s=access.lock(caseId,sessionId,actor,true);
+  group.requireReady(caseId,sessionId,actor);
   close.requireEvidence(s);
   completion.requireReady(s);
   requireReceipts(s);

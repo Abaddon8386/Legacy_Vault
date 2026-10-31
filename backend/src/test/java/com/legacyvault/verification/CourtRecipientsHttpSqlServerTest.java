@@ -181,6 +181,7 @@ class CourtRecipientsHttpSqlServerTest extends LegalBasisSqlServerSupport {
 
         String sessions = "/staff/verification-cases/" + f.publicCaseId() + "/handover-sessions";
         String root = sessions + "/" + call("POST", sessions, null, staff, 201).get("sessionId").asText();
+        HandoverCompletionSqlSupport.recordFullAttendance(f,UUID.fromString(root.substring(root.lastIndexOf('/' )+1)));
         String assetId1 = publicId("assets", "asset_id", asset1);
         String assetId2 = publicId("assets", "asset_id", asset2);
         String assetId3 = publicId("assets", "asset_id", asset3);

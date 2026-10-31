@@ -59,7 +59,7 @@ class HandoverReceiptServiceTest {
             mock(com.legacyvault.verification.repository.HandoverCompletionEvidenceRepository.class);
     private final HandoverReceiptService service = new HandoverReceiptService(cases, sessions, receipts,
             receiptAssets, workflow, versions, allocations, audit,
-            evidence);
+            evidence, org.mockito.Mockito.mock(com.legacyvault.verification.group.GroupHandoverService.class));
     private final VerificationCase verificationCase = mock(VerificationCase.class);
     private final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
     private final Vault vault = mock(Vault.class);
