@@ -64,3 +64,5 @@
   .lv-counter-link .lv-counter-link__reject { flex-direction: column; align-items: stretch; }
   .lv-counter-link .lv-counter-link__check { align-items: flex-start; }
 }
+.lv-counter-link .lv-counter-link__columns.is-reference-free { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:640px) { .lv-counter-link .lv-counter-link__columns.is-reference-free { grid-template-columns:minmax(0,1fr); } }

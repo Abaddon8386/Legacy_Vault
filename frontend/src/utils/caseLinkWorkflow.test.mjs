@@ -144,6 +144,12 @@ test('closed case makes no recipient or pending-request calls', async () => {
   const v = await mount(Counter, { caseId: 'closed', caseItem: { status: 'CLOSED' }, actions: { listRecipients: async () => { reads++; return []; }, listPending: async () => { reads++; return []; } } });
   try { assert.equal(reads, 0); assert.equal(v.host.querySelector('select'), null); } finally { await v.close(); }
 });
+
+test('replacement adapter can omit reference only with an explicit contract opt-in; identity check is still required',async()=>{
+ let sent;const actions={counterEvidenceMode:'OPTIONAL',listRecipients:async()=>[recipient],listPending:async()=>[req],approve:async body=>{sent=body;return {...req,status:'APPROVED'};}};const v=await mount(Counter,{caseId:'case-a',caseItem,accessToken:'staff',actions});try{
+ const selects=v.host.querySelectorAll('select');await act(async()=>propsOf(selects[0]).onChange({target:{value:req.id}}));await act(async()=>propsOf(selects[1]).onChange({target:{value:recipient.beneficiaryId}}));assert.equal(v.host.querySelector('input[maxlength="200"]'),null);await click(v.host,'Xác nhận liên kết');assert.equal(sent,undefined);await change(v.host,'input[type="checkbox"]',true);await click(v.host,'Xác nhận liên kết');assert.deepEqual(sent,{caseId:'case-a',requestId:req.id,recipientId:recipient.beneficiaryId});
+ }finally{await v.close();}
+});
 test('Grace zero is valid data; UI respects supplied range and preserves minute precision', async () => {
   assert.equal(readDms({ ...rawDms, gracePeriodDays: 0 }).gracePeriodDays, 0);
   let sent, result;

@@ -1255,12 +1255,12 @@
 .lv-staff-documents-view .lv-staff-form-card { padding: 28px; border-top: 3px solid #37765a; box-shadow: 0 4px 22px #163d2706; }
 .lv-staff-documents-view .lv-staff-form-card__header { padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e8ece5; }
 .lv-staff-documents-view .lv-staff-form-card__header h2 { font-family: inherit; color: #263d2e; font-size: 22px; font-weight: 700; margin: 0 0 8px; }
-.lv-staff-documents-view .lv-staff-form-card__header p { color: #718076; font-size: 13px; margin: 0; line-height: 1.6; }
+.lv-staff-documents-view .lv-staff-form-card__header p { color: #53665a; font-size: 14px; margin: 0; line-height: 1.6; }
 .lv-staff-documents-view .lv-intake-form { display: flex; flex-direction: column; gap: 22px; }
 .lv-staff-documents-view .lv-form-row--2cols { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
 .lv-staff-documents-view .lv-intake-form .lv-form-group { min-width: 0; margin: 0; gap: 7px; }
-.lv-staff-documents-view .lv-intake-form .lv-form-label { color: #344c3d; font-size: 13px; font-weight: 700; margin: 0; }
-.lv-staff-documents-view .lv-intake-form .lv-form-hint { color: #738075; font-size: 12px; line-height: 1.5; margin: 0; }
+.lv-staff-documents-view .lv-intake-form .lv-form-label { color: #344c3d; font-size: 14px; font-weight: 700; margin: 0; }
+.lv-staff-documents-view .lv-intake-form .lv-form-hint { color: #53665a; font-size: 14px; line-height: 1.5; margin: 0; }
 .lv-staff-documents-view .lv-form-select,
 .lv-staff-documents-view .lv-form-textarea,
 .lv-staff-documents-view .lv-intake-form .lv-form-input { width: 100%; max-width: 100%; min-height: 46px; font: inherit; font-size: 14px; line-height: 1.5; color: #27382d; background: #fff; border: 1px solid #d8e0d7; border-radius: 9px; padding: 11px 14px; box-sizing: border-box; }
@@ -1279,7 +1279,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   color: #b91c1c;
   margin-top: 6px;

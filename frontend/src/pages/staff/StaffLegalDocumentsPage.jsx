@@ -42,6 +42,7 @@ import { listLiveSessions } from './liveHandoverService.js';
 import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
 import './StaffLegalDocumentsPage.css';
 import { formatStaffSession } from '../../utils/caseReference.js';
+import StaffLegalDecisionNotice from '../../components/staff/StaffLegalDecisionNotice.jsx';
 
 export default function StaffLegalDocumentsPage({
   lang = 'vi',
@@ -53,6 +54,7 @@ export default function StaffLegalDocumentsPage({
   sessionId: propSessionId = '',
   caseItem: propCaseItem = null,
   initialDossier = null,
+  legalDecision = null,
   onCaseChange,
   onNavigateCases,
   onUnauthorized,
@@ -80,7 +82,8 @@ export default function StaffLegalDocumentsPage({
   const caseStatus = displayCaseItem?.status;
   const vaultStatus = displayCaseItem?.vaultStatus;
   const isCaseMetadataReady = Boolean(displayCaseItem);
-  const distribution = useDistributionWorkflow({ caseId: selectedCaseId, workspace: 'STAFF', accessToken: effectiveAccessToken, lang, onUnauthorized });
+  const [dossierRevision,setDossierRevision] = useState(0);
+  const distribution = useDistributionWorkflow({ caseId: selectedCaseId, workspace: 'STAFF', accessToken: effectiveAccessToken, lang, onUnauthorized, onExternalChange:()=>setDossierRevision(value=>value+1) });
 
   // Preserve or discover historical handover session for closed/archived cases, scoped strictly to (selectedCaseId, effectiveAccessToken)
   const [discoveredSessionState, setDiscoveredSessionState] = useState({
@@ -394,7 +397,7 @@ export default function StaffLegalDocumentsPage({
       active = false;
       controller.abort();
     };
-  }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang, en, caseStatus, vaultStatus, isCaseMetadataReady]);
+  }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang, en, caseStatus, vaultStatus, isCaseMetadataReady, dossierRevision]);
 
   // Handle case change request (from Context Bar / Modal)
   const handleRequestCaseChange = (caseItem) => {
@@ -839,6 +842,7 @@ export default function StaffLegalDocumentsPage({
         caseStatus={displayCaseItem?.status} vaultStatus={isRouteOnHold ? 'ON_HOLD' : displayCaseItem?.vaultStatus}
         loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} distributionWorkflow={distribution.data} />
       {selectedCaseId && !dossierError && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} />}
+      <StaffLegalDecisionNotice decision={legalDecision} caseId={selectedCaseId} currentVersion={latestVersion?.version} lang={lang} onViewHistory={()=>setActiveTab('history')} />
 
       {(['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || displayCaseItem?.vaultStatus === 'ARCHIVED') && (
         <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
