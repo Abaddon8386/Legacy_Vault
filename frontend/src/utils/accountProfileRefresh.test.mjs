@@ -49,6 +49,8 @@ for (const scenario of ['unmount', 'logout', 'switch', 'success']) {
     let mounted = true;
     try {
       await act(async () => render(session));
+      assert.equal(host.querySelector('.lv-profile-verified-badge'), null, 'an email address alone must not imply verification');
+      assert.match(host.querySelector('.lv-email-verification').textContent, /Email chưa xác minh/);
       await act(async () => host.querySelector('.lv-profile-refresh-btn').click());
       if (scenario === 'unmount') { await act(async () => root.unmount()); mounted = false; }
       if (scenario === 'logout') await act(async () => render(null));

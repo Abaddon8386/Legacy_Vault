@@ -323,12 +323,6 @@ export default function AccountProfilePage({
                 <div className="lv-profile-field-value">
                   <span>{profileUser?.email || t.noInformation}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {Boolean(profileUser?.email) && (
-                      <span className="lv-profile-verified-badge">
-                        <CheckCircle2 size={11} aria-hidden="true" />
-                        <span>{t.verifiedBadge}</span>
-                      </span>
-                    )}
                     <Mail size={16} style={{ color: '#8c734b' }} aria-hidden="true" />
                   </div>
                 </div>
