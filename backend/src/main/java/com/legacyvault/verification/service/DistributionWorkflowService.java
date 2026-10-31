@@ -136,6 +136,7 @@ public class DistributionWorkflowService {
     private final LegalVaultUnlockService unlockService;
     private final LegalReadService reads;
     private final AuditService audit;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     public DistributionWorkflowService(LegalBasisCaseAccess access, StaffCaseLockRepository staffCases,
             LegalCaseLookupRepository lookup, VaultRepository vaults, LegalBasisDossierRepository dossiers,
@@ -144,7 +145,7 @@ public class DistributionWorkflowService {
             LegalApprovalGuard approvals, LegalBasisReviewService review, CourtDecisionService courtDecisions,
             BasisIntakeService intake,
             BasisForwardService forwarding, LegalApprovalService approvalService, LegalVaultUnlockService unlockService,
-            LegalReadService reads, AuditService audit) {
+            LegalReadService reads, AuditService audit, com.legacyvault.notification.WorkflowNotificationService notifications) {
         this.access = access;
         this.staffCases = staffCases;
         this.lookup = lookup;
@@ -164,6 +165,7 @@ public class DistributionWorkflowService {
         this.unlockService = unlockService;
         this.reads = reads;
         this.audit = audit;
+        this.notifications = notifications;
     }
 
     // ------------------------------------------------------------------------------------------------ reads
@@ -362,7 +364,12 @@ public class DistributionWorkflowService {
         if (allocationVersion != null) details.put("allocationVersion", allocationVersion);
         audit.record(new AuditEvent(auditAction, AuditActorType.USER, actorId, state.vault().getVaultId(), ENTITY_TYPE,
                 saved.getId(), state.phase(), null, null, details, "ST-19", RULE_ID));
-        return new Receipt(caseId, action, state.revision() + 1);
+        var notification = notifications.record(state.verificationCase(),
+                STAFF.equals(workspace)
+                    ? com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL
+                    : com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                auditAction.name(), "distribution:" + saved.getPublicId(), reason);
+        return new Receipt(caseId, action, state.revision() + 1, notification);
     }
 
     // --------------------------------------------------------------------------------------------- derivation

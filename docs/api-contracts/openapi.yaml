@@ -4519,6 +4519,7 @@ components:
         allocationHash: { type: string, minLength: 64, maxLength: 64 }
         decidedBy: { type: string, format: uuid, description: Public ID từ principal xác thực }
         decidedAt: { type: string, format: date-time }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     CompleteLegalBasisReviewRequest:
       type: object
       required: [reason, versionNo, sha256Hash, allocationHash, disputeStatus]
@@ -5028,6 +5029,7 @@ components:
         receivedAt: { type: string, format: date-time }
         evidenceReference: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     RecordOriginalWillRequest:
       type: object
       required: [deliveredByName]
@@ -5048,6 +5050,7 @@ components:
         receivedAt: { type: string, format: date-time }
         evidenceReference: { type: string, nullable: true }
         conditionNotes: { type: string, nullable: true }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     LegalDeathDecisionRequest:
       type: object
       required: [decision, reason]
@@ -5066,6 +5069,7 @@ components:
         reason: { type: string }
         verificationCaseStatus: { type: string, description: Vẫn OPEN sau quyết định }
         vaultStatus: { type: string, description: DOCUMENT_VERIFICATION sau APPROVE; giữ nguyên với REJECT/REQUEST_MORE }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     LegalDeathDocumentDetailResponse:
       type: object
       required: [deathDocumentPublicId, verificationCasePublicId, verificationCaseStatus, vaultStatus, document, decisions]
@@ -5122,6 +5126,7 @@ components:
         checkedBy: { type: string, format: uuid }
         reason: { type: string, nullable: true }
         comparedAt: { type: string, format: date-time }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     WillComparisonOverviewResponse:
       type: object
       required: [caseId, vaultStatus, approvalBlocked, originalWillIntakes, wills, comparisons]
@@ -5258,6 +5263,7 @@ components:
           type: array
           description: Mới nhất trước
           items: { $ref: '#/components/schemas/BasisVersionResponse' }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -5587,6 +5593,23 @@ components:
         caseId: { type: string, format: uuid }
         action: { type: string }
         revision: { type: integer, format: int64 }
+        notification:
+          type: object
+          nullable: true
+          description: Persisted in the same business transaction; RECORDED does not confirm delivery or reading. Null when no Staff is assigned.
+          required: [id, recipientWorkspace, status]
+          properties:
+            id: { type: string, format: uuid }
+            recipientWorkspace: { type: string, enum: [STAFF, LEGAL] }
+            status: { type: string, enum: [RECORDED] }
+    WorkflowNotificationReceipt:
+      type: object
+      nullable: true
+      required: [id, recipientWorkspace, status]
+      properties:
+        id: { type: string, format: uuid }
+        recipientWorkspace: { type: string, enum: [STAFF, LEGAL] }
+        status: { type: string, enum: [RECORDED] }
     IdentityVerificationRequest:
       type: object
       required: [documentType, result]

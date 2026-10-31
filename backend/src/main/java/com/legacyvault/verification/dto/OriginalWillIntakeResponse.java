@@ -7,16 +7,23 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 /** Metadata đã ghi nhận. {@code receivedBy} là ID công khai của Staff, không phải khóa nội bộ. */
-public record OriginalWillIntakeResponse(
-        UUID id,
+public record OriginalWillIntakeResponse(UUID id,
         UUID caseId,
         String deliveredByName,
         String deliveredByRelationship,
         UUID receivedBy,
         Instant receivedAt,
         String evidenceReference,
-        String conditionNotes
-) {
+        String conditionNotes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+    public OriginalWillIntakeResponse(UUID id,
+        UUID caseId,
+        String deliveredByName,
+        String deliveredByRelationship,
+        UUID receivedBy,
+        Instant receivedAt,
+        String evidenceReference,
+        String conditionNotes) { this(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, null); }
+    public OriginalWillIntakeResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new OriginalWillIntakeResponse(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, receipt); }
 
     public static OriginalWillIntakeResponse from(
             OriginalWillIntake intake,

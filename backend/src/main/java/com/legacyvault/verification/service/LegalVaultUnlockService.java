@@ -43,8 +43,8 @@ public class LegalVaultUnlockService {
                 Map.of("casePublicId", locked.verificationCase().getPublicId().toString(),
                         "stepId", "ST-22", "ruleId", "LV-LEG-001"),
                 "ST-22", "LV-LEG-001"));
-        notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_VAULT_UNLOCKED", "unlock:" + caseId, null);
+        var notification = notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_VAULT_UNLOCKED", "unlock:" + caseId, null);
         return new LegalVaultUnlockResponse(locked.verificationCase().getPublicId(), saved.getPublicId(),
-                saved.getStatus(), principal.publicId(), saved.getUpdatedAt());
+                saved.getStatus(), principal.publicId(), saved.getUpdatedAt()).withNotification(notification);
     }
 }

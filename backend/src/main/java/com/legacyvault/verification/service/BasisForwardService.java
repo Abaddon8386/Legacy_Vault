@@ -27,6 +27,7 @@ import java.util.UUID;
 
 @Service
 public class BasisForwardService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
     static final String STEP_ID = "ST-19";
@@ -52,7 +53,8 @@ public class BasisForwardService {
             AuditService auditService,
             LegalBasisLockedState lockedState,
             LegalBasisReviewService reviewService
-    ) {
+    , com.legacyvault.notification.WorkflowNotificationService notifications) {
+        this.notifications = notifications;
         this.staffCases = staffCases;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -157,6 +159,7 @@ public class BasisForwardService {
          */
         reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
-        return views.view(verificationCase, false);
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "LEGAL_BASIS_FORWARDED", "forward:" + dossier.getPublicId() + ":" + versionNo, null);
+        return views.view(verificationCase, false).withNotification(notification);
     }
 }

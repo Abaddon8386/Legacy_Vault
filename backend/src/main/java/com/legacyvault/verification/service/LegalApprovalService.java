@@ -31,6 +31,7 @@ import java.util.UUID;
 
 @Service
 public class LegalApprovalService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
     private static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
 
     private final LegalBasisCaseAccess access;
@@ -44,7 +45,8 @@ public class LegalApprovalService {
             LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations,
             LegalBasisReviewHistoryRepository history,
-            AuditService audit, CourtRouteGuard court) {
+            AuditService audit, CourtRouteGuard court, com.legacyvault.notification.WorkflowNotificationService notifications) {
+        this.notifications = notifications;
         this.access = access;
         this.versions = versions;
         this.allocations = allocations;
@@ -121,8 +123,9 @@ public class LegalApprovalService {
                         "sha256Hash", current.sha256Hash(), "allocationHash", currentAllocationHash),
                 "ST-21", "LV-LEG-001"));
 
+        var notification = notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_BASIS_DECIDED", "decision:" + dossier.getPublicId() + ":" + current.versionNo() + ":" + decision, reason);
         return new LegalApprovalResponse(dossier.getPublicId(), decision, current.versionNo(),
-                current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC));
+                current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC)).withNotification(notification);
     }
 
     private String allocationHash(Long dossierId, int versionNo) {

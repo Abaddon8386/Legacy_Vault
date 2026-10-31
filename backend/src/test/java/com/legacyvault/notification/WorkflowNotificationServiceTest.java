@@ -51,4 +51,33 @@ class WorkflowNotificationServiceTest {
             "DEATH_DOCUMENT_RECORDED","event:1","x".repeat(1001))).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(jdbc,cases);
     }
-}
+    @Test void separateBusinessEventsCreateSeparateNotifications() {
+        var c=ownedCase();
+        var first=service.record(c,WorkflowNotificationService.Workspace.LEGAL,
+            "DISTRIBUTION_ALLOCATIONS_SUBMITTED","distribution:first",null);
+        var second=service.record(c,WorkflowNotificationService.Workspace.LEGAL,
+            "DISTRIBUTION_ALLOCATIONS_SUBMITTED","distribution:second",null);
+        assertThat(first.id()).isNotEqualTo(second.id());
+        assertThat(first.recipientWorkspace()).isEqualTo(WorkflowNotificationService.Workspace.LEGAL);
+        verify(jdbc,times(2)).update(anyString(),any(Object[].class));
+    }
+    @Test void staffReceiptIsReturnedOnlyAfterInsertForAssignedUser() {
+        var c=ownedCase();
+        var receipt=service.record(c,WorkflowNotificationService.Workspace.STAFF,
+            "DISTRIBUTION_DOCUMENTS_REQUESTED","distribution:first","Provide partition documents");
+        assertThat(receipt.status()).isEqualTo("RECORDED");
+        assertThat(receipt.recipientWorkspace()).isEqualTo(WorkflowNotificationService.Workspace.STAFF);
+        verify(jdbc).update(anyString(),eq(receipt.id().toString()),eq(1L),eq("STAFF"),eq(2L),
+            eq("DISTRIBUTION_DOCUMENTS_REQUESTED"),eq("distribution:first"),eq("Provide partition documents"));
+    }    @Test void mutationReceiptPreservesExistingFieldsAndReadDtoHasNoNotification() {
+        var caseId=UUID.randomUUID(); var vaultId=UUID.randomUUID(); var actor=UUID.randomUUID();
+        var time=java.time.Instant.parse("2026-10-30T00:00:00Z");
+        var original=new com.legacyvault.verification.dto.LegalVaultUnlockResponse(caseId,vaultId,"UNLOCKED",actor,time);
+        var receipt=new WorkflowNotificationService.Receipt(UUID.randomUUID(),WorkflowNotificationService.Workspace.STAFF,"RECORDED");
+        var response=original.withNotification(receipt);
+        assertThat(original.notification()).isNull();
+        assertThat(response.caseId()).isEqualTo(caseId);
+        assertThat(response.vaultId()).isEqualTo(vaultId);
+        assertThat(response.unlockedAt()).isEqualTo(time);
+        assertThat(response.notification()).isEqualTo(receipt);
+    }}

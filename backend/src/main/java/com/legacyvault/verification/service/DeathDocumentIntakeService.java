@@ -106,8 +106,8 @@ public class DeathDocumentIntakeService {
                 RULE_ID
         ));
 
-        notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "DEATH_DOCUMENT_RECORDED", "DEATH_DOCUMENT_RECORDED:" + saved.getPublicId(), null);
-        return DeathDocumentRecordResponse.from(saved, verificationCase.getPublicId(), principal.publicId());
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "DEATH_DOCUMENT_RECORDED", "DEATH_DOCUMENT_RECORDED:" + saved.getPublicId(), null);
+        return DeathDocumentRecordResponse.from(saved, verificationCase.getPublicId(), principal.publicId()).withNotification(notification);
     }
 
     @Transactional(readOnly = true)

@@ -46,5 +46,6 @@ public final class DistributionWorkflowDtos {
             @Pattern(regexp = "(?i)[a-f0-9]{64}") String allocationSha256,
             @Size(max = 200) List<@Valid AllocationInput> allocations) { }
 
-    public record Receipt(UUID caseId, String action, long revision) { }
+    public record Receipt(UUID caseId, String action, long revision,
+            com.legacyvault.notification.WorkflowNotificationService.Receipt notification) { }
 }

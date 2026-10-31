@@ -72,7 +72,7 @@ class WillComparisonServiceTest {
     private final AuditService auditService = mock(AuditService.class);
     private final WillComparisonService service = new WillComparisonService(caseLookup, caseRepository,
             vaultRepository, intakeRepository, willAssetRepository, assetVersionRepository, comparisonRepository,
-            auditService);
+            auditService, org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
     private final CustomUserPrincipal legal = new CustomUserPrincipal(LEGAL_ID, UUID.randomUUID(), "legal@example.com");
 
