@@ -1,4 +1,4 @@
-import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
+import {staffWorkflowNotificationFeedback as workflowNotificationFeedback} from '../../utils/staffWorkflowNotification.js';
 import DistributionWorkflowOverview from '../../workflows/DistributionWorkflowOverview.jsx';
 import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 import { canUseDistributionAction, loadDistributionWorkflow, preflightDistributionAction } from '../../workflows/distributionWorkflowService.js';
