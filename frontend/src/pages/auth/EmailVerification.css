@@ -1,0 +1,10 @@
+.lv-email-page {max-width:760px;margin:40px auto;padding:20px;}
+.lv-email-verification {padding:24px;border:1px solid #dce4dc;border-radius:14px;background:#fff;color:#234237;min-width:0;overflow-wrap:anywhere;}
+.lv-email-verification h2 {font-size:20px;margin:0 0 12px;}
+.lv-email-verification p {font-size:16px;line-height:1.6;}
+.lv-email-verification > div {display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;}
+.lv-email-verification button,.lv-email-verification a {display:inline-flex;align-items:center;min-height:44px;padding:10px 16px;box-sizing:border-box;border:1px solid #a3b8aa;border-radius:8px;background:#fff;color:#164639;font:inherit;text-decoration:none;cursor:pointer;}
+.lv-email-verification .is-primary {background:#164639;color:#fff;}
+.lv-email-verification button:disabled {background:#edf0eb;color:#748077;cursor:default;}
+.lv-email-verification [role=alert] {color:#9b3329;}
+.lv-email-verification :focus-visible {outline:3px solid #b69b62;outline-offset:3px;}

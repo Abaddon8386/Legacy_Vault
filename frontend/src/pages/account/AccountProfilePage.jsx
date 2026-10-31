@@ -23,6 +23,7 @@ import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
 import { linkGoogleAccount } from '../../utils/googleLinkService.js';
 import { getAuthMessage } from '../../utils/loginService.js';
 import './AccountProfilePage.css';
+import {EmailVerificationPanel} from '../auth/EmailVerification.jsx';
 
 export default function AccountProfilePage({
   session = null,
@@ -279,6 +280,7 @@ export default function AccountProfilePage({
           </div>
         )}
       </header>
+      {session?.accessToken && !preview && <EmailVerificationPanel session={session} lang={lang} />}
 
       {/* Temporary Feedback Callout */}
       {activeFeedback && (
@@ -321,12 +323,6 @@ export default function AccountProfilePage({
                 <div className="lv-profile-field-value">
                   <span>{profileUser?.email || t.noInformation}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {Boolean(profileUser?.email) && (
-                      <span className="lv-profile-verified-badge">
-                        <CheckCircle2 size={11} aria-hidden="true" />
-                        <span>{t.verifiedBadge}</span>
-                      </span>
-                    )}
                     <Mail size={16} style={{ color: '#8c734b' }} aria-hidden="true" />
                   </div>
                 </div>

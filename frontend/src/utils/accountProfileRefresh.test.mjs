@@ -42,13 +42,15 @@ for (const scenario of ['unmount', 'logout', 'switch', 'success']) {
   test(`profile refresh ${scenario}: never applies a stale response`, async () => {
     const originalFetch = globalThis.fetch;
     let resolveFetch, signal;
-    globalThis.fetch = (_url, options) => { signal = options.signal; return new Promise(resolve => { resolveFetch = resolve; }); };
+    globalThis.fetch = (url, options) => { if(url.endsWith('/auth/email-verification'))return Promise.resolve(new Response(JSON.stringify({verified:false,verifiedAt:null,requestAvailable:false,lastRequestState:null}),{headers:{'Content-Type':'application/json'}}));signal = options.signal; return new Promise(resolve => { resolveFetch = resolve; }); };
     const host = document.createElement('div'); document.body.append(host);
     const root = createRoot(host); const calls = [];
     const render = value => root.render(React.createElement(Profile, { session: value, onRefreshSession: (...args) => calls.push(args) }));
     let mounted = true;
     try {
       await act(async () => render(session));
+      assert.equal(host.querySelector('.lv-profile-verified-badge'), null, 'an email address alone must not imply verification');
+      assert.match(host.querySelector('.lv-email-verification').textContent, /Email chưa xác minh/);
       await act(async () => host.querySelector('.lv-profile-refresh-btn').click());
       if (scenario === 'unmount') { await act(async () => root.unmount()); mounted = false; }
       if (scenario === 'logout') await act(async () => render(null));
