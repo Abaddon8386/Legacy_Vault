@@ -1,4 +1,4 @@
-import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
+import {staffWorkflowNotificationFeedback as workflowNotificationFeedback, publishStaffWorkflowChange} from '../../utils/staffWorkflowNotification.js';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   loadStaffCase,
@@ -209,6 +209,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       if (c.signal.aborted) return;
       setSelectedRecordFiles(prev => ({ ...prev, [recordId]: null }));
       setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}.${workflowNotificationFeedback(receipt, 'LEGAL', lang)}`);
+      publishStaffWorkflowChange();
       loadRecordAttachments(recordId);
     } catch (err) {
       if (c.signal.aborted) return;
@@ -288,7 +289,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     })}>{en ? 'Retry loading case' : 'Thử tải lại hồ sơ'}</button>}
     {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={() => run(async (options, signal) => {
       const value = await claimStaffCase(caseId, options);
-      if (!signal.aborted) { setData(value); setNotice(en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.'); }
+      if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); }
     })}>{en ? 'Claim case' : 'Nhận hồ sơ'}</button>}
     <label className="lv-intake-category">{en ? 'Record category' : 'Nhóm giấy tờ'}<select disabled={busy || recordsLoading} value={kind} onChange={e => {
       const nextKind = e.target.value;
@@ -431,6 +432,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     {data?.status !== 'CLOSED' && <form onSubmit={e => { e.preventDefault(); run(async (options, signal) => {
       const saved = await staffDocuments(caseId, kind, draft, options);
       if (signal.aborted) return;
+      publishStaffWorkflowChange();
       setRecords(items => [...items, saved]); setDrafts(values => ({ ...values, [kind]: {} }));
 
       if (stagedFile) {
@@ -441,6 +443,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           if (!signal.aborted) {
             setStagedFile(null);
             setNotice((en ? 'Document saved with its attachment.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm.') + workflowNotificationFeedback(attachmentReceipt, 'LEGAL', lang));
+            publishStaffWorkflowChange();
             loadRecordAttachments(saved.id);
           }
         } catch (attErr) {
