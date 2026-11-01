@@ -48,6 +48,7 @@ export const liveCaseLinkActions = {
   },
 };
 export const liveCounterLinkActions = {
+  counterEvidenceMode: 'OPTIONAL',
   async listPending({ caseId }, options) {
     const raw = await request(`${path(caseId)}/link-requests`, { ...options, expectedStatus: 200 });
     if (!Array.isArray(raw)) invalid();
@@ -66,7 +67,11 @@ export const liveCounterLinkActions = {
   async approve({ caseId, requestId, recipientId, evidenceReference }, options) {
     id(requestId); id(recipientId); path(caseId);
     // Save the existing counter identity record first; failure must not proceed to linking.
-    await recordCounterAttestation(caseId, recipientId, { evidenceReference }, options);
+    const attestationPayload = {};
+    if (typeof evidenceReference === 'string' && evidenceReference.trim()) {
+      attestationPayload.evidenceReference = evidenceReference.trim();
+    }
+    await recordCounterAttestation(caseId, recipientId, attestationPayload, options);
     const raw = await request(`${path(caseId)}/link-requests/${requestId}/approve`, {
       ...options, method: 'POST', body: { beneficiaryId: recipientId }, expectedStatus: 200 });
     if (raw?.requestId !== requestId || raw.status !== 'APPROVED' || raw.beneficiaryId !== recipientId || !isUuid(raw.accountId)) invalid();
