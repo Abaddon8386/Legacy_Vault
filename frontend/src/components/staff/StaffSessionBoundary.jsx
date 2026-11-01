@@ -6,6 +6,7 @@ import { staffSessionPrerequisite, workflowFailure } from '../../utils/workflowF
 import { loadDistributionWorkflow } from '../../workflows/distributionWorkflowService.js';
 import StaffCaseSelectorModal from './StaffCaseSelectorModal.jsx';
 import './StaffSessionBoundary.css';
+import StaffGroupHandover from './StaffGroupHandover.jsx';
 
 export default function StaffSessionBoundary(props) {
   if (props.preview && !props.accessToken) return props.children;
@@ -68,9 +69,11 @@ function SessionScope({children, caseId, sessionId, accessToken, lang = 'vi', re
     return () => controller.abort();
   }, [caseId, sessionId, accessToken, requireSession, operation, attempt]);
   const current = result?.attempt === attempt ? result : null;
-  if (isHandoverId(caseId) && current?.kind === 'ready') return cloneElement(children, {
-    caseItem:current.item, sessionId:current.selected?.sessionId || sessionId || '',
-  });
+  if (isHandoverId(caseId) && current?.kind === 'ready') {
+    const selectedSessionId=current.selected?.sessionId || sessionId || '';
+    const content=cloneElement(children,{caseItem:current.item,sessionId:selectedSessionId});
+    return operation==='delivery' ? <StaffGroupHandover caseId={caseId} sessionId={selectedSessionId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized}>{content}</StaffGroupHandover> : content;
+  }
   const failure = current?.kind === 'failure' ? workflowFailure(current.error, lang) : null;
   const waiting = current?.kind === 'waiting' ? staffSessionPrerequisite(current.item, lang) : null;
   const caseUrl = '/staff/cases' + (isHandoverId(caseId) ? `?caseId=${encodeURIComponent(caseId)}` : '');

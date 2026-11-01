@@ -1,0 +1,10 @@
+.lv-group-handover {padding:24px;border:1px solid #dce4dc;border-radius:14px;background:white;color:#234237;display:grid;gap:14px;min-width:0;margin:16px 0;}
+.lv-group-handover h2 {font-size:21px;margin:0;}.lv-group-handover p {font-size:16px;line-height:1.6;margin:0;}
+.lv-group-handover fieldset {display:grid;gap:12px;border:1px solid #dce4dc;padding:16px;min-width:0;}
+.lv-group-handover label {display:flex;gap:10px;align-items:center;font-size:16px;overflow-wrap:anywhere;}.lv-group-handover>label {display:grid;}
+.lv-group-handover input[type=checkbox] {width:20px;height:20px;flex:none;}.lv-group-handover textarea {min-height:90px;width:100%;box-sizing:border-box;font:inherit;padding:12px;}
+.lv-group-handover button {min-height:44px;padding:10px 16px;border:1px solid #a3b8aa;border-radius:8px;background:#fff;color:#164639;font:inherit;cursor:pointer;justify-self:start;}
+.lv-group-handover .is-primary {background:#164639;color:white;}.lv-group-handover .is-negative {background:#a3372d;color:white;border-color:#a3372d;}
+.lv-group-handover button:disabled {background:#edf0eb;color:#748077;border-color:#d8dfd8;cursor:default;}.lv-group-handover [role=alert] {color:#9b3329;}
+.lv-group-handover__actions {display:flex;gap:12px;flex-wrap:wrap;}.lv-group-handover :focus-visible {outline:3px solid #b69b62;outline-offset:3px;}
+@media(max-width:640px){.lv-group-handover{padding:16px;}.lv-group-handover__actions{flex-direction:column;}}

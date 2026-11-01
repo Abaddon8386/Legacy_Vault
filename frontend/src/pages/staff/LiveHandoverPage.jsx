@@ -8,6 +8,7 @@ import '../../components/layout/OwnerSurfaces.css';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import StaffCaseLinkPanel from './StaffCaseLinkPanel.jsx';
+import StaffGroupHandover from '../../components/staff/StaffGroupHandover.jsx';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
 
@@ -213,9 +214,9 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         </div>
       )}
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
-      {selected.status === 'OPEN' && <div className="lv-handover-next-step">
+      {selected.status === 'OPEN' && <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang}><div className="lv-handover-next-step">
         <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
-      </div>}
+      </div></StaffGroupHandover>}
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
       {confirmCancel && <div role="group" aria-label={en ? 'Confirm cancellation' : 'Xác nhận hủy phiên'}>
         <p>{en ? 'Cancel this open session?' : 'Hủy phiên đang mở này?'}</p>

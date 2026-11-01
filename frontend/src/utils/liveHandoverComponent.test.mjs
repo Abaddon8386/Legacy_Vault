@@ -43,21 +43,22 @@ const {default:Page}=await loadComponentModule('src/pages/staff/LiveHandoverPage
 const cid='11111111-1111-4111-8111-111111111111',sid='22222222-2222-4222-8222-222222222222';
 const receipt={caseId:cid,sessionId:sid,vaultId:cid,staffId:cid,status:'OPEN',openedAt:'2026-10-20T06:00:00',closedAt:null};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+const unconfirmedGroup={state:{status:'UNCONFIRMED',revision:0,allPresent:false,attendanceId:null,requestId:null,snapshot:null},snapshot:'fixture-snapshot',requiredRecipientIds:[cid],deliveryAllowed:false};
 const props=e=>e[Object.keys(e).find(k=>k.startsWith('__reactProps$'))];
 const btn=(host,text)=>[...host.querySelectorAll('button')].find(b=>b.textContent===text);
 async function mount(extra={},url='/staff/handover?caseId='+cid){window.history.replaceState({},'',url);const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const options={accessToken:'synthetic',lang:'vi',onLogout(){},...extra};await act(async()=>root.render(React.createElement(Page,options)));return{host,root,options,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 test('Open uses pending lock, server receipt, query context and VI/EN state; accounts remain blocked',async()=>{
- let release,writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){writes++;return new Promise(r=>{release=r;});}return json([]);};
+ let release,writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){writes++;return new Promise(r=>{release=r;});}if(url.endsWith('/group-handover'))return json(unconfirmedGroup);if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:cid,fullName:'Counter recipient'}]);return json([]);};
  const v=await mount();const open=btn(v.host,'Mở phiên bàn giao');assert.equal(open.disabled,false);
  await act(async()=>{open.click();open.click();});assert.equal(writes,1);assert.ok(v.host.querySelector('progress'));
  await act(async()=>release(json(receipt,201)));assert.match(v.host.textContent,/Máy chủ đã xác nhận/);
  assert.equal(new URLSearchParams(window.location.search).get('sessionId'),sid);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
  const assetLinks=[...v.host.querySelectorAll('a.lv-handover-primary-action')];
- assert.equal(assetLinks.length,1,'Show one clear handover action instead of duplicate links');
+ assert.equal(assetLinks.length,0,'A newly opened session must not bypass attendance');
  for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
  assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng'),undefined);
  const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
- await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('a.lv-handover-primary-action')?.search,'?caseId='+cid+'&sessionId='+sid);assert.equal(v.host.textContent.includes(sid),false);assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
+ await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Staff must record attendance/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
 });
 test('Existing OPEN restored via list/detail; cancellation only after confirmation and server response',async()=>{
  const calls=[];globalThis.fetch=async(url,init)=>{calls.push({url,init});return json(init.method==='PATCH'?{...receipt,status:'CANCELLED',closedAt:'2026-10-20T07:00:00'}:url.endsWith(sid)?receipt:[receipt]);};
@@ -67,9 +68,9 @@ test('Existing OPEN restored via list/detail; cancellation only after confirmati
  assert.deepEqual(JSON.parse(calls.find(c=>c.init.method==='PATCH').init.body),{status:'CANCELLED'});await v.close();
 });
 test('409 open race requires reload and adopts server session without retrying POST',async()=>{
- let opens=0,lists=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){opens++;return json({code:'HANDOVER_SESSION_ALREADY_OPEN'},409);}if(url.endsWith(sid))return json(receipt);return json(++lists===1?[]:[receipt]);};
+ let opens=0,lists=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){opens++;return json({code:'HANDOVER_SESSION_ALREADY_OPEN'},409);}if(url.endsWith('/group-handover'))return json(unconfirmedGroup);if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:cid,fullName:'Counter recipient'}]);if(url.endsWith(sid))return json(receipt);return json(++lists===1?[]:[receipt]);};
  const v=await mount();await act(async()=>btn(v.host,'Mở phiên bàn giao').click());assert.match(v.host.querySelector('[role=alert]').textContent,/Đã có phiên mở/);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
- await act(async()=>btn(v.host,'Tải lại phiên').click());assert.equal(v.host.querySelector('a.lv-handover-primary-action')?.search,'?caseId='+cid+'&sessionId='+sid);assert.equal(v.host.textContent.includes(sid),false);assert.equal(opens,1);await v.close();
+ await act(async()=>btn(v.host,'Tải lại phiên').click());assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Staff cần ghi nhận/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(opens,1);await v.close();
 });
 test('401 notifies logout; no fake account data; closed session is read-only in accounts mode',async()=>{
  let expired=0;globalThis.fetch=async()=>json({code:'UNAUTHENTICATED'},401);let v=await mount({onLogout(){expired++;}});assert.equal(expired,1);assert.match(v.host.textContent,/hết hạn/);await v.close();
