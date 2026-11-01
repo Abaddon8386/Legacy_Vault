@@ -65,7 +65,7 @@ class CounterIdentityAttestationControllerTest {
         }
         mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("{\"evidenceReference\":\"REF-1\"}"))
                 .andExpect(status().isUnauthorized());
-        for (String body : List.of("{}", "{\"evidenceReference\":\"  \"}",
+        for (String body : List.of(
                 "{\"evidenceReference\":\"" + "x".repeat(201) + "\"}",
                 "{\"evidenceReference\":\"REF-1\",\"confirmedEmail\":\"not-an-email\"}",
                 "{\"evidenceReference\":\"REF-1\",\"confirmedEmail\":\"" + "x".repeat(245) + "@example.com\"}")) {
@@ -73,5 +73,17 @@ class CounterIdentityAttestationControllerTest {
                     .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
         }
         verifyNoInteractions(service);
+    }
+
+    /** PS-140: the reference is optional; absent, null, empty and blank bodies reach the service as valid requests. */
+    @Test
+    void acceptsRequestWithoutEvidenceReference() throws Exception {
+        when(service.attest(eq(caseId), eq(beneficiaryId), any())).thenReturn(new CounterIdentityAttestationDtos.Response(
+                attestationId, caseId, beneficiaryId, UUID.randomUUID(), Instant.parse("2026-11-01T00:00:00Z")));
+        for (String body : List.of("{}", "{\"evidenceReference\":null}", "{\"evidenceReference\":\"\"}",
+                "{\"evidenceReference\":\"   \"}", "{\"confirmedEmail\":\"recipient@example.com\"}")) {
+            mvc.perform(post(path).with(user("staff").roles("STAFF_EXECUTOR"))
+                    .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated());
+        }
     }
 }

@@ -1,0 +1,22 @@
+{
+  "_note": "PS-140 safe FE fixtures. evidenceReference is OPTIONAL. All values are synthetic; the server never generates a reference.",
+  "endpoint": "POST /api/v1/staff/verification-cases/{caseId}/beneficiaries/{beneficiaryId}/identity-attestations",
+  "requests": {
+    "withoutReference": { "confirmedEmail": "recipient@example.test" },
+    "nullReference": { "evidenceReference": null, "confirmedEmail": "recipient@example.test" },
+    "emptyOrBlankReference_storedAsNull": { "evidenceReference": "   " },
+    "legacyClientWithReference_storedTrimmed": { "evidenceReference": "COUNTER-17", "confirmedEmail": "recipient@example.test" }
+  },
+  "response201": {
+    "attestationId": "00000000-0000-4000-8000-000000000001",
+    "caseId": "00000000-0000-4000-8000-000000000002",
+    "beneficiaryId": "00000000-0000-4000-8000-000000000003",
+    "recordedBy": "00000000-0000-4000-8000-000000000004",
+    "recordedAt": "2026-11-01T00:00:00Z"
+  },
+  "stillRejected": {
+    "400": "evidenceReference longer than 200 characters, or confirmedEmail not an e-mail",
+    "403": "caller is not ROLE_STAFF_EXECUTOR",
+    "404": "case not assigned to this Staff / closed, or Beneficiary not in the case's Vault"
+  }
+}

@@ -7,14 +7,23 @@ import java.util.UUID;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.auth.EmailNormalizer;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public final class CounterIdentityAttestationDtos {
     private CounterIdentityAttestationDtos() { }
 
-    public record Request(@NotBlank @Size(max = 200) String evidenceReference,
+    /**
+     * PS-140: {@code evidenceReference} is optional. Absent, empty and whitespace-only values mean "no reference" and
+     * are stored as NULL; a client that still sends a reference keeps it (trimmed, at most 200 characters).
+     */
+    public record Request(@Size(max = 200) String evidenceReference,
             @Email @Size(max = 254) String confirmedEmail) {
+        public String normalizedEvidenceReference() {
+            if (evidenceReference == null) return null;
+            String trimmed = evidenceReference.trim();
+            return trimmed.isEmpty() ? null : trimmed;
+        }
+
         public String normalizedConfirmedEmail() {
             return EmailNormalizer.normalize(confirmedEmail);
         }

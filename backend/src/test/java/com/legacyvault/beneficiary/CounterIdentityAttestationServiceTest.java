@@ -109,4 +109,12 @@ class CounterIdentityAttestationServiceTest {
         verify(attestations, never()).saveAndFlush(any());
         verifyNoInteractions(audit);
     }
+
+    @Test
+    void evidenceReferenceNormalizationNeverInventsAValue() {
+        for (String blank : new String[] {null, "", "   ", " 	 "}) {
+            assertEquals(null, new CounterIdentityAttestationDtos.Request(blank, null).normalizedEvidenceReference());
+        }
+        assertEquals("REF-1", new CounterIdentityAttestationDtos.Request("  REF-1 ", null).normalizedEvidenceReference());
+    }
 }
