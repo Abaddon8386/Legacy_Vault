@@ -64,3 +64,47 @@ test('Task 2: listOwn preserves valid string reason and rejects non-string types
     e => e.code === 'INVALID_RESPONSE'
   );
 });
+
+test('PS-124: liveCaseLinkActions.loadHandoverStatus queries BE endpoint with no-store and validates subject/cases', async () => {
+  const calls = [];
+  const statusPayload = {
+    subjectId: accountId,
+    cases: [
+      { caseId, caseNumber: 'HS-2026-000001', status: 'READY', totalAssets: 2, deliveredAssets: 0 },
+    ],
+  };
+  const opts = {
+    ...options,
+    userId: accountId,
+    fetchFn: async (url, init) => {
+      calls.push({ url, ...init });
+      return response(statusPayload, 200);
+    },
+  };
+  const result = await bene.loadHandoverStatus(opts);
+  assert.equal(calls[0].url, '/api/v1/beneficiary-handover-status');
+  assert.equal(calls[0].headers.Authorization, 'Bearer fixture');
+  assert.equal(calls[0].cache, 'no-store');
+  assert.equal(result.subjectId, accountId);
+  assert.equal(result.cases[0].status, 'READY');
+  assert.equal(result.cases[0].totalAssets, 2);
+  assert.equal(result.cases[0].deliveredAssets, 0);
+
+  // Cross-account check: when options.userId does not match subjectId, throws INVALID_RESPONSE
+  await assert.rejects(
+    bene.loadHandoverStatus({ ...opts, userId: 'mismatch-id' }),
+    e => e.code === 'INVALID_RESPONSE'
+  );
+
+  // Missing or non-array cases throws INVALID_RESPONSE
+  await assert.rejects(
+    bene.loadHandoverStatus({ ...opts, fetchFn: async () => response({ subjectId: accountId, cases: null }) }),
+    e => e.code === 'INVALID_RESPONSE'
+  );
+
+  // Missing subjectId throws INVALID_RESPONSE
+  await assert.rejects(
+    bene.loadHandoverStatus({ ...opts, fetchFn: async () => response({ cases: [] }) }),
+    e => e.code === 'INVALID_RESPONSE'
+  );
+});
