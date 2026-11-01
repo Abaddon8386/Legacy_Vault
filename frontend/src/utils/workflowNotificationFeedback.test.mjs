@@ -8,9 +8,9 @@ test('existing mutation receipts never imply that another workspace was notified
     assert.equal(workflowNotificationFeedback(receipt, 'STAFF'), '');
   }
 });
-test('only a recorded notification for the intended recipient confirms delivery in VI and EN', () => {
-  assert.match(workflowNotificationFeedback({ notification }, 'STAFF'), /Đã gửi thông báo cho Nhân viên/);
-  assert.match(workflowNotificationFeedback({ notification: { ...notification, recipientWorkspace: 'LEGAL' } }, 'LEGAL', 'en'), /notification has been sent to Legal/);
+test('only a recorded notification for the intended recipient confirms persistence, never delivery or read', () => {
+  assert.match(workflowNotificationFeedback({ notification }, 'STAFF'), /Đã ghi nhận thông báo cho Nhân viên trong hệ thống/);
+  assert.match(workflowNotificationFeedback({ notification: { ...notification, recipientWorkspace: 'LEGAL' } }, 'LEGAL', 'en'), /notification for Legal has been recorded in the system/);
 });
 test('wrong recipient, invalid identifier and pending status never produce a delivery confirmation', () => {
   for (const changes of [{ recipientWorkspace: 'LEGAL' }, { id: 'invalid' }, { status: 'PENDING' }, { status: 'FAILED' }]) {

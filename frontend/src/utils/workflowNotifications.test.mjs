@@ -15,6 +15,18 @@ const item={id,caseId,caseNumber:'HS-2026-000001',action:'LEGAL_BASIS_REVIEW_REQ
 const json=x=>new Response(JSON.stringify(x),{status:200,headers:{'Content-Type':'application/json'}});
 async function mount(props={session:{accessToken:'test-only'},role:'STAFF',lang:'vi'}){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const render=async props=>act(async()=>root.render(React.createElement(Component,props)));await render(props);const expand=async()=>act(async()=>{host.querySelector('details').open=true;host.querySelector('details').dispatchEvent(new window.Event('toggle',{bubbles:true}));});return{host,render,expand,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 const originalFetch=globalThis.fetch;test.afterEach(()=>{globalThis.fetch=originalFetch;});
+
+test('Staff deep links preserve exact case, language and allocation step without business POSTs',async()=>{
+ for(const [action,path] of [['LEGAL_DEATH_DOCUMENT_DECIDED','/staff/cases'],['WILL_COMPARISON_RECORDED','/staff/cases'],['DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED','/staff/legal-documents'],['LEGAL_BASIS_DECIDED','/staff/legal-documents'],['DISTRIBUTION_ALLOCATIONS_APPROVED','/staff/legal-documents']]){
+  const destinations=[],methods=[];globalThis.fetch=async(_url,init)=>{methods.push(init.method||'GET');return init.method==='PUT'?json({id,read:true}):json([{...item,action,reason:'Scoped Legal feedback'}]);};
+  const v=await mount({session:{accessToken:'staff-token'},role:'STAFF',lang:'en',onNavigate:url=>destinations.push(url)});
+  try{await v.expand();assert.match(v.host.textContent,/Scoped Legal feedback/);await act(async()=>v.host.querySelector('li button').click());assert.ok(destinations[0].startsWith(path+'?caseId='+caseId));assert.match(destinations[0],/lang=en/);assert.equal(destinations[0].includes('tab=allocations'),action==='DISTRIBUTION_ALLOCATIONS_APPROVED');assert.deepEqual(methods,['GET','PUT']);}finally{await v.close();}
+ }
+});
+test('failed mark-read cannot navigate or claim local read success',async()=>{
+ const destinations=[];globalThis.fetch=async(_url,init)=>init.method==='PUT'?new Response(JSON.stringify({code:'ACCESS_DENIED'}),{status:403,headers:{'Content-Type':'application/json'}}):json([item]);const v=await mount({session:{accessToken:'staff-token'},role:'STAFF',lang:'vi',onNavigate:url=>destinations.push(url)});
+ try{await v.expand();await act(async()=>v.host.querySelector('li button').click());assert.deepEqual(destinations,[]);assert.match(v.host.textContent,/Chưa tải được/);}finally{await v.close();}
+});
 test('shows real unread notice and supplementation reason; acknowledges then opens exactly its case',async()=>{
  const calls=[],destinations=[];globalThis.fetch=async(url,init)=>{calls.push({url,init});return init.method==='PUT'?json({id,read:true}):json([item]);};
  const view=await mount({session:{accessToken:'staff-token'},role:'STAFF',lang:'vi',onNavigate:url=>destinations.push(url)});
