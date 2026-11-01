@@ -1,4 +1,5 @@
 import StaffSessionBoundary from './components/staff/StaffSessionBoundary.jsx';
+import VerifyEmailPage from './pages/auth/EmailVerification.jsx';
 import SharedWithMePage from './pages/beneficiary/SharedWithMePage.jsx';
 import AdminHome from './pages/admin/AdminHome.jsx';
 import AdminSubscriptionPage from './pages/admin/AdminSubscriptionPage.jsx';
@@ -728,6 +729,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const rawPath = location.split('?')[0];
   const path = rawPath === '/beneficiary' ? '/shared-with-me' : rawPath;
   const isSharedWithMeRoute = path === '/shared-with-me';
+  if (path === '/verify-email') return <VerifyEmailPage session={restoreStatus === 'ready' ? session : null} lang={lang} />;
   if (path === '/forgot-password' || path === '/reset-password') {
     return <PasswordRecoveryRoute key={location} mode={path === '/reset-password' ? 'reset' : 'request'} initialLang={new URLSearchParams(location.split('?')[1] || '').get('lang')}
       onNavigate={navigateTo} onComplete={recoveryLang => { logout(); navigateTo(`/login?lang=${recoveryLang}`); }} />;

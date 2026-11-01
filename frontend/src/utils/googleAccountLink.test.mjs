@@ -755,6 +755,7 @@ for (const mode of ['same-session-object', 'different-user', 'different-token'])
   let finish;
   window.google={accounts:{id:{initialize:cfg=>callbacks.push(cfg.callback),renderButton:container=>{container.appendChild(document.createElement('button'));}}}};
   globalThis.fetch=async(url,options)=>{
+   if(url.endsWith('/auth/email-verification'))return new Response(JSON.stringify({verified:false,verifiedAt:null,requestAvailable:false,lastRequestState:null}),{headers:{'Content-Type':'application/json'}});
    calls.push(options);
    return new Promise(resolve=>{finish=()=>resolve(new Response(JSON.stringify({linked:true}),{status:200,headers:{'Content-Type':'application/json'}}));});
   };
