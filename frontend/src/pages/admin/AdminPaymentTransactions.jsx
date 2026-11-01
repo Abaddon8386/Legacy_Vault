@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import DateTimePicker from '../../components/common/DateTimePicker.jsx';
 import { fetchAdminPayments, fetchAdminPayment, paymentStatuses } from '../../utils/adminPaymentService.js';
 import { adminSubscriptionErrorMessage, formatBytes } from '../../utils/adminSubscriptionService.js';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
@@ -75,8 +76,8 @@ function Transactions({accessToken,lang='vi',onUnauthorized}) {
       <label>{en?'Status':'Trạng thái'}<select value={draft.status} onChange={e=>setDraft({...draft,status:e.target.value})}>
         <option value="">{en?'All':'Tất cả'}</option>{paymentStatuses.map(s=><option key={s} value={s}>{textStatus(s)}</option>)}
       </select></label>
-      <label>{en?'From (UTC)':'Từ (UTC)'}<input type="datetime-local" value={draft.from} onChange={e=>setDraft({...draft,from:e.target.value})}/></label>
-      <label>{en?'To (UTC, exclusive)':'Đến (UTC, không gồm mốc cuối)'}<input type="datetime-local" value={draft.to} onChange={e=>setDraft({...draft,to:e.target.value})}/></label>
+      <label>{en?'From (UTC)':'Từ (UTC)'}<DateTimePicker lang={lang} value={draft.from} onChange={e=>setDraft({...draft,from:e.target.value})}/></label>
+      <label>{en?'To (UTC, exclusive)':'Đến (UTC, không gồm mốc cuối)'}<DateTimePicker lang={lang} value={draft.to} onChange={e=>setDraft({...draft,to:e.target.value})}/></label>
       <button type="submit" className="lv-admin-sub-btn lv-admin-sub-btn--primary">{en?'Search':'Tra cứu'}</button>
       <button type="button" className="lv-admin-sub-btn" onClick={()=>{close();setRevision(n=>n+1);}}>{en?'Reload':'Tải lại'}</button>
     </form>

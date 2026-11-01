@@ -16,6 +16,7 @@ import {
 } from '../../utils/completionProgressValidation.js';
 import {
   fetchCompletionProgress,
+  fetchHandoverSession,
 } from './handoverSessionService.js';
 import { listLiveSessions } from './liveHandoverService.js';
 import { completionProgressI18n } from './completionProgressI18n.js';
@@ -305,9 +306,14 @@ function CompletionProgressContext({
         return () => c.abort();
       } else if (selectedSessionId) {
         const c = new AbortController();
-        Promise.resolve().then(() => {
+        Promise.resolve().then(async () => {
           if (c.signal.aborted) return null;
           setLoading(true);
+          if (!effectiveIsDevPreview) {
+            const currentSession = await fetchHandoverSession(trimmed,selectedSessionId,{accessToken:effectiveAccessToken,lang,signal:c.signal});
+            if (c.signal.aborted) return null;
+            if (currentSession.status === 'CANCELLED') throw Object.assign(new Error(lang==='en'?'This handover session was cancelled. Choose an open session or view its history; it cannot be completed.':'Phiên bàn giao này đã bị hủy. Hãy chọn phiên đang mở hoặc xem lịch sử; phiên đã hủy không được tính hoàn tất.'),{status:409,code:'CANCELLED_HANDOVER_SESSION'});
+          }
           return fetchCompletionProgress(trimmed, selectedSessionId, {
             accessToken: effectiveAccessToken,
             isDevPreview: effectiveIsDevPreview,
@@ -580,7 +586,7 @@ function CompletionProgressContext({
             <h2 id="api-error-heading" className="lv-progress-error-banner__title">
               {isClosedCaseError
                 ? t.errorClosedCaseTitle
-                : isStateError ? t.errorStateTitle
+                : loadError.code === 'CANCELLED_HANDOVER_SESSION' ? (lang==='en'?'Handover session cancelled':'Phiên bàn giao đã bị hủy') : isStateError ? t.errorStateTitle
                 : loadError.status === 404 || loadError.code === 'RESOURCE_NOT_FOUND'
                 ? t.errorNotFoundTitle
                 : (lang === 'en' ? 'Unable to load completion progress' : 'Chưa tải được tiến độ hoàn tất')}
@@ -588,7 +594,7 @@ function CompletionProgressContext({
             <p>
               {isClosedCaseError
                 ? t.errorClosedCaseDesc
-                : isStateError ? (loadError.message || t.errorStateDesc)
+                : isStateError ? (loadError.code==='CANCELLED_HANDOVER_SESSION'?loadError.message:t.errorStateDesc)
                 : loadError.status === 404 || loadError.code === 'RESOURCE_NOT_FOUND'
                 ? t.errorNotFoundDesc
                 : loadError.message || (lang === 'en' ? 'Network or server error. Please try again.' : 'Lỗi kết nối hoặc máy chủ. Vui lòng thử lại.')}
