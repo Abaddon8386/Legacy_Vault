@@ -64,6 +64,7 @@ public enum ErrorCode {
 	HANDOVER_ASSET_ALREADY_DELIVERED(409, "error.handoverGuard.assetAlreadyDelivered"),
 	HANDOVER_RECEIPT_REISSUE_INVALID(409, "error.handoverReceipt.reissueInvalid"),
 	WILL_NOT_VERIFIED(409, "error.legalBasis.willNotVerified"),
+	WILL_COMPARISON_ALREADY_RECORDED(409, "error.willComparison.alreadyRecorded"),
 	BASIS_DOSSIER_ALREADY_EXISTS(409, "error.legalBasis.dossierExists"),
 	BASIS_DOSSIER_INVALID_STATE(409, "error.legalBasis.invalidState"),
 	BASIS_VERSION_STALE(409, "error.legalBasis.versionStale"),
