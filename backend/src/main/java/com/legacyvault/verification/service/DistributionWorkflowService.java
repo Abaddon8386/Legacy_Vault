@@ -280,6 +280,7 @@ public class DistributionWorkflowService {
         String documentSha = state.document() == null ? null : state.document().sha256Hash();
         Integer allocationVersion = null;
         String allocationSha = null;
+        com.legacyvault.notification.WorkflowNotificationService.Receipt reviewNotification = null;
         AuditAction auditAction;
         String eventAction;
 
@@ -305,7 +306,7 @@ public class DistributionWorkflowService {
                 requireReason(reason);
                 requireDocumentSnapshot(state, body);
                 // Reuses the existing return-to-Staff step: the dossier goes back to PROVIDED and the vault to AWAITING_LEGAL_BASIS.
-                review.requestSupplementationByCasePublicId(caseId, actorId, reason);
+                reviewNotification = review.requestSupplementationByCasePublicId(caseId, actorId, reason).notification();
                 eventAction = DistributionWorkflowEvent.REQUEST_DOCUMENT_SUPPLEMENTATION;
                 auditAction = AuditAction.DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED;
             }
@@ -338,7 +339,7 @@ public class DistributionWorkflowService {
                     if (state.latestStored() == null || state.latestStored().versionNo() != state.document().versionNo()) {
                         throw new BusinessException(ErrorCode.DISTRIBUTION_WORKFLOW_STALE);
                     }
-                    review.recordCompletedReviewByCasePublicId(caseId, actorId, reason);
+                    reviewNotification = review.recordCompletedReviewByCasePublicId(caseId, actorId, reason).notification();
                 }
                 eventAction = approve ? DistributionWorkflowEvent.APPROVE_ALLOCATIONS
                         : DistributionWorkflowEvent.REQUEST_ALLOCATION_CHANGES;
@@ -368,7 +369,9 @@ public class DistributionWorkflowService {
         if (allocationVersion != null) details.put("allocationVersion", allocationVersion);
         audit.record(new AuditEvent(auditAction, AuditActorType.USER, actorId, state.vault().getVaultId(), ENTITY_TYPE,
                 saved.getId(), state.phase(), null, null, details, "ST-19", RULE_ID));
-        var notification = notifications.record(state.verificationCase(),
+        // These delegated mutations already record the notification, including a null receipt without assigned Staff.
+        var notification = Set.of("requestDocumentSupplementation", "approveAllocations").contains(action)
+                ? reviewNotification : notifications.record(state.verificationCase(),
                 STAFF.equals(workspace)
                     ? com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL
                     : com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,

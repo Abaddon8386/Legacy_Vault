@@ -365,9 +365,11 @@ class LegalBasisDossierControllerTest {
     @Test
     void review_returns200_andCallsServiceWithPrincipalUserId()
             throws Exception {
+        var notification = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
         when(legalBasisReviewService.recordCompletedReviewByCasePublicId(
                 eq(CASE_ID), eq(20L), any(com.legacyvault.verification.dto.CompleteLegalBasisReviewRequest.class)))
-                .thenReturn(REVIEW_RESPONSE);
+                .thenReturn(REVIEW_RESPONSE.withNotification(notification));
 
         review(
                 "/review",
@@ -376,7 +378,10 @@ class LegalBasisDossierControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dossierId").value(DOSSIER_ID.toString()))
                 .andExpect(jsonPath("$.reviewStatus").value("FRESH"))
-                .andExpect(jsonPath("$.reasonCode").value("REVIEW_COMPLETED"));
+                .andExpect(jsonPath("$.reasonCode").value("REVIEW_COMPLETED"))
+                .andExpect(jsonPath("$.notification.id").value(notification.id().toString()))
+                .andExpect(jsonPath("$.notification.recipientWorkspace").value("STAFF"))
+                .andExpect(jsonPath("$.notification.status").value("RECORDED"));
 
         verify(legalBasisReviewService)
                 .recordCompletedReviewByCasePublicId(
@@ -441,6 +446,8 @@ class LegalBasisDossierControllerTest {
     @Test
     void requestSupplementation_returns200_andCallsService()
             throws Exception {
+        var notification = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
         LegalBasisReviewResponse response =
                 new LegalBasisReviewResponse(
                         DOSSIER_ID,
@@ -456,7 +463,7 @@ class LegalBasisDossierControllerTest {
 
         when(legalBasisReviewService.requestSupplementationByCasePublicId(
                 eq(CASE_ID), eq(20L), eq("Cần bổ sung bản gốc")))
-                .thenReturn(response);
+                .thenReturn(response.withNotification(notification));
 
         review(
                 "/request-supplementation",
@@ -467,7 +474,10 @@ class LegalBasisDossierControllerTest {
                         .value("REVIEW_REQUIRED"))
                 .andExpect(jsonPath("$.reviewRequired").value(true))
                 .andExpect(jsonPath("$.reasonCode")
-                        .value("LEGAL_REQUESTED_SUPPLEMENTATION"));
+                        .value("LEGAL_REQUESTED_SUPPLEMENTATION"))
+                .andExpect(jsonPath("$.notification.id").value(notification.id().toString()))
+                .andExpect(jsonPath("$.notification.recipientWorkspace").value("STAFF"))
+                .andExpect(jsonPath("$.notification.status").value("RECORDED"));
 
         verify(legalBasisReviewService)
                 .requestSupplementationByCasePublicId(

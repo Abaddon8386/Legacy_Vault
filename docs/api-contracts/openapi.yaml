@@ -4544,6 +4544,7 @@ components:
       required: [dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt]
       description: 'D-API-08: chỉ trả public UUID, không trả khóa chính tuần tự trong database.'
       properties:
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
         dossierId: { type: string, format: uuid, description: Public ID của dossier }
         reviewStatus: { type: string, nullable: true }
         reviewRequired: { type: boolean }

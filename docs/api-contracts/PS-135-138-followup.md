@@ -10,6 +10,9 @@ business transaction only. They do not assert delivery, display, read, or email.
 | Staff requests handover reopening | Legal workspace | `HANDOVER_GROUP_REQUEST` / `group:<event public id>` | Group revision and snapshot in mutation response. Open the Legal case and handover session. | In mutation response |
 | Legal approves or rejects reopening | Assigned Staff | `HANDOVER_GROUP_APPROVE` or `HANDOVER_GROUP_REJECT` / `group:<event public id>` | Group revision and snapshot in mutation response. Open the Staff case and handover session. | In mutation response, null without assigned Staff |
 | Legal places the basis dossier on hold | Assigned Staff | `LEGAL_BASIS_HELD` / `basis-hold:<dossier public id>:<required version>` | Required version and current dossier state in mutation response. Open the Staff case. | In mutation response, null without assigned Staff |
+| Legal completes review, including a new review of the same snapshot | Assigned Staff | `LEGAL_BASIS_REVIEW_RECORDED` / `basis-review:<persisted review public id>` | Version, document/allocation hashes and dispute status in `LegalBasisReviewResponse`. Open `/staff/legal-documents?caseId=<case id>`. | `LegalBasisReviewResponse.notification`, null without assigned Staff |
+| Legal directly requests supplementation | Assigned Staff | `LEGAL_BASIS_REVIEW_REQUIRED` / `basis-review:<persisted review public id>` | Case and dossier identify the request; response preserves the existing review fields. Open `/staff/legal-documents?caseId=<case id>`. | `LegalBasisReviewResponse.notification`, null without assigned Staff |
+| Legal resumes an ON_HOLD dossier through reclassification | Assigned Staff | `LEGAL_BASIS_RECLASSIFIED` / `basis-resume:<persisted classification history public id>` | Current route, required version and dossier state in `BasisDossierResponse`. Open `/staff/legal-documents?caseId=<case id>`. | `BasisDossierResponse.notification`, null without assigned Staff |
 
 An idempotency replay of a group mutation reads the existing notification receipt;
 it does not create a delayed notification. Failed audit or notification persistence
@@ -33,5 +36,24 @@ decision on the same document version cannot be collapsed into the first.
 Verification: Java 25 compile and focused service tests pass. Full Maven test run
 is blocked by missing `DB_URL` and `LEGAL_SQLSERVER_MASTER_URL`; SQL concurrency,
 rollback, persistent read state, HTTP two-account flow, and FE E2E remain unverified.
-Review/rereview/resume hooks, inbox action labels for the new group/attachment events,
-and complete HTTP/SQL evidence remain outstanding for PS-135.
+The direct `/basis-dossier/review`, `/basis-dossier/request-supplementation`, and
+`/basis-dossier/reclassification` services now record their notifications inside the
+existing business transaction, after history and audit. Each persisted history row
+has its own event key, so independent actions on the same document do not collapse.
+Notification failures propagate and roll back the mutation. Assignment scope and
+read-state policy are unchanged; no assigned Staff means a null receipt.
+
+The distribution wrapper reuses the service receipt for `approveAllocations` and
+`requestDocumentSupplementation`, including null receipts; it does not record a
+second distribution notification for those actions. Their inbox actions are now
+`LEGAL_BASIS_REVIEW_RECORDED` and `LEGAL_BASIS_REVIEW_REQUIRED`, respectively.
+Distribution workflow events and audit actions are preserved. Automatic snapshot
+evaluation still returns a null receipt; this fix covers explicit review,
+supplementation and resumption mutations.
+
+Follow-up verification: 50 unit/controller tests pass, including HTTP receipt fields,
+distinct review event keys, null receipts and propagated notification errors.
+The SQL wrapper regression asserts a single persisted notification and matching
+receipt, but execution is NOT VERIFIED: `LEGAL_SQLSERVER_MASTER_URL` is absent
+(`The url cannot be null`). Real SQL rollback/concurrency and two-account FE E2E
+remain unverified. Inbox group labels were fixed separately in commit `ae6715b`.
