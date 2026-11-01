@@ -136,7 +136,7 @@ export default function LegalDossierReviewPage({
       )}
 
       {/* Stored Dossier Information Section */}
-      <section className="lv-dossier-card" aria-labelledby="dossier-heading">
+      <section className="lv-dossier-card lv-surface-card" aria-labelledby="dossier-heading">
         <div className="lv-dossier-card__header">
           <h2 id="dossier-heading">{t.dossierSectionTitle}</h2>
         </div>
@@ -185,7 +185,7 @@ export default function LegalDossierReviewPage({
       </section>
 
       {/* Review Decision Form */}
-      <section className="lv-form-card" aria-labelledby="decision-form-heading">
+      <section className="lv-form-card lv-surface-card" aria-labelledby="decision-form-heading">
         <div className="lv-form-card__header">
           <h2 id="decision-form-heading">{t.decisionSectionTitle}</h2>
         </div>
@@ -266,7 +266,7 @@ export default function LegalDossierReviewPage({
       </section>
 
       {/* Review History Section */}
-      <section className="lv-history-card" aria-labelledby="history-heading">
+      <section className="lv-history-card lv-surface-card" aria-labelledby="history-heading">
         <div className="lv-history-card__header">
           <Clock size={18} aria-hidden="true" />
           <h2 id="history-heading">{t.historySectionTitle}</h2>

@@ -1,3 +1,5 @@
+import DatePicker from '../../components/common/DatePicker.jsx';
+import DateTimePicker from '../../components/common/DateTimePicker.jsx';
 import { staffAuthFeedback, useStaffSessionExpiry } from './staffFeedback.js';
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -564,16 +566,16 @@ function IntakeForm({
               <label htmlFor="intake-issuing-date" className="lv-intake-label">
                 <span>{t.fields.issuingDate}</span>
               </label>
-              <input
+              <DatePicker
                 id="intake-issuing-date"
-                type="date"
-                className="lv-intake-input"
+                className={fieldErrors.issuingDate ? 'has-error' : ''}
                 value={formData.issuingDate}
-                onChange={(e) => handleInputChange('issuingDate', e.target.value)}
+                onChange={(val) => handleInputChange('issuingDate', val)}
                 aria-required="false"
                 aria-invalid={Boolean(fieldErrors.issuingDate)}
                 aria-describedby={fieldErrors.issuingDate ? 'err-issuingDate' : undefined}
                 disabled={isSubmitting}
+                lang={lang}
               />
               <span className="lv-intake-field-hint">{t.fields.issuingDateNote}</span>
               {fieldErrors.issuingDate && (
@@ -589,13 +591,12 @@ function IntakeForm({
                 <span>{t.fields.intakeDateTime}</span>
                 <span className="lv-intake-required" aria-hidden="true">*</span>
               </label>
-              <input
+              <DateTimePicker
                 id="intake-datetime"
-                type="datetime-local"
-                className="lv-intake-input"
+                lang={lang}
+                required
                 value={formData.intakeDateTime}
                 onChange={(e) => handleInputChange('intakeDateTime', e.target.value)}
-                onInput={(e) => handleInputChange('intakeDateTime', e.currentTarget.value)}
                 aria-required="true"
                 aria-invalid={Boolean(fieldErrors.intakeDateTime)}
                 aria-describedby={fieldErrors.intakeDateTime ? 'err-intakeDateTime' : undefined}
@@ -610,7 +611,8 @@ function IntakeForm({
             </div>
 
             {/* Ghi chú hiện trạng bản cứng (Tùy chọn) */}
-            <div className="lv-intake-field lv-intake-field--full" data-field="physicalNotes">
+            <details className="lv-intake-field lv-intake-field--full lv-workflow-optional" data-field="physicalNotes">
+              <summary>{t.fields.physicalNotes}</summary>
               <label htmlFor="intake-notes" className="lv-intake-label">
                 <span>{t.fields.physicalNotes}</span>
               </label>
@@ -623,7 +625,7 @@ function IntakeForm({
                 onChange={(e) => handleInputChange('physicalNotes', e.target.value)}
                 disabled={isSubmitting}
               />
-            </div>
+            </details>
           </div>
         </section>
 
@@ -634,8 +636,8 @@ function IntakeForm({
             <span>{t.sections.review}</span>
           </h2>
 
-          <div className="lv-intake-review-card">
-            <h3 className="lv-intake-review-card__heading">{t.review.summaryTitle}</h3>
+          <details className="lv-intake-review-card">
+            <summary>{t.review.summaryTitle}</summary>
             <div className="lv-intake-review-list">
               <div className="lv-intake-review-row">
                 <span className="lv-intake-review-k">{t.review.submitterLabel}</span>
@@ -686,7 +688,7 @@ function IntakeForm({
                 </span>
               </div>
             </div>
-          </div>
+          </details>
 
           {/* Action Buttons */}
           <div className="lv-intake-actions-bar">

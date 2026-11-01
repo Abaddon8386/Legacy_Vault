@@ -11,7 +11,7 @@ public class AssetCompletionService {
  public AssetCompletionService(HandoverCompletionAccess access){this.access=access;}
  @Transactional
  public CompletionProgressResponse get(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
-  return calculate(access.lock(caseId,sessionId,actor,true));
+  return calculate(access.read(caseId,sessionId,actor));
  }
  /** An asset shared by multiple recipients is delivered only when ALL approved allocation lines are delivered. */
  public CompletionProgressResponse calculate(HandoverCompletionAccess.Snapshot snapshot){

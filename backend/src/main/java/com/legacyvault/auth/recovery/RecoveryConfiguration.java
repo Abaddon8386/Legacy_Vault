@@ -21,8 +21,12 @@ public class RecoveryConfiguration {
                 .filter(s->!s.isBlank()).collect(java.util.stream.Collectors.toUnmodifiableSet());
         if(enabled && !ready()) throw new IllegalArgumentException("Recovery email configuration incomplete");
     }
+    /** Provider credentials, sender and recipient allowlist only; shared with PS-116 verification mail. */
+    public boolean providerReady() {
+        return !apiKey.isBlank() && !sender.isBlank() && !recipients.isEmpty() && !sender.contains("\r") && !sender.contains("\n");
+    }
     public boolean ready() {
-        if(!enabled || apiKey.isBlank() || sender.isBlank() || recipients.isEmpty() || sender.contains("\r") || sender.contains("\n")) return false;
+        if(!enabled || !providerReady()) return false;
         try {
             URI uri=URI.create(resetUrl);
             boolean local="http".equals(uri.getScheme()) && "localhost".equals(uri.getHost()) && uri.getPort()==5173;

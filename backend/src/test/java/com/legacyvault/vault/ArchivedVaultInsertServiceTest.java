@@ -35,6 +35,8 @@ class ArchivedVaultInsertServiceTest {
     private final com.legacyvault.audit.AuditService contentAudit=mock(com.legacyvault.audit.AuditService.class);
     private final DmsConfigRepository configs=mock(DmsConfigRepository.class);
     private final BeneficiaryRepository beneficiaries=mock(BeneficiaryRepository.class);
+    private final AssetRepository assetRepository=mock(AssetRepository.class);
+    private final WillAssetRepository willAssetRepository=mock(WillAssetRepository.class);
     private final TrusteeRepository trustees=mock(TrusteeRepository.class);
     private final VaultService guard=new VaultService(vaults,contentAudit,configs,
             mock(com.legacyvault.verification.repository.VerificationCaseRepository.class),
@@ -85,12 +87,12 @@ class ArchivedVaultInsertServiceTest {
         verifyNoInteractions(assets,versions,documents);
     }
     @Test void dmsConfigurationCannotInsertAfterArchive(){
-        var service=new DmsService(configs,beneficiaries,vaults,guard,owners,new DmsPolicy(1,32767,1),audit);
+        var service=new DmsService(configs,beneficiaries,assetRepository,willAssetRepository,vaults,guard,owners,new DmsPolicy(1,32767,1),audit);
         blocked(()->service.configure(new DmsDtos.ConfigureRequest(30)));
         verifyNoInteractions(configs,beneficiaries);
     }
     @Test void dmsCheckInCannotAppendAuditOrCheckLogAfterArchive(){
-        var service=new DmsService(configs,beneficiaries,vaults,guard,owners,new DmsPolicy(1,32767,1),audit);
+        var service=new DmsService(configs,beneficiaries,assetRepository,willAssetRepository,vaults,guard,owners,new DmsPolicy(1,32767,1),audit);
         blocked(service::checkIn);verifyNoInteractions(configs);
     }
 }

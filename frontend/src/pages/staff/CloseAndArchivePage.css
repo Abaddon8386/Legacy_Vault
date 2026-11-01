@@ -18,7 +18,7 @@
 }
 
 .lv-close-archive-view .lv-ca-title {
-  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 28px;
   font-weight: 700;
   color: var(--lv-color-primary, #164639);
@@ -53,7 +53,7 @@
 }
 
 .lv-close-archive-view .lv-ca-archive-banner__title {
-  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 17px;
   font-weight: 600;
   color: var(--lv-color-primary, #164639);
@@ -78,7 +78,7 @@
 }
 
 .lv-close-archive-view .lv-ca-card__title {
-  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 19px;
   font-weight: 600;
   color: var(--lv-color-primary, #164639);
@@ -193,7 +193,7 @@
 }
 
 .lv-close-archive-view .lv-ca-eval-banner__title {
-  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
+  font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
   font-size: 17px;
   font-weight: 600;
   margin: 0 0 6px;

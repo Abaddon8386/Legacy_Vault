@@ -97,7 +97,7 @@ export default function AdminUsersPage({
       )}
 
       {/* Search & Filters Toolbar */}
-      <form className="lv-admin-toolbar" onSubmit={handleSearchSubmit} role="search" aria-label={t.usersTitle}>
+      <form className="lv-admin-toolbar lv-surface-card" onSubmit={handleSearchSubmit} role="search" aria-label={t.usersTitle}>
         <div className="lv-admin-toolbar-inputs">
           <label className="lv-admin-field lv-admin-field--search">
             <span>{lang === 'en' ? 'Name or email' : 'Tên hoặc email'}</span>
@@ -171,6 +171,7 @@ export default function AdminUsersPage({
         <p>{lang === 'en' ? 'User directory' : 'Danh sách người dùng'}{total !== null && !loading && <> <strong>({total})</strong></>}</p>
         <span className="lv-admin-scroll-hint">{lang === 'en' ? 'Scroll horizontally to see all columns' : 'Cuộn ngang để xem đầy đủ các cột'}</span>
       </div>
+      <div className="lv-admin-table-frame lv-surface-card">
       <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'User table' : 'Bảng người dùng'}>
         <table className="lv-admin-table" aria-label={t.usersTitle}>
           <thead>
@@ -201,7 +202,22 @@ export default function AdminUsersPage({
             ) : (
               users.map((user) => (
                 <tr key={user.id}>
-                  <td style={{ fontWeight: 600 }}>{user.fullName || t.notAvailable}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    <div className="lv-admin-name-cell">
+                      <span>{user.fullName || t.notAvailable}</span>
+                      <span
+                        className={`lv-admin-mobile-status lv-admin-status-badge lv-admin-status-${(user.status || 'neutral').toLowerCase()}`}
+                      >
+                        {user.status === 'LOCKED'
+                          ? t.statusLocked
+                          : user.status === 'PENDING'
+                          ? t.statusPending
+                          : user.status === 'ACTIVE'
+                          ? t.statusActive
+                          : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
+                      </span>
+                    </div>
+                  </td>
                   <td>{user.email}</td>
                   <td>
                     {user.roles.map((role) => (
@@ -224,7 +240,7 @@ export default function AdminUsersPage({
                         : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
                     </span>
                   </td>
-                  <td>
+                  <td className="lv-admin-cell-actions">
                     <div className="lv-admin-row-actions">
                     <button
                       type="button"
@@ -235,7 +251,7 @@ export default function AdminUsersPage({
                     </button>
                     <button
                       type="button"
-                      className={`lv-admin-btn ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
+                      className={`lv-admin-btn lv-admin-btn-lock ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
                       disabled
                       aria-describedby="admin-lock-policy-notice"
                       title={t.lockPolicyPendingNotice}
@@ -249,6 +265,7 @@ export default function AdminUsersPage({
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Pagination */}

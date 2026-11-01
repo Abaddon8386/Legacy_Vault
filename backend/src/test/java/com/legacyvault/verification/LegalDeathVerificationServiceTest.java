@@ -87,7 +87,7 @@ class LegalDeathVerificationServiceTest {
                 vaultRepository,
                 auditService,
                 userRepository
-        );
+        , org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
         principal = new CustomUserPrincipal(
                 8L,

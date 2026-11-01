@@ -38,3 +38,29 @@ test('pending list contains identity but no invented account UUID; expired/unkno
  const result=await staff.listPending({caseId},{...options,fetchFn:async()=>response([{...own,requesterName:'C',requesterEmail:'c@example.test'}])});assert.equal(result[0].accountId,null);assert.equal(result[0].accountName,'C');
  await assert.rejects(staff.listPending({caseId},{...options,fetchFn:async()=>response([{...own,status:'EXPIRED',requesterName:'C',requesterEmail:'c@example.test'}])}),e=>e.code==='INVALID_RESPONSE');
 });
+
+
+test('Task 2: listOwn preserves valid string reason and rejects non-string types with INVALID_RESPONSE', async () => {
+  const validOwn = { ...own, status: 'REJECTED', reason: 'Giấy tờ tùy thân không trùng khớp' };
+  const resValid = await bene.listOwn({ ...options, fetchFn: async () => response([validOwn]) });
+  assert.equal(resValid[0].status, 'REJECTED');
+  assert.equal(resValid[0].reason, 'Giấy tờ tùy thân không trùng khớp');
+
+  // Object reason must throw INVALID_RESPONSE
+  await assert.rejects(
+    bene.listOwn({ ...options, fetchFn: async () => response([{ ...own, status: 'REJECTED', reason: { code: 'ERR_01' } }]) }),
+    e => e.code === 'INVALID_RESPONSE'
+  );
+
+  // Array reason must throw INVALID_RESPONSE
+  await assert.rejects(
+    bene.listOwn({ ...options, fetchFn: async () => response([{ ...own, status: 'REJECTED', reason: ['bad'] }]) }),
+    e => e.code === 'INVALID_RESPONSE'
+  );
+
+  // Number reason must throw INVALID_RESPONSE
+  await assert.rejects(
+    bene.listOwn({ ...options, fetchFn: async () => response([{ ...own, status: 'REJECTED', reason: 404 }]) }),
+    e => e.code === 'INVALID_RESPONSE'
+  );
+});

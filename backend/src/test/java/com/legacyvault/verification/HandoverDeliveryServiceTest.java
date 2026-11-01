@@ -63,8 +63,9 @@ class HandoverDeliveryServiceTest {
     private final HandoverItemRepository items = mock(HandoverItemRepository.class);
     private final HandoverSessionRepository sessions = mock(HandoverSessionRepository.class);
     private final VerificationCaseRepository cases = mock(VerificationCaseRepository.class);
+    private final com.legacyvault.verification.group.GroupHandoverService group = mock(com.legacyvault.verification.group.GroupHandoverService.class);
     private final AuditService audit = mock(AuditService.class);
-    private final HandoverDeliveryService service = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit, true);
+    private final HandoverDeliveryService service = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit, true, group);
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, STAFF_PUBLIC, "staff@example.com");
     private final Vault vault = mock(Vault.class);
@@ -268,7 +269,7 @@ class HandoverDeliveryServiceTest {
 
     @Test
     void flagOffRestoresTheOfflineRecipientBehaviour() {
-        HandoverDeliveryService lenient = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit, false);
+        HandoverDeliveryService lenient = new HandoverDeliveryService(guard, scope, items, sessions, cases, audit, false, org.mockito.Mockito.mock(com.legacyvault.verification.group.GroupHandoverService.class));
         scopeLines(unlinkedCourtLine(1, ASSET_A));
         when(items.saveAllAndFlush(anyIterable())).thenAnswer(invocation -> {
             List<HandoverItem> saved = (List<HandoverItem>) invocation.getArgument(0);
@@ -303,4 +304,11 @@ class HandoverDeliveryServiceTest {
         assertThat(service.list(CASE_ID, SESSION_ID, staff)).hasSize(1);
         verify(guard, never()).authorize(any(), any(), any());
     }
-}
+    @Test void directDeliveryCannotBypassMissingGroupAttendance() {
+        org.mockito.Mockito.doThrow(new BusinessException(ErrorCode.GROUP_HANDOVER_BLOCKED))
+            .when(group).requireReady(CASE_ID,SESSION_ID,staff);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+            ()->service.deliver(CASE_ID,SESSION_ID,new HandoverDeliveryRequest(RECIPIENT,List.of(ASSET_A)),staff))
+            .isInstanceOfSatisfying(BusinessException.class,e->assertThat(e.getErrorCode()).isEqualTo(ErrorCode.GROUP_HANDOVER_BLOCKED));
+        verifyNoInteractions(scope,items,audit);
+    }}

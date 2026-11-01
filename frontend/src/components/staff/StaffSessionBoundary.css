@@ -1,0 +1,11 @@
+.lv-staff-context-state { max-width: 1100px; margin: 20px auto; padding: 24px; border: 1px solid #d8e2da; border-radius: 14px; background: #fff; color: #234237; }
+.lv-staff-context-state h1 { margin: 0 0 12px; font-size: 23px; line-height: 1.4; }
+.lv-staff-context-state p { margin: 0; font-size: 16px; line-height: 1.6; }
+.lv-staff-context-state.is-system, .lv-staff-context-state.is-access { border-color: #d7aaa2; }
+.lv-staff-context-state__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.lv-staff-context-state__actions :is(a,button) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; box-sizing: border-box; border: 1px solid #a7bcb0; border-radius: 8px; background: #fff; color: #164639; font: 600 14px/1.5 var(--lv-font-sans,system-ui); text-decoration: none; cursor: pointer; }
+.lv-staff-context-state__actions > :first-child { background: #164639; border-color: #164639; color: #fff; }
+.lv-staff-context-state label { display: grid; gap: 8px; margin-top: 16px; }
+.lv-staff-context-state select { min-height: 44px; max-width: 100%; padding: 10px; border: 1px solid #a7bcb0; border-radius: 8px; background: #fff; font: inherit; }
+.lv-staff-context-state :is(button,a,select):focus-visible { outline: 3px solid #b69b62; outline-offset: 3px; }
+@media(max-width:640px) { .lv-staff-context-state { padding: 18px; } .lv-staff-context-state__actions { flex-direction: column; } }

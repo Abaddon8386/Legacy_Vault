@@ -68,6 +68,7 @@ public class IntakeAttachmentService {
 	private final EncryptionService encryption;
 	private final AuditService audit;
 	private final LegalBasisLockedState state;
+	private final com.legacyvault.notification.WorkflowNotificationService notifications;
 	private final long maxFileBytes;
 	private final int maxAttachmentsPerRecord;
 
@@ -76,6 +77,7 @@ public class IntakeAttachmentService {
 			OriginalWillIntakeRepository originalWills, StaffIntakeAttachmentRepository attachments,
 			LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions, UserRepository users,
 			EncryptionService encryption, AuditService audit, LegalBasisLockedState state,
+			com.legacyvault.notification.WorkflowNotificationService notifications,
 			// TODO(open-question): file policy (size, count, retention) is a proposal until the group confirms D-API-41.
 			@Value("${legacyvault.intake.max-file-bytes:10485760}") long maxFileBytes,
 			@Value("${legacyvault.intake.max-attachments-per-record:10}") int maxAttachmentsPerRecord) {
@@ -94,6 +96,7 @@ public class IntakeAttachmentService {
 		this.encryption = encryption;
 		this.audit = audit;
 		this.state = state;
+		this.notifications = notifications;
 		this.maxFileBytes = maxFileBytes;
 		this.maxAttachmentsPerRecord = maxAttachmentsPerRecord;
 	}
@@ -153,9 +156,12 @@ public class IntakeAttachmentService {
 						"subjectId", subjectId.toString(), "verificationCaseId", verificationCase.getPublicId().toString(),
 						"sizeBytes", saved.getFileSizeBytes(), "sha256", saved.getSha256Hash()),
 				stepId, ruleId));
+		var notification = notifications.record(verificationCase,
+				com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL,
+				"INTAKE_ATTACHMENT_UPLOADED", "attachment:" + saved.getPublicId(), null);
 		return toResponse(saved.getPublicId(), verificationCase.getPublicId(), subjectType, subjectId, saved.getOriginalFileName(),
 				saved.getContentType(), saved.getFileSizeBytes(), saved.getSha256Hash(), uploaderPublicId,
-				saved.getUploadedAt().toInstant(ZoneOffset.UTC));
+				saved.getUploadedAt().toInstant(ZoneOffset.UTC)).withNotification(notification);
 	}
 
 	// ---------------------------------------------------------------- Staff reads

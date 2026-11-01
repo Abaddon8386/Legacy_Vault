@@ -145,9 +145,22 @@ public class Vault {
 
     /** ST-19/20: Staff chuyển văn bản đúng nhánh cho Legal. AWAITING_LEGAL_BASIS -> LEGAL_BASIS_VERIFICATION. */
     public void markLegalBasisVerification() {
-        moveTo(
-                STATUS_AWAITING_LEGAL_BASIS,
-                STATUS_LEGAL_BASIS_VERIFICATION);
+        if (!isLegalBasisIntakeState()) {
+            throw new IllegalStateException(
+                    "Vault must be DOCUMENT_VERIFICATION, WILL_VERIFICATION or AWAITING_LEGAL_BASIS to move to "
+                            + STATUS_LEGAL_BASIS_VERIFICATION);
+        }
+        status = STATUS_LEGAL_BASIS_VERIFICATION;
+        updatedAt = Instant.now();
+    }
+
+    /**
+     * States in which Staff may receive and forward the distribution document. All of them come after Legal decided
+     * the death document, so the death verification cannot be skipped; AWAITING_VERIFICATION is not included.
+     */
+    public boolean isLegalBasisIntakeState() {
+        return STATUS_DOCUMENT_VERIFICATION.equals(status) || STATUS_WILL_VERIFICATION.equals(status)
+                || STATUS_AWAITING_LEGAL_BASIS.equals(status);
     }
 
     /**

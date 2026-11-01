@@ -65,13 +65,15 @@ class HandoverReceiptControllerTest {
                         .replace("{sessionId}", SESSION_ID.toString()) + "/" + RECEIPT_ID))
                 .andExpect(jsonPath("$.confirmationType").value("STAFF_ATTESTATION"))
                 .andExpect(jsonPath("$.recipientId").value(RECIPIENT_ID.toString()))
+                .andExpect(jsonPath("$.recipientName").value("Nguyen Van A"))
                 .andExpect(jsonPath("$.assetIds[0]").value(ASSET_ID.toString()));
         verify(service).create(eq(CASE_ID), eq(SESSION_ID), any(), any());
 
         when(service.list(CASE_ID, SESSION_ID, STAFF)).thenReturn(List.of(response()));
         mvc.perform(get(URL, CASE_ID, SESSION_ID).with(as("STAFF_EXECUTOR")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].receiptId").value(RECEIPT_ID.toString()));
+                .andExpect(jsonPath("$[0].receiptId").value(RECEIPT_ID.toString()))
+                .andExpect(jsonPath("$[0].recipientName").value("Nguyen Van A"));
     }
 
     @Test
@@ -95,7 +97,7 @@ class HandoverReceiptControllerTest {
     }
 
     private HandoverReceiptResponse response() {
-        return new HandoverReceiptResponse(RECEIPT_ID, SESSION_ID, RECIPIENT_ID, List.of(ASSET_ID), STAFF.publicId(),
+        return new HandoverReceiptResponse(RECEIPT_ID, SESSION_ID, RECIPIENT_ID, "Nguyen Van A", List.of(ASSET_ID), STAFF.publicId(),
                 4, "a".repeat(64), "b".repeat(64), "STAFF_ATTESTATION",
                 LocalDateTime.parse("2026-10-18T10:00:00"), null);
     }

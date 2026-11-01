@@ -102,6 +102,8 @@
   border-color: #7c9b80;
 }
 
+/* Keep the selected plan identifiable during shared hover and focus effects. */
+.lv-admin-surfaces .lv-admin-sub-card.lv-surface-card.selected,
 .lv-admin-sub-card.selected {
   border-color: #547c59;
   box-shadow: 0 0 0 2px #547c5920;
@@ -179,12 +181,12 @@
 .lv-admin-sub-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border: 1px solid #dce4d7;
   border-radius: 6px;
-  color: #52674d;
+  color: #3b5037;
   background: #f1f5ed;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.5;
 }

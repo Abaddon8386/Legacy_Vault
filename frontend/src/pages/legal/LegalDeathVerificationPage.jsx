@@ -108,7 +108,7 @@ export default function LegalDeathVerificationPage({
 
 
       {/* Verification Queue Section (Explicitly Unconnected, Not Empty) */}
-      <section className="lv-queue-card" aria-labelledby="queue-heading">
+      <section className="lv-queue-card lv-surface-card" aria-labelledby="queue-heading">
         <div className="lv-queue-card__header">
           <h2 id="queue-heading">{t.queueSectionTitle}</h2>
         </div>
@@ -120,7 +120,7 @@ export default function LegalDeathVerificationPage({
       </section>
 
       {/* Review Docket Form */}
-      <section className="lv-form-card" aria-labelledby="form-heading">
+      <section className="lv-form-card lv-surface-card" aria-labelledby="form-heading">
         <div className="lv-form-card__header">
           <h2 id="form-heading">{t.formTitle}</h2>
           <p>{t.formDesc}</p>

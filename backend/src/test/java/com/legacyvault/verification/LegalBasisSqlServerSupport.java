@@ -103,5 +103,40 @@ abstract class LegalBasisSqlServerSupport {
                 .intake(f.publicCaseId(), f.legal(), metadata, file);
     }
 
+    /**
+     * Distribution workflow for a case whose document is already forwarded and whose court assessment is VALID:
+     * Legal requests documents and accepts the stored one, Staff submits the allocation that is already stored for
+     * it (same content, so the displayed allocation hash does not change) and Legal accepts it. Afterwards the case is
+     * in FINAL_APPROVAL, which the final decision over HTTP requires. Call it before Legal's final review.
+     */
+    static void completeDistribution(Fixture f) {
+        var workflow = context.getBean(com.legacyvault.verification.service.DistributionWorkflowService.class);
+        var who = f.legal();
+        UUID id = f.publicCaseId();
+        var view = workflow.view(id, "LEGAL", who);
+        workflow.perform(id, "LEGAL", "requestDocuments", body(view.revision(), "Distribution documents requested", null, null, null, null, null), who);
+        view = workflow.view(id, "LEGAL", who);
+        workflow.perform(id, "LEGAL", "approveDocuments", body(view.revision(), "Document accepted", view.document().version(), view.document().sha256(), null, null, null), who);
+        view = workflow.view(id, "STAFF", who);
+        var stored = jdbc.query("SELECT CONVERT(varchar(36), a.public_id) asset, CONVERT(varchar(36), b.public_id) recipient, al.allocation_description description "
+                + "FROM dbo.legal_basis_version_allocations al JOIN dbo.assets a ON a.asset_id=al.asset_id JOIN dbo.beneficiaries b ON b.beneficiary_id=al.beneficiary_id "
+                + "JOIN dbo.legal_basis_dossier_versions v ON v.dossier_version_id=al.dossier_version_id "
+                + "JOIN dbo.legal_basis_dossiers d ON d.legal_basis_dossier_id=v.legal_basis_dossier_id "
+                + "WHERE d.verification_case_id=? AND v.version_no=? AND al.status<>'SUPERSEDED' ORDER BY al.allocation_id",
+                (rs, n) -> new com.legacyvault.verification.dto.AllocationInput(UUID.fromString(rs.getString("asset")),
+                        UUID.fromString(rs.getString("recipient")), rs.getString("description")),
+                f.caseId(), view.document().version());
+        workflow.perform(id, "STAFF", "submitAllocations", body(view.revision(), null, view.document().version(), view.document().sha256(), null, null, stored), who);
+        view = workflow.view(id, "LEGAL", who);
+        workflow.perform(id, "LEGAL", "approveAllocations", body(view.revision(), "Allocation accepted", view.document().version(), view.document().sha256(),
+                view.allocation().version(), view.allocation().sha256(), null), who);
+    }
+
+    private static com.legacyvault.verification.dto.DistributionWorkflowDtos.ActionBody body(long revision, String reason, Integer documentVersion,
+            String documentSha, Integer allocationVersion, String allocationSha, java.util.List<com.legacyvault.verification.dto.AllocationInput> allocations) {
+        return new com.legacyvault.verification.dto.DistributionWorkflowDtos.ActionBody(revision, reason, documentVersion, documentSha,
+                allocationVersion, allocationSha, allocations);
+    }
+
     record Fixture(long userId, long vaultId, long caseId, UUID publicCaseId, CustomUserPrincipal legal) { }
 }

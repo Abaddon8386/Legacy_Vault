@@ -103,9 +103,12 @@
 .lv-legal-evidence-inline > header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--lv-space-3,12px); }
 .lv-legal-evidence-inline h4 { margin:0; min-width:0; overflow-wrap:anywhere; font-size:14px; scroll-margin-block-start:112px; }
 .lv-legal-workspace > [role=alert],.lv-legal-workspace > [role=status] { grid-column:1 / -1; }
+/* Evidence dialogs must stay above the shell and the adjacent action panel. */
+.lv-legal-surfaces .lv-legal-documents.lv-surface-card { isolation:auto; }
+.lv-legal-surfaces .lv-legal-action-panel.lv-surface-card::after { inset:0; }
 @container (min-width:840px) {
  .lv-legal-workspace:not(.is-readonly) { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
- .lv-legal-action-panel { position:sticky; inset-block-start:88px; max-block-size:calc(100dvh - 112px); overflow-y:auto; }
+ .lv-legal-surfaces .lv-legal-action-panel.lv-surface-card { position:sticky; inset-block-start:88px; max-block-size:calc(100dvh - 112px); overflow-y:auto; }
 }
 @container (max-width:520px) {
  .lv-legal-live__queue { padding:14px; }
@@ -123,3 +126,7 @@
  .lv-legal-evidence__row button { width:100%; }
 }
 @media (prefers-reduced-motion:reduce) { .lv-legal-live button { transition:none; } }
+
+.lv-legal-live .lv-workflow-feedback { padding:10px 14px; gap:10px; border-radius:10px; box-shadow:none; }
+.lv-legal-live .lv-workflow-feedback .lv-feedback__content { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
+.lv-legal-live .lv-workflow-feedback p { font-size:14px; margin:0; }

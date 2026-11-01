@@ -105,7 +105,7 @@ test('Task 27: Back to home link in Beneficiary Dashboard with English language 
     session,
     isAuthenticated: true,
     lang: 'en',
-    currentTab: 'beneficiary-home',
+    currentTab: 'shared-with-me',
     onNavigateTab: tab => { navigatedTab = tab; },
     onLogout: () => { logoutCalled = true; },
   });

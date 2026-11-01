@@ -1,0 +1,61 @@
+/* Keep workflow inputs together; colours describe the decision, not navigation. */
+:is(.lv-staff-surfaces, .lv-legal-live, .lv-legal-surfaces, .lv-legal-dialog-actions) button.lv-decision--positive:not(:disabled) { background: #164639; border: 1px solid #164639; color: #fff; }
+:is(.lv-staff-surfaces, .lv-legal-live, .lv-legal-surfaces, .lv-legal-dialog-actions) button.lv-decision--negative:not(:disabled) { background: #a3372d; border: 1px solid #a3372d; color: #fff; }
+:is(.lv-staff-surfaces, .lv-legal-live, .lv-legal-surfaces, .lv-legal-dialog-actions) button.lv-decision--positive:not(:disabled):hover { background: #0c2b22; border-color: #0c2b22; }
+:is(.lv-staff-surfaces, .lv-legal-live, .lv-legal-surfaces, .lv-legal-dialog-actions) button.lv-decision--negative:not(:disabled):hover { background: #80271f; border-color: #80271f; }
+:is(.lv-staff-surfaces, .lv-legal-live, .lv-legal-surfaces, .lv-legal-dialog-actions) button:is(.lv-decision--positive, .lv-decision--negative):disabled { background: #edf0eb; color: #748077; border: 1px solid #d8dfd8; opacity: 1; }
+.lv-workflow-optional { min-width: 0; border-top: 1px solid #e0e7e1; padding-top: 10px; }
+.lv-workflow-optional > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #405e50; }
+.lv-workflow-optional > summary::before { content: '+'; font-size: 18px; }
+.lv-workflow-optional[open] > summary::before { content: '−'; }
+.lv-staff-live .lv-intake-fields { gap: 12px 16px; }
+.lv-staff-live .lv-intake-fields > label { margin: 0; font-size: 14px; }
+.lv-staff-live fieldset { padding: 18px; }
+.lv-intake-page .lv-intake-section { padding: 18px; }
+.lv-intake-page .lv-intake-form-grid { gap: 14px 16px; }
+.lv-intake-page .lv-intake-section__title { margin-bottom: 12px; }
+.lv-intake-page .lv-intake-section__subnote { margin-bottom: 12px; }
+.lv-intake-page .lv-intake-context-grid { gap: 12px 20px; }
+.lv-intake-page .lv-intake-review-card > summary { min-height: 44px; cursor: pointer; font-weight: 600; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-staff-form-card { padding: 20px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-staff-form-card__header { padding-bottom: 12px; margin-bottom: 16px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-form { gap: 14px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-form-row--2cols { gap: 16px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-form-actions { padding-top: 14px; }
+.lv-beneficiary-confirmation-view .lv-confirm-card form { display: grid; gap: 14px; }
+.lv-beneficiary-confirmation-view .lv-confirm-card form > .lv-confirm-input-group { margin-bottom: 0 !important; min-width: 0; }
+.lv-beneficiary-confirmation-view .lv-confirm-signed-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; }
+.lv-beneficiary-confirmation-view .lv-confirm-form-actions { margin-top: 0; }
+.lv-legal-live .lv-legal-action-panel { padding: 20px; gap: 14px; }
+.lv-legal-live .lv-legal-action-panel form { gap: 14px; }
+.lv-legal-live .lv-legal-action-panel label { font-size: 14px; gap: 6px; }
+.lv-legal-live .lv-legal-action-panel textarea, .lv-legal-live .lv-distribution-form textarea { min-height: 88px; }
+.lv-legal-live .lv-legal-action-panel :is(select, textarea) { font-size: 14px; padding: 10px 12px; }
+.lv-legal-live .lv-legal-form-actions, .lv-legal-live .lv-distribution-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.lv-legal-live .lv-distribution-actions > button { flex: 1 1 180px; min-height: 44px; }
+@media (min-width: 1000px) {
+  .lv-intake-page { max-width: 1140px; }
+  .lv-intake-page .lv-intake-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+  .lv-intake-page .lv-intake-form > .lv-intake-section:first-child,
+  .lv-intake-page .lv-intake-form > .lv-intake-section:last-child { grid-column: 1 / -1; }
+  .lv-staff-live .lv-intake-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lv-beneficiary-confirmation-view .lv-confirm-card form { grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); align-items: start; }
+  .lv-beneficiary-confirmation-view .lv-confirm-card form > :is(.lv-workflow-action-hint, .lv-confirm-form-actions) { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .lv-intake-page .lv-intake-section, .lv-staff-documents-view .lv-staff-form-card { padding: 16px; }
+  .lv-staff-live .lv-intake-fields { grid-template-columns: minmax(0, 1fr); }
+  .lv-legal-live .lv-legal-action-panel { padding: 16px; }
+}
+
+.lv-staff-surfaces :is(.lv-staff-live, .lv-staff-documents-view, .lv-beneficiary-confirmation-view, .lv-intake-page, .lv-distribution-form) button[type=submit]:not(:disabled) { background: #164639; border-color: #164639; color: #fff; }
+.lv-staff-surfaces :is(.lv-staff-live, .lv-staff-documents-view, .lv-beneficiary-confirmation-view, .lv-intake-page, .lv-distribution-form) button[type=submit]:not(:disabled):hover { background: #0c2b22; border-color: #0c2b22; }
+.lv-legal-live button.lv-decision--neutral:not(:disabled), .lv-legal-live button.lv-decision--neutral:not(:disabled):hover { background: #fff; border: 1px solid #a9bcb0; color: #294e3e; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-form .lv-evidence-dropzone { padding: 18px; min-height: 120px; }
+@media (min-width: 1280px) {
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px 24px; align-items: start; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > :is(.lv-form-group, .lv-form-row, .lv-workflow-optional) { grid-column: 1; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > .lv-form-group:has(.lv-evidence-uploader) { grid-column: 2; grid-row: 1 / span 3; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > p { grid-column: 2; grid-row: 4; margin: 0; font-size: 13px; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > :is(.lv-upload-progress-card, .lv-intake-form-actions) { grid-column: 1 / -1; }
+}

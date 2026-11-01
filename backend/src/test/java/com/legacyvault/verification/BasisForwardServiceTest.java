@@ -60,7 +60,7 @@ class BasisForwardServiceTest {
     private final VaultRepository vaultRepository = mock(VaultRepository.class);
     private final LegalBasisDossierRepository dossiers = mock(LegalBasisDossierRepository.class);
     private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
-    private final BasisDossierViewService views = mock(BasisDossierViewService.class);
+    private final BasisDossierViewService views = mock(BasisDossierViewService.class, org.mockito.Mockito.RETURNS_MOCKS);
     private final AuditService auditService = mock(AuditService.class);
     private final LegalBasisLockedState lockedState = mock(LegalBasisLockedState.class);
     private final LegalBasisReviewService legalBasisReviewService = mock(LegalBasisReviewService.class);
@@ -75,7 +75,7 @@ class BasisForwardServiceTest {
             auditService,
             lockedState,
             legalBasisReviewService
-    );
+    , org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(
             STAFF_ID,
@@ -169,11 +169,26 @@ class BasisForwardServiceTest {
     }
 
     @Test
+    void forwardIsAllowedOnceTheDeathDocumentIsDecided_andMovesTheVaultToLegalVerification() {
+        for (String status : new String[]{"DOCUMENT_VERIFICATION", "WILL_VERIFICATION", "AWAITING_LEGAL_BASIS"}) {
+            LegalBasisDossier dossier = dossier("LEGAL_BASIS_PROVIDED");
+            Vault vault = happyPath(dossier, 1);
+            ReflectionTestUtils.setField(vault, "status", status);
+
+            service.forward(CASE_ID, 1, staff);
+
+            assertThat(vault.getStatus()).as(status).isEqualTo("LEGAL_BASIS_VERIFICATION");
+            assertThat(dossier.getStatus()).isEqualTo("LEGAL_BASIS_FORWARDED");
+        }
+    }
+
+    @Test
     void latestVersion_isForwarded_dossierForwarded_vaultMovesToVerification_andAudits() {
         LegalBasisDossier dossier = dossier("LEGAL_BASIS_PROVIDED");
         Vault vault = happyPath(dossier, 2);
 
         BasisDossierResponse expected = mock(BasisDossierResponse.class);
+        when(expected.withNotification(null)).thenReturn(expected);
 
         when(views.view(
                 any(VerificationCase.class),
@@ -296,7 +311,7 @@ class BasisForwardServiceTest {
         for (String status : new String[]{
                 "ON_HOLD",
                 "LEGAL_BASIS_VERIFICATION",
-                "WILL_VERIFICATION"
+                "AWAITING_VERIFICATION"
         }) {
             happyPath(dossier("LEGAL_BASIS_PROVIDED"), 1);
 

@@ -551,7 +551,8 @@ const receipt = { success: true, caseId: mockCase.id, receiptNumber: 'INTAKE-TES
 
 test('PS-26 Component: explicit blank time and type; never collects full identity number', async () => {
   const view = await mount(StaffCaseIntakePage, { caseItem: mockCase, isDevPreview: true });
-  assert.equal(view.host.querySelector('input[type="datetime-local"]').value, '');
+  assert.equal(view.host.querySelector('#intake-datetime').value, '');
+  assert.equal(view.host.querySelector('input[type="time"]').value, '');
   assert.equal(view.host.querySelector('[data-field="documentType"] select').value, '');
   assert.equal(view.host.querySelector('[data-field="submitterIdNumber"]'), null);
   await view.close();
@@ -614,7 +615,9 @@ test('PS-26 Component: invalid receipt shows safe error, keeps form and permits 
 
 test('PS-26 Component: user-entered local datetime updates review without timezone conversion', async () => {
   const view = await mount(StaffCaseIntakePage, { caseItem: mockCase, isDevPreview: true });
-  await act(async () => changeInput(view.host.querySelector('#intake-datetime'), '2026-10-16T09:15'));
+  await act(async () => {const field=view.host.querySelector('#intake-datetime');field[Object.keys(field).find(key=>key.startsWith('__reactProps$'))].onChange({target:{value:'16/10/2026'}});});
+  await act(async () => {const field=view.host.querySelector('#intake-datetime');field[Object.keys(field).find(key=>key.startsWith('__reactProps$'))].onBlur();});
+  await act(async () => {const field=view.host.querySelector('input[type="time"]');field[Object.keys(field).find(key=>key.startsWith('__reactProps$'))].onChange({target:{value:'09:15'}});});
   assert.match(view.host.querySelector('.lv-intake-review-list').textContent, /2026-10-16T09:15/);
   await view.close();
 });

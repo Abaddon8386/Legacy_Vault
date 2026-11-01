@@ -12,3 +12,9 @@
 .lv-court-editor :focus-visible { outline:3px solid #c5a059; outline-offset:2px; }
 .lv-court-editor :disabled { opacity:.65; cursor:not-allowed; }
 @media(max-width:640px) { .lv-court-editor__fields { grid-template-columns:minmax(0,1fr); } .lv-court-editor__row { padding:12px; } }
+
+.lv-court-editor__row-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+.lv-court-editor .lv-court-editor__add { justify-self: start; background: #164639; border-color: #164639; color: #fff; font-weight: 600; }
+.lv-court-editor__row-actions > button:last-child { color: #9b3329; border-color: #d7b0aa; }
+.lv-court-editor label { font-size: 14px; }
+.lv-court-editor__row-actions button { font-size: 14px; }

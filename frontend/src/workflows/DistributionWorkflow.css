@@ -1,0 +1,33 @@
+.lv-distribution-workflow { padding: var(--space-6, 24px); margin-block: var(--space-5, 20px); min-width: 0; }
+.lv-distribution-workflow h2 { margin-block: 0 16px; }
+.lv-distribution-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; list-style: none; padding: 0; margin-block: 0 24px; }
+.lv-distribution-stages li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 12px; border: 1px solid #d6ddd7; border-radius: 12px; overflow-wrap: anywhere; }
+.lv-distribution-stages li > span { display: inline-grid; place-items: center; flex: 0 0 24px; min-height: 24px; border-radius: 50%; background: #ecefe9; }
+.lv-distribution-stages .is-current { border-color: #336a55; background: #eef6ee; font-weight: 650; }
+.lv-distribution-stages .is-done > span { background: #245541; color: white; }
+.lv-distribution-next { font-weight: 650; }
+.lv-distribution-request { padding: 16px; margin-block: 16px; background: #f6f1e6; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lv-distribution-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-block-start: 20px; }
+.lv-distribution-actions button, .lv-distribution-workflow button { padding: 10px 16px; min-height: 44px; border: 1px solid #789584; border-radius: 10px; background: #f9fbf7; color: #204d3e; cursor: pointer; }
+.lv-distribution-actions button:disabled { opacity: .6; cursor: default; }
+.lv-distribution-form { display: grid; gap: 16px; min-width: 0; }
+.lv-distribution-form label { display: grid; gap: 8px; }
+.lv-distribution-form textarea { min-height: 100px; width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #95a59a; border-radius: 10px; font: inherit; }
+.lv-distribution-form > fieldset { min-width: 0; padding: 0; border: 0; margin: 0; }
+.lv-distribution-review-list { display: grid; gap: 16px; padding: 0; list-style: none; }
+.lv-distribution-review-list li { padding: 16px; border: 1px solid #d6ddd7; border-radius: 12px; }
+.lv-distribution-review-list strong, .lv-distribution-review-list span { display: block; overflow-wrap: anywhere; }
+
+.lv-distribution-actions button, .lv-distribution-workflow button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+
+/* A single page-level progress guide; this panel only contains actual requests. */
+.lv-distribution-context { display: grid; gap: 16px; padding: 20px; margin: 0; border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
+.lv-distribution-context h2 { margin: 0 0 8px; font-size: 18px; line-height: 1.4; }
+.lv-distribution-refresh { display: flex; justify-content: flex-end; }
+.lv-distribution-refresh button { min-height: 44px; padding: 10px 16px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #164639; font: inherit; cursor: pointer; }
+.lv-distribution-refresh button:disabled { background: #edf0eb; color: #748077; cursor: default; }
+.lv-distribution-context p { margin: 0; font-size: 16px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lv-distribution-context button { justify-self: start; min-height: 44px; padding: 10px 16px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #164639; font-family: inherit; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.lv-distribution-workflow.lv-surface-card { border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
+.lv-distribution-workflow.lv-surface-card > h2 { font-size: 21px; line-height: 1.4; margin: 0 0 12px; }
+.lv-distribution-workflow.lv-surface-card > p { font-size: 16px; line-height: 1.6; }

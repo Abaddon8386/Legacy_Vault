@@ -30,6 +30,10 @@ public interface HandoverReceiptRepository extends JpaRepository<HandoverReceipt
             + "where r.id = :receiptId and b.id = r.beneficiaryId")
     Optional<UUID> findRecipientPublicId(@Param("receiptId") Long receiptId);
 
+    @Query("select b.fullName from HandoverReceipt r, Beneficiary b "
+            + "where r.id = :receiptId and b.id = r.beneficiaryId")
+    Optional<String> findRecipientName(@Param("receiptId") Long receiptId);
+
     @Query("select u.publicId from HandoverReceipt r, User u "
             + "where r.id = :receiptId and u.userId = r.staffUserId")
     Optional<UUID> findStaffPublicId(@Param("receiptId") Long receiptId);

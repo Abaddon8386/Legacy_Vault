@@ -407,7 +407,7 @@ function ScopedAdminSubscriptionPage({
                 return (
                   <div
                     key={p.planCode}
-                    className={`lv-admin-sub-card ${isSelected ? 'selected' : ''}`}
+                    className={`lv-admin-sub-card lv-surface-card ${isSelected ? 'selected' : ''}`}
                     onClick={(e) => { planTriggerRef.current = e.currentTarget; openPlanDetail(p.planCode); }}
                     role="button"
                     tabIndex={0}
@@ -463,7 +463,7 @@ function ScopedAdminSubscriptionPage({
 
           {/* PLAN DETAIL & VERSION HISTORY DRAWER */}
           {selectedPlanCode && (
-            <section className="lv-admin-sub-detail-panel" aria-label="Plan details and history">
+            <section className="lv-admin-sub-detail-panel lv-surface-card" aria-label="Plan details and history">
               <div className="lv-admin-sub-detail-header">
                 <h2 ref={detailTitleRef} tabIndex={-1}>
                   {en ? 'Plan History:' : 'Lịch sử cấu hình:'} {(en ? planDetail?.nameEn : planDetail?.nameVi) || selectedPlanCode} ({selectedPlanCode})
@@ -771,7 +771,7 @@ function ScopedAdminSubscriptionPage({
       {/* TAB 2: ACCOUNT USAGE REAL LOOKUP */}
       {activeTab === 'accounts' && (
         <div className="lv-admin-sub-content">
-          <form onSubmit={handleLookupAccount} className="lv-admin-sub-search-form">
+          <form onSubmit={handleLookupAccount} className="lv-admin-sub-search-form lv-surface-card">
             <label>
             <span>{en ? 'Account to look up' : 'Tài khoản cần tra cứu'}</span>
             <input
@@ -799,7 +799,7 @@ function ScopedAdminSubscriptionPage({
           )}
 
           {accountData && (
-            <div className="lv-admin-sub-account-result">
+            <div className="lv-admin-sub-account-result lv-surface-card">
               <div className="lv-admin-sub-account-header">
                 <div>
                   <h3>{accountData.username}</h3>

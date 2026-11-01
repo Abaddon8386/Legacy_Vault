@@ -11,6 +11,7 @@ import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.verification.dto.AllocationResponse;
 import com.legacyvault.verification.dto.BasisDossierResponse;
 import com.legacyvault.verification.dto.BasisVersionResponse;
+import com.legacyvault.verification.dto.CurrentBasisDecision;
 import com.legacyvault.verification.entity.LegalBasisDossier;
 import com.legacyvault.verification.entity.VerificationCase;
 import com.legacyvault.verification.repository.AllocationRow;
@@ -18,6 +19,7 @@ import com.legacyvault.verification.repository.BasisVersionRow;
 import com.legacyvault.verification.repository.LegalBasisDossierRepository;
 import com.legacyvault.verification.repository.LegalBasisDossierVersionRepository;
 import com.legacyvault.verification.repository.LegalBasisVersionAllocationRepository;
+import com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository;
 import com.legacyvault.verification.repository.LegalCaseLookupRepository;
 import com.legacyvault.verification.repository.StaffCaseLockRepository;
 import org.springframework.stereotype.Service;
@@ -44,10 +46,12 @@ public class BasisDossierViewService {
     private final LegalBasisVersionAllocationRepository allocations;
     private final UserRepository users;
     private final ObjectMapper objectMapper;
+    private final LegalBasisReviewHistoryRepository history;
 
     public BasisDossierViewService(LegalCaseLookupRepository caseLookup, StaffCaseLockRepository staffCases,
             LegalBasisDossierRepository dossiers, LegalBasisDossierVersionRepository versions,
-            LegalBasisVersionAllocationRepository allocations, UserRepository users, ObjectMapper objectMapper) {
+            LegalBasisVersionAllocationRepository allocations, UserRepository users, ObjectMapper objectMapper,
+            LegalBasisReviewHistoryRepository history) {
         this.caseLookup = caseLookup;
         this.staffCases = staffCases;
         this.dossiers = dossiers;
@@ -55,6 +59,7 @@ public class BasisDossierViewService {
         this.allocations = allocations;
         this.users = users;
         this.objectMapper = objectMapper;
+        this.history = history;
     }
 
     @Transactional(readOnly = true)
@@ -102,11 +107,28 @@ public class BasisDossierViewService {
                         evidenceReferenceOf(r.evidenceMetadata()), r.versionNo() == currentVersion,
                         scopeByVersion.getOrDefault(r.versionNo(), List.of())))
                 .toList();
+        CurrentBasisDecision decision = currentDecision(dossier, rows);
         return new BasisDossierResponse(dossier.getPublicId(), verificationCase.getPublicId(), dossier.getRoute(),
                 dossier.getStatus(), dossier.getDisputeStatus(), includeReason ? dossier.getRouteReason() : null,
                 publicIds.get(dossier.getClassifiedByUserId()),
                 dossier.getCreatedAt().toInstant(ZoneOffset.UTC), dossier.getUpdatedAt().toInstant(ZoneOffset.UTC),
-                items, dossier.getRequiredVersionNo());
+                items, dossier.getRequiredVersionNo(), null, decision);
+    }
+
+    private CurrentBasisDecision currentDecision(LegalBasisDossier dossier, List<BasisVersionRow> rows) {
+        if (rows.isEmpty() || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())) return null;
+        BasisVersionRow latest = rows.get(0);
+        if (!"FORWARDED".equals(latest.forwardStatus()) || latest.versionNo() < dossier.getRequiredVersionNo()) return null;
+        var decision = history.findFirstByDossierIdAndReviewStatusInOrderByIdDesc(
+                dossier.getLegalBasisDossierId(), List.of("LEGAL_APPROVED", "LEGAL_REJECTED")).orElse(null);
+        if (decision == null || !java.util.Objects.equals(decision.getVersionNo(), latest.versionNo())
+                || !latest.sha256Hash().equalsIgnoreCase(decision.getSha256Hash())
+                || !java.util.Objects.equals(decision.getDisputeStatus(), dossier.getDisputeStatus())) return null;
+        String allocationHash = AllocationScopeHash.hashApprovalRows(allocations.findRowsByDossier(dossier.getLegalBasisDossierId())
+                .stream().filter(row -> row.versionNo() == latest.versionNo()).toList());
+        if (!allocationHash.equalsIgnoreCase(decision.getAllocationHash())) return null;
+        return new CurrentBasisDecision(decision.getPublicId(), decision.getReviewStatus(), decision.getReason(),
+                latest.versionNo(), latest.sha256Hash(), allocationHash);
     }
 
     private String evidenceReferenceOf(String evidenceMetadata) {

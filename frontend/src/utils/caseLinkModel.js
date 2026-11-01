@@ -4,31 +4,57 @@ import { ApiError } from '../api/http.js';
 // authenticated responses to these shapes before enabling the new workflow.
 export const REQUEST_STATES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'];
 const text = value => typeof value === 'string' && value.trim().length > 0;
+
 export function isPersonalRecipient(roles = []) {
   const names = roles.map(role => role.replace(/^ROLE_/, ''));
   return !names.some(role => ['ADMIN', 'LEGAL', 'LEGAL_VERIFIER', 'LEGAL_OFFICER', 'STAFF_EXECUTOR'].includes(role)) &&
     (names.length === 0 || names.some(role => ['VAULT_OWNER', 'BENEFICIARY'].includes(role)));
 }
+
+/**
+ * Forward compatibility: BE BeneficiaryLinkRequest DTOs currently do not contain rejection reasons.
+ * When an optional reason/rejectionReason field is present, strictly enforce string type.
+ * Objects, arrays, numbers, and booleans are rejected with INVALID_RESPONSE to protect against React render crashes.
+ * Missing, null, or blank strings normalize to null.
+ * Priority: 'reason' takes precedence over 'rejectionReason' when both are provided.
+ */
+function parseOptionalReason(raw) {
+  if (raw.reason !== undefined && raw.reason !== null && typeof raw.reason !== 'string') {
+    throw new ApiError('INVALID_RESPONSE');
+  }
+  if (raw.rejectionReason !== undefined && raw.rejectionReason !== null && typeof raw.rejectionReason !== 'string') {
+    throw new ApiError('INVALID_RESPONSE');
+  }
+  const r = typeof raw.reason === 'string' ? raw.reason.trim() : '';
+  const rr = typeof raw.rejectionReason === 'string' ? raw.rejectionReason.trim() : '';
+  return r.length > 0 ? r : rr.length > 0 ? rr : null;
+}
+
 export function readLinkRequest(raw, { staff = false } = {}) {
   if (!raw || !text(raw.id) || (raw.caseNumber !== null && !text(raw.caseNumber)) || !REQUEST_STATES.includes(raw.status)) throw new ApiError('INVALID_RESPONSE');
   const item = { id: raw.id, caseNumber: raw.caseNumber, status: raw.status };
+  const reason = parseOptionalReason(raw);
+  if (reason) item.reason = reason;
   if (staff) {
     if ((raw.accountId !== null && !text(raw.accountId)) || !text(raw.accountName) || !text(raw.accountEmail)) throw new ApiError('INVALID_RESPONSE');
     Object.assign(item, { accountId: raw.accountId, accountName: raw.accountName, accountEmail: raw.accountEmail });
   }
   return item;
 }
+
 export function readLinkRequests(raw, options) {
   if (!Array.isArray(raw)) throw new ApiError('INVALID_RESPONSE');
   const items = raw.map(item => readLinkRequest(item, options));
   if (new Set(items.map(item => item.id)).size !== items.length) throw new ApiError('INVALID_RESPONSE');
   return items;
 }
+
 export function requestStatusLabel(status, lang = 'vi') {
   const vi = { PENDING: 'Chờ Staff đối chiếu', APPROVED: 'Đã liên kết', REJECTED: 'Yêu cầu bị từ chối', CANCELLED: 'Đã hủy yêu cầu', EXPIRED: 'Yêu cầu hết hạn' };
   const en = { PENDING: 'Awaiting Staff verification', APPROVED: 'Linked', REJECTED: 'Request declined', CANCELLED: 'Request cancelled', EXPIRED: 'Request expired' };
   return (lang === 'en' ? en : vi)[status];
 }
+
 export function caseLinkError(error, lang = 'vi') {
   const en = lang === 'en';
   const messages = {

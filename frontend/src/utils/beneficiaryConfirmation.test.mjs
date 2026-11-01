@@ -1,3 +1,4 @@
+import { staffFixture, deliveredItem } from './staffReviewFixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -314,7 +315,7 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
     },
   ];
 
-  await t.test('switching case via input wipes case A data, selections, receipts, errors and locks recording until B has data', async () => {
+  await t.test('switching selected case wipes case A data, selections, receipts, errors and locks recording until B has data', async () => {
     const wrapper = await mount(BeneficiaryConfirmationPage, {
       caseReference: 'CASE-A',
       initialBeneficiaries: FIXTURE_CASE_A,
@@ -325,13 +326,11 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.ok(wrapper.host.textContent.includes('Nguyen Van A'));
       assert.ok(wrapper.host.textContent.includes('REC-A-001'));
 
-      const caseInput = wrapper.host.querySelector('.lv-confirm-case-bar input');
-      const benSelect = wrapper.host.querySelector('.lv-confirm-select');
-      const receiptInput = wrapper.host.querySelector('input[aria-label="Số trên giấy biên nhận"]');
-      const submitBtn = wrapper.host.querySelector('.lv-btn-record-submit');
+      let benSelect = wrapper.host.querySelector('.lv-confirm-select');
+      let receiptInput = wrapper.host.querySelector('input[aria-label="Số trên giấy biên nhận"]');
+      let submitBtn = wrapper.host.querySelector('.lv-btn-record-submit');
 
-      assert.ok(caseInput, 'Case input must exist');
-      assert.equal(caseInput.value, 'CASE-A');
+      assert.equal(wrapper.host.querySelector('.lv-confirm-technical'), null);
 
       // Select beneficiary and type receipt
       await act(async () => {
@@ -343,9 +342,10 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.equal(receiptInput.value, 'REC-TYPED-123');
 
       // 2. Switch case A -> B via input without clearing to whitespace first
-      await act(async () => {
-        changeInput(caseInput, 'CASE-B');
-      });
+      await wrapper.render({caseReference: 'CASE-B'});
+      benSelect = wrapper.host.querySelector('.lv-confirm-select');
+      receiptInput = wrapper.host.querySelector('input[aria-label="Số trên giấy biên nhận"]');
+      submitBtn = wrapper.host.querySelector('.lv-btn-record-submit');
 
       // VERIFY: All of Case A's data must disappear immediately
       assert.equal(wrapper.host.textContent.includes('Nguyen Van A'), false, 'Case A beneficiary must NOT remain');
@@ -384,7 +384,7 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.equal(wrapper.host.textContent.includes('Nguyen Van A'), false);
       assert.ok(wrapper.host.textContent.includes('Chưa có thông tin'));
 
-      const submitBtn = wrapper.host.querySelector('.lv-btn-record-submit');
+      let submitBtn = wrapper.host.querySelector('.lv-btn-record-submit');
       assert.equal(submitBtn.disabled, true);
 
       // Now valid B data arrives
@@ -424,17 +424,12 @@ test('PS-54 Component Regression: Case Switching Isolation & Stale Response Disc
     });
 
     try {
-      const caseInput = wrapper.host.querySelector('.lv-confirm-case-bar input');
 
       // 1. Trigger fetch for CASE-A
-      await act(async () => {
-        changeInput(caseInput, 'CASE-A');
-      });
+      await wrapper.render({caseReference: 'CASE-A', onFetchBeneficiaries: fakeFetcher});
 
       // 2. Before A resolves, user switches to CASE-B!
-      await act(async () => {
-        changeInput(caseInput, 'CASE-B');
-      });
+      await wrapper.render({caseReference: 'CASE-B', onFetchBeneficiaries: fakeFetcher});
 
       // 3. Late response for CASE-A returns now!
       await act(async () => {
@@ -467,8 +462,9 @@ test('live confirmation DTOs are joined to recipient names and delivery metadata
     {beneficiaryId: '44444444-4444-4444-8444-444444444444', fullName: 'Nguyễn Gia Bảo', relationship: 'Con trai'},
   ];
   globalThis.fetch = async url => {
+    if (url.endsWith('/'+sessionId)) return staffFixture()(url);
     const data = url.endsWith('/beneficiaries') ? recipients
-      : url.endsWith('/eligible-assets') ? recipients.map(person => ({recipientId: person.beneficiaryId, deliveryStatus: 'DELIVERED'}))
+      : url.endsWith('/eligible-assets') ? recipients.map(person => ({assetId:deliveredItem.assetId, recipientId:person.beneficiaryId, description:'All', deliveryStatus:'DELIVERED'}))
       : recipients.map(person => ({beneficiaryId: person.beneficiaryId, sessionId, status: 'PENDING'}));
     return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
   };
@@ -690,4 +686,66 @@ test('when sessions are successfully loaded, renders session picker with formatt
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test('completed sessions read delivery history, show their date, and expose no new confirmation or technical IDs', async () => {
+  const originalFetch = globalThis.fetch;
+  const reads = [];
+  const fixture = staffFixture({status: 'COMPLETED', deliveries: [deliveredItem]});
+  globalThis.fetch = async url => {
+    reads.push(url);
+    assert.ok(!url.includes('/eligible-assets'), 'Completed history must never use the OPEN-only endpoint');
+    if (url.endsWith('/beneficiary-confirmations')) return new Response(JSON.stringify([{beneficiaryId:deliveredItem.recipientId, sessionId:deliveredItem.sessionId, status:'CONFIRMED', receiptReference:'BN-01'}]), {headers:{'Content-Type':'application/json'}});
+    return fixture(url);
+  };
+  const view = await mount(BeneficiaryConfirmationPage, {caseId:'11111111-1111-4111-8111-111111111111', sessionId:deliveredItem.sessionId, accessToken:'fixture', lang:'vi'});
+  try {
+    assert.equal(view.host.querySelector('[role="alert"]'), null);
+    assert.match(view.host.textContent, /Phiên bàn giao đã kết thúc/);
+    assert.match(view.host.querySelector('.lv-confirm-active-session-id').textContent, /Hoàn tất.*20/);
+    assert.equal(view.host.querySelector('.lv-btn-record-submit'), null);
+    assert.equal(view.host.querySelector('.lv-confirm-technical'), null);
+    assert.ok(reads.some(url=>url.endsWith('/deliveries')));
+  } finally {await view.close(); globalThis.fetch=originalFetch;}
+});
+
+test('unclaimed cases guide Staff to claim the case instead of showing a session-list error', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => assert.fail('No handover request before the case is claimed');
+  const caseId='11111111-1111-4111-8111-111111111111';
+  const view = await mount(BeneficiaryConfirmationPage, {caseId, accessToken:'fixture', caseItem:{caseId, caseNumber:'HS-2026-000003',status:'OPEN',assignmentStatus:'UNASSIGNED_CLAIMABLE'}});
+  try {
+    assert.equal(view.host.querySelector('[role="alert"]'), null);
+    assert.match(view.host.textContent, /Hồ sơ chưa được nhận xử lý/);
+    assert.ok(view.host.querySelector('a[href^="/staff/cases?"]'));
+  } finally {await view.close();globalThis.fetch=originalFetch;}
+});
+
+test('partial delivery of one out of two allocations never reports the recipient fully delivered', async () => {
+  const originalFetch = globalThis.fetch;
+  const caseId = '11111111-1111-4111-8111-111111111111', sessionId = deliveredItem.sessionId;
+  let allDelivered = false;
+  const fixture = staffFixture();
+  globalThis.fetch = async url => {
+    let data;
+    if (url.endsWith('/eligible-assets')) data = [
+      {assetId:deliveredItem.assetId,recipientId:deliveredItem.recipientId,description:'First asset',deliveryStatus:'DELIVERED'},
+      {assetId:caseId,recipientId:deliveredItem.recipientId,description:'Second asset',deliveryStatus:allDelivered?'DELIVERED':'ELIGIBLE'},
+    ];
+    else if (url.endsWith('/beneficiary-confirmations')) data = [{beneficiaryId:deliveredItem.recipientId,sessionId,status:'PENDING'}];
+    else return fixture(url);
+    return new Response(JSON.stringify(data), {headers:{'Content-Type':'application/json'}});
+  };
+  window.history.replaceState({}, '', '/staff/beneficiary-confirmation');
+  let view;
+  try {
+    view = await mount(BeneficiaryConfirmationPage, {caseId,sessionId,accessToken:'partial-fixture',lang:'vi'});
+    const row = view.host.querySelector('tbody tr');
+    assert.ok(row); assert.doesNotMatch(row.textContent, /Đã giao tài sản/);
+    await view.close(); view = null;
+    allDelivered = true;
+    view = await mount(BeneficiaryConfirmationPage, {caseId,sessionId,accessToken:'partial-fixture',lang:'vi'});
+    assert.match(view.host.querySelector('tbody tr').textContent, /Đã giao tài sản/);
+  } finally {if(view) await view.close(); globalThis.fetch=originalFetch;}
 });

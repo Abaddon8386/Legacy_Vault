@@ -130,7 +130,7 @@ for (const role of ['VAULT_OWNER', 'BENEFICIARY']) {
         // Navigation uses the verified user's existing role destination and keeps English.
         globalThis.fetch = async () => ({ ok: false, status: 503, headers: { get: () => 'application/json' }, json: async () => ({ code: 'INTERNAL_ERROR' }) });
         await act(async () => host.querySelector('.lv-landing-dashboard').click());
-        assert.equal(window.location.pathname, role === 'VAULT_OWNER' ? '/vault' : '/beneficiary');
+        assert.equal(window.location.pathname, role === 'VAULT_OWNER' ? '/vault' : '/shared-with-me');
         assert.equal(new URLSearchParams(window.location.search).get('lang'), 'en');
       } finally {
         await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = originalFetch;

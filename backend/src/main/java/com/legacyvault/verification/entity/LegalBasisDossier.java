@@ -160,9 +160,9 @@ public class LegalBasisDossier {
 
         if (!ROUTE_ON_HOLD.equals(route)
                 || !STATUS_DRAFT.equals(status)
-                || !ROUTE_COURT.equals(newRoute)) {
+                || !(ROUTE_COURT.equals(newRoute) || ROUTE_NOTARIAL.equals(newRoute))) {
             throw new IllegalStateException(
-                    "Only an ON_HOLD draft dossier can be reclassified to COURT");
+                    "Only an ON_HOLD draft dossier can be reclassified to NOTARIAL or COURT");
         }
 
         this.route = newRoute;
@@ -171,8 +171,26 @@ public class LegalBasisDossier {
         this.classifiedByUserId = legalUserId;
     }
 
+    /** NOTARIAL and COURT dossiers take Staff intake and forward; ON_HOLD does not. */
     public boolean acceptsIntake() {
-        return ROUTE_COURT.equals(route);
+        return ROUTE_COURT.equals(route) || ROUTE_NOTARIAL.equals(route);
+    }
+
+    /** Routes Legal may review, approve and unlock. */
+    public boolean isLegalReviewable() {
+        return acceptsIntake();
+    }
+
+    /**
+     * Dossier opened by Staff intake when Legal has not classified yet: the route follows the document actually
+     * submitted. Nobody is recorded as the classifier; Legal still reviews validity and may place it on hold.
+     */
+    public static LegalBasisDossier openedByIntake(Long verificationCaseId, String route, String disputeStatus,
+            Long staffUserId) {
+        LegalBasisDossier dossier = new LegalBasisDossier(verificationCaseId, route,
+                "Opened by Staff intake from the submitted document type", disputeStatus, staffUserId);
+        dossier.classifiedByUserId = null;
+        return dossier;
     }
 
     /** A hold invalidates earlier clearance while preserving all versions and assessment history. */

@@ -46,6 +46,7 @@ class LegalWorkflowGuardTest {
         when(verificationCase.isOpen()).thenReturn(true);
         when(vault.getStatus()).thenReturn(Vault.STATUS_LEGAL_BASIS_VERIFICATION);
         when(dossier.acceptsIntake()).thenReturn(true);
+        when(dossier.isLegalReviewable()).thenReturn(true);
         when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
         when(dossier.getRequiredVersionNo()).thenReturn(1);
         when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);

@@ -89,7 +89,7 @@ export default function LegalWillDocumentVerificationPage({
       </section>
 
       {/* Digitized Record Metadata Section */}
-      <section className="lv-metadata-card" aria-labelledby="metadata-heading">
+      <section className="lv-metadata-card lv-surface-card" aria-labelledby="metadata-heading">
         <div className="lv-metadata-card__header">
           <h2 id="metadata-heading">{t.willQueueSectionTitle || t.queueSectionTitle}</h2>
         </div>
@@ -116,7 +116,7 @@ export default function LegalWillDocumentVerificationPage({
       </section>
 
       {/* Comparison Docket Form */}
-      <section className="lv-form-card" aria-labelledby="form-heading">
+      <section className="lv-form-card lv-surface-card" aria-labelledby="form-heading">
         <div className="lv-form-card__header">
           <h2 id="form-heading">{t.willFormTitle || t.formTitle}</h2>
           <p>{t.willFormDesc || t.formDesc}</p>

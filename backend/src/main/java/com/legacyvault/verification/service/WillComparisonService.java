@@ -48,6 +48,7 @@ import java.util.UUID;
  */
 @Service
 public class WillComparisonService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     static final String ENTITY_TYPE = "WILL_COMPARISON";
     static final String STEP_ID = "ST-15";
@@ -72,7 +73,8 @@ public class WillComparisonService {
             AssetVersionRepository assetVersionRepository,
             WillComparisonRepository comparisonRepository,
             AuditService auditService
-    ) {
+    , com.legacyvault.notification.WorkflowNotificationService notifications) {
+        this.notifications = notifications;
         this.caseLookup = caseLookup;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -162,6 +164,7 @@ public class WillComparisonService {
                 RULE_ID
         ));
 
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "WILL_COMPARISON_RECORDED", "will:" + saved.getPublicId(), normalize(request.reason()));
         return new WillComparisonResponse(
                 saved.getPublicId(),
                 verificationCase.getPublicId(),
@@ -173,7 +176,7 @@ public class WillComparisonService {
                 principal.publicId(),
                 saved.getReason(),
                 saved.getComparedAt().toInstant(ZoneOffset.UTC)
-        );
+        ).withNotification(notification);
     }
 
     @Transactional(readOnly = true)

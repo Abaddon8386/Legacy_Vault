@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { loadStaffCase } from '../pages/staff/staffLiveService.js';
 
 // Optional display metadata; permissions and mutations remain server-controlled.
@@ -14,5 +14,9 @@ export function useStaffCaseMetadata(caseId, provided, accessToken, lang, previe
     return () => controller.abort();
   }, [caseId, accessToken, lang, preview, known?.caseNumber]);
   const current = loaded?.caseId === caseId && loaded.accessToken === accessToken ? loaded.item : null;
-  return current ? {...current, ...known} : known;
+  return useMemo(() => {
+    if (!current) return known;
+    if (!known) return current;
+    return { ...current, ...known };
+  }, [current, known]);
 }

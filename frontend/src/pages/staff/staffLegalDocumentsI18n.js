@@ -1,7 +1,7 @@
 export const staffLegalDocumentsI18n = {
   vi: {
     pageTitle: 'Hồ sơ căn cứ pháp lý',
-    formSubtitle: 'Quản lý thông tin văn bản căn cứ pháp lý và chuẩn bị hồ sơ chuyển sang ban pháp lý thẩm định.',
+    formSubtitle: 'Nhận giấy tờ Legal yêu cầu, chuyển thẩm định, rồi lập phân bổ sau khi căn cứ được duyệt.',
 
     // Cảnh báo quy tắc nghiệp vụ
     staffNoticeTitle: 'Lưu ý hồ sơ căn cứ pháp lý',
@@ -22,7 +22,7 @@ export const staffLegalDocumentsI18n = {
     // Trạng thái hồ sơ
     dossierSectionTitle: 'Thông tin hồ sơ và phiên bản lưu trữ',
     dossierStatusLabel: 'Trạng thái hồ sơ:',
-    routeLabel: 'Nhánh căn cứ pháp lý:',
+    routeLabel: 'Nguồn giấy tờ đã nộp:',
     dossierVersionLabel: 'Phiên bản hồ sơ lưu trữ:',
     dossierHashLabel: 'Mã băm SHA-256 lưu trữ:',
     forwardStatusLabel: 'Trạng thái chuyển pháp chế:',
@@ -33,9 +33,9 @@ export const staffLegalDocumentsI18n = {
     dossierHashUnloaded: 'Chưa có mã băm',
 
     // Nhánh & Trạng thái dịch
-    routeNotarial: 'Công chứng (NOTARIAL)',
+    routeNotarial: 'Công chứng',
     routeCourt: 'Tòa án',
-    routeOnHold: 'Tạm dừng (ON_HOLD)',
+    routeOnHold: 'Tạm dừng',
     statusDraft: 'Bản thảo (Chờ tiếp nhận văn bản)',
     statusProvided: 'Đã tiếp nhận văn bản (Chờ chuyển Pháp chế)',
     statusForwarded: 'Đã chuyển Pháp chế thẩm định',
@@ -48,11 +48,17 @@ export const staffLegalDocumentsI18n = {
     awaitingLegalDossierDesc: 'Chuyên viên Pháp lý chưa tạo hồ sơ và phân loại nhánh căn cứ pháp lý cho ca xác minh này. Nhân viên quầy chưa thể tiếp nhận văn bản số hóa.',
     dossierOnHoldTitle: 'Hồ sơ đang ở trạng thái TẠM DỪNG (ON_HOLD)',
     dossierOnHoldDesc: 'Hồ sơ đang được giữ để xác minh bổ sung hoặc phân loại lại. Chưa thể tiếp nhận văn bản mới cho đến khi có quyết định tiếp tục từ Pháp lý.',
+    dossierRejectedTitle: 'Hồ sơ căn cứ bị Ban Pháp lý từ chối (REJECTED)',
+    dossierRejectedDesc: 'Ban Pháp lý đã từ chối hồ sơ căn cứ pháp lý hiện tại. Nhân viên vui lòng kiểm tra lý do từ chối, hướng dẫn người nộp chuẩn bị lại hồ sơ hoặc chuyển cơ quan có thẩm quyền.',
+    dossierSupplementationTitle: 'Ban Pháp lý yêu cầu bổ sung hồ sơ (CHANGES_REQUESTED)',
+    dossierSupplementationDesc: 'Ban Pháp lý yêu cầu chỉnh sửa hoặc bổ sung văn bản phân chia/thông tin tài sản. Nhân viên vui lòng tiếp nhận phiên bản văn bản sửa đổi bên dưới và chuyển lại cho Pháp lý thẩm định.',
+    dossierNeutralVersionTitle: 'Yêu cầu phiên bản hồ sơ',
+    dossierNeutralVersionDesc: 'Hồ sơ yêu cầu tiếp nhận phiên bản cụ thể theo quy trình nghiệp vụ.',
     dossierAlreadyForwardedNotice: 'Phiên bản mới nhất đã được chuyển cho Ban Pháp lý thẩm định. Không cần chuyển lại.',
 
     // Biểu mẫu thông tin văn bản căn cứ
     formTitle: 'Tiếp nhận văn bản',
-    formDesc: 'Điền thông tin văn bản, đính kèm bản số hóa và phân bổ cho người nhận.',
+    formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Legal duyệt căn cứ.',
     legalBasisTypeLabel: 'Loại văn bản căn cứ (Bắt buộc)',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
     typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',
@@ -201,6 +207,12 @@ export const staffLegalDocumentsI18n = {
     awaitingLegalDossierDesc: 'The Legal Verifier has not yet created or classified a legal basis dossier for this verification case. Counter staff cannot intake digitized documents at this time.',
     dossierOnHoldTitle: 'Dossier is ON HOLD',
     dossierOnHoldDesc: 'The dossier is currently on hold for supplementary verification or re-review. Document intake is suspended until resumed by the Legal Department.',
+    dossierRejectedTitle: 'Legal Basis Dossier Rejected (REJECTED)',
+    dossierRejectedDesc: 'The Legal Department has rejected the current legal basis dossier. Please inspect the rejection reason, guide the applicant to prepare new documentation, or escalate as appropriate.',
+    dossierSupplementationTitle: 'Legal Department Requested Supplementation (CHANGES_REQUESTED)',
+    dossierSupplementationDesc: 'The Legal Department has requested document revisions or supplementary asset details. Please intake the revised version below and forward it back to Legal for evaluation.',
+    dossierNeutralVersionTitle: 'Dossier Version Requirement',
+    dossierNeutralVersionDesc: 'The dossier requires a specific version per workflow rules.',
     dossierAlreadyForwardedNotice: 'The latest version has already been forwarded to the Legal Department. No re-forwarding required.',
 
     // Document metadata form

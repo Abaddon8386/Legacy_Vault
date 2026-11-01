@@ -59,6 +59,7 @@ import java.util.UUID;
  */
 @Service
 public class BasisIntakeService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
     static final String STEP_ID = "ST-18";
@@ -96,8 +97,9 @@ public class BasisIntakeService {
             LegalBasisLockedState lockedState,
             LegalBasisReviewService reviewService,
             @Value("${legacyvault.will.max-file-bytes:10485760}")
-            long maxFileBytes
+            long maxFileBytes, com.legacyvault.notification.WorkflowNotificationService notifications
     ) {
+        this.notifications = notifications;
         this.staffCases = staffCases;
         this.vaultRepository = vaultRepository;
         this.dossiers = dossiers;
@@ -168,15 +170,21 @@ public class BasisIntakeService {
             throw new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN);
         }
 
-        if (!Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())) {
+        if (!vault.isLegalBasisIntakeState()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
         /*
          * Bước 5: Chỉ khóa dossier sau Vault và VerificationCase.
+         * Chưa có dossier (Legal chưa phân loại): mở dossier theo loại giấy tờ thực tế được nộp. Vault đang bị khóa
+         * nên hai request không tạo được hai dossier.
          */
-        LegalBasisDossier dossier = dossiers.findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        LegalBasisDossier existing = dossiers
+                .findByVerificationCaseIdForUpdate(verificationCase.getVerificationCaseId()).orElse(null);
+        boolean openedByIntake = existing == null;
+        LegalBasisDossier dossier = openedByIntake
+                ? dossiers.saveAndFlush(openDossier(verificationCase.getVerificationCaseId(), metadata, staffUserId))
+                : existing;
         lockedState.refresh(dossier);
 
         if (!dossier.acceptsIntake()) {
@@ -189,7 +197,9 @@ public class BasisIntakeService {
          */
         requireTypeMatchesRoute(metadata, dossier);
 
-        List<ScopeLine> scope = resolveScope(metadata, vault.getVaultId(), dossier.getRoute());
+        // Distribution workflow: the document upload carries no allocation; allocations are submitted in their own step.
+        List<AllocationInput> inputs = metadata.allocations() == null ? List.of() : metadata.allocations();
+        List<ScopeLine> scope = inputs.isEmpty() ? List.of() : resolveScope(inputs, vault.getVaultId(), dossier.getRoute());
 
         WillFile scan = WillFile.inspect(file, maxFileBytes);
 
@@ -229,39 +239,11 @@ public class BasisIntakeService {
         LegalBasisDossierVersion saved = versions.saveAndFlush(version);
 
         /*
-         * Bước 8: Lưu allocation gắn với đúng phiên bản mới.
+         * Bước 8: Lưu allocation (nếu có) gắn với đúng phiên bản mới. Quy trình phân chia mới không gửi phân bổ ở bước này.
          */
-        List<LegalBasisVersionAllocation> lines = new ArrayList<>();
-
-        /*
-         * BE-02: người chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch này, gắn đúng phiên bản vừa lưu.
-         * Cùng một người ở nhiều dòng chỉ tạo một lần.
-         */
-        Map<String, Beneficiary> courtRecipients = new HashMap<>();
-
-        for (int i = 0; i < scope.size(); i++) {
-            ScopeLine line = scope.get(i);
-            AllocationInput input = metadata.allocations().get(i);
-
-            Long beneficiaryId = line.beneficiaryId();
-            if (beneficiaryId == null) {
-                Beneficiary recipient = courtRecipients.get(line.courtKey());
-                if (recipient == null) {
-                    recipient = createCourtRecipient(vault, saved.getDossierVersionId(), line.court());
-                    courtRecipients.put(line.courtKey(), recipient);
-                }
-                beneficiaryId = recipient.getId();
-            }
-
-            lines.add(new LegalBasisVersionAllocation(
-                    saved.getDossierVersionId(),
-                    line.assetId(),
-                    beneficiaryId,
-                    normalize(input.description())
-            ));
-        }
-
-        allocations.saveAll(lines);
+        Persisted persisted = persistAllocations(vault, saved.getDossierVersionId(), scope, inputs);
+        List<LegalBasisVersionAllocation> lines = persisted.lines();
+        Map<String, Beneficiary> courtRecipients = persisted.courtRecipients();
 
         /*
          * Bước 9: Cập nhật dossier về trạng thái đã cung cấp.
@@ -284,17 +266,19 @@ public class BasisIntakeService {
                 null,
                 null,
                 null,
-                Map.of(
-                        "dossierId", dossier.getPublicId().toString(),
-                        "verificationCaseId", verificationCase.getPublicId().toString(),
-                        "version", saved.getVersionNo(),
-                        "legalBasisType", metadata.legalBasisType(),
-                        "sha256", saved.getSha256Hash(),
-                        "sizeBytes", scan.size(),
-                        "allocationCount", lines.size(),
-                        "courtRecipientCount", courtRecipients.size(),
-                        "courtRecipientIds", courtRecipients.values().stream()
-                                .map(recipient -> recipient.getPublicId().toString()).sorted().toList()
+                Map.ofEntries(
+                        Map.entry("dossierId", dossier.getPublicId().toString()),
+                        Map.entry("verificationCaseId", verificationCase.getPublicId().toString()),
+                        Map.entry("version", saved.getVersionNo()),
+                        Map.entry("legalBasisType", metadata.legalBasisType()),
+                        Map.entry("route", dossier.getRoute()),
+                        Map.entry("dossierOpenedByIntake", openedByIntake),
+                        Map.entry("sha256", saved.getSha256Hash()),
+                        Map.entry("sizeBytes", scan.size()),
+                        Map.entry("allocationCount", lines.size()),
+                        Map.entry("courtRecipientCount", courtRecipients.size()),
+                        Map.entry("courtRecipientIds", courtRecipients.values().stream()
+                                .map(recipient -> recipient.getPublicId().toString()).sorted().toList())
                 ),
                 STEP_ID,
                 RULE_ID
@@ -311,7 +295,21 @@ public class BasisIntakeService {
          */
         reviewService.evaluateAfterChange(verificationCase.getPublicId());
 
-        return views.view(verificationCase, false);
+        var notification = notifications.record(verificationCase, com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL, "LEGAL_BASIS_RECEIVED", "basis:" + saved.getPublicId(), null);
+        return views.view(verificationCase, false).withNotification(notification);
+    }
+
+    /** Route follows the submitted document type; an unknown type is a validation error. */
+    private static LegalBasisDossier openDossier(Long verificationCaseId, BasisIntakeMetadata metadata, Long staffUserId) {
+        String type = metadata.legalBasisType();
+        String route = "NOTARIAL_PARTITION".equals(type) ? LegalBasisDossier.ROUTE_NOTARIAL
+                : ("COURT_JUDGMENT".equals(type) || "COURT_DECISION".equals(type)) ? LegalBasisDossier.ROUTE_COURT : null;
+        if (route == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
+        String dispute = LegalBasisDossier.ROUTE_NOTARIAL.equals(route)
+                ? LegalBasisDossier.DISPUTE_NONE : LegalBasisDossier.DISPUTE_DISPUTED;
+        return LegalBasisDossier.openedByIntake(verificationCaseId, route, dispute, staffUserId);
     }
 
     /**
@@ -330,12 +328,10 @@ public class BasisIntakeService {
      * không cho phép trùng cặp asset-beneficiary.
      */
     private List<ScopeLine> resolveScope(
-            BasisIntakeMetadata metadata,
+            List<AllocationInput> inputs,
             Long vaultId,
             String route
     ) {
-        List<AllocationInput> inputs = metadata.allocations();
-
         if (inputs == null || inputs.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
@@ -393,6 +389,56 @@ public class BasisIntakeService {
         }
 
         return scope;
+    }
+
+    private record Persisted(List<LegalBasisVersionAllocation> lines, Map<String, Beneficiary> courtRecipients) {
+    }
+
+    /**
+     * BE-02: người chỉ có tên trong văn bản Tòa án được tạo ngay trong giao dịch này, gắn đúng phiên bản vừa lưu.
+     * Cùng một người ở nhiều dòng chỉ tạo một lần.
+     */
+    private Persisted persistAllocations(Vault vault, Long dossierVersionId, List<ScopeLine> scope,
+            List<AllocationInput> inputs) {
+        List<LegalBasisVersionAllocation> lines = new ArrayList<>();
+        Map<String, Beneficiary> courtRecipients = new HashMap<>();
+
+        for (int i = 0; i < scope.size(); i++) {
+            ScopeLine line = scope.get(i);
+            AllocationInput input = inputs.get(i);
+
+            Long beneficiaryId = line.beneficiaryId();
+            if (beneficiaryId == null) {
+                Beneficiary recipient = courtRecipients.get(line.courtKey());
+                if (recipient == null) {
+                    recipient = createCourtRecipient(vault, dossierVersionId, line.court());
+                    courtRecipients.put(line.courtKey(), recipient);
+                }
+                beneficiaryId = recipient.getId();
+            }
+
+            lines.add(new LegalBasisVersionAllocation(
+                    dossierVersionId,
+                    line.assetId(),
+                    beneficiaryId,
+                    normalize(input.description())
+            ));
+        }
+
+        allocations.saveAll(lines);
+        return new Persisted(lines, courtRecipients);
+    }
+
+    /**
+     * Distribution workflow (Staff submits allocations): validates every asset/recipient of the Vault, retires the
+     * previous allocation of the same document version and stores the new one. The caller holds the
+     * Vault -> case -> dossier locks and decides whether the phase allows it; nothing is approved here.
+     */
+    public int replaceAllocations(Vault vault, LegalBasisDossier dossier, Long dossierVersionId,
+            List<AllocationInput> inputs) {
+        List<ScopeLine> scope = resolveScope(inputs, vault.getVaultId(), dossier.getRoute());
+        allocations.supersedeForVersion(dossierVersionId);
+        return persistAllocations(vault, dossierVersionId, scope, inputs).lines().size();
     }
 
     /** Một dòng phạm vi đã kiểm tra: người nhận có sẵn ({@code beneficiaryId}) hoặc người sẽ tạo từ văn bản. */

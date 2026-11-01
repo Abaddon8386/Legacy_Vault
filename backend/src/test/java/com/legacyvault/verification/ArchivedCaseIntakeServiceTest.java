@@ -28,14 +28,14 @@ class ArchivedCaseIntakeServiceTest {
     }
     @Test void deathDocumentInsertRechecksClosedCaseAfterLock(){
         var records=mock(DeathDocumentRecordRepository.class);
-        var service=new DeathDocumentIntakeService(cases,records,users,audit,state);
+        var service=new DeathDocumentIntakeService(cases,records,users,audit,state,mock(com.legacyvault.notification.WorkflowNotificationService.class));
         assertEquals(ErrorCode.VERIFICATION_CASE_NOT_OPEN,assertThrows(BusinessException.class,
                 ()->service.record(caseId,staff,null)).getErrorCode());
         verify(state).refresh(cached);verifyNoInteractions(records,users,audit);
     }
     @Test void originalWillIntakeInsertRechecksClosedCaseAfterLock(){
         var records=mock(OriginalWillIntakeRepository.class);
-        var service=new OriginalWillIntakeService(cases,records,users,audit,state);
+        var service=new OriginalWillIntakeService(cases,records,users,audit,state,mock(com.legacyvault.notification.WorkflowNotificationService.class));
         assertEquals(ErrorCode.VERIFICATION_CASE_NOT_OPEN,assertThrows(BusinessException.class,
                 ()->service.record(caseId,staff,null)).getErrorCode());
         verify(state).refresh(cached);verifyNoInteractions(records,users,audit);

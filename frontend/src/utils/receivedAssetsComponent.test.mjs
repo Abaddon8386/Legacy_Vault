@@ -107,7 +107,7 @@ test('Production cannot show demo with query/preview flags; authenticated previe
 const {default:DevApp}=await loadComponentModule('src/App.jsx');
 const {default:ProdApp}=await loadComponentModule('src/App.jsx',true);
 test('Actual App provides DEV anonymous preview but production query cannot bypass login',async()=>{
- window.sessionStorage.clear();window.localStorage.clear();window.history.replaceState({},'','/beneficiary?preview=true');
+ window.sessionStorage.clear();window.localStorage.clear();window.history.replaceState({},'','/beneficiary?preview=true&scenario=received&role=BENEFICIARY');
  const host=document.createElement('div');document.body.append(host);let root=createRoot(host);
  try{await act(async()=>root.render(React.createElement(DevApp)));await act(async()=>new Promise(r=>setTimeout(r,150)));assert.match(host.textContent,/Dữ liệu minh họa/);assert.match(host.textContent,/Kỷ vật gia đình/);
  await act(async()=>root.unmount());root=createRoot(host);await act(async()=>root.render(React.createElement(ProdApp)));assert.doesNotMatch(host.textContent,/Kỷ vật gia đình|chưa lưu lên máy chủ/);assert.match(host.textContent,/Đăng nhập/);

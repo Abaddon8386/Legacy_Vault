@@ -11,18 +11,21 @@ import java.time.*;
 import java.util.*;
 @Service
 public class HandoverCloseService {
+private final com.legacyvault.verification.group.GroupHandoverService group;
  private final HandoverCompletionAccess access;
  private final HandoverCompletionService completion;
  private final HandoverSessionRepository sessions;
  private final HandoverCompletionEvidenceRepository evidence;
  private final AuditService audit;
  public HandoverCloseService(HandoverCompletionAccess access,HandoverCompletionService completion,
-  HandoverSessionRepository sessions,HandoverCompletionEvidenceRepository evidence,AuditService audit){
+  HandoverSessionRepository sessions,HandoverCompletionEvidenceRepository evidence,AuditService audit, com.legacyvault.verification.group.GroupHandoverService group){
+this.group=group;
   this.access=access;this.completion=completion;this.sessions=sessions;this.evidence=evidence;this.audit=audit;
  }
  @Transactional
  public HandoverCloseResponse close(UUID caseId,UUID sessionId,CustomUserPrincipal actor){
   var s=access.lock(caseId,sessionId,actor,true);
+  group.requireReady(caseId,sessionId,actor);
   var progress=completion.requireReady(s);
   if(s.session().getStatus()==HandoverSessionStatus.COMPLETED){
    requireEvidence(s);

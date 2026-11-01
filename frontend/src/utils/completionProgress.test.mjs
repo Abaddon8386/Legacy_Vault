@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {staffFixture} from './staffReviewFixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path, { resolve } from 'node:path';
@@ -384,7 +385,7 @@ test('live completion DTO renders real counts and changing session clears the pr
   const secondSession = '33333333-3333-4333-8333-333333333333';
   const response = data => new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } });
   let releaseSecond;
-  globalThis.fetch = async url => String(url).includes(secondSession)
+  globalThis.fetch = async url => /\/handover-sessions\/[a-f\d-]+$/i.test(url) ? staffFixture()(url) : String(url).includes(secondSession)
     ? new Promise(resolve => { releaseSecond = data => resolve(response(data)); })
     : response({ assets: { completed: 2, total: 2, pending: 0, complete: true },
       beneficiaries: { completed: 1, total: 1, pending: 0, complete: true }, ready: true });
@@ -410,7 +411,7 @@ test('live completion DTO renders real counts and changing session clears the pr
 });
 
 test('PS-55 Component Regression: Case Switching Isolation & Stale Response Discard', async (t) => {
-  await t.test('switching case via input wipes case A data, resets metrics to indeterminate, and avoids retaining A progress', async () => {
+  await t.test('switching selected case wipes case A data, resets metrics to indeterminate, and avoids retaining A progress', async () => {
     const wrapper = await mount(CompletionProgressPage, {
       caseReference: 'CASE-A',
       initialAssetData: { delivered: 4, total: 4 },
@@ -423,14 +424,10 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
       assert.ok(wrapper.host.textContent.includes('2 / 2'), 'Should show 2 / 2 for Case A beneficiaries');
       assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'), 'Case A should be eligible for completion');
 
-      const caseInput = wrapper.host.querySelector('.lv-progress-input');
-      assert.ok(caseInput, 'Case input must exist');
-      assert.equal(caseInput.value, 'CASE-A');
+      assert.equal(wrapper.host.querySelector('.lv-progress-technical'), null);
 
       // 2. Switch case A -> B directly via input without clearing to blank first
-      await act(async () => {
-        changeInput(caseInput, 'CASE-B');
-      });
+      await wrapper.render({caseReference:'CASE-B'});
 
       // VERIFY: Case A data must be wiped immediately!
       assert.equal(wrapper.host.textContent.includes('4 / 4'), false, 'Case A asset ratio must NOT remain');
@@ -517,17 +514,12 @@ test('PS-55 Component Regression: Case Switching Isolation & Stale Response Disc
     });
 
     try {
-      const caseInput = wrapper.host.querySelector('.lv-progress-input');
 
       // 1. Trigger fetch for CASE-A
-      await act(async () => {
-        changeInput(caseInput, 'CASE-A');
-      });
+      await wrapper.render({caseReference:'CASE-A', onFetchProgress:fakeFetcher});
 
       // 2. Before A resolves, user switches to CASE-B!
-      await act(async () => {
-        changeInput(caseInput, 'CASE-B');
-      });
+      await wrapper.render({caseReference:'CASE-B', onFetchProgress:fakeFetcher});
 
       // 3. Late response for CASE-A returns now!
       await act(async () => {
@@ -636,6 +628,7 @@ test('changing an external session discards old counts and fetches the new sessi
   const second = '33333333-3333-4333-8333-333333333333';
   const json = value => new Response(JSON.stringify(value), {headers: {'Content-Type': 'application/json'}});
   globalThis.fetch = async url => {
+    if (/\/handover-sessions\/[a-f\d-]+$/i.test(url)) return staffFixture()(url);
     if (!url.endsWith('/completion-progress')) return json([]);
     calls.push(url);
     if (url.includes(second)) return new Promise(resolve => { release = resolve; });
@@ -663,7 +656,7 @@ test('an OPEN workflow conflict is not labelled as a closed case', async () => {
   });
   try {
     assert.equal(wrapper.host.querySelector('.lv-progress-error-banner--closed'), null);
-    assert.ok(wrapper.host.textContent.includes('Approval requires review'));
+    assert.ok(wrapper.host.textContent.includes('Kiểm tra trạng thái hồ sơ, phiên và phê duyệt hiện hành rồi tải lại.'));
     const archiveActions = [...wrapper.host.querySelectorAll('a[href*="/staff/close-and-archive"]')].filter(link => !link.closest('.lv-workflow-guide'));
     assert.equal(archiveActions.length, 0, 'History navigation stays available, but no archive action is offered on a failed read');
   } finally { await wrapper.close(); }
@@ -692,10 +685,11 @@ test('session list failure is visible and retry reloads the list', async () => {
   } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
 });
 
-test('direct case links resolve a readable case number and keep UUID input collapsed', async () => {
+test('direct case links resolve a readable case number and omit technical UUID input', async () => {
   const originalFetch = globalThis.fetch;
   const caseId = '11111111-1111-4111-8111-111111111111';
   globalThis.fetch = async url => {
+    if (/\/handover-sessions\/[a-f\d-]+$/i.test(url)) return staffFixture()(url);
     const data = url.endsWith('/completion-progress')
       ? {assets: {completed: 1, total: 2}, beneficiaries: {completed: 1, total: 2}}
       : url.endsWith('/handover-sessions') ? []
@@ -706,8 +700,12 @@ test('direct case links resolve a readable case number and keep UUID input colla
   try {
     assert.equal(wrapper.host.querySelector('.lv-staff-context-bar__code').textContent, 'HS-2026-000007');
     const technical = wrapper.host.querySelector('.lv-progress-technical');
-    assert.equal(technical.open, false);
-    assert.equal(technical.querySelector('input').value, caseId);
+    assert.equal(technical, null);
     assert.ok(wrapper.host.textContent.includes('1 / 2'), 'Real progress still renders when data exists');
   } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
+});
+
+test('cancelled session gives explicit guidance and never queries completion gates',async()=>{
+ const original=globalThis.fetch,reads=[];globalThis.fetch=async url=>{reads.push(url);return staffFixture({status:'CANCELLED'})(url);};const v=await mount(CompletionProgressPage,{caseId:'11111111-1111-4111-8111-111111111111',sessionId:'22222222-2222-4222-8222-222222222222',accessToken:'fixture',lang:'vi'});
+ try{assert.match(v.host.textContent,/Phiên bàn giao đã bị hủy/);assert.match(v.host.textContent,/chọn phiên đang mở/);assert.equal(reads.some(url=>url.endsWith('/completion-progress')),false);assert.doesNotMatch(v.host.textContent,/Đủ điều kiện hoàn tất hồ sơ/);}finally{await v.close();globalThis.fetch=original;}
 });

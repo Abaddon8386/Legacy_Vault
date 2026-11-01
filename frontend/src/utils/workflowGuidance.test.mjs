@@ -36,11 +36,11 @@ test('closed, on-hold and failed Staff reads never advertise a mutation-ready ne
   }
   assert.match(staffGuidance({ caseId: 'a', vaultStatus: 'ON_HOLD' }).message, /tạm dừng/);
 });
-const context = { caseStatus: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION', basisDossier: { route: 'COURT', versions: [{ version: 2, forwardStatus: 'FORWARDED' }] }, snapshot: { currentVersion: 2, reviewFresh: true, courtResult: 'VALID', approvalCurrent: false }, capabilities: { approval: { allowed: true, blockedReason: null }, unlock: { allowed: false, blockedReason: 'LEGAL_APPROVAL_REQUIRED' } } };
+const context = { distributionWorkflow: { phase: 'FINAL_APPROVAL' }, willComparison: { latestResult: 'MATCH', approvalBlocked: false }, caseStatus: 'OPEN', vaultStatus: 'LEGAL_BASIS_VERIFICATION', basisDossier: { route: 'COURT', versions: [{ version: 2, forwardStatus: 'FORWARDED' }] }, snapshot: { currentVersion: 2, reviewFresh: true, courtResult: 'VALID', approvalCurrent: false }, capabilities: { approval: { allowed: true, blockedReason: null }, unlock: { allowed: false, blockedReason: 'LEGAL_APPROVAL_REQUIRED' } } };
 test('Legal approval and unlock are distinct and never depend on recipient account presence', () => {
   const ready = legalGuidance({ context, current: 'dossier-review', caseId: 'a' });
   assert.equal(ready.next.id, 'approval'); assert.notEqual(ready.steps.find(s => s.id === 'unlock').state, 'done');
-  const approved = { ...context, snapshot: { ...context.snapshot, approvalCurrent: true }, capabilities: { ...context.capabilities, unlock: { allowed: true } } };
+  const approved = { ...context, distributionWorkflow: { phase: 'APPROVED' }, snapshot: { ...context.snapshot, approvalCurrent: true }, capabilities: { ...context.capabilities, unlock: { allowed: true } } };
   assert.equal(legalGuidance({ context: approved, current: 'approval-review' }).next.id, 'unlock');
 });
 test('Legal explains stale scope, HOLD, court evidence and missing approval in VI/EN', () => {

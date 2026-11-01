@@ -31,6 +31,7 @@ import java.util.UUID;
 
 @Service
 public class LegalApprovalService {
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
     private static final String ENTITY_TYPE = "LEGAL_BASIS_DOSSIER";
 
     private final LegalBasisCaseAccess access;
@@ -44,7 +45,8 @@ public class LegalApprovalService {
             LegalBasisDossierVersionRepository versions,
             LegalBasisVersionAllocationRepository allocations,
             LegalBasisReviewHistoryRepository history,
-            AuditService audit, CourtRouteGuard court) {
+            AuditService audit, CourtRouteGuard court, com.legacyvault.notification.WorkflowNotificationService notifications) {
+        this.notifications = notifications;
         this.access = access;
         this.versions = versions;
         this.allocations = allocations;
@@ -59,8 +61,8 @@ public class LegalApprovalService {
         if (caseId == null || request == null || request.decision() == null
                 || request.versionNo() == null || request.versionNo() < 1
                 || request.sha256Hash() == null || request.allocationHash() == null
-                || (request.decision() == LegalApprovalRequest.Decision.REJECT
-                && (request.reason() == null || request.reason().isBlank()))) {
+                || request.reason() == null || request.reason().isBlank()
+                || request.reason().trim().length() > 1000) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
 
@@ -71,7 +73,7 @@ public class LegalApprovalService {
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())
                 || !LegalBasisDossier.STATUS_FORWARDED.equals(dossier.getStatus())
-                || !dossier.acceptsIntake()) {
+                || !dossier.isLegalReviewable()) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
         }
 
@@ -110,7 +112,7 @@ public class LegalApprovalService {
                         ? LegalBasisVersionAllocation.STATUS_APPROVED
                         : LegalBasisVersionAllocation.STATUS_REJECTED);
         String reason = request.reason() == null ? "" : request.reason().trim();
-        history.save(new LegalBasisReviewHistory(
+        var savedDecision = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossier.getLegalBasisDossierId(), versionId, current.versionNo(), current.sha256Hash(),
                 dossier.getDisputeStatus(), currentAllocationHash, decision,
                 request.decision().name(), reason, actorId));
@@ -121,8 +123,9 @@ public class LegalApprovalService {
                         "sha256Hash", current.sha256Hash(), "allocationHash", currentAllocationHash),
                 "ST-21", "LV-LEG-001"));
 
+        var notification = notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_BASIS_DECIDED", "decision:" + savedDecision.getPublicId(), reason);
         return new LegalApprovalResponse(dossier.getPublicId(), decision, current.versionNo(),
-                current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC));
+                current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC)).withNotification(notification);
     }
 
     private String allocationHash(Long dossierId, int versionNo) {

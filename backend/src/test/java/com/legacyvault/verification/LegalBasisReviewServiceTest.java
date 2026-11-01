@@ -57,20 +57,27 @@ class LegalBasisReviewServiceTest {
         final AuditService audit = mock(AuditService.class);
         final VerificationCaseRepository cases = mock(VerificationCaseRepository.class);
         final VaultRepository vaults = mock(VaultRepository.class);
+        final com.legacyvault.notification.WorkflowNotificationService notifications = mock(com.legacyvault.notification.WorkflowNotificationService.class);
         final LegalBasisReviewService service = new LegalBasisReviewService(
-                dossiers, versions, allocations, history, audit, cases, vaults, mock(com.legacyvault.verification.service.LegalBasisLockedState.class));
+                dossiers, versions, allocations, history, audit, cases, vaults, mock(com.legacyvault.verification.service.LegalBasisLockedState.class), notifications);
 
         final LegalBasisDossier dossier = mock(LegalBasisDossier.class);
         final VerificationCase verificationCase = mock(VerificationCase.class);
         final Vault vault = mock(Vault.class);
 
         Fixture() {
+            when(history.saveAndFlush(any(LegalBasisReviewHistory.class))).thenAnswer(invocation -> {
+                LegalBasisReviewHistory saved = invocation.getArgument(0);
+                org.springframework.test.util.ReflectionTestUtils.setField(saved, "publicId", UUID.randomUUID());
+                return saved;
+            });
             when(dossier.getLegalBasisDossierId()).thenReturn(DOSSIER_ID);
             when(dossier.getPublicId()).thenReturn(DOSSIER_PUBLIC_ID);
             when(dossier.getVerificationCaseId()).thenReturn(CASE_DB_ID);
             when(dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
             when(dossier.getRoute()).thenReturn("COURT");
             when(dossier.acceptsIntake()).thenReturn(true);
+            when(dossier.isLegalReviewable()).thenReturn(true);
             when(dossier.getDisputeStatus()).thenReturn("NONE");
             when(dossier.getReviewStatus()).thenReturn("FRESH");
             when(dossier.getLastReviewedVersionNo()).thenReturn(1);
@@ -109,6 +116,33 @@ class LegalBasisReviewServiceTest {
                 version, "COURT_JUDGMENT", "Authority", "DOC-1",
                 null, null, null, null, null, null, "application/pdf",
                 100L, hash, "FORWARDED", REVIEWER_ID, null, null);
+    }
+
+    @Test
+    void reviewEventsRemainDistinctOnTheSameSnapshotAndPreserveNullReceipts() {
+        Fixture f = new Fixture();
+        when(f.versions.findByLegalBasisDossierIdAndVersionNo(DOSSIER_ID, 1))
+                .thenReturn(Optional.of(mock(LegalBasisDossierVersion.class)));
+        assertThat(f.service.recordCompletedReviewByCasePublicId(CASE_PUBLIC_ID, REVIEWER_ID, "First review").notification()).isNull();
+        assertThat(f.service.recordCompletedReviewByCasePublicId(CASE_PUBLIC_ID, REVIEWER_ID, "Second review").notification()).isNull();
+        ArgumentCaptor<String> keys = ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(f.notifications, org.mockito.Mockito.times(2)).record(
+                org.mockito.ArgumentMatchers.eq(f.verificationCase),
+                org.mockito.ArgumentMatchers.eq(com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF),
+                org.mockito.ArgumentMatchers.eq("LEGAL_BASIS_REVIEW_RECORDED"), keys.capture(), any());
+        assertThat(keys.getAllValues()).doesNotHaveDuplicates().allMatch(key -> key.startsWith("basis-review:"));
+    }
+
+    @Test
+    void notificationFailuresPropagateFromBothDirectReviewMutations() {
+        Fixture f = new Fixture();
+        when(f.versions.findByLegalBasisDossierIdAndVersionNo(DOSSIER_ID, 1))
+                .thenReturn(Optional.of(mock(LegalBasisDossierVersion.class)));
+        when(f.notifications.record(any(), any(), any(), any(), any())).thenThrow(new IllegalStateException("notification failed"));
+        assertThatThrownBy(() -> f.service.recordCompletedReviewByCasePublicId(CASE_PUBLIC_ID, REVIEWER_ID, "Review"))
+                .isInstanceOf(IllegalStateException.class).hasMessage("notification failed");
+        assertThatThrownBy(() -> f.service.requestSupplementationByCasePublicId(CASE_PUBLIC_ID, REVIEWER_ID, "Supplement"))
+                .isInstanceOf(IllegalStateException.class).hasMessage("notification failed");
     }
 
     @Test
@@ -213,12 +247,16 @@ class LegalBasisReviewServiceTest {
     @Test
     void requestSupplementation_updatesDossierVaultHistoryAndAudit() {
         Fixture f = new Fixture();
+        var receipt = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
+        when(f.notifications.record(any(), any(), any(), any(), any())).thenReturn(receipt);
         when(f.vault.getStatus()).thenReturn("LEGAL_BASIS_VERIFICATION");
         when(f.dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
 
         LegalBasisReviewResponse response = f.service.requestSupplementationByCasePublicId(
                 CASE_PUBLIC_ID, REVIEWER_ID, "  Bổ sung giấy tờ còn thiếu  ");
 
+        assertThat(response.notification()).isSameAs(receipt);
         assertThat(response.dossierId()).isEqualTo(DOSSIER_PUBLIC_ID);
         assertThat(response.reasonCode()).isEqualTo("LEGAL_REQUESTED_SUPPLEMENTATION");
         assertThat(response.reviewRequired()).isTrue();
@@ -229,10 +267,13 @@ class LegalBasisReviewServiceTest {
 
         ArgumentCaptor<LegalBasisReviewHistory> historyCaptor =
                 ArgumentCaptor.forClass(LegalBasisReviewHistory.class);
-        verify(f.history).save(historyCaptor.capture());
+        verify(f.history).saveAndFlush(historyCaptor.capture());
         assertThat(historyCaptor.getValue().getReason())
                 .isEqualTo("Bổ sung giấy tờ còn thiếu");
         assertThat(historyCaptor.getValue().getReviewedByUserId()).isEqualTo(REVIEWER_ID);
+        verify(f.notifications).record(f.verificationCase,
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                "LEGAL_BASIS_REVIEW_REQUIRED", "basis-review:" + historyCaptor.getValue().getPublicId(), "Bổ sung giấy tờ còn thiếu");
 
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(f.audit).record(auditCaptor.capture());
@@ -252,7 +293,7 @@ class LegalBasisReviewServiceTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
 
-        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit);
+        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit, f.notifications);
         org.mockito.Mockito.verify(f.dossiers, org.mockito.Mockito.never()).save(any());
         org.mockito.Mockito.verify(f.vault, org.mockito.Mockito.never())
                 .markAwaitingLegalBasisAfterReviewHold();
@@ -269,7 +310,7 @@ class LegalBasisReviewServiceTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.LEGAL_WORKFLOW_ON_HOLD);
 
-        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit);
+        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit, f.notifications);
         org.mockito.Mockito.verify(f.dossiers, org.mockito.Mockito.never()).save(any());
         org.mockito.Mockito.verify(f.dossier, org.mockito.Mockito.never())
                 .recordReviewSnapshot(
@@ -290,12 +331,15 @@ class LegalBasisReviewServiceTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.VALIDATION_FAILED);
 
-        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit);
+        org.mockito.Mockito.verifyNoInteractions(f.history, f.audit, f.notifications);
     }
 
     @Test
     void completedReview_persistsSnapshotHistoryAndAudit() {
         Fixture f = new Fixture();
+        var receipt = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
+        when(f.notifications.record(any(), any(), any(), any(), any())).thenReturn(receipt);
         when(f.vault.getStatus()).thenReturn("LEGAL_BASIS_VERIFICATION");
         when(f.dossier.getStatus()).thenReturn(LegalBasisDossier.STATUS_FORWARDED);
 
@@ -307,6 +351,7 @@ class LegalBasisReviewServiceTest {
         LegalBasisReviewResponse response = f.service.recordCompletedReviewByCasePublicId(
                 CASE_PUBLIC_ID, REVIEWER_ID, "  Đã kiểm tra hồ sơ  ");
 
+        assertThat(response.notification()).isSameAs(receipt);
         assertThat(response.dossierId()).isEqualTo(DOSSIER_PUBLIC_ID);
         assertThat(response.reviewStatus()).isEqualTo("FRESH");
         assertThat(response.reviewRequired()).isFalse();
@@ -320,11 +365,14 @@ class LegalBasisReviewServiceTest {
 
         ArgumentCaptor<LegalBasisReviewHistory> historyCaptor =
                 ArgumentCaptor.forClass(LegalBasisReviewHistory.class);
-        verify(f.history).save(historyCaptor.capture());
+        verify(f.history).saveAndFlush(historyCaptor.capture());
         assertThat(historyCaptor.getValue().getDossierVersionId()).isEqualTo(123L);
         assertThat(historyCaptor.getValue().getReasonCode()).isEqualTo("REVIEW_COMPLETED");
         assertThat(historyCaptor.getValue().getReason()).isEqualTo("Đã kiểm tra hồ sơ");
         assertThat(historyCaptor.getValue().getReviewedByUserId()).isEqualTo(REVIEWER_ID);
+        verify(f.notifications).record(f.verificationCase,
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                "LEGAL_BASIS_REVIEW_RECORDED", "basis-review:" + historyCaptor.getValue().getPublicId(), "Đã kiểm tra hồ sơ");
 
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(f.audit).record(auditCaptor.capture());

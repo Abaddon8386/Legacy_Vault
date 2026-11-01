@@ -34,6 +34,26 @@
   color: var(--admin-muted);
 }
 
+/* Scroll the table independently from its animated outline. */
+.lv-payment-table-frame {
+  min-inline-size: 0;
+  padding: 3px;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lv-admin-surfaces .lv-payment-table-frame.lv-surface-card::after {
+  inset: 0;
+}
+
+.lv-payment-table-frame > .lv-payment-table-wrap {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  border-radius: inherit;
+}
+
 .lv-payment-table-wrap {
   min-inline-size: 0;
   overflow-x: auto;

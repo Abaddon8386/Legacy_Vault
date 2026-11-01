@@ -278,6 +278,7 @@ class StaffCounterInvitationSqlServerTest extends HandoverCompletionSqlSupport {
         // The handover session was opened by the fixture Staff; hand the case back to them for the delivery.
         jdbc.update("UPDATE dbo.verification_cases SET assigned_staff_user_id=? WHERE verification_case_id=?",
                 c.ready().f().userId(), c.ready().f().caseId());
+        recordFullAttendance(c.ready());
         BusinessException refused = assertThrows(BusinessException.class, () -> deliverWithoutLinking(c.ready()));
 
         assertEquals(ErrorCode.HANDOVER_RECIPIENT_ACCOUNT_REQUIRED, refused.getErrorCode());

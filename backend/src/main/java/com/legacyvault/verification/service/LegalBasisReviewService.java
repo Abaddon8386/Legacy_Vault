@@ -37,6 +37,7 @@ public class LegalBasisReviewService {
     private final VerificationCaseRepository verificationCases;
     private final VaultRepository vaultRepository;
     private final LegalBasisLockedState lockedState;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     public LegalBasisReviewService(
             LegalBasisDossierRepository dossiers,
@@ -46,7 +47,8 @@ public class LegalBasisReviewService {
             AuditService auditService,
             VerificationCaseRepository verificationCases,
             VaultRepository vaultRepository,
-            LegalBasisLockedState lockedState
+            LegalBasisLockedState lockedState,
+            com.legacyvault.notification.WorkflowNotificationService notifications
     ) {
         this.dossiers = dossiers;
         this.versions = versions;
@@ -56,6 +58,7 @@ public class LegalBasisReviewService {
         this.verificationCases = verificationCases;
         this.vaultRepository = vaultRepository;
         this.lockedState = lockedState;
+        this.notifications = notifications;
     }
 
     /**
@@ -154,7 +157,7 @@ public class LegalBasisReviewService {
         }
 
         boolean validVaultState =
-                Vault.STATUS_AWAITING_LEGAL_BASIS.equals(vault.getStatus())
+                vault.isLegalBasisIntakeState()
                         || Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus());
 
         if (!validVaultState) {
@@ -265,7 +268,7 @@ public class LegalBasisReviewService {
 
         // Kiểm tra hold trước khi kiểm tra trạng thái nghiệp vụ.
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -289,7 +292,7 @@ public class LegalBasisReviewService {
                 dossier,
                 vault.getVaultId(),
                 reviewerUserId,
-                reason.trim());
+                reason.trim(), verificationCase);
     }
 
 
@@ -347,7 +350,7 @@ public class LegalBasisReviewService {
 
         // Phải chạy trước các kiểm tra trạng thái Vault và dossier.
         LegalWorkflowGuard.requireNotOnHold(vault, dossier);
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
 
         if (!Vault.STATUS_LEGAL_BASIS_VERIFICATION.equals(vault.getStatus())) {
             throw new BusinessException(ErrorCode.BASIS_DOSSIER_INVALID_STATE);
@@ -366,7 +369,7 @@ public class LegalBasisReviewService {
 
         vault.markAwaitingLegalBasisAfterReviewHold();
 
-        history.save(new LegalBasisReviewHistory(
+        var savedReview = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossier.getLegalBasisDossierId(),
                 null,
                 null,
@@ -406,7 +409,9 @@ public class LegalBasisReviewService {
                 dossier.getLastReviewedSha256Hash(),
                 dossier.getDisputeStatus(),
                 dossier.getLastReviewedAllocationHash(),
-                LocalDateTime.now(ZoneOffset.UTC));
+                LocalDateTime.now(ZoneOffset.UTC)).withNotification(notifications.record(verificationCase,
+                        com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                        "LEGAL_BASIS_REVIEW_REQUIRED", "basis-review:" + savedReview.getPublicId(), reason.trim()));
     }
 
 
@@ -417,7 +422,7 @@ public class LegalBasisReviewService {
             LegalBasisDossier dossier,
             Long vaultId
     ) {
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
@@ -571,9 +576,9 @@ public class LegalBasisReviewService {
             LegalBasisDossier dossier,
             Long vaultId,
             Long reviewerUserId,
-            String reason
+            String reason, VerificationCase verificationCase
     ) {
-        if (!dossier.acceptsIntake()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
+        if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
 
         List<BasisVersionRow> rows = versions.findRows(dossierId);
@@ -604,7 +609,7 @@ public class LegalBasisReviewService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        history.save(new LegalBasisReviewHistory(
+        var savedReview = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossierId,
                 version.getDossierVersionId(),
                 current.versionNo(),
@@ -642,7 +647,9 @@ public class LegalBasisReviewService {
                 current.sha256Hash(),
                 dossier.getDisputeStatus(),
                 currentAllocationHash,
-                LocalDateTime.now(ZoneOffset.UTC));
+                LocalDateTime.now(ZoneOffset.UTC)).withNotification(notifications.record(verificationCase,
+                        com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                        "LEGAL_BASIS_REVIEW_RECORDED", "basis-review:" + savedReview.getPublicId(), reason));
     }
 
     /**

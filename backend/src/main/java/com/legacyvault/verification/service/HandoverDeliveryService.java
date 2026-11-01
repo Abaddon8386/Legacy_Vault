@@ -39,6 +39,7 @@ import com.legacyvault.verification.service.HandoverScopeResolver.ScopeLine;
  */
 @Service
 public class HandoverDeliveryService {
+private final com.legacyvault.verification.group.GroupHandoverService group;
 
     static final String STEP_ID = "ST-25";
     static final String RULE_ID = "LV-HANDOVER-001";
@@ -55,7 +56,8 @@ public class HandoverDeliveryService {
     public HandoverDeliveryService(HandoverAuthorizationGuard guard, HandoverScopeResolver scope,
             HandoverItemRepository items, HandoverSessionRepository sessions, VerificationCaseRepository cases,
             AuditService audit,
-            @Value("${legacyvault.handover.require-linked-account:true}") boolean requireLinkedAccount) {
+            @Value("${legacyvault.handover.require-linked-account:true}") boolean requireLinkedAccount, com.legacyvault.verification.group.GroupHandoverService group) {
+this.group=group;
         this.requireLinkedAccount = requireLinkedAccount;
         this.guard = guard;
         this.scope = scope;
@@ -104,6 +106,7 @@ public class HandoverDeliveryService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
         Authorized authorized = guard.authorize(casePublicId, sessionPublicId, staffId);
+        group.requireReady(casePublicId,sessionPublicId,principal);
         List<ScopeLine> recipientLines = scope.resolve(authorized.dossier().getLegalBasisDossierId(),
                 authorized.versionNo(), request.recipientId());
         Map<UUID, ScopeLine> byAsset = recipientLines.stream()

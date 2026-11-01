@@ -12,8 +12,13 @@ import java.util.List;
 public interface LegalBasisVersionAllocationRepository extends JpaRepository<LegalBasisVersionAllocation, Long> {
 
     @Modifying
-    @Query("update LegalBasisVersionAllocation a set a.status = :status where a.dossierVersionId = :versionId")
+    @Query("update LegalBasisVersionAllocation a set a.status = :status where a.dossierVersionId = :versionId and a.status <> 'SUPERSEDED'")
     int updateStatusForVersion(@Param("versionId") Long versionId, @Param("status") String status);
+
+    /** A corrected allocation replaces the previous one for the same document version; old rows stay as history. */
+    @Modifying
+    @Query("update LegalBasisVersionAllocation a set a.status = 'SUPERSEDED' where a.dossierVersionId = :versionId and a.status <> 'SUPERSEDED'")
+    int supersedeForVersion(@Param("versionId") Long versionId);
 
     @Query("""
         select new com.legacyvault.verification.repository.AllocationRow(
@@ -25,6 +30,7 @@ public interface LegalBasisVersionAllocationRepository extends JpaRepository<Leg
           and al.dossierVersionId = v.dossierVersionId
           and a.assetId = al.assetId
           and b.id = al.beneficiaryId
+          and al.status <> 'SUPERSEDED'
         order by v.versionNo desc, al.allocationId asc
         """)
     List<AllocationRow> findRowsByDossier(@Param("dossierId") Long dossierId);
@@ -38,6 +44,7 @@ public interface LegalBasisVersionAllocationRepository extends JpaRepository<Leg
           and al.dossierVersionId = v.dossierVersionId
           and a.assetId = al.assetId
           and b.id = al.beneficiaryId
+          and al.status <> 'SUPERSEDED'
         order by al.allocationId asc
         """)
     List<ReceiptAllocationRow> findReceiptRowsByDossier(@Param("dossierId") Long dossierId);

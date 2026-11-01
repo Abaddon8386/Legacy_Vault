@@ -112,6 +112,8 @@ Lỗi validation:
 | `BASIS_DOSSIER_ALREADY_EXISTS` | 409 | Ca đã có hồ sơ căn cứ (PS-41) |
 | `BASIS_DOSSIER_INVALID_STATE` | 409 | Ca, Vault hoặc hồ sơ căn cứ không ở trạng thái cho phép thao tác (PS-41, PS-42, PS-43) |
 | `BASIS_VERSION_STALE` | 409 | Phiên bản được chuyển không phải phiên bản mới nhất của hồ sơ (PS-42) |
+| ASSET_REQUIRED | 422 | Bật DMS khi Vault chưa có tài sản thừa kế |
+| WILL_REQUIRED | 422 | Bật DMS khi Vault chưa có bản di chúc |
 | `BENEFICIARY_REQUIRED` | 422 | Bật DMS khi Vault chưa có Beneficiary |
 | `PAYLOAD_TOO_LARGE` | 413 | File/body vượt giới hạn |
 | `ASSET_IMAGE_LIMIT_EXCEEDED` | 409 | Tải ảnh làm vượt giới hạn 5 ảnh của một tài sản |
@@ -127,6 +129,8 @@ Lỗi validation:
 | `code` | HTTP | Ticket | Khi nào |
 |---|---|---|---|
 | `VAULT_ALREADY_EXISTS` | 409 | PS-12 | Owner đã có Vault (DB giới hạn mỗi Owner một Vault) |
+| ASSET_REQUIRED | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có tài sản thừa kế nào |
+| WILL_REQUIRED | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có bản di chúc nào |
 | `BENEFICIARY_REQUIRED` | 422 | PS-21 | Hoàn tất cấu hình/bật DMS khi Vault chưa có Beneficiary nào |
 | `TRUSTEE_ALREADY_EXISTS` | 409 | PS-19 | Vault đã có Trustee hiện hành khi tạo thêm |
 | `VAULT_NOT_EDITABLE` | 409 | PS-19/20/22 | Vault không còn ở trạng thái Owner được phép sửa |
@@ -188,6 +192,10 @@ PS-113: `BENEFICIARY_GUARDIAN_STALE` — HTTP 409, reload guardian context/revis
 
 400 RECOVERY_INVALID normalizes invalid/expired/used/revoked/ineligible credentials; 400 PASSWORD_POLICY is shared password policy rejection. DTO validation remains VALIDATION_FAILED (password field maps to FE PASSWORD_POLICY). 429 RATE_LIMITED has Retry-After:900; 503 RECOVERY_UNAVAILABLE covers missing email configuration or infrastructure failure without account-specific provider errors. No token/password/account status is echoed. See password-recovery.md.
 
+## PS-116 email verification
+
+400 `EMAIL_VERIFICATION_INVALID` normalizes unknown/expired/used/revoked/wrong-email/ineligible credentials (no oracle). 409 `EMAIL_ALREADY_VERIFIED` and 409 `EMAIL_VERIFICATION_NOT_APPLICABLE` are returned only to the authenticated owner of the account (no password login, e.g. Google-only). 429 `RATE_LIMITED` per account on request (60 s cooldown, 3/15 min, 5/24 h) and per IP on confirm (5/15 min); 503 `EMAIL_VERIFICATION_UNAVAILABLE` when verification mail is not enabled or infrastructure fails. See [email-verification.md](email-verification.md).
+
 ## BE-01 link requests
 | Code | HTTP |
 |---|---|
@@ -196,3 +204,8 @@ PS-113: `BENEFICIARY_GUARDIAN_STALE` — HTTP 409, reload guardian context/revis
 | `BENEFICIARY_LINK_REQUEST_LIMIT` | 429 |
 | `BENEFICIARY_LINK_REQUEST_NOT_PENDING` | 409 |
 | `BENEFICIARY_LEGACY_LINK_DISABLED` | 410 |
+
+PS-119/120: GROUP_HANDOVER_BLOCKED (409, error.groupHandover.blocked) means missing/stale
+attendance, active suspension or no current Staff reopen request. GROUP_HANDOVER_STALE
+(409, error.groupHandover.stale) means revision mismatch or reused idempotency key with
+different payload. Neither code discloses another account or changes business state.

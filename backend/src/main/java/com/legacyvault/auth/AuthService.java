@@ -22,6 +22,7 @@ import com.legacyvault.user.entity.Role;
 import com.legacyvault.user.entity.User;
 import com.legacyvault.user.entity.UserRole;
 import com.legacyvault.user.repository.RoleRepository;
+import com.legacyvault.auth.emailverification.EmailVerificationService;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.user.repository.UserRoleRepository;
 import org.springframework.security.core.Authentication;
@@ -52,6 +53,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuditService auditService;
     private final PasswordReauthService passwordReauthService;
+    private final EmailVerificationService emailVerificationService;
 
     public AuthService(
             UserRepository userRepository,
@@ -60,7 +62,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             AuditService auditService,
-            PasswordReauthService passwordReauthService
+            PasswordReauthService passwordReauthService,
+            EmailVerificationService emailVerificationService
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -69,6 +72,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.auditService = auditService;
         this.passwordReauthService = passwordReauthService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @Transactional
@@ -159,6 +163,30 @@ public class AuthService {
                 .sorted()
                 .toList();
 
+        // Personal account policy (29/10/2026): repair legacy counter-created / Beneficiary-only
+        // accounts individually at authenticated login, never through a bulk migration or invitation.
+        // A closed allowlist excludes internal and unknown roles, including mixed internal accounts.
+        if (securityRoles.stream().allMatch("ROLE_BENEFICIARY"::equals)) {
+            User locked = userRepository.findActiveAccountForUpdate(user.getUserId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+            if (locked.getAuthVersion() != user.getAuthVersion()) {
+                throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+            }
+            List<String> currentRoles = userRoleRepository.findByUserIdWithRole(user.getUserId()).stream()
+                    .map(UserRole::getRole).map(Role::getRoleCode).distinct().sorted().toList();
+            if (currentRoles.stream().allMatch("ROLE_BENEFICIARY"::equals)) {
+                Role ownerRole = roleRepository.findByRoleCode(DEFAULT_ROLE)
+                        .orElseThrow(() -> new IllegalStateException("Required role not found: " + DEFAULT_ROLE));
+                userRoleRepository.saveAndFlush(new UserRole(locked, ownerRole));
+                securityRoles = java.util.stream.Stream.concat(currentRoles.stream(), java.util.stream.Stream.of(DEFAULT_ROLE))
+                        .sorted().toList();
+                recordProfileAudit(AuditAction.AUTH_PROFILE_UPDATED, user.getUserId(),
+                        Map.of("result", "SUCCESS", "changedFields", List.of("personalOwnerRole")));
+            } else {
+                securityRoles = currentRoles;
+            }
+        }
+
         String accessToken = jwtService.generateAccessToken(
                 user.getPublicId(),
                 user.getEmail(),
@@ -247,8 +275,9 @@ public class AuthService {
                 throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
             user.setEmail(normalizedEmail);
-            // No email verification flow exists in this codebase. A changed address must not retain a prior proof.
+            // A changed address must not retain a prior proof; PS-116 credentials are also bound to the old address.
             user.setEmailVerifiedAt(null);
+            emailVerificationService.revokeForEmailChange(user.getUserId());
             profileFieldsChanged.add("email");
         }
         if (passwordChanged) {

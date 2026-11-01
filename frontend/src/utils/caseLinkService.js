@@ -5,12 +5,30 @@ import { recordCounterAttestation } from '../pages/staff/liveHandoverService.js'
 
 const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
 const id = value => { if (!isUuid(value)) throw new ApiError('VALIDATION_FAILED', 400); return value; };
+
+/**
+ * Forward compatibility: Extracts optional rejection reason when present in raw response.
+ * Rejects non-string types (objects, arrays, numbers, booleans) with INVALID_RESPONSE.
+ * Prioritizes 'reason' over 'rejectionReason'.
+ */
+function extractOptionalReason(raw) {
+  if (raw.reason !== undefined && raw.reason !== null && typeof raw.reason !== 'string') invalid();
+  if (raw.rejectionReason !== undefined && raw.rejectionReason !== null && typeof raw.rejectionReason !== 'string') invalid();
+  const r = typeof raw.reason === 'string' ? raw.reason.trim() : '';
+  const rr = typeof raw.rejectionReason === 'string' ? raw.rejectionReason.trim() : '';
+  return r.length > 0 ? r : rr.length > 0 ? rr : null;
+}
+
 function own(raw) {
   if (!isUuid(raw?.requestId) || !REQUEST_STATES.includes(raw.status) ||
       !isUtcDate(raw.createdAt) || !isUtcDate(raw.expiresAt)) invalid();
   // BE deliberately omits case/recipient information from the requester's response.
-  return { id: raw.requestId, caseNumber: null, status: raw.status, createdAt: raw.createdAt, expiresAt: raw.expiresAt };
+  const item = { id: raw.requestId, caseNumber: null, status: raw.status, createdAt: raw.createdAt, expiresAt: raw.expiresAt };
+  const reason = extractOptionalReason(raw);
+  if (reason) item.reason = reason;
+  return item;
 }
+
 const path = caseId => `/staff/verification-cases/${id(caseId)}`;
 export const liveCaseLinkActions = {
   async listOwn(options) {

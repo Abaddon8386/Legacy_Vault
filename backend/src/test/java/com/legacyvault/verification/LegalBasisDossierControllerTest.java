@@ -15,7 +15,7 @@ import com.legacyvault.verification.service.BasisClassificationService;
 import com.legacyvault.verification.service.BasisDossierViewService;
 import com.legacyvault.verification.service.BasisReclassificationService;
 import com.legacyvault.verification.service.LegalBasisReviewService;
-import com.legacyvault.verification.service.LegalApprovalService;
+import com.legacyvault.verification.service.DistributionWorkflowService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -112,7 +112,7 @@ class LegalBasisDossierControllerTest {
     private LegalBasisReviewService legalBasisReviewService;
 
     @MockitoBean
-    private LegalApprovalService legalApprovalService;
+    private DistributionWorkflowService legalApprovalService;
 
     private static RequestPostProcessor as(String role) {
         return authentication(
@@ -167,9 +167,22 @@ class LegalBasisDossierControllerTest {
     }
 
     @Test
+    void decision_requiresReasonForApproveAndRejectAndCapsItAt1000() throws Exception {
+        String head = "{\"decision\":\"%s\",\"versionNo\":1,\"sha256Hash\":\"" + "a".repeat(64)
+                + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"%s}";
+        for (String decision : new String[] {"APPROVE", "REJECT"}) {
+            for (String reason : new String[] {"", ",\"reason\":null", ",\"reason\":\"   \"",
+                    ",\"reason\":\"" + "x".repeat(1001) + "\""}) {
+                review("/decision", head.formatted(decision, reason), legal()).andExpect(status().isBadRequest());
+            }
+        }
+        verifyNoInteractions(legalApprovalService);
+    }
+
+    @Test
     void decision_isLegalOnlyAndUsesAuthenticatedPrincipal() throws Exception {
         String body = "{\"decision\":\"APPROVE\",\"versionNo\":1,\"sha256Hash\":\""
-                + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\"}";
+                + "a".repeat(64) + "\",\"allocationHash\":\"" + "b".repeat(64) + "\",\"reason\":\"Checked\"}";
         when(legalApprovalService.decide(eq(CASE_ID), any(), any())).thenReturn(
                 new LegalApprovalResponse(DOSSIER_ID, "LEGAL_APPROVED", 1, "a".repeat(64),
                         "b".repeat(64), LEGAL.publicId(), LocalDateTime.parse("2026-10-18T10:00:00")));
@@ -352,9 +365,11 @@ class LegalBasisDossierControllerTest {
     @Test
     void review_returns200_andCallsServiceWithPrincipalUserId()
             throws Exception {
+        var notification = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
         when(legalBasisReviewService.recordCompletedReviewByCasePublicId(
                 eq(CASE_ID), eq(20L), any(com.legacyvault.verification.dto.CompleteLegalBasisReviewRequest.class)))
-                .thenReturn(REVIEW_RESPONSE);
+                .thenReturn(REVIEW_RESPONSE.withNotification(notification));
 
         review(
                 "/review",
@@ -363,7 +378,10 @@ class LegalBasisDossierControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dossierId").value(DOSSIER_ID.toString()))
                 .andExpect(jsonPath("$.reviewStatus").value("FRESH"))
-                .andExpect(jsonPath("$.reasonCode").value("REVIEW_COMPLETED"));
+                .andExpect(jsonPath("$.reasonCode").value("REVIEW_COMPLETED"))
+                .andExpect(jsonPath("$.notification.id").value(notification.id().toString()))
+                .andExpect(jsonPath("$.notification.recipientWorkspace").value("STAFF"))
+                .andExpect(jsonPath("$.notification.status").value("RECORDED"));
 
         verify(legalBasisReviewService)
                 .recordCompletedReviewByCasePublicId(
@@ -428,6 +446,8 @@ class LegalBasisDossierControllerTest {
     @Test
     void requestSupplementation_returns200_andCallsService()
             throws Exception {
+        var notification = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
         LegalBasisReviewResponse response =
                 new LegalBasisReviewResponse(
                         DOSSIER_ID,
@@ -443,7 +463,7 @@ class LegalBasisDossierControllerTest {
 
         when(legalBasisReviewService.requestSupplementationByCasePublicId(
                 eq(CASE_ID), eq(20L), eq("Cần bổ sung bản gốc")))
-                .thenReturn(response);
+                .thenReturn(response.withNotification(notification));
 
         review(
                 "/request-supplementation",
@@ -454,7 +474,10 @@ class LegalBasisDossierControllerTest {
                         .value("REVIEW_REQUIRED"))
                 .andExpect(jsonPath("$.reviewRequired").value(true))
                 .andExpect(jsonPath("$.reasonCode")
-                        .value("LEGAL_REQUESTED_SUPPLEMENTATION"));
+                        .value("LEGAL_REQUESTED_SUPPLEMENTATION"))
+                .andExpect(jsonPath("$.notification.id").value(notification.id().toString()))
+                .andExpect(jsonPath("$.notification.recipientWorkspace").value("STAFF"))
+                .andExpect(jsonPath("$.notification.status").value("RECORDED"));
 
         verify(legalBasisReviewService)
                 .requestSupplementationByCasePublicId(

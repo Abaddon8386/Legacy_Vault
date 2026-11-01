@@ -8,8 +8,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 /** Metadata đã ghi nhận. {@code receivedBy} là ID công khai của Staff, không phải khóa nội bộ. */
-public record DeathDocumentRecordResponse(
-        UUID id,
+public record DeathDocumentRecordResponse(UUID id,
         UUID caseId,
         String documentType,
         String issuingAuthority,
@@ -18,8 +17,18 @@ public record DeathDocumentRecordResponse(
         UUID receivedBy,
         Instant receivedAt,
         String evidenceReference,
-        String notes
-) {
+        String notes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+    public DeathDocumentRecordResponse(UUID id,
+        UUID caseId,
+        String documentType,
+        String issuingAuthority,
+        String documentNumber,
+        LocalDate issuedDate,
+        UUID receivedBy,
+        Instant receivedAt,
+        String evidenceReference,
+        String notes) { this(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt, evidenceReference, notes, null); }
+    public DeathDocumentRecordResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new DeathDocumentRecordResponse(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt, evidenceReference, notes, receipt); }
 
     public static DeathDocumentRecordResponse from(
             DeathDocumentRecord record,

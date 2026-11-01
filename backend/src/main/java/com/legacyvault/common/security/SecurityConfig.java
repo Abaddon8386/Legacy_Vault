@@ -40,6 +40,7 @@ public class SecurityConfig {
 			"/api/v1/auth/google",
             "/api/v1/auth/password-recovery/requests",
             "/api/v1/auth/password-recovery/reset",
+            "/api/v1/auth/email-verification/confirm",
 			"/api/v1/system/ping",
 			"/api/v1/system/db-check" // chỉ tồn tại khi chạy profile "dev"
 	};

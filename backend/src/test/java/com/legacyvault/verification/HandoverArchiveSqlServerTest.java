@@ -26,6 +26,16 @@ class HandoverArchiveSqlServerTest extends HandoverCompletionSqlSupport {
   assertEquals(1,context.getBean(HandoverReceiptService.class).list(r.f().publicCaseId(),r.session(),r.f().legal()).size());
   assertEquals(com.legacyvault.verification.entity.HandoverSessionStatus.COMPLETED,
    context.getBean(HandoverSessionService.class).get(r.f().publicCaseId(),r.session(),r.f().legal()).status());
+  assertTrue(context.getBean(HandoverCompletionService.class).get(r.f().publicCaseId(),r.session(),r.f().legal()).ready());
+  assertEquals(1,context.getBean(BeneficiaryReconciliationService.class).list(r.f().publicCaseId(),r.session(),r.f().legal()).size());
+  assertTrue(context.getBean(AssetCompletionService.class).get(r.f().publicCaseId(),r.session(),r.f().legal()).complete());
+  var stranger=new com.legacyvault.common.security.CustomUserPrincipal(r.f().userId()+999999,UUID.randomUUID(),"stranger@example.test");
+  assertThrows(com.legacyvault.common.error.BusinessException.class,()->context.getBean(HandoverCompletionService.class)
+   .get(r.f().publicCaseId(),r.session(),stranger));
+  assertThrows(com.legacyvault.common.error.BusinessException.class,()->context.getBean(HandoverCompletionService.class)
+   .get(r.f().publicCaseId(),UUID.randomUUID(),r.f().legal()));
+  assertThrows(com.legacyvault.common.error.BusinessException.class,()->context.getBean(BeneficiaryReconciliationService.class)
+   .confirm(r.f().publicCaseId(),r.session(),r.recipient(),new ConfirmBeneficiaryRequest("REF"),r.f().legal()));
   assertThrows(RuntimeException.class,()->jdbc.update("INSERT dbo.vaults(owner_user_id,vault_name) VALUES (?,'Second')",r.f().userId()));
  }
  @Test void archivedRowsCannotMutateThroughAnyRepresentativePath(){

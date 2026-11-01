@@ -77,7 +77,7 @@ test('close gate data must be invalidated immediately when changing case',async(
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try{await act(async()=>root.render(React.createElement(Close,props)));assert.equal(host.querySelector('.lv-ca-btn-primary').disabled,false);
  await act(async()=>root.render(React.createElement(Close,{...props,caseId:otherCaseId,sessionId:otherSessionId})));
- assert.equal(host.querySelector('.lv-ca-btn-primary').disabled,true);}finally{await act(async()=>root.unmount());host.remove();}
+ assert.equal(host.querySelector('.lv-ca-btn-primary'),null);assert.match(host.textContent,/Loading case completion/);}finally{await act(async()=>root.unmount());host.remove();}
 });
 test('receipt selection uses exact server delivery relationship; props cannot forge scope',async()=>{
  let body;const base=staffFixture({status:'COMPLETED',deliveries:[deliveredItem]});
@@ -116,7 +116,7 @@ test('archived history reload does not call protected progress and locks mutatio
 });
 test('load failure and missing status never enable close; retry can recover',async()=>{
  let failing=true;globalThis.fetch=async url=>failing?json({code:'LEGAL_DECISION_STALE'},409):staffFixture()(url);
- const v=await mount(Close);try{assert.equal(find(v.host,'Close Handover Session').disabled,true);failing=false;await act(async()=>find(v.host,'Retry').click());assert.equal(find(v.host,'Close Handover Session').disabled,false);}finally{await v.close();}
+ const v=await mount(Close);try{assert.equal(find(v.host,'Close Handover Session'),undefined);assert.match(v.host.textContent,/Legal reassessment required/);failing=false;await act(async()=>find(v.host,'Retry').click());assert.equal(find(v.host,'Close Handover Session').disabled,false);}finally{await v.close();}
 });
 test('StrictMode and language changes preserve receipt selection and render VI/EN labels',async()=>{
  globalThis.fetch=staffFixture({status:'COMPLETED',deliveries:[deliveredItem]});
@@ -141,4 +141,65 @@ test('late archive response cannot close or archive the next case',async()=>{
  await act(async()=>resolve(json({caseId,sessionId,caseStatus:'CLOSED',vaultStatus:'ARCHIVED'})));
  assert.equal(host.querySelector('.lv-ca-archive-banner'),null);
  }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+test('archived case displays correct recipient name by ID in receipt table and supports VI/EN fallback', async () => {
+  const recipientB = '77777777-7777-4777-8777-777777777777';
+  const receiptsData = [
+    { receiptId: otherCaseId, recipientId: recipient, recipientName: 'REA TEST LINH', assetIds: [assetId], attestationType: 'STAFF_ATTESTATION', confirmedAt: '2026-10-27T04:35:35.375Z' },
+    { receiptId: '88888888-8888-4888-8888-888888888888', recipientId: recipientB, recipientName: 'REA TEST BAO', assetIds: ['99999999-9999-4999-8999-999999999999'], attestationType: 'STAFF_ATTESTATION', confirmedAt: '2026-10-27T04:35:35.472Z' },
+  ];
+  const base = staffFixture({
+    status: 'COMPLETED',
+    caseStatus: 'CLOSED',
+    vaultStatus: 'ARCHIVED',
+    receipts: receiptsData,
+  });
+  globalThis.fetch = async (url) => {
+    if (url.includes('/beneficiaries')) return json([], 404);
+    return base(url);
+  };
+  const vVi = await mount(Close, { lang: 'vi', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
+  try {
+    const table = vVi.host.querySelector('.lv-ca-table');
+    assert.ok(table, 'Receipts table must be present');
+    const rows = [...table.querySelectorAll('tbody tr')];
+    assert.equal(rows.length, 2);
+    const cell0 = rows[0].querySelectorAll('td')[2];
+    assert.equal(cell0.hasAttribute('title'), false, 'Recipient UUID must not be exposed in a tooltip');
+    assert.equal(cell0.textContent.trim(), 'REA TEST LINH');
+    const cell1 = rows[1].querySelectorAll('td')[2];
+    assert.equal(cell1.hasAttribute('title'), false, 'Recipient UUID must not be exposed in a tooltip');
+    assert.equal(cell1.textContent.trim(), 'REA TEST BAO');
+  } finally {
+    await vVi.close();
+  }
+
+  // Verify missing recipientName falls back to localized fallback
+  const missingNameReceipts = [
+    { receiptId: otherCaseId, recipientId: recipient, recipientName: null, assetIds: [assetId] },
+  ];
+  globalThis.fetch = staffFixture({
+    status: 'COMPLETED',
+    caseStatus: 'CLOSED',
+    vaultStatus: 'ARCHIVED',
+    receipts: missingNameReceipts,
+  });
+  const vFallbackVi = await mount(Close, { lang: 'vi', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
+  try {
+    const cell = vFallbackVi.host.querySelector('tbody tr').querySelectorAll('td')[2];
+    assert.ok(cell);
+    assert.equal(cell.textContent.trim(), 'Chưa có tên người nhận');
+  } finally {
+    await vFallbackVi.close();
+  }
+
+  const vFallbackEn = await mount(Close, { lang: 'en', vaultStatus: 'ARCHIVED', caseStatus: 'CLOSED', sessionStatus: 'COMPLETED' });
+  try {
+    const cell = vFallbackEn.host.querySelector('tbody tr').querySelectorAll('td')[2];
+    assert.ok(cell);
+    assert.equal(cell.textContent.trim(), 'Name unavailable');
+  } finally {
+    await vFallbackEn.close();
+  }
 });

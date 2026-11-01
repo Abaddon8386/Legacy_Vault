@@ -33,7 +33,7 @@ class LegalVaultUnlockServiceTest {
     private final LegalWorkflowGuard workflow = mock(LegalWorkflowGuard.class);
     private final VaultRepository vaults = mock(VaultRepository.class);
     private final AuditService audit = mock(AuditService.class);
-    private final LegalVaultUnlockService service = new LegalVaultUnlockService(workflow, vaults, audit);
+    private final LegalVaultUnlockService service = new LegalVaultUnlockService(workflow, vaults, audit, org.mockito.Mockito.mock(com.legacyvault.notification.WorkflowNotificationService.class));
     private final Vault vault = mock(Vault.class);
     private final VerificationCase verificationCase = mock(VerificationCase.class);
 

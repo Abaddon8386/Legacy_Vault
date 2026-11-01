@@ -1,0 +1,510 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PS-119/120 whole-group handover API",
+    "version": "1.0.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "schemas": {
+      "GroupMutation": {
+        "required": [
+          "expectedRevision",
+          "presentRecipientIds",
+          "reason"
+        ],
+        "properties": {
+          "expectedRevision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "presentRecipientIds": {
+            "type": "array",
+            "description": "Direct beneficiaries physically present, as recorded by assigned Staff; empty means no one present.",
+            "uniqueItems": true,
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "GroupDecision": {
+        "required": [
+          "expectedRevision",
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ]
+          },
+          "expectedRevision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "GroupReceipt": {
+        "required": [
+          "caseId",
+          "sessionId",
+          "eventId",
+          "state",
+          "notification"
+        ],
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "notification": {
+            "type": "object",
+            "description": "Currently null; no delivery or notification claim.",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/GroupState"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "type": "object"
+      },
+      "GroupRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "reason"
+        ]
+      },
+      "GroupState": {
+        "type": "object",
+        "properties": {
+          "allPresent": {
+            "type": "boolean"
+          },
+          "snapshot": {
+            "nullable": true,
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "attendanceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "status": {
+            "enum": [
+              "UNCONFIRMED",
+              "READY",
+              "SUSPENDED",
+              "AWAITING_LEGAL"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "revision",
+          "allPresent"
+        ]
+      },
+      "GroupView": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/GroupState"
+          },
+          "deliveryAllowed": {
+            "type": "boolean"
+          },
+          "requiredRecipientIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "snapshot": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/attendance": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "caseId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "description": "Implemented; server checks role, current assignment/session, legal approval and full direct-beneficiary scope under locks. 200 response is no-store.",
+        "responses": {
+          "200": {
+            "description": "Persisted mutation receipt, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Existing ApiError envelope; see decision log for 401 semantics"
+          },
+          "403": {
+            "description": "Existing ApiError envelope; see decision log for 403 semantics"
+          },
+          "404": {
+            "description": "Existing ApiError envelope; see decision log for 404 semantics"
+          },
+          "409": {
+            "description": "Existing ApiError envelope; see decision log for 409 semantics"
+          },
+          "400": {
+            "description": "Existing ApiError envelope; see decision log for 400 semantics"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMutation"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/reopen-requests": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "caseId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "description": "Implemented; server checks role, current assignment/session, legal approval and full direct-beneficiary scope under locks. 200 response is no-store.",
+        "responses": {
+          "200": {
+            "description": "Persisted mutation receipt, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Existing ApiError envelope; see decision log for 401 semantics"
+          },
+          "403": {
+            "description": "Existing ApiError envelope; see decision log for 403 semantics"
+          },
+          "404": {
+            "description": "Existing ApiError envelope; see decision log for 404 semantics"
+          },
+          "409": {
+            "description": "Existing ApiError envelope; see decision log for 409 semantics"
+          },
+          "400": {
+            "description": "Existing ApiError envelope; see decision log for 400 semantics"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupRequest"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/reopen-requests/{requestId}/decision": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "caseId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "requestId",
+            "in": "path"
+          }
+        ],
+        "description": "Implemented; server checks role, current assignment/session, legal approval and full direct-beneficiary scope under locks. 200 response is no-store.",
+        "responses": {
+          "200": {
+            "description": "Persisted mutation receipt, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Existing ApiError envelope; see decision log for 401 semantics"
+          },
+          "403": {
+            "description": "Existing ApiError envelope; see decision log for 403 semantics"
+          },
+          "404": {
+            "description": "Existing ApiError envelope; see decision log for 404 semantics"
+          },
+          "409": {
+            "description": "Existing ApiError envelope; see decision log for 409 semantics"
+          },
+          "400": {
+            "description": "Existing ApiError envelope; see decision log for 400 semantics"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupDecision"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "caseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Authenticated role-specific snapshot; Staff must be assigned, Legal uses existing workspace access. no-store.",
+        "responses": {
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "404": {
+            "description": "Outside scope"
+          },
+          "403": {
+            "description": "Wrong role"
+          },
+          "200": {
+            "description": "Current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "caseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Authenticated role-specific snapshot; Staff must be assigned, Legal uses existing workspace access. no-store.",
+        "responses": {
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "404": {
+            "description": "Outside scope"
+          },
+          "403": {
+            "description": "Wrong role"
+          },
+          "200": {
+            "description": "Current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupView"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

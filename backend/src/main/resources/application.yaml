@@ -65,6 +65,12 @@ legacyvault:
       sender: ${RECOVERY_EMAIL_FROM:}
       reset-url: ${RECOVERY_RESET_URL:}
       recipient-allowlist: ${RECOVERY_RECIPIENT_ALLOWLIST:}
+    email-verification:
+      # PS-116. Requests stay disabled (503) until a worker can send: also needs RESEND_API_KEY, RECOVERY_EMAIL_FROM and the
+      # recipient allowlist above. Policy (TTL 24 h, send/confirm limits) is fixed in EmailVerificationConfiguration.
+      delivery-enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+      # Only https://<host>/verify-email, or http://localhost:5173/verify-email in development.
+      verify-url: ${EMAIL_VERIFICATION_URL:}
     google:
       # GIS ID-token audience. Configure the same Web OAuth client ID used by the PS-83 frontend.
       client-id: ${GOOGLE_CLIENT_ID:}

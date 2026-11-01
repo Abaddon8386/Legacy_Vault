@@ -392,7 +392,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
 // 4. AppShell Admin Navigation Regression Tests
 // ==========================================
 
-test('AppShell renders all 4 Admin tabs and preserves 15 render sites including Shared with me', async () => {
+test('AppShell renders all 4 Admin tabs and preserves 14 render sites including Shared with me', async () => {
   const activeSession = {
     accessToken: 'test-admin-token',
     user: {
@@ -427,8 +427,8 @@ test('AppShell renders all 4 Admin tabs and preserves 15 render sites including 
   const appShellMatches = appJsx.match(/<AppShell\b[^>]*>/gs) || [];
   assert.equal(
     appShellMatches.length,
-    15,
-    'Expected 15 AppShell render sites including the Shared with me route from develop'
+    14,
+    'Expected 14 AppShell render sites after personal portal unification including the Shared with me route from develop'
   );
 });
 

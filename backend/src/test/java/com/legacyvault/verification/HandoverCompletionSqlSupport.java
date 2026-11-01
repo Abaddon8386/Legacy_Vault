@@ -23,6 +23,7 @@ abstract class HandoverCompletionSqlSupport extends LegalBasisSqlServerSupport {
         var asset=UUID.fromString(jdbc.queryForObject("SELECT CONVERT(varchar(36),a.public_id) FROM dbo.legal_basis_version_allocations l JOIN dbo.assets a ON a.asset_id=l.asset_id JOIN dbo.beneficiaries b ON b.beneficiary_id=l.beneficiary_id WHERE b.vault_id=?",String.class,f.vaultId()));
         var session=context.getBean(HandoverSessionService.class).open(f.publicCaseId(),f.legal()).sessionId();
         var result=new Ready(f,session,recipient,asset);
+        recordFullAttendance(result);
         if(deliver) deliver(result);
         return result;
     }
@@ -35,7 +36,18 @@ abstract class HandoverCompletionSqlSupport extends LegalBasisSqlServerSupport {
         context.getBean(HandoverDeliveryService.class).deliver(r.f().publicCaseId(),r.session(),
             new HandoverDeliveryRequest(r.recipient(),List.of(r.asset())),r.f().legal());
     }
-    static void ensureLinkedAccount(Ready r) {
+    /** Explicit business setup: all direct recipients physically attend; never bypasses the group service. */
+    static void recordFullAttendance(Ready r) {
+        recordFullAttendance(r.f(),r.session());
+    }
+    static void recordFullAttendance(Fixture f,UUID session) {
+        var group=context.getBean(com.legacyvault.verification.group.GroupHandoverService.class);
+        var view=group.view(f.publicCaseId(),session,f.legal(),false);
+        group.mutate(f.publicCaseId(),session,null,UUID.randomUUID(),"ATTENDANCE",
+            new com.legacyvault.verification.group.GroupHandoverService.Body(
+                view.state().revision(),view.requiredRecipientIds(),"All direct recipients present (SQL fixture)"),
+            f.legal(),false);
+    }    static void ensureLinkedAccount(Ready r) {
         String recipient=r.recipient().toString();
         Long linked=jdbc.queryForObject("SELECT linked_user_id FROM dbo.beneficiaries WHERE public_id=?",Long.class,recipient);
         if(linked!=null) return;

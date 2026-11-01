@@ -1,4 +1,4 @@
-import { useState, useId, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -16,6 +16,7 @@ import {
 } from '../../utils/completionProgressValidation.js';
 import {
   fetchCompletionProgress,
+  fetchHandoverSession,
 } from './handoverSessionService.js';
 import { listLiveSessions } from './liveHandoverService.js';
 import { completionProgressI18n } from './completionProgressI18n.js';
@@ -58,7 +59,6 @@ function CompletionProgressContext({
   onNavigateCases = null,
 }) {
   const t = completionProgressI18n[lang] || completionProgressI18n.vi;
-  const caseInputId = useId();
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const effectiveIsDevPreview = Boolean(isDevPreview || preview);
@@ -306,9 +306,14 @@ function CompletionProgressContext({
         return () => c.abort();
       } else if (selectedSessionId) {
         const c = new AbortController();
-        Promise.resolve().then(() => {
+        Promise.resolve().then(async () => {
           if (c.signal.aborted) return null;
           setLoading(true);
+          if (!effectiveIsDevPreview) {
+            const currentSession = await fetchHandoverSession(trimmed,selectedSessionId,{accessToken:effectiveAccessToken,lang,signal:c.signal});
+            if (c.signal.aborted) return null;
+            if (currentSession.status === 'CANCELLED') throw Object.assign(new Error(lang==='en'?'This handover session was cancelled. Choose an open session or view its history; it cannot be completed.':'Phiên bàn giao này đã bị hủy. Hãy chọn phiên đang mở hoặc xem lịch sử; phiên đã hủy không được tính hoàn tất.'),{status:409,code:'CANCELLED_HANDOVER_SESSION'});
+          }
           return fetchCompletionProgress(trimmed, selectedSessionId, {
             accessToken: effectiveAccessToken,
             isDevPreview: effectiveIsDevPreview,
@@ -485,45 +490,6 @@ function CompletionProgressContext({
         onUnauthorized={onUnauthorized}
       />
 
-      {/* Case Selector Card */}
-      <details className="lv-progress-technical"><summary>{lang === 'en' ? 'Technical case reference' : 'Mã kỹ thuật hồ sơ'}</summary>
-      <section className="lv-progress-card" aria-labelledby="case-select-heading">
-        <div className="lv-progress-case-bar">
-          <div className="lv-progress-input-group">
-            <label htmlFor={caseInputId} className="lv-progress-label" id="case-select-heading">
-              {t.caseSelectLabel}
-            </label>
-            <input
-              id={caseInputId}
-              type="text"
-              className="lv-progress-input"
-              placeholder={t.caseSelectPlaceholder}
-              value={caseReference}
-              onChange={(e) => handleCaseChange(e.target.value)}
-            />
-          </div>
-          <button
-            type="button"
-            className="lv-progress-btn-select-case"
-            onClick={() => setIsSelectorOpen(true)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid #164639',
-              backgroundColor: '#164639',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {lang === 'en' ? 'Select from queue' : 'Chọn từ danh sách'}
-          </button>
-        </div>
-      </section>
-
-      </details>
       {/* Session Switcher Bar (when multiple sessions exist) */}
       {activeTrimmed && selectedSessionId && sessions.length > 1 && (
         <div className="lv-progress-session-bar">
@@ -620,7 +586,7 @@ function CompletionProgressContext({
             <h2 id="api-error-heading" className="lv-progress-error-banner__title">
               {isClosedCaseError
                 ? t.errorClosedCaseTitle
-                : isStateError ? t.errorStateTitle
+                : loadError.code === 'CANCELLED_HANDOVER_SESSION' ? (lang==='en'?'Handover session cancelled':'Phiên bàn giao đã bị hủy') : isStateError ? t.errorStateTitle
                 : loadError.status === 404 || loadError.code === 'RESOURCE_NOT_FOUND'
                 ? t.errorNotFoundTitle
                 : (lang === 'en' ? 'Unable to load completion progress' : 'Chưa tải được tiến độ hoàn tất')}
@@ -628,7 +594,7 @@ function CompletionProgressContext({
             <p>
               {isClosedCaseError
                 ? t.errorClosedCaseDesc
-                : isStateError ? (loadError.message || t.errorStateDesc)
+                : isStateError ? (loadError.code==='CANCELLED_HANDOVER_SESSION'?loadError.message:t.errorStateDesc)
                 : loadError.status === 404 || loadError.code === 'RESOURCE_NOT_FOUND'
                 ? t.errorNotFoundDesc
                 : loadError.message || (lang === 'en' ? 'Network or server error. Please try again.' : 'Lỗi kết nối hoặc máy chủ. Vui lòng thử lại.')}

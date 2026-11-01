@@ -18,7 +18,7 @@ class HandoverCloseServiceTest {
  final HandoverSessionRepository sessions=mock(HandoverSessionRepository.class);
  final HandoverCompletionEvidenceRepository evidence=mock(HandoverCompletionEvidenceRepository.class);
  final AuditService audit=mock(AuditService.class);
- final HandoverCloseService service=new HandoverCloseService(access,completion,sessions,evidence,audit);
+ final HandoverCloseService service=new HandoverCloseService(access,completion,sessions,evidence,audit, org.mockito.Mockito.mock(com.legacyvault.verification.group.GroupHandoverService.class));
  final UUID c=UUID.randomUUID(),s=UUID.randomUUID();
  final CustomUserPrincipal actor=new CustomUserPrincipal(1L,UUID.randomUUID(),"staff@example.test");
  final HandoverSession session=new HandoverSession(2L,1L);

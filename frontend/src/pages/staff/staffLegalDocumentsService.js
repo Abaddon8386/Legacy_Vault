@@ -1,3 +1,4 @@
+import { ApiError } from '../../api/http.js';
 /**
  * staffLegalDocumentsService.js
  * Kết nối API quản lý hồ sơ và văn bản căn cứ pháp lý của Staff (PS-96).
@@ -504,4 +505,24 @@ export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
     throw error;
   }
   return data;
+}
+
+// Keep the saved receipt when forwarding fails; a second upload would create a duplicate version.
+export async function receiveAndForwardBasisVersion(caseId, payload, options = {}, transports = {}) {
+  const upload = transports.upload || uploadBasisVersion, forward = transports.forward || forwardBasisVersion;
+  const received = await upload(caseId, payload, options);
+  if(options.signal?.aborted)throw new DOMException('Request cancelled','AbortError');
+  if(received?.caseId!==caseId || !Array.isArray(received.versions) || !received.versions.length
+      || !received.versions.every(v=>Number.isSafeInteger(v.version)&&v.version>0))throw new ApiError('INVALID_RESPONSE');
+  const version=Math.max(...received.versions.map(v=>v.version));
+  try {
+    const dossier=await forward(caseId,version,options);
+    if(options.signal?.aborted)throw new DOMException('Request cancelled','AbortError');
+    if(dossier?.caseId!==caseId || dossier.status!=='LEGAL_BASIS_FORWARDED'
+        || !dossier.versions?.some(v=>v.version===version&&v.forwardStatus==='FORWARDED'))throw new ApiError('INVALID_RESPONSE');
+    return {dossier,error:null};
+  } catch(error) {
+    if(options.signal?.aborted || error.name==='AbortError')throw error;
+    return {dossier:received,error};
+  }
 }
