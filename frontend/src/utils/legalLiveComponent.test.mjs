@@ -296,9 +296,27 @@ test('a successful waiting workflow keeps a refresh action and loads the other r
   try {
     assert.equal(view.host.querySelector('form'),null);
     const before = reads; ready = true;
-    await click(view.host,'Refresh case status');
+    assert.equal(view.host.querySelector('.lv-distribution-refresh'), null, 'Legal has one refresh action for documents and workflow together');
+    await click(view.host,'Refresh documents and case');
     assert.ok(reads > before);
     assert.ok(view.host.querySelector('form'));
     assert.ok([...view.host.querySelectorAll('button')].some(button=>button.textContent==='Accept documents'));
   } finally {await view.close();}
+});
+
+test('Legal can refresh newly uploaded death documents while preserving an unfinished assessment', async () => {
+  let extra = false, reads = 0;
+  const contextLoader = async () => { reads++; return { caseId: a, deathDocuments: extra ? [{ id: a }, { id: b }] : [{ id: a }] }; };
+  globalThis.fetch = async url => url.endsWith('/attachments') ? json([]) : json(detail());
+  const view = await mount({ ...base, contextLoader });
+  try {
+    await change(getSelect(view.host, 'Decision'), 'REQUEST_MORE');
+    await change(view.host.querySelector('textarea'), 'Please clarify the issuing authority');
+    extra = true;
+    await click(view.host, 'Refresh documents and case');
+    assert.equal(reads, 2);
+    assert.equal(getSelect(view.host, 'Death document').querySelectorAll('option').length, 3);
+    assert.equal(view.host.querySelector('textarea').value, 'Please clarify the issuing authority');
+    assert.equal(getSelect(view.host, 'Decision').value, 'REQUEST_MORE');
+  } finally { await view.close(); }
 });

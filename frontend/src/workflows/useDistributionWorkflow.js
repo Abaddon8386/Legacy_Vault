@@ -1,25 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadDistributionWorkflow, saveDistributionAction } from './distributionWorkflowService.js';
 
-export function useDistributionWorkflow({ caseId, workspace, accessToken, lang = 'vi', enabled = true, onUnauthorized, onDenied, onExternalChange }) {
+export function useDistributionWorkflow({ caseId, workspace, accessToken, lang = 'vi', enabled = true, onUnauthorized, onDenied, onExternalChange, isMutationPending }) {
   const [state, setState] = useState(null), [attempt, setAttempt] = useState(0), [pending, setPending] = useState(null);
   const [receipt, setReceipt] = useState(null), [failure, setFailure] = useState(null);
   const active = useRef(null), write = useRef(null), lock = useRef(false);
-  const callbacks = useRef({ onUnauthorized, onDenied, onExternalChange });
+  const callbacks = useRef({ onUnauthorized, onDenied, onExternalChange, isMutationPending });
   const previous = useRef(null), readBusy = useRef(false);
-  useEffect(() => { callbacks.current = { onUnauthorized, onDenied, onExternalChange }; }, [onUnauthorized, onDenied, onExternalChange]);
+  useEffect(() => { callbacks.current = { onUnauthorized, onDenied, onExternalChange, isMutationPending }; }, [onUnauthorized, onDenied, onExternalChange, isMutationPending]);
   useEffect(() => {
     write.current?.abort(); lock.current = false;
     if (!enabled || !caseId || !accessToken) return;
     const controller = new AbortController(); active.current = controller; readBusy.current = true;
     const scope = { caseId, workspace, accessToken, attempt };
     loadDistributionWorkflow(caseId, workspace, { accessToken, lang, signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) {
+      .then(data => { if (!controller.signal.aborted && !lock.current && !callbacks.current.isMutationPending?.()) {
         const key=JSON.stringify([caseId,workspace,accessToken]), signature=JSON.stringify(data);
         if(previous.current?.key===key && previous.current.signature!==signature) callbacks.current.onExternalChange?.();
         previous.current={key,signature};setState({ ...scope, data });
       } })
-      .catch(error => { if (!controller.signal.aborted) {
+      .catch(error => { if (!controller.signal.aborted && !lock.current && !callbacks.current.isMutationPending?.()) {
         setState({ ...scope, error });
         if (error.status === 401) callbacks.current.onUnauthorized?.();
         if (error.status === 403) callbacks.current.onDenied?.(error);
@@ -30,14 +30,14 @@ export function useDistributionWorkflow({ caseId, workspace, accessToken, lang =
     if(!enabled||!caseId||!accessToken)return;
     const c=new AbortController();let loading=false;
     async function update(){
-      if(loading||lock.current||readBusy.current||document.hidden)return;
+      if(loading||lock.current||callbacks.current.isMutationPending?.()||readBusy.current||document.hidden)return;
       loading=true;
       try{const data=await loadDistributionWorkflow(caseId,workspace,{accessToken,lang,signal:c.signal});
-        if(c.signal.aborted||lock.current)return;
+        if(c.signal.aborted||lock.current||callbacks.current.isMutationPending?.())return;
         const key=JSON.stringify([caseId,workspace,accessToken]),signature=JSON.stringify(data);
         if(previous.current?.key===key&&previous.current.signature!==signature)callbacks.current.onExternalChange?.();
         previous.current={key,signature};setState({caseId,workspace,accessToken,attempt,data});
-      }catch(error){if(!c.signal.aborted&&!lock.current){setState({caseId,workspace,accessToken,attempt,error});if(error.status===401)callbacks.current.onUnauthorized?.();if(error.status===403)callbacks.current.onDenied?.(error);}}
+      }catch(error){if(!c.signal.aborted&&!lock.current&&!callbacks.current.isMutationPending?.()){setState({caseId,workspace,accessToken,attempt,error});if(error.status===401)callbacks.current.onUnauthorized?.();if(error.status===403)callbacks.current.onDenied?.(error);}}
       finally{loading=false;}
     }
     const timer=setInterval(update,15000);window.addEventListener('focus',update);document.addEventListener('visibilitychange',update);
@@ -47,7 +47,7 @@ export function useDistributionWorkflow({ caseId, workspace, accessToken, lang =
   const visible = matches(state) && state.attempt === attempt && enabled ? state : null;
   const refresh = () => setAttempt(value => value + 1);
   async function run(action, input) {
-    if (lock.current || !visible?.data) return null;
+    if (lock.current || callbacks.current.isMutationPending?.() || !visible?.data) return null;
     lock.current = true; setPending({ caseId, workspace, accessToken }); setFailure(null); setReceipt(null);
     const controller = new AbortController(); write.current = controller;
     try {

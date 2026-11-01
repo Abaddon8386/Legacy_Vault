@@ -22,7 +22,7 @@ function legalDecisionScope(value) {
     value.capabilities.unlock.allowed, value.capabilities.unlock.blockedReason]);
 }
 
-export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged, workflowReadOnly = false, beforeCommit }) {
+export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged, onPendingChange, workflowReadOnly = false, beforeCommit }) {
   const en = lang === 'en', unlocking = step === 'controlled-unlock';
   const { decision = '', reason = '', confirmed = false } = draft;
   const setDecision = value => setDraft(previous => ({ ...previous, decision: value }));
@@ -34,7 +34,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const [needsReload, setNeedsReload] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const controller = useRef(null), lock = useRef(false);
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => () => { controller.current?.abort(); onPendingChange?.(false); }, [onPendingChange]);
   const capability = context.capabilities[unlocking ? 'unlock' : 'approval'];
   const readOnly = legalReadOnly(context) || workflowReadOnly;
   const allowed = capability.allowed && !needsReload && !pending && !readOnly;
@@ -52,7 +52,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   async function submit() {
     if (!allowed || !complete || lock.current) return;
     setConfirmOpen(false);
-    lock.current = true;
+    lock.current = true; onPendingChange?.(true);
     const current = new AbortController(); controller.current = current;
     setPending(true); setError(null); setResult(null);
     const options = { accessToken: session.accessToken, roles: session.user.roles, userId: session.user.id, lang, signal: current.signal };
@@ -76,7 +76,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       if (failure.status === 401) onUnauthorized?.();
       if (failure.status === 403) onDenied?.(failure);
     } finally {
-      if (!current.signal.aborted) { lock.current = false; setPending(false); }
+      if (!current.signal.aborted) { lock.current = false; setPending(false); onPendingChange?.(false); }
     }
   }
   const denied = error && [401, 403, 404].includes(error.status);

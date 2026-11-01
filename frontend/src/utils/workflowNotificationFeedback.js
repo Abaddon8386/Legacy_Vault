@@ -9,3 +9,13 @@ export function workflowNotificationFeedback(receipt, recipientWorkspace, lang =
     ? (lang === 'en' ? 'Staff' : 'Nhân viên') : (lang === 'en' ? 'Legal' : 'Pháp lý');
   return lang === 'en' ? ' A notification for ' + recipient + ' has been recorded in the system.' : ' Đã ghi nhận thông báo cho ' + recipient + ' trong hệ thống.';
 }
+
+// A saved operation and a recorded notification are separate confirmations.
+export function workflowNotificationStatus(receipt, recipientWorkspace, lang = 'vi') {
+  const recorded = workflowNotificationFeedback(receipt, recipientWorkspace, lang);
+  if (recorded || !['STAFF', 'LEGAL'].includes(recipientWorkspace)) return recorded;
+  const recipient = recipientWorkspace === 'STAFF'
+    ? (lang === 'en' ? 'Staff' : 'Nhân viên') : (lang === 'en' ? 'Legal' : 'Pháp lý');
+  return lang === 'en' ? ` The notification to ${recipient} has not been confirmed.`
+    : ` Chưa xác nhận việc ghi thông báo cho ${recipient}.`;
+}

@@ -6,7 +6,7 @@ import LegalFinalDecision from './LegalFinalDecision.jsx';
 import LegalHoldControls from './LegalHoldControls.jsx';
 import { legalReadOnly } from './legalPresentation.js';
 
-export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied, draftState, onDraftStateChange }) {
+export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied, draftState, onDraftStateChange, holdDraft, onHoldDraftChange, onPendingChange }) {
   const en = lang === 'en', data = workflow.data;
   const [localDraft, setLocalDraft] = useState({ scope: '', reason: '' });
   const draft=draftState || localDraft, setDraft=onDraftStateChange || setLocalDraft;
@@ -33,13 +33,14 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
     } finally { operation.current = false; }
   }
   const holdControls = <LegalHoldControls key={`${context.caseId}:${session.accessToken}`} context={context} session={session} lang={lang}
+    draft={holdDraft} onDraftChange={onHoldDraftChange} onPendingChange={onPendingChange}
     disabled={workflow.pending} onUnauthorized={onUnauthorized} onDenied={onDenied}
     claimOperation={() => { if (operation.current || workflow.pending) return false; operation.current = true; setHoldPending(true); return true; }}
     releaseOperation={() => { operation.current = false; setHoldPending(false); }}
     onComplete={receipt => receipt ? onSaved?.(receipt) : onComplete?.()} />;
   if (onHold) return holdControls;
   return <>
-    <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} />
+    <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} showRefresh={false} />
     {holdControls}
     {data?.document && <section className="lv-legal-step-data lv-surface-card">
       <h2>{en ? 'Submitted distribution documents' : 'Giấy tờ phân chia đã nộp'}</h2>
@@ -73,7 +74,7 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
 export function LegalDistributionFinalWorkspace({ workflow, context, step, lang, ...props }) {
   const ready = distributionFinalReady(workflow.data, context, step);
   return <>
-    <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} />
+    <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} showRefresh={false} />
     <LegalFinalDecision {...props} context={context} step={step} lang={lang} workflowReadOnly={!ready}
       beforeCommit={(fresh, options) => preflightDistributionFinal(context.caseId, workflow.data, fresh, step, options)} />
   </>;

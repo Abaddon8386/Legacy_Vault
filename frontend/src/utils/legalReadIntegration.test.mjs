@@ -86,6 +86,35 @@ function transport(readContext = () => contextFixture(), write = () => assert.fa
   };
 }
 
+test('Legal rejection stays mounted during a late workflow poll and reports an unconfirmed Staff notification', async () => {
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  let finishPoll, finishWrite, writeSignal, reads = 0;
+  const current = contextFixture();
+  const fetchFixture = transport(() => json(current), (_url, init) => {
+    writeSignal = init.signal;
+    return new Promise(resolve => { finishWrite = resolve; });
+  });
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/distribution-workflow') && ++reads === 2) return new Promise(resolve => { finishPoll = resolve; });
+    return fetchFixture(url, init);
+  };
+  const view = await mount();
+  try {
+    await act(async () => window.dispatchEvent(new window.Event('focus')));
+    await change(view.host.querySelector('form select'), 'REJECT');
+    await change(view.host.querySelector('textarea'), 'Distribution document needs correction');
+    await submit(view.host);
+    assert.equal(view.host.querySelector('.lv-legal-context-actions button').disabled, true);
+    await act(async () => finishPoll(json({ ...distributionFixture(current), revision: 2 })));
+    assert.equal(writeSignal.aborted, false);
+    assert.equal(view.host.querySelector('textarea').value, 'Distribution document needs correction');
+    await act(async () => finishWrite(json({ dossierId: a, decision: 'LEGAL_REJECTED', versionNo: 1,
+      sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now })));
+    assert.match(view.host.textContent, /Case approval rejected/);
+    assert.match(view.host.textContent, /notification to Staff has not been confirmed/);
+  } finally { await view.close(); }
+});
+
 test('PS-102 queue uses Legal endpoint, paging and headers; invalid envelopes fail closed', async () => {
   let url;
   const result = await api.loadLegalQueue({ ...options, page: 1, route: 'COURT', fetchFn: async (target, init) => {
