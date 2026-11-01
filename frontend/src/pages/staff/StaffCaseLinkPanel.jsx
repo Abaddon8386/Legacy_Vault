@@ -76,7 +76,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
   const recipient = snapshot?.recipients.find(r => r.beneficiaryId === recipientId);
   const locked = !open || loading || pending || uncertain || !snapshot;
   // Adapter opt-in only after BE publishes its replacement attestation contract.
-  const evidenceRequired = !ready || actions?.counterEvidenceMode !== 'OPTIONAL';
+  const evidenceRequired = actions?.counterEvidenceMode !== 'OPTIONAL';
   const canApprove = !locked && ready && typeof actions?.approve === 'function' && selected && recipient && !recipient.accountLinked && checked && (!evidenceRequired || evidence.trim());
   const matchBlocked = !open ? (en ? 'Select an open case.' : 'Chọn hồ sơ đang mở.')
     : loading || pending ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
@@ -94,7 +94,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
     const options = { accessToken, lang, signal: c.signal };
     try {
       if (kind === 'attest') {
-        await recordCounterAttestation(caseId, recipientId, { evidenceReference: evidence.trim() }, options);
+        await recordCounterAttestation(caseId, recipientId, { ...(evidence.trim() ? { evidenceReference: evidence.trim() } : {}) }, options);
         if (c.signal.aborted) return;
         setNotice('attest');
       } else if (kind === 'create') {
@@ -163,7 +163,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
           <div className="lv-counter-link__actions">
             {typeof actions?.reject === 'function' && <Button variant="danger" disabled={locked || !selected} aria-expanded={rejectOpen} aria-controls="counter-link-reject-confirmation" onClick={() => setRejectOpen(value => !value)}><X size={16} aria-hidden="true" />{en ? 'Decline request' : 'Từ chối yêu cầu'}</Button>}
             <Button disabled={!canApprove} aria-describedby={matchBlocked ? 'account-link-blocked' : undefined} isLoading={pending} onClick={() => perform('approve', { recipientId, ...(evidence.trim()?{evidenceReference:evidence.trim()}:{}) })}><Check size={16} aria-hidden="true" />{en ? 'Confirm account link' : 'Xác nhận liên kết'}</Button>
-            {!ready && <Button variant="secondary" disabled={locked || !recipient || recipient.accountLinked || !evidence.trim()} onClick={() => perform('attest')}>{en ? 'Record in-person check only' : 'Chỉ lưu đối chiếu giấy tờ'}</Button>}
+            {!ready && <Button variant="secondary" disabled={locked || !recipient || recipient.accountLinked || (evidenceRequired && !evidence.trim())} onClick={() => perform('attest')}>{en ? 'Record in-person check only' : 'Chỉ lưu đối chiếu giấy tờ'}</Button>}
           </div>
         </div>
         {rejectOpen && selected && typeof actions?.reject === 'function' && <div id="counter-link-reject-confirmation" className="lv-counter-link__reject" role="group" aria-label={en ? 'Confirm decline' : 'Xác nhận từ chối'}>

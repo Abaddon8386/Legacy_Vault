@@ -59,10 +59,15 @@ export async function fetchStaffCaseBeneficiaries(caseId, options = {}) {
 
 export async function recordCounterAttestation(caseId, beneficiaryId, payload = {}, options = {}) {
   if (!isHandoverId(caseId) || !isHandoverId(beneficiaryId)) throw new ApiError('VALIDATION_FAILED', 400);
-  const evidenceReference = String(payload.evidenceReference || '').trim();
-  if (!evidenceReference) throw new ApiError('VALIDATION_FAILED', 400);
-  const body = { evidenceReference };
-  if (payload.confirmedEmail && typeof payload.confirmedEmail === 'string' && payload.confirmedEmail.trim()) {
+  const body = {};
+  if (payload?.evidenceReference !== undefined && payload?.evidenceReference !== null) {
+    const evidenceReference = String(payload.evidenceReference).trim();
+    if (evidenceReference.length > 200) throw new ApiError('VALIDATION_FAILED', 400);
+    if (evidenceReference) {
+      body.evidenceReference = evidenceReference;
+    }
+  }
+  if (payload?.confirmedEmail && typeof payload.confirmedEmail === 'string' && payload.confirmedEmail.trim()) {
     body.confirmedEmail = payload.confirmedEmail.trim();
   }
   return await request(`/staff/verification-cases/${caseId}/beneficiaries/${beneficiaryId}/identity-attestations`, {
