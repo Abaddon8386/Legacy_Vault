@@ -43,6 +43,8 @@ import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
 import './StaffLegalDocumentsPage.css';
 import { formatStaffSession } from '../../utils/caseReference.js';
 import StaffLegalDecisionNotice from '../../components/staff/StaffLegalDecisionNotice.jsx';
+import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
+
 
 export default function StaffLegalDocumentsPage({
   lang = 'vi',
@@ -505,6 +507,8 @@ export default function StaffLegalDocumentsPage({
   };
 
   const latestVersion = dossier?.versions?.[0] || null;
+  const mappedDecision = mapCurrentBasisDecision(dossier?.currentDecision, dossier?.caseId || selectedCaseId);
+  const effectiveLegalDecision = legalDecision || mappedDecision;
   const isRouteOnHold = dossier?.route === 'ON_HOLD' || dossier?.status === 'ON_HOLD';
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
@@ -842,7 +846,7 @@ export default function StaffLegalDocumentsPage({
         caseStatus={displayCaseItem?.status} vaultStatus={isRouteOnHold ? 'ON_HOLD' : displayCaseItem?.vaultStatus}
         loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} distributionWorkflow={distribution.data} />
       {selectedCaseId && !dossierError && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} />}
-      <StaffLegalDecisionNotice decision={legalDecision} caseId={selectedCaseId} currentVersion={latestVersion?.version} lang={lang} onViewHistory={()=>setActiveTab('history')} />
+      <StaffLegalDecisionNotice decision={effectiveLegalDecision} caseId={selectedCaseId} currentVersion={latestVersion?.version} lang={lang} onViewHistory={()=>setActiveTab('history')} />
 
       {(['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || displayCaseItem?.vaultStatus === 'ARCHIVED') && (
         <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>

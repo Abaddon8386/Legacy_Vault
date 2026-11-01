@@ -526,3 +526,17 @@ export async function receiveAndForwardBasisVersion(caseId, payload, options = {
     return {dossier:received,error};
   }
 }
+
+export function mapCurrentBasisDecision(currentDecision, caseId) {
+  if (!currentDecision || typeof currentDecision !== 'object') return null;
+  if (!currentDecision.id || typeof currentDecision.status !== 'string' || !currentDecision.reason) return null;
+  return {
+    id: currentDecision.id,
+    caseId,
+    documentVersion: currentDecision.documentVersion,
+    decision: currentDecision.status,
+    reason: currentDecision.reason,
+    documentSha256: currentDecision.documentSha256,
+    allocationSha256: currentDecision.allocationSha256,
+  };
+}
