@@ -112,7 +112,7 @@ public class LegalApprovalService {
                         ? LegalBasisVersionAllocation.STATUS_APPROVED
                         : LegalBasisVersionAllocation.STATUS_REJECTED);
         String reason = request.reason() == null ? "" : request.reason().trim();
-        history.save(new LegalBasisReviewHistory(
+        var savedDecision = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossier.getLegalBasisDossierId(), versionId, current.versionNo(), current.sha256Hash(),
                 dossier.getDisputeStatus(), currentAllocationHash, decision,
                 request.decision().name(), reason, actorId));
@@ -123,7 +123,7 @@ public class LegalApprovalService {
                         "sha256Hash", current.sha256Hash(), "allocationHash", currentAllocationHash),
                 "ST-21", "LV-LEG-001"));
 
-        var notification = notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_BASIS_DECIDED", "decision:" + dossier.getPublicId() + ":" + current.versionNo() + ":" + decision, reason);
+        var notification = notifications.record(locked.verificationCase(), com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "LEGAL_BASIS_DECIDED", "decision:" + savedDecision.getPublicId(), reason);
         return new LegalApprovalResponse(dossier.getPublicId(), decision, current.versionNo(),
                 current.sha256Hash(), currentAllocationHash, principal.publicId(), LocalDateTime.now(ZoneOffset.UTC)).withNotification(notification);
     }

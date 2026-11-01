@@ -18,7 +18,8 @@ public record BasisDossierResponse(UUID id,
         Instant createdAt,
         Instant updatedAt,
         List<BasisVersionResponse> versions,
-        int requiredVersion, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+        int requiredVersion, com.legacyvault.notification.WorkflowNotificationService.Receipt notification,
+        CurrentBasisDecision currentDecision) {
     public BasisDossierResponse(UUID id,
         UUID caseId,
         String route,
@@ -29,6 +30,6 @@ public record BasisDossierResponse(UUID id,
         Instant createdAt,
         Instant updatedAt,
         List<BasisVersionResponse> versions,
-        int requiredVersion) { this(id, caseId, route, status, disputeStatus, routeReason, classifiedBy, createdAt, updatedAt, versions, requiredVersion, null); }
-    public BasisDossierResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new BasisDossierResponse(id, caseId, route, status, disputeStatus, routeReason, classifiedBy, createdAt, updatedAt, versions, requiredVersion, receipt); }
+        int requiredVersion) { this(id, caseId, route, status, disputeStatus, routeReason, classifiedBy, createdAt, updatedAt, versions, requiredVersion, null, null); }
+    public BasisDossierResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new BasisDossierResponse(id, caseId, route, status, disputeStatus, routeReason, classifiedBy, createdAt, updatedAt, versions, requiredVersion, receipt, currentDecision); }
 }

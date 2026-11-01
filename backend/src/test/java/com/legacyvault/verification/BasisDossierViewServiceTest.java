@@ -47,8 +47,9 @@ class BasisDossierViewServiceTest {
     private final LegalBasisDossierVersionRepository versions = mock(LegalBasisDossierVersionRepository.class);
     private final LegalBasisVersionAllocationRepository allocations = mock(LegalBasisVersionAllocationRepository.class);
     private final UserRepository users = mock(UserRepository.class);
+    private final com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository history = mock(com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository.class);
     private final BasisDossierViewService service = new BasisDossierViewService(caseLookup, staffCases, dossiers,
-            versions, allocations, users, new ObjectMapper());
+            versions, allocations, users, new ObjectMapper(), history);
 
     private final UUID legalPublicId = UUID.randomUUID();
     private final UUID staffPublicId = UUID.randomUUID();
@@ -132,5 +133,33 @@ class BasisDossierViewServiceTest {
         when(dossiers.findByVerificationCaseId(CASE_DB_ID)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.forLegal(CASE_ID))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    void staffDecisionOnlyCoversCurrentForwardedSnapshot() {
+        data();
+        when(staffCases.findOwnedByStaff(CASE_ID, STAFF_ID)).thenReturn(Optional.of(theCase()));
+        LegalBasisDossier dossier = dossiers.findByVerificationCaseId(CASE_DB_ID).orElseThrow();
+        ReflectionTestUtils.setField(dossier, "status", LegalBasisDossier.STATUS_FORWARDED);
+        BasisVersionRow current = versions.findRows(900L).get(0);
+        BasisVersionRow forwarded = new BasisVersionRow(current.versionNo(), current.legalBasisType(),
+                current.issuingAuthority(), current.documentNumber(), current.issueDate(),
+                current.notaryAuthority(), current.notarialDocumentNumber(), current.notarizedAt(), current.evidenceMetadata(),
+                current.versionNotes(), current.contentType(), current.fileSizeBytes(), current.sha256Hash(), "FORWARDED",
+                STAFF_ID, current.createdAt(), current.forwardedAt());
+        when(versions.findRows(900L)).thenReturn(List.of(forwarded));
+        var old = new com.legacyvault.verification.entity.LegalBasisReviewHistory(900L, 1L, 1,
+                "a".repeat(64), "NONE", "b".repeat(64), "LEGAL_REJECTED", "REJECT", "Old", LEGAL_ID);
+        when(history.findFirstByDossierIdAndReviewStatusInOrderByIdDesc(900L,
+                List.of("LEGAL_APPROVED", "LEGAL_REJECTED"))).thenReturn(Optional.of(old));
+        assertThat(service.forStaff(CASE_ID, staff).currentDecision()).isNull();
+        String allocationHash = com.legacyvault.verification.service.AllocationScopeHash.hashApprovalRows(
+                allocations.findRowsByDossier(900L).stream().filter(row -> row.versionNo() == 2).toList());
+        var latest = new com.legacyvault.verification.entity.LegalBasisReviewHistory(900L, 2L, 2,
+                "b".repeat(64), "NONE", allocationHash, "LEGAL_REJECTED", "REJECT", "Need corrected allocation", LEGAL_ID);
+        ReflectionTestUtils.setField(latest, "publicId", UUID.randomUUID());
+        when(history.findFirstByDossierIdAndReviewStatusInOrderByIdDesc(900L,
+                List.of("LEGAL_APPROVED", "LEGAL_REJECTED"))).thenReturn(Optional.of(latest));
+        assertThat(service.forStaff(CASE_ID, staff).currentDecision().reason()).isEqualTo("Need corrected allocation");
     }
 }

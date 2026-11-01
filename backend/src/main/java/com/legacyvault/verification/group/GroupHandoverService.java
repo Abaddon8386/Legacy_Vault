@@ -27,9 +27,11 @@ public class GroupHandoverService {
  private final LegalBasisReviewHistoryRepository history;
  private final AuditService audit;
  private final LegalBasisLockedState lockedState;
+ private final com.legacyvault.notification.WorkflowNotificationService notifications;
  public GroupHandoverService(JdbcTemplate jdbc,ObjectMapper json,HandoverCompletionAccess completion,
-   LegalWorkflowGuard workflow,HandoverSessionRepository sessions,LegalBasisReviewHistoryRepository history,AuditService audit,LegalBasisLockedState lockedState){
-  this.jdbc=jdbc;this.json=json;this.completion=completion;this.workflow=workflow;this.sessions=sessions;this.history=history;this.audit=audit;this.lockedState=lockedState;
+   LegalWorkflowGuard workflow,HandoverSessionRepository sessions,LegalBasisReviewHistoryRepository history,AuditService audit,LegalBasisLockedState lockedState,
+   com.legacyvault.notification.WorkflowNotificationService notifications){
+  this.jdbc=jdbc;this.json=json;this.completion=completion;this.workflow=workflow;this.sessions=sessions;this.history=history;this.audit=audit;this.lockedState=lockedState;this.notifications=notifications;
  }
  private String encode(Object value){try{return json.writeValueAsString(value);}catch(Exception e){throw new IllegalStateException("Cannot encode group state",e);}}
  private GroupState decode(String value){try{return json.readValue(value,GroupState.class);}catch(Exception e){throw new IllegalStateException("Invalid persisted group state",e);}}
@@ -86,7 +88,9 @@ public class GroupHandoverService {
   if(!replay.isEmpty()){
    var row=replay.get(0);
    if(!payload.equals(row.get("payload_hash"))) throw new BusinessException(GROUP_HANDOVER_STALE);
-   return new Receipt(caseId,sessionId,UUID.fromString(row.get("public_id").toString()),decode(row.get("state_json").toString()),null);
+   var eventId=UUID.fromString(row.get("public_id").toString());
+   var notification=notifications.existing(id,"group:"+eventId);
+   return new Receipt(caseId,sessionId,eventId,decode(row.get("state_json").toString()),notification);
   }
   var before=current(id);
   if(before.revision()!=body.expectedRevision()) throw new BusinessException(GROUP_HANDOVER_STALE);
@@ -110,6 +114,8 @@ public class GroupHandoverService {
   audit.record(new AuditEvent(AuditAction.HANDOVER_GROUP_CHANGED,AuditActorType.USER,actorId,s.locked().vault().getVaultId(),
     "HANDOVER_SESSION",s.session().getId(),before.status(),after.status(),null,
     Map.of("casePublicId",caseId.toString(),"eventPublicId",eventId.toString(),"operation",operation),"GROUP_HANDOVER","PS-120"));
-  return new Receipt(caseId,sessionId,eventId,after,null);
+  var notification=notifications.record(c,legal?com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF:
+    com.legacyvault.notification.WorkflowNotificationService.Workspace.LEGAL,"HANDOVER_GROUP_"+operation,"group:"+eventId,body.reason().trim());
+  return new Receipt(caseId,sessionId,eventId,after,notification);
  }
 }
