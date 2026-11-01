@@ -5656,9 +5656,8 @@ components:
         verifiedAt: { type: string, format: date-time }
     CounterIdentityAttestationRequest:
       type: object
-      required: [evidenceReference]
       properties:
-        evidenceReference: { type: string, minLength: 1, maxLength: 200, description: Reference to the off-system counter evidence; do not include document numbers or document contents }
+        evidenceReference: { type: string, maxLength: 200, nullable: true, description: 'PS-140 OPTIONAL. Reference to off-system counter evidence; do not include document numbers or contents. Absent, null, empty or whitespace-only means no reference (stored as NULL, 201 still returned); a non-blank value is trimmed and stored. The server never generates one. Without it the evidence is the append-only attestation itself: authenticated assigned Staff, server UTC time, case and Beneficiary (plus optional confirmedEmail). A later signed asset receipt is a separate event and is not evidence of this check.' }
         confirmedEmail: { type: string, format: email, maxLength: 254, nullable: true, description: Optional address directly confirmed by Staff with the Beneficiary at the counter; not a client claim of email ownership and not returned in the response }
     CounterIdentityAttestation:
       type: object

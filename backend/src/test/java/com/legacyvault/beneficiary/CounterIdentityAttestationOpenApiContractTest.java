@@ -36,7 +36,8 @@ class CounterIdentityAttestationOpenApiContractTest {
         Map<?, ?> request = (Map<?, ?>) schemas.get("CounterIdentityAttestationRequest");
         Map<?, ?> requestProperties = (Map<?, ?>) request.get("properties");
         assertEquals(java.util.Set.of("evidenceReference", "confirmedEmail"), requestProperties.keySet());
-        assertEquals(java.util.List.of("evidenceReference"), request.get("required"));
+        assertTrue(request.get("required") == null, "PS-140: evidenceReference is optional");
+        assertEquals(true, ((Map<?, ?>) requestProperties.get("evidenceReference")).get("nullable"));
         Map<?, ?> response = (Map<?, ?>) schemas.get("CounterIdentityAttestation");
         Map<?, ?> responseProperties = (Map<?, ?>) response.get("properties");
         assertTrue(responseProperties.containsKey("recordedBy"));

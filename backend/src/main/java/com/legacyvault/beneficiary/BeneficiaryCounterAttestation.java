@@ -40,7 +40,7 @@ public class BeneficiaryCounterAttestation {
     @Column(name = "staff_user_id", nullable = false, updatable = false)
     private Long staffUserId;
 
-    @Column(name = "evidence_reference", nullable = false, length = 200, updatable = false)
+    @Column(name = "evidence_reference", length = 200, updatable = false)
     private String evidenceReference;
 
     @Column(name = "confirmed_email", length = 254, updatable = false)
