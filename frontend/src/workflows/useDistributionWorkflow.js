@@ -14,12 +14,12 @@ export function useDistributionWorkflow({ caseId, workspace, accessToken, lang =
     const controller = new AbortController(); active.current = controller; readBusy.current = true;
     const scope = { caseId, workspace, accessToken, attempt };
     loadDistributionWorkflow(caseId, workspace, { accessToken, lang, signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) {
+      .then(data => { if (!controller.signal.aborted && !lock.current && !callbacks.current.isMutationPending?.()) {
         const key=JSON.stringify([caseId,workspace,accessToken]), signature=JSON.stringify(data);
         if(previous.current?.key===key && previous.current.signature!==signature) callbacks.current.onExternalChange?.();
         previous.current={key,signature};setState({ ...scope, data });
       } })
-      .catch(error => { if (!controller.signal.aborted) {
+      .catch(error => { if (!controller.signal.aborted && !lock.current && !callbacks.current.isMutationPending?.()) {
         setState({ ...scope, error });
         if (error.status === 401) callbacks.current.onUnauthorized?.();
         if (error.status === 403) callbacks.current.onDenied?.(error);

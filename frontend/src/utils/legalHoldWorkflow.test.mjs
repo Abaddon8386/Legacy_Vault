@@ -139,6 +139,42 @@ test('a background response cannot interrupt an in-flight Legal hold or discard 
   } finally { await view.close(); }
 });
 
+for (const response of ['changed', 'denied']) test(`manual refresh ${response} response cannot cancel a Legal hold started while workflow is loading`, async () => {
+  let current = context(), finishRead, finishWrite, writeSignal, workflowReads = 0, contextReads = 0;
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/context')) return json(current);
+    if (url.endsWith('/distribution-workflow')) {
+      workflowReads++;
+      if (workflowReads === 1) return json(distributionFixture(current));
+      return new Promise(resolve => { finishRead = resolve; });
+    }
+    assert.ok(url.endsWith('/basis-dossier/hold'));
+    writeSignal = init.signal;
+    return new Promise(resolve => { finishWrite = resolve; });
+  };
+  const view = await mount(async () => { contextReads++; return current; });
+  try {
+    await click(view.host, 'Refresh documents and case');
+    assert.equal(workflowReads, 2, 'The manually refreshed workflow read is still pending');
+    await click(view.host, 'Place case on hold');
+    await change(view.host.querySelector('form select'), 'NEW_DISPUTE');
+    await change(view.host.querySelector('textarea'), 'Keep the pending hold');
+    await submit(view.host);
+    assert.ok(writeSignal, 'A real hold POST must be pending before the read resolves');
+    const before = contextReads;
+    await act(async () => finishRead(response === 'changed'
+      ? json({ ...distributionFixture(current), revision: 2 })
+      : json({ code: 'ACCESS_DENIED' }, 403)));
+    assert.equal(writeSignal.aborted, false, 'A late manual GET must not unmount and abort the hold POST');
+    assert.equal(contextReads, before);
+    assert.equal(view.host.querySelector('textarea').value, 'Keep the pending hold');
+    current = context('ON_HOLD');
+    await act(async () => finishWrite(json(current.basisDossier)));
+    assert.match(view.host.textContent, /Case placed on hold/);
+    assert.match(view.host.textContent, /Resume case processing/);
+  } finally { await view.close(); }
+});
+
 test('Duplicate resume sends once; token change aborts it and ignores late success', async () => {
   const current = context('ON_HOLD'); let writes = 0, finish, signal;
   globalThis.fetch = async (url, init) => {
