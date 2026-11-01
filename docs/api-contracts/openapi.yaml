@@ -5019,6 +5019,7 @@ components:
         sha256: { type: string, description: SHA-256 hex of the original bytes }
         uploadedBy: { type: string, format: uuid, nullable: true }
         uploadedAt: { type: string, format: date-time }
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     DeathDocumentRecordResponse:
       type: object
       required: [id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt]
@@ -5254,6 +5255,10 @@ components:
       type: object
       properties:
         requiredVersion: { type: integer, minimum: 1, description: Minimum new version required after a hold }
+        currentDecision:
+          nullable: true
+          description: Latest Legal decision only when its document and allocation hashes still match the current forwarded dossier; null for a stale or absent decision.
+          $ref: '#/components/schemas/CurrentBasisDecision'
         id: { type: string, format: uuid }
         caseId: { type: string, format: uuid }
         route: { type: string, enum: [NOTARIAL, COURT, ON_HOLD] }
@@ -5268,6 +5273,16 @@ components:
           description: Mới nhất trước
           items: { $ref: '#/components/schemas/BasisVersionResponse' }
         notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
+    CurrentBasisDecision:
+      type: object
+      required: [id, status, reason, documentVersion, documentSha256, allocationSha256]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [LEGAL_APPROVED, LEGAL_REJECTED] }
+        reason: { type: string, maxLength: 1000 }
+        documentVersion: { type: integer, minimum: 1 }
+        documentSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        allocationSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
     AssetPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -5517,7 +5532,7 @@ components:
         revision: { type: integer, format: int64, minimum: 0 }
         phase:
           type: string
-          enum: [PREREQUISITES_PENDING, DOCUMENT_REQUEST_NEEDED, AWAITING_DOCUMENTS, DOCUMENTS_UNDER_REVIEW, AWAITING_ALLOCATIONS, ALLOCATIONS_UNDER_REVIEW, FINAL_APPROVAL, APPROVED, UNLOCKED, CLOSED]
+          enum: [PREREQUISITES_PENDING, DOCUMENT_REQUEST_NEEDED, AWAITING_DOCUMENTS, DOCUMENTS_UNDER_REVIEW, AWAITING_ALLOCATIONS, ALLOCATIONS_UNDER_REVIEW, FINAL_APPROVAL, REJECTED, APPROVED, UNLOCKED, CLOSED]
         prerequisites:
           type: object
           required: [deathApproved, willMatched]

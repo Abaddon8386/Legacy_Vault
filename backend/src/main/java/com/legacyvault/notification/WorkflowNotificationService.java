@@ -47,6 +47,14 @@ public class WorkflowNotificationService {
     }
 
     @Transactional(readOnly = true)
+    public Receipt existing(long caseId, String eventKey) {
+        var rows = jdbc.query("SELECT public_id,workspace FROM dbo.workflow_notifications WHERE case_id=? AND event_key=?",
+                (rs, row) -> new Receipt(UUID.fromString(rs.getString("public_id")),
+                        Workspace.valueOf(rs.getString("workspace")), "RECORDED"), caseId, eventKey);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    @Transactional(readOnly = true)
     public List<Item> list(long userId, Workspace workspace) {
         return jdbc.query("""
             SELECT TOP (50) n.public_id,c.public_id AS case_public_id,c.verification_case_id,c.created_at,

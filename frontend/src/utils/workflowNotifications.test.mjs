@@ -16,6 +16,32 @@ const json=x=>new Response(JSON.stringify(x),{status:200,headers:{'Content-Type'
 async function mount(props={session:{accessToken:'test-only'},role:'STAFF',lang:'vi'}){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const render=async props=>act(async()=>root.render(React.createElement(Component,props)));await render(props);const expand=async()=>act(async()=>{host.querySelector('details').open=true;host.querySelector('details').dispatchEvent(new window.Event('toggle',{bubbles:true}));});return{host,render,expand,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 const originalFetch=globalThis.fetch;test.afterEach(()=>{globalThis.fetch=originalFetch;});
 
+test('group handover events coexist with other notices and open the correct workspace case in both languages', async () => {
+  const events = [
+    ['HANDOVER_GROUP_ATTENDANCE', 'LEGAL', 'Đã ghi nhận người có mặt tại bàn giao', 'Handover attendance recorded'],
+    ['HANDOVER_GROUP_REQUEST', 'LEGAL', 'Staff yêu cầu mở lại bàn giao', 'Staff requested handover reopening'],
+    ['HANDOVER_GROUP_APPROVE', 'STAFF', 'Legal đã chấp thuận mở lại bàn giao', 'Legal approved handover reopening'],
+    ['HANDOVER_GROUP_REJECT', 'STAFF', 'Legal đã từ chối mở lại bàn giao', 'Legal rejected handover reopening'],
+  ];
+  for (const [action, role, vi, en] of events) for (const lang of ['vi', 'en']) {
+    const destinations = [], calls = [];
+    globalThis.fetch = async (url, init) => {
+      calls.push({url, method:init.method});
+      return init.method === 'PUT' ? json({id, read:true}) : json([{...item, action}, {...item, id:caseId}]);
+    };
+    const view = await mount({session:{accessToken:'test-token'}, role, lang, onNavigate:url=>destinations.push(url)});
+    try {
+      await view.expand();
+      assert.equal(view.host.querySelectorAll('li').length, 2);
+      assert.equal(view.host.querySelector('li strong').textContent, lang === 'en' ? en : vi);
+      await act(async()=>view.host.querySelector('li button').click());
+      assert.deepEqual(destinations, [`${role === 'STAFF' ? '/staff/handover' : '/legal/controlled-unlock'}?caseId=${caseId}&lang=${lang}`]);
+      assert.deepEqual(calls.map(x=>x.method), ['GET', 'PUT']);
+      assert.ok(calls[1].url.endsWith(`${id}/read?workspace=${role}`));
+    } finally { await view.close(); }
+  }
+});
+
 test('Staff deep links preserve exact case, language and allocation step without business POSTs',async()=>{
  for(const [action,path] of [['LEGAL_DEATH_DOCUMENT_DECIDED','/staff/cases'],['WILL_COMPARISON_RECORDED','/staff/cases'],['DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED','/staff/legal-documents'],['LEGAL_BASIS_DECIDED','/staff/legal-documents'],['DISTRIBUTION_ALLOCATIONS_APPROVED','/staff/legal-documents']]){
   const destinations=[],methods=[];globalThis.fetch=async(_url,init)=>{methods.push(init.method||'GET');return init.method==='PUT'?json({id,read:true}):json([{...item,action,reason:'Scoped Legal feedback'}]);};

@@ -19,7 +19,7 @@ class GroupHandoverServiceTest {
  final HandoverSessionRepository sessions=mock(HandoverSessionRepository.class);
  final LegalBasisReviewHistoryRepository history=mock(LegalBasisReviewHistoryRepository.class);
  final AuditService audit=mock(AuditService.class);
- final GroupHandoverService service=new GroupHandoverService(jdbc,new ObjectMapper(),completion,legal,sessions,history,audit,mock(LegalBasisLockedState.class));
+ final GroupHandoverService service=new GroupHandoverService(jdbc,new ObjectMapper(),completion,legal,sessions,history,audit,mock(LegalBasisLockedState.class),mock(com.legacyvault.notification.WorkflowNotificationService.class));
  final UUID caseId=UUID.randomUUID(),sessionId=UUID.randomUUID(),recipient=UUID.randomUUID();
  final CustomUserPrincipal actor=new CustomUserPrincipal(7L,UUID.randomUUID(),"staff@test.local");
  void fixture(){

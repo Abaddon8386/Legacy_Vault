@@ -66,6 +66,11 @@ class LegalApprovalServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(history.saveAndFlush(any(LegalBasisReviewHistory.class))).thenAnswer(invocation -> {
+            LegalBasisReviewHistory decision = invocation.getArgument(0);
+            org.springframework.test.util.ReflectionTestUtils.setField(decision, "publicId", UUID.randomUUID());
+            return decision;
+        });
         when(access.lock(CASE_ID)).thenReturn(new LegalBasisCaseAccess.LockedCase(vault, verificationCase, dossier));
         when(verificationCase.isOpen()).thenReturn(true);
         when(vault.getStatus()).thenReturn(Vault.STATUS_LEGAL_BASIS_VERIFICATION);
@@ -99,7 +104,7 @@ class LegalApprovalServiceTest {
         assertThat(response.decision()).isEqualTo("LEGAL_APPROVED");
         assertThat(response.decidedBy()).isEqualTo(principal.publicId());
         ArgumentCaptor<LegalBasisReviewHistory> saved = ArgumentCaptor.forClass(LegalBasisReviewHistory.class);
-        verify(history).save(saved.capture());
+        verify(history).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getReviewStatus()).isEqualTo("LEGAL_APPROVED");
         assertThat(saved.getValue().getDossierVersionId()).isEqualTo(VERSION_ID);
         assertThat(saved.getValue().getSha256Hash()).isEqualTo(HASH);
@@ -111,7 +116,7 @@ class LegalApprovalServiceTest {
         assertThat(event.getValue().action()).isEqualTo(AuditAction.LEGAL_BASIS_DECIDED);
         assertThat(event.getValue().context()).doesNotContainKey("reason");
         InOrder order = inOrder(history, audit);
-        order.verify(history).save(any(LegalBasisReviewHistory.class));
+        order.verify(history).saveAndFlush(any(LegalBasisReviewHistory.class));
         order.verify(audit).record(any(AuditEvent.class));
     }
 
@@ -120,7 +125,7 @@ class LegalApprovalServiceTest {
         service.decide(CASE_ID, principal,
                 request(LegalApprovalRequest.Decision.REJECT, VERSION_NO, HASH, ALLOCATION_HASH, "Missing evidence"));
         ArgumentCaptor<LegalBasisReviewHistory> saved = ArgumentCaptor.forClass(LegalBasisReviewHistory.class);
-        verify(history).save(saved.capture());
+        verify(history).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getReviewStatus()).isEqualTo("LEGAL_REJECTED");
         assertThat(saved.getValue().getReason()).isEqualTo("Missing evidence");
         verify(allocations).updateStatusForVersion(VERSION_ID, LegalBasisVersionAllocation.STATUS_REJECTED);
@@ -188,7 +193,7 @@ class LegalApprovalServiceTest {
         assertThatThrownBy(() -> service.decide(CASE_ID, principal,
                 request(LegalApprovalRequest.Decision.APPROVE, VERSION_NO, HASH, ALLOCATION_HASH, "Approved")))
                 .isInstanceOf(IllegalStateException.class);
-        verify(history).save(any(LegalBasisReviewHistory.class));
+        verify(history).saveAndFlush(any(LegalBasisReviewHistory.class));
     }
 
     private void assertStale(LegalApprovalRequest request) {

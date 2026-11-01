@@ -74,6 +74,7 @@ public class DistributionWorkflowService {
     static final String AWAITING_ALLOCATIONS = "AWAITING_ALLOCATIONS";
     static final String ALLOCATIONS_UNDER_REVIEW = "ALLOCATIONS_UNDER_REVIEW";
     static final String FINAL_APPROVAL = "FINAL_APPROVAL";
+    static final String REJECTED = "REJECTED";
     static final String APPROVED = "APPROVED";
     static final String UNLOCKED = "UNLOCKED";
     static final String CLOSED = "CLOSED";
@@ -137,6 +138,7 @@ public class DistributionWorkflowService {
     private final LegalReadService reads;
     private final AuditService audit;
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
+    private final com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository decisionHistory;
 
     public DistributionWorkflowService(LegalBasisCaseAccess access, StaffCaseLockRepository staffCases,
             LegalCaseLookupRepository lookup, VaultRepository vaults, LegalBasisDossierRepository dossiers,
@@ -145,7 +147,8 @@ public class DistributionWorkflowService {
             LegalApprovalGuard approvals, LegalBasisReviewService review, CourtDecisionService courtDecisions,
             BasisIntakeService intake,
             BasisForwardService forwarding, LegalApprovalService approvalService, LegalVaultUnlockService unlockService,
-            LegalReadService reads, AuditService audit, com.legacyvault.notification.WorkflowNotificationService notifications) {
+            LegalReadService reads, AuditService audit, com.legacyvault.notification.WorkflowNotificationService notifications,
+            com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository decisionHistory) {
         this.access = access;
         this.staffCases = staffCases;
         this.lookup = lookup;
@@ -166,6 +169,7 @@ public class DistributionWorkflowService {
         this.reads = reads;
         this.audit = audit;
         this.notifications = notifications;
+        this.decisionHistory = decisionHistory;
     }
 
     // ------------------------------------------------------------------------------------------------ reads
@@ -452,7 +456,19 @@ public class DistributionWorkflowService {
         if ("SUBMITTED".equals(allocationStatus)) return ALLOCATIONS_UNDER_REVIEW;
         var evidence = latestStored == null ? null
                 : versions.findCourtEvidence(dossier.getLegalBasisDossierId(), latestStored.versionNo()).orElse(null);
-        return evidence != null && approvals.currentApprovalBlocker(dossier, evidence) == null ? APPROVED : FINAL_APPROVAL;
+        if (evidence != null && approvals.currentApprovalBlocker(dossier, evidence) == null) return APPROVED;
+        var decision = decisionHistory.findFirstByDossierIdAndReviewStatusInOrderByIdDesc(
+                dossier.getLegalBasisDossierId(), List.of("LEGAL_APPROVED", "LEGAL_REJECTED")).orElse(null);
+        if (decision != null && "LEGAL_REJECTED".equals(decision.getReviewStatus())
+                && latestStored != null && java.util.Objects.equals(decision.getVersionNo(), latestStored.versionNo())
+                && latestStored.sha256Hash().equalsIgnoreCase(decision.getSha256Hash())
+                && java.util.Objects.equals(decision.getDisputeStatus(), dossier.getDisputeStatus())
+                && allocationHashFor(dossier, latestStored.versionNo()).equalsIgnoreCase(decision.getAllocationHash())) return REJECTED;
+        return FINAL_APPROVAL;
+    }
+
+    private String allocationHashFor(LegalBasisDossier dossier, int versionNo) {
+        return AllocationScopeHash.hashApprovalRows(rowsOf(dossier, versionNo));
     }
 
     private List<AllocationRow> rowsOf(LegalBasisDossier dossier, Integer versionNo) {
@@ -491,7 +507,9 @@ public class DistributionWorkflowService {
     /** Why an action cannot run now, or null when it can. */
     private ErrorCode blocker(State state, String action) {
         if (PREREQUISITES_PENDING.equals(state.phase())) return ErrorCode.DISTRIBUTION_PREREQUISITES_PENDING;
-        if (!RULES.get(action).phase().equals(state.phase())) return ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP;
+        if (!RULES.get(action).phase().equals(state.phase())
+                && !("requestDocumentSupplementation".equals(action) && REJECTED.equals(state.phase())))
+            return ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP;
         if (state.onHold()) return ErrorCode.LEGAL_WORKFLOW_ON_HOLD;
         return switch (action) {
             case "approveDocuments" -> documentBlocker(state);

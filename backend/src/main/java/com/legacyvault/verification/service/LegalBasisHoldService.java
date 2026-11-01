@@ -19,13 +19,16 @@ public class LegalBasisHoldService {
     private final LegalBasisClassificationHistoryRepository history;
     private final BasisDossierViewService views;
     private final AuditService audit;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
     public LegalBasisHoldService(LegalBasisCaseAccess access, LegalBasisDossierVersionRepository versions,
-            LegalBasisClassificationHistoryRepository history, BasisDossierViewService views, AuditService audit) {
+            LegalBasisClassificationHistoryRepository history, BasisDossierViewService views, AuditService audit,
+            com.legacyvault.notification.WorkflowNotificationService notifications) {
         this.access = access;
         this.versions = versions;
         this.history = history;
         this.views = views;
         this.audit = audit;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -52,6 +55,10 @@ public class LegalBasisHoldService {
                 Map.of("verificationCaseId", caseId.toString(), "dossierId", dossier.getPublicId().toString(),
                         "previousRoute", previousRoute, "route", "ON_HOLD", "cause", request.cause().name(),
                         "requiredVersion", dossier.getRequiredVersionNo()), "ST-16", "LV-HOLD-001"));
-        return views.view(locked.verificationCase(), true);
+        var notification = notifications.record(locked.verificationCase(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                "LEGAL_BASIS_HELD", "basis-hold:" + dossier.getPublicId() + ":" + dossier.getRequiredVersionNo(),
+                request.reason().trim());
+        return views.view(locked.verificationCase(), true).withNotification(notification);
     }
 }
