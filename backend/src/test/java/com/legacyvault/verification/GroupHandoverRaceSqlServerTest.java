@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Any non-business exception (deadlock victim, lock timeout) fails the test.
  */
 @EnabledIfEnvironmentVariable(named = "LEGAL_SQLSERVER_MASTER_URL", matches = ".*databaseName=master;.*")
-class GroupHandoverConcurrencySqlServerTest extends HandoverCompletionSqlSupport {
+class GroupHandoverRaceSqlServerTest extends HandoverCompletionSqlSupport {
 
     private static final int ROUNDS = 5;
 
