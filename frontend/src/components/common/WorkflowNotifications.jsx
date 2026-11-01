@@ -3,6 +3,10 @@ import { Bell } from 'lucide-react';
 import { request } from '../../api/http.js';
 import './WorkflowNotifications.css';
 const labels={
+ HANDOVER_GROUP_ATTENDANCE:['Đã ghi nhận người có mặt tại bàn giao','Handover attendance recorded'],
+ HANDOVER_GROUP_REQUEST:['Staff yêu cầu mở lại bàn giao','Staff requested handover reopening'],
+ HANDOVER_GROUP_APPROVE:['Legal đã chấp thuận mở lại bàn giao','Legal approved handover reopening'],
+ HANDOVER_GROUP_REJECT:['Legal đã từ chối mở lại bàn giao','Legal rejected handover reopening'],
  DISTRIBUTION_DOCUMENTS_REQUESTED:['Legal đã yêu cầu giấy tờ phân chia','Legal requested distribution documents'],
  DISTRIBUTION_DOCUMENTS_APPROVED:['Căn cứ đã duyệt, Staff có thể lập phân bổ','Documents accepted; Staff can prepare allocations'],
  DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED:['Legal yêu cầu bổ sung giấy tờ','Legal requested additional documents'],
@@ -44,7 +48,8 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    const tab=role==='STAFF'?(intakeEvent?'/staff/cases':'/staff/legal-documents'):item.action==='LEGAL_VAULT_UNLOCKED'?'/legal/controlled-unlock':item.action==='LEGAL_BASIS_DECIDED'?'/legal/approval-review':item.action==='VERIFICATION_CASE_CLAIMED'||item.action==='DEATH_DOCUMENT_RECORDED'||item.action==='INTAKE_ATTACHMENT_UPLOADED'?'/legal/death-verification':item.action==='ORIGINAL_WILL_RECEIVED'||item.action==='WILL_COMPARISON_RECORDED'?'/legal/will-document-verification':'/legal/basis-route-selection';
    const params=new URLSearchParams({caseId:item.caseId,lang});
    if(role==='STAFF'&&['DISTRIBUTION_DOCUMENTS_APPROVED','DISTRIBUTION_ALLOCATIONS_SUBMITTED','DISTRIBUTION_ALLOCATIONS_APPROVED','DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED'].includes(item.action))params.set('tab','allocations');
-   onNavigate(tab+'?'+params);
+   const destination=item.action.startsWith('HANDOVER_GROUP_')?(role==='STAFF'?'/staff/handover':'/legal/controlled-unlock'):tab;
+   onNavigate(destination+'?'+params);
   }catch{if(!c?.signal.aborted)setResult({token,role,error:true});}finally{if(!c?.signal.aborted)setOpening(null);}}
  return <details ref={details} onToggle={event=>setExpanded(event.currentTarget.open)} className="lv-workflow-notifications"><summary aria-label={en?'Notifications':'Thông báo'}><Bell size={20} aria-hidden="true"/><span>{en?'Notifications':'Thông báo'}</span>{visible?.items?.some(x=>!x.read)&&<span className="lv-workflow-notifications__dot" aria-label={en?'Unread notifications':'Có thông báo chưa đọc'}/>}</summary>
   {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}><h2>{en?'Recent notifications':'Thông báo gần đây'}</h2>
