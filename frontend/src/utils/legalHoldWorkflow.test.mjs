@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
+import { distributionFixture } from './testFixtures/distribution.js';
 
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/legal/basis-route-selection' });
 globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -98,6 +99,43 @@ test('Changed context blocks hold POST, keeps the reason, and requires a reload'
     await change(view.host.querySelector('textarea'), 'Keep this reason'); await submit(view.host);
     assert.equal(writes, 0); assert.match(view.host.textContent, /case changed/i);
     assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    await click(view.host, 'Reload case');
+    assert.equal(view.host.querySelector('textarea').value, 'Keep this reason', 'Reload must preserve the input, including its selected cause');
+    assert.equal(view.host.querySelector('form select').value, 'INSUFFICIENT_EVIDENCE');
+  } finally { await view.close(); }
+});
+
+test('a background response cannot interrupt an in-flight Legal hold or discard its confirmation', async () => {
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  let current = context(), finishPoll, finishWrite, writeSignal, workflowReads = 0, contextReads = 0;
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/context')) return json(current);
+    if (url.endsWith('/distribution-workflow')) {
+      workflowReads++;
+      if (workflowReads === 1) return json(distributionFixture(current));
+      return new Promise(resolve => { finishPoll = resolve; });
+    }
+    writeSignal = init.signal;
+    return new Promise(resolve => { finishWrite = resolve; });
+  };
+  const view = await mount(async () => { contextReads++; return current; });
+  try {
+    await act(async () => window.dispatchEvent(new window.Event('focus')));
+    await click(view.host, 'Place case on hold');
+    await change(view.host.querySelector('form select'), 'NEW_DISPUTE');
+    await change(view.host.querySelector('textarea'), 'Counter evidence needs review');
+    await submit(view.host);
+    assert.equal(view.host.querySelector('.lv-legal-context-actions button').disabled, true);
+    const before = contextReads;
+    await act(async () => finishPoll(json({ ...distributionFixture(current), revision: 2 })));
+    assert.equal(contextReads, before, 'Do not reload and unmount an operation that is still saving');
+    assert.equal(writeSignal.aborted, false);
+    await act(async () => window.dispatchEvent(new window.Event('focus')));
+    assert.equal(workflowReads, 2, 'No additional background read while the hold is pending');
+    current = context('ON_HOLD');
+    await act(async () => finishWrite(json(current.basisDossier)));
+    assert.match(view.host.textContent, /Case placed on hold/);
+    assert.match(view.host.textContent, /notification to Staff has not been confirmed/);
   } finally { await view.close(); }
 });
 

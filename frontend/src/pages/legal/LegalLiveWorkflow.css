@@ -130,3 +130,5 @@
 .lv-legal-live .lv-workflow-feedback { padding:10px 14px; gap:10px; border-radius:10px; box-shadow:none; }
 .lv-legal-live .lv-workflow-feedback .lv-feedback__content { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
 .lv-legal-live .lv-workflow-feedback p { font-size:14px; margin:0; }
+.lv-legal-context-actions { display:flex; flex-wrap:wrap; gap:var(--lv-space-3,12px); margin-block:var(--lv-space-3,12px); }
+.lv-legal-context-actions button { display:inline-flex; align-items:center; gap:8px; min-height:44px; max-width:100%; white-space:normal; text-align:start; }

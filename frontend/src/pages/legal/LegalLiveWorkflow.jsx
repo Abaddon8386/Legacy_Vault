@@ -1,5 +1,5 @@
-import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
-import { useEffect, useRef, useState } from 'react';
+import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import { legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
@@ -127,6 +127,10 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   // the caller's case/step/session key still discards the draft when scope changes.
   const [draft, setDraft] = useState({});
   const [distributionDraft,setDistributionDraft] = useState({scope:'',reason:''});
+  const [holdDraft, setHoldDraft] = useState({ expanded: false, choice: '', reason: '' });
+  const mutation = useRef(false);
+  const [mutationPending, setMutationPending] = useState(false);
+  const onPendingChange = useCallback(value => { mutation.current = value; setMutationPending(value); }, []);
   const [documentId, setDocumentId] = useState('');
   const [savedReceipt, setSavedReceipt] = useState(null);
   const en = lang === 'en';
@@ -149,7 +153,8 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   const current = result?.attempt === attempt && result.session === session && result.contextLoader === contextLoader ? result : null;
   const distribution = useDistributionWorkflow({ caseId: selected.caseId, workspace: 'LEGAL', accessToken: session.accessToken, lang,
     enabled: !!current?.data && current.data.basisDossier?.route !== 'ON_HOLD' && current.data.vaultStatus !== 'ON_HOLD'
-      && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied, onExternalChange:()=>setAttempt(value=>value+1) });
+      && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
+    isMutationPending: () => mutation.current, onExternalChange:()=>setAttempt(value=>value+1) });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
   const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
     : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case processing resumed.' : 'Đã tiếp tục xử lý hồ sơ.')
@@ -159,13 +164,14 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked.' : 'Đã mở khóa kho.')
     : visibleReceipt?.reviewRequired ? (en ? 'Supplementation requested.' : 'Đã yêu cầu bổ sung giấy tờ.')
     : (en ? 'Decision saved.' : 'Đã lưu quyết định.');
-  const notificationFeedback = workflowNotificationFeedback(visibleReceipt, 'STAFF', lang);
+  const notificationFeedback = workflowNotificationStatus(visibleReceipt, 'STAFF', lang);
   const confirmation = visibleReceipt && <FeedbackNotice className="lv-workflow-feedback" tone="success" title={outcome}>
     {notificationFeedback && <p>{notificationFeedback.trim()}</p>}
     {!current && <p>{en ? 'Checking the latest case status before further action.' : 'Đang kiểm tra trạng thái mới nhất trước khi tiếp tục.'}</p>}
     {current?.error && <p>{en ? 'Saved successfully, but the latest case status could not be loaded. Retry before continuing.' : 'Thao tác đã lưu, nhưng chưa tải được trạng thái mới nhất. Hãy thử lại trước khi tiếp tục.'}</p>}
   </FeedbackNotice>;
   const saved = receipt => {
+    if (receipt.holdAction) setHoldDraft({ expanded: false, choice: '', reason: '' });
     setSavedReceipt({ ...receipt, workflowStep:step });
     window.dispatchEvent(new window.Event('lv-workflow-notifications-changed'));
     if (['approval-review', 'controlled-unlock'].includes(step)) setDraft({});
@@ -191,6 +197,10 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
     {guide}
+    <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
+      onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
+      <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
+    </button></div>
     <div className="lv-legal-case-banner lv-surface-card">
       <div className="lv-legal-case-banner__icon"><FolderOpen size={28} aria-hidden="true" /></div>
       <div className="lv-legal-case-banner__content"><span>{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
@@ -200,22 +210,24 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
     </div>
     {step === 'basis-route-selection'
-      ? <LegalDistributionWorkspace workflow={distribution} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
+      ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
+          holdDraft={holdDraft} onHoldDraftChange={setHoldDraft} onPendingChange={onPendingChange}
           onComplete={() => setAttempt(value => value + 1)} onSaved={saved} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : ['approval-review', 'controlled-unlock'].includes(step)
       ? <LegalDistributionFinalWorkspace workflow={distribution} session={session} context={context} step={step} lang={lang}
-        draft={draft} setDraft={setDraft} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
+        draft={draft} setDraft={setDraft} onPendingChange={onPendingChange} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id) }}
-        step={step === 'basis-route-selection' ? 'dossier-review' : step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved}
+        step={step === 'basis-route-selection' ? 'dossier-review' : step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved} onPendingChange={onPendingChange}
         draft={draft} setDraft={setDraft} documentId={context.deathDocuments.some(item => item.id === documentId) ? documentId : context.deathDocuments.length === 1 ? context.deathDocuments[0].id : ''}
         setDocumentId={setDocumentId} onReload={() => setAttempt(value => value + 1)} />}
   </>;
 }
 
-function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied, onSaved, readOnly, draft: storedDraft, setDraft, documentId, setDocumentId, onReload }) {
+function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied, onSaved, onPendingChange, readOnly, draft: storedDraft, setDraft, documentId, setDocumentId, onReload }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
+  useEffect(() => () => onPendingChange?.(false), [onPendingChange]);
   const [error, setError] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [needsReload, setNeedsReload] = useState(false);
@@ -280,7 +292,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
 
   async function submit(e) {
     e.preventDefault(); if (lock.current || !eligible) return;
-    lock.current = true; const c = new AbortController(); controller.current = c; setBusy(true); setError(null); setReceipt(null);
+    lock.current = true; onPendingChange?.(true); const c = new AbortController(); controller.current = c; setBusy(true); setError(null); setReceipt(null);
     const opts = { ...options, signal: c.signal };
     try {
       let value;
@@ -322,7 +334,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       if ([401, 403, 404].includes(err.status)) setData(null);
       if (err.status === 403) onDenied?.(err);
       if ([401, 403, 404, 409].includes(err.status) || ['INVALID_RESPONSE', 'NETWORK_ERROR'].includes(err.code)) setNeedsReload(true);
-    } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); } }
+    } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); onPendingChange?.(false); } }
   }
   return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}`} aria-busy={busy}>
     <section className="lv-legal-live__card lv-legal-documents lv-surface-card">
