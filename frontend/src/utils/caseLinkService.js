@@ -46,6 +46,12 @@ export const liveCaseLinkActions = {
     if (result.id !== requestId || result.status !== 'CANCELLED') invalid();
     return result;
   },
+  async loadHandoverStatus(options = {}) {
+    const raw = await request('/beneficiary-handover-status', { ...options, expectedStatus: 200, cache: 'no-store' });
+    if (!raw || typeof raw.subjectId !== 'string' || !Array.isArray(raw.cases)) invalid();
+    if (options.userId && raw.subjectId !== options.userId) invalid();
+    return raw;
+  },
 };
 export const liveCounterLinkActions = {
   async listPending({ caseId }, options) {
