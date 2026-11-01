@@ -2542,6 +2542,9 @@ paths:
       description: |
         Chỉ `LEGAL_VERIFIER`. Hash của phiên bản do server lấy từ dữ liệu đã lưu. MISMATCH và INCONCLUSIVE bắt buộc có `reason`.
         Chỉ ghi khi ca `OPEN` và Vault `DOCUMENT_VERIFICATION` hoặc `WILL_VERIFICATION`. `MATCH` đầu tiên chuyển Vault sang `WILL_VERIFICATION` (ST-15).
+        PS-139: mỗi `originalWillIntakeId` chỉ có một kết luận bất biến; ghi lại trả `409 WILL_COMPARISON_ALREADY_RECORDED`
+        (kể cả hai Legal gửi đồng thời hoặc retry sau khi đã commit) và không sửa kết luận cũ. Phiên bản bản scan không còn
+        là mới nhất trả `409 LEGAL_VERIFICATION_INVALID_STATE`. Quy tắc khi bản số đổi sau kết luận chưa được phê duyệt.
       x-status: implemented
       parameters:
         - name: caseId
@@ -4744,6 +4747,7 @@ components:
             - HANDOVER_RECIPIENT_ACCOUNT_REQUIRED
             - HANDOVER_ASSET_NOT_ELIGIBLE
             - HANDOVER_ASSET_ALREADY_DELIVERED
+            - WILL_COMPARISON_ALREADY_RECORDED
             - GROUP_HANDOVER_BLOCKED
             - GROUP_HANDOVER_STALE
             - HANDOVER_COMPLETION_PENDING

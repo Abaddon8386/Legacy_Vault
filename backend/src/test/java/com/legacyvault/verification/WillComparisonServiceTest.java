@@ -349,18 +349,41 @@ class WillComparisonServiceTest {
     }
 
     @Test
-    void recompareAllowedInWillVerification_andMismatchOrInconclusiveNeverMoveTheVault() {
+    void secondConclusionForSamePaperIsRejectedAndWritesNothing() {
+        happyPathData();
+        when(comparisonRepository.existsByOriginalWillIntakeId(INTAKE_DB_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.record(CASE_ID, legal, request(Result.MATCH, null)))
+                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.WILL_COMPARISON_ALREADY_RECORDED));
+
+        verify(comparisonRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(auditService);
+    }
+
+    @Test
+    void staleScanVersionIsRejectedAndWritesNothing() {
+        happyPathData();
+        when(assetVersionRepository.findVersions(WILL_DB_ID)).thenReturn(List.of(
+                new com.legacyvault.will.repository.WillVersionView(WILL_DB_ID, 3, "w.pdf", "application/pdf", 1L, HASH,
+                        "READY", LocalDateTime.of(2026, 10, 2, 8, 0))));
+
+        assertThatThrownBy(() -> service.record(CASE_ID, legal, request(Result.MATCH, null)))
+                .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.LEGAL_VERIFICATION_INVALID_STATE));
+
+        verify(comparisonRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void matchOnWillVerificationKeepsVaultAndOtherResultsNeverMoveIt() {
         happyPathData();
         Vault vault = vault("WILL_VERIFICATION");
         when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
-
         service.record(CASE_ID, legal, request(Result.MATCH, null));
         assertThat(vault.getStatus()).isEqualTo("WILL_VERIFICATION");
 
         Vault documentVault = vault("DOCUMENT_VERIFICATION");
         when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(documentVault));
         service.record(CASE_ID, legal, request(Result.INCONCLUSIVE, "chưa đủ cơ sở"));
-        service.record(CASE_ID, legal, request(Result.MISMATCH, "khác"));
         assertThat(documentVault.getStatus()).isEqualTo("DOCUMENT_VERIFICATION");
     }
 }
