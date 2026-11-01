@@ -64,7 +64,17 @@ class DistributionWorkflowSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     private void act(Fixture f, String workspace, String action, ActionBody body) {
-        workflow().perform(f.publicCaseId(), workspace, action, body, f.legal());
+        int before = count("workflow_notifications", "case_id=?", f.caseId());
+        var result = workflow().perform(f.publicCaseId(), workspace, action, body, f.legal());
+        if (List.of("requestDocumentSupplementation", "approveAllocations").contains(action)) {
+            assertEquals(before + (result.notification() == null ? 0 : 1),
+                    count("workflow_notifications", "case_id=?", f.caseId()), "wrapper must not duplicate the review notification");
+            if (result.notification() != null) {
+                assertEquals(action.equals("approveAllocations") ? "LEGAL_BASIS_REVIEW_RECORDED" : "LEGAL_BASIS_REVIEW_REQUIRED",
+                        jdbc.queryForObject("SELECT action FROM dbo.workflow_notifications WHERE public_id=?", String.class,
+                                result.notification().id().toString()));
+            }
+        }
     }
 
     private ErrorCode codeOf(Runnable action) {

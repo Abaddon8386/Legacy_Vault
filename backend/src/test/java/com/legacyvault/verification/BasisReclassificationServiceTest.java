@@ -59,8 +59,9 @@ class BasisReclassificationServiceTest {
     private final WillComparisonService willComparisons = mock(WillComparisonService.class);
     private final BasisDossierViewService views = mock(BasisDossierViewService.class);
     private final AuditService auditService = mock(AuditService.class);
+    private final com.legacyvault.notification.WorkflowNotificationService notifications = mock(com.legacyvault.notification.WorkflowNotificationService.class);
     private final BasisReclassificationService service = new BasisReclassificationService(caseLookup, caseRepository,
-            vaultRepository, dossiers, history, willComparisons, views, auditService, mock(LegalBasisLockedState.class));
+            vaultRepository, dossiers, history, willComparisons, views, auditService, mock(LegalBasisLockedState.class), notifications);
 
     private final CustomUserPrincipal legal = new CustomUserPrincipal(LEGAL_ID, UUID.randomUUID(), "legal@example.com");
 
@@ -92,6 +93,14 @@ class BasisReclassificationServiceTest {
     }
 
     private Vault happyPath(LegalBasisDossier dossier) {
+        when(history.saveAndFlush(any(LegalBasisClassificationHistory.class))).thenAnswer(invocation -> {
+            LegalBasisClassificationHistory saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "publicId", UUID.randomUUID());
+            return saved;
+        });
+        BasisDossierResponse view = mock(BasisDossierResponse.class);
+        when(views.view(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(view);
+        when(view.withNotification(any())).thenReturn(view);
         Vault vault = vault("ON_HOLD");
         when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.of(openCase()));
         when(vaultRepository.findByIdForUpdate(VAULT_ID)).thenReturn(Optional.of(vault));
@@ -112,6 +121,10 @@ class BasisReclassificationServiceTest {
         BasisDossierResponse expected = mock(BasisDossierResponse.class);
         when(views.view(any(VerificationCase.class), org.mockito.ArgumentMatchers.eq(true))).thenReturn(expected);
 
+        var receipt = new com.legacyvault.notification.WorkflowNotificationService.Receipt(UUID.randomUUID(),
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, "RECORDED");
+        when(notifications.record(any(), any(), any(), any(), any())).thenReturn(receipt);
+        when(expected.withNotification(receipt)).thenReturn(expected);
         BasisDossierResponse response = service.reclassify(CASE_ID, legal,
                 request(Route.COURT, "  Đã đủ chứng cứ không tranh chấp  "));
 
@@ -119,6 +132,10 @@ class BasisReclassificationServiceTest {
         ArgumentCaptor<LegalBasisClassificationHistory> saved = ArgumentCaptor.forClass(LegalBasisClassificationHistory.class);
         verify(history).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getRoute()).isEqualTo("ON_HOLD");
+        verify(notifications).record(any(VerificationCase.class), org.mockito.ArgumentMatchers.eq(com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF),
+                org.mockito.ArgumentMatchers.eq("LEGAL_BASIS_RECLASSIFIED"), org.mockito.ArgumentMatchers.eq("basis-resume:" + saved.getValue().getPublicId()),
+                org.mockito.ArgumentMatchers.eq("Đã đủ chứng cứ không tranh chấp"));
+        verify(expected).withNotification(receipt);
         assertThat(saved.getValue().getDisputeStatus()).isEqualTo("UNDETERMINED");
         assertThat(saved.getValue().getRouteReason()).isEqualTo("Chưa đủ thông tin");
         assertThat(saved.getValue().getClassifiedByUserId()).isEqualTo(FIRST_LEGAL_ID);
@@ -219,6 +236,15 @@ class BasisReclassificationServiceTest {
         happyPath(dossier("ON_HOLD", "DRAFT"));
         service.reclassify(CASE_ID, legal, request(Route.COURT, "Court evidence required next"));
         verifyNoInteractions(willComparisons);
+    }
+
+    @Test
+    void resumePropagatesNotificationFailure() {
+        happyPath(dossier("ON_HOLD", "DRAFT"));
+        when(notifications.record(any(), any(), any(), any(), any())).thenThrow(new IllegalStateException("notification failed"));
+        assertThatThrownBy(() -> service.reclassify(CASE_ID, legal, request(Route.COURT, "Resume")))
+                .isInstanceOf(IllegalStateException.class).hasMessage("notification failed");
+        verifyNoInteractions(views);
     }
 
     @Test
