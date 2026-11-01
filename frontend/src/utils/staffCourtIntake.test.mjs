@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
+import { distributionFixture } from './staffDistributionFixture.mjs';
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/staff/legal-documents' });
 globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const originalFetch = globalThis.fetch, originalXHR = globalThis.XMLHttpRequest;
@@ -27,25 +28,41 @@ async function mount(Page, extra = {}) {
   await act(async () => root.render(React.createElement(Page, { caseId: a, caseItem, accessToken: 'fixture', lang: 'en', ...extra })));
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
-function transport() { globalThis.fetch = async url => json(String(url).includes('/assets?') ? catalog : String(url).endsWith('/beneficiaries') ? [] : dossier); }
+function transport(state = { uploaded: false, forwarded: false }) {
+  const currentDossier = () => ({ ...dossier, status: state.forwarded ? 'LEGAL_BASIS_FORWARDED' : 'DRAFT',
+    versions: state.uploaded ? [{ version: 1, forwardStatus: state.forwarded ? 'FORWARDED' : 'NOT_FORWARDED' }] : [] });
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).endsWith('/distribution-workflow')) return json(distributionFixture(a, {
+      allowed: state.forwarded ? [] : [state.uploaded ? 'forwardDocuments' : 'uploadDocuments'],
+      phase: state.forwarded ? 'DOCUMENTS_UNDER_REVIEW' : 'AWAITING_DOCUMENTS',
+      document: state.uploaded ? { version: 1, sha256: 'a'.repeat(64), status: 'PENDING' } : null,
+    }));
+    if (options.method === 'POST' && String(url).endsWith('/forward')) {
+      state.forwarded = true;
+      state.forwardCalls = (state.forwardCalls || 0) + 1;
+      return json(currentDossier());
+    }
+    assert.ok(String(url).endsWith('/basis-dossier'), 'Document intake does not read allocation catalogues');
+    return json(currentDossier());
+  };
+}
 async function fillCourtForm(host) {
   await act(async () => host.querySelector('#tab-btn-intake').click());
-  await act(async () => host.querySelector('.lv-btn-add-allocation').click());
-  const selects = host.querySelectorAll('.lv-court-editor select');
-  await change(selects[0], b); await change(selects[1], 'court');
-  await change(host.querySelector('.lv-court-editor input[type=text]'), 'Recipient C');
+  assert.equal(host.querySelector('#panel-intake .lv-court-editor'), null, 'Allocations wait for Legal document approval');
   const inputs = host.querySelectorAll('form input.lv-form-input[type=text]');
   await change(inputs[0], 'Court'); await change(inputs[1], '25/2026');
-  await change(host.querySelector('.lv-datepicker-input'), '2026-10-01');
+  const date = host.querySelector('.lv-datepicker-input');
+  await change(date, '2026-10-01');
+  await act(async () => props(date).onBlur());
   const input = host.querySelector('input[type=file]');
   await act(async () => props(input).onChange({ target: { files: [new File(['%PDF-1.7\n%%EOF'], 'court.pdf', { type: 'application/pdf' })], value: '' } }));
 }
 test.afterEach(() => { globalThis.fetch = originalFetch; globalThis.XMLHttpRequest = originalXHR; });
-test('live intake with an empty recipient roster submits C via multipart, never beneficiary/account IDs; duplicate submit sends once', async () => {
-  transport(); const calls = [];
+test('requested document intake submits evidence without allocations or recipient/account IDs; duplicate submit sends once', async () => {
+  const state = { uploaded: false, forwarded: false }; transport(state); const calls = [];
   globalThis.XMLHttpRequest = class {
     upload = {}; open(method, url) { this.url = url; } setRequestHeader() {} abort() {}
-    async send(body) { calls.push(JSON.parse(await body.get('metadata').text())); this.status = 201; this.responseText = JSON.stringify({ ...dossier, versions: [{ version: 1, forwardStatus: 'NOT_FORWARDED', allocations: [] }] }); this.onload(); }
+    async send(body) { calls.push(JSON.parse(await body.get('metadata').text())); state.uploaded = true; this.status = 201; this.responseText = JSON.stringify({ ...dossier, versions: [{ version: 1, forwardStatus: 'NOT_FORWARDED', allocations: [] }] }); this.onload(); }
   };
   const view = await mount(Intake);
   try {
@@ -53,26 +70,35 @@ test('live intake with an empty recipient roster submits C via multipart, never 
     assert.equal(view.host.querySelector('.lv-btn-submit-version').disabled, false);
     await act(async () => { const form = view.host.querySelector('form'); for (let i = 0; i < 2; i++) form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); });
     assert.equal(calls.length, 1);
-    const row = calls[0].allocations[0];
-    assert.equal(row.assetId, b); assert.equal(row.beneficiaryId, undefined); assert.equal(row.courtRecipient.fullName, 'Recipient C');
-    assert.equal(row.courtRecipient.accountLinked, undefined); assert.equal(row.courtRecipient.identityNumber, undefined);
+    assert.equal(calls[0].allocations, undefined);
+    assert.equal(calls[0].beneficiaryId, undefined); assert.equal(calls[0].accountId, undefined);
+    assert.equal(calls[0].documentNumber, '25/2026');
+    assert.equal(state.forwarded, true, 'Uploaded evidence is forwarded through the separate server capability');
+    assert.equal(state.forwardCalls, 1);
+    assert.ok(view.host.querySelector('.lv-forward-badge--forwarded'), 'Confirmed server state survives workflow refresh');
   } finally { await view.close(); }
 });
-test('failed court intake keeps recipient/file draft; retry uses the same draft and shows success only after receipt', async () => {
-  transport(); let calls = 0;
+test('failed requested document upload keeps metadata/file draft; confirmed retry forwards evidence exactly once', async () => {
+  const state = { uploaded: false, forwarded: false }; transport(state); let calls = 0; const metadata = [];
   globalThis.XMLHttpRequest = class {
     upload = {}; open() {} setRequestHeader() {} abort() {}
-    send() { this.status = ++calls === 1 ? 500 : 201; this.responseText = JSON.stringify(calls === 1 ? { code: 'INTERNAL_ERROR', message: 'Retry upload' } : { ...dossier, versions: [{ version: 1, forwardStatus: 'NOT_FORWARDED' }] }); queueMicrotask(() => this.onload()); }
+    async send(body) { metadata.push(JSON.parse(await body.get('metadata').text())); this.status = ++calls === 1 ? 500 : 201; state.uploaded = this.status === 201; this.responseText = JSON.stringify(calls === 1 ? { code: 'INTERNAL_ERROR', message: 'Retry upload' } : { ...dossier, versions: [{ version: 1, forwardStatus: 'NOT_FORWARDED' }] }); queueMicrotask(() => this.onload()); }
   };
   const view = await mount(Intake);
   try {
     await fillCourtForm(view.host);
     await act(async () => view.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
-    assert.match(view.host.textContent, /Retry upload/);
-    assert.equal(view.host.querySelector('.lv-court-editor input[type=text]').value, 'Recipient C');
+    assert.match(view.host.textContent, /upload could not be confirmed/i);
+    assert.equal(state.forwarded, false);
+    assert.equal(view.host.querySelector('.lv-form-success-banner'), null);
+    assert.equal(view.host.querySelector('form input.lv-form-input[type=text]').value, 'Court');
     assert.match(view.host.textContent, /court.pdf/);
     await act(async () => view.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
-    assert.equal(calls, 2); assert.equal(Boolean(view.host.querySelector('.lv-form-success-banner')), true);
+    assert.equal(calls, 2);
+    assert.deepEqual(metadata[1], metadata[0]);
+    assert.equal(state.forwarded, true);
+    assert.equal(state.forwardCalls, 1);
+    assert.ok(view.host.querySelector('.lv-forward-badge--forwarded'), 'Persisted confirmation remains after automatic dossier refresh');
   } finally { await view.close(); }
 });
 test('mixed A/C delivery keeps C visible with a reason, blocks its checkbox/button, and still allows A', async () => {

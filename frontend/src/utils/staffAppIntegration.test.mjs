@@ -7,6 +7,7 @@ import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createSession, storeSession } from './session.js';
 import { ids, deliveredItem, staffFixture, json } from './staffReviewFixture.mjs';
+import { distributionFixture } from './staffDistributionFixture.mjs';
 
 // Setup JSDOM
 const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -715,104 +716,29 @@ test('PS-96/97/98 Integration: Finding A - Real token with preview=true and defe
   }
 });
 
-test('PS-96/97/98 Integration: Finding B - Upload form blocks submit when allocations is empty; Live token prohibits mock samples', async () => {
-  const originalFetch = globalThis.fetch;
-  let posted = false;
-
+test('App document intake is separate from allocations and never injects preview samples into a live session', async () => {
+  const originalFetch = globalThis.fetch; const writes = [];
   globalThis.fetch = async (url, init = {}) => {
-    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
-    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
+    if (init.method === 'POST') writes.push(url);
     if (String(url).includes('/auth/me')) return json(staffUser);
-    if (init.method === 'POST') {
-      posted = true;
-      return json({
-        id: 'dossier-001',
-        caseId: ids.caseId,
-        route: 'COURT',
-        status: 'LEGAL_BASIS_PROVIDED',
-        versions: [],
-      }, 201);
-    }
-    if (url.includes('/basis-dossier')) {
-      return json({
-        id: 'dossier-001',
-        caseId: ids.caseId,
-        route: 'COURT',
-        status: 'LEGAL_BASIS_PROVIDED',
-        versions: [],
-      });
-    }
+    if (String(url).endsWith('/distribution-workflow')) return json(distributionFixture(ids.caseId, { allowed: ['uploadDocuments'] }));
+    if (String(url).endsWith('/basis-dossier')) return json({caseId:ids.caseId, route:'COURT', status:'DRAFT', versions:[]});
     return json({});
   };
-
-  // 1. Kiểm tra với phiên thật (Live token): Không có nút sample, nút add allocation bị khóa chờ BE
   storeSession(makeStaffSession());
   window.history.replaceState({}, '', `/staff/legal-documents?caseId=${ids.caseId}&preview=true`);
-
-  const host = document.createElement('div');
-  document.body.append(host);
-  const root = createRoot(host);
-
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
   try {
-    await act(async () => {
-      root.render(React.createElement(DevApp));
-    });
-
-    const intakeTabBtn = host.querySelector('#tab-btn-intake');
-    assert.ok(intakeTabBtn, 'Intake tab button must exist');
-    await act(async () => intakeTabBtn.click());
-
-    // Nút sample tuyệt đối không hiển thị ở phiên có token thật
-    const sampleBtn = host.querySelector('.lv-btn-mock-alloc-sample');
-    assert.equal(sampleBtn, null, 'Sample allocation button must NEVER exist in live authenticated sessions');
-
-    // Nút submit phải disabled khi chưa có allocation
-    const submitBtn = host.querySelector('.lv-btn-submit-version');
-    assert.ok(submitBtn, 'Submit button must exist');
-    assert.equal(submitBtn.disabled, true, 'Submit button must be disabled when allocations is empty');
-
-    // Nút thêm phân bổ bị disabled và hiển thị blocker notice
-    const addAllocBtn = host.querySelector('.lv-btn-add-allocation');
-    assert.ok(addAllocBtn, 'Add allocation button must exist');
-    assert.equal(addAllocBtn.disabled, true, 'Add allocation button must be disabled in live session pending metadata');
-    assert.ok(
-      host.textContent.includes('danh mục tài sản') || host.textContent.includes('asset catalog'),
-      'Must display business blocker banner when allocations metadata is pending'
-    );
-    assert.equal(posted, false, 'Must NOT have posted any request');
+    await act(async () => root.render(React.createElement(DevApp)));
+    await act(async () => host.querySelector('#tab-btn-intake').click());
+    assert.equal(host.querySelector('.lv-btn-mock-alloc-sample'), null);
+    assert.equal(host.querySelector('#panel-intake .lv-court-editor'), null);
+    assert.ok(host.querySelector('#panel-intake input[type=file]'), 'Requested document evidence has its own intake form');
+    await act(async () => host.querySelector('#tab-btn-allocations').click());
+    assert.equal(host.querySelector('#panel-allocations form'), null, 'No allocation writing before Legal approval');
+    assert.equal(writes.length, 0);
   } finally {
-    await act(async () => root.unmount());
-    host.remove();
-    storeSession(null);
-    globalThis.fetch = originalFetch;
-  }
-
-  // 2. Kiểm tra ở chế độ DEV Simulation (không token): Nút sample hiển thị và nạp allocation
-  const hostSim = document.createElement('div');
-  document.body.append(hostSim);
-  const rootSim = createRoot(hostSim);
-
-  try {
-    storeSession(null);
-    window.history.replaceState({}, '', `/staff/legal-documents?caseId=case-court&preview=true`);
-
-    await act(async () => {
-      rootSim.render(React.createElement(DevApp));
-    });
-
-    const intakeTabBtn = hostSim.querySelector('#tab-btn-intake');
-    assert.ok(intakeTabBtn, 'Intake tab button must exist in simulation');
-    await act(async () => intakeTabBtn.click());
-
-    const simSampleBtn = hostSim.querySelector('.lv-btn-mock-alloc-sample');
-    assert.ok(simSampleBtn, 'Sample allocation button must exist in anonymous DEV preview simulation');
-    await act(async () => simSampleBtn.click());
-
-    const allocRows = hostSim.querySelectorAll('.lv-court-editor__row');
-    assert.ok(allocRows.length > 0, 'Allocation row should be rendered after clicking sample in simulation');
-  } finally {
-    await act(async () => rootSim.unmount());
-    hostSim.remove();
+    await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = originalFetch;
   }
 });
 
@@ -825,6 +751,12 @@ test('PS-96/97/98 Integration: Finding C - Deferred forward response from Case A
     if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
     if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
     if (String(url).includes('/auth/me')) return json(staffUser);
+    if (String(url).endsWith('/distribution-workflow')) {
+      const caseId = String(url).includes(ids.otherCaseId) ? ids.otherCaseId : ids.caseId;
+      return json(distributionFixture(caseId, { allowed: ['forwardDocuments'], document: {
+        version: caseId === ids.otherCaseId ? 2 : 1, sha256: 'a'.repeat(64), status: 'PENDING',
+      } }));
+    }
     if (init.method === 'POST' && url.includes(`/staff/verification-cases/${ids.caseId}/basis-dossier/versions/1/forward`)) {
       forwardPostCount++;
       return new Promise((resolve) => {
@@ -955,62 +887,28 @@ test('PS-96/97/98 Integration: Finding C - Deferred forward response from Case A
   }
 });
 
-test('PS-96/97/98 Integration: Legacy NOTARIAL route is strictly read-only with no mutations permitted', async () => {
-  const originalFetch = globalThis.fetch;
-
-  globalThis.fetch = async (url) => {
-    if (/\/verification-cases\/[^/]+\/assets\?/.test(String(url))) return json({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 });
-    if (/\/verification-cases\/[^/]+\/beneficiaries$/.test(String(url))) return json([]);
+test('App NOTARIAL document intake follows server capability instead of a blanket read-only route policy', async () => {
+  const originalFetch = globalThis.fetch; const writes = [];
+  globalThis.fetch = async (url, init = {}) => {
+    if (init.method === 'POST') writes.push(url);
     if (String(url).includes('/auth/me')) return json(staffUser);
-    if (url.includes('/basis-dossier')) {
-      return json({
-        id: 'dossier-notarial',
-        caseId: ids.caseId,
-        route: 'NOTARIAL',
-        status: 'LEGAL_BASIS_PROVIDED',
-        versions: [{ version: 1, forwardStatus: 'NOT_FORWARDED', notes: 'Legacy Notarial V1' }],
-      });
-    }
+    if (String(url).endsWith('/distribution-workflow')) return json(distributionFixture(ids.caseId, { allowed: ['uploadDocuments'] }));
+    if (String(url).endsWith('/basis-dossier')) return json({caseId:ids.caseId, route:'NOTARIAL', status:'DRAFT', versions:[]});
     return json({});
   };
-
-  storeSession(makeStaffSession());
-  window.history.replaceState({}, '', `/staff/legal-documents?caseId=${ids.caseId}&preview=true`);
-
-  const host = document.createElement('div');
-  document.body.append(host);
-  const root = createRoot(host);
-
+  storeSession(makeStaffSession()); window.history.replaceState({}, '', `/staff/legal-documents?caseId=${ids.caseId}`);
+  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   try {
-    await act(async () => {
-      root.render(React.createElement(DevApp));
-    });
-
-    // 1. Tab Tổng quan: Nút forward tuyệt đối không hiển thị cho hồ sơ NOTARIAL
-    const forwardBtn = host.querySelector('.lv-btn-forward-legal');
-    assert.equal(forwardBtn?.disabled, true, 'NOTARIAL keeps the action disabled with a reason');
-
-    // 2. Chuyển sang Tab Tiếp nhận
-    const intakeTabBtn = host.querySelector('#tab-btn-intake');
-    assert.ok(intakeTabBtn, 'Intake tab button must exist');
-    await act(async () => intakeTabBtn.click());
-
-    // 3. Phải hiển thị banner chỉ đọc NOTARIAL
-    assert.ok(
-      host.textContent.includes('NOTARIAL') || host.textContent.includes('chỉ đọc') || host.textContent.includes('Read-Only'),
-      'Must display read-only notice for legacy NOTARIAL route'
-    );
-
-    // 4. Nút submit phải bị disabled
-    const submitBtn = host.querySelector('.lv-btn-submit-version');
-    assert.ok(submitBtn, 'Submit button must exist');
-    assert.equal(submitBtn.disabled, true, 'Submit button must be disabled for NOTARIAL route');
-  } finally {
-    await act(async () => root.unmount());
-    host.remove();
-    storeSession(null);
-    globalThis.fetch = originalFetch;
-  }
+    await act(async()=>root.render(React.createElement(DevApp)));
+    const forward = host.querySelector('.lv-btn-forward-legal');
+    assert.ok(!forward || forward.disabled, 'No forward permission before a document exists');
+    await act(async()=>host.querySelector('#tab-btn-intake').click());
+    assert.equal(host.querySelector('.lv-btn-submit-version').disabled, false, 'Server permits requested notarial document intake');
+    assert.equal(host.querySelector('option[value=NOTARIAL_PARTITION]').disabled, false);
+    await act(async()=>host.querySelector('#tab-btn-allocations').click());
+    assert.equal(host.querySelector('#panel-allocations form'), null, 'A notarial route does not bypass Legal approval');
+    assert.equal(writes.length,0);
+  } finally {await act(async()=>root.unmount());host.remove();storeSession(null);globalThis.fetch=originalFetch;}
 });
 
 test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filtering, review modal, and batch delivery', async () => {
