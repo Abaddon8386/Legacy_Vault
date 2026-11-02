@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { normalizeAdminRole, normalizeAdminRoles, validateAdminOverview, validateAdminUser, validateAdminAuditLog,
   fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, lockAdminUser } from './adminService.js';
 const id = '11111111-1111-4111-8111-111111111111';
 const event = { id, occurredAt: '2026-10-20T12:00:00Z', actor: { kind: 'UNKNOWN', userId: null },
   action: 'LEGACY_EVENT', entityType: 'OTHER', vaultId: null };
+test('all audit actions emitted by the current backend remain readable without relaxing the DTO whitelist', () => {
+  const source = readFileSync(new URL('../../../backend/src/main/java/com/legacyvault/audit/AuditAction.java', import.meta.url), 'utf8');
+  const actions = [...source.matchAll(/^\s+([A-Z][A-Z0-9_]+),?\s*$/gm)].map(match => match[1]);
+  assert.ok(actions.includes('HANDOVER_GROUP_CHANGED'));
+  for (const action of actions) assert.equal(validateAdminAuditLog({ ...event, action }).action, action);
+  assert.throws(() => validateAdminAuditLog({ ...event, action: 'UNREVIEWED_ACTION' }));
+});
 const overview = { totalAccounts: 100, activeVaults: 40, processingCases: 2,
   roleAssignments: { ROLE_ADMIN: 2, ROLE_VAULT_OWNER: 90, ROLE_BENEFICIARY: 30, ROLE_STAFF_EXECUTOR: 5, ROLE_LEGAL_VERIFIER: 3 },
   startedAt: '2026-10-20T12:00:00Z', completedAt: '2026-10-20T12:00:01Z', consistency: 'READ_COMMITTED_COLLECTION_WINDOW' };

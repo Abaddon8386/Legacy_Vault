@@ -29,9 +29,31 @@ test('Assigned case hides claim action; claim conflict uses customer language wi
  globalThis.fetch=async(url,init)=>init.method==='POST'?json({code:'VERIFICATION_CASE_NOT_CLAIMABLE'},409):json(url.endsWith('death-documents')?[]:{...detail,assignmentStatus:'UNASSIGNED_CLAIMABLE'});
  const available=await mount();
  await act(async()=>button(available.host,'Nhận hồ sơ').click());
- assert.match(available.host.querySelector('[role=alert]').textContent,/Hồ sơ đã có người phụ trách/);
+ assert.ok([...available.host.querySelectorAll('[role=alert]')].some(node => /Hồ sơ đã có người phụ trách/.test(node.textContent)));
  assert.equal(available.host.textContent.includes('VERIFICATION_CASE_NOT_CLAIMABLE'),false);
  await available.close();
+});
+
+test('opening an intake case loads actual workflow progress instead of a default zero; read failures stay explicit',async()=>{
+ let release;
+ globalThis.fetch=async(url)=>url.endsWith('/distribution-workflow')?new Promise(resolve=>{release=resolve;}):json(url.endsWith('death-documents')?[]:detail);
+ const v=await mount();
+ try {
+  assert.match(v.host.textContent,/Đang tải tiến trình hồ sơ/);
+  assert.equal(v.host.querySelector('.lv-workflow-guide progress'),null);
+  const actions=['requestDocuments','uploadDocuments','forwardDocuments','approveDocuments','requestDocumentSupplementation','submitAllocations','approveAllocations','requestAllocationChanges'];
+  await act(async()=>release(json({caseId:id,revision:1,phase:'DOCUMENT_REQUEST_NEEDED',prerequisites:{deathApproved:true,willMatched:true},request:null,document:null,allocation:null,
+    capabilities:Object.fromEntries(actions.map(action=>[action,{allowed:false,blockedReason:'NOT_CURRENT_STEP'}]))})));
+  assert.equal(v.host.querySelector('.lv-workflow-guide progress').value,1);
+  assert.match(v.host.querySelector('.lv-workflow-guide li.is-done').textContent,/Tiếp nhận/);
+  assert.match(v.host.querySelector('.lv-workflow-guide li.is-action').textContent,/Thẩm định pháp lý/);
+  globalThis.fetch=async()=>json({code:'INTERNAL_ERROR'},500);
+  await act(async()=>window.dispatchEvent(new window.Event('focus')));
+  // The hook skips background reads in hidden tabs; explicit failure is tested through reload.
+  await act(async()=>v.root.render(React.createElement(Screen,{...v.options,accessToken:'other-scope'})));
+  assert.equal(v.host.querySelector('.lv-workflow-guide progress'),null);
+  assert.match(v.host.textContent,/Chưa tải được tiến trình hồ sơ/);
+ } finally {await v.close();}
 });
 
 test('Closed case keeps document browsing while removing the disabled intake form',async()=>{

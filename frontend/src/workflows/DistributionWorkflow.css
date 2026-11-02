@@ -27,6 +27,10 @@
 .lv-distribution-refresh button { min-height: 44px; padding: 10px 16px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #164639; font: inherit; cursor: pointer; }
 .lv-distribution-refresh button:disabled { background: #edf0eb; color: #748077; cursor: default; }
 .lv-distribution-context p { margin: 0; font-size: 16px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lv-distribution-context.lv-distribution-context--request { background:#fff7e5; border:1px solid #d7b46b; border-left:5px solid #b47c16; padding:20px 24px; }
+.lv-distribution-context--request h2 { color:#754c10; font-size:21px; font-weight:700; margin-bottom:12px; }
+.lv-distribution-context--request p { color:#493c26; font-size:16px; line-height:1.75; }
+@media(max-width:640px) { .lv-distribution-context.lv-distribution-context--request { padding:16px; } }
 .lv-distribution-context button { justify-self: start; min-height: 44px; padding: 10px 16px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #164639; font-family: inherit; font-size: 14px; font-weight: 600; line-height: 1.5; }
 .lv-distribution-workflow.lv-surface-card { border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
 .lv-distribution-workflow.lv-surface-card > h2 { font-size: 21px; line-height: 1.4; margin: 0 0 12px; }

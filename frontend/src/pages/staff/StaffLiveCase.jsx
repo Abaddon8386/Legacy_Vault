@@ -14,6 +14,7 @@ import { FolderOpen, FileText, ChevronDown, RefreshCw, UserRound, Archive } from
 import './StaffLiveCase.css';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
+import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 
 const labels = {
   documentType: ['Loại giấy tờ', 'Document type'], issuingAuthority: ['Cơ quan cấp', 'Issuing authority'],
@@ -95,6 +96,9 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const documentsWritePending = useRef(false);
   const lock = useRef(false);
   const auth = useRef(onUnauthorized);
+  const progressWorkflow = useDistributionWorkflow({ caseId, workspace:'STAFF', accessToken, lang,
+    enabled:!!data && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE',
+    onUnauthorized, isMutationPending:() => lock.current });
   const attachmentRequests = useRef(new Map());
   const abortAttachments = () => {
     attachmentRequests.current.forEach(c => c.abort());
@@ -307,7 +311,10 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const currentPage = Math.min(documentPage, pageCount);
   const visibleRecords = numberedRecords.slice((currentPage-1)*5, currentPage*5);
   return <section className="lv-staff-live" aria-busy={busy || recordsLoading}>
-    <StaffWorkflowGuide current="intake" intakeDestinationNeeded caseId={caseId} caseStatus={data?.status} vaultStatus={data?.vaultStatus} loading={busy} error={error} lang={lang} />
+    <StaffWorkflowGuide current="intake" intakeDestinationNeeded caseId={caseId} caseStatus={data?.status}
+      vaultStatus={progressWorkflow.data?.phase === 'UNLOCKED' ? 'UNLOCKED' : data?.vaultStatus}
+      distributionWorkflow={progressWorkflow.data} loading={!data || progressWorkflow.loading}
+      error={error || progressWorkflow.error} onRetry={progressWorkflow.refresh} lang={lang} />
     <button type="button" onClick={onBack}>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button>
     <header className="lv-intake-heading lv-staff-glow">
       <div className="lv-intake-hero-mark"><FolderOpen size={30} aria-hidden="true" /></div>

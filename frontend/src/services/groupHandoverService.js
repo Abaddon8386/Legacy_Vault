@@ -4,6 +4,7 @@ function root(caseId,sessionId){if(!uuid(caseId)||!uuid(sessionId))throw new Api
 export function readGroupView(value){
   const s=value?.state;
   if(!s||!['UNCONFIRMED','READY','SUSPENDED','AWAITING_LEGAL'].includes(s.status)||!Number.isSafeInteger(s.revision)||s.revision<0||typeof s.allPresent!=='boolean'||typeof value.snapshot!=='string'||!Array.isArray(value.requiredRecipientIds)||!value.requiredRecipientIds.length||!value.requiredRecipientIds.every(uuid)||new Set(value.requiredRecipientIds).size!==value.requiredRecipientIds.length||typeof value.deliveryAllowed!=='boolean'||(s.requestId!==null&&!uuid(s.requestId))||(value.deliveryAllowed&&(s.status!=='READY'||!s.allPresent||s.snapshot!==value.snapshot)))throw new ApiError('INVALID_RESPONSE');
+  if(value.attendance!=null&&(!Array.isArray(value.attendance.presentRecipientIds)||!value.attendance.presentRecipientIds.every(uuid)||new Set(value.attendance.presentRecipientIds).size!==value.attendance.presentRecipientIds.length))throw new ApiError('INVALID_RESPONSE');
   return value;
 }
 export async function loadGroupHandover(caseId,sessionId,options){return readGroupView(await request(root(caseId,sessionId),{...options,cache:'no-store',expectedStatus:200}));}

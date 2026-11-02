@@ -69,8 +69,8 @@ test('Existing OPEN restored via list/detail; cancellation only after confirmati
 });
 test('409 open race requires reload and adopts server session without retrying POST',async()=>{
  let opens=0,lists=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){opens++;return json({code:'HANDOVER_SESSION_ALREADY_OPEN'},409);}if(url.endsWith('/group-handover'))return json(unconfirmedGroup);if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:cid,fullName:'Counter recipient'}]);if(url.endsWith(sid))return json(receipt);return json(++lists===1?[]:[receipt]);};
- const v=await mount();await act(async()=>btn(v.host,'Mở phiên bàn giao').click());assert.match(v.host.querySelector('[role=alert]').textContent,/Đã có phiên mở/);assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
- await act(async()=>btn(v.host,'Tải lại phiên').click());assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Staff cần ghi nhận/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(opens,1);await v.close();
+ const v=await mount();await act(async()=>btn(v.host,'Mở phiên bàn giao').click());assert.ok([...v.host.querySelectorAll('[role=alert]')].some(alert=>/Đã có phiên mở/.test(alert.textContent)));assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);
+ await act(async()=>btn(v.host,'Tải lại phiên').click());assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Nhân viên cần ghi nhận/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(opens,1);await v.close();
 });
 test('401 notifies logout; no fake account data; closed session is read-only in accounts mode',async()=>{
  let expired=0;globalThis.fetch=async()=>json({code:'UNAUTHENTICATED'},401);let v=await mount({onLogout(){expired++;}});assert.equal(expired,1);assert.match(v.host.textContent,/hết hạn/);await v.close();

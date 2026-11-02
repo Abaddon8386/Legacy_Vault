@@ -218,6 +218,60 @@ test('Missing original will shows the next step instead of an empty intake selec
 const makeDossier = (route = 'COURT') => ({ id: a, caseId: a, route, status: 'LEGAL_BASIS_FORWARDED', disputeStatus: 'NONE', requiredVersion: 1,
   versions: [{ version: 1, sha256: digest, forwardStatus: 'FORWARDED', documentNumber: 'Basis 1' }], classifiedBy: a });
 const distributionContext=()=>({caseId:a,vaultId:b,caseStatus:'OPEN',vaultStatus:'LEGAL_BASIS_VERIFICATION',deathDocuments:[],willComparison:{latestResult:'MATCH',approvalBlocked:false},basisDossier:makeDossier(),snapshot:{allocationHash:digest},capabilities:{approval:{allowed:false},unlock:{allowed:false}}});
+test('a stale supplementation action followed by waiting-for-documents hides old decisions and explains what Staff must do',async()=>{
+ let waiting=false;
+ globalThis.fetch=async(url,init)=>{
+  if(init.method==='POST'){waiting=true;return json({code:'DISTRIBUTION_WORKFLOW_STALE'},409);}
+  const value=workflowFixture(waiting?'AWAITING_DOCUMENTS':'DOCUMENTS_UNDER_REVIEW',waiting?'uploadDocuments':'requestDocumentSupplementation');
+  if(waiting){value.document.status='CHANGES_REQUESTED';value.feedback='Replace the missing page';value.revision=2;}
+  return json(url.endsWith('/distribution-workflow')?value:[]);
+ };
+ const view=await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});
+ try{
+  await change(view.host.querySelector('.lv-legal-basis-decision textarea'),'Supplement draft');
+  await click(view.host,'Request more documents');
+  assert.equal(view.host.querySelector('.lv-legal-basis-decision'),null);
+  assert.match(view.host.textContent,/Waiting for a new document version/);
+  assert.match(view.host.textContent,/previous action was not saved/);
+  assert.match(view.host.textContent,/Replace the missing page/);
+ }finally{await view.close();}
+});
+test('waiting for replacement documents does not relabel earlier allocation feedback as a document request',async()=>{
+ const value=workflowFixture('AWAITING_DOCUMENTS','uploadDocuments');
+ value.document.status='APPROVED';
+ value.allocation={...value.allocation,status:'CHANGES_REQUESTED'};
+ value.feedback='Correct the recipient allocation';
+ globalThis.fetch=async url=>json(url.endsWith('/distribution-workflow')?value:[]);
+ const view=await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});
+ try{
+  assert.match(view.host.textContent,/Latest assessment/);
+  assert.match(view.host.textContent,/Correct the recipient allocation/);
+  assert.doesNotMatch(view.host.textContent,/Reason for additional documents/);
+ }finally{await view.close();}
+});
+
+test('basis review keeps pause controls inside the result panel with separate forms and drafts',async()=>{
+ let writes=0;const value=workflowFixture('DOCUMENTS_UNDER_REVIEW','approveDocuments');
+ globalThis.fetch=async(url,init)=>{if(init.method==='POST')writes++;return json(url.endsWith('/distribution-workflow')?value:[]);};
+ const view=await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});
+ try {
+  const workspace=view.host.querySelector('.lv-legal-basis-workspace.is-review');
+  const result=workspace.querySelector('.lv-legal-basis-decision');
+  assert.ok(workspace.querySelector('.lv-legal-basis-source .lv-legal-basis-evidence'));
+  assert.ok(result.querySelector('.lv-legal-basis-hold-footer .lv-legal-hold-controls'));
+  const review=result.querySelector('textarea');await change(review,'Assessment draft');
+  await click(view.host,'Place case on hold');
+  const pause=result.querySelector('.lv-legal-hold-controls');
+  assert.equal(result.querySelectorAll('form').length,2);
+  assert.equal(result.querySelector('form form'),null);
+  await change(pause.querySelector('select'),'INSUFFICIENT_EVIDENCE');
+  await change(pause.querySelector('textarea'),'Pause draft');
+  assert.equal(review.value,'Assessment draft');
+  await click(view.host,'Place case on hold');await click(view.host,'Place case on hold');
+  assert.equal(pause.querySelector('textarea').value,'Pause draft');
+  assert.equal(review.value,'Assessment draft');assert.equal(writes,0);
+ }finally{await view.close();}
+});
 function workflowFixture(phase,action){const value=distributionFixture(distributionContext(),phase);if(phase==='DOCUMENT_REQUEST_NEEDED'){value.request=null;value.document=null;value.allocation=null;}else if(phase==='DOCUMENTS_UNDER_REVIEW'){value.document.status='PENDING';value.allocation=null;}else if(phase==='ALLOCATIONS_UNDER_REVIEW')value.allocation.status='SUBMITTED';value.capabilities[action]={allowed:true,blockedReason:null};return value;}
 test('unimplemented workflow has no route selector or fabricated action',async()=>{globalThis.fetch=async()=>json({},404);const view=await mount({...base,step:'basis-route-selection'});try{assert.equal(getSelect(view.host,'Legal basis'),undefined);assert.equal(view.host.querySelector('form'),null);assert.match(view.host.textContent,/unavailable|outside this account/);}finally{await view.close();}});
 for(const [action,phase,title,path] of [
