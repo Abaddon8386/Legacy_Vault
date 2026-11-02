@@ -230,8 +230,73 @@ for(const [action,phase,title,path] of [
  let writes=0,body,destination;const value=workflowFixture(phase,action);
  globalThis.fetch=async(url,init)=>{if(init.method==='POST'){writes++;destination=url;body=JSON.parse(init.body);return json({caseId:a,action,revision:2});}return url.endsWith('/distribution-workflow')?json(value):json([]);};
  const view=await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});
- try{assert.equal(getSelect(view.host,'Legal basis'),undefined);const target=[...view.host.querySelectorAll('button')].find(x=>x.textContent===title);assert.equal(target.disabled,true);await change(view.host.querySelector('textarea'),'Reviewed');await click(view.host,title);assert.equal(writes,1);assert.ok(destination.endsWith('/'+path));assert.equal(body.reason,'Reviewed');assert.equal(body.revision,1);assert.equal(Object.hasOwn(body,'route'),false);assert.doesNotMatch(destination,/basis-dossier\/decision$|\/unlock$/);if(action==='requestDocuments')assert.equal(Object.hasOwn(body,'documentVersion'),false);if(phase==='ALLOCATIONS_UNDER_REVIEW'){assert.equal(body.allocationVersion,1);assert.match(view.host.textContent,/Stored asset|Case recipient/);}assert.doesNotMatch(view.host.textContent,/notification has been sent/);}finally{await view.close();}
+ try{assert.equal(getSelect(view.host,'Legal basis'),undefined);const target=[...view.host.querySelectorAll('button')].find(x=>x.textContent===title);assert.equal(target.disabled,true);if(action==='requestDocuments')await change(getSelect(view.host,'Document requirement'),'DISTRIBUTION');await change(view.host.querySelector('textarea'),'Reviewed');await click(view.host,title);assert.equal(writes,1);assert.ok(destination.endsWith('/'+path));assert.equal(body.reason,action==='requestDocuments'?'Documents requested: Valid asset distribution documents\nReason: Reviewed':'Reviewed');assert.equal(body.revision,1);assert.equal(Object.hasOwn(body,'route'),false);assert.doesNotMatch(destination,/basis-dossier\/decision$|\/unlock$/);if(action==='requestDocuments')assert.equal(Object.hasOwn(body,'documentVersion'),false);if(phase==='ALLOCATIONS_UNDER_REVIEW'){assert.equal(body.allocationVersion,1);assert.match(view.host.textContent,/Stored asset|Case recipient/);}assert.doesNotMatch(view.host.textContent,/notification has been sent/);}finally{await view.close();}
 });
+for (const lang of ['vi', 'en']) test(`document request (${lang}) requires a selection and reason and sends both through the existing contract`, async () => {
+  const en = lang === 'en', value = workflowFixture('DOCUMENT_REQUEST_NEEDED', 'requestDocuments');
+  let writes = 0, body;
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'POST') { writes++; body = JSON.parse(init.body); return json({ caseId: a, action: 'requestDocuments', revision: 2 }); }
+    return url.endsWith('/distribution-workflow') ? json(value) : json([]);
+  };
+  const view = await mount({ ...base, step: 'basis-route-selection', lang, contextLoader: async () => distributionContext() });
+  try {
+    const form = view.host.querySelector('.lv-legal-document-request');
+    assert.equal(form.querySelectorAll(':scope > section').length, 2);
+    const select = getSelect(view.host, en ? 'Document requirement' : 'Giấy tờ yêu cầu');
+    assert.equal(select.value, '');
+    assert.ok(![...select.options].some(option => ['COURT', 'NOTARIAL'].includes(option.value)), 'Document selection must not impose a legal route');
+    await change(view.host.querySelector('textarea'), 'Cần làm rõ phần được hưởng');
+    await submit(view.host); assert.equal(writes, 0, 'A reason alone cannot submit the request');
+    await change(select, 'DISTRIBUTION');
+    await submit(view.host);
+    assert.equal(writes, 1);
+    assert.deepEqual(body, { revision: 1, reason: en
+      ? 'Documents requested: Valid asset distribution documents\nReason: Cần làm rõ phần được hưởng'
+      : 'Giấy tờ cần nộp: Giấy tờ phân chia tài sản hợp lệ\nLý do: Cần làm rõ phần được hưởng' });
+  } finally { await view.close(); }
+});
+
+test('custom document name and reason survive errors and refresh but clear on account change', async () => {
+  const value = workflowFixture('DOCUMENT_REQUEST_NEEDED', 'requestDocuments'); let writes = 0;
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'POST') { writes++; return json({ code: 'INTERNAL_ERROR' }, 500); }
+    return url.endsWith('/distribution-workflow') ? json(value) : json([]);
+  };
+  const options = { ...base, step: 'basis-route-selection', contextLoader: async () => distributionContext() };
+  const view = await mount(options);
+  try {
+    await change(getSelect(view.host, 'Document requirement'), 'OTHER');
+    await change(view.host.querySelector('textarea'), 'Clarify the supporting document');
+    await submit(view.host); assert.equal(writes, 0, 'Other documents require an explicit name');
+    await change(view.host.querySelector('.lv-legal-document-request input[type=text]'), 'Supporting distribution record');
+    await submit(view.host); assert.equal(writes, 1);
+    assert.match(view.host.textContent, /could not be saved/);
+    await click(view.host, 'Refresh documents and case');
+    assert.equal(getSelect(view.host, 'Document requirement').value, 'OTHER');
+    assert.equal(view.host.querySelector('input[type=text]').value, 'Supporting distribution record');
+    assert.equal(view.host.querySelector('textarea').value, 'Clarify the supporting document');
+    await view.render({ ...options, session: { ...session, accessToken: 'another-account-fixture' } });
+    assert.equal(getSelect(view.host, 'Document requirement').value, '');
+    assert.equal(view.host.querySelector('input[type=text]'), null);
+    assert.equal(view.host.querySelector('textarea').value, '');
+  } finally { await view.close(); }
+});
+
+test('the combined selected document and reason must fit the server limit', async () => {
+  const value = workflowFixture('DOCUMENT_REQUEST_NEEDED', 'requestDocuments'); let writes = 0;
+  globalThis.fetch = async (url, init) => { if (init.method === 'POST') writes++; return json(url.endsWith('/distribution-workflow') ? value : []); };
+  const view = await mount({ ...base, step: 'basis-route-selection', contextLoader: async () => distributionContext() });
+  try {
+    await change(getSelect(view.host, 'Document requirement'), 'DISTRIBUTION');
+    const field = view.host.querySelector('textarea');
+    assert.ok(field.maxLength < 1000, 'Reserve space for the selected document in the existing reason field');
+    await change(field, 'x'.repeat(1000));
+    assert.equal(field.getAttribute('aria-invalid'), 'true');
+    await submit(view.host); assert.equal(writes, 0);
+  } finally { await view.close(); }
+});
+
 test('changed distribution revision blocks POST and retains the review reason',async()=>{let reads=0,writes=0;const value=workflowFixture('DOCUMENTS_UNDER_REVIEW','approveDocuments');globalThis.fetch=async(url,init)=>{if(init.method==='POST'){writes++;return json({});}return url.endsWith('/distribution-workflow')?json({...value,revision:++reads>1?2:1}):json([]);};const view=await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});try{await change(view.host.querySelector('textarea'),'Keep this reason');await click(view.host,'Accept documents');assert.equal(writes,0);assert.match(view.host.textContent,/case changed/);assert.equal(view.host.querySelector('textarea').value,'Keep this reason');}finally{await view.close();}});
 test('waiting for Staff documents or allocations exposes no premature Legal action',async()=>{for(const phase of ['AWAITING_DOCUMENTS','AWAITING_ALLOCATIONS']){globalThis.fetch=async()=>json(workflowFixture(phase,'approveDocuments'));const view=await mount({...base,step:'basis-route-selection',contextLoader:async()=>distributionContext()});try{assert.equal(view.host.querySelector('form'),null);}finally{await view.close();}}});
 
