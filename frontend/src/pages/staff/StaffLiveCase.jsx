@@ -13,6 +13,7 @@ import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.j
 import { FolderOpen, FileText, Paperclip, RefreshCw, UserRound, Archive } from 'lucide-react';
 import './StaffLiveCase.css';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
+import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 
 const labels = {
   documentType: ['Loại giấy tờ', 'Document type'], issuingAuthority: ['Cơ quan cấp', 'Issuing authority'],
@@ -41,6 +42,23 @@ function intakeFeedback(value, en) {
     NETWORK_ERROR: ['Chưa kết nối được máy chủ. Vui lòng kiểm tra kết nối và thử lại.', 'Unable to connect. Please check your connection and retry.'],
   };
   return messages[code]?.[en ? 1 : 0] || (en ? 'Unable to complete this action. Please reload the information and try again. Your entered details are preserved.' : 'Chưa thể hoàn tất thao tác. Vui lòng tải lại thông tin và thử lại. Nội dung bạn đã nhập vẫn được giữ.');
+}
+
+export function DeathDocumentDecision({ decision, en }) {
+  if (decision === undefined) return <p className="lv-intake-decision-unavailable">{en ? 'Legal decision data is unavailable. Refresh the documents.' : 'Chưa có dữ liệu kết quả Legal. Vui lòng cập nhật giấy tờ.'}</p>;
+  const status = decision?.result || 'PENDING';
+  const label = {
+    PENDING: ['Chờ Legal kiểm tra', 'Awaiting Legal review'],
+    APPROVED: ['Đã chấp thuận', 'Accepted'],
+    REJECTED: ['Đã từ chối', 'Rejected'],
+    NEEDS_CORRECTION: ['Cần bổ sung giấy tờ', 'Additional documents required'],
+  }[status];
+  return <div className={`lv-intake-decision is-${status.toLowerCase()}`}>
+    <strong className="lv-intake-decision-status">{label[en ? 1 : 0]}</strong>
+    {decision && <><p><strong>{en ? 'Legal’s reason: ' : 'Lý do của Legal: '}</strong>{decision.reason}</p>
+      <time dateTime={decision.decidedAt}>{en ? 'Decided: ' : 'Quyết định: '}{new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(decision.decidedAt))}</time></>}
+    {['REJECTED', 'NEEDS_CORRECTION'].includes(status) && <p>{en ? 'Receive a new document and send it to Legal for review. This decision remains in history.' : 'Tiếp nhận giấy tờ mới để Legal kiểm tra lại. Quyết định này được giữ trong lịch sử.'}</p>}
+  </div>;
 }
 
 export default function StaffLiveCase(props) {
@@ -145,6 +163,16 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       docsController.current?.abort();
     };
   }, [loadDocuments, kind]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible' && !lock.current && !Object.values(isUploadingAtt).some(Boolean)) loadDocuments(kind);
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const timer = window.setInterval(refresh, 30000);
+    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); window.clearInterval(timer); };
+  }, [loadDocuments, kind, isUploadingAtt]);
 
   // Tải danh sách tệp đính kèm của một bản ghi giấy tờ đã lưu
   const loadRecordAttachments = async (recordId) => {
@@ -355,6 +383,8 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
                 </button>
               </div>
 
+              {kind === 'death-documents' && <DeathDocumentDecision decision={item.legalDecision} en={en} />}
+              {kind === 'original-will-intakes' && <WillComparisonOutcome comparison={item.comparison} en={en} />}
               {activeRecordId === item.id && (
                 <div className="lv-staff-attachments-pane" role="region" aria-label={en ? 'Attachments' : 'Tệp đính kèm'}>
                   {attachmentLoading[item.id] ? (

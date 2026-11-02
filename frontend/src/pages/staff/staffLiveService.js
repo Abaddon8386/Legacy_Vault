@@ -27,10 +27,27 @@ function receipt(data, id) {
 export async function staffDocuments(id, kind, values, options) {
   if (!Object.hasOwn(fields, kind)) throw new ApiError('VALIDATION_FAILED', 400);
   const body = values === undefined ? undefined : Object.fromEntries(fields[kind].map(key => [key, String(values[key] || '').trim()]));
-  const result = await request(`${path(id)}/${kind}`, { ...options, method: body ? 'POST' : 'GET', body, expectedStatus: body ? 201 : 200 });
+  const result = await request(`${path(id)}/${kind}`, { ...options, cache: 'no-store', method: body ? 'POST' : 'GET', body, expectedStatus: body ? 201 : 200 });
   if (body) return receipt(result, id);
   if (!Array.isArray(result)) throw new ApiError('INVALID_RESPONSE');
-  return result.map(item => receipt(item, id));
+  return result.map(item => {
+    receipt(item, id);
+    if (kind === 'death-documents' && item.legalDecision != null) {
+      const decision = item.legalDecision;
+      if (!['APPROVED', 'REJECTED', 'NEEDS_CORRECTION'].includes(decision.result)
+          || typeof decision.reason !== 'string' || !decision.reason.trim()
+          || !Number.isFinite(Date.parse(decision.decidedAt))) throw new ApiError('INVALID_RESPONSE');
+    }
+    if (kind === 'original-will-intakes' && item.comparison != null) {
+      const outcome = item.comparison;
+      if (!['MATCH', 'MISMATCH', 'INCONCLUSIVE'].includes(outcome.result)
+          || (outcome.reason != null && typeof outcome.reason !== 'string')
+          || (outcome.result !== 'MATCH' && !outcome.reason?.trim())
+          || !Number.isInteger(outcome.digitalVersion) || outcome.digitalVersion < 1
+          || !Number.isFinite(Date.parse(outcome.comparedAt))) throw new ApiError('INVALID_RESPONSE');
+    }
+    return item;
+  });
 }
 
 export async function staffDocumentAttachments(id, kind, recordId, options = {}) {

@@ -45,18 +45,21 @@ public class OriginalWillIntakeService {
     private final AuditService auditService;
     private final LegalBasisLockedState state;
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
+    private final com.legacyvault.verification.repository.WillComparisonRepository comparisons;
 
     public OriginalWillIntakeService(
             StaffCaseLockRepository caseRepository,
             OriginalWillIntakeRepository intakeRepository,
             UserRepository userRepository,
             AuditService auditService,
-            LegalBasisLockedState state, com.legacyvault.notification.WorkflowNotificationService notifications) {
+            LegalBasisLockedState state, com.legacyvault.notification.WorkflowNotificationService notifications,
+            com.legacyvault.verification.repository.WillComparisonRepository comparisons) {
         this.caseRepository = caseRepository;
         this.intakeRepository = intakeRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.state = state; this.notifications = notifications;
+        this.comparisons = comparisons;
     }
 
     @Transactional
@@ -116,10 +119,12 @@ public class OriginalWillIntakeService {
                 .findByVerificationCaseIdOrderByReceivedAtDescOriginalWillIntakeIdDesc(
                         verificationCase.getVerificationCaseId());
         Map<Long, UUID> receivers = publicIdsOf(intakes);
+        var outcomes = comparisonsOf(verificationCase);
 
         return intakes.stream()
                 .map(intake -> OriginalWillIntakeResponse.from(
-                        intake, verificationCase.getPublicId(), receivers.get(intake.getReceivedByUserId())))
+                        intake, verificationCase.getPublicId(), receivers.get(intake.getReceivedByUserId()))
+                        .withComparison(outcomes.get(intake.getPublicId())))
                 .toList();
     }
 
@@ -133,7 +138,17 @@ public class OriginalWillIntakeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         return OriginalWillIntakeResponse.from(
-                intake, verificationCase.getPublicId(), publicIdsOf(List.of(intake)).get(intake.getReceivedByUserId()));
+                intake, verificationCase.getPublicId(), publicIdsOf(List.of(intake)).get(intake.getReceivedByUserId()))
+                .withComparison(comparisonsOf(verificationCase).get(intake.getPublicId()));
+    }
+
+    private Map<UUID, OriginalWillIntakeResponse.Comparison> comparisonsOf(VerificationCase verificationCase) {
+        var result = new java.util.HashMap<UUID, OriginalWillIntakeResponse.Comparison>();
+        for (var row : comparisons.findRowsByCase(verificationCase.getVerificationCaseId())) {
+            result.putIfAbsent(row.originalWillIntakeId(), new OriginalWillIntakeResponse.Comparison(
+                    row.result(), row.reason(), row.comparedAt().toInstant(java.time.ZoneOffset.UTC), row.version()));
+        }
+        return result;
     }
 
     private VerificationCase requireOwnedCase(UUID caseId, Long staffUserId) {

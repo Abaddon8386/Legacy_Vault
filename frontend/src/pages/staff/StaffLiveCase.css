@@ -49,6 +49,16 @@
   gap: 12px;
 }
 
+.lv-staff-live .lv-intake-decision { margin-top:14px; padding:14px 16px; border:1px solid #d7e1e6; border-radius:8px; background:#f5f8fa; font-size:16px; line-height:1.55; }
+.lv-staff-live .lv-intake-decision p { margin:8px 0 0; overflow-wrap:anywhere; }
+.lv-staff-live .lv-intake-decision time { display:block; margin-top:6px; font-size:14px; }
+.lv-staff-live .lv-intake-decision.is-rejected { border-color:#e7b9b5; background:#fff5f4; color:#8e3028; }
+.lv-staff-live .lv-intake-decision.is-approved { border-color:#adcdb9; background:#f1f8f3; color:#24563b; }
+.lv-staff-live .lv-intake-decision.is-needs_correction { border-color:#dcc58f; background:#fffaef; color:#785419; }
+.lv-staff-live .lv-intake-decision-unavailable { font-size:16px; margin:12px 0 0; }
+.lv-staff-live .lv-intake-document-meta time { font-size:14px; }
+.lv-staff-live .lv-staff-btn-toggle-att { min-height:44px; font-size:14px !important; }
+
 .lv-staff-record-item {
   background: #ffffff;
   border: 1px solid #e2e8f0;

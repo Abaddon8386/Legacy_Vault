@@ -234,6 +234,8 @@ class LegalBasisReviewServiceTest {
         assertThat(historyCaptor.getValue().getReason())
                 .isEqualTo("Bổ sung giấy tờ còn thiếu");
         assertThat(historyCaptor.getValue().getReviewedByUserId()).isEqualTo(REVIEWER_ID);
+        assertThat(historyCaptor.getValue().getVersionNo()).isEqualTo(1);
+        assertThat(historyCaptor.getValue().getSha256Hash()).isEqualTo(HASH);
 
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(f.audit).record(auditCaptor.capture());

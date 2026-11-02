@@ -46,9 +46,10 @@ class OriginalWillIntakeServiceTest {
     private final OriginalWillIntakeRepository intakeRepository = mock(OriginalWillIntakeRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final AuditService auditService = mock(AuditService.class);
+    private final com.legacyvault.verification.repository.WillComparisonRepository comparisons = mock(com.legacyvault.verification.repository.WillComparisonRepository.class);
     private final OriginalWillIntakeService service = new OriginalWillIntakeService(caseRepository, intakeRepository,
             userRepository, auditService,
-            mock(com.legacyvault.verification.service.LegalBasisLockedState.class), mock(com.legacyvault.notification.WorkflowNotificationService.class));
+            mock(com.legacyvault.verification.service.LegalBasisLockedState.class), mock(com.legacyvault.notification.WorkflowNotificationService.class), comparisons);
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
@@ -173,7 +174,30 @@ class OriginalWillIntakeServiceTest {
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
         assertThatThrownBy(() -> service.get(CASE_ID, UUID.randomUUID(), staff))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
-        verifyNoInteractions(intakeRepository);
+        verifyNoInteractions(intakeRepository, comparisons);
+    }
+
+    @Test
+    void comparisonStaysOnItsOriginalPaperAndIncludesComparedDigitalVersion() {
+        when(caseRepository.findOwnedByStaff(CASE_ID, STAFF_ID)).thenReturn(Optional.of(openCase()));
+        var first = new OriginalWillIntake(CASE_DB_ID, "Người nộp", "Con", STAFF_ID, "TEST", null);
+        var second = new OriginalWillIntake(CASE_DB_ID, "Người nộp mới", "Con", STAFF_ID, "TEST-2", null);
+        ReflectionTestUtils.setField(first, "publicId", UUID.randomUUID());
+        ReflectionTestUtils.setField(second, "publicId", UUID.randomUUID());
+        ReflectionTestUtils.setField(first, "receivedAt", LocalDateTime.of(2026, 11, 2, 9, 0));
+        ReflectionTestUtils.setField(second, "receivedAt", LocalDateTime.of(2026, 11, 2, 9, 5));
+        when(intakeRepository.findByVerificationCaseIdOrderByReceivedAtDescOriginalWillIntakeIdDesc(CASE_DB_ID)).thenReturn(List.of(second, first));
+        var row = new com.legacyvault.verification.repository.WillComparisonRow(UUID.randomUUID(), first.getPublicId(), UUID.randomUUID(),
+                2, "a".repeat(64), "MISMATCH", UUID.randomUUID(), "Thiếu trang bản giấy", LocalDateTime.of(2026, 11, 2, 9, 10));
+        when(comparisons.findRowsByCase(CASE_DB_ID)).thenReturn(List.of(row));
+        var list = service.list(CASE_ID, staff);
+        assertThat(list.get(0).comparison()).isNull();
+        assertThat(list.get(1).comparison().result()).isEqualTo("MISMATCH");
+        assertThat(list.get(1).comparison().digitalVersion()).isEqualTo(2);
+        assertThat(list.get(1).comparison().reason()).isEqualTo("Thiếu trang bản giấy");
+        when(intakeRepository.findByPublicIdAndVerificationCaseId(first.getPublicId(), CASE_DB_ID)).thenReturn(Optional.of(first));
+        assertThat(service.get(CASE_ID, first.getPublicId(), staff).comparison()).isEqualTo(list.get(1).comparison());
+        verifyNoInteractions(auditService);
     }
 
     @Test

@@ -45,18 +45,21 @@ public class DeathDocumentIntakeService {
     private final AuditService auditService;
     private final LegalBasisLockedState state;
     private final com.legacyvault.notification.WorkflowNotificationService notifications;
+    private final com.legacyvault.verification.repository.LegalVerificationRepository decisions;
 
     public DeathDocumentIntakeService(
             StaffCaseLockRepository caseRepository,
             DeathDocumentRecordRepository recordRepository,
             UserRepository userRepository,
             AuditService auditService,
-            LegalBasisLockedState state, com.legacyvault.notification.WorkflowNotificationService notifications) {
+            LegalBasisLockedState state, com.legacyvault.notification.WorkflowNotificationService notifications,
+            com.legacyvault.verification.repository.LegalVerificationRepository decisions) {
         this.caseRepository = caseRepository;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.state = state; this.notifications = notifications;
+        this.decisions = decisions;
     }
 
     @Transactional
@@ -119,10 +122,12 @@ public class DeathDocumentIntakeService {
                 .findByVerificationCaseIdOrderByReceivedAtDescDeathDocumentRecordIdDesc(
                         verificationCase.getVerificationCaseId());
         Map<Long, UUID> receivers = publicIdsOf(records);
+        var outcomes = decisionsOf(records);
 
         return records.stream()
                 .map(record -> DeathDocumentRecordResponse.from(
-                        record, verificationCase.getPublicId(), receivers.get(record.getReceivedByUserId())))
+                        record, verificationCase.getPublicId(), receivers.get(record.getReceivedByUserId()))
+                        .withLegalDecision(outcomes.get(record.getDeathDocumentRecordId())))
                 .toList();
     }
 
@@ -136,7 +141,21 @@ public class DeathDocumentIntakeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         return DeathDocumentRecordResponse.from(
-                record, verificationCase.getPublicId(), publicIdsOf(List.of(record)).get(record.getReceivedByUserId()));
+                record, verificationCase.getPublicId(), publicIdsOf(List.of(record)).get(record.getReceivedByUserId()))
+                .withLegalDecision(decisionsOf(List.of(record)).get(record.getDeathDocumentRecordId()));
+    }
+
+    private Map<Long, DeathDocumentRecordResponse.LegalDecision> decisionsOf(List<DeathDocumentRecord> records) {
+        if (records.isEmpty()) return Map.of();
+        var ids = records.stream().map(DeathDocumentRecord::getDeathDocumentRecordId).toList();
+        var result = new java.util.HashMap<Long, DeathDocumentRecordResponse.LegalDecision>();
+        for (var decision : decisions.findByDeathDocumentRecordIdInOrderByDecidedAtDescVerificationIdDesc(ids)) {
+            if (decision.getDecidedAt() != null && java.util.Set.of("APPROVED", "REJECTED", "NEEDS_CORRECTION").contains(decision.getResult())) {
+                result.putIfAbsent(decision.getDeathDocumentRecordId(), new DeathDocumentRecordResponse.LegalDecision(
+                        decision.getResult(), decision.getRemarks(), decision.getDecidedAt().toInstant(java.time.ZoneOffset.UTC)));
+            }
+        }
+        return result;
     }
 
     private VerificationCase requireOwnedCase(UUID caseId, Long staffUserId) {

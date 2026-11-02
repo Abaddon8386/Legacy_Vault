@@ -17,7 +17,15 @@ public record DeathDocumentRecordResponse(UUID id,
         UUID receivedBy,
         Instant receivedAt,
         String evidenceReference,
-        String notes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+        String notes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification,
+        LegalDecision legalDecision) {
+    public record LegalDecision(String result, String reason, Instant decidedAt) { }
+    public DeathDocumentRecordResponse(UUID id, UUID caseId, String documentType, String issuingAuthority,
+            String documentNumber, LocalDate issuedDate, UUID receivedBy, Instant receivedAt,
+            String evidenceReference, String notes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+        this(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt,
+                evidenceReference, notes, notification, null);
+    }
     public DeathDocumentRecordResponse(UUID id,
         UUID caseId,
         String documentType,
@@ -28,7 +36,11 @@ public record DeathDocumentRecordResponse(UUID id,
         Instant receivedAt,
         String evidenceReference,
         String notes) { this(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt, evidenceReference, notes, null); }
-    public DeathDocumentRecordResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new DeathDocumentRecordResponse(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt, evidenceReference, notes, receipt); }
+    public DeathDocumentRecordResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new DeathDocumentRecordResponse(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate, receivedBy, receivedAt, evidenceReference, notes, receipt, legalDecision); }
+    public DeathDocumentRecordResponse withLegalDecision(LegalDecision decision) {
+        return new DeathDocumentRecordResponse(id, caseId, documentType, issuingAuthority, documentNumber, issuedDate,
+                receivedBy, receivedAt, evidenceReference, notes, notification, decision);
+    }
 
     public static DeathDocumentRecordResponse from(
             DeathDocumentRecord record,
