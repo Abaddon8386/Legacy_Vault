@@ -371,7 +371,7 @@ function CopyButton({ text, lang }) {
 function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const onFailure = (error) => { if (error.status === 403) onDenied(); };
-  const { data, loading, error, apiPending } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
+  const { data, loading, error, apiPending, reload } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
 
   const formatFullTimestamp = (occurredAt) => {
     if (!occurredAt) return t.notAvailable;
@@ -385,7 +385,8 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
   };
 
   return <Modal isOpen onClose={onClose} title={t.logDetailTitle} closeLabel={t.closeModal}>
-    {loading ? <p role="status">{t.loading}</p> : error ? <p role="alert">{error}</p> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data && (
+    {loading ? <p role="status">{t.loading}</p> : error ? <><p role="alert">{error}</p>
+      <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={reload}>{t.retryBtn}</button></> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data && (
       <div>
         {/* Primary Event Overview: Meaning, Actor, Time */}
         <section aria-label={lang === 'en' ? 'Event overview' : 'Thông tin sự kiện'} style={{ marginBottom: '18px' }}>

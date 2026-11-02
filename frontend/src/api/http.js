@@ -33,7 +33,10 @@ export async function request(path, options = {}) {
   }
   let data;
   try { data = await response.json(); }
-  catch { throw new ApiError('INVALID_RESPONSE', response.status); }
+  catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new ApiError(error instanceof TypeError ? 'NETWORK_ERROR' : 'INVALID_RESPONSE', response.status);
+  }
   if (!response.ok) {
     throw new ApiError(typeof data?.code === 'string' ? data.code : (fallback[response.status] || 'INTERNAL_ERROR'),
       response.status, { ...data, traceId: data?.traceId || response.headers?.get?.('X-Trace-Id') });
