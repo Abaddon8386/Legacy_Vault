@@ -45,10 +45,22 @@ export async function loadLegalGroupHandover(caseId, sessionId, options = {}) {
   fail(value.progress && count(value.progress.requiredRecipients) && count(value.progress.presentRecipients)
     && count(value.progress.totalAssets) && count(value.progress.deliveredAssets));
   fail(value.attendance == null || (Array.isArray(value.attendance.presentRecipientIds) && value.attendance.presentRecipientIds.every(isUuid)
-    && new Set(value.attendance.presentRecipientIds).size === value.attendance.presentRecipientIds.length));
+    && new Set(value.attendance.presentRecipientIds).size === value.attendance.presentRecipientIds.length
+    && person(value.attendance.recordedBy) && instant(value.attendance.recordedAt) && text(value.attendance.reason)));
   fail(value.request == null || (isUuid(value.request.requestId) && instant(value.request.requestedAt) && person(value.request.requestedBy) && text(value.request.reason)));
   fail(value.lastDecision == null || (isUuid(value.lastDecision.eventId) && ['APPROVE', 'REJECT'].includes(value.lastDecision.result)
     && instant(value.lastDecision.decidedAt) && person(value.lastDecision.decidedBy) && text(value.lastDecision.reason)));
+  return value;
+}
+
+/** Newest-first history of locks, Staff requests and Legal decisions for the case (read-only). */
+export async function loadGroupHandoverEvents(caseId, sessionId, { page = 0, size = 20 } = {}, options = {}) {
+  if (!Number.isSafeInteger(page) || page < 0 || !Number.isSafeInteger(size) || size < 1 || size > 100) throw new ApiError('VALIDATION_FAILED', 400);
+  const value = await request(`${scope(caseId, sessionId)}/events?${new URLSearchParams({ page: String(page), size: String(size) })}`,
+    { ...options, cache: 'no-store', expectedStatus: 200 });
+  fail(Array.isArray(value?.content) && count(value.page) && count(value.size) && count(value.totalElements) && count(value.totalPages));
+  fail(value.content.every(event => isUuid(event?.eventId) && ['ATTENDANCE', 'REQUEST', 'APPROVE', 'REJECT'].includes(event.operation)
+    && count(event.revision) && text(event.resultingStatus) && text(event.reason) && instant(event.at) && person(event.by)));
   return value;
 }
 

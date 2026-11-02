@@ -5,7 +5,7 @@ import { ApiError } from '../../api/http.js';
 import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
-import { decideReopenRequest, loadLegalGroupHandover, loadReopenRequests } from '../../services/legalGroupHandoverService.js';
+import { decideReopenRequest, loadGroupHandoverEvents, loadLegalGroupHandover, loadReopenRequests } from '../../services/legalGroupHandoverService.js';
 import { loadDistributionWorkflow } from '../../workflows/distributionWorkflowService.js';
 import { legalDate } from './legalPresentation.js';
 import './LegalHandoverReopen.css';
@@ -17,6 +17,13 @@ const statusText = {
   SUSPENDED: ['Toàn bộ bàn giao đang tạm khóa', 'The whole handover is suspended'],
   AWAITING_LEGAL: ['Đang chờ Legal xét yêu cầu mở lại', 'Awaiting Legal reopening decision'],
   READY: ['Đã đủ điều kiện về người nhận; chưa đồng nghĩa đã bàn giao', 'Recipient requirement satisfied; this does not mean delivered'],
+};
+
+const operationText = {
+  ATTENDANCE: ['Staff ghi nhận người có mặt', 'Staff recorded attendance'],
+  REQUEST: ['Staff gửi yêu cầu mở lại', 'Staff requested reopening'],
+  APPROVE: ['Legal cho phép mở lại', 'Legal allowed reopening'],
+  REJECT: ['Legal từ chối mở lại', 'Legal refused reopening'],
 };
 
 /** Reopen decisions never claim a result the server did not confirm; an unknown outcome is re-read before anything is retried. */
@@ -45,8 +52,22 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
   const [list, setList] = useState(null);
   const [opened, setOpened] = useState(null);
   const [outcome, setOutcome] = useState(null);
+  const [selected, setSelected] = useState(null);
   const auth = useRef(onUnauthorized);
   useEffect(() => { auth.current = onUnauthorized; }, [onUnauthorized]);
+  useEffect(() => {
+    if (!caseId) return undefined;
+    const c = new AbortController();
+    // The selected case has its own filtered read, so its request is found even when it is beyond the first page of the list.
+    loadReopenRequests({ caseId, size: 1 }, { accessToken: session.accessToken, lang, signal: c.signal }).then(data => {
+      if (!c.signal.aborted) setSelected({ caseId, attempt, item: data.content[0] ?? null, error: null });
+    }).catch(error => {
+      if (c.signal.aborted) return;
+      setSelected({ caseId, attempt, item: null, error });
+      if (error.status === 401) auth.current?.();
+    });
+    return () => c.abort();
+  }, [caseId, session.accessToken, lang, attempt]);
   useEffect(() => {
     const c = new AbortController();
     loadReopenRequests({ page }, { accessToken: session.accessToken, lang, signal: c.signal }).then(data => {
@@ -66,8 +87,10 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
   }, []);
   const current = list?.attempt === attempt && list.page === page ? list : null;
   const items = list?.data?.content;
-  const found = items?.find(item => item.caseId === caseId);
-  const target = opened?.caseId === caseId ? opened : found;
+  const forCase = selected?.caseId === caseId && selected.attempt === attempt ? selected : null;
+  const found = forCase ? forCase.item : items?.find(item => item.caseId === caseId);
+  // A newer request of the same case replaces the opened one; the opened one is kept only once it was decided and left the list.
+  const target = found ?? (opened?.caseId === caseId ? opened : null);
   const open = item => {
     setOpened(item); setOutcome(null);
     onNavigate?.(`${unlockPath}?${new URLSearchParams({ lang, caseId: item.caseId })}`);
@@ -100,7 +123,8 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
     </div>}
     {target && <ReopenDetail key={`${target.caseId}:${target.sessionId}`} item={target} session={session} lang={lang}
       onDecided={result => { setOutcome({ ...result, caseId: target.caseId }); setOpened(target); }} onUnauthorized={onUnauthorized} />}
-    {caseId && !target && current?.data && <p>{en ? 'The selected case has no reopening request waiting for Legal.' : 'Hồ sơ đang chọn hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
+    {forCase?.error && <p role="alert">{workflowFailure(forCase.error, lang).description}</p>}
+    {caseId && !target && forCase && !forCase.error && <p>{en ? 'The selected case has no reopening request waiting for Legal.' : 'Hồ sơ đang chọn hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
   </section>;
 }
 
@@ -128,13 +152,15 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
       loadLegalGroupHandover(item.caseId, item.sessionId, options),
       // Recipient names come from the Legal-readable allocation of the same case; a missing one blocks the decision instead of showing an id.
       loadDistributionWorkflow(item.caseId, 'LEGAL', options).catch(() => null),
-    ]).then(([view, workflow]) => {
+      // History is context for the decision; when it cannot be read the decision itself stays available.
+      loadGroupHandoverEvents(item.caseId, item.sessionId, { size: 10 }, options).catch(() => null),
+    ]).then(([view, workflow, history]) => {
       if (c.signal.aborted) return;
       if (draftRevision.current !== view.state.revision) { setReason(''); draftRevision.current = view.state.revision; }
-      setResult({ attempt, view, workflow }); setError(null);
+      setResult({ attempt, view, workflow, history }); setError(null);
     }).catch(failure => {
       if (c.signal.aborted) return;
-      setResult({ attempt, view: null, workflow: null }); setError(failure);
+      setResult({ attempt, view: null, workflow: null, history: null }); setError(failure);
       if (failure.status === 401) auth.current?.();
     });
     return () => c.abort();
@@ -197,11 +223,20 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
           {view.requiredRecipientIds.map(id => <li key={id}><span>{names.get(id)}</span>
             <span className={present.has(id) ? 'is-present' : 'is-absent'}>{present.has(id) ? (en ? 'Present' : 'Có mặt') : (en ? 'Not present' : 'Chưa có mặt')}</span></li>)}
         </ul>}
+      {view.attendance && <div className="lv-legal-reopen__request"><h4>{en ? 'Latest attendance record' : 'Ghi nhận có mặt gần nhất của Staff'}</h4>
+        <p>{view.attendance.recordedBy.fullName} · {legalDate(view.attendance.recordedAt)}</p><p>{view.attendance.reason}</p></div>}
       {request && <div className="lv-legal-reopen__request"><h4>{en ? 'Staff request' : 'Yêu cầu của Staff'}</h4>
         <p>{request.requestedBy.fullName} · {legalDate(request.requestedAt)}</p><p>{request.reason}</p></div>}
       {view.lastDecision && <div className="lv-legal-reopen__request"><h4>{en ? 'Latest Legal decision' : 'Quyết định gần nhất của Legal'}</h4>
         <p>{view.lastDecision.result === 'APPROVE' ? (en ? 'Reopening allowed' : 'Cho phép mở lại') : (en ? 'Reopening refused' : 'Từ chối mở lại')} · {view.lastDecision.decidedBy.fullName} · {legalDate(view.lastDecision.decidedAt)}</p>
         <p>{view.lastDecision.reason}</p></div>}
+      <div className="lv-legal-reopen__history"><h4>{en ? 'History of locks, requests and decisions' : 'Lịch sử khóa, yêu cầu và quyết định'}</h4>
+        {!current.history ? <p>{en ? 'The history could not be loaded.' : 'Chưa tải được lịch sử.'}</p>
+          : !current.history.content.length ? <p>{en ? 'No events yet.' : 'Chưa có sự kiện nào.'}</p>
+          : <ol>{current.history.content.map(event => <li key={event.eventId}>
+            <strong>{operationText[event.operation][en ? 1 : 0]}</strong><span>{event.by.fullName} · {legalDate(event.at)}</span><span>{event.reason}</span></li>)}</ol>}
+        {current.history?.totalElements > current.history?.content.length && <p>{en ? `Showing the latest ${current.history.content.length} of ${current.history.totalElements} events.` : `Đang hiển thị ${current.history.content.length} sự kiện mới nhất trong ${current.history.totalElements}.`}</p>}
+      </div>
       {decidable ? <div className="lv-legal-reopen__decision">
         <label>{en ? 'Reason for your decision' : 'Lý do quyết định'}
           <textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></label>

@@ -17,6 +17,11 @@ const pending = (changes = {}) => ({ requestId: req, caseId: caseA, caseNumber: 
   requestedBy: { userId: staff, fullName: 'Staff Mai' }, reason: 'Đã đủ người, xin mở lại', revision: 3, allPresent: true, requiredRecipients: 2,
   presentRecipients: 2, totalAssets: 3, deliveredAssets: 1, decidable: true, ...changes });
 const page = (...content) => ({ content, page: 0, size: 20, totalElements: content.length, totalPages: 1 });
+const eventId = number => `aaaaaaaa-aaaa-4aaa-8aaa-${String(number).padStart(12, '0')}`;
+const historyEvent = (number, operation, fullName, reason) => ({ eventId: eventId(number), operation, revision: number, resultingStatus: 'SUSPENDED', allPresent: false,
+  presentRecipients: 1, reason, at: now, by: { userId: staff, fullName } });
+const defaultHistory = () => ({ content: [historyEvent(3, 'REQUEST', 'Staff Mai', 'Đã đủ người, xin mở lại'), historyEvent(2, 'ATTENDANCE', 'Staff Mai', 'Đủ người'),
+  historyEvent(1, 'ATTENDANCE', 'Staff Mai', 'Thiếu ông Bình')], page: 0, size: 10, totalElements: 3, totalPages: 1 });
 const view = (changes = {}, caseId = caseA, sessionId = sessionA) => ({ state: { status: 'AWAITING_LEGAL', revision: 3, allPresent: true, requestId: req, attendanceId: event, snapshot: 'current' },
   snapshot: 'current', requiredRecipientIds: [rA, rB], deliveryAllowed: false, caseId, caseNumber: 'HS-2026-000018', sessionId, sessionStatus: 'OPEN',
   progress: { totalAssets: 3, deliveredAssets: 1, requiredRecipients: 2, presentRecipients: 2 },
@@ -87,7 +92,7 @@ const fill = async (host, text) => act(async () => reactProps(host.querySelector
 const labels = host => [...host.querySelectorAll('button')].map(item => item.textContent.trim());
 // One fake backend: the state changes only when a decision is accepted.
 function backend(options = {}) {
-  const log = { gets: 0, posts: [], lists: 0 }; let state = options.view || view(); let listed = options.listed ?? [pending()];
+  const log = { gets: 0, posts: [], lists: 0, urls: [], setListed: value => { listed = value; } }; let state = options.view || view(); let listed = options.listed ?? [pending()];
   globalThis.fetch = async (url, init = {}) => {
     if (init.method === 'POST') {
       log.posts.push({ url, key: init.headers['Idempotency-Key'], body: JSON.parse(init.body) });
@@ -98,8 +103,13 @@ function backend(options = {}) {
       listed = [];
       return json({ caseId: caseA, sessionId: sessionA, eventId: event, state: state.state, notification: { id: event, recipientWorkspace: 'STAFF', status: 'RECORDED' } });
     }
-    if (url.includes('/reopen-requests?')) { log.lists++; return json(page(...listed)); }
-    if (url.endsWith('/group-handover')) { log.gets++; return options.get ? options.get(url, init) : json(state); }
+    if (url.includes('/reopen-requests?')) {
+      log.lists++; const wanted = new URL(url, 'http://localhost').searchParams.get('caseId');
+      // `hidden` requests are beyond the first page: only a read filtered by their case returns them.
+      return json(page(...(wanted ? [...listed, ...(options.hidden || [])].filter(item => item.caseId === wanted) : listed)));
+    }
+    if (url.includes('/group-handover/events')) return options.events ? options.events() : json(defaultHistory());
+    if (url.endsWith('/group-handover')) { log.gets++; log.urls.push(url); return options.get ? options.get(url, init) : json(state); }
     if (url.endsWith('/distribution-workflow')) return options.workflow ? options.workflow(url) : json(workflow());
     return json({ code: 'RESOURCE_NOT_FOUND' }, 404);
   };
@@ -221,4 +231,42 @@ test('401 asks to sign in again and an unavailable list is an error with retry, 
   backend({ listed: [] });
   v = await mount({ caseId: '' });
   try { await settle(); assert.match(v.host.textContent, /No reopening request is waiting for Legal/); } finally { await v.close(); }
+});
+
+test('the attendance record, its reason and the history of locks, requests and decisions are shown with business wording only', async () => {
+  backend(); const v = await mount();
+  try {
+    await settle();
+    assert.match(v.host.textContent, /Latest attendance record/); assert.match(v.host.textContent, /Staff Mai/); assert.match(v.host.textContent, /Đủ người/);
+    assert.match(v.host.textContent, /History of locks, requests and decisions/); assert.match(v.host.textContent, /Thiếu ông Bình/);
+    assert.match(v.host.textContent, /Staff requested reopening/); assert.match(v.host.textContent, /Staff recorded attendance/);
+    assert.doesNotMatch(v.host.textContent, /[0-9a-f]{8}-[0-9a-f]{4}-/i);
+  } finally { await v.close(); }
+});
+
+test('an unreadable history never blocks the decision', async () => {
+  backend({ events: () => json({ code: 'INTERNAL_ERROR' }, 500) }); const v = await mount();
+  try {
+    await settle();
+    assert.match(v.host.textContent, /The history could not be loaded/); assert.ok(v.host.querySelector('textarea'), 'the decision stays available');
+  } finally { await v.close(); }
+});
+
+test('a request beyond the first page of the list is still found for the selected case', async () => {
+  backend({ listed: [pending({ requestId: req2, caseId: caseB, sessionId: sessionB, caseNumber: 'HS-2026-000019' })], hidden: [pending()] }); const v = await mount();
+  try {
+    await settle();
+    assert.match(v.host.textContent, /HS-2026-000018/); assert.match(v.host.textContent, /Nguyễn An/); assert.doesNotMatch(v.host.textContent, /no reopening request waiting for Legal/);
+    assert.ok(v.host.querySelector('textarea'));
+  } finally { await v.close(); }
+});
+
+test('a newer session of the same case replaces the one that was opened', async () => {
+  const log = backend(); const v = await mount();
+  try {
+    await settle(); assert.ok(log.urls.some(url => url.includes(sessionA)));
+    log.setListed([pending({ sessionId: sessionB, requestId: req2 })]);
+    await act(async () => window.dispatchEvent(new window.Event('lv-workflow-notifications-changed'))); await settle();
+    assert.ok(log.urls.some(url => url.includes(sessionB)), 'the detail follows the newer session');
+  } finally { await v.close(); }
 });
