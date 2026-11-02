@@ -10,7 +10,7 @@ import {
 } from './staffLiveService.js';
 import { validateEvidenceFile, formatFileSize, EVIDENCE_UPLOAD_I18N } from '../../utils/staffEvidenceUpload.js';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
-import { FolderOpen, FileText, Paperclip, RefreshCw, UserRound, Archive } from 'lucide-react';
+import { FolderOpen, FileText, ChevronDown, RefreshCw, UserRound, Archive } from 'lucide-react';
 import './StaffLiveCase.css';
 import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
@@ -57,7 +57,6 @@ export function DeathDocumentDecision({ decision, en }) {
     <strong className="lv-intake-decision-status">{label[en ? 1 : 0]}</strong>
     {decision && <><p><strong>{en ? 'Legal’s reason: ' : 'Lý do của Legal: '}</strong>{decision.reason}</p>
       <time dateTime={decision.decidedAt}>{en ? 'Decided: ' : 'Quyết định: '}{new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(decision.decidedAt))}</time></>}
-    {['REJECTED', 'NEEDS_CORRECTION'].includes(status) && <p>{en ? 'Receive a new document and send it to Legal for review. This decision remains in history.' : 'Tiếp nhận giấy tờ mới để Legal kiểm tra lại. Quyết định này được giữ trong lịch sử.'}</p>}
   </div>;
 }
 
@@ -81,6 +80,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
   // Attachments State (PS-98 & PS-103)
   const [activeRecordId, setActiveRecordId] = useState(null);
+  const [documentPage, setDocumentPage] = useState(1);
   const [recordAttachments, setRecordAttachments] = useState({});
   const [attachmentLoading, setAttachmentLoading] = useState({});
   const [attachmentErrors, setAttachmentErrors] = useState({});
@@ -294,6 +294,11 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
   const draft = drafts[kind] || {};
   const closed = data?.status !== 'OPEN';
+  const numberedRecords = [...records].sort((left,right)=>Date.parse(left.receivedAt)-Date.parse(right.receivedAt)||left.id.localeCompare(right.id))
+    .map((item,index)=>({item,number:index+1})).reverse();
+  const pageCount = Math.max(1, Math.ceil(numberedRecords.length / 5));
+  const currentPage = Math.min(documentPage, pageCount);
+  const visibleRecords = numberedRecords.slice((currentPage-1)*5, currentPage*5);
   return <section className="lv-staff-live" aria-busy={busy || recordsLoading}>
     <StaffWorkflowGuide current="intake" intakeDestinationNeeded caseId={caseId} caseStatus={data?.status} vaultStatus={data?.vaultStatus} loading={busy} error={error} lang={lang} />
     <button type="button" onClick={onBack}>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button>
@@ -331,12 +336,13 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       setNotice('');
       setError('');
       setActiveRecordId(null);
+      setDocumentPage(1);
     }}>
       <option value="death-documents">{en ? 'Death document' : 'Giấy tờ tử vong'}</option>
       <option value="original-will-intakes">{en ? 'Original will intake' : 'Tiếp nhận di chúc gốc'}</option>
     </select></label>
 
-    <div className="lv-staff-live__records-section lv-staff-glow">
+    <div className="lv-staff-live__records-section">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         <h2><FileText size={20} aria-hidden="true" />{en ? 'Received documents' : 'Giấy tờ đã tiếp nhận'}{recordsLoaded && !recordsError && !recordsLoading && <span className="lv-intake-count">{records.length}</span>}</h2>
         <button
@@ -369,24 +375,43 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
       {!recordsLoading && records.length > 0 && (
         <ul className="lv-staff-records-list">
-          {[...records].sort((left,right)=>Date.parse(left.receivedAt)-Date.parse(right.receivedAt)||left.id.localeCompare(right.id)).map((item,index) => (
+          {visibleRecords.map(({item,number}) => {
+            const outcome = kind === 'death-documents' ? item.legalDecision : item.comparison;
+            const result = outcome?.result || (outcome === null ? 'PENDING' : 'UNAVAILABLE');
+            const status = {
+              PENDING: [en ? 'Awaiting Legal' : 'Chờ Legal', 'pending'],
+              UNAVAILABLE: [en ? 'Result unavailable' : 'Chưa có dữ liệu kết quả', 'pending'],
+              APPROVED: [en ? 'Accepted' : 'Đã chấp thuận', 'positive'],
+              REJECTED: [en ? 'Rejected' : 'Đã từ chối', 'negative'],
+              NEEDS_CORRECTION: [en ? 'More documents required' : 'Cần bổ sung giấy tờ', 'warning'],
+              MATCH: [en ? 'Matches' : 'Đối chiếu khớp', 'positive'],
+              MISMATCH: [en ? 'Does not match' : 'Không khớp', 'negative'],
+              INCONCLUSIVE: [en ? 'Inconclusive' : 'Chưa đủ cơ sở', 'warning'],
+            }[result];
+            return (
             <li key={item.id} className="lv-staff-record-item">
               <div className="lv-staff-record-summary">
                 <span className={`lv-intake-document-icon ${kind === 'original-will-intakes' ? 'is-will' : ''}`}><FileText size={22} aria-hidden="true" /></span>
-                <div className="lv-intake-document-meta"><strong>{en?'Document':'Giấy tờ'} {index+1} · {item.documentNumber || item.deliveredByName}</strong><time dateTime={item.receivedAt}>{en ? 'Received: ' : 'Tiếp nhận: '}{Number.isNaN(new Date(item.receivedAt).getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(item.receivedAt))}</time></div>
+                <div className="lv-intake-document-meta"><strong>{en?'Document':'Giấy tờ'} {number} · {item.documentNumber || item.deliveredByName}</strong><time dateTime={item.receivedAt}>{en ? 'Received: ' : 'Tiếp nhận: '}{Number.isNaN(new Date(item.receivedAt).getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(item.receivedAt))}</time>
+                  {outcome?.reason && activeRecordId !== item.id && <p className="lv-staff-record-reason" title={outcome.reason}>{outcome.reason}</p>}
+                </div>
+                <span className={`lv-staff-record-status is-${status[1]}`}>{status[0]}</span>
                 <button
                   type="button"
                   className="lv-staff-btn-toggle-att"
                   onClick={() => toggleRecordAttachments(item.id)}
+                  aria-expanded={activeRecordId === item.id}
+                  aria-controls={`document-detail-${item.id}`}
+                  disabled={Object.values(isUploadingAtt).some(Boolean)}
                 >
-                  <Paperclip size={15} aria-hidden="true" />{activeRecordId === item.id ? (en ? 'Hide attachments' : 'Ẩn tệp đính kèm') : (en ? 'Attachments' : 'Tệp đính kèm')}
+                  <ChevronDown size={16} aria-hidden="true" className={activeRecordId === item.id ? 'is-open' : ''} />{activeRecordId === item.id ? (en ? 'Collapse' : 'Thu gọn') : (en ? 'View details' : 'Xem chi tiết')}
                 </button>
               </div>
 
-              {kind === 'death-documents' && <DeathDocumentDecision decision={item.legalDecision} en={en} />}
-              {kind === 'original-will-intakes' && <WillComparisonOutcome comparison={item.comparison} en={en} />}
               {activeRecordId === item.id && (
-                <div className="lv-staff-attachments-pane" role="region" aria-label={en ? 'Attachments' : 'Tệp đính kèm'}>
+                <div id={`document-detail-${item.id}`} className="lv-staff-attachments-pane" role="region" aria-label={en ? `Details for document ${number}` : `Chi tiết giấy tờ ${number}`}>
+                  {kind === 'death-documents' && <DeathDocumentDecision decision={item.legalDecision} en={en} />}
+                  {kind === 'original-will-intakes' && <WillComparisonOutcome comparison={item.comparison} en={en} />}
                   {attachmentLoading[item.id] ? (
                     <p>{en ? 'Loading attachments…' : 'Đang tải danh sách tệp đính kèm…'}</p>
                   ) : attachmentErrors[item.id] ? (
@@ -454,9 +479,14 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
                 </div>
               )}
             </li>
-          ))}
+          );})}
         </ul>
       )}
+      {!recordsLoading && records.length > 5 && <nav className="lv-staff-doc-pagination" aria-label={en ? 'Document pages' : 'Trang giấy tờ'}>
+        <span>{(currentPage-1)*5+1}–{Math.min(currentPage*5,records.length)} / {records.length}</span>
+        <button type="button" disabled={currentPage===1 || Object.values(isUploadingAtt).some(Boolean)} onClick={()=>{setDocumentPage(currentPage-1);setActiveRecordId(null);}}>{en ? 'Previous' : 'Trang trước'}</button>
+        <button type="button" disabled={currentPage===pageCount || Object.values(isUploadingAtt).some(Boolean)} onClick={()=>{setDocumentPage(currentPage+1);setActiveRecordId(null);}}>{en ? 'Next' : 'Trang sau'}</button>
+      </nav>}
     </div>
 
     {data?.status !== 'CLOSED' && <form onSubmit={e => { e.preventDefault(); run(async (options, signal) => {
@@ -464,6 +494,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       if (signal.aborted) return;
       publishStaffWorkflowChange();
       setRecords(items => [...items, saved]); setDrafts(values => ({ ...values, [kind]: {} }));
+      setDocumentPage(1); setActiveRecordId(null);
 
       if (stagedFile) {
         const file = stagedFile;

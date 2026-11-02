@@ -125,7 +125,7 @@ test('PS-98/PS-103: Attachments pane expands, lists files, and handles preview m
   await act(async () => {});
 
   // Find toggle attachments button
-  const toggleBtn = button(v.host, 'Tệp đính kèm') || button(v.host, 'Attachments');
+  const toggleBtn = button(v.host, 'Xem chi tiết') || button(v.host, 'View details');
   assert.ok(toggleBtn, 'Toggle attachments button must exist');
 
   // Click toggle to load attachments
@@ -173,7 +173,7 @@ test('Attachment read aborts on account switch and late bytes never open a previ
     return json(url.endsWith('death-documents') ? [{id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'}] : detail);
   };
   const v=await mount();
-  await act(async()=>button(v.host,'Tệp đính kèm').click());
+  await act(async()=>button(v.host,'Xem chi tiết').click());
   assert.match(v.host.textContent,/2\.0 KB/);
   await act(async()=>button(v.host,'Xem tệp').click());
   await act(async()=>v.root.render(React.createElement(Screen,{...v.options,accessToken:'changed'})));
@@ -221,7 +221,7 @@ test('Attachment unauthorized response invokes session handler and locks upload'
   globalThis.fetch=async(url)=>url.endsWith('/attachments')?json({code:'UNAUTHENTICATED'},401):json(url.endsWith('death-documents')?[{id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'}]:detail);
   const v=await mount();
   await act(async()=>v.root.render(React.createElement(Screen,{...v.options,onUnauthorized(){unauthorized++;}})));
-  await act(async()=>button(v.host,'Tệp đính kèm').click());
+  await act(async()=>button(v.host,'Xem chi tiết').click());
   assert.equal(unauthorized,1);assert.equal(v.host.querySelector('.lv-staff-attachment-upload-box input').disabled,true);
   await v.close();
 });
@@ -265,7 +265,7 @@ test('Pending attachment upload rejects double submit and aborts on category cha
     url.endsWith('death-documents')?[{id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'}]:detail);
   const v=await mount();
   try {
-    await act(async()=>button(v.host,'Tệp đính kèm').click());
+    await act(async()=>button(v.host,'Xem chi tiết').click());
     await act(async()=>props(v.host.querySelector('.lv-staff-attachment-upload-box input')).onChange({target:{files:[new File(['pdf'],'x.pdf',{type:'application/pdf'})]}}));
     const send=props(button(v.host,'Tải lên đính kèm')).onClick;
     await act(async()=>{send();send();});
