@@ -92,6 +92,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
   const controller = useRef(null);
   const docsController = useRef(null);
+  const documentsWritePending = useRef(false);
   const lock = useRef(false);
   const auth = useRef(onUnauthorized);
   const attachmentRequests = useRef(new Map());
@@ -130,6 +131,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
   // Tự động tải danh sách giấy tờ đã tiếp nhận theo nhóm giấy tờ
   const loadDocuments = useCallback(async (category = kind) => {
+    if (documentsWritePending.current) return;
     if (docsController.current) docsController.current.abort();
     const c = new AbortController();
     docsController.current = c;
@@ -275,6 +277,11 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   async function run(action) {
     if (lock.current) return;
     lock.current = true; const c = new AbortController(); controller.current = c;
+    // Invalidate pre-write snapshots before saving; even a late transport must not
+    // replace the successful intake with its older document list.
+    documentsWritePending.current = true;
+    docsController.current?.abort();
+    setRecordsLoading(false);
     setBusy(true); setError(''); setNotice('');
     try { await action({ accessToken, lang, signal: c.signal }, c.signal); }
     catch (err) {
@@ -282,7 +289,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       if (err.status === 401) auth.current?.();
       if ([401, 403, 404].includes(err.status)) setWriteReady(false);
       setError(err.code || 'NETWORK_ERROR');
-    } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); } }
+    } finally { documentsWritePending.current = false; if (!c.signal.aborted) { lock.current = false; setBusy(false); } }
   }
 
   // Abort mutations as well as reads when the case/session leaves this screen.
