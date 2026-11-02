@@ -52,9 +52,36 @@ test('Auto-loads documents, retains VI/EN draft, saves intake and displays serve
  await act(async()=>v.root.render(React.createElement(Screen,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('fieldset input').value,'Draft authority');
  assert.ok(button(v.host,'Refresh document list'));
  const submit=()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}});
- await act(async()=>submit());await act(async()=>submit());assert.equal(writes,1);assert.ok(v.host.querySelector('progress'));
+ await act(async()=>submit());await act(async()=>submit());assert.equal(writes,1);assert.ok(v.host.querySelector('progress[aria-label="Processing"]'));
  await act(async()=>release(json({id,caseId:id,receivedBy:id,receivedAt:'2026-10-20T05:00:00Z'},201)));
- assert.equal(v.host.querySelector('progress'),null);assert.match(v.host.textContent,/Document saved successfully/);await v.close();
+ assert.equal(v.host.querySelector('progress[aria-label="Processing"]'),null);assert.match(v.host.textContent,/Document saved successfully/);await v.close();
+});
+
+for (const kind of ['death-documents', 'original-will-intakes']) test(`a pre-save ${kind} read cannot erase a successful intake`, async () => {
+ let releaseRead, readSignal, reads = 0;
+ const saved = {id, caseId:id, receivedBy:id, receivedAt:'2026-11-02T05:00:00Z', documentNumber:'NEW-RECORD', deliveredByName:'New will'};
+ globalThis.fetch = async (url, init) => {
+  if (init.method === 'POST') return json(saved, 201);
+  if (url.endsWith(kind)) {
+   reads++;
+   if (reads === 2) { readSignal = init.signal; return new Promise(resolve => { releaseRead = resolve; }); }
+   return json([]);
+  }
+  return json(url.endsWith('death-documents') ? [] : detail);
+ };
+ const v = await mount();
+ try {
+  if (kind !== 'death-documents') await act(async () => props(v.host.querySelector('select')).onChange({target:{value:kind}}));
+  await act(async () => button(v.host,'Làm mới danh sách giấy tờ').click());
+  assert.ok(releaseRead);
+  await act(async () => props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));
+  assert.match(v.host.textContent,/Đã tiếp nhận giấy tờ thành công/);
+  // A transport may still complete after cancellation; it must not update the screen.
+  await act(async () => releaseRead(json([])));
+  assert.equal(v.host.querySelectorAll('.lv-staff-record-item').length,1);
+  assert.equal(readSignal.aborted,true);
+  assert.equal(v.host.querySelector('progress[aria-label="Đang tải giấy tờ"]'),null);
+ } finally { await v.close(); }
 });
 test('Error keeps draft; unmount aborts pending writes; refresh button retries document list',async()=>{
  let signal,release;globalThis.fetch=async(url,init)=>init.method==='POST'?json({code:'CASE_CONFLICT'},409):json(url.endsWith('death-documents')?[]:detail);
