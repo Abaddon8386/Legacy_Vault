@@ -91,28 +91,29 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
   const found = forCase ? forCase.item : items?.find(item => item.caseId === caseId);
   // A newer request of the same case replaces the opened one; the opened one is kept only once it was decided and left the list.
   const target = found ?? (opened?.caseId === caseId ? opened : null);
+  const hasRequests = Boolean(items?.length || target);
   const open = item => {
     setOpened(item); setOutcome(null);
     onNavigate?.(`${unlockPath}?${new URLSearchParams({ lang, caseId: item.caseId })}`);
   };
-  return <section className="lv-legal-live__card lv-legal-reopen" aria-label={en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'} aria-busy={!current}>
+  return <section className={`lv-legal-live__card lv-legal-reopen ${!hasRequests ? 'lv-legal-reopen--compact' : ''}`} aria-label={en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'} aria-busy={!current}>
     <div className="lv-legal-reopen__head">
       <h2>{en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'}</h2>
       <button type="button" disabled={!current} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh' : 'Cập nhật'}</button>
     </div>
-    <p className="lv-legal-reopen__note">{en ? 'Staff has recorded that everyone is present and asks to reopen. Only Legal decides; allowing it does not mean any asset has been delivered.'
-      : 'Staff đã ghi nhận đủ người nhận và đề nghị mở lại. Chỉ Legal quyết định; cho phép mở lại không đồng nghĩa đã bàn giao tài sản.'}</p>
+    {hasRequests && <p className="lv-legal-reopen__note">{en ? 'Staff has recorded that everyone is present and asks to reopen. Only Legal decides; allowing it does not mean any asset has been delivered.'
+      : 'Staff đã ghi nhận đủ người nhận và đề nghị mở lại. Chỉ Legal quyết định; cho phép mở lại không đồng nghĩa đã bàn giao tài sản.'}</p>}
     {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed.' : 'Đã cho phép mở lại bàn giao.') : (en ? 'Reopening refused.' : 'Đã từ chối mở lại bàn giao.')}>
       <p>{workflowNotificationStatus(outcome, 'STAFF', lang).trim()}</p>
     </FeedbackNotice>}
-    {!list && <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
-    {current?.error && <div role="alert"><p>{workflowFailure(current.error, lang).description}</p>
-      <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Try again' : 'Thử lại'}</button></div>}
-    {items?.length === 0 && !current?.error && <p>{en ? 'No reopening request is waiting for Legal.' : 'Hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
+    {!list && <p role="status" className="lv-legal-reopen__loading">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
+    {current?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(current.error, lang).description}</p>
+      <button type="button" className="lv-legal-reopen__btn-retry" onClick={() => setAttempt(value => value + 1)}>{en ? 'Try again' : 'Thử lại'}</button></div>}
+    {!caseId && items?.length === 0 && !current?.error && <p className="lv-legal-reopen__empty">{en ? 'No reopening request is waiting for Legal.' : 'Hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
     {!!items?.length && <ul className="lv-legal-reopen__list">{items.map(item => <li key={item.requestId} aria-current={item.caseId === caseId ? 'true' : undefined}>
-      <div><strong>{item.caseNumber}</strong> · {item.vaultName}</div>
-      <p>{en ? 'Requested by ' : 'Staff yêu cầu: '}{item.requestedBy.fullName} · {legalDate(item.requestedAt)}</p>
-      <p>{en ? `Present ${item.presentRecipients}/${item.requiredRecipients} recipients · delivered ${item.deliveredAssets}/${item.totalAssets} assets`
+      <div className="lv-legal-reopen__item-head"><strong>{item.caseNumber}</strong> · {item.vaultName}</div>
+      <p className="lv-legal-reopen__meta">{en ? 'Requested by ' : 'Staff yêu cầu: '}{item.requestedBy.fullName} · {legalDate(item.requestedAt)}</p>
+      <p className="lv-legal-reopen__summary">{en ? `Present ${item.presentRecipients}/${item.requiredRecipients} recipients · delivered ${item.deliveredAssets}/${item.totalAssets} assets`
         : `Đã có mặt ${item.presentRecipients}/${item.requiredRecipients} người nhận · đã giao ${item.deliveredAssets}/${item.totalAssets} tài sản`}</p>
       <button type="button" className="lv-legal-primary" onClick={() => open(item)}>{en ? 'Review request' : 'Xem và xét yêu cầu'}</button>
     </li>)}</ul>}
@@ -123,8 +124,8 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
     </div>}
     {target && <ReopenDetail key={target.requestId} item={target} session={session} lang={lang}
       onDecided={result => { setOutcome({ ...result, caseId: target.caseId }); setOpened(target); }} onUnauthorized={onUnauthorized} />}
-    {forCase?.error && <p role="alert">{workflowFailure(forCase.error, lang).description}</p>}
-    {caseId && !target && forCase && !forCase.error && <p>{en ? 'The selected case has no reopening request waiting for Legal.' : 'Hồ sơ đang chọn hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
+    {forCase?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(forCase.error, lang).description}</p></div>}
+    {caseId && !target && forCase && !forCase.error && <p className="lv-legal-reopen__empty">{en ? 'The selected case has no reopening request waiting for Legal.' : 'Hồ sơ đang chọn hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
   </section>;
 }
 
@@ -210,42 +211,55 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
   }
 
   return <div className="lv-legal-reopen__detail" aria-busy={busy || !current}>
-    <h3>{item.caseNumber} · {item.vaultName}</h3>
-    {error && <p role="alert">{workflowFailure(error, lang).description}</p>}
-    {saveError && <p role="alert">{reopenFailure(saveError, lang)}</p>}
-    {!current && !error && <p role="status">{en ? 'Loading the current handover status…' : 'Đang tải tình hình bàn giao hiện hành…'}</p>}
-    {error && !view && <button type="button" onClick={() => setAttempt(value => value + 1)}>{en ? 'Try again' : 'Thử lại'}</button>}
+    <div className="lv-legal-reopen__detail-head">
+      <h3>{item.caseNumber} · {item.vaultName}</h3>
+    </div>
+    {error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(error, lang).description}</p></div>}
+    {saveError && <div role="alert" className="lv-legal-reopen__alert"><p>{reopenFailure(saveError, lang)}</p></div>}
+    {!current && !error && <p role="status" className="lv-legal-reopen__loading">{en ? 'Loading the current handover status…' : 'Đang tải tình hình bàn giao hiện hành…'}</p>}
+    {error && !view && <button type="button" className="lv-legal-reopen__btn-retry" onClick={() => setAttempt(value => value + 1)}>{en ? 'Try again' : 'Thử lại'}</button>}
     {view && <>
-      <p role="status"><strong>{statusText[view.state.status]?.[en ? 1 : 0]}</strong></p>
-      <p>{en ? `Delivered ${view.progress.deliveredAssets}/${view.progress.totalAssets} assets` : `Đã giao ${view.progress.deliveredAssets}/${view.progress.totalAssets} tài sản`}</p>
-      {!namesReady ? <p role="alert">{en ? 'The current recipient list could not be confirmed. Refresh before deciding.' : 'Chưa xác nhận được danh sách người nhận hiện hành. Hãy cập nhật trước khi quyết định.'}</p>
+      <div className="lv-legal-reopen__status-bar">
+        <p role="status" className={`lv-legal-reopen__status-badge is-${view.state.status.toLowerCase()}`}>
+          <strong>{statusText[view.state.status]?.[en ? 1 : 0]}</strong>
+        </p>
+        <p className="lv-legal-reopen__progress-pill">{en ? `Delivered ${view.progress.deliveredAssets}/${view.progress.totalAssets} assets` : `Đã giao ${view.progress.deliveredAssets}/${view.progress.totalAssets} tài sản`}</p>
+      </div>
+      {!namesReady ? <div role="alert" className="lv-legal-reopen__alert"><p>{en ? 'The current recipient list could not be confirmed. Refresh before deciding.' : 'Chưa xác nhận được danh sách người nhận hiện hành. Hãy cập nhật trước khi quyết định.'}</p></div>
         : <ul className="lv-legal-reopen__people" aria-label={en ? 'Recipients and attendance' : 'Người nhận và tình hình có mặt'}>
           {view.requiredRecipientIds.map(id => <li key={id}><span>{names.get(id)}</span>
             <span className={present.has(id) ? 'is-present' : 'is-absent'}>{present.has(id) ? (en ? 'Present' : 'Có mặt') : (en ? 'Not present' : 'Chưa có mặt')}</span></li>)}
         </ul>}
-      {view.attendance && <div className="lv-legal-reopen__request"><h4>{en ? 'Latest attendance record' : 'Ghi nhận có mặt gần nhất của Staff'}</h4>
-        <p>{view.attendance.recordedBy.fullName} · {legalDate(view.attendance.recordedAt)}</p><p>{view.attendance.reason}</p></div>}
-      {request && <div className="lv-legal-reopen__request"><h4>{en ? 'Staff request' : 'Yêu cầu của Staff'}</h4>
-        <p>{request.requestedBy.fullName} · {legalDate(request.requestedAt)}</p><p>{request.reason}</p></div>}
-      {view.lastDecision && <div className="lv-legal-reopen__request"><h4>{en ? 'Latest Legal decision' : 'Quyết định gần nhất của Legal'}</h4>
-        <p>{view.lastDecision.result === 'APPROVE' ? (en ? 'Reopening allowed' : 'Cho phép mở lại') : (en ? 'Reopening refused' : 'Từ chối mở lại')} · {view.lastDecision.decidedBy.fullName} · {legalDate(view.lastDecision.decidedAt)}</p>
-        <p>{view.lastDecision.reason}</p></div>}
-      <div className="lv-legal-reopen__history"><h4>{en ? 'History of locks, requests and decisions' : 'Lịch sử khóa, yêu cầu và quyết định'}</h4>
-        {!current.history ? <p>{en ? 'The history could not be loaded.' : 'Chưa tải được lịch sử.'}</p>
-          : !current.history.content.length ? <p>{en ? 'No events yet.' : 'Chưa có sự kiện nào.'}</p>
-          : <ol>{current.history.content.map(event => <li key={event.eventId}>
-            <strong>{operationText[event.operation][en ? 1 : 0]}</strong><span>{event.by.fullName} · {legalDate(event.at)}</span><span>{event.reason}</span></li>)}</ol>}
-        {current.history?.totalElements > current.history?.content.length && <p>{en ? `Showing the latest ${current.history.content.length} of ${current.history.totalElements} events.` : `Đang hiển thị ${current.history.content.length} sự kiện mới nhất trong ${current.history.totalElements}.`}</p>}
-      </div>
+      {view.attendance && <div className="lv-legal-reopen__request lv-legal-reopen__card--attendance"><h4>{en ? 'Latest attendance record' : 'Ghi nhận có mặt gần nhất của Staff'}</h4>
+        <p className="lv-legal-reopen__meta">{view.attendance.recordedBy.fullName} · {legalDate(view.attendance.recordedAt)}</p><p className="lv-legal-reopen__reason">{view.attendance.reason}</p></div>}
+      {request && <div className="lv-legal-reopen__request lv-legal-reopen__card--request"><h4>{en ? 'Staff request' : 'Yêu cầu của Staff'}</h4>
+        <p className="lv-legal-reopen__meta">{request.requestedBy.fullName} · {legalDate(request.requestedAt)}</p><p className="lv-legal-reopen__reason">{request.reason}</p></div>}
+      {view.lastDecision && <div className="lv-legal-reopen__request lv-legal-reopen__card--last-decision"><h4>{en ? 'Latest Legal decision' : 'Quyết định gần nhất của Legal'}</h4>
+        <p className="lv-legal-reopen__meta">{view.lastDecision.result === 'APPROVE' ? (en ? 'Reopening allowed' : 'Cho phép mở lại') : (en ? 'Reopening refused' : 'Từ chối mở lại')} · {view.lastDecision.decidedBy.fullName} · {legalDate(view.lastDecision.decidedAt)}</p>
+        <p className="lv-legal-reopen__reason">{view.lastDecision.reason}</p></div>}
+      <details className="lv-legal-reopen__history">
+        <summary className="lv-legal-reopen__history-summary">
+          <h4>{en ? 'History of locks, requests and decisions' : 'Lịch sử khóa, yêu cầu và quyết định'}</h4>
+        </summary>
+        <div className="lv-legal-reopen__history-content">
+          {!current.history ? <p>{en ? 'The history could not be loaded.' : 'Chưa tải được lịch sử.'}</p>
+            : !current.history.content.length ? <p>{en ? 'No events yet.' : 'Chưa có sự kiện nào.'}</p>
+            : <ol>{current.history.content.map(event => <li key={event.eventId}>
+              <strong>{operationText[event.operation][en ? 1 : 0]}</strong><span>{event.by.fullName} · {legalDate(event.at)}</span><span>{event.reason}</span></li>)}</ol>}
+          {current.history?.totalElements > current.history?.content.length && <p className="lv-legal-reopen__history-more">{en ? `Showing the latest ${current.history.content.length} of ${current.history.totalElements} events.` : `Đang hiển thị ${current.history.content.length} sự kiện mới nhất trong ${current.history.totalElements}.`}</p>}
+        </div>
+      </details>
       {decidable ? <div className="lv-legal-reopen__decision">
-        <label>{en ? 'Reason for your decision' : 'Lý do quyết định'}
-          <textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></label>
+        <label>
+          <span className="lv-legal-reopen__label-title">{en ? 'Reason for your decision' : 'Lý do quyết định'}</span>
+          <textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} />
+        </label>
         <div className="lv-legal-reopen__actions">
           <button type="button" className="lv-legal-primary" disabled={busy || !reason.trim()} onClick={() => save('APPROVE')}>{en ? 'Allow reopening' : 'Cho phép mở lại'}</button>
           <button type="button" className="lv-legal-danger" disabled={busy || !reason.trim()} onClick={() => save('REJECT')}>{en ? 'Refuse reopening' : 'Từ chối mở lại'}</button>
         </div></div>
-        : view.state.status === 'AWAITING_LEGAL' && namesReady && <p role="status">{en ? 'This request can no longer be decided because attendance, allocation or approval changed. Staff must record attendance and request again.'
-          : 'Yêu cầu này không còn xét được vì điểm danh, phân bổ hoặc phê duyệt đã thay đổi. Staff cần ghi nhận và gửi lại.'}</p>}
+        : view.state.status === 'AWAITING_LEGAL' && namesReady && <div className="lv-legal-reopen__undecidable" role="status"><p>{en ? 'This request can no longer be decided because attendance, allocation or approval changed. Staff must record attendance and request again.'
+          : 'Yêu cầu này không còn xét được vì điểm danh, phân bổ hoặc phê duyệt đã thay đổi. Staff cần ghi nhận và gửi lại.'}</p></div>}
     </>}
   </div>;
 }

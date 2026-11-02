@@ -18,9 +18,9 @@ const base = { session, lang: 'en', caseId: a, discovery: async () => [{ caseId:
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const original = globalThis.fetch;
 test.afterEach(() => { globalThis.fetch = original; });
-async function mount(step) {
+async function mount(step, extra = {}) {
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
-  await act(async () => root.render(React.createElement(Screen, { ...base, step })));
+  await act(async () => root.render(React.createElement(Screen, { ...base, step, ...extra })));
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
@@ -31,7 +31,8 @@ test('only the controlled-unlock step reads and shows reopening requests', async
     ? json({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }) : json({ code: 'RESOURCE_NOT_FOUND' }, 404); };
   let view = await mount('controlled-unlock');
   try {
-    assert.match(view.host.textContent, /Handover reopening requests/); assert.match(view.host.textContent, /No reopening request is waiting for Legal/);
+    // A case is selected, so the empty state is the one about that case.
+    assert.match(view.host.textContent, /Handover reopening requests/); assert.match(view.host.textContent, /The selected case has no reopening request waiting for Legal/);
     assert.ok(urls.some(url => url.includes('/legal-verifications/group-handover/reopen-requests?')));
   } finally { await view.close(); }
   urls.length = 0;
@@ -40,4 +41,18 @@ test('only the controlled-unlock step reads and shows reopening requests', async
     try { assert.doesNotMatch(view.host.textContent, /Handover reopening requests/); } finally { await view.close(); }
   }
   assert.ok(!urls.some(url => url.includes('reopen-requests')), 'other Legal steps never read reopening requests');
+});
+
+test('an empty queue shows exactly one short message, and the explanation appears only when there is a request', async () => {
+  globalThis.fetch = async url => String(url).includes('/group-handover/reopen-requests?')
+    ? json({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }) : json({ code: 'RESOURCE_NOT_FOUND' }, 404);
+  const general = /No reopening request is waiting for Legal/, forCase = /The selected case has no reopening request waiting for Legal/, explanation = /Only Legal decides/;
+  let view = await mount('controlled-unlock', { caseId: '' });
+  try {
+    assert.match(view.host.textContent, general); assert.doesNotMatch(view.host.textContent, forCase); assert.doesNotMatch(view.host.textContent, explanation);
+  } finally { await view.close(); }
+  view = await mount('controlled-unlock');
+  try {
+    assert.match(view.host.textContent, forCase); assert.doesNotMatch(view.host.textContent, general); assert.doesNotMatch(view.host.textContent, explanation);
+  } finally { await view.close(); }
 });
