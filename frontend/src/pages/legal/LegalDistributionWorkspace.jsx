@@ -5,6 +5,7 @@ import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalFinalDecision from './LegalFinalDecision.jsx';
 import LegalHoldControls from './LegalHoldControls.jsx';
 import { legalReadOnly } from './legalPresentation.js';
+import LegalDocumentRequestFields from './LegalDocumentRequestFields.jsx';
 
 export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied, draftState, onDraftStateChange, holdDraft, onHoldDraftChange, onPendingChange }) {
   const en = lang === 'en', data = workflow.data;
@@ -57,14 +58,15 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
       </li>)}</ol>
       {data.allocation.documentVersion !== data.document?.version && <p role="alert">{en ? 'These allocations refer to an older document. Staff must prepare them again.' : 'Phân bổ này dựa trên giấy tờ cũ. Staff cần lập lại theo giấy tờ mới nhất.'}</p>}
     </section>}
-    {!!actions.length && <section className="lv-legal-step-data lv-surface-card">
+    {!!actions.length && <section className={`lv-legal-step-data lv-surface-card${request ? ' lv-document-request-panel' : ''}`}>
       <h2>{request ? (en ? 'Ask for distribution documents' : 'Yêu cầu giấy tờ phân chia lần đầu') : documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ')}</h2>
-      {request && <p>{en ? 'Death verification and will comparison are complete. Tell Staff which distribution documents the applicant must supply.' : 'Đã duyệt khai tử và đối chiếu di chúc. Nêu rõ giấy tờ phân chia người nộp cần chuẩn bị và mang về cho Staff.'}</p>}
+      {request && <p>{en ? 'Choose a draft, then check the request before sending it to Staff.' : 'Chọn mẫu và kiểm tra nội dung yêu cầu trước khi gửi Staff.'}</p>}
       <form className="lv-distribution-form" onSubmit={submit}>
-        <label>{request ? (en ? 'Documents needed and reason' : 'Giấy tờ cần nộp và lý do') : (en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa')}
+        {request ? <LegalDocumentRequestFields key={scope} lang={lang} reason={reason} disabled={workflow.pending}
+          onChange={value => setDraft({ scope, reason: value })} /> : <label>{en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa'}
           <textarea required maxLength={1000} value={reason} disabled={workflow.pending}
-            onChange={event => setDraft({ scope, reason: event.target.value })} /></label>
-        <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" className={action.startsWith('approve') ? 'lv-decision--positive' : 'lv-decision--neutral'} key={action} value={action}
+            onChange={event => setDraft({ scope, reason: event.target.value })} /></label>}
+        <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" className={action.startsWith('approve') || action === 'requestDocuments' ? 'lv-decision--positive' : 'lv-decision--neutral'} key={action} value={action}
           disabled={workflow.pending || !reason.trim() || !can(action)}>{title}</button>)}</div>
       </form>
     </section>}
