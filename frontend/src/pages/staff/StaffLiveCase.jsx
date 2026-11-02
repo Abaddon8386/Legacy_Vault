@@ -389,7 +389,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
               INCONCLUSIVE: [en ? 'Inconclusive' : 'Chưa đủ cơ sở', 'warning'],
             }[result];
             return (
-            <li key={item.id} className="lv-staff-record-item">
+            <li key={item.id} className={`lv-staff-record-item is-${status[1]}${activeRecordId === item.id ? ' is-selected' : ''}`}>
               <div className="lv-staff-record-summary">
                 <span className={`lv-intake-document-icon ${kind === 'original-will-intakes' ? 'is-will' : ''}`}><FileText size={22} aria-hidden="true" /></span>
                 <div className="lv-intake-document-meta"><strong>{en?'Document':'Giấy tờ'} {number} · {item.documentNumber || item.deliveredByName}</strong><time dateTime={item.receivedAt}>{en ? 'Received: ' : 'Tiếp nhận: '}{Number.isNaN(new Date(item.receivedAt).getTime()) ? '—' : new Intl.DateTimeFormat(en ? 'en-GB' : 'vi-VN', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(item.receivedAt))}</time>
