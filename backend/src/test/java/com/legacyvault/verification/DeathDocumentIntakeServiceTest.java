@@ -48,9 +48,10 @@ class DeathDocumentIntakeServiceTest {
     private final DeathDocumentRecordRepository recordRepository = mock(DeathDocumentRecordRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final AuditService auditService = mock(AuditService.class);
+    private final com.legacyvault.verification.repository.LegalVerificationRepository decisions = mock(com.legacyvault.verification.repository.LegalVerificationRepository.class);
     private final DeathDocumentIntakeService service = new DeathDocumentIntakeService(caseRepository,
             recordRepository, userRepository, auditService,
-            mock(com.legacyvault.verification.service.LegalBasisLockedState.class), mock(com.legacyvault.notification.WorkflowNotificationService.class));
+            mock(com.legacyvault.verification.service.LegalBasisLockedState.class), mock(com.legacyvault.notification.WorkflowNotificationService.class), decisions);
 
     private final CustomUserPrincipal staff = new CustomUserPrincipal(STAFF_ID, UUID.randomUUID(), "staff@example.com");
 
@@ -177,7 +178,29 @@ class DeathDocumentIntakeServiceTest {
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
         assertThatThrownBy(() -> service.get(CASE_ID, UUID.randomUUID(), staff))
                 .satisfies(ex -> assertThat(codeOf(ex)).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
-        verifyNoInteractions(recordRepository);
+        verifyNoInteractions(recordRepository, decisions);
+    }
+
+    @Test
+    void decisionsBelongToEachPaperAndAreAlsoAvailableOnDetail() {
+        when(caseRepository.findOwnedByStaff(CASE_ID, STAFF_ID)).thenReturn(Optional.of(openCase()));
+        var oldPaper = new DeathDocumentRecord(CASE_DB_ID, "DEATH_CERTIFICATE", "TEST", "1", LocalDate.of(2026, 10, 1), STAFF_ID, null, null);
+        var newPaper = new DeathDocumentRecord(CASE_DB_ID, "DEATH_CERTIFICATE", "TEST", "2", LocalDate.of(2026, 10, 1), STAFF_ID, null, null);
+        ReflectionTestUtils.setField(oldPaper, "deathDocumentRecordId", 901L);
+        ReflectionTestUtils.setField(newPaper, "deathDocumentRecordId", 902L);
+        ReflectionTestUtils.setField(oldPaper, "receivedAt", LocalDateTime.of(2026, 10, 2, 9, 30));
+        ReflectionTestUtils.setField(newPaper, "receivedAt", LocalDateTime.of(2026, 10, 2, 9, 31));
+        var rejected = com.legacyvault.verification.entity.LegalVerification.createDeathDecision(901L, 55L, "REJECTED", "Thiếu trang", LocalDateTime.of(2026, 10, 2, 10, 0));
+        when(recordRepository.findByVerificationCaseIdOrderByReceivedAtDescDeathDocumentRecordIdDesc(CASE_DB_ID)).thenReturn(List.of(newPaper, oldPaper));
+        when(decisions.findByDeathDocumentRecordIdInOrderByDecidedAtDescVerificationIdDesc(List.of(902L, 901L))).thenReturn(List.of(rejected));
+        var list = service.list(CASE_ID, staff);
+        assertThat(list.get(0).legalDecision()).isNull();
+        assertThat(list.get(1).legalDecision().result()).isEqualTo("REJECTED");
+        assertThat(list.get(1).legalDecision().reason()).isEqualTo("Thiếu trang");
+        when(recordRepository.findByPublicIdAndVerificationCaseId(oldPaper.getPublicId(), CASE_DB_ID)).thenReturn(Optional.of(oldPaper));
+        when(decisions.findByDeathDocumentRecordIdInOrderByDecidedAtDescVerificationIdDesc(List.of(901L))).thenReturn(List.of(rejected));
+        assertThat(service.get(CASE_ID, oldPaper.getPublicId(), staff).legalDecision()).isEqualTo(list.get(1).legalDecision());
+        verifyNoInteractions(auditService);
     }
 
     @Test

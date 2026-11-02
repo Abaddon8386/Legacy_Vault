@@ -43,6 +43,7 @@ import { staffLegalDocumentsI18n } from './staffLegalDocumentsI18n.js';
 import './StaffLegalDocumentsPage.css';
 import { formatStaffSession } from '../../utils/caseReference.js';
 import StaffLegalDecisionNotice from '../../components/staff/StaffLegalDecisionNotice.jsx';
+import { BasisVersionOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
 
 
@@ -85,7 +86,6 @@ export default function StaffLegalDocumentsPage({
   const vaultStatus = displayCaseItem?.vaultStatus;
   const isCaseMetadataReady = Boolean(displayCaseItem);
   const [dossierRevision,setDossierRevision] = useState(0);
-  const distribution = useDistributionWorkflow({ caseId: selectedCaseId, workspace: 'STAFF', accessToken: effectiveAccessToken, lang, onUnauthorized, onExternalChange:()=>setDossierRevision(value=>value+1) });
 
   // Preserve or discover historical handover session for closed/archived cases, scoped strictly to (selectedCaseId, effectiveAccessToken)
   const [discoveredSessionState, setDiscoveredSessionState] = useState({
@@ -245,6 +245,7 @@ export default function StaffLegalDocumentsPage({
   const [uploadProgress, setUploadProgress] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isForwarding, setIsForwarding] = useState(false);
+  const distribution = useDistributionWorkflow({ caseId: selectedCaseId, workspace: 'STAFF', accessToken: effectiveAccessToken, lang, onUnauthorized, isMutationPending:()=>isSubmitting || isForwarding, onExternalChange:()=>setDossierRevision(value=>value+1) });
   const [errors, setErrors] = useState({});
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -400,6 +401,14 @@ export default function StaffLegalDocumentsPage({
       controller.abort();
     };
   }, [selectedCaseId, effectiveAccessToken, effectiveIsDevPreview, lang, en, caseStatus, vaultStatus, isCaseMetadataReady, dossierRevision]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden && !isSubmitting && !isForwarding && !hasUnsavedDraft) setDossierRevision(value => value + 1);
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [selectedCaseId, effectiveAccessToken, isSubmitting, isForwarding, hasUnsavedDraft]);
 
   // Handle case change request (from Context Bar / Modal)
   const handleRequestCaseChange = (caseItem) => {
@@ -847,6 +856,7 @@ export default function StaffLegalDocumentsPage({
         loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} distributionWorkflow={distribution.data} />
       {selectedCaseId && !dossierError && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} />}
       <StaffLegalDecisionNotice decision={effectiveLegalDecision} caseId={selectedCaseId} currentVersion={latestVersion?.version} lang={lang} onViewHistory={()=>setActiveTab('history')} />
+      {latestVersion && effectiveLegalDecision?.decision !== 'LEGAL_REJECTED' && <BasisVersionOutcome version={latestVersion} en={en} compact />}
 
       {(['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || displayCaseItem?.vaultStatus === 'ARCHIVED') && (
         <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
@@ -1480,6 +1490,7 @@ export default function StaffLegalDocumentsPage({
                       <th>{t.issuerLabel}</th>
                       <th>{t.issuanceDateLabel}</th>
                       <th>{t.forwardStatusLabel}</th>
+                      <th>{en ? 'Legal results and reasons' : 'Kết quả và lý do của Legal'}</th>
                       <th>{en ? 'Allocations' : 'Phân bổ'}</th>
                       <th>{en ? 'File' : 'Tệp'}</th>
                     </tr>
@@ -1487,20 +1498,21 @@ export default function StaffLegalDocumentsPage({
                   <tbody>
                     {dossier.versions.map((v) => (
                       <tr key={v.version}>
-                        <td>
+                        <td data-label={t.dossierVersionLabel}>
                           <span className="lv-version-pill">
                             {t.versionText} {v.version}
                           </span>
                         </td>
-                        <td>{v.documentNumber || '—'}</td>
-                        <td>{v.issuingAuthority || '—'}</td>
-                        <td>{v.issueDate || '—'}</td>
-                        <td>
+                        <td data-label={t.documentNumberLabel}>{v.documentNumber || '—'}</td>
+                        <td data-label={t.issuerLabel}>{v.issuingAuthority || '—'}</td>
+                        <td data-label={t.issuanceDateLabel}>{v.issueDate || '—'}</td>
+                        <td data-label={t.forwardStatusLabel}>
                           <span className={`lv-forward-badge ${v.forwardStatus === 'FORWARDED' ? 'lv-forward-badge--forwarded' : 'lv-forward-badge--not-forwarded'}`}>
                             {v.forwardStatus === 'FORWARDED' ? t.forwardStatusForwarded : t.forwardStatusNotForwarded}
                           </span>
                         </td>
-                        <td>
+                        <td data-label={en ? 'Legal results and reasons' : 'Kết quả và lý do của Legal'}><BasisVersionOutcome version={v} en={en} /></td>
+                        <td data-label={en ? 'Allocations' : 'Phân bổ'}>
                           {Array.isArray(v.allocations) && v.allocations.length > 0 ? (
                             <span className="lv-alloc-count-badge">
                               {v.allocations.length} {en ? 'items' : 'mục'}
@@ -1509,7 +1521,7 @@ export default function StaffLegalDocumentsPage({
                             <span className="lv-alloc-count-empty">0</span>
                           )}
                         </td>
-                        <td>
+                        <td data-label={en ? 'File' : 'Tệp'}>
                           <button
                             type="button"
                             className="lv-btn-view-version-file"

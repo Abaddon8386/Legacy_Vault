@@ -1,0 +1,12 @@
+.lv-staff-outcome { margin-top:14px; padding:14px 16px; border:1px solid #d7e1e6; border-radius:8px; background:#f5f8fa; color:#243b53; font-size:16px; line-height:1.55; overflow-wrap:anywhere; }
+.lv-staff-outcome p { margin:8px 0 0; }
+.lv-staff-outcome time { display:block; margin-top:6px; font-size:14px; }
+.lv-staff-outcome.is-negative { border-color:#e7b9b5; background:#fff5f4; color:#8e3028; }
+.lv-staff-outcome.is-positive { border-color:#adcdb9; background:#f1f8f3; color:#24563b; }
+.lv-staff-outcome.is-warning { border-color:#dcc58f; background:#fffaef; color:#785419; }
+.lv-staff-outcome-unavailable { font-size:16px; margin:12px 0; }
+.lv-staff-outcome-history { font-weight:600; }
+.lv-staff-version-outcomes { min-width:300px; max-width:640px; white-space:normal; }
+.lv-staff-outcome-more summary { box-sizing:border-box; min-height:44px; margin-top:12px; padding:10px 12px; border:1px solid #b7c1b9; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+.lv-staff-outcome-more summary:focus-visible { outline:3px solid #b7d9ca; outline-offset:2px; }
+@media(max-width:480px) { .lv-staff-version-outcomes { min-width:0; } }

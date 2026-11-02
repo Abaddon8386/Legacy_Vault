@@ -1070,7 +1070,7 @@
 .lv-staff-documents-view .lv-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .lv-staff-documents-view .lv-history-table th {
@@ -1085,7 +1085,21 @@
 .lv-staff-documents-view .lv-history-table td {
   padding: 12px 14px;
   border-bottom: 1px solid #f0ece6;
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+.lv-staff-documents-view .lv-history-table .lv-btn-view-version-file { min-height:44px; min-width:88px; white-space:nowrap; font-size:14px; }
+.lv-staff-documents-view .lv-history-table :is(.lv-forward-badge,.lv-alloc-count-badge,.lv-version-pill) { font-size:14px; }
+.lv-staff-documents-view .lv-history-table .lv-version-pill { display:inline-flex; white-space:nowrap; }
+.lv-staff-documents-view .lv-history-table .lv-alloc-count-badge { display:inline-flex; white-space:nowrap; }
+@media(max-width:760px) {
+  .lv-staff-documents-view .lv-history-table-wrap { overflow:visible; border:0; }
+  .lv-staff-documents-view .lv-history-table,
+  .lv-staff-documents-view .lv-history-table tbody { display:block; width:100%; }
+  .lv-staff-documents-view .lv-history-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .lv-staff-documents-view .lv-history-table tr { display:block; margin-bottom:16px; padding:12px; border:1px solid #d7e1e6; border-radius:8px; }
+  .lv-staff-documents-view .lv-history-table td { display:block; padding:8px 0; border:0; overflow-wrap:anywhere; }
+  .lv-staff-documents-view .lv-history-table td::before { display:block; content:attr(data-label); margin-bottom:4px; font-size:14px; font-weight:600; }
 }
 
 .lv-staff-documents-view .lv-version-pill {

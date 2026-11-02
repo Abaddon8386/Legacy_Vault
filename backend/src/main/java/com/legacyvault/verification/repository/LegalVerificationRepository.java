@@ -10,6 +10,8 @@ public interface LegalVerificationRepository
 
     boolean existsByDeathDocumentRecordId(Long deathDocumentRecordId);
 
+    List<LegalVerification> findByDeathDocumentRecordIdInOrderByDecidedAtDescVerificationIdDesc(List<Long> recordIds);
+
     List<LegalVerification> findByDeathDocumentRecordIdOrderByRequestedAtDescVerificationIdDesc(
             Long deathDocumentRecordId
     );

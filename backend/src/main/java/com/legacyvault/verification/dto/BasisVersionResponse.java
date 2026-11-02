@@ -31,8 +31,16 @@ public record BasisVersionResponse(
         Instant createdAt,
         Instant forwardedAt,
         boolean current,
-        List<AllocationResponse> allocations
+        List<AllocationResponse> allocations,
+        List<LegalHistory> legalHistory
 ) {
+    public record LegalHistory(UUID id, String result, String reason, Instant decidedAt, boolean currentScope) { }
+
+    public BasisVersionResponse withLegalHistory(List<LegalHistory> entries) {
+        return new BasisVersionResponse(version, legalBasisType, issuingAuthority, documentNumber, issueDate,
+                notaryAuthority, notarialDocumentNumber, notarizedAt, evidenceReference, notes, contentType,
+                sizeBytes, sha256, forwardStatus, createdBy, createdAt, forwardedAt, current, allocations, entries);
+    }
 
     public static BasisVersionResponse from(BasisVersionRow row, UUID createdBy, String evidenceReference,
             boolean current, List<AllocationResponse> allocations) {
@@ -55,7 +63,7 @@ public record BasisVersionResponse(
                 row.createdAt() == null ? null : row.createdAt().toInstant(ZoneOffset.UTC),
                 row.forwardedAt() == null ? null : row.forwardedAt().toInstant(ZoneOffset.UTC),
                 current,
-                allocations
+                allocations, List.of()
         );
     }
 }

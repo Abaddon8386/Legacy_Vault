@@ -14,7 +14,12 @@ export default function WorkflowGuide({ model, lang = 'vi', onNavigate, title, s
   const hasDoneSteps = doneSteps.length > 0;
 
   return <section className="lv-workflow-guide" aria-labelledby={id}>
-    <h2 id={id}>{title || (en ? 'Case progress' : 'Tiến trình xử lý')}</h2>
+    <div className="lv-workflow-guide__heading"><h2 id={id}>{title || (en ? 'Case progress' : 'Tiến trình xử lý')}</h2>
+      <span className="lv-workflow-guide__count">{en ? `${doneSteps.length}/${model.steps.length} steps complete` : `${doneSteps.length}/${model.steps.length} bước hoàn tất`}</span>
+    </div>
+    <progress className="lv-workflow-guide__progress" value={doneSteps.length} max={Math.max(1,model.steps.length)}
+      aria-label={en ? 'Completed workflow steps' : 'Số bước đã hoàn tất'}
+      aria-valuetext={en ? `${doneSteps.length} of ${model.steps.length} steps complete` : `${doneSteps.length} trên ${model.steps.length} bước hoàn tất`} />
 
     {hasDoneSteps && (
       <div className="lv-workflow-guide__done-bar">
@@ -39,7 +44,7 @@ export default function WorkflowGuide({ model, lang = 'vi', onNavigate, title, s
     <ol>{model.steps.map((item, index) => {
       const Icon = icons[item.state] || Circle;
       const isDone = item.state === 'done';
-      const content = <><span className="lv-workflow-guide__number" aria-hidden="true">{item.state === 'done' ? <Icon size={18} /> : index + 1}</span><span className="lv-workflow-guide__label">{item.label}<small><Icon size={13} aria-hidden="true" />{item.statusLabel || labels[item.state]}</small></span></>;
+      const content = <><span className="lv-workflow-guide__number" aria-hidden="true">{item.state === 'done' ? <Icon size={18} /> : index + 1}</span><span className="lv-workflow-guide__label">{item.label}<small><Icon size={14} aria-hidden="true" />{item.statusLabel || labels[item.state]}</small>{item.id === model.current && <span className="lv-workflow-guide__view-label">{en ? 'Viewing' : 'Đang xem'}</span>}</span></>;
       return <li key={item.id} className={`is-${item.state}${isDone && !showDoneOnMobile ? ' is-done-mobile-hidden' : ''}`} aria-current={item.id === model.current ? 'step' : undefined}>
         {item.href ? <a href={item.href} onClick={event => link(event, item.href)}>{content}</a> : <span className="lv-workflow-guide__step">{content}</span>}
       </li>;
