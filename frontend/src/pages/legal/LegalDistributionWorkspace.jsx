@@ -5,6 +5,7 @@ import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalFinalDecision from './LegalFinalDecision.jsx';
 import LegalHoldControls from './LegalHoldControls.jsx';
 import { legalReadOnly } from './legalPresentation.js';
+import LegalDocumentRequestForm from './LegalDocumentRequestForm.jsx';
 
 export default function LegalDistributionWorkspace({ workflow, context, session, lang = 'vi', onComplete, onSaved, onUnauthorized, onDenied, draftState, onDraftStateChange, holdDraft, onHoldDraftChange, onPendingChange }) {
   const en = lang === 'en', data = workflow.data;
@@ -13,24 +14,26 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   const operation = useRef(false), [holdPending, setHoldPending] = useState(false);
   const onHold = context.basisDossier?.route === 'ON_HOLD' || context.vaultStatus === 'ON_HOLD';
   const scope = `${context.caseId}:${session.accessToken}:${data?.phase}:${data?.document?.version}:${data?.allocation?.version}`;
-  const reason = draft.scope === scope ? draft.reason : '';
+  const scopedDraft = draft.scope === scope ? draft : {};
+  const reason = scopedDraft.reason || '';
   const matches = documentMatchesWorkflow(data, context.basisDossier);
   const can = action => !onHold && !holdPending && !legalReadOnly(context) && canUseDistributionAction(data, action, 'LEGAL') && (action === 'requestDocuments' || matches);
   const request = data?.phase === 'DOCUMENT_REQUEST_NEEDED';
   const documents = data?.phase === 'DOCUMENTS_UNDER_REVIEW';
   const allocations = data?.phase === 'ALLOCATIONS_UNDER_REVIEW';
-  const actions = request ? [['requestDocuments', en ? 'Request distribution documents' : 'Yêu cầu giấy tờ phân chia']]
-    : documents ? [['approveDocuments', en ? 'Accept documents' : 'Duyệt căn cứ'], ['requestDocumentSupplementation', en ? 'Request more documents' : 'Yêu cầu bổ sung giấy tờ']]
+  const actions = documents ? [['approveDocuments', en ? 'Accept documents' : 'Duyệt căn cứ'], ['requestDocumentSupplementation', en ? 'Request more documents' : 'Yêu cầu bổ sung giấy tờ']]
       : allocations ? [['approveAllocations', en ? 'Accept allocations' : 'Chấp thuận phân bổ'], ['requestAllocationChanges', en ? 'Request allocation corrections' : 'Yêu cầu sửa phân bổ']] : [];
-  async function submit(event) {
-    event.preventDefault();
-    const action = event.nativeEvent?.submitter?.value || actions[0]?.[0];
-    if (operation.current || !can(action) || !reason.trim() || reason.trim().length > 1000) return;
+  async function save(action, value) {
+    if (operation.current || !can(action) || !value.trim() || value.trim().length > 1000) return;
     operation.current = true;
     try {
-      const saved = await workflow.run(action, { reason });
+      const saved = await workflow.run(action, { reason: value });
       if (saved) { setDraft({ scope, reason: '' }); onComplete?.(); }
     } finally { operation.current = false; }
+  }
+  function submit(event) {
+    event.preventDefault();
+    return save(event.nativeEvent?.submitter?.value || actions[0]?.[0], reason);
   }
   const holdControls = <LegalHoldControls key={`${context.caseId}:${session.accessToken}`} context={context} session={session} lang={lang}
     draft={holdDraft} onDraftChange={onHoldDraftChange} onPendingChange={onPendingChange}
@@ -42,6 +45,8 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   return <>
     <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} showRefresh={false} />
     {holdControls}
+    {request && <LegalDocumentRequestForm lang={lang} draft={scopedDraft} onDraftChange={value => setDraft({ ...value, scope })}
+      pending={workflow.pending || holdPending} allowed={can('requestDocuments')} onSubmit={value => save('requestDocuments', value)} />}
     {data?.document && <section className="lv-legal-step-data lv-surface-card">
       <h2>{en ? 'Submitted distribution documents' : 'Giấy tờ phân chia đã nộp'}</h2>
       {!matches ? <p role="alert">{en ? 'The document version changed. Reload the case before deciding.' : 'Phiên bản giấy tờ đã thay đổi. Tải lại hồ sơ trước khi quyết định.'}</p>
@@ -58,10 +63,9 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
       {data.allocation.documentVersion !== data.document?.version && <p role="alert">{en ? 'These allocations refer to an older document. Staff must prepare them again.' : 'Phân bổ này dựa trên giấy tờ cũ. Staff cần lập lại theo giấy tờ mới nhất.'}</p>}
     </section>}
     {!!actions.length && <section className="lv-legal-step-data lv-surface-card">
-      <h2>{request ? (en ? 'Ask for distribution documents' : 'Yêu cầu giấy tờ phân chia lần đầu') : documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ')}</h2>
-      {request && <p>{en ? 'Death verification and will comparison are complete. Tell Staff which distribution documents the applicant must supply.' : 'Đã duyệt khai tử và đối chiếu di chúc. Nêu rõ giấy tờ phân chia người nộp cần chuẩn bị và mang về cho Staff.'}</p>}
+      <h2>{documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ')}</h2>
       <form className="lv-distribution-form" onSubmit={submit}>
-        <label>{request ? (en ? 'Documents needed and reason' : 'Giấy tờ cần nộp và lý do') : (en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa')}
+        <label>{en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa'}
           <textarea required maxLength={1000} value={reason} disabled={workflow.pending}
             onChange={event => setDraft({ scope, reason: event.target.value })} /></label>
         <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" className={action.startsWith('approve') ? 'lv-decision--positive' : 'lv-decision--neutral'} key={action} value={action}

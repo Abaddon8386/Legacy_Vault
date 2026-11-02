@@ -1,0 +1,5 @@
+.lv-legal-document-request { width:100%; }
+.lv-legal-document-request .lv-legal-request-help { color:var(--legal-muted,#53665a); font-size:14px; line-height:1.6; }
+.lv-legal-document-request input[type=text] { box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:11px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fff; color:var(--legal-ink,#234237); font:inherit; }
+.lv-legal-document-request input[type=text]:disabled { background:#f4f5f2; color:var(--legal-muted,#53665a); }
+.lv-legal-document-request input[type=text]:focus-visible { outline:3px solid var(--lv-accent-gold,#c5a059); outline-offset:3px; }
