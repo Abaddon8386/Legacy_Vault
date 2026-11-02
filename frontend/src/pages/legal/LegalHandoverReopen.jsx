@@ -121,7 +121,7 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
       <span>{page + 1} / {list.data.totalPages}</span>
       <button type="button" disabled={!current || page + 1 >= list.data.totalPages} onClick={() => setPage(value => value + 1)}>{en ? 'Next' : 'Sau'}</button>
     </div>}
-    {target && <ReopenDetail key={`${target.caseId}:${target.sessionId}`} item={target} session={session} lang={lang}
+    {target && <ReopenDetail key={target.requestId} item={target} session={session} lang={lang}
       onDecided={result => { setOutcome({ ...result, caseId: target.caseId }); setOpened(target); }} onUnauthorized={onUnauthorized} />}
     {forCase?.error && <p role="alert">{workflowFailure(forCase.error, lang).description}</p>}
     {caseId && !target && forCase && !forCase.error && <p>{en ? 'The selected case has no reopening request waiting for Legal.' : 'Hồ sơ đang chọn hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}

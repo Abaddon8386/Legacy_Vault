@@ -270,3 +270,13 @@ test('a newer session of the same case replaces the one that was opened', async 
     assert.ok(log.urls.some(url => url.includes(sessionB)), 'the detail follows the newer session');
   } finally { await v.close(); }
 });
+
+test('a newer request in the same session makes the detail read the server state again', async () => {
+  const log = backend(); const v = await mount();
+  try {
+    await settle(); const before = log.gets;
+    log.setListed([pending({ requestId: req2 })]);
+    await act(async () => window.dispatchEvent(new window.Event('lv-workflow-notifications-changed'))); await settle();
+    assert.ok(log.gets > before, 'the detail must not keep showing the previous request');
+  } finally { await v.close(); }
+});

@@ -4,7 +4,7 @@
 .lv-legal-reopen p, .lv-legal-reopen li { overflow-wrap:anywhere; }
 .lv-legal-reopen p { margin:0; font-size:16px; line-height:1.6; }
 .lv-legal-reopen h3 { margin:0; font-size:18px; line-height:1.4; }
-.lv-legal-reopen h4 { margin:0 0 6px; font-size:16px; line-height:1.4; font-weight:600; }
+.lv-legal-reopen h4 { font-family:var(--lv-font-sans,system-ui,sans-serif); margin:0 0 6px; font-size:16px; line-height:1.4; font-weight:600; }
 .lv-legal-reopen__list, .lv-legal-reopen__people { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
 .lv-legal-reopen__list > li { display:grid; gap:8px; justify-items:start; padding:16px; border:1px solid var(--legal-line,#d8e0db); border-radius:12px; background:#fff; }
 .lv-legal-reopen__list > li[aria-current=true] { border-color:#244b3d; box-shadow:0 0 0 2px #244b3d22; }
@@ -19,6 +19,7 @@
 .lv-legal-reopen__history li { display:grid; gap:4px; padding:10px 12px; border-radius:8px; background:#f5f6f1; font-size:16px; }
 .lv-legal-reopen__decision { display:grid; gap:12px; }
 .lv-legal-reopen__actions { display:flex; flex-wrap:wrap; gap:12px; }
+.lv-legal-live .lv-legal-reopen__actions button:disabled { opacity:1; border-color:#d8dcd6; background:#e4e6e1; color:var(--legal-muted,#53665a); }
 @media (max-width:640px) {
   .lv-legal-reopen__actions { flex-direction:column; }
   .lv-legal-reopen__actions button, .lv-legal-reopen__list > li > button { width:100%; }
