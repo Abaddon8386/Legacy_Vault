@@ -96,42 +96,6 @@
   .lv-staff-counter-link { transition: none; }
 }
 
-/* Progress guide on every staff screen: one flat row, no card. The tick marks done, the bold label marks the current step,
-   and only the current step prints a status word. The h2 and the other status words stay for screen readers. */
-.lv-staff-surfaces .lv-workflow-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin: 0 0 16px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
-.lv-staff-surfaces .lv-workflow-guide > ol { order: 1; flex: 1 1 640px; flex-wrap: nowrap; gap: 4px; min-width: 0; }
-.lv-staff-surfaces .lv-workflow-guide__heading { order: 2; margin: 0; }
-.lv-staff-surfaces .lv-workflow-guide .lv-workflow-guide__heading h2,
-.lv-staff-surfaces .lv-workflow-guide :is(li:not([aria-current=step]) small,.lv-workflow-guide__view-label) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-.lv-staff-surfaces .lv-workflow-guide__count { font-size: 14px; font-weight: 500; color: #52675b; white-space: nowrap; }
-.lv-staff-surfaces .lv-workflow-guide__progress { display: none; }
-.lv-staff-surfaces .lv-workflow-guide li:is(.is-done,.is-action,.is-waiting,.is-blocked) { flex: 1 1 0; min-width: 0; border: 0; border-radius: 8px; background: none; box-shadow: none; color: inherit; }
-.lv-staff-surfaces .lv-workflow-guide li[aria-current=step] { outline: 0; }
-.lv-staff-surfaces .lv-workflow-guide li[aria-current=step] .lv-workflow-guide__label { font-weight: 700; color: #164639; }
-.lv-staff-surfaces .lv-workflow-guide :is(a,.lv-workflow-guide__step) { min-height: 44px; padding: 4px 8px 4px 0; }
-.lv-staff-surfaces .lv-workflow-guide .lv-workflow-guide__number { width: 22px; height: 22px; box-shadow: none; }
-.lv-staff-surfaces .lv-workflow-guide .lv-workflow-guide__number svg { width: 14px; height: 14px; }
-.lv-staff-surfaces .lv-workflow-guide .lv-workflow-guide__label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; font-size: 14px; font-weight: 500; }
-.lv-staff-surfaces .lv-workflow-guide small { margin-top: 0; font-size: 14px; }
-@media(max-width:640px) {
-  .lv-staff-surfaces .lv-workflow-guide > ol { flex-wrap: wrap; flex-basis: 100%; }
-  .lv-staff-surfaces .lv-workflow-guide li:is(.is-done,.is-action,.is-waiting,.is-blocked) { flex: 1 1 45%; }
-  .lv-staff-surfaces .lv-workflow-guide li.is-done-mobile-hidden { display: list-item; }
-  .lv-staff-surfaces .lv-workflow-guide__done-bar { display: none; }
-  .lv-staff-surfaces .lv-workflow-guide__heading { order: 0; flex: 1 1 100%; margin-bottom: 4px; }
-}
-
-/* Collapsed by default: one line says where the case is, the button opens the five steps. */
-.lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar { order: 0; flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar p { margin: 0; font-size: 16px; color: #203e33; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar button { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; min-height: 44px; padding: 0 14px; border: 1px solid #a3b8aa; border-radius: 8px; background: #fff; color: #244b3d; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar button:hover { background: #edf5f1; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar button:focus-visible { outline: 2px solid #204f40; outline-offset: 2px; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible > ol { flex-basis: 100%; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible > ol[hidden] { display: none; }
-.lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__heading { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); }
-@media(max-width:640px) { .lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar { flex-wrap: wrap; } }
-
 /* Case header: deep green block so the case is the first thing the eye finds. Shared by the case bar and the case detail header. */
 .lv-staff-surfaces :is(.lv-staff-context-bar--active, .lv-staff-live .lv-intake-heading) { background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
 .lv-staff-surfaces .lv-staff-context-bar--active { padding: 18px 24px; }
