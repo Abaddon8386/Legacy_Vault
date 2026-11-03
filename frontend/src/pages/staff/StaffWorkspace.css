@@ -157,5 +157,4 @@
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-negative { background: #f9dcd8; color: #7a2a22; }
 
 .lv-staff-surfaces .lv-staff-context-bar--active [class*="lv-staff-context-badge--outcome-"] { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px 5px 10px; font-weight: 700; box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
-
-
+.lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-history { background: rgba(255,255,255,.14); color: #d6f0e2; }

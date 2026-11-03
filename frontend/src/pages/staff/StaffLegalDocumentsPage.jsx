@@ -41,6 +41,7 @@ import './StaffLegalDocumentsPage.css';
 import { formatStaffSession } from '../../utils/caseReference.js';
 import StaffLegalDecisionNotice from '../../components/staff/StaffLegalDecisionNotice.jsx';
 import { BasisVersionOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
+import { basisTypeForRoute } from '../../utils/basisTypeForRoute.js';
 import { versionOutcomeChip } from '../../components/staff/documentOutcomeResults.js';
 import StaffLegalOutcomeCard from '../../components/staff/StaffLegalOutcomeCard.jsx';
 import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
@@ -385,7 +386,7 @@ export default function StaffLegalDocumentsPage({
             setDossier(result.dossier);
             setDossierNotFound(false);
             if (['COURT', 'NOTARIAL'].includes(result.dossier.route)) {
-              setLegalBasisType(result.dossier.route === 'NOTARIAL' ? 'NOTARIAL_PARTITION' : 'COURT_JUDGMENT');
+              setLegalBasisType(current => basisTypeForRoute(current, result.dossier.route));
             }
           }
         }

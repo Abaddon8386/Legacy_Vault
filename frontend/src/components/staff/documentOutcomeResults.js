@@ -30,7 +30,11 @@ export function versionOutcomeChip(version, en = false) {
   const latest = version?.legalHistory?.[0];
   const label = latest && outcomeResults[latest.result];
   if (!label) return null;
-  const short = chipLabels[latest.result];
-  return { label: (short || label)[en ? 1 : 0], tone: label[2] };
+  const short = (chipLabels[latest.result] || label)[en ? 1 : 0];
+  // A result that no longer applies (old scope or older document version) must not look like the current one.
+  const stale = latest.currentScope === false || version.current === false;
+  return stale
+    ? { label: en ? 'Previous result' : 'Kết quả cũ', tone: 'history', stale: true, resultLabel: short }
+    : { label: short, tone: label[2], stale: false, resultLabel: short };
 }
 

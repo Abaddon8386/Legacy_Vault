@@ -1,9 +1,9 @@
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, History, XCircle } from 'lucide-react';
 import { BasisVersionOutcome } from './StaffDocumentOutcome.jsx';
 import { outcomeResults, versionOutcomeChip } from './documentOutcomeResults.js';
 import './StaffLegalOutcomeCard.css';
 
-const icons = { positive: CheckCircle2, negative: XCircle, warning: AlertTriangle };
+const icons = { positive: CheckCircle2, negative: XCircle, warning: AlertTriangle, history: History };
 
 // The latest Legal decision on a document version, drawn as a flat verdict band (not an information card).
 export default function StaffLegalOutcomeCard({ version, en = false }) {
@@ -22,7 +22,7 @@ export default function StaffLegalOutcomeCard({ version, en = false }) {
     <Icon className="lv-staff-legal-outcome__icon" size={28} aria-hidden="true" />
     <div className="lv-staff-legal-outcome__body">
       <p className="lv-staff-legal-outcome__label">{title}</p>
-      <p className="lv-staff-legal-outcome__verdict">{chip.label}</p>
+      <p className="lv-staff-legal-outcome__verdict">{chip.stale ? `${chip.resultLabel} · ${en ? 'no longer current' : 'không còn hiệu lực'}` : chip.label}</p>
       {latest.reason && <p className="lv-staff-legal-outcome__reason"><span>{en ? 'Reason: ' : 'Lý do: '}</span>{latest.reason}</p>}
       {!latest.currentScope && <p className="lv-staff-legal-outcome__history">{version.current === false
         ? (en ? 'Previous document version — historical result only.' : 'Phiên bản giấy tờ cũ — chỉ xem lịch sử.')
