@@ -27,6 +27,7 @@ import {
   validateVerificationReceipt,
 } from './staffIdentityService.js';
 import './StaffCaseVerificationPage.css';
+import { isUuid } from '../../api/contracts.js';
 
 /**
  * StaffCaseVerificationPage — Giao diện Tiếp nhận giấy tờ & Xác minh danh tính trực tiếp (PS-27)
@@ -414,12 +415,12 @@ function VerificationForm({
           <p className="lv-verify-success-desc">{t.feedback.successDesc}</p>
 
           <div className="lv-verify-receipt-box">
-            <div className="lv-verify-receipt-row">
+            {!isUuid(successReceipt.id) && <div className="lv-verify-receipt-row">
               <span className="lv-verify-receipt-label">{t.feedback.receiptId}</span>
               <strong className="lv-verify-receipt-val lv-verify-receipt-val--code">
                 {successReceipt.id}
               </strong>
-            </div>
+            </div>}
 
             <div className="lv-verify-receipt-row">
               <span className="lv-verify-receipt-label">{t.review.beneficiaryLabel}</span>
