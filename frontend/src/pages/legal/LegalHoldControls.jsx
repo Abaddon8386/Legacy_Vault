@@ -52,7 +52,7 @@ export default function LegalHoldControls({ context, session, lang = 'vi', disab
     }
   }
   if (!eligible) return null;
-  return <section className="lv-legal-step-data lv-surface-card" aria-label={en ? 'Pause or resume case processing' : 'Tạm dừng hoặc tiếp tục xử lý hồ sơ'}>
+  return <section className="lv-legal-step-data lv-legal-hold-controls" aria-label={en ? 'Pause or resume case processing' : 'Tạm dừng hoặc tiếp tục xử lý hồ sơ'}>
     {resume ? <><h2>{en ? 'Resume case processing' : 'Tiếp tục xử lý hồ sơ'}</h2>
       <p>{en ? 'The case is on hold. Review the reason and the available documents before resuming.' : 'Hồ sơ đang tạm dừng. Kiểm tra lý do và giấy tờ hiện có trước khi tiếp tục xử lý.'}</p>
       {dossier.routeReason && <p>{en ? 'Hold reason: ' : 'Lý do tạm dừng: '}{dossier.routeReason}</p>}</>

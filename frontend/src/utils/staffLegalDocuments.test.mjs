@@ -1360,9 +1360,10 @@ test('Legal Banners: Supplementation required by real BE (requiredVersion > late
     });
 
     const banners = host.querySelectorAll('.lv-dossier-hold-banner');
-    const suppBanner = [...banners].find(b => b.textContent.includes('yêu cầu bổ sung') || b.textContent.includes('CHANGES_REQUESTED'));
+    const suppBanner = [...banners].find(b => b.classList.contains('lv-dossier-supplement-banner'));
     assert.ok(suppBanner, 'Supplementation banner must be rendered when requiredVersion > latestVersion');
     assert.match(suppBanner.textContent, /phiên bản hồ sơ số 2/i);
+    assert.doesNotMatch(suppBanner.textContent, /CHANGES_REQUESTED/);
   } finally {
     await unmount();
     globalThis.fetch = originalFetch;
