@@ -39,18 +39,18 @@ test('Closed case keeps document browsing while removing the disabled intake for
  const v=await mount();
  assert.equal(v.host.querySelector('form'),null);
  assert.equal(v.host.querySelector('input[type=file]'),null);
- assert.ok(button(v.host,'Làm mới danh sách giấy tờ'));
- assert.match(v.host.textContent,/Chỉ đọc/);
+ assert.ok(button(v.host,'Làm mới'));
+ assert.match(v.host.textContent,/Đã đóng/);
  await v.close();
 });
 test('Auto-loads documents, retains VI/EN draft, saves intake and displays server receipt',async()=>{
  let release,writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){writes++;return new Promise(r=>{release=r;});}return json(url.endsWith('death-documents')?[]:detail);};
  const v=await mount();
- assert.ok(button(v.host,'Làm mới danh sách giấy tờ'));
+ assert.ok(button(v.host,'Làm mới'));
  assert.equal(v.host.querySelector('fieldset').disabled,false);
  await act(async()=>props(v.host.querySelector('fieldset input')).onChange({target:{value:'Draft authority'}}));
  await act(async()=>v.root.render(React.createElement(Screen,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('fieldset input').value,'Draft authority');
- assert.ok(button(v.host,'Refresh document list'));
+ assert.ok(button(v.host,'Refresh'));
  const submit=()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}});
  await act(async()=>submit());await act(async()=>submit());assert.equal(writes,1);assert.ok(v.host.querySelector('progress[aria-label="Processing"]'));
  await act(async()=>release(json({id,caseId:id,receivedBy:id,receivedAt:'2026-10-20T05:00:00Z'},201)));
@@ -71,8 +71,8 @@ for (const kind of ['death-documents', 'original-will-intakes']) test(`a pre-sav
  };
  const v = await mount();
  try {
-  if (kind !== 'death-documents') await act(async () => props(v.host.querySelector('select')).onChange({target:{value:kind}}));
-  await act(async () => button(v.host,'Làm mới danh sách giấy tờ').click());
+  if (kind !== 'death-documents') await act(async () => button(v.host,'Di chúc gốc').click());
+  await act(async () => button(v.host,'Làm mới').click());
   assert.ok(releaseRead);
   await act(async () => props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));
   assert.match(v.host.textContent,/Đã tiếp nhận giấy tờ thành công/);
@@ -87,7 +87,7 @@ test('Error keeps draft; unmount aborts pending writes; refresh button retries d
  let signal,release;globalThis.fetch=async(url,init)=>init.method==='POST'?json({code:'CASE_CONFLICT'},409):json(url.endsWith('death-documents')?[]:detail);
  const v=await mount();
  assert.equal(v.host.querySelector('fieldset').disabled,false);
- await act(async()=>button(v.host,'Làm mới danh sách giấy tờ').click());
+ await act(async()=>button(v.host,'Làm mới').click());
  await act(async()=>props(v.host.querySelector('fieldset input')).onChange({target:{value:'Keep'}}));
  await act(async()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));assert.equal(v.host.querySelector('fieldset input').value,'Keep');assert.match(v.host.textContent,/Hồ sơ vừa được cập nhật/);assert.equal(v.host.textContent.includes('CASE_CONFLICT'),false);
  globalThis.fetch=async(url,init)=>{signal=init.signal;return new Promise(r=>{release=r;});};await act(async()=>button(v.host,'Nhận hồ sơ').click());await v.close();assert.equal(signal.aborted,true);await act(async()=>release(json(detail)));
@@ -217,7 +217,7 @@ test('Switching document category clears staged evidence before creating another
   const file=new File(['pdf'],'death.pdf',{type:'application/pdf'});
   await act(async()=>props(v.host.querySelector('fieldset input[type=file]')).onChange({target:{files:[file]}}));
   assert.match(v.host.textContent,/death.pdf/);
-  await act(async()=>props(v.host.querySelector('select')).onChange({target:{value:'original-will-intakes'}}));
+  await act(async()=>button(v.host,'Di chúc gốc').click());
   assert.doesNotMatch(v.host.textContent,/death.pdf/);
   await v.close();
 });
@@ -297,7 +297,7 @@ test('Pending attachment upload rejects double submit and aborts on category cha
     const send=props(button(v.host,'Tải lên đính kèm')).onClick;
     await act(async()=>{send();send();});
     assert.equal(sends,1);
-    await act(async()=>props(v.host.querySelector('select')).onChange({target:{value:'original-will-intakes'}}));
+    await act(async()=>button(v.host,'Di chúc gốc').click());
     assert.equal(aborted,1);assert.doesNotMatch(v.host.textContent,/Đính kèm tệp chứng cứ thành công/);
   } finally {await v.close();globalThis.XMLHttpRequest=prior;}
 });

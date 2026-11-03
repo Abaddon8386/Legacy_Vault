@@ -31,7 +31,7 @@ test('actual Staff intake list renders each paper’s own decision and refreshes
   let rows=host.querySelectorAll('.lv-staff-record-item');
   assert.equal(rows.length,2);
   assert.match(rows[0].textContent,/Giấy tờ 2/);
-  assert.match(rows[0].textContent,/Chờ Legal/);
+  assert.match(rows[0].textContent,/Chờ Ban Pháp lý/);
   assert.doesNotMatch(rows[0].textContent,/Thiếu trang bản cũ/);
   assert.match(rows[1].textContent,/Đã từ chối/);
   assert.match(rows[1].textContent,/Thiếu trang bản cũ/);
@@ -49,7 +49,7 @@ test('actual Staff intake list renders each paper’s own decision and refreshes
 test('accepted, supplementation and unavailable data have distinct readable labels in VI/EN',async()=>{
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try{
-  for(const [value,en,text] of [[decision('APPROVED','Đủ thông tin'),false,'Đã chấp thuận'],[decision('NEEDS_CORRECTION','Thiếu bản scan'),false,'Cần bổ sung giấy tờ'],[undefined,false,'Chưa có dữ liệu kết quả Legal'],[null,true,'Awaiting Legal review']]){
+  for(const [value,en,text] of [[decision('APPROVED','Đủ thông tin'),false,'Đã chấp thuận'],[decision('NEEDS_CORRECTION','Thiếu bản scan'),false,'Cần bổ sung giấy tờ'],[undefined,false,'Chưa có dữ liệu kết quả pháp lý'],[null,true,'Awaiting Legal review']]){
    await act(async()=>root.render(React.createElement(DeathDocumentDecision,{decision:value,en})));
    assert.ok(host.textContent.includes(text));
   }

@@ -60,7 +60,7 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
     // Thẻ 1: Thông tin phiên bàn giao
     sessionSection: {
       title: 'Thông tin phiên bàn giao tại quầy',
-      sessionId: 'Mã phiên bàn giao',
+      sessionId: 'Phiên bàn giao',
       caseId: 'Mã hồ sơ tiếp nhận',
       vaultName: 'Kho di sản',
       vaultId: 'Mã kho di sản',
@@ -69,15 +69,15 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
       sessionStatus: 'Trạng thái phiên',
       vaultStatus: 'Trạng thái kho',
       openedAt: 'Thời điểm mở phiên',
-      legalApprovalRef: 'Mã phê duyệt pháp lý',
+      legalApprovalRef: 'Mã phê duyệt của Ban Pháp lý',
       unlockConfirmationSource: 'Nguồn xác nhận mở khóa',
-      approvalStatusFresh: 'Phê duyệt hợp lệ',
+      approvalStatusFresh: 'Ban Pháp lý đã duyệt',
       statusActive: 'ĐANG MỞ',
       statusCompleted: 'ĐÃ HOÀN TẤT',
       statusCancelled: 'ĐÃ HỦY',
       statusLockedNotice:
-        'CẢNH BÁO: Kho di sản chưa được xác nhận ĐÃ MỞ KHÓA. Theo quy tắc PS-59, chỉ Legal approval hợp lệ mới mở khóa; DMS timeout hoặc chứng từ tử vong riêng lẻ không đủ mở khóa.',
-      openSessionBtn: 'Mở phiên bàn giao mới',
+        'Kho di sản chưa được mở khóa. Chỉ phê duyệt hợp lệ của Ban Pháp lý mới đủ điều kiện mở khóa; các điều kiện khác không thay thế được.',
+      openSessionBtn: 'Mở phiên bàn giao',
       activeNotice: 'Phiên đang hoạt động. Nhân viên có thể tiến hành liên kết tài khoản và bàn giao tài sản.',
     },
 
@@ -269,7 +269,7 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
     // Card 1: Session Information
     sessionSection: {
       title: 'Handover Session Information',
-      sessionId: 'Session ID',
+      sessionId: 'Handover session',
       caseId: 'Intake Case ID',
       vaultName: 'Heritage Vault',
       vaultId: 'Vault ID',

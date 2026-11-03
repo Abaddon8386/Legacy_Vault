@@ -32,7 +32,6 @@ import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx'
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import './ScopedAssetHandoverPage.css';
 import { readDeliveryReceiptBatch } from '../../utils/deliveryReceiptValidation.js';
-import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
 export default function ScopedAssetHandoverPage(props) {
@@ -440,9 +439,6 @@ function ScopedAssetHandoverPageContext({
 
   return (
     <div className="lv-asset-handover-view">
-      <StaffWorkflowGuide current="handover" caseId={caseReference} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
-        legalApproved={hasCurrentScope && scopeValidation.isValid && scopeValidation.isApproved}
-        caseStatus={displayCaseItem?.status} vaultStatus={displayCaseItem?.vaultStatus} loading={isLoading} error={loadError} />
       {/* Context navigation back link */}
       {caseReference && sessionId && (
         <div className="lv-handover-nav-back">

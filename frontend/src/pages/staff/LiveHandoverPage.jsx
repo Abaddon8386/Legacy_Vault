@@ -5,12 +5,12 @@ import { listLiveSessions, getLiveSession, openLiveSession, cancelLiveSession, i
 import './LiveHandoverPage.css';
 import { trackOwnerSurface } from '../../components/layout/ownerSurfaceMotion.js';
 import '../../components/layout/OwnerSurfaces.css';
-import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import StaffCaseLinkPanel from './StaffCaseLinkPanel.jsx';
 import StaffGroupHandover from '../../components/staff/StaffGroupHandover.jsx';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
+import { ArrowLeft } from 'lucide-react';
 
 function sessionTime(value, en) {
   const date = new Date(value);
@@ -37,11 +37,11 @@ function errorText(error, en, caseItem) {
     RESOURCE_NOT_FOUND: ['Không tìm thấy hoặc hồ sơ/phiên không được giao cho bạn. Hãy nhận hồ sơ ở danh sách nếu phù hợp.', 'Case/session not found or not assigned to you. Claim an eligible case in the case queue.'],
     INVALID_RESPONSE: ['Dữ liệu máy chủ không hợp lệ. Chưa xác nhận thao tác thành công.', 'Invalid server response. The action has not been confirmed.'],
     LEGAL_APPROVAL_REQUIRED: [
-      'Cần có phê duyệt Pháp lý còn hiệu lực trước khi mở phiên bàn giao. Nhân viên vui lòng kiểm tra tiến trình thẩm định tại mục Hồ sơ căn cứ.',
+      'Cần có phê duyệt Ban Pháp lý còn hiệu lực trước khi mở phiên bàn giao. Nhân viên vui lòng kiểm tra tiến trình thẩm định tại mục Hồ sơ căn cứ.',
       'A valid Legal approval is required before opening a handover session. Staff should verify review progress in the Legal Basis Documents section.'
     ],
     LEGAL_WORKFLOW_ON_HOLD: [
-      'Hồ sơ đang ở trạng thái Tạm dừng (ON_HOLD) từ Pháp lý. Nhân viên vui lòng kiểm tra mục Hồ sơ căn cứ để bổ sung giấy tờ phân chia theo yêu cầu trước khi mở phiên bàn giao.',
+      'Hồ sơ đang ở trạng thái Tạm dừng (ON_HOLD) từ Ban Pháp lý. Nhân viên vui lòng kiểm tra mục Hồ sơ căn cứ để bổ sung giấy tờ phân chia theo yêu cầu trước khi mở phiên bàn giao.',
       'The dossier is ON HOLD by Legal. Staff should check the Legal Basis Documents page to supplement partition documents as requested before opening a handover session.'
     ],
   };
@@ -156,9 +156,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           : selected?.status === 'COMPLETED' ? (en ? 'This session is complete. Continue to closing and archiving.' : 'Phiên đã hoàn tất. Chuyển sang đóng và lưu trữ.')
             : mode === 'accounts' ? (en ? 'Open sessions from the handover page.' : 'Mở phiên tại trang bàn giao.') : '';
   const statuses = en ? { OPEN: 'Open', COMPLETED: 'Completed', CANCELLED: 'Cancelled' } : { OPEN: 'Đang mở', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy' };
-  return <section className="lv-session-panel" aria-busy={loading || pending}>
-    <StaffWorkflowGuide current="handover" caseId={caseId} sessionId={selected?.sessionId} caseStatus={caseItem?.status}
-      vaultStatus={caseItem?.vaultStatus} sessionStatus={selected?.status} loading={loading} error={error} lang={lang} />
+  return <section className="lv-session-panel lv-staff-glow" aria-busy={loading || pending}>
     <div className="lv-session-panel-heading">
       <div>
         <h2>{en ? 'Handover sessions' : 'Phiên bàn giao'} <span className="lv-session-count">{sessions.length}</span></h2>
@@ -169,7 +167,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     {error && <p role="alert">{errorText(error, en, caseItem)}</p>}
     {notice && <p role="status">{notice}</p>}
     <details className="lv-session-guidance"><summary>{en ? 'Requirements for a new session' : 'Điều kiện mở phiên mới'}</summary>
-      <p>{en ? 'The case must be open and assigned to you, with the vault unlocked and a current Legal approval.' : 'Hồ sơ đang mở và được giao cho bạn; kho đã mở khóa và phê duyệt pháp lý còn hiệu lực.'}</p>
+      <p>{en ? 'The case must be open and assigned to you, with the vault unlocked and a current Legal approval.' : 'Hồ sơ đang mở và được giao cho bạn; kho đã mở khóa và phê duyệt Ban Pháp lý còn hiệu lực.'}</p>
     </details>
     {isCaseClosed && (
       <p role="note" className="lv-live-closed-notice">
@@ -178,7 +176,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     )}
     <button className="lv-live-primary" disabled={Boolean(openBlocked)} aria-describedby={openBlocked ? 'open-session-blocked' : undefined} onClick={() => act(options => openLiveSession(caseId, options))}>{en ? 'Open handover session' : 'Mở phiên bàn giao'}</button>
     <WorkflowActionHint id="open-session-blocked" reason={openBlocked} />
-    {!loading && !error && sessions.length === 0 && <p>{en ? 'No sessions yet.' : 'Chưa có phiên bàn giao.'}</p>}
+    {!loading && !error && sessions.length === 0 && <p className="lv-session-empty-state">{en ? 'No sessions yet.' : 'Chưa có phiên bàn giao.'}</p>}
     <ul className="lv-session-list">{sessions.map((item, index) => <li key={item.sessionId}>
       <button className={`lv-session-choice${selected?.sessionId === item.sessionId ? ' is-selected' : ''}`} aria-pressed={selected?.sessionId === item.sessionId} disabled={pending || loading || Boolean(error)} onClick={() => act(options => getLiveSession(caseId, item.sessionId, options))}>
         <span className="lv-session-choice-label"><strong>{en ? 'Session' : 'Phiên'} {String(sessions.length - index).padStart(2, '0')}</strong><time dateTime={item.openedAt}>{sessionTime(item.openedAt, en)}</time></span>
@@ -202,7 +200,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           borderRadius: '8px',
           color: '#92400e',
           margin: '12px 0',
-          fontSize: '13.5px',
+          fontSize: '14px',
           lineHeight: '1.5'
         }}>
           <strong>{en ? 'This session has been cancelled' : 'Phiên bàn giao này đã bị hủy'}</strong>
@@ -269,13 +267,18 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
     onSelectSession?.(caseId ? sessionId : null);
   };
   return <section className="lv-live-handover lv-staff-surfaces" onPointerMove={trackOwnerSurface}>
-    <header className="lv-live-page-heading"><a href="/staff/cases">← {en ? 'Staff cases' : 'Danh sách hồ sơ'}</a></header>
-    <h1>{mode === 'accounts' ? (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy') : (en ? 'Counter handover sessions' : 'Phiên bàn giao tại quầy')}</h1>
+    <div className="lv-staff-header-actions">
+      <a href="/staff/cases" className="lv-staff-back-link-btn">
+        <ArrowLeft size={16} aria-hidden="true" />
+        <span>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
+      </a>
+    </div>
+    <h1 className="lv-staff-handover-title">{mode === 'accounts' ? (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy') : (en ? 'Counter handover sessions' : 'Bàn giao tài sản tại quầy')}</h1>
     {!caseId ? <CasePicker accessToken={accessToken} lang={lang} onError={notify} onChoose={(id, item) => {
       setCaseId(id); setCaseItem(item || null); setRequested(null);
       window.history.replaceState(window.history.state, '', handoverUrl(window.location.pathname, id));
     }} /> : <>
-      <div className="lv-live-case-summary">
+      <div className="lv-live-case-summary lv-staff-glow">
         <div className="lv-live-case-description">
           <span style={{ fontWeight: 600, color: '#334155' }}>{en ? 'Case' : 'Hồ sơ'}: </span>
           <span>{caseItem?.caseNumber || caseId}</span>
@@ -286,7 +289,7 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
               marginLeft: '0.5rem',
               padding: '2px 8px',
               borderRadius: '9999px',
-              fontSize: '12px',
+              fontSize: '14px',
               fontWeight: 600,
               background: caseItem.status === 'CLOSED' ? '#fee2e2' : caseItem.status === 'OPEN' ? '#dcfce7' : '#f1f5f9',
               color: caseItem.status === 'CLOSED' ? '#991b1b' : caseItem.status === 'OPEN' ? '#166534' : '#475569',

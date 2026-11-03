@@ -1,4 +1,4 @@
-import { FolderOpen, ArrowRightLeft, User, Layers } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { formatCaseReference } from '../../utils/caseReference.js';
 import './StaffCaseContextBar.css';
 
@@ -8,6 +8,7 @@ export default function StaffCaseContextBar({
   sessionId = '',
   onOpenSelector,
   onChangeCase,
+  outcomeChip = null,
   lang = 'vi',
 }) {
   const en = lang === 'en';
@@ -22,17 +23,20 @@ export default function StaffCaseContextBar({
     ? (en ? 'Cancelled' : 'Đã hủy')
     : caseItem?.status === 'CLOSED'
     ? (en ? 'Closed' : 'Đã đóng')
+    : caseItem?.status === 'AWAITING_VERIFICATION'
+    ? (en ? 'Awaiting verification' : 'Chờ xác minh')
+    : caseItem?.status === 'IN_PROGRESS'
+    ? (en ? 'In progress' : 'Đang xử lý')
+    : caseItem?.status === 'VERIFIED'
+    ? (en ? 'Verified' : 'Đã xác minh')
     : caseItem?.status || '';
 
   return (
-    <div className={`lv-staff-context-bar ${hasCase ? 'lv-staff-context-bar--active' : 'lv-staff-context-bar--empty'}`}>
+    <div className={`lv-staff-context-bar lv-staff-glow ${hasCase ? 'lv-staff-context-bar--active' : 'lv-staff-context-bar--empty'}`}>
       <div className="lv-staff-context-bar__inner">
         {hasCase ? (
           <>
             <div className="lv-staff-context-bar__main">
-              <div className="lv-staff-context-bar__icon-wrap">
-                <FolderOpen size={18} aria-hidden="true" />
-              </div>
               <div className="lv-staff-context-bar__details">
                 <div className="lv-staff-context-bar__row1">
                   <span className="lv-staff-context-bar__label">
@@ -44,11 +48,14 @@ export default function StaffCaseContextBar({
                       {statusLabel}
                     </span>
                   )}
-                  {sessionId && (
-                    <span className="lv-staff-context-session">
-                      <Layers size={13} aria-hidden="true" />
-                      <span>{en ? 'Session selected' : 'Đã chọn phiên'}</span>
+                  {outcomeChip && (
+                    <span className={`lv-staff-context-badge lv-staff-context-badge--outcome-${outcomeChip.tone}`}>
+                      {outcomeChip.tone === 'positive' ? <CheckCircle2 size={16} aria-hidden="true" /> : outcomeChip.tone === 'negative' ? <XCircle size={16} aria-hidden="true" /> : <AlertTriangle size={16} aria-hidden="true" />}
+                      {outcomeChip.label}
                     </span>
+                  )}
+                  {sessionId && (
+                    <span className="lv-staff-context-session">{en ? 'Session selected' : 'Đã chọn phiên'}</span>
                   )}
                 </div>
 
@@ -58,9 +65,7 @@ export default function StaffCaseContextBar({
                       <span className="lv-staff-context-bar__vault">{caseItem.vaultName}</span>
                     )}
                     {caseItem?.ownerName && (
-                      <span className="lv-staff-context-bar__owner">
-                        <User size={12} aria-hidden="true" /> {caseItem.ownerName}
-                      </span>
+                      <span className="lv-staff-context-bar__owner">{en ? 'Owner: ' : 'Chủ sở hữu: '}{caseItem.ownerName}</span>
                     )}
                   </div>
                 )}
@@ -81,7 +86,6 @@ export default function StaffCaseContextBar({
         ) : (
           <>
             <div className="lv-staff-context-bar__empty-text">
-              <FolderOpen size={18} className="lv-staff-context-bar__empty-icon" aria-hidden="true" />
               <span>{en ? 'No verification case selected. Select a case to continue.' : 'Chưa chọn hồ sơ xác minh. Chọn hồ sơ để tiếp tục.'}</span>
             </div>
             <button

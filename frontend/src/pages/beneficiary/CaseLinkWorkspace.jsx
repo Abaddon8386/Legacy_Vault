@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import WorkflowGuide from '../../components/common/WorkflowGuide.jsx';
-import { beneficiaryGuidance } from '../../utils/workflowGuidance.js';
 import { Button } from '../../components/common/Button.jsx';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { isPersonalRecipient, readLinkRequest, readLinkRequests, requestStatusLabel, caseLinkError } from '../../utils/caseLinkModel.js';
@@ -237,7 +235,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
           <strong>{item.caseNumber || `${en ? 'Request' : 'Yêu cầu'} #${item.id.slice(0, 8)}`}</strong>
           <p>{requestStatusLabel(item.status, lang)}</p>
           {item.status === 'REJECTED' && (
-            <div className="lv-link-rejected-guidance" style={{ fontSize: '13px', color: '#b91c1c', marginTop: '6px', lineHeight: 1.4 }}>
+            <div className="lv-link-rejected-guidance" style={{ fontSize: '14px', color: '#b91c1c', marginTop: '6px', lineHeight: 1.4 }}>
               {typeof item.reason === 'string' && item.reason.trim() ? (
                 <p style={{ margin: 0 }}><strong>{en ? 'Reason:' : 'Lý do từ chối:'}</strong> {item.reason.trim()}</p>
               ) : (
@@ -258,7 +256,6 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
 
   return <div className="lv-shared-view" aria-labelledby="shared-heading">
     <div className="lv-shared-header"><h1 id="shared-heading" className="lv-shared-title">{en ? 'Shared with me' : 'Được chia sẻ với tôi'}</h1></div>
-    <WorkflowGuide lang={lang} model={beneficiaryGuidance({ requests, stage: receivedStage, ready, loading, error, eligible, lang })} />
     {preview && <FeedbackNotice tone="warning">{en ? 'UI preview — sample data, no server changes.' : 'Xem trước giao diện — dữ liệu minh họa, chưa lưu lên máy chủ.'}</FeedbackNotice>}
 
     <div key="assets-wrapper" style={{ order: hasDeliveredAssets ? 1 : 3 }}>

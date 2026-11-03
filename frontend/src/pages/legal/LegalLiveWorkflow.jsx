@@ -13,7 +13,7 @@ import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import './LegalLiveWorkflow.css';
-import WorkflowGuide, { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { legalGuidance } from '../../utils/workflowGuidance.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 
@@ -110,14 +110,13 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
     {selected && <>
       <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
         lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
-        onNavigate={onNavigate}
         onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
     </>}
     {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
   </section>;
 }
 
-function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied, onNavigate }) {
+function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied }) {
   const [result, setResult] = useState(null);
   const [guidanceStale, setGuidanceStale] = useState(false);
 
@@ -185,7 +184,6 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   }
   const guideModel = legalGuidance({ context: guidanceStale ? null : { ...current.data, distributionWorkflow: distribution.data }, error: guidanceStale, current: step, caseId: selected.caseId, lang });
   if (guidanceStale) guideModel.message = en ? 'Reload the record to check the next step.' : 'Tải lại hồ sơ để kiểm tra bước tiếp theo.';
-  const guide = <WorkflowGuide lang={lang} onNavigate={onNavigate} model={guideModel} />;
   const context = current.data;
   const readOnly = legalReadOnly(context);
   const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : context.vaultStatus;
@@ -196,7 +194,6 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
-    {guide}
     <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
       onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
       <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}

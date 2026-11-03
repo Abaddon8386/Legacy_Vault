@@ -182,7 +182,7 @@ export default function SubscriptionPage({
               <span aria-hidden="true">⚙</span> {t.devSimulationBadge}
             </span>
             <div className="lv-sub-dev-controls">
-              <label htmlFor="scenario-select" style={{ fontWeight: 600, fontSize: '13px' }}>
+              <label htmlFor="scenario-select" style={{ fontWeight: 600, fontSize: '14px' }}>
                 {lang === 'en' ? 'Scenario:' : 'Kịch bản:'}
               </label>
               <select

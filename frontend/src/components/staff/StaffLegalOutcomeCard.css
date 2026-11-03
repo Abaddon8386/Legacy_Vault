@@ -1,0 +1,19 @@
+/* Verdict band: flat, tinted by the result, no card chrome, so it reads as a status and not as another information card. */
+.lv-staff-legal-outcome { --o-ink: #1f5a3a; --o-fill: #e8f3ec; --o-line: #b7d6c1; display: flex; align-items: flex-start; gap: 16px; margin: 0 0 20px; padding: 18px 22px; border: 1px solid var(--o-line); border-radius: 12px; background: var(--o-fill); color: #1f2d27; }
+.lv-staff-legal-outcome.is-warning { --o-ink: #6d4a0f; --o-fill: #fbf1d6; --o-line: #e3cd8a; }
+.lv-staff-legal-outcome.is-negative { --o-ink: #8e2f26; --o-fill: #fbe6e3; --o-line: #e8b4ad; }
+.lv-staff-legal-outcome__icon { flex: none; margin-top: 2px; color: var(--o-ink); }
+.lv-staff-legal-outcome__body { flex: 1 1 auto; min-width: 0; }
+.lv-staff-legal-outcome__body p { margin: 0; }
+.lv-staff-legal-outcome__label { font-size: 14px; font-weight: 600; color: #52675b; }
+.lv-staff-legal-outcome__verdict { margin-top: 2px !important; font-size: 22px; font-weight: 700; line-height: 1.25; color: var(--o-ink); }
+.lv-staff-legal-outcome__reason { margin-top: 8px !important; font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; }
+.lv-staff-legal-outcome__reason span { font-weight: 600; color: #52675b; }
+.lv-staff-legal-outcome__history { margin-top: 8px !important; font-size: 14px; font-weight: 600; color: #52675b; }
+.lv-staff-legal-outcome__time { flex: none; font-size: 14px; font-variant-numeric: tabular-nums; color: #52675b; white-space: nowrap; }
+@media (max-width: 640px) {
+  .lv-staff-legal-outcome { flex-wrap: wrap; padding: 16px; gap: 12px; }
+  .lv-staff-legal-outcome__body { flex-basis: calc(100% - 44px); }
+  .lv-staff-legal-outcome__time { flex-basis: 100%; padding-left: 44px; }
+}
+

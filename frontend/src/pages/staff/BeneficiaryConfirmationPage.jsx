@@ -17,7 +17,6 @@ import {
   fetchBeneficiaryConfirmations,
   fetchHandoverDeliveries,
   fetchEligibleAssets,
-  fetchCompletionProgress,
   confirmBeneficiary,
   fetchHandoverReceipts,
   fetchHandoverSession,
@@ -29,7 +28,6 @@ import './BeneficiaryConfirmationPage.css';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import SignedReceiptViewer from './SignedReceiptViewer.jsx';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
-import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { formatStaffSession } from '../../utils/caseReference.js';
 import { listLiveSessions, fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
@@ -327,16 +325,6 @@ function BeneficiaryConfirmationPageContext({
   const attested = evidenceDraft?.key === evidenceKey && evidenceDraft.attested === true;
   const setSignedFile = file => setEvidenceDraft({key:evidenceKey,file,attested:false});
   const setAttested = value => setEvidenceDraft(previous => ({key:evidenceKey,file:previous?.key===evidenceKey?previous.file:null,attested:value}));
-  const [guideProgress, setGuideProgress] = useState(null);
-  const progressKey = `${caseReference}:${sessionId}:${effectiveAccessToken || ''}`;
-  useEffect(() => {
-    if (isReadOnlyCase || !caseReference || !sessionId) return;
-    const controller = new AbortController();
-    fetchCompletionProgress(caseReference, sessionId, { accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang, signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) setGuideProgress({ key: progressKey, data }); })
-      .catch(() => { if (!controller.signal.aborted) setGuideProgress({ key: progressKey, data: null }); });
-    return () => controller.abort();
-  }, [caseReference, sessionId, effectiveAccessToken, effectiveIsDevPreview, lang, progressKey, selectedBeneficiaryId, isReadOnlyCase]);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
@@ -602,10 +590,6 @@ function BeneficiaryConfirmationPageContext({
         <h1 className="lv-confirm-title">{t.pageTitle}</h1>
       </div>
 
-      <StaffWorkflowGuide current="confirmation" caseId={caseReference} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
-        assets={guideProgress?.key === progressKey ? (guideProgress.data?.assets || guideProgress.data?.assetCompletion) : null}
-        beneficiaries={guideProgress?.key === progressKey ? (guideProgress.data?.beneficiaries || guideProgress.data?.beneficiaryCompletion) : null}
-        caseStatus={displayCaseItem?.status} vaultStatus={displayCaseItem?.vaultStatus} confirmationReady={hasValidData} loading={isLoadingSessions} error={sessionLoadError} />
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         {caseReference && sessionId && (
@@ -615,7 +599,7 @@ function BeneficiaryConfirmationPageContext({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '13px',
+              fontSize: '14px',
               fontWeight: 600,
               color: '#164639',
               textDecoration: 'none',
@@ -634,9 +618,10 @@ function BeneficiaryConfirmationPageContext({
               border: 'none',
               cursor: 'pointer',
               display: 'inline-flex',
+              minHeight: '44px',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '13px',
+              fontSize: '14px',
               fontWeight: 600,
               color: '#6b7280',
               padding: 0,

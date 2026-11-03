@@ -149,7 +149,7 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                         <span>{t.assets.payloadSecured}</span>
                       </span>
                     ) : (
-                      <span className="lv-text-muted" style={{ fontSize: 12 }}>
+                      <span className="lv-text-muted" style={{ fontSize: 14 }}>
                         {t.assets.payloadEmpty}
                       </span>
                     )}
@@ -224,7 +224,7 @@ export function AssetListTable({ assets, t: externalT, lang = 'vi', query, total
                 </div>
 
                 <div className="lv-mobile-card__doc-block">
-                  <span className="lv-date-cell" style={{ fontSize: 12 }}>
+                  <span className="lv-date-cell" style={{ fontSize: 14 }}>
                     <Calendar size={12} />
                     {formatDate(asset.createdAt)}
                   </span>

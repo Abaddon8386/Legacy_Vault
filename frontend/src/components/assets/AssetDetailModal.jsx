@@ -234,7 +234,7 @@ export function AssetDetailModal({
               backgroundColor: '#faf8f5',
               border: '1px solid var(--lv-border-subtle, #eae5dc)',
               borderRadius: 'var(--lv-radius-control, 10px)',
-              fontSize: '13px',
+              fontSize: '14px',
               color: 'var(--lv-text-ink, #243c32)',
               marginTop: '4px',
             }}
@@ -262,7 +262,7 @@ export function AssetDetailModal({
                       border: '1px solid var(--lv-border-subtle, #eae5dc)',
                       borderRadius: '6px',
                       padding: '4px 10px',
-                      fontSize: '12px',
+                      fontSize: '14px',
                       color: 'var(--lv-text-muted, #68736b)',
                       cursor: 'pointer',
                     }}
@@ -276,7 +276,7 @@ export function AssetDetailModal({
                     border: '1px solid #dce2da',
                     borderRadius: '8px',
                     padding: '12px',
-                    fontSize: '13px',
+                    fontSize: '14px',
                     margin: 0,
                     maxHeight: '200px',
                     overflowY: 'auto',
@@ -319,7 +319,7 @@ export function AssetDetailModal({
                         padding: '10px 36px 10px 12px',
                         border: '1px solid #dce2da',
                         borderRadius: '8px',
-                        fontSize: '13px',
+                        fontSize: '14px',
                         fontFamily: 'inherit',
                       }}
                     />
@@ -350,7 +350,7 @@ export function AssetDetailModal({
                     type="submit"
                     variant="primary"
                     disabled={isRevealing || !password}
-                    style={{ padding: '9px 16px', fontSize: '13px' }}
+                    style={{ padding: '9px 16px', fontSize: '14px' }}
                   >
                     {isRevealing ? t.assets.detailModal.revealingBtn : t.assets.detailModal.confirmBtn}
                   </Button>
@@ -364,7 +364,7 @@ export function AssetDetailModal({
                       setPassword('')
                       setRevealErrorKey(null)
                     }}
-                    style={{ padding: '9px 14px', fontSize: '13px' }}
+                    style={{ padding: '9px 14px', fontSize: '14px' }}
                   >
                     {t.assets.detailModal.cancelBtn}
                   </Button>
@@ -378,7 +378,7 @@ export function AssetDetailModal({
                       alignItems: 'center',
                       gap: '6px',
                       color: '#a03832',
-                      fontSize: '12.5px',
+                      fontSize: '14px',
                       margin: '2px 0 0',
                     }}
                   >
@@ -417,7 +417,7 @@ export function AssetDetailModal({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    fontSize: '12.5px',
+                    fontSize: '14px',
                     padding: '6px 14px',
                   }}
                 >

@@ -1668,7 +1668,7 @@ test('New flow: Staff uploads requested documents without an allocation editor o
     assert.equal(calls.some(call => /\/assets\?|\/beneficiaries$/.test(call.url)), false, 'Document intake must not depend on asset/recipient catalogues');
     await act(async () => host.querySelector('#tab-btn-allocations').click());
     assert.equal(host.querySelector('#panel-allocations form'), null, 'Allocations remain locked before document approval');
-    assert.match(host.querySelector('#panel-allocations').textContent, /Legal đã duyệt/);
+    assert.match(host.querySelector('#panel-allocations').textContent, /Ban Pháp lý đã duyệt/);
   } finally { await unmount(); globalThis.fetch = originalFetch; }
 });
 
