@@ -105,7 +105,6 @@ export default function StaffCaseDetailModal({
             </div>
             <div className="lv-case-detail__card-val">
               <span className="lv-case-detail__vault-name">{caseItem.vaultName}</span>
-              <span className="lv-case-detail__vault-id">{caseItem.vaultId}</span>
             </div>
           </div>
 
