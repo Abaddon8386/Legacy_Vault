@@ -133,7 +133,7 @@
 @media(max-width:640px) { .lv-staff-surfaces .lv-workflow-guide--collapsible .lv-workflow-guide__bar { flex-wrap: wrap; } }
 
 /* Case header: deep green block so the case is the first thing the eye finds. Shared by the case bar and the case detail header. */
-.lv-staff-surfaces :is(.lv-staff-context-bar--active, .lv-staff-live .lv-intake-heading) { background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; color: #fff; box-shadow: 0 6px 18px rgba(22, 58, 48, .18); }
+.lv-staff-surfaces :is(.lv-staff-context-bar--active, .lv-staff-live .lv-intake-heading) { background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
 .lv-staff-surfaces .lv-staff-context-bar--active { padding: 18px 24px; }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__label { color: #d9c48f; }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__code { color: #fff; font-size: 24px; }
