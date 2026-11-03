@@ -78,7 +78,7 @@
 }
 
 .lv-counter-handover-brand-sub {
-  font-size: 11px;
+  font-size: 14px;
   color: #6b726b;
   letter-spacing: 0.5px;
 }
@@ -97,7 +97,7 @@
   background: rgba(22, 70, 57, 0.06);
   border: 1px solid rgba(22, 70, 57, 0.15);
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
 }
@@ -110,7 +110,7 @@
   background: rgba(197, 160, 89, 0.12);
   border: 1px solid var(--lv-accent-gold, #c5a059);
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #8c6d2c;
 }
@@ -126,7 +126,7 @@
   border: 1px solid var(--lv-border-medium, #ded9ce);
   border-radius: 8px;
   color: var(--lv-brand-forest, #164639);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -205,7 +205,7 @@
 }
 
 .lv-counter-handover-scenario-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--lv-brand-forest, #164639);
   display: inline-flex;
@@ -219,7 +219,7 @@
   border: 1px solid var(--lv-border-medium, #ded9ce);
   background-color: #ffffff;
   color: #1f2421;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -237,7 +237,7 @@
   border-radius: 16px;
   background: #f2f4f2;
   border: 1px solid #d9ded9;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .lv-handover-state-pill__tag {
@@ -307,7 +307,7 @@
 
 .lv-counter-handover-next-action-heading {
   display: block;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -368,7 +368,7 @@
 .lv-counter-handover-callout__list {
   margin: 0;
   padding-left: 20px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: #3f4741;
 }
@@ -406,7 +406,7 @@
 }
 
 .lv-counter-handover-card__subtitle {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #6b726b;
   margin: 0 0 16px;
   line-height: 1.45;
@@ -430,7 +430,7 @@
 }
 
 .lv-counter-handover-meta-item__label {
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #7d857e;
   text-transform: uppercase;
@@ -450,7 +450,7 @@
   gap: 5px;
   padding: 3px 9px;
   border-radius: 12px;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -508,7 +508,7 @@
 .lv-counter-handover-progress-label-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
   margin-bottom: 5px;
@@ -566,7 +566,7 @@
 .lv-counter-handover-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -597,7 +597,7 @@
 
 .lv-counter-handover-filter-select {
   padding: 5px 10px;
-  font-size: 12.5px;
+  font-size: 14px;
   border-radius: 6px;
   border: 1px solid var(--lv-border-medium, #ded9ce);
   background: #ffffff;
@@ -614,7 +614,7 @@
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -662,7 +662,7 @@
   color: var(--lv-brand-forest, #164639);
   border: 1px solid var(--lv-border-medium, #ded9ce);
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -680,7 +680,7 @@
 
 .lv-handover-btn-sm {
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* Modals */
@@ -719,7 +719,7 @@
 
 .lv-handover-modal-dialog__label {
   display: block;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #3f4741;
   margin-bottom: 4px;
@@ -730,7 +730,7 @@
   padding: 8px 12px;
   border: 1px solid var(--lv-border-medium, #ded9ce);
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   box-sizing: border-box;
 }
 

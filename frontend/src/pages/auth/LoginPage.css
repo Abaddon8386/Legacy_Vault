@@ -9,7 +9,7 @@
 }
 
 .hn-login-form-badge {
-  font-size: 10.5px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -25,7 +25,7 @@
 }
 
 .hn-login-lang-btn {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   color: #636862;
   background: transparent;
@@ -55,7 +55,7 @@
 
 .hn-login-form-sub {
   color: #6b726b;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.55;
   margin: 0 0 24px;
   text-align: center;
@@ -81,7 +81,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #2b302c;
   margin-bottom: 6px;
@@ -98,7 +98,7 @@
   border: 1px solid #ded9ce;
   border-radius: 14px;
   color: #1f2421;
-  font-size: 13.5px;
+  font-size: 14px;
   padding: 11px 14px;
   min-height: 48px;
   box-sizing: border-box;
@@ -165,7 +165,7 @@
 
 .hn-login-error-msg {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   color: #c25149;
   margin-top: 5px;
   line-height: 1.35;
@@ -254,7 +254,7 @@
 
 .hn-login-divider span {
   padding: 0 14px;
-  font-size: 11.5px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--lv-text-muted, #747871);
@@ -273,7 +273,7 @@
   margin-top: 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.5;
   display: flex;
   align-items: flex-start;
@@ -329,7 +329,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -338,7 +338,7 @@
 }
 
 .hn-scenario-icon {
-  font-size: 12px;
+  font-size: 14px;
   color: #c5a059;
 }
 
@@ -348,7 +348,7 @@
   min-width: 0;
   box-sizing: border-box;
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: 14px;
   font-family: inherit;
   color: #1f2421;
   background: #ffffff;
@@ -369,7 +369,7 @@
 
 .hn-scenario-note {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 14px;
   line-height: 1.45;
   color: #747871;
   overflow-wrap: anywhere;
@@ -386,7 +386,7 @@
 }
 
 .hn-login-signin-prompt {
-  font-size: 12.5px;
+  font-size: 14px;
   color: #6b726b;
   text-align: center;
 }
@@ -404,7 +404,7 @@
   color: #c5a059;
 }
 
-.hn-login-page .lv-invitation-entry { margin: 14px 0 0; padding: 8px 0; text-align: center; font-size: 12px; }
+.hn-login-page .lv-invitation-entry { margin: 14px 0 0; padding: 8px 0; text-align: center; font-size: 14px; }
 .hn-login-page .hn-login-form-footer { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e8eae2; }
 @media (max-width: 540px) {
   .hn-login-page { padding: 68px 16px 28px; }

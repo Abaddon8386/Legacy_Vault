@@ -42,7 +42,7 @@
 }
 
 .lv-evidence-preview-mime {
-  font-size: 12px;
+  font-size: 14px;
   color: #6b7280;
   background: #f3f4f6;
   padding: 2px 8px;
@@ -63,7 +63,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: #164639;
   background-color: #e6f4ea;

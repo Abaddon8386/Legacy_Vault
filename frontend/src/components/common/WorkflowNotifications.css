@@ -9,5 +9,5 @@
 .lv-workflow-notifications__panel button{display:grid;gap:6px;text-align:start;width:100%;min-height:44px;padding:12px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
 .lv-workflow-notifications__panel button.is-unread{background:#faf6eb}
 .lv-workflow-notifications__panel button:focus-visible,.lv-workflow-notifications>summary:focus-visible{outline:3px solid #b38d45;outline-offset:2px}
-.lv-workflow-notifications__panel time{font-size:12px;color:#596b60}
+.lv-workflow-notifications__panel time{font-size:14px;color:#596b60}
 @media(max-width:520px){.lv-workflow-notifications>summary>span:not(.lv-workflow-notifications__dot){display:none}.lv-workflow-notifications__panel{position:fixed;top:126px;inset-inline:16px;width:auto}}

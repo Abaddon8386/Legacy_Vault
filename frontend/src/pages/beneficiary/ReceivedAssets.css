@@ -54,13 +54,13 @@
   background: #fff6db;
   color: #854d0e;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .lv-received__reload-btn {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   border: 1px solid #ccd8cf;
   background: #f7faf6;
@@ -98,7 +98,7 @@
 }
 
 .lv-received-pending p {
-  font-size: 13px;
+  font-size: 14px;
   color: #63776e;
   margin: 0;
 }
@@ -113,13 +113,13 @@
 
 .lv-received-error-box p {
   color: #991b1b;
-  font-size: 13px;
+  font-size: 14px;
   margin: 0 0 10px;
 }
 
 .lv-received-retry-btn {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   padding: 6px 14px;
   border-radius: 8px;
@@ -164,7 +164,7 @@
 }
 
 .lv-received-item__meta {
-  font-size: 13px;
+  font-size: 14px;
   color: #63776e;
   display: flex;
   align-items: center;
@@ -178,7 +178,7 @@
 
 .lv-received-item__btn {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   border: 1px solid #ccd8cf;
   background: #f7faf6;
@@ -204,13 +204,13 @@
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid #e8ede7;
-  font-size: 13px;
+  font-size: 14px;
   color: #4b5563;
 }
 
 .lv-received-pagination button {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   padding: 6px 12px;
   border: 1px solid #ccd8cf;
   background: #ffffff;
@@ -264,14 +264,14 @@
 }
 
 .lv-received-detail__empty-images {
-  font-size: 13px;
+  font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
 
 .lv-received-detail__btn {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   border: 1px solid #ccd8cf;
   background: #f7faf6;
@@ -302,7 +302,7 @@
   border-radius: 8px;
   padding: 16px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   max-height: 260px;
   overflow-y: auto;
@@ -323,7 +323,7 @@
 }
 
 .lv-received-credentials > div + div { margin-top: 16px; }
-.lv-received-credentials dt { font-size: 13px; font-weight: 600; color: var(--lv-text-muted, #68736b); margin-bottom: 6px; }
+.lv-received-credentials dt { font-size: 14px; font-weight: 600; color: var(--lv-text-muted, #68736b); margin-bottom: 6px; }
 .lv-received-credentials dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.6; user-select: text; }
 
 .lv-received-decrypt {
@@ -350,7 +350,7 @@
 
 .lv-received-detail__error {
   color: #991b1b;
-  font-size: 13px;
+  font-size: 14px;
   margin: 8px 0 0;
 }
 
@@ -370,7 +370,7 @@
 }
 
 .lv-received-image__label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: #374151;
 }
