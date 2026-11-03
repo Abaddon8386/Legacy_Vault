@@ -11,6 +11,7 @@ import LegalDistributionWorkspace, { LegalDistributionFinalWorkspace } from './L
 import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
+import LegalHandoverReopen from './LegalHandoverReopen.jsx';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import './LegalLiveWorkflow.css';
 import WorkflowGuide, { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
@@ -107,6 +108,8 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       </div>}
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
+    {step === 'controlled-unlock' && <LegalHandoverReopen session={session} lang={lang} caseId={caseId}
+      onNavigate={onNavigate} onUnauthorized={onUnauthorized} />}
     {selected && <>
       <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
         lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
