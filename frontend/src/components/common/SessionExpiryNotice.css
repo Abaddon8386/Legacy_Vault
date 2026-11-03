@@ -1,0 +1,8 @@
+.lv-session-expiry { position: fixed; right: 16px; bottom: 16px; z-index: 1000; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; width: min(520px, calc(100vw - 32px)); box-sizing: border-box; padding: 14px 16px; border: 1px solid #e3cd8a; border-radius: 12px; background: #fbf1d6; color: #3f2c05; font-size: 16px; line-height: 1.45; }
+.lv-session-expiry__text { flex: 1 1 260px; margin: 0; }
+.lv-session-expiry__actions { display: flex; flex: none; gap: 8px; }
+.lv-session-expiry button { min-height: 44px; padding: 0 16px; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.lv-session-expiry__primary { border: 1px solid #204f40; background: #204f40; color: #fff; }
+.lv-session-expiry__secondary { border: 1px solid #a3b8aa; background: #fff; color: #244b3d; }
+.lv-session-expiry button:focus-visible { outline: 2px solid #204f40; outline-offset: 2px; }
+@media (max-width: 480px) { .lv-session-expiry { right: 8px; bottom: 8px; width: calc(100vw - 16px); } .lv-session-expiry__actions { width: 100%; } .lv-session-expiry button { flex: 1; } }
