@@ -27,7 +27,7 @@
   align-items: center;
   gap: 6px;
   height: 38px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -38,7 +38,7 @@
 }
 
 .lv-verify-eyebrow {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -71,7 +71,7 @@
   border: 1px solid #ebd9b5;
   border-radius: 10px;
   color: #8c6820;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -105,7 +105,7 @@
 }
 
 .lv-verify-legal-notice__title {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   margin: 0 0 6px 0;
   color: var(--lv-brand-forest, #164639);
@@ -114,7 +114,7 @@
 .lv-verify-legal-notice__list {
   margin: 0;
   padding-left: 18px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   color: #315c3d;
 }
@@ -142,7 +142,7 @@
 }
 
 .lv-verify-error-banner__content p {
-  font-size: 13px;
+  font-size: 14px;
   margin: 0;
   line-height: 1.5;
 }
@@ -179,7 +179,7 @@
 }
 
 .lv-verify-section__subnote {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: -4px 0 6px;
   line-height: 1.5;
@@ -188,7 +188,7 @@
 .lv-verify-badge-preview-tag {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 6px;
@@ -218,7 +218,7 @@
 }
 
 .lv-verify-context-label {
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #637068;
   text-transform: uppercase;
@@ -229,7 +229,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a2621;
 }
@@ -256,7 +256,7 @@
   align-items: flex-start;
   gap: 8px;
   margin: 0 0 12px 0;
-  font-size: 12.5px;
+  font-size: 14px;
   color: #6b726b;
   line-height: 1.5;
 }
@@ -274,13 +274,13 @@
 }
 
 .lv-verify-ps39-label {
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #637068;
 }
 
 .lv-verify-ps39-val {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: #2b3931;
 }
@@ -356,7 +356,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   background-color: var(--lv-brand-forest, #164639);
   color: #ffffff;
@@ -369,7 +369,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .lv-verify-ben-row {
@@ -402,7 +402,7 @@
   align-items: center;
   justify-content: center;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   border-radius: 6px;
   border: 1px solid #c5a059;
@@ -430,7 +430,7 @@
   gap: 6px;
   padding: 3px 8px;
   border-radius: 12px;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -482,7 +482,7 @@
   border: 1px dashed #d9d3c5;
   border-radius: 10px;
   color: #6b726b;
-  font-size: 13.5px;
+  font-size: 14px;
   justify-content: center;
   text-align: center;
 }
@@ -496,7 +496,7 @@
   background-color: #f2f7f5;
   border: 1px solid #d0e4dc;
   border-radius: 10px;
-  font-size: 13.5px;
+  font-size: 14px;
   margin-bottom: 8px;
 }
 
@@ -511,7 +511,7 @@
 
 .lv-verify-target-rel {
   color: #79867f;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Form Styles */
@@ -537,7 +537,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: #1a2621;
 }
@@ -548,7 +548,7 @@
 }
 
 .lv-verify-hint {
-  font-size: 12px;
+  font-size: 14px;
   color: #6b726b;
   margin: 0;
   line-height: 1.45;
@@ -587,7 +587,7 @@
 }
 
 .lv-verify-error-text {
-  font-size: 12px;
+  font-size: 14px;
   color: #c93b2b;
   font-weight: 600;
   margin-top: 2px;
@@ -602,7 +602,7 @@
   border: 1px solid #f6c4c4;
   border-radius: 8px;
   color: #9e2a2b;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -622,7 +622,7 @@
   border: 2px solid #e7e2d8;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #2b3931;
   transition: all 0.15s ease;
@@ -677,13 +677,13 @@
 }
 
 .lv-verify-result-card__text {
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.45;
   color: #59665f;
 }
 
 .lv-verify-result-pill {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 10px;
@@ -722,7 +722,7 @@
   background-color: #fbf9f5;
   border: 1px solid #ede8de;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: #637068;
   line-height: 1.5;
 }
@@ -749,7 +749,7 @@
 }
 
 .lv-verify-review-title {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   margin: 0;
   color: var(--lv-brand-forest, #164639);
@@ -774,18 +774,18 @@
 }
 
 .lv-verify-review-label {
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #637068;
 }
 
 .lv-verify-review-val {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #1a2621;
 }
 
 .lv-verify-review-result {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   color: #1a2621;
 }
@@ -799,7 +799,7 @@
 }
 
 .lv-verify-review-warning {
-  font-size: 12px;
+  font-size: 14px;
   color: #8c6820;
   margin: 0;
   line-height: 1.45;
@@ -817,7 +817,7 @@
 .lv-verify-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -842,7 +842,7 @@
 }
 
 .lv-verify-history-no-actor {
-  font-size: 11.5px;
+  font-size: 14px;
   color: #8a968f;
   font-style: italic;
 }
@@ -855,7 +855,7 @@
   background-color: #fbf9f5;
   border-radius: 8px;
   color: #6b726b;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Actions and Submit Button */
@@ -920,7 +920,7 @@
 }
 
 .lv-verify-success-desc {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #59665f;
   margin: 0 0 24px 0;
   line-height: 1.5;
@@ -945,7 +945,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
+  font-size: 14px;
   flex-wrap: wrap;
 }
 
@@ -972,7 +972,7 @@
   border: 1px solid #ebd9b5;
   border-radius: 8px;
   color: #8c6820;
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 24px;
 }
 
@@ -994,7 +994,7 @@
   background-color: #fbf9f5;
   border-radius: 10px;
   color: #6b726b;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .lv-verify-spin {

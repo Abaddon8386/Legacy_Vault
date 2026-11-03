@@ -41,7 +41,7 @@
 
 .lv-case-modal-subtitle {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   color: #64748b;
 }
 
@@ -73,7 +73,7 @@
   padding: 8px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: #334155;
   background-color: #fff;
   cursor: pointer;
@@ -88,7 +88,7 @@
   border-radius: 8px;
   background-color: #f8fafc;
   color: #475569;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -124,7 +124,7 @@
   color: #991b1b;
   padding: 14px 16px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-case-modal-retry-btn {
@@ -134,7 +134,7 @@
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -192,7 +192,7 @@
 }
 
 .lv-case-modal-badge {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 9999px;
@@ -215,7 +215,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
+  font-size: 14px;
   color: #475569;
 }
 
@@ -233,7 +233,7 @@
 .lv-case-modal-select-btn {
   padding: 8px 16px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid #164639;
@@ -270,7 +270,7 @@
   border-radius: 6px;
   background-color: #fff;
   color: #334155;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -280,7 +280,7 @@
 }
 
 .lv-case-modal-page-info {
-  font-size: 13px;
+  font-size: 14px;
   color: #64748b;
   font-weight: 500;
 }
@@ -293,7 +293,7 @@
 .lv-staff-selector-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
 }
 

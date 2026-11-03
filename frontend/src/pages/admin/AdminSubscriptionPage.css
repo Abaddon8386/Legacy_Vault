@@ -28,7 +28,7 @@
   padding: 8px 0;
   background: none;
   color: var(--admin-muted);
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -48,7 +48,7 @@
   border-radius: 9px;
   background: transparent;
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
   cursor: pointer;
 }
@@ -73,7 +73,7 @@
 
 .lv-admin-sub-toolbar p {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--admin-muted);
 }
 
@@ -144,7 +144,7 @@
   gap: 12px;
   padding-block: 10px;
   border-block-end: 1px solid #edf0e9;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-admin-sub-limit-label {
@@ -168,14 +168,14 @@
   align-items: center;
   justify-content: space-between;
   margin: 16px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   color: #38634e;
 }
 
 .lv-admin-sub-version-badge {
   color: var(--admin-muted);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .lv-admin-sub-badge {
@@ -186,7 +186,7 @@
   border-radius: 6px;
   color: #3b5037;
   background: #f1f5ed;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.5;
 }
@@ -249,13 +249,13 @@
   min-inline-size: 900px;
   border-collapse: collapse;
   text-align: start;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-admin-sub-table th {
   padding: 14px 16px;
   background: #eff3ee;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   color: #4e6759;
   white-space: nowrap;
@@ -297,7 +297,7 @@
   border-radius: 9px;
   background: #fff;
   padding: 10px 16px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   font-weight: 650;
   color: var(--admin-ink);
@@ -306,7 +306,7 @@
 
 .lv-admin-sub-page .lv-admin-sub-btn-sm {
   padding-inline: 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .lv-admin-sub-page .lv-admin-sub-btn--primary {
@@ -371,7 +371,7 @@
 
 .lv-admin-sub-text-muted, .lv-admin-sub-hint {
   color: var(--admin-muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .lv-admin-sub-modal-backdrop {
@@ -446,7 +446,7 @@
 }
 
 .lv-admin-sub-form-group label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--admin-muted);
 }
@@ -497,7 +497,7 @@
   flex-direction: column;
   gap: 8px;
   min-inline-size: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--admin-muted);
   font-weight: 650;
 }
@@ -525,7 +525,7 @@
 
 .lv-admin-sub-id-badge {
   margin-block-start: 6px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--admin-muted);
   overflow-wrap: anywhere;
 }
@@ -547,7 +547,7 @@
 }
 
 .lv-admin-sub-meta-label {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--admin-muted);
 }
 
@@ -568,7 +568,7 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-block-end: 10px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-admin-sub-bar {

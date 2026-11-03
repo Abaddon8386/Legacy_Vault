@@ -67,7 +67,7 @@
 }
 
 .lv-legal-dossier-review-view .lv-review-notice__body p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #3b423d;
   margin: 0;
   line-height: 1.55;
@@ -106,7 +106,7 @@
 }
 
 .lv-legal-dossier-review-view .lv-stale-alert__body p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #5c4109;
   margin: 0;
   line-height: 1.55;
@@ -155,7 +155,7 @@
 }
 
 .lv-legal-dossier-review-view .lv-dossier-unconnected-box p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0;
   line-height: 1.5;
@@ -178,13 +178,13 @@
 }
 
 .lv-legal-dossier-review-view .lv-dossier-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-heading, #1f2421);
 }
 
 .lv-legal-dossier-review-view .lv-dossier-hash-hint {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   line-height: 1.4;
 }
@@ -199,12 +199,12 @@
   border: 1px solid rgba(22, 70, 57, 0.2);
   border-radius: 20px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.02em;
 }
 
 .lv-legal-dossier-review-view .lv-dossier-value-unloaded {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   font-style: italic;
 }
@@ -221,7 +221,7 @@
   border-radius: 8px;
   padding: 10px 14px;
   font-family: 'SF Mono', Monaco, Inconsolata, 'Fira Mono', monospace;
-  font-size: 13px;
+  font-size: 14px;
   color: #1f2421;
   word-break: break-all;
   overflow-wrap: break-word;
@@ -258,7 +258,7 @@
 }
 
 .lv-legal-dossier-review-view .lv-form-card__header p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0 0 24px;
 }
@@ -370,7 +370,7 @@
   align-items: center;
   gap: 6px;
   color: #b42318;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 6px;
 }
@@ -410,7 +410,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   line-height: 1.4;
 }
@@ -458,7 +458,7 @@
 }
 
 .lv-legal-dossier-review-view .lv-history-unloaded-box p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0;
   line-height: 1.5;
@@ -471,7 +471,7 @@
 .lv-legal-dossier-review-view .lv-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -496,13 +496,13 @@
   color: var(--lv-brand-forest, #164639);
   border-radius: 12px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .lv-legal-dossier-review-view .lv-history-decision {
   display: inline-block;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-legal-dossier-review-view .lv-history-decision--approve {

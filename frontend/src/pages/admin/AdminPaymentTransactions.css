@@ -29,7 +29,7 @@
   gap: 7px;
   flex: 1 1 180px;
   min-inline-size: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--admin-muted);
 }
@@ -70,7 +70,7 @@
   gap: 12px;
   padding-block: 18px;
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-payment-pagination label {
@@ -91,7 +91,7 @@
   border-radius: 9px;
   background: #fff;
   color: var(--admin-ink);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
   cursor: pointer;
 }
@@ -113,7 +113,7 @@
 
 .lv-payments > [role='status'] {
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-payment-overlay {
@@ -165,7 +165,7 @@
 
 .lv-payment-detail dt {
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-payment-detail dd {

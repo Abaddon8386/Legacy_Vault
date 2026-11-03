@@ -127,7 +127,7 @@
 }
 
 .lv-will-verification-view .lv-metadata-unconnected-box p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0;
   line-height: 1.5;
@@ -150,7 +150,7 @@
 }
 
 .lv-will-verification-view .lv-metadata-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-heading, #1f2421);
 }
@@ -159,7 +159,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
   background-color: #eef4f1;
@@ -170,7 +170,7 @@
 }
 
 .lv-will-verification-view .lv-metadata-value-unloaded {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   font-style: italic;
 }
@@ -187,7 +187,7 @@
   border-radius: 8px;
   padding: 12px 14px;
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  font-size: 13.5px;
+  font-size: 14px;
   color: #1f2421;
   word-break: break-all;
   overflow-wrap: break-word;
@@ -222,7 +222,7 @@
 }
 
 .lv-will-verification-view .lv-form-card__header p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0 0 24px;
 }
@@ -251,7 +251,7 @@
 }
 
 .lv-will-verification-view .lv-form-hint {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin-bottom: 8px;
   line-height: 1.4;
@@ -357,7 +357,7 @@
 }
 
 .lv-will-verification-view .lv-comparison-card__desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   line-height: 1.45;
 }
@@ -377,7 +377,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
   margin-bottom: 12px;
@@ -393,7 +393,7 @@
   border-radius: 8px;
   margin-bottom: 12px;
   color: #555d56;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .lv-will-verification-view .lv-audit-no-data-box strong {
@@ -404,11 +404,11 @@
 .lv-will-verification-view .lv-audit-no-data-box p {
   margin: 2px 0 0;
   color: #788279;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .lv-will-verification-view .lv-current-user-info {
-  font-size: 13px;
+  font-size: 14px;
   color: #555d56;
   border-top: 1px solid var(--lv-border-subtle, #eae5dc);
   padding-top: 10px;
@@ -429,7 +429,7 @@
 }
 
 .lv-will-verification-view .lv-current-user-note {
-  font-size: 12px;
+  font-size: 14px;
   color: #828a84;
   font-style: italic;
 }
@@ -493,7 +493,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: #828a84;
 }
 
@@ -503,7 +503,7 @@
   gap: 8px;
   padding: 12px 16px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 4px;
 }
@@ -525,7 +525,7 @@
   align-items: center;
   gap: 6px;
   color: #b42318;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 6px;
 }

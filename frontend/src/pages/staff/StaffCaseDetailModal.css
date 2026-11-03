@@ -33,14 +33,14 @@
 }
 
 .lv-case-detail__notice-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: #735315;
   margin: 0;
 }
 
 .lv-case-detail__notice-text {
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.5;
   color: #8c6820;
   margin: 0;
@@ -71,7 +71,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-muted, #6b726b);
   text-transform: uppercase;
@@ -101,7 +101,7 @@
 }
 
 .lv-case-detail__vault-id {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--lv-text-muted, #6b726b);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -114,7 +114,7 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   width: fit-content;
 }
@@ -244,7 +244,7 @@
 }
 
 .lv-staff-dashboard .lv-modal__desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted);
   margin-top: 4px;
 }
