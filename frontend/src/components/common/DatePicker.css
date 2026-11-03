@@ -155,7 +155,7 @@
 
 .lv-datepicker-select {
   padding: 6px 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #164639;
   background-color: #f4f8f5;
@@ -203,7 +203,7 @@
 }
 
 .lv-datepicker-weekday {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   color: #7b9286;
@@ -223,7 +223,7 @@
   aspect-ratio: 1;
   min-height: 36px;
   min-width: 36px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: #1a2e26;
   background: transparent;
@@ -281,7 +281,7 @@
   min-width: 44px;
   min-height: 44px;
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #164639;
   background: #eef7f2;
@@ -340,7 +340,7 @@
     min-width: 44px;
     min-height: 44px;
     padding: 8px 16px;
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 
@@ -359,7 +359,7 @@
 
 .lv-datepicker-error-msg {
   display: block;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   color: #b91c1c;
   margin-top: 4px;

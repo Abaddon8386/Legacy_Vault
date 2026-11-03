@@ -22,10 +22,10 @@ export function WillComparisonOutcome({ comparison, en = false }) {
 
 export function BasisVersionOutcome({ version, en = false, compact = false }) {
   if (!version) return null;
-  if (version.legalHistory === undefined) return <p className="lv-staff-outcome-unavailable">{en ? 'Legal results for this version are unavailable.' : 'Chưa có dữ liệu kết quả Legal của phiên bản này.'}</p>;
+  if (version.legalHistory === undefined) return <p className="lv-staff-outcome-unavailable">{en ? 'Legal results for this version are unavailable.' : 'Chưa có dữ liệu kết quả thẩm định của phiên bản này.'}</p>;
   if (!version.legalHistory.length) return <div className="lv-staff-outcome"><strong>{version.forwardStatus === 'FORWARDED'
-    ? (en ? 'No Legal result recorded for this version yet' : 'Chưa ghi nhận kết quả Legal cho phiên bản này')
-    : (en ? 'Not yet forwarded to Legal' : 'Chưa chuyển Legal')}</strong></div>;
+    ? (en ? 'No Legal result recorded for this version yet' : 'Chưa ghi nhận kết quả thẩm định cho phiên bản này')
+    : (en ? 'Not yet forwarded to Legal' : 'Chưa chuyển Ban Pháp lý')}</strong></div>;
   const latest = version.legalHistory[0];
   const final = version.legalHistory.find(entry => ['LEGAL_APPROVED', 'LEGAL_REJECTED'].includes(entry.result));
   const entries = compact ? [latest] : final && final.id !== latest.id ? [latest, final] : [latest];
@@ -35,7 +35,7 @@ export function BasisVersionOutcome({ version, en = false, compact = false }) {
       ? (en ? 'Previous document version — historical result only.' : 'Phiên bản giấy tờ cũ — chỉ xem lịch sử.')
       : (en ? 'Allocations or case conditions have changed — historical result only.' : 'Phân bổ hoặc tình trạng hồ sơ đã thay đổi — chỉ xem lịch sử.')}</p>}
   </Outcome>;
-  return <div className="lv-staff-version-outcomes" aria-label={en ? `Legal results for version ${version.version}` : `Kết quả Legal phiên bản ${version.version}`}>
+  return <div className="lv-staff-version-outcomes" aria-label={en ? `Legal results for version ${version.version}` : `Kết quả thẩm định phiên bản ${version.version}`}>
     {entries.map(render)}
     {!compact && otherEntries.length > 0 && <details className="lv-staff-outcome-more"><summary>{en ? `View ${otherEntries.length} other processing results` : `Xem ${otherEntries.length} kết quả xử lý khác`}</summary>{otherEntries.map(render)}</details>}
   </div>;

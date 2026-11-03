@@ -16,6 +16,7 @@ import {
   assessApprovalFreshness,
 } from './legalApprovalService.js';
 import './LegalApprovalReviewPage.css';
+import { isUuid } from '../../api/contracts.js';
 
 /**
  * LegalApprovalReviewPage — Màn hình Phê duyệt Pháp lý Hồ sơ Di sản (PS-49)
@@ -505,10 +506,10 @@ function ApprovalReviewContent({
                   </div>
 
                   <div className="lv-legal-approval-receipt__grid">
-                    <div className="lv-legal-approval-meta-item">
+                    {!isUuid(successReceipt.id) && <div className="lv-legal-approval-meta-item">
                       <span className="lv-legal-approval-meta-item__label">{t.receiptCard.receiptId}</span>
                       <span className="lv-legal-approval-meta-item__val">{successReceipt.id}</span>
-                    </div>
+                    </div>}
                     <div className="lv-legal-approval-meta-item">
                       <span className="lv-legal-approval-meta-item__label">{t.receiptCard.decisionLabel}</span>
                       <span className="lv-legal-approval-meta-item__val">

@@ -390,7 +390,7 @@ public class DistributionWorkflowService {
         BasisVersionRow document = latestStored;
         BasisVersionRow forwardedDocument = rows.stream().filter(r -> "FORWARDED".equals(r.forwardStatus())).findFirst().orElse(null);
         long forwarded = rows.stream().filter(r -> "FORWARDED".equals(r.forwardStatus())).count();
-        long revision = log.size() + forwarded;
+        long revision = log.size() + forwarded + (dossier == null ? 0 : Math.max(0, dossier.getRequiredVersionNo() - 1));
 
         Prerequisites prerequisites = new Prerequisites(DEATH_DECIDED_VAULT_STATES.contains(vault.getStatus()),
                 !wills.isApprovalBlocked(found.getVerificationCaseId()));
@@ -447,6 +447,9 @@ public class DistributionWorkflowService {
         if (UNLOCKED_VAULT_STATES.contains(vault.getStatus())) return UNLOCKED;
         if (!prerequisites.deathApproved() || !prerequisites.willMatched()) return PREREQUISITES_PENDING;
         if (request == null) return DOCUMENT_REQUEST_NEEDED;
+        if (dossier != null && latestStored != null && dossier.getRequiredVersionNo() > latestStored.versionNo()) {
+            return AWAITING_DOCUMENTS;
+        }
         if (document == null || !"FORWARDED".equals(document.forwardStatus()) || "CHANGES_REQUESTED".equals(documentStatus)) {
             return AWAITING_DOCUMENTS;
         }

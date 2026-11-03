@@ -179,7 +179,7 @@ export const STAFF_CASE_I18N = {
     detailModal: {
       title: 'Thông tin tham chiếu hồ sơ',
       caseRef: 'Mã tham chiếu hồ sơ',
-      vaultId: 'Mã kho di sản (Vault ID)',
+      vaultId: 'Kho di sản',
       vaultName: 'Tên kho di sản',
       ownerName: 'Chủ sở hữu kho',
       graceEndedAt: 'Thời điểm hết hạn ân hạn',
@@ -495,7 +495,7 @@ export const STAFF_CASE_I18N = {
     detailModal: {
       title: 'Case Reference Details',
       caseRef: 'Case Reference ID',
-      vaultId: 'Heritage Vault ID',
+      vaultId: 'Heritage vault',
       vaultName: 'Heritage Vault Name',
       ownerName: 'Vault Owner Name',
       graceEndedAt: 'Grace Period Expiration',

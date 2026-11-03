@@ -44,17 +44,19 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   if (onHold) return holdControls;
   return <>
     <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} showRefresh={false} />
-    {holdControls}
+    {!actions.length && <div className="lv-legal-basis-other-actions">{holdControls}</div>}
     {request && <LegalDocumentRequestForm lang={lang} draft={scopedDraft} onDraftChange={value => setDraft({ ...value, scope })}
       pending={workflow.pending || holdPending} allowed={can('requestDocuments')} onSubmit={value => save('requestDocuments', value)} />}
-    {data?.document && <section className="lv-legal-step-data lv-surface-card">
+    <div className={`lv-legal-basis-workspace${actions.length ? ' is-review' : ''}`}>
+    <div className="lv-legal-basis-source">
+    {data?.document && <section className="lv-legal-step-data lv-legal-live__card lv-legal-basis-evidence">
       <h2>{en ? 'Submitted distribution documents' : 'Giấy tờ phân chia đã nộp'}</h2>
       {!matches ? <p role="alert">{en ? 'The document version changed. Reload the case before deciding.' : 'Phiên bản giấy tờ đã thay đổi. Tải lại hồ sơ trước khi quyết định.'}</p>
         : <LegalEvidenceFiles caseId={context.caseId} kind="basis" versionNo={data.document.version}
           accessToken={session.accessToken} lang={lang} inlineOnDesktop onUnauthorized={onUnauthorized} onDenied={onDenied} />}
-      <p>{en ? 'Assess the actual submitted document and its validity. The applicant chooses where to obtain it outside this system.' : 'Kiểm tra loại giấy tờ thực tế được nộp và tính hợp lệ. Người nộp tự làm giấy tờ bên ngoài hệ thống; Legal không chọn nhánh Tòa án từ đầu.'}</p>
+      <p>{en ? 'Check the document content and validity before deciding.' : 'Đối chiếu nội dung và tính hợp lệ của văn bản trước khi quyết định.'}</p>
     </section>}
-    {data?.allocation && <section className="lv-legal-step-data lv-surface-card" aria-label={en ? 'Asset and recipient review' : 'Kiểm tra tài sản và người nhận'}>
+    {data?.allocation && <section className="lv-legal-step-data lv-legal-live__card" aria-label={en ? 'Asset and recipient review' : 'Kiểm tra tài sản và người nhận'}>
       <h2>{en ? 'Check each allocation' : 'Kiểm tra từng phần phân bổ'}</h2>
       <p>{en ? 'Compare each asset, recipient and entitlement with the accepted document. Request corrections if they do not match.' : 'Đối chiếu từng tài sản, người nhận và phần được hưởng với giấy tờ đã duyệt. Yêu cầu Staff sửa nếu thông tin chưa khớp.'}</p>
       <ol className="lv-distribution-review-list">{data.allocation.items.map((item, index) => <li key={`${item.assetId}:${item.beneficiaryId}:${index}`}>
@@ -62,16 +64,20 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
       </li>)}</ol>
       {data.allocation.documentVersion !== data.document?.version && <p role="alert">{en ? 'These allocations refer to an older document. Staff must prepare them again.' : 'Phân bổ này dựa trên giấy tờ cũ. Staff cần lập lại theo giấy tờ mới nhất.'}</p>}
     </section>}
-    {!!actions.length && <section className="lv-legal-step-data lv-surface-card">
+    </div>
+    {!!actions.length && <section className="lv-legal-step-data lv-legal-live__card lv-legal-basis-decision">
       <h2>{documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ')}</h2>
       <form className="lv-distribution-form" onSubmit={submit}>
         <label>{en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa'}
-          <textarea required maxLength={1000} value={reason} disabled={workflow.pending}
+          <textarea required maxLength={1000} rows={4} value={reason} disabled={workflow.pending}
+            placeholder={en ? 'Enter your assessment or specify what needs to be supplemented.' : 'Nhập nhận xét hoặc nêu rõ nội dung cần bổ sung, chỉnh sửa.'}
             onChange={event => setDraft({ scope, reason: event.target.value })} /></label>
-        <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" className={action.startsWith('approve') ? 'lv-decision--positive' : 'lv-decision--neutral'} key={action} value={action}
+        <div className="lv-distribution-actions">{actions.map(([action, title]) => <button type="submit" className={action.startsWith('approve') ? 'lv-decision--positive' : 'lv-decision--warning'} key={action} value={action}
           disabled={workflow.pending || !reason.trim() || !can(action)}>{title}</button>)}</div>
       </form>
+      <div className="lv-legal-basis-hold-footer">{holdControls}</div>
     </section>}
+    </div>
   </>;
 }
 

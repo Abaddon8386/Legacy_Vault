@@ -57,7 +57,7 @@
 
 .lv-modal__desc,
 .lv-asset-page .lv-modal__desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b7280);
   margin-top: 4px;
 }

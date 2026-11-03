@@ -29,7 +29,7 @@ test('Assigned case hides claim action; claim conflict uses customer language wi
  globalThis.fetch=async(url,init)=>init.method==='POST'?json({code:'VERIFICATION_CASE_NOT_CLAIMABLE'},409):json(url.endsWith('death-documents')?[]:{...detail,assignmentStatus:'UNASSIGNED_CLAIMABLE'});
  const available=await mount();
  await act(async()=>button(available.host,'Nhận hồ sơ').click());
- assert.match(available.host.querySelector('[role=alert]').textContent,/Hồ sơ đã có người phụ trách/);
+ assert.ok([...available.host.querySelectorAll('[role=alert]')].some(node => /Hồ sơ đã có người phụ trách/.test(node.textContent)));
  assert.equal(available.host.textContent.includes('VERIFICATION_CASE_NOT_CLAIMABLE'),false);
  await available.close();
 });

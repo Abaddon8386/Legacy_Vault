@@ -9,7 +9,7 @@ export const scopedAssetHandoverI18n = {
     pageTitle: 'Bàn giao tài sản theo phạm vi',
     pageSubtitle: 'Thực hiện bàn giao các tài sản di sản cho người thụ hưởng theo đúng phạm vi phân bổ đã được pháp lý phê duyệt.',
     noticeTitle: 'Quy tắc bàn giao tài sản',
-    noticeBody: 'Legal duyệt phân bổ trước. Staff gặp trực tiếp người nhận tại quầy, đối chiếu danh tính và bàn giao đúng phần đã duyệt.',
+    noticeBody: 'Ban Pháp lý duyệt phân bổ trước. Staff gặp trực tiếp người nhận tại quầy, đối chiếu danh tính và bàn giao đúng phần đã duyệt.',
     scopeCardTitle: 'Phạm vi phân bổ tài sản',
     scopeApprovedBadge: 'Đã phê duyệt',
     scopeUnapprovedBadge: 'Chưa phê duyệt',

@@ -31,6 +31,7 @@ import { fetchStaffAssetCatalog } from './staffLegalDocumentsService.js';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import './ScopedAssetHandoverPage.css';
+import { isUuid } from '../../api/contracts.js';
 import { readDeliveryReceiptBatch } from '../../utils/deliveryReceiptValidation.js';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
@@ -782,11 +783,7 @@ function ScopedAssetHandoverPageContext({
               <div className="lv-review-meta-grid">
                 <div className="lv-review-meta-item">
                   <span className="lv-review-meta-label">{t.reviewModalCase}</span>
-                  <span className="lv-review-meta-value">{caseReference}</span>
-                </div>
-                <div className="lv-review-meta-item">
-                  <span className="lv-review-meta-label">{t.reviewModalSession}</span>
-                  <span className="lv-review-meta-value">{sessionId}</span>
+                  <span className="lv-review-meta-value">{displayCaseItem?.caseNumber || (isUuid(caseReference) ? '—' : caseReference)}</span>
                 </div>
                 <div className="lv-review-meta-item lv-review-meta-item--full">
                   <span className="lv-review-meta-label">{t.reviewModalRecipient}</span>

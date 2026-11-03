@@ -24,7 +24,7 @@
 }
 
 .lv-asset-page .lv-form-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-ink);
   margin-bottom: 6px;
@@ -67,7 +67,7 @@
 
 .lv-asset-page .lv-form-error {
   margin-top: 5px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-danger);
   display: flex;
   align-items: center;
@@ -76,7 +76,7 @@
 
 .lv-asset-page .lv-form-hint {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--lv-text-muted);
 }
 

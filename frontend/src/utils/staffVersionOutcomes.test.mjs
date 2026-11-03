@@ -21,6 +21,28 @@ const {WillComparisonOutcome,BasisVersionOutcome}=await component('src/component
 const {default:StaffPage}=await component('src/pages/staff/StaffLegalDocumentsPage.jsx');
 const id='11111111-1111-4111-8111-111111111111',eventId='22222222-2222-4222-8222-222222222222';
 const entry={id:eventId,result:'LEGAL_REJECTED',reason:'Bản một thiếu dấu',decidedAt:'2026-11-02T03:22:00Z',currentScope:false};
+test('a resumed dossier waiting for version two lets Staff edit a replacement despite version one being forwarded',async()=>{
+ const previous=globalThis.fetch;
+ let writes=0;
+ globalThis.fetch=async (url,init={})=>{if(init.method==='POST')writes++;return new Response(JSON.stringify(String(url).includes('/basis-dossier')
+  ?{id:eventId,caseId:id,route:'NOTARIAL',status:'DRAFT',disputeStatus:'NONE',requiredVersion:2,currentDecision:null,
+    versions:[{version:1,documentNumber:'OLD',forwardStatus:'FORWARDED',allocations:[],legalHistory:[]}]}
+  :String(url).includes('/distribution-workflow')?distributionFixture(id,{phase:'AWAITING_DOCUMENTS',allowed:['uploadDocuments']}):[]),{status:200,headers:{'Content-Type':'application/json'}});};
+ try{await withRoot(async(host,root)=>{
+  await act(async()=>root.render(React.createElement(StaffPage,{caseId:id,accessToken:'test',caseItem:{caseId:id,status:'OPEN',vaultStatus:'AWAITING_LEGAL_BASIS'},lang:'vi'})));
+  await act(async()=>{await new Promise(r=>setTimeout(r,40));});
+  assert.match(host.textContent,/phiên bản hồ sơ số 2/);
+  assert.doesNotMatch(host.textContent,/CHANGES_REQUESTED/);
+  const intake=[...host.querySelectorAll('[role=tab]')].find(x=>/Tiếp nhận văn bản/.test(x.textContent));await act(async()=>intake.click());
+  const inputs=[...host.querySelectorAll('form input:not([type=file]),form select')];
+  assert.ok(inputs.length>0);assert.ok(inputs.every(x=>!x.disabled));
+  const type=host.querySelector('form select');assert.equal(type.querySelector('option[value="COURT_JUDGMENT"]').disabled,true);
+  const props=node=>node[Object.keys(node).find(key=>key.startsWith('__reactProps$'))];
+  await act(async()=>props(type).onChange({target:{value:'COURT_JUDGMENT'}}));
+  await act(async()=>props(host.querySelector('form')).onSubmit({preventDefault(){}}));
+  assert.equal(writes,0);assert.match(host.textContent,/Hồ sơ hiện tiếp nhận văn bản công chứng/);
+ });}finally{globalThis.fetch=previous;}
+});
 async function withRoot(fn){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);try{await fn(host,root);}finally{await act(async()=>root.unmount());host.remove();}}
 
 test('will outcomes distinguish match, mismatch, inconclusive, pending and unavailable without inheriting previous props',async()=>{
@@ -41,7 +63,7 @@ test('previous version and changed allocation decisions are historical, never pe
   await act(async()=>root.render(React.createElement(BasisVersionOutcome,{version:{version:2,current:true,legalHistory:[entry]}})));
   assert.match(host.textContent,/Phân bổ hoặc tình trạng hồ sơ đã thay đổi/);
   await act(async()=>root.render(React.createElement(BasisVersionOutcome,{version:{version:2,current:true,forwardStatus:'NOT_FORWARDED',legalHistory:[]}})));
-  assert.match(host.textContent,/Chưa chuyển Legal/);assert.doesNotMatch(host.textContent,/Bản một thiếu dấu/);
+  assert.match(host.textContent,/Chưa chuyển Ban Pháp lý/);assert.doesNotMatch(host.textContent,/Bản một thiếu dấu/);
  });
 });
 

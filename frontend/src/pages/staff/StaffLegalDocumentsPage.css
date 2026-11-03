@@ -1363,7 +1363,9 @@
 .lv-staff-documents-view .lv-form-textarea:focus-visible,
 .lv-staff-documents-view .lv-intake-form .lv-form-input:focus { outline: none; border-color: #57846a; box-shadow: 0 0 0 3px #37765a18; }
 .lv-staff-documents-view .lv-intake-form .lv-form-input::placeholder,
-.lv-staff-documents-view .lv-form-textarea::placeholder { color: #859186; font-size: 14px; }
+.lv-staff-documents-view .lv-form-textarea::placeholder { color: #859186; font-size: 16px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-form .lv-intake-description { font-size:16px; line-height:1.6; }
+.lv-staff-documents-view .lv-intake-form .lv-evidence-uploader__hint { font-size:14px; }
 .lv-staff-documents-view .lv-form-select:disabled,
 .lv-staff-documents-view .lv-form-textarea:disabled,
 .lv-staff-documents-view .lv-intake-form .lv-form-input:disabled { background: #f2f4f0; color: #7b877c; cursor: not-allowed; }

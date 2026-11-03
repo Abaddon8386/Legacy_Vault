@@ -1,0 +1,101 @@
+.lv-legal-reopen { gap: 16px; }
+.lv-legal-reopen__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.lv-legal-reopen__head button { min-height: 44px; padding: 10px 16px; border-radius: 10px; font-weight: 600; }
+.lv-legal-reopen__note { margin: 0; max-width: 65ch; font-size: 16px; line-height: 1.6; color: var(--legal-muted, #596b60); }
+.lv-legal-reopen p, .lv-legal-reopen li { overflow-wrap: anywhere; }
+.lv-legal-reopen p { margin: 0; font-size: 16px; line-height: 1.6; }
+.lv-legal-reopen h3 { margin: 0; font-size: 18px; line-height: 1.4; color: var(--legal-ink, #203e33); }
+.lv-legal-reopen h4 { font-family: var(--lv-font-sans, system-ui, sans-serif); margin: 0 0 6px; font-size: 16px; line-height: 1.4; font-weight: 600; color: var(--legal-ink, #203e33); }
+
+/* Compact mode when empty */
+.lv-legal-reopen.lv-legal-reopen--compact { gap: 10px; padding: 14px 20px; }
+.lv-legal-reopen.lv-legal-reopen--compact .lv-legal-reopen__empty { padding: 2px 0; background: transparent; border-radius: 0; }
+.lv-legal-reopen.lv-legal-reopen--compact .lv-legal-reopen__loading { padding: 2px 0; }
+
+/* Alerts, Loading & Empty States */
+.lv-legal-reopen__alert { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid #e8bcbc; border-inline-start: 4px solid #b94a48; border-radius: 10px; background: #fff5f4; color: #a33634; font-size: 16px; }
+.lv-legal-reopen__btn-retry { min-height: 44px; padding: 10px 18px; border: 1px solid #b94a48; border-radius: 10px; background: #fff; color: #a33634; font-weight: 600; font-size: 15px; cursor: pointer; transition: background .18s; }
+.lv-legal-reopen__btn-retry:hover { background: #fae8e8; }
+.lv-legal-reopen__empty { margin: 0; padding: 10px 14px; border-radius: 8px; background: #f7f8f5; color: var(--legal-muted, #596b60); font-size: 15px; line-height: 1.5; }
+.lv-legal-reopen__loading { padding: 12px 14px; color: var(--legal-muted, #596b60); font-size: 16px; }
+
+/* Request Queue List */
+.lv-legal-reopen__list, .lv-legal-reopen__people { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.lv-legal-reopen__list > li { display: grid; gap: 10px; justify-items: start; padding: 18px; border: 1px solid var(--legal-line, #d8e0db); border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(32, 62, 51, 0.04); }
+.lv-legal-reopen__list > li[aria-current=true] { border-color: #244b3d; box-shadow: 0 0 0 2px rgba(36, 75, 61, 0.15); background: #fafbf9; }
+.lv-legal-reopen__item-head { font-size: 17px; line-height: 1.4; color: var(--legal-ink, #203e33); }
+.lv-legal-reopen__meta { font-size: 14px; color: var(--legal-muted, #596b60); }
+.lv-legal-reopen__summary { font-size: 15px; color: var(--legal-ink, #203e33); }
+.lv-legal-reopen__list > li > button { min-height: 44px; padding: 10px 18px; font-weight: 600; font-size: 15px; }
+
+/* Pagination */
+.lv-legal-reopen__pages { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; padding-top: 8px; }
+.lv-legal-reopen__pages button { min-height: 44px; padding: 8px 16px; font-weight: 600; }
+.lv-legal-reopen__pages span { font-size: 15px; font-weight: 600; color: var(--legal-muted, #596b60); }
+
+/* Detail View */
+.lv-legal-reopen__detail { display: grid; gap: 16px; padding-top: 20px; border-top: 1px solid var(--legal-line, #d8e0db); min-width: 0; }
+.lv-legal-reopen__detail-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Status Badges & Progress Pill */
+.lv-legal-reopen__status-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 2px 0 6px; }
+.lv-legal-reopen__status-badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; margin: 0; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; line-height: 1.4; border: 1px solid transparent; }
+.lv-legal-reopen__status-badge strong { font-weight: 600; }
+.lv-legal-reopen__status-badge.is-suspended { background: #fff8e8; color: #76541b; border-color: #f7e1b5; }
+.lv-legal-reopen__status-badge.is-awaiting_legal { background: #eff5f8; color: #22516d; border-color: #c9dde9; }
+.lv-legal-reopen__status-badge.is-ready { background: #edf6ee; color: #1e5a36; border-color: #bfe3cc; }
+.lv-legal-reopen__status-badge.is-unconfirmed { background: #f2f3ef; color: #495850; border-color: #dcdfd8; }
+.lv-legal-reopen__progress-pill { display: inline-flex; align-items: center; width: fit-content; margin: 0; padding: 5px 12px; border-radius: 20px; font-size: 14px; color: var(--legal-muted, #596b60); background: #f2f4ef; border: 1px solid #dce0d8; font-weight: 500; }
+
+/* Recipients and Attendance */
+.lv-legal-reopen__people > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--legal-line, #d8e0db); background: #fff; font-size: 16px; }
+.lv-legal-reopen__people .is-present, .lv-legal-reopen__people .is-absent { display: inline-flex; align-items: center; width: fit-content; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; border: 1px solid transparent; }
+.lv-legal-reopen__people .is-present { background: #e3f1e8; color: #1f5b3a; border-color: #c2e5cd; }
+.lv-legal-reopen__people .is-absent { background: #fbe7e4; color: #8c2f26; border-color: #f3c9c5; }
+
+/* Section Cards: Attendance vs Request vs Latest Decision */
+.lv-legal-reopen__request { display: grid; gap: 6px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--legal-line, #d8e0db); font-size: 16px; }
+.lv-legal-reopen__card--attendance { background: #f7f9f6; border-inline-start: 4px solid #587e9a; }
+.lv-legal-reopen__card--request { background: #faf8f2; border-color: #ebdcb9; border-inline-start: 4px solid #b69b62; }
+.lv-legal-reopen__card--last-decision { background: #f4f7f5; border-color: #cfe0d6; border-inline-start: 4px solid #244b3d; }
+.lv-legal-reopen__reason { font-size: 16px; line-height: 1.6; color: var(--legal-ink, #203e33); }
+
+/* Collapsible History */
+.lv-legal-reopen__history { border: 1px solid var(--legal-line, #d8e0db); border-radius: 10px; background: #fafbf9; overflow: hidden; }
+.lv-legal-reopen__history-summary { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; font-weight: 600; list-style: none; min-height: 44px; }
+.lv-legal-reopen__history-summary::-webkit-details-marker { display: none; }
+.lv-legal-reopen__history-summary h4 { margin: 0; }
+.lv-legal-reopen__history-content { display: grid; gap: 10px; padding: 14px 16px 16px; border-top: 1px solid var(--legal-line, #d8e0db); }
+.lv-legal-reopen__history ol { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.lv-legal-reopen__history li { display: grid; gap: 4px; padding: 10px 12px; border-radius: 8px; border: 1px solid #e4e7e0; background: #fff; font-size: 15px; }
+.lv-legal-reopen__history-more { font-size: 14px; color: var(--legal-muted, #596b60); }
+
+/* Decision Block */
+.lv-legal-reopen__decision { display: grid; gap: 16px; padding: 20px; border: 2px solid #244b3d; border-radius: 14px; background: #fff; box-shadow: 0 4px 16px rgba(36, 75, 61, 0.08); }
+.lv-legal-reopen__label-title { font-size: 17px; font-weight: 700; color: #183e30; }
+.lv-legal-reopen__decision textarea { min-height: 110px; font-size: 16px; }
+.lv-legal-reopen__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.lv-legal-reopen__actions button { min-height: 44px; min-width: 160px; font-size: 16px; font-weight: 600; border-radius: 10px; }
+.lv-legal-live .lv-legal-reopen__actions button:disabled { opacity: 1; border-color: #d8dcd6; background: #e4e6e1; color: var(--legal-muted, #53665a); }
+
+/* Undecidable Explanation */
+.lv-legal-reopen__undecidable { padding: 14px 16px; border: 1px solid #ebdcb9; border-inline-start: 4px solid #b69b62; border-radius: 10px; background: #fdfaf3; color: #6b4d1b; font-size: 16px; line-height: 1.6; }
+
+/* Focus outlines for Accessibility */
+.lv-legal-reopen button:focus-visible,
+.lv-legal-reopen textarea:focus-visible,
+.lv-legal-reopen__history-summary:focus-visible { outline: 3px solid var(--lv-accent-gold, #c5a059); outline-offset: 2px; }
+
+/* Mobile & Tablet Responsiveness */
+@media (max-width: 768px) {
+  .lv-legal-reopen__head { align-items: flex-start; }
+  .lv-legal-reopen__decision { padding: 16px; }
+  .lv-legal-reopen__actions { flex-direction: column; }
+  .lv-legal-reopen__actions button { width: 100%; min-height: 48px; }
+  .lv-legal-reopen__list > li > button { width: 100%; min-height: 48px; }
+}
+
+@media (max-width: 480px) {
+  .lv-legal-reopen__people > li { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .lv-legal-reopen__status-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
