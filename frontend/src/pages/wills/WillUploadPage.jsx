@@ -253,7 +253,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
 
 
       {readOnly && (
-        <div className="hn-will-readonly-notice" role="status" style={{ padding: '12px 16px', background: '#fafaf7', border: '1px solid #dce4dc', borderRadius: '10px', color: '#3f5647', margin: '0 0 16px', fontSize: '13px' }}>
+        <div className="hn-will-readonly-notice" role="status" style={{ padding: '12px 16px', background: '#fafaf7', border: '1px solid #dce4dc', borderRadius: '10px', color: '#3f5647', margin: '0 0 16px', fontSize: '14px' }}>
           {language === 'en' ? 'This vault is read-only. Will documents cannot be added or updated in its current state.' : 'Kho hiện chỉ được xem. Không thể tạo hoặc thêm phiên bản di chúc ở trạng thái này.'}
         </div>
       )}
@@ -322,7 +322,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                       v{selectedWill.currentVersion?.version || 1}
                     </span>
                   </div>
-                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#68736b' }}>
+                  <p style={{ margin: '6px 0 0', fontSize: '14px', color: '#68736b' }}>
                     {messages.CREATED_AT_LABEL}: {formatDateTime(selectedWill.createdAt, language)} · {messages.FILE_SIZE_LABEL}: {formatFileSize(selectedWill.currentVersion?.sizeBytes)}
                   </p>
                 </div>
@@ -343,7 +343,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                 {t.versionsHistoryTitle}
               </h3>
               {isLoadingVersions ? (
-                <p role="status" style={{ fontSize: '13px', color: '#68736b' }}>{language === 'en' ? 'Loading version history…' : 'Đang tải lịch sử phiên bản…'}</p>
+                <p role="status" style={{ fontSize: '14px', color: '#68736b' }}>{language === 'en' ? 'Loading version history…' : 'Đang tải lịch sử phiên bản…'}</p>
               ) : versionsError ? (
                 <div role="alert">
                   <p className="hn-will-error">{t.errors[versionsError] || t.errors.BACKEND_NOT_READY}</p>
@@ -373,7 +373,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                           </td>
                           <td data-label={t.formatCol}>{formatNames[ver.contentType] || ver.contentType}</td>
                           <td data-label={t.sizeCol}>{formatFileSize(ver.sizeBytes)}</td>
-                          <td data-label={t.dateCol} style={{ fontSize: '12.5px', color: '#68736b' }}>
+                          <td data-label={t.dateCol} style={{ fontSize: '14px', color: '#68736b' }}>
                             {formatDateTime(ver.uploadedAt, language)}
                           </td>
                           <td data-label={t.actionCol} style={{ textAlign: 'right' }}>
@@ -388,7 +388,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                                     mode: 'view',
                                   })
                                 }
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '12.5px' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '14px' }}
                               >
                                 <Eye size={13} />
                                 <span>{t.viewBtn}</span>
@@ -403,7 +403,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                                     mode: 'download',
                                   })
                                 }
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '12.5px' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '14px' }}
                               >
                                 <Download size={13} />
                                 <span>{t.downloadBtn}</span>
@@ -930,7 +930,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
           </div>
         ) : (
         <form onSubmit={handleConfirm} noValidate>
-          <p style={{ fontSize: '13.5px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '14px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6 }}>
             {isView ? t.reauthPromptView : t.reauthPrompt} <strong>v{version}</strong> ({fileName})
           </p>
 
@@ -1000,7 +1000,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
             </Button>
           </div>
 
-          <p style={{ fontSize: '12px', color: '#889085', marginTop: '16px', marginBottom: 0, lineHeight: 1.5, borderTop: '1px solid #f0f3ee', paddingTop: '10px' }}>
+          <p style={{ fontSize: '14px', color: '#889085', marginTop: '16px', marginBottom: 0, lineHeight: 1.5, borderTop: '1px solid #f0f3ee', paddingTop: '10px' }}>
             {t.legalNoticeViewOnly}
           </p>
         </form>

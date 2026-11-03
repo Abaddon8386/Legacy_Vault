@@ -277,7 +277,7 @@ export default function AdminLogsPage({
                   </td>
                   <td>
                     {log.entityType ? (
-                      <span style={{ fontSize: 12 }}>
+                      <span style={{ fontSize: 14 }}>
                         <strong>{log.entityType}</strong>
                         {log.vaultId && <div className="lv-admin-code">{t.logVaultId} {log.vaultId}</div>}
                       </span>
@@ -286,7 +286,7 @@ export default function AdminLogsPage({
                     )}
                   </td>
                   {logs.some((l) => l.ipAddress) && (
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.ipAddress || '—'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 14 }}>{log.ipAddress || '—'}</td>
                   )}
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button
@@ -354,7 +354,7 @@ function CopyButton({ text, lang }) {
       style={{
         marginLeft: '8px',
         padding: '2px 8px',
-        fontSize: '11px',
+        fontSize: '14px',
         borderRadius: '4px',
         border: '1px solid #dce4dc',
         background: '#fff',
@@ -417,7 +417,7 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
 
         {/* Technical Reference Identifiers (Secondary & Copyable) */}
         <details open style={{ padding: '12px 14px', background: '#f8faf7', border: '1px solid #e2e8e2', borderRadius: '8px' }}>
-          <summary style={{ fontWeight: 600, fontSize: '13px', color: '#164639', cursor: 'pointer' }}>
+          <summary style={{ fontWeight: 600, fontSize: '14px', color: '#164639', cursor: 'pointer' }}>
             {lang === 'en' ? 'Technical identifiers & trace' : 'Định danh kỹ thuật & nhật ký vết'}
           </summary>
           <dl className="lv-admin-detail-list" style={{ marginTop: '12px', marginBottom: 0 }}>

@@ -80,8 +80,8 @@ const STAFF_NAVIGATION_REGISTRY = [
   {
     id: 'legal-documents',
     jiraTicket: 'PS-31',
-    labelVi: 'Hồ sơ căn cứ pháp lý',
-    labelEn: 'Legal Basis Documents',
+    labelVi: 'Giấy tờ và phân bổ',
+    labelEn: 'Documents & allocations',
     status: 'ACTIVE',
   },
   {
@@ -202,17 +202,17 @@ export default function AppShell({
   const content = {
     vi: {
       brandTag: isStaff
-        ? 'Cổng Nhân viên Thực thi'
+        ? 'Nhân viên'
         : isLegal
           ? 'Cổng Thẩm định Pháp lý'
           : 'Hệ thống Quản lý Di sản Số',
       navSectionTitle: isStaff
-        ? 'QUẢN TRỊ NGHIỆP VỤ'
+        ? ''
         : isLegal
           ? 'THẨM ĐỊNH PHÁP LÝ'
           : 'QUẢN LÝ DI SẢN',
       breadcrumbHome: isStaff
-        ? 'Cổng Nhân viên'
+        ? 'Nhân viên'
         : isLegal
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
@@ -237,17 +237,17 @@ export default function AppShell({
     },
     en: {
       brandTag: isStaff
-        ? 'Staff Executor Portal'
+        ? 'Staff'
         : isLegal
           ? 'Legal Verification Portal'
           : 'Digital Heritage Sanctuary',
       navSectionTitle: isStaff
-        ? 'STAFF OPERATIONS'
+        ? ''
         : isLegal
           ? 'LEGAL VERIFICATION'
           : 'HERITAGE PORTAL',
       breadcrumbHome: isStaff
-        ? 'Staff Portal'
+        ? 'Staff'
         : isLegal
           ? 'Legal Portal'
           : 'Dashboard',
@@ -375,7 +375,7 @@ export default function AppShell({
 
         {/* Navigation Items — Extensible modular rendering strictly for ACTIVE routes */}
         <nav className="lv-sidebar-nav" aria-label="Menu chức năng">
-          <span className="lv-nav-heading">{t.navSectionTitle}</span>
+          {t.navSectionTitle && <span className="lv-nav-heading">{t.navSectionTitle}</span>}
           <ul className="lv-nav-list">
             {navList.filter((item) => item.status === 'ACTIVE' && (item.id !== 'shared-with-me' || isBeneficiary || resolvedUser?.roles?.includes('BENEFICIARY') || isPersonalRecipient(resolvedUser?.roles || []))).map((item) => (
               <li key={item.id}>
@@ -800,7 +800,7 @@ export default function AppShell({
           ==================================================================== */}
       <div className="lv-shell-main-wrap">
         {/* Top Header Bar */}
-        <header className="lv-shell-header">
+        <header className={`lv-shell-header${isStaff ? ' lv-shell-header--solid' : ''}`}>
           <div className="lv-header-left">
             <button
               type="button"
@@ -827,7 +827,7 @@ export default function AppShell({
                   ? (lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ')
                   : isStaff
                   ? currentTab === 'legal-documents'
-                    ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
+                    ? (lang === 'en' ? 'Documents & allocations' : 'Giấy tờ và phân bổ')
                     : t.breadcrumbCurrent
                   : isLegal
                     ? LEGAL_NAVIGATION_REGISTRY.find(item => item.id === currentTab)?.[lang === 'en' ? 'labelEn' : 'labelVi'] || t.breadcrumbCurrent

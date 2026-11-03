@@ -47,7 +47,7 @@ async function withRoot(fn){const host=document.createElement('div');document.bo
 
 test('will outcomes distinguish match, mismatch, inconclusive, pending and unavailable without inheriting previous props',async()=>{
  await withRoot(async(host,root)=>{
-  for(const [value,text] of [[{result:'MISMATCH',reason:'Thiếu trang',comparedAt:entry.decidedAt,digitalVersion:2},'Đối chiếu không khớp'],[null,'Chờ Legal đối chiếu'],[{result:'MATCH',reason:null,comparedAt:entry.decidedAt,digitalVersion:1},'Đối chiếu khớp'],[{result:'INCONCLUSIVE',reason:'Chưa rõ',comparedAt:entry.decidedAt,digitalVersion:1},'Chưa đủ cơ sở kết luận'],[undefined,'Chưa có dữ liệu kết quả đối chiếu']]){
+  for(const [value,text] of [[{result:'MISMATCH',reason:'Thiếu trang',comparedAt:entry.decidedAt,digitalVersion:2},'Đối chiếu không khớp'],[null,'Chờ Ban Pháp lý đối chiếu'],[{result:'MATCH',reason:null,comparedAt:entry.decidedAt,digitalVersion:1},'Đối chiếu khớp'],[{result:'INCONCLUSIVE',reason:'Chưa rõ',comparedAt:entry.decidedAt,digitalVersion:1},'Chưa đủ cơ sở kết luận'],[undefined,'Chưa có dữ liệu kết quả đối chiếu']]){
    await act(async()=>root.render(React.createElement(WillComparisonOutcome,{comparison:value})));
    assert.ok(host.textContent.includes(text));
    if(value?.digitalVersion)assert.ok(host.textContent.includes('phiên bản '+value.digitalVersion));

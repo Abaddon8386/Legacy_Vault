@@ -10,3 +10,4 @@
 .lv-staff-outcome-more summary { box-sizing:border-box; min-height:44px; margin-top:12px; padding:10px 12px; border:1px solid #b7c1b9; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
 .lv-staff-outcome-more summary:focus-visible { outline:3px solid #b7d9ca; outline-offset:2px; }
 @media(max-width:480px) { .lv-staff-version-outcomes { min-width:0; } }
+

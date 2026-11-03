@@ -1,21 +1,6 @@
 import './StaffDocumentOutcome.css';
+import { outcomeResults as results } from './documentOutcomeResults.js';
 
-const results = {
-  MATCH: ['Đối chiếu khớp', 'Comparison matches', 'positive'],
-  MISMATCH: ['Đối chiếu không khớp', 'Comparison does not match', 'negative'],
-  INCONCLUSIVE: ['Chưa đủ cơ sở kết luận', 'Comparison inconclusive', 'warning'],
-  LEGAL_APPROVED: ['Đã phê duyệt hồ sơ', 'Case approved', 'positive'],
-  LEGAL_REJECTED: ['Đã từ chối phê duyệt', 'Approval rejected', 'negative'],
-  APPROVE_DOCUMENTS: ['Đã chấp thuận giấy tờ', 'Documents accepted', 'positive'],
-  REQUEST_DOCUMENT_SUPPLEMENTATION: ['Cần bổ sung giấy tờ', 'Additional documents required', 'warning'],
-  APPROVE_ALLOCATIONS: ['Đã chấp thuận phân bổ', 'Allocations accepted', 'positive'],
-  REQUEST_ALLOCATION_CHANGES: ['Cần sửa phân bổ', 'Allocation changes required', 'warning'],
-  FRESH: ['Đã ghi nhận thẩm định', 'Assessment recorded', 'positive'],
-  REVIEW_REQUIRED: ['Cần bổ sung hoặc thẩm định lại', 'Supplementation or reassessment required', 'warning'],
-  COURT_VALID: ['Căn cứ Tòa án hợp lệ', 'Court evidence accepted', 'positive'],
-  COURT_INVALID: ['Căn cứ Tòa án không hợp lệ', 'Court evidence rejected', 'negative'],
-  COURT_INCONCLUSIVE: ['Chưa đủ cơ sở xác nhận căn cứ', 'Court evidence inconclusive', 'warning'],
-};
 function Outcome({ result, reason, at, en, children }) {
   const label = results[result];
   if (!label) return <p className="lv-staff-outcome-unavailable">{en ? 'Legal result could not be read.' : 'Chưa đọc được kết quả Legal.'}</p>;
@@ -29,7 +14,7 @@ function Outcome({ result, reason, at, en, children }) {
 
 export function WillComparisonOutcome({ comparison, en = false }) {
   if (comparison === undefined) return <p className="lv-staff-outcome-unavailable">{en ? 'Comparison results are unavailable. Refresh the documents.' : 'Chưa có dữ liệu kết quả đối chiếu. Vui lòng cập nhật giấy tờ.'}</p>;
-  if (comparison === null) return <div className="lv-staff-outcome"><strong>{en ? 'Awaiting Legal comparison' : 'Chờ Legal đối chiếu'}</strong></div>;
+  if (comparison === null) return <div className="lv-staff-outcome"><strong>{en ? 'Awaiting Legal comparison' : 'Chờ Ban Pháp lý đối chiếu'}</strong></div>;
   return <Outcome result={comparison.result} reason={comparison.reason} at={comparison.comparedAt} en={en}>
     <p>{en ? 'Compared digital document: version ' : 'Bản di chúc số đã đối chiếu: phiên bản '}{comparison.digitalVersion}</p>
   </Outcome>;

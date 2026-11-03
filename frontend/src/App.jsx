@@ -14,7 +14,6 @@ import LoginPage from './pages/auth/LoginPage.jsx';
 import PasswordRecoveryRoute from './pages/auth/PasswordRecoveryRoute.jsx';
 import InvitationPage from './pages/beneficiary/InvitationPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
-import OwnerWorkflowGuide from './components/vault/OwnerWorkflowGuide.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import { request, ApiError } from './api/http.js';
 import { readUser } from './api/contracts.js';
@@ -1696,7 +1695,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           handleExecuteNavigation(tab);
         }
       }}>
-      {!preview && !isSubscriptionRoute && <OwnerWorkflowGuide {...context} refreshKey={refreshTrigger} route={path} onNavigate={navigateTo} />}
       {preview && isWillsRoute ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
         <h2>{lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số'}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>

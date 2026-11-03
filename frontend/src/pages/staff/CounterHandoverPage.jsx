@@ -2,7 +2,7 @@ import LiveHandoverPage from './LiveHandoverPage.jsx';
 import { isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
-import { Clock, ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut } from 'lucide-react';
+import { ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut, ArrowLeft } from 'lucide-react';
 
 import { getCounterHandoverTranslations } from './handoverSessionI18n.js';
 import {
@@ -12,6 +12,7 @@ import {
 } from './handoverSessionService.js';
 
 import './CounterHandoverPage.css';
+import { isUuid } from '../../api/contracts.js';
 
 export default function CounterHandoverPage(props) {
   return isCounterHandoverSimulationPermitted(props) ? <CounterHandoverPreview {...props} /> : <LiveHandoverPage {...props} mode="sessions" />;
@@ -229,6 +230,14 @@ function CounterHandoverContent({
       </header>
 
       <main className="lv-counter-handover-view__container">
+        {/* Nút Về danh sách hồ sơ */}
+        <div className="lv-staff-header-actions">
+          <a href="/staff/cases" className="lv-staff-back-link-btn">
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>{lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
+          </a>
+        </div>
+
         {/* Title & Concise Subtitle */}
         <div className="lv-counter-handover-intro">
           <h1 className="lv-counter-handover-intro__title">{t.pageTitle}</h1>
@@ -308,10 +317,9 @@ function CounterHandoverContent({
         )}
 
         {/* 1. THÔNG TIN HỒ SƠ & PHIÊN BÀN GIAO */}
-        <section className="lv-counter-handover-card" aria-label={t.sessionSection.title}>
+        <section className="lv-counter-handover-card lv-staff-glow" aria-label={t.sessionSection.title}>
           <div className="lv-counter-handover-card__header">
             <h2 className="lv-counter-handover-card__title">
-              <Clock size={20} aria-hidden="true" />
               <span>{t.sessionSection.title}</span>
             </h2>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -320,15 +328,14 @@ function CounterHandoverContent({
                   vaultUnlocked ? 'lv-handover-badge--unlocked' : 'lv-handover-badge--locked'
                 }`}
               >
-                {vaultUnlocked ? <ShieldCheck size={12} /> : <Lock size={12} />}
                 <span>
                   {isReadOnly ? (lang === 'en' ? 'Archived · Read-only' : 'Đã lưu trữ · Chỉ đọc') : vaultUnlocked
                     ? lang === 'en'
-                      ? 'UNLOCKED (Simulated)'
-                      : 'ĐÃ MỞ KHÓA (Mô phỏng)'
+                      ? 'Unlocked (Simulated)'
+                      : 'Đã mở khóa (Mô phỏng)'
                     : lang === 'en'
-                    ? 'LOCKED (Gated)'
-                    : 'ĐANG KHÓA'}
+                    ? 'Locked'
+                    : 'Đang khóa'}
                 </span>
               </span>
 
@@ -365,7 +372,7 @@ function CounterHandoverContent({
             <div className="lv-counter-handover-meta-item">
               <span className="lv-counter-handover-meta-item__label">{t.sessionSection.sessionId}</span>
               <span className="lv-counter-handover-meta-item__value">
-                {caseData.session?.sessionId || (lang === 'en' ? 'Not Opened' : 'Chưa mở')}
+                {caseData.session?.sessionId ? (isUuid(caseData.session.sessionId) ? (lang === 'en' ? 'Opened' : 'Đã mở') : caseData.session.sessionId) : (lang === 'en' ? 'Not Opened' : 'Chưa mở')}
               </span>
             </div>
             <div className="lv-counter-handover-meta-item">
@@ -375,7 +382,7 @@ function CounterHandoverContent({
               </span>
             </div>
           </div>
-            <div className="lv-counter-handover-meta-item">
+            <div className="lv-counter-handover-meta-item" style={{ marginTop: '14px' }}>
               <span className="lv-counter-handover-meta-item__label">{t.sessionSection.unlockConfirmationSource}</span>
               <span className="lv-counter-handover-meta-item__value">
                 {vaultUnlocked
@@ -400,21 +407,49 @@ function CounterHandoverContent({
           )}
 
           {!caseData.session && vaultUnlocked && (
-            <div style={{ marginTop: '16px' }}>
+            <div style={{ marginTop: '20px' }}>
               <button
                 type="button"
                 className="lv-handover-btn-primary"
                 onClick={handleOpenSession}
                 disabled={isSubmitting || !canMutate}
               >
-                <Clock size={16} />
                 <span>{t.sessionSection.openSessionBtn}</span>
               </button>
             </div>
           )}
         </section>
 
-        <section className="lv-counter-handover-card"><h2>{lang === 'en' ? 'Recipients and approved scope' : 'Người nhận và phạm vi phê duyệt'}</h2><ul>{caseData.beneficiaries.map(b => <li key={b.id}>{b.fullName} — {b.relationship}</li>)}</ul><ul>{caseData.assets.map(a => <li key={a.id}>{a.name} — {a.beneficiaryName}: {a.allocatedShare} ({a.isOutOfScope ? (lang === 'en' ? 'Outside approved scope' : 'Ngoài phạm vi') : (lang === 'en' ? 'Within approved scope' : 'Trong phạm vi')})</li>)}</ul></section>
+        <section className="lv-counter-handover-card lv-staff-glow">
+          <h2 className="lv-counter-handover-card__title">{lang === 'en' ? 'Recipients and approved scope' : 'Người nhận và phạm vi phê duyệt'}</h2>
+          <div className="lv-handover-scope-layout">
+            <div className="lv-handover-scope-block">
+              <h3>{lang === 'en' ? 'Recipients' : 'Người nhận di sản'}</h3>
+              <ul className="lv-handover-recipients-list">
+                {caseData.beneficiaries.map(b => (
+                  <li key={b.id} className="lv-handover-recipient-item">
+                    <strong>{b.fullName}</strong> — <span>{b.relationship}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="lv-handover-scope-block">
+              <h3>{lang === 'en' ? 'Approved assets' : 'Danh mục tài sản phê duyệt'}</h3>
+              <ul className="lv-handover-assets-list">
+                {caseData.assets.map(a => (
+                  <li key={a.id} className="lv-handover-asset-item">
+                    <div>
+                      <strong>{a.name}</strong> — <span>{a.beneficiaryName}: {a.allocatedShare}</span>
+                    </div>
+                    <span className={`lv-handover-scope-badge ${a.isOutOfScope ? 'lv-handover-scope-badge--out' : 'lv-handover-scope-badge--in'}`}>
+                      {a.isOutOfScope ? (lang === 'en' ? 'Outside approved scope' : 'Ngoài phạm vi') : (lang === 'en' ? 'Within approved scope' : 'Trong phạm vi')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

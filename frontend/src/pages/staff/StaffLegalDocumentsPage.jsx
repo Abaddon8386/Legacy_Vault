@@ -10,10 +10,8 @@ import {
   RefreshCw,
   Clock,
   Send,
-  Scale,
   Plus,
   FileText,
-  Layers,
   Info,
   ArrowLeft,
 } from 'lucide-react';
@@ -21,7 +19,6 @@ import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.j
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
-import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import {
   validateStaffLegalDocumentForm,
@@ -44,6 +41,9 @@ import './StaffLegalDocumentsPage.css';
 import { formatStaffSession } from '../../utils/caseReference.js';
 import StaffLegalDecisionNotice from '../../components/staff/StaffLegalDecisionNotice.jsx';
 import { BasisVersionOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
+import { basisTypeForRoute } from '../../utils/basisTypeForRoute.js';
+import { versionOutcomeChip } from '../../components/staff/documentOutcomeResults.js';
+import StaffLegalOutcomeCard from '../../components/staff/StaffLegalOutcomeCard.jsx';
 import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
 
 
@@ -68,8 +68,11 @@ export default function StaffLegalDocumentsPage({
   const effectiveIsDevPreview = Boolean(isDevPreview || preview);
   const effectiveAccessToken = accessToken || session?.accessToken || null;
 
-  // Active Tab: 'overview' | 'intake' | 'history'
-  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(globalThis.window?.location?.search || '').get('tab') === 'allocations' ? 'allocations' : 'overview');
+  // Active Tab: 'overview' | 'intake' | 'allocations' | 'history'
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = new URLSearchParams(globalThis.window?.location?.search || '').get('tab');
+    return ['overview', 'intake', 'allocations', 'history'].includes(tabParam) ? tabParam : 'overview';
+  });
 
   const issuerId = useId();
   const docNumId = useId();
@@ -271,6 +274,11 @@ export default function StaffLegalDocumentsPage({
     setActionError(null);
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    setDossierRevision(value => value + 1);
+    distribution.refresh();
+  }, [distribution]);
+
   const [draftToken, setDraftToken] = useState(effectiveAccessToken);
   if (draftToken !== effectiveAccessToken) {
     setDraftToken(effectiveAccessToken); handleResetForm(); setDossier(null);
@@ -378,7 +386,7 @@ export default function StaffLegalDocumentsPage({
             setDossier(result.dossier);
             setDossierNotFound(false);
             if (['COURT', 'NOTARIAL'].includes(result.dossier.route)) {
-              setLegalBasisType(result.dossier.route === 'NOTARIAL' ? 'NOTARIAL_PARTITION' : 'COURT_JUDGMENT');
+              setLegalBasisType(current => basisTypeForRoute(current, result.dossier.route));
             }
           }
         }
@@ -521,6 +529,11 @@ export default function StaffLegalDocumentsPage({
   const isRouteOnHold = dossier?.route === 'ON_HOLD' || dossier?.status === 'ON_HOLD';
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
+  // Order of the work: documents first, allocations only after Legal accepts them.
+  const workflowPhase = distribution.data?.phase;
+  const allocationsLocked = ['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED', 'AWAITING_DOCUMENTS', 'DOCUMENTS_UNDER_REVIEW'].includes(workflowPhase);
+  const todoTab = workflowPhase === 'AWAITING_DOCUMENTS' ? 'intake' : workflowPhase === 'AWAITING_ALLOCATIONS' ? 'allocations' : null;
+  const todoMark = todoTab && <span className="lv-staff-tab-todo">{en ? 'Action needed' : 'Cần xử lý'}</span>;
   const basisTypeMatchesRoute = !legalBasisType || (!isRouteNotarial && !isRouteCourt)
     || (isRouteNotarial ? legalBasisType === 'NOTARIAL_PARTITION' : ['COURT_JUDGMENT','COURT_DECISION'].includes(legalBasisType));
   const basisTypeRouteError = basisTypeMatchesRoute ? '' : (isRouteNotarial
@@ -556,7 +569,7 @@ export default function StaffLegalDocumentsPage({
             : (en ? 'This action is not available in the current workflow stage.' : 'Chưa được chuyển văn bản ở giai đoạn hiện tại. Kiểm tra trạng thái hồ sơ phía trên.'))
           : isRouteOnHold ? (en ? 'The dossier is on hold.' : 'Hồ sơ đang tạm dừng.')
               : !latestVersion ? (en ? 'Receive the distribution document first.' : 'Tiếp nhận giấy tờ phân chia trước.')
-                : isLatestForwarded ? (en ? 'This version has already been sent to Legal.' : 'Phiên bản này đã chuyển Legal.') : '';
+                : isLatestForwarded ? (en ? 'This version has already been sent to Legal Department.' : 'Phiên bản này đã chuyển cho Ban Pháp lý.') : '';
 
   // Submit phiên bản mới (Finding B & C & Lỗi A/B/C)
   const handleSubmitVersion = async (e) => {
@@ -844,7 +857,7 @@ export default function StaffLegalDocumentsPage({
 
       {/* Header Area */}
       <div className="lv-staff-title-area">
-        <div>
+        <div className="lv-staff-title-left">
           {onNavigateCases && (
             <button
               type="button"
@@ -852,41 +865,51 @@ export default function StaffLegalDocumentsPage({
               onClick={onNavigateCases}
             >
               <ArrowLeft size={16} aria-hidden="true" />
-              <span>{en ? 'Back to Cases Queue' : 'Quay lại hàng đợi hồ sơ'}</span>
+              <span>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
             </button>
           )}
           <h1 className="lv-staff-title">{t.pageTitle}</h1>
         </div>
+        {selectedCaseId && (
+          <div className="lv-staff-title-actions">
+            <button
+              type="button"
+              className="lv-staff-refresh-btn"
+              onClick={handleRefresh}
+              disabled={isDossierLoading || distribution.loading || distribution.pending}
+              aria-label={en ? 'Refresh' : 'Làm mới'}
+            >
+              <RefreshCw size={15} className={(isDossierLoading || distribution.loading) ? 'lv-spin' : ''} aria-hidden="true" />
+              <span>{(isDossierLoading || distribution.loading) ? (en ? 'Refreshing…' : 'Đang làm mới…') : (en ? 'Refresh' : 'Làm mới')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Unified Staff Case Context Bar */}
       <StaffCaseContextBar
         caseId={selectedCaseId}
         caseItem={displayCaseItem}
-        sessionId={propSessionId}
         onOpenSelector={() => setIsSelectorOpen(true)}
         onChangeCase={() => setIsSelectorOpen(true)}
+        outcomeChip={latestVersion ? versionOutcomeChip(latestVersion, en) : null}
         lang={lang}
       />
 
-      <StaffWorkflowGuide current="intake" caseId={selectedCaseId} sessionId={propSessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
-        caseStatus={displayCaseItem?.status} vaultStatus={isRouteOnHold ? 'ON_HOLD' : displayCaseItem?.vaultStatus}
-        loading={isDossierLoading} error={dossierError} forwarded={dossier ? isLatestForwarded : undefined} distributionWorkflow={distribution.data} />
-      {selectedCaseId && !dossierError && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} />}
+      {selectedCaseId && !dossierError && <DistributionWorkflowOverview workflow={distribution} workspace="STAFF" lang={lang} showRefresh={false} />}
       <StaffLegalDecisionNotice decision={effectiveLegalDecision} caseId={selectedCaseId} currentVersion={latestVersion?.version} lang={lang} onViewHistory={()=>setActiveTab('history')} />
-      {latestVersion && effectiveLegalDecision?.decision !== 'LEGAL_REJECTED' && <BasisVersionOutcome version={latestVersion} en={en} compact />}
 
       {(['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) || displayCaseItem?.vaultStatus === 'ARCHIVED') && (
-        <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="lv-form-info-banner" role="status" style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', margin: '14px 0', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <div>
             <span>{en ? 'This case is closed or archived. Documents and history are available for reference in read-only mode.' : 'Hồ sơ đã đóng hoặc đã lưu trữ. Văn bản và lịch sử hiển thị ở chế độ chỉ đọc.'}</span>
             {isDiscoveredScopeMatching && discoveredSessionState.status === 'empty' && (
-              <div style={{ fontSize: '12px', color: '#15803d', marginTop: '2px' }}>
+              <div style={{ fontSize: '14px', color: '#15803d', marginTop: '2px' }}>
                 {en ? '(No handover session recorded for this case)' : '(Hồ sơ này chưa ghi nhận phiên bàn giao)'}
               </div>
             )}
             {isDiscoveredScopeMatching && discoveredSessionState.status === 'error' && (
-              <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px' }}>
+              <div style={{ fontSize: '14px', color: '#b91c1c', marginTop: '2px' }}>
                 {en ? '(Could not load historical handover sessions)' : '(Không thể tải danh sách phiên bàn giao lịch sử)'}
               </div>
             )}
@@ -894,7 +917,7 @@ export default function StaffLegalDocumentsPage({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {isDiscoveredScopeMatching && (discoveredSessionState.sessions?.length > 1 || discoveredSessionState.status === 'ambiguous') && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <label htmlFor="staff-historical-session-select" style={{ fontSize: '12px', fontWeight: 600 }}>
+                <label htmlFor="staff-historical-session-select" style={{ fontSize: '14px', fontWeight: 600 }}>
                   {en ? 'Session:' : 'Phiên:'}
                 </label>
                 <select
@@ -917,7 +940,7 @@ export default function StaffLegalDocumentsPage({
                       }));
                     }
                   }}
-                  style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', border: '1px solid #86efac', background: '#fff' }}
+                  style={{ fontSize: '14px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #86efac', background: '#fff' }}
                 >
                   <option value="">{en ? '-- Select session --' : '-- Chọn phiên bàn giao --'}</option>
                   {discoveredSessionState.sessions.map((s, idx) => (
@@ -937,7 +960,7 @@ export default function StaffLegalDocumentsPage({
               </a>
             ) : isDiscoveredScopeMatching && (discoveredSessionState.sessions?.length > 1 || discoveredSessionState.status === 'ambiguous' || discoveredSessionState.userSelection === 'CLEARED') ? (
               <span
-                style={{ color: '#15803d', fontSize: '12px', fontStyle: 'italic' }}
+                style={{ color: '#15803d', fontSize: '14px', fontStyle: 'italic' }}
               >
                 {en ? 'Please select a handover session to view archive & receipts' : 'Vui lòng chọn phiên bàn giao để xem lưu trữ & biên nhận'}
               </span>
@@ -985,7 +1008,6 @@ export default function StaffLegalDocumentsPage({
             className={`lv-staff-tab-btn ${activeTab === 'overview' ? 'lv-staff-tab-btn--active' : ''}`}
             onClick={() => setActiveTab('overview')}
           >
-            <FileText size={16} aria-hidden="true" />
             <span>{t.tabOverview}</span>
           </button>
 
@@ -999,14 +1021,25 @@ export default function StaffLegalDocumentsPage({
             className={`lv-staff-tab-btn ${activeTab === 'intake' ? 'lv-staff-tab-btn--active' : ''}`}
             onClick={() => setActiveTab('intake')}
           >
-            <Plus size={16} aria-hidden="true" />
             <span>{t.tabIntake}</span>
+            {todoTab === 'intake' && todoMark}
           </button>
 
-          <button type="button" role="tab" id="tab-btn-allocations" aria-controls="panel-allocations"
-            aria-selected={activeTab === 'allocations'} tabIndex={activeTab === 'allocations' ? 0 : -1}
-            className={`lv-staff-tab-btn ${activeTab === 'allocations' ? 'lv-staff-tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('allocations')}>{en ? 'Asset allocations' : 'Phân bổ tài sản'}</button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-btn-allocations"
+            aria-controls="panel-allocations"
+            aria-selected={activeTab === 'allocations'}
+            aria-describedby={allocationsLocked ? 'tab-note-allocations' : undefined}
+            tabIndex={activeTab === 'allocations' ? 0 : -1}
+            className={`lv-staff-tab-btn ${activeTab === 'allocations' ? 'lv-staff-tab-btn--active' : ''} ${allocationsLocked ? 'lv-staff-tab-btn--waiting' : ''}`}
+            onClick={() => setActiveTab('allocations')}
+          >
+            <span>{en ? 'Asset allocations' : 'Phân bổ tài sản'}</span>
+            {todoTab === 'allocations' && todoMark}
+            {allocationsLocked && <small className="lv-staff-tab-note" id="tab-note-allocations">{en ? 'Opens after documents are approved' : 'Mở sau khi duyệt giấy tờ'}</small>}
+          </button>
 
           <button
             type="button"
@@ -1018,7 +1051,6 @@ export default function StaffLegalDocumentsPage({
             className={`lv-staff-tab-btn ${activeTab === 'history' ? 'lv-staff-tab-btn--active' : ''}`}
             onClick={() => setActiveTab('history')}
           >
-            <Layers size={16} aria-hidden="true" />
             <span>{t.tabHistory}</span>
             {dossier?.versions?.length > 0 && (
               <span className="lv-staff-tab-count">{dossier.versions.length}</span>
@@ -1032,6 +1064,7 @@ export default function StaffLegalDocumentsPage({
           ========================================================================= */}
       {selectedCaseId && activeTab === 'overview' && (
         <div id="panel-overview" role="tabpanel" aria-labelledby="tab-btn-overview">
+          {latestVersion && effectiveLegalDecision?.decision !== 'LEGAL_REJECTED' && <StaffLegalOutcomeCard version={latestVersion} en={en} />}
           <section className="lv-dossier-card lv-staff-glow" aria-labelledby="dossier-overview-heading">
             <div className="lv-dossier-card__header">
               <h2 id="dossier-overview-heading">{t.dossierSectionTitle}</h2>
@@ -1052,8 +1085,7 @@ export default function StaffLegalDocumentsPage({
             )}
 
             {dossierNotFound && (
-              <div className="lv-dossier-unconnected-box" role="status">
-                <Scale size={32} className="lv-dossier-unconnected-icon" aria-hidden="true" />
+              <div className="lv-dossier-unconnected-box lv-dossier-empty-state" role="status">
                 <h3>{en ? 'Receive distribution documents' : 'Tiếp nhận giấy tờ phân chia tài sản'}</h3>
                 <p>{en ? 'Submit the documents requested by Legal. Allocations are prepared after Legal accepts the documents.' : 'Nộp giấy tờ Ban Pháp lý đã yêu cầu. Chỉ lập phân bổ sau khi Ban Pháp lý duyệt căn cứ.'}</p>
               </div>
@@ -1235,6 +1267,7 @@ export default function StaffLegalDocumentsPage({
           <section className="lv-staff-form-card lv-form-card lv-staff-glow" aria-labelledby="form-heading">
             <div className="lv-staff-form-card__header lv-form-card__header">
               <h2 id="form-heading">{t.formTitle}</h2>
+              <p className="lv-staff-tab-desc">{en ? 'Upload only the requested documents here.' : 'Tại đây chỉ tải giấy tờ được yêu cầu.'}</p>
             </div>
 
 
@@ -1501,8 +1534,7 @@ export default function StaffLegalDocumentsPage({
             </div>
 
             {(!dossier?.versions || dossier.versions.length === 0) ? (
-              <div className="lv-dossier-unconnected-box" role="status">
-                <FileText size={32} className="lv-dossier-unconnected-icon" aria-hidden="true" />
+              <div className="lv-dossier-unconnected-box lv-dossier-empty-state" role="status">
                 <h3>{t.dossierVersionUnloaded}</h3>
                 <p>{en ? 'No versions have been intaked for this case yet.' : 'Chưa có phiên bản nào được tiếp nhận cho hồ sơ này.'}</p>
               </div>
@@ -1627,3 +1659,5 @@ export default function StaffLegalDocumentsPage({
     </div>
   );
 }
+
+

@@ -929,6 +929,5 @@ test('Actual App case-number entry keeps received items and disables requests wi
     assert.equal(v.host.querySelector('#case-link-number').disabled, true);
     assert.match(v.host.textContent, /Chưa hỗ trợ gửi yêu cầu/);
     assert.ok(v.host.querySelector('.lv-received-list'), 'Previously delivered items remain visible');
-    assert.match(v.host.querySelector('.lv-workflow-guide').textContent, /Đã nhận một phần/);
   } finally { await v.close(); window.sessionStorage.clear(); }
 });

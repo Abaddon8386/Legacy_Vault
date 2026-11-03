@@ -250,7 +250,7 @@ export function AssetFormModal({
               backgroundColor: '#fbf7ee',
               border: '1px solid #e7d8b8',
               borderRadius: 'var(--lv-radius-control, 10px)',
-              fontSize: '12.5px',
+              fontSize: '14px',
               color: '#775722',
               lineHeight: 1.5,
               margin: '12px 0 16px',
