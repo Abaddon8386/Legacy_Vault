@@ -379,12 +379,28 @@
 
 /* Chi tiết phiên đang chọn */
 .lv-live-handover .lv-session-detail {
-  margin-top: 24px;
-  padding: 20px;
-  border-top: 1px solid var(--lv-border-subtle, #eae5dc);
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--lv-border-subtle, #eae5dc);
+  border-top: 3px solid #b69b62;
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 14px;
 }
+.lv-live-handover .lv-session-detail > * { margin: 0; }
+.lv-live-handover .lv-session-detail h3 { font-size: 21px; font-weight: 700; color: #203e33; }
+
+/* The sessions list, the session detail, the attendance card and the counter link card are four separate blocks, not one nested strip. */
+.lv-live-handover .lv-session-stack {
+  display: grid;
+  gap: 24px;
+  margin-top: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.lv-live-handover .lv-session-stack > * { margin-top: 0; }
 
 .lv-live-handover .lv-session-detail-grid {
   display: grid;
@@ -552,6 +568,7 @@
   .lv-live-handover section,
   .lv-live-handover aside,
   .lv-live-handover .lv-session-panel,
+  .lv-live-handover .lv-session-detail,
   .lv-live-handover .lv-live-case-picker,
   .lv-live-handover .lv-counter-beneficiaries {
     padding: 16px;
@@ -579,3 +596,4 @@
     grid-column: 1;
   }
 }
+
