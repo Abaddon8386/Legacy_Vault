@@ -227,15 +227,15 @@
 }
 
 .lv-beneficiary-confirmation-view .lv-confirm-status-pill--pending {
-  background-color: var(--lv-status-pending-bg, #f7f9fc);
-  color: var(--lv-status-pending-text, #2b5788);
-  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+  background-color: var(--lv-status-await-bg, #fff8eb);
+  color: var(--lv-status-await-text, #82510d);
+  border: 1px solid var(--lv-status-await-border, #f9e2b8);
 }
 
 .lv-beneficiary-confirmation-view .lv-confirm-status-pill--confirmed {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: #eef0eb;
+  color: #5e6b62;
+  border: 1px solid #d5d9d1;
 }
 
 .lv-beneficiary-confirmation-view .lv-confirm-status-pill--unknown {
@@ -464,6 +464,8 @@
   letter-spacing: 0.02em;
 }
 
+.lv-beneficiary-confirmation-view .lv-confirm-table small { display: block; margin-top: 4px; font-size: 14px; }
+
 .lv-beneficiary-confirmation-view .lv-confirm-empty-cell {
   color: var(--lv-text-muted, #6b726b);
   font-size: 14px;
@@ -471,9 +473,6 @@
 
 .lv-beneficiary-confirmation-view .lv-confirm-signed-check { display:flex; align-items:flex-start; gap:10px; line-height:1.6; margin:16px 0; }
 .lv-beneficiary-confirmation-view .lv-confirm-signed-check input { width:20px; height:20px; flex-shrink:0; margin-top:3px; }
-.lv-beneficiary-confirmation-view .lv-confirm-signed-file { display:block; box-sizing:border-box; width:100%; padding:14px; border:1px dashed #9eb6a6; border-radius:10px; background:#f5f8f3; color:#294c3c; font:inherit; margin:8px 0 14px; }
-.lv-beneficiary-confirmation-view .lv-confirm-signed-file::file-selector-button { padding:10px 16px; margin-right:12px; border:1px solid #b5c8ba; border-radius:8px; background:#fff; color:#294c3c; font:inherit; font-weight:600; cursor:pointer; }
-.lv-beneficiary-confirmation-view .lv-confirm-signed-file:focus-visible { outline:2px solid #ba9857; outline-offset:3px; }
 .lv-beneficiary-confirmation-view .lv-confirm-receipt-code { overflow-wrap:anywhere; white-space:normal; }
 
 /* Signed receipt viewer and modal stacking isolation */

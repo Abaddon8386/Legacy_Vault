@@ -997,21 +997,19 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
     assert.ok(host.textContent.includes('Tài khoản ngân hàng Y'), 'Asset Y must be rendered for recipient A');
     assert.equal(host.textContent.includes('Xe ô tô Z'), false, 'Asset Z of recipient B must NOT be shown');
 
-    // Nút "Kiểm tra bàn giao" phải bị disabled khi chưa chọn tài sản nào
+    // Không còn ô tích chọn: bàn giao từng dòng hoặc toàn bộ phần của người nhận
+    assert.equal(host.querySelector('.lv-handover-table input[type="checkbox"]'), null, 'Assets are not ticked');
     const reviewBtn = host.querySelector('.lv-btn-review-handover');
-    assert.ok(reviewBtn, 'Review handover button must exist');
-    assert.equal(reviewBtn.disabled, true, 'Review button must be disabled before selecting assets');
+    assert.ok(reviewBtn, 'Hand over all button must exist');
+    assert.equal(reviewBtn.disabled, false);
+    const rowBtn = host.querySelector('.lv-handover-table tbody .lv-btn-record-handover');
 
-    // Chọn tài sản X qua checkbox
-    const checkboxes = host.querySelectorAll('.lv-handover-table tbody input[type="checkbox"]');
-    assert.ok(checkboxes.length >= 2, 'Should have at least 2 asset checkboxes');
-    await act(async () => checkboxes[0].click());
-
-    // Sau khi chọn X: Nút review enabled
-    assert.equal(reviewBtn.disabled, false, 'Review button must be enabled after selecting an asset');
-
-    // 3. Bước 3: Mở dialog tóm tắt
     await act(async () => reviewBtn.click());
+    assert.equal(host.querySelectorAll('.lv-handover-modal-dialog .lv-review-assets-list li, .lv-handover-modal-dialog ul li').length >= 2, true, 'Hand over all lists every remaining asset');
+    await act(async () => host.querySelector('.lv-btn-cancel-review').click());
+
+    // 3. Bước 3: Mở dialog tóm tắt cho một tài sản
+    await act(async () => rowBtn.click());
 
     const reviewModal = host.querySelector('.lv-handover-modal-dialog');
     assert.ok(reviewModal, 'Review modal dialog must open');
@@ -1027,7 +1025,7 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
     assert.equal(deliveryPostPayload, null, 'No POST request should be made when review is cancelled');
 
     // Mở lại dialog và bấm Xác nhận bàn giao
-    await act(async () => reviewBtn.click());
+    await act(async () => rowBtn.click());
     const confirmBtn = host.querySelector('.lv-btn-confirm-deliver');
     assert.ok(confirmBtn, 'Confirm delivery button must exist in modal');
 

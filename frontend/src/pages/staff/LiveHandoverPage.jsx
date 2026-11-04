@@ -156,8 +156,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           : selected?.status === 'COMPLETED' ? (en ? 'This session is complete. Continue to closing and archiving.' : 'Phiên đã hoàn tất. Chuyển sang đóng và lưu trữ.')
             : mode === 'accounts' ? (en ? 'Open sessions from the handover page.' : 'Mở phiên tại trang bàn giao.') : '';
   const statuses = en ? { OPEN: 'Open', COMPLETED: 'Completed', CANCELLED: 'Cancelled' } : { OPEN: 'Đang mở', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy' };
-  return <section className="lv-session-stack" aria-busy={loading || pending}>
-    <div className="lv-session-panel lv-staff-glow">
+  const sessionList = <>
     <div className="lv-session-panel-heading">
       <div>
         <h2>{en ? 'Handover sessions' : 'Phiên bàn giao'} <span className="lv-session-count">{sessions.length}</span></h2>
@@ -167,9 +166,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     {(loading || pending) && <p role="status"><progress aria-label={en ? 'Processing' : 'Đang xử lý'} /> {en ? 'Processing…' : 'Đang xử lý…'}</p>}
     {error && <p role="alert">{errorText(error, en, caseItem)}</p>}
     {notice && <p role="status">{notice}</p>}
-    <details className="lv-session-guidance"><summary>{en ? 'Requirements for a new session' : 'Điều kiện mở phiên mới'}</summary>
-      <p>{en ? 'The case must be open and assigned to you, with the vault unlocked and a current Legal approval.' : 'Hồ sơ đang mở và được giao cho bạn; kho đã mở khóa và phê duyệt Ban Pháp lý còn hiệu lực.'}</p>
-    </details>
+    {!openExists && !isCaseClosed && <p className="lv-session-guidance">{en ? 'The case must be open and assigned to you, with the vault unlocked and a current Legal approval.' : 'Hồ sơ đang mở và được giao cho bạn; kho đã mở khóa và phê duyệt Ban Pháp lý còn hiệu lực.'}</p>}
     {isCaseClosed && (
       <p role="note" className="lv-live-closed-notice">
         {en ? 'This verification case is closed. New handover sessions cannot be opened.' : 'Hồ sơ xác minh này đã đóng. Không thể mở phiên bàn giao mới.'}
@@ -185,8 +182,8 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         <span className="lv-session-choice-action">{selected?.sessionId === item.sessionId ? (en ? 'Selected' : 'Đang xem') : (en ? 'View details →' : 'Xem chi tiết →')}</span>
       </button>
     </li>)}</ul>
-    </div>
-    {selected && <div className="lv-session-detail lv-staff-glow">
+  </>;
+  const sessionDetail = selected && <div className="lv-session-detail">
       <h3>{en ? 'Selected session' : 'Phiên đang xem'}</h3>
       <div className="lv-session-detail-grid">
         <p><span>{en ? 'Status' : 'Trạng thái'}</span><strong>{statuses[selected.status]}</strong></p>
@@ -220,18 +217,25 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         <button disabled={pending} onClick={() => act(options => cancelLiveSession(caseId, selected.sessionId, options))}>{en ? 'Confirm cancellation' : 'Xác nhận hủy'}</button>
         <button onClick={() => setConfirmCancel(false)}>{en ? 'Keep session' : 'Giữ phiên'}</button>
       </div>}
-    </div>}
-    {selected?.status === 'OPEN' && <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang}><div className="lv-handover-next-step">
-        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
-      </div></StaffGroupHandover>}
-    {counterLinkActions !== undefined ? <StaffCaseLinkPanel
+    </div>;
+  const counterCheck = counterLinkActions !== undefined ? <StaffCaseLinkPanel
       caseId={caseId}
       caseItem={caseItem}
       accessToken={accessToken}
       lang={lang}
       actions={counterLinkActions}
       onError={onError}
-    /> : <LegacyCounterBeneficiariesSection caseId={caseId} caseItem={caseItem} selectedSessionId={selected?.sessionId} accessToken={accessToken} lang={lang} mode={mode} onError={onError} />}
+    /> : <LegacyCounterBeneficiariesSection caseId={caseId} caseItem={caseItem} selectedSessionId={selected?.sessionId} accessToken={accessToken} lang={lang} mode={mode} onError={onError} />;
+  // Order of the work: open the session and record attendance, check identities, then hand over assets.
+  const layout = (attendance, delivery) => <>
+    <div className="lv-session-panel lv-staff-glow">{sessionList}{sessionDetail}{attendance}</div>
+    {counterCheck}
+    {delivery}
+  </>;
+  return <section className="lv-session-stack" aria-busy={loading || pending}>
+    {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}><div className="lv-handover-next-step">
+        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
+      </div></StaffGroupHandover> : layout()}
   </section>;
 }
 

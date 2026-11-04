@@ -72,7 +72,7 @@ function SessionScope({children, caseId, sessionId, accessToken, lang = 'vi', re
   if (isHandoverId(caseId) && current?.kind === 'ready') {
     const selectedSessionId=current.selected?.sessionId || sessionId || '';
     const content=cloneElement(children,{caseItem:current.item,sessionId:selectedSessionId});
-    return operation==='delivery' ? <StaffGroupHandover caseId={caseId} sessionId={selectedSessionId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized}>{content}</StaffGroupHandover> : content;
+    return operation==='delivery' ? <StaffGroupHandover caseId={caseId} sessionId={selectedSessionId} accessToken={accessToken} lang={lang} onUnauthorized={onUnauthorized} hideWhenAllowed>{content}</StaffGroupHandover> : content;
   }
   const failure = current?.kind === 'failure' ? workflowFailure(current.error, lang) : null;
   const waiting = current?.kind === 'waiting' ? staffSessionPrerequisite(current.item, lang) : null;

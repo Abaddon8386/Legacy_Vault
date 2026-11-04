@@ -1,11 +1,11 @@
-import { signedReceiptFileError } from '../../utils/signedReceiptFile.js';
+import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import { useState, useId, useEffect, useRef } from 'react';
 import {
   FileCheck,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   HelpCircle,
+  AlertTriangle,
   RefreshCw,
   ArrowLeft,
   FolderOpen,
@@ -106,7 +106,7 @@ function BeneficiaryConfirmationPageContext({
 }) {
   const t = beneficiaryConfirmationI18n[lang] || beneficiaryConfirmationI18n.vi;
   const benSelectId = useId();
-  const receiptInputId = useId();
+  const paperReceiptId = useId();
 
   const effectiveIsDevPreview = Boolean(isDevPreview || preview);
   const effectiveAccessToken = accessToken || session?.accessToken || null;
@@ -951,15 +951,19 @@ function BeneficiaryConfirmationPageContext({
                       <td>
                         <strong>{b.fullName || b.beneficiaryName || b.name || t.informationUnavailable}</strong>
                       </td>
-                      <td>{b.relationship || t.informationUnavailable}</td>
+                      <td>{b.relationship || '—'}</td>
                       <td>
-                        <span className="lv-confirm-delivery-tag">
-                          {isDelivered
-                            ? t.deliveryDelivered
-                            : isDeliveryPending
-                              ? t.deliveryPending
-                              : (b.confirmationStatus === 'CONFIRMED' ? t.deliveryDelivered : t.informationUnavailable)}
-                        </span>
+                        {isDelivered || (!isDeliveryPending && isConfirmed) ? (
+                          <span className="lv-confirm-status-pill lv-confirm-status-pill--confirmed">
+                            <CheckCircle2 size={12} aria-hidden="true" />
+                            <span>{t.deliveryDelivered}</span>
+                          </span>
+                        ) : isDeliveryPending ? (
+                          <span className="lv-confirm-status-pill lv-confirm-status-pill--pending">
+                            <Clock size={12} aria-hidden="true" />
+                            <span>{t.deliveryPending}</span>
+                          </span>
+                        ) : '—'}
                       </td>
                       <td>
                         {isConfirmed ? (
@@ -972,21 +976,14 @@ function BeneficiaryConfirmationPageContext({
                             <Clock size={12} aria-hidden="true" />
                             <span>{t.statusPending}</span>
                           </span>
-                        ) : (
-                          <span className="lv-confirm-status-pill lv-confirm-status-pill--unknown">
-                            <HelpCircle size={12} aria-hidden="true" />
-                            <span>{t.informationUnavailable}</span>
-                          </span>
-                        )}
+                        ) : '—'}
                       </td>
                       <td>
                         {b.receiptReference ? (
                           <><code className="lv-confirm-receipt-code">{b.receiptReference}</code>
                           {b.hasSignedFile && b.confirmationId ? <SignedReceiptViewer key={`${caseReference}:${sessionId}:${effectiveAccessToken}:${b.confirmationId}`} caseId={caseReference} sessionId={sessionId} confirmationId={b.confirmationId} accessToken={effectiveAccessToken} lang={lang} onUnauthorized={onUnauthorized} onViewReceipt={setActiveReceiptPreview} />
                             : <small>{lang === 'en' ? 'Legacy record: no signed attachment' : 'Bản ghi cũ: chưa có tệp ký nhận'}</small>}</>
-                        ) : (
-                          <span className="lv-confirm-empty-cell">{t.informationUnavailable}</span>
-                        )}
+                        ) : '—'}
                       </td>
                     </tr>
                   );
@@ -1049,20 +1046,16 @@ function BeneficiaryConfirmationPageContext({
           </div>
 
           <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
-            <label htmlFor={receiptInputId} className="lv-confirm-label lv-confirm-label--required">{lang === 'en' ? 'Signed receipt' : 'Biên nhận đã ký'}</label>
-            <span className="lv-confirm-hint">{lang === 'en' ? 'Upload the full signed receipt (PDF, JPEG or PNG, up to 10 MB). A receipt number is generated when saved.' : 'Tải toàn bộ biên nhận có chữ ký (PDF, JPEG hoặc PNG, tối đa 10 MB). Hệ thống tự tạo mã khi lưu.'}</span>
-            <input className="lv-confirm-signed-file" key={`${caseReference}:${sessionId}:${selectedBeneficiaryId}`} id={receiptInputId} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/jpg,image/png" disabled={!hasValidData || !selectedBeneficiaryId || isSubmitting || isSelectedAlreadyConfirmed}
-              onChange={e => {
-                const file=e.target.files?.[0]; setAttested(false);
-                const fileError = signedReceiptFileError(file);
-                if (fileError) {
-                  setSignedFile(null); setActionError(fileError === 'empty' ? (lang === 'en' ? 'The receipt file is empty.' : 'Tệp biên nhận không có nội dung.') : fileError === 'size' ? (lang === 'en' ? 'The receipt must not exceed 10 MB.' : 'Biên nhận không được vượt quá 10 MB.') : (lang === 'en' ? 'Use PDF, JPEG or PNG. Export HEIC/WebP images to JPEG or PNG first.' : 'Chỉ hỗ trợ PDF, JPEG hoặc PNG. Ảnh HEIC/WebP cần xuất sang JPEG hoặc PNG trước.')); e.target.value=''; return;
-                }
-                setSignedFile(file || null); setActionError(null);
-              }} />
-            <details><summary>{lang === 'en' ? 'Paper receipt number (optional)' : 'Số trên giấy biên nhận (tùy chọn)'}</summary>
-              <input aria-label={lang === 'en' ? 'Paper receipt number' : 'Số trên giấy biên nhận'} className="lv-confirm-input" value={receiptReference} maxLength={200} onChange={e => handleReceiptChange(e.target.value)} disabled={!hasValidData || isSubmitting || isSelectedAlreadyConfirmed} />
-            </details>
+            <EvidenceFileUploader key={`${caseReference}:${sessionId}:${selectedBeneficiaryId}`} file={signedFile} lang={lang}
+              disabled={!hasValidData || !selectedBeneficiaryId || isSubmitting || isSelectedAlreadyConfirmed}
+              label={lang === 'en' ? 'Signed receipt' : 'Biên nhận đã ký'}
+              hint={lang === 'en' ? 'Upload the full signed receipt (PDF, JPEG or PNG, up to 10 MB). A receipt number is generated when saved.' : 'Tải toàn bộ biên nhận có chữ ký (PDF, JPEG hoặc PNG, tối đa 10 MB). Hệ thống tự tạo mã khi lưu.'}
+              onFileChange={file => { setAttested(false); setSignedFile(file); setActionError(null); }} />
+          </div>
+
+          <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
+            <label htmlFor={paperReceiptId} className="lv-confirm-label">{lang === 'en' ? 'Paper receipt number (optional)' : 'Số trên giấy biên nhận (tùy chọn)'}</label>
+              <input id={paperReceiptId} aria-label={lang === 'en' ? 'Paper receipt number' : 'Số trên giấy biên nhận'} className="lv-confirm-input" value={receiptReference} maxLength={200} onChange={e => handleReceiptChange(e.target.value)} disabled={!hasValidData || isSubmitting || isSelectedAlreadyConfirmed} />
             <label className="lv-confirm-signed-check"><input type="checkbox" checked={attested} disabled={!signedFile || isSubmitting || isSelectedAlreadyConfirmed} onChange={e => setAttested(e.target.checked)} />{lang === 'en' ? 'I checked the receipt and the recipient has signed.' : 'Tôi đã đối chiếu biên nhận và người nhận đã ký.'}</label>
             {errors.receiptReference && (
               <div className="lv-confirm-error-msg" role="alert">

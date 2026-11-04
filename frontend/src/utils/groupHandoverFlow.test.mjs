@@ -155,7 +155,7 @@ for (const lang of ['vi', 'en']) for (const decision of ['APPROVE', 'REJECT']) {
       assert.match(view.legal.textContent, decision === 'APPROVE'
         ? (en ? /notification for Staff has been recorded/ : /thông báo cho Nhân viên/)
         : (en ? /has not been confirmed/ : /chưa xác nhận/i));
-      await click(view.staff, en ? 'Refresh attendance status' : 'Cập nhật tình hình bàn giao');
+      await click(view.staff, en ? 'Reload attendance' : 'Tải lại danh sách có mặt');
       assert.equal(deliveryVisible(view), decision === 'APPROVE');
       assert.deepEqual(log.posts.map(call => call.body.expectedRevision), [0, 1, 2, 3]);
       assert.equal(new Set(log.posts.map(call => call.key)).size, 4);
@@ -170,7 +170,7 @@ test('Legal approval cannot reveal Staff delivery when another server gate still
   contract({ lang: 'en', deliveryAfterApproval: false }); const view = await mount('en');
   try {
     await requestReopening(view, 'en'); await fill(view.legal, 'Attendance accepted'); await click(view.legal, 'Allow reopening');
-    await click(view.staff, 'Refresh attendance status');
+    await click(view.staff, 'Reload attendance');
     assert.equal(deliveryVisible(view), false);
   } finally { await view.close(); }
 });
@@ -179,11 +179,11 @@ test('a refused request can be followed by a new Staff request and Legal approva
   const log = contract({ lang: 'en' }); const view = await mount('en');
   try {
     await requestReopening(view, 'en'); await fill(view.legal, 'Need confirmation'); await click(view.legal, 'Refuse reopening');
-    await click(view.staff, 'Refresh attendance status'); assert.equal(deliveryVisible(view), false);
+    await click(view.staff, 'Reload attendance'); assert.equal(deliveryVisible(view), false);
     await fill(view.staff, 'Conditions confirmed again'); await click(view.staff, 'Request Legal reopening');
     assert.ok(view.legal.querySelector('textarea'), 'the new request has its own decision form');
     await fill(view.legal, 'New request accepted'); await click(view.legal, 'Allow reopening');
-    await click(view.staff, 'Refresh attendance status'); assert.equal(deliveryVisible(view), true);
+    await click(view.staff, 'Reload attendance'); assert.equal(deliveryVisible(view), true);
     assert.deepEqual(log.posts.map(call => call.body.expectedRevision), [0, 1, 2, 3, 4, 5]);
     assert.notEqual(log.posts[3].path, log.posts[5].path, 'the second decision targets the new request id');
     assert.deepEqual(log.posts.filter(call => call.body.decision).map(call => call.body.decision), ['REJECT', 'APPROVE']);

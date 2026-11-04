@@ -33,7 +33,6 @@ import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import './ScopedAssetHandoverPage.css';
 import { isUuid } from '../../api/contracts.js';
 import { readDeliveryReceiptBatch } from '../../utils/deliveryReceiptValidation.js';
-import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
 export default function ScopedAssetHandoverPage(props) {
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -254,37 +253,10 @@ function ScopedAssetHandoverPageContext({
     (c) => c.handoverStatus !== HANDOVER_STATUS.DELIVERED && c.deliverable === true
   );
 
-  const isAllSelected =
-    undeliveredAssets.length > 0 &&
-    undeliveredAssets.every((c) => selectedAssetIds.has(c.assetId));
-
-  // Toggle Chọn tất cả tài sản chưa giao
-  const handleToggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedAssetIds(new Set());
-    } else {
-      setSelectedAssetIds(new Set(undeliveredAssets.map((c) => c.assetId)));
-    }
-  };
-
-  // Toggle từng tài sản
-  const handleToggleAsset = (assetId) => {
-    if (!recipientAssets.some(item => item.assetId === assetId && item.deliverable && item.handoverStatus !== HANDOVER_STATUS.DELIVERED)) return;
-    setSelectedAssetIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(assetId)) {
-        next.delete(assetId);
-      } else {
-        next.add(assetId);
-      }
-      return next;
-    });
-  };
-
-  // Mở modal kiểm tra bàn giao (ZERO POST)
+  // Mở modal kiểm tra bàn giao cho toàn bộ tài sản còn lại của người nhận (ZERO POST)
   const handleOpenReviewModal = () => {
-    if (selectedAssetIds.size === 0 || !selectedRecipientId || isDelivering) return;
-    if ([...selectedAssetIds].some(id => !recipientAssets.some(item => item.assetId === id && item.deliverable && item.handoverStatus !== HANDOVER_STATUS.DELIVERED))) return;
+    if (undeliveredAssets.length === 0 || !selectedRecipientId || isDelivering) return;
+    setSelectedAssetIds(new Set(undeliveredAssets.map((c) => c.assetId)));
     setActionError(null);
     setShowReviewModal(true);
   };
@@ -626,16 +598,6 @@ function ScopedAssetHandoverPageContext({
             <table className="lv-handover-table">
               <thead>
                 <tr>
-                  <th style={{ width: 44, textAlign: 'center' }}>
-                    <input
-                      type="checkbox"
-                      className="lv-handover-table-checkbox"
-                      aria-label={t.selectAll}
-                      checked={isAllSelected}
-                      onChange={handleToggleSelectAll}
-                      disabled={undeliveredAssets.length === 0 || isDelivering}
-                    />
-                  </th>
                   <th>{t.assetNameCol}</th>
                   <th>{t.scopeStatusCol}</th>
                   <th>{t.handoverStatusCol}</th>
@@ -645,23 +607,9 @@ function ScopedAssetHandoverPageContext({
               <tbody>
                 {recipientAssets.map((item) => {
                   const isDelivered = item.handoverStatus === HANDOVER_STATUS.DELIVERED;
-                  const isChecked = selectedAssetIds.has(item.assetId);
 
                   return (
-                    <tr
-                      key={`${item.assetId}:${item.beneficiaryId}`}
-                      className={isChecked ? 'lv-handover-row--selected' : ''}
-                    >
-                      <td style={{ textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          className="lv-handover-table-checkbox"
-                          aria-label={`Chọn tài sản ${item.assetName || item.description || item.assetId}`}
-                          checked={isChecked}
-                          onChange={() => handleToggleAsset(item.assetId)}
-                          disabled={isDelivered || !item.deliverable || isDelivering}
-                        />
-                      </td>
+                    <tr key={`${item.assetId}:${item.beneficiaryId}`}>
                       <td>
                         <div className="lv-asset-item-info">
                           <strong>
@@ -729,19 +677,15 @@ function ScopedAssetHandoverPageContext({
         {/* Thanh đếm & nút chuyển sang Bước 3 */}
         {selectedRecipientId && recipientAssets.length > 0 && (
           <div className="lv-handover-action-bar">
-            <WorkflowActionHint id="delivery-action-blocked" reason={selectedAssetIds.size === 0 && selectedRecipientId ? (en ? 'Select an undelivered item for this recipient.' : 'Chọn tài sản chưa giao của người nhận này.') : ''} />
             <span className="lv-selected-count-text">
               {undeliveredAssets.length === 0
                 ? t.noUndeliveredAssetsForRecipient
-                : (t.selectedCount || 'Đã chọn {count} tài sản').replace(
-                    '{count}',
-                    String(selectedAssetIds.size)
-                  )}
+                : t.remainingCount.replace('{count}', String(undeliveredAssets.length))}
             </span>
             <button
               type="button"
               className="lv-btn-review-handover"
-              disabled={selectedAssetIds.size === 0 || isDelivering} aria-describedby={selectedAssetIds.size === 0 ? 'delivery-action-blocked' : undefined}
+              disabled={undeliveredAssets.length === 0 || isDelivering}
               onClick={handleOpenReviewModal}
             >
               <FileCheck size={16} aria-hidden="true" />
