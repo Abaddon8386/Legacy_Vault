@@ -43,11 +43,13 @@ public class BasisReclassificationService {
     private final BasisDossierViewService views;
     private final AuditService auditService;
     private final LegalBasisLockedState lockedState;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     public BasisReclassificationService(LegalCaseLookupRepository caseLookup, VerificationCaseRepository caseRepository,
             VaultRepository vaultRepository, LegalBasisDossierRepository dossiers,
             LegalBasisClassificationHistoryRepository history, WillComparisonService willComparisons,
-            BasisDossierViewService views, AuditService auditService, LegalBasisLockedState lockedState) {
+            BasisDossierViewService views, AuditService auditService, LegalBasisLockedState lockedState,
+            com.legacyvault.notification.WorkflowNotificationService notifications) {
         this.caseLookup = caseLookup;
         this.caseRepository = caseRepository;
         this.vaultRepository = vaultRepository;
@@ -57,6 +59,7 @@ public class BasisReclassificationService {
         this.views = views;
         this.auditService = auditService;
         this.lockedState = lockedState;
+        this.notifications = notifications;
     }
 
     @Transactional
@@ -86,7 +89,7 @@ public class BasisReclassificationService {
 
         String previousRoute = dossier.getRoute();
         String route = request.route().name();
-        history.saveAndFlush(LegalBasisClassificationHistory.of(dossier));
+        var savedClassification = history.saveAndFlush(LegalBasisClassificationHistory.of(dossier));
         dossier.reclassify(route, reason, BasisClassificationService.disputeStatusOf(request.route()), legalUserId);
         dossiers.saveAndFlush(dossier);
 
@@ -115,7 +118,10 @@ public class BasisReclassificationService {
                 RULE_ID
         ));
 
-        return views.view(verificationCase, true);
+        var notification = notifications.record(verificationCase,
+                com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                "LEGAL_BASIS_RECLASSIFIED", "basis-resume:" + savedClassification.getPublicId(), reason);
+        return views.view(verificationCase, true).withNotification(notification);
     }
 
     private static String validate(ClassifyBasisRequest request) {

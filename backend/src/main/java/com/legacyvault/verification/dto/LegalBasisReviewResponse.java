@@ -17,6 +17,17 @@ public record LegalBasisReviewResponse(
         String currentSha256Hash,
         String currentDisputeStatus,
         String currentAllocationHash,
-        LocalDateTime checkedAt
+        LocalDateTime checkedAt,
+        com.legacyvault.notification.WorkflowNotificationService.Receipt notification
 ) {
+    public LegalBasisReviewResponse(UUID dossierId, String reviewStatus, boolean reviewRequired, String reasonCode,
+            String reason, Integer currentVersionNo, String currentSha256Hash, String currentDisputeStatus,
+            String currentAllocationHash, LocalDateTime checkedAt) {
+        this(dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash,
+                currentDisputeStatus, currentAllocationHash, checkedAt, null);
+    }
+    public LegalBasisReviewResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) {
+        return new LegalBasisReviewResponse(dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo,
+                currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt, receipt);
+    }
 }

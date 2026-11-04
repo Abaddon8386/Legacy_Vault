@@ -4547,6 +4547,7 @@ components:
       required: [dossierId, reviewStatus, reviewRequired, reasonCode, reason, currentVersionNo, currentSha256Hash, currentDisputeStatus, currentAllocationHash, checkedAt]
       description: 'D-API-08: chỉ trả public UUID, không trả khóa chính tuần tự trong database.'
       properties:
+        notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
         dossierId: { type: string, format: uuid, description: Public ID của dossier }
         reviewStatus: { type: string, nullable: true }
         reviewRequired: { type: boolean }
@@ -5611,6 +5612,7 @@ components:
               courtRecipient: { type: object, nullable: true, description: Court route only, same shape as a beneficiary upsert }
     DistributionWorkflowReceipt:
       type: object
+      description: Workflow mutation receipt. action is the requested workflow action, not the inbox notification action. approveAllocations and requestDocumentSupplementation reuse the delegated review receipt without a second notification.
       required: [caseId, action, revision]
       properties:
         caseId: { type: string, format: uuid }
@@ -5628,6 +5630,7 @@ components:
     WorkflowNotificationReceipt:
       type: object
       nullable: true
+      description: Persisted in the business transaction; RECORDED does not confirm delivery, display, reading or email. Null without assigned Staff for a Staff notification. Contains no caseId or action; these belong to the workflow receipt or inbox item.
       required: [id, recipientWorkspace, status]
       properties:
         id: { type: string, format: uuid }

@@ -37,6 +37,7 @@ public class LegalBasisReviewService {
     private final VerificationCaseRepository verificationCases;
     private final VaultRepository vaultRepository;
     private final LegalBasisLockedState lockedState;
+    private final com.legacyvault.notification.WorkflowNotificationService notifications;
 
     public LegalBasisReviewService(
             LegalBasisDossierRepository dossiers,
@@ -46,7 +47,8 @@ public class LegalBasisReviewService {
             AuditService auditService,
             VerificationCaseRepository verificationCases,
             VaultRepository vaultRepository,
-            LegalBasisLockedState lockedState
+            LegalBasisLockedState lockedState,
+            com.legacyvault.notification.WorkflowNotificationService notifications
     ) {
         this.dossiers = dossiers;
         this.versions = versions;
@@ -56,6 +58,7 @@ public class LegalBasisReviewService {
         this.verificationCases = verificationCases;
         this.vaultRepository = vaultRepository;
         this.lockedState = lockedState;
+        this.notifications = notifications;
     }
 
     /**
@@ -289,7 +292,7 @@ public class LegalBasisReviewService {
                 dossier,
                 vault.getVaultId(),
                 reviewerUserId,
-                reason.trim());
+                reason.trim(), verificationCase);
     }
 
 
@@ -368,7 +371,7 @@ public class LegalBasisReviewService {
 
         vault.markAwaitingLegalBasisAfterReviewHold();
 
-        history.save(new LegalBasisReviewHistory(
+        var savedReview = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossier.getLegalBasisDossierId(),
                 null,
                 sourceVersion == null ? null : sourceVersion.versionNo(),
@@ -408,7 +411,9 @@ public class LegalBasisReviewService {
                 dossier.getLastReviewedSha256Hash(),
                 dossier.getDisputeStatus(),
                 dossier.getLastReviewedAllocationHash(),
-                LocalDateTime.now(ZoneOffset.UTC));
+                LocalDateTime.now(ZoneOffset.UTC)).withNotification(notifications.record(verificationCase,
+                        com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                        "LEGAL_BASIS_REVIEW_REQUIRED", "basis-review:" + savedReview.getPublicId(), reason.trim()));
     }
 
 
@@ -573,7 +578,7 @@ public class LegalBasisReviewService {
             LegalBasisDossier dossier,
             Long vaultId,
             Long reviewerUserId,
-            String reason
+            String reason, VerificationCase verificationCase
     ) {
         if (!dossier.isLegalReviewable()) throw new BusinessException(ErrorCode.COURT_DECISION_REQUIRED);
         Long dossierId = dossier.getLegalBasisDossierId();
@@ -606,7 +611,7 @@ public class LegalBasisReviewService {
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        history.save(new LegalBasisReviewHistory(
+        var savedReview = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossierId,
                 version.getDossierVersionId(),
                 current.versionNo(),
@@ -644,7 +649,9 @@ public class LegalBasisReviewService {
                 current.sha256Hash(),
                 dossier.getDisputeStatus(),
                 currentAllocationHash,
-                LocalDateTime.now(ZoneOffset.UTC));
+                LocalDateTime.now(ZoneOffset.UTC)).withNotification(notifications.record(verificationCase,
+                        com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
+                        "LEGAL_BASIS_REVIEW_RECORDED", "basis-review:" + savedReview.getPublicId(), reason));
     }
 
     /**
