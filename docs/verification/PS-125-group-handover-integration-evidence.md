@@ -31,3 +31,27 @@ Classes `GroupHandoverGateSqlServerTest` (3), `GroupHandoverReopenSqlServerTest`
 | Preserve data/receipts/history | same + delivery tests | PASS (SQL) for events, allocations, items; encryption of asset content NOT VERIFIED here (untouched code) |
 | No leak across account/role/case | Privacy tests live in the PS-122 branch (`GroupHandoverReadsSqlServerTest`) | NOT VERIFIED on this branch alone; PASS on the PS-122 branch |
 
+
+## Update 04/11/2026 (D1) — all group handover SQL classes on develop `c923490` + this branch
+
+Command: `LEGAL_SQLSERVER_MASTER_URL=…databaseName=master;… ./mvnw test "-Dtest=GroupHandover*SqlServerTest"` on a local SQL Server, run in the branch `test/PS-125-legal-decision-replay` at commit `6bafe48`. Result (Maven summary, 04/11/2026 13:10 +07:00): **Tests run: 39, Failures: 0, Errors: 0, Skipped: 0, BUILD SUCCESS**, 1 min 06 s.
+
+The 39 tests are the classes `GroupHandoverReadsSqlServerTest` (10, PS-122), `GroupHandoverGateSqlServerTest` (3), `GroupHandoverReopenSqlServerTest` (3), `GroupHandoverConcurrencySqlServerTest` (7), `GroupHandoverLegalReplaySqlServerTest` (5, new), `GroupHandoverRaceSqlServerTest` (8, PS-121) and `GroupHandoverSqlServerTest` (3, PS-120). `Skipped: 0` shows the SQL connection was used; without `LEGAL_SQLSERVER_MASTER_URL` the same command errors with `The url cannot be null`.
+
+New tests (`GroupHandoverLegalReplaySqlServerTest`, real HTTP):
+
+| AC | Test | Result |
+|---|---|---|
+| Same Idempotency-Key and same payload for the Legal decision returns the recorded receipt; no second decision or notification; nothing delivered | `sameKeyAndPayloadReturnsTheRecordedDecisionWithoutDecidingAgain` | PASS (SQL) |
+| Same key with another decision or reason is refused (409 `GROUP_HANDOVER_STALE`), nothing written | `sameKeyWithADifferentDecisionOrReasonConflictsAndChangesNothing` | PASS (SQL) |
+| Another Legal user cannot reuse the first user's key to decide again | `anotherLegalUserCannotReplayOrReuseTheKeyToDecideAgain` | PASS (SQL) |
+| A late retry after Staff filed a newer report returns the original decision and writes nothing | `aLateRetryAfterTheStateMovedOnStillReturnsTheOriginalDecisionAndWritesNothing` | PASS (SQL) |
+| Replay still checks the role; a missing key is a client error | `aReplayStillChecksTheRoleAndNeedsAKey` | PASS (SQL) after the fix below |
+
+Defect found by the first run: a missing `Idempotency-Key` header returned **500** (`MissingRequestHeaderException` was not mapped), on all three group POSTs. Fixed in commit `d00552f` by mapping it to 400 `MALFORMED_REQUEST` in `GlobalExceptionHandler`; `GroupHandoverControllerTest.missingOrMalformedIdempotencyKeyIsABadRequestNotAServerError` fails with 500 without the fix and passes with it. The first SQL run before the fix: 4 of 5 passed, `aReplayStillChecksTheRoleAndNeedsAKey` failed (500).
+
+Rows that changed from this file's earlier status:
+
+- Privacy across account/role/case: PASS (SQL) in `GroupHandoverReadsSqlServerTest`, now part of the same 39-test run (PS-122 is on develop).
+
+Still NOT VERIFIED: failing a storage write inside the flow, a dedicated race test for the read endpoints, and the browser two-account acceptance (PS-126).
