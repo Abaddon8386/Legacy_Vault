@@ -156,7 +156,8 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           : selected?.status === 'COMPLETED' ? (en ? 'This session is complete. Continue to closing and archiving.' : 'Phiên đã hoàn tất. Chuyển sang đóng và lưu trữ.')
             : mode === 'accounts' ? (en ? 'Open sessions from the handover page.' : 'Mở phiên tại trang bàn giao.') : '';
   const statuses = en ? { OPEN: 'Open', COMPLETED: 'Completed', CANCELLED: 'Cancelled' } : { OPEN: 'Đang mở', COMPLETED: 'Hoàn tất', CANCELLED: 'Đã hủy' };
-  return <section className="lv-session-panel lv-staff-glow" aria-busy={loading || pending}>
+  return <section className="lv-session-stack" aria-busy={loading || pending}>
+    <div className="lv-session-panel lv-staff-glow">
     <div className="lv-session-panel-heading">
       <div>
         <h2>{en ? 'Handover sessions' : 'Phiên bàn giao'} <span className="lv-session-count">{sessions.length}</span></h2>
@@ -184,6 +185,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         <span className="lv-session-choice-action">{selected?.sessionId === item.sessionId ? (en ? 'Selected' : 'Đang xem') : (en ? 'View details →' : 'Xem chi tiết →')}</span>
       </button>
     </li>)}</ul>
+    </div>
     {selected && <div className="lv-session-detail lv-staff-glow">
       <h3>{en ? 'Selected session' : 'Phiên đang xem'}</h3>
       <div className="lv-session-detail-grid">
@@ -212,9 +214,6 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         </div>
       )}
       <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
-      {selected.status === 'OPEN' && <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang}><div className="lv-handover-next-step">
-        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
-      </div></StaffGroupHandover>}
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
       {confirmCancel && <div role="group" aria-label={en ? 'Confirm cancellation' : 'Xác nhận hủy phiên'}>
         <p>{en ? 'Cancel this open session?' : 'Hủy phiên đang mở này?'}</p>
@@ -222,6 +221,9 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
         <button onClick={() => setConfirmCancel(false)}>{en ? 'Keep session' : 'Giữ phiên'}</button>
       </div>}
     </div>}
+    {selected?.status === 'OPEN' && <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang}><div className="lv-handover-next-step">
+        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
+      </div></StaffGroupHandover>}
     {counterLinkActions !== undefined ? <StaffCaseLinkPanel
       caseId={caseId}
       caseItem={caseItem}
@@ -307,3 +309,4 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
     </>}
   </section>;
 }
+
