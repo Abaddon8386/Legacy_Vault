@@ -20,7 +20,6 @@
 .lv-vault-page .lv-wave-ambient-glow{display:none}
 .lv-vault-policy-footer{padding:0 2px}
 .lv-vault-policy-footer .lv-policy-text{font-size:14px;color:#637068;line-height:1.7;margin:0}
-.lv-vault-page .lv-toast-alert{display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:24px;background:#f1f6ee;border:1px solid #d5e1d3;border-radius:8px;color:#315c3d;font-size:14px;line-height:1.6}
 .lv-vault-skeleton{display:grid;gap:24px;font-size:14px;color:#637068}
 .lv-vault-skeleton>div{height:220px;background:#e9ebe4;border-radius:14px;animation:lv-vault-loading 1.6s ease-in-out infinite alternate}
 .lv-vault-skeleton>div:last-child{height:300px}

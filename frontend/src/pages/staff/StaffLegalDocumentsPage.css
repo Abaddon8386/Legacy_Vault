@@ -7,7 +7,7 @@
 
 .lv-staff-documents-view {
   width: 100%;
-  max-width: 1040px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -621,27 +621,27 @@
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--legal_basis_forwarded {
-  background-color: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
+  background-color: var(--lv-status-success-bg);
+  color: var(--lv-status-success-text);
+  border: 1px solid var(--lv-status-success-border);
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--legal_basis_provided {
-  background-color: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--draft {
-  background-color: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--on_hold {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-staff-documents-view .lv-dossier-hold-banner {
@@ -736,8 +736,8 @@
 }
 
 .lv-staff-documents-view .lv-forward-badge--forwarded {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
 }
 
 .lv-staff-documents-view .lv-forward-badge--pending {

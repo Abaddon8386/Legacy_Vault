@@ -232,9 +232,9 @@
 }
 
 .lv-asset-handover-view .lv-scope-badge--approved {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 .lv-asset-handover-view .lv-scope-badge--unapproved {
@@ -254,15 +254,15 @@
 }
 
 .lv-asset-handover-view .lv-status-pill--pending {
-  background-color: var(--lv-status-pending-bg, #f7f9fc);
-  color: var(--lv-status-pending-text, #2b5788);
-  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-asset-handover-view .lv-status-pill--delivered {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 /* Action Buttons in Table */

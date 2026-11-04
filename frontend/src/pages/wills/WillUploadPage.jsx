@@ -1,3 +1,4 @@
+import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -32,10 +33,6 @@ const copy = {
     intro: 'Lưu giữ, kiểm tra tính toàn vẹn và theo dõi lịch sử các phiên bản di chúc trong kho di sản.',
     formTitle: 'Tài liệu di chúc ban đầu',
     versionFormTitle: 'Tải lên phiên bản di chúc mới',
-    formats: 'PDF, JPEG hoặc PNG · Tối đa 10 MB',
-    choose: 'Chọn tệp tài liệu',
-    chooseHint: 'Chọn bản chụp hoặc bản quét rõ nét, đầy đủ các trang.',
-    remove: 'Bỏ chọn tệp',
     progress: 'Tiến trình tải lên',
     preparing: 'Đang chuẩn bị tài liệu…',
     sending: 'Đang gửi tài liệu…',
@@ -96,10 +93,6 @@ const copy = {
     intro: 'Store, verify integrity, and track version history of your will documents in your heritage vault.',
     formTitle: 'Initial will document',
     versionFormTitle: 'Upload new will version',
-    formats: 'PDF, JPEG or PNG · Up to 10 MB',
-    choose: 'Choose document',
-    chooseHint: 'Choose a clear, complete photograph or scan.',
-    remove: 'Remove file',
     progress: 'Upload progress',
     preparing: 'Preparing document…',
     sending: 'Sending document…',
@@ -492,7 +485,6 @@ function CreateWillModal({ lang, t, messages, vaultId, accessToken, onUnauthoriz
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const inputRef = useRef(null);
   const requestRef = useRef(null);
   const pendingRef = useRef(false);
 
@@ -551,46 +543,11 @@ function CreateWillModal({ lang, t, messages, vaultId, accessToken, onUnauthoriz
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          <p className="hn-will-formats">{t.formats}</p>
-
-          <input
-            className="hn-will-file-input"
-            id="modal-will-file"
-            type="file"
-            ref={inputRef}
-            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-            disabled={busy}
-            onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
-              setErrors((old) => ({ ...old, file: null }));
-              setErrorCode(null);
-            }}
-          />
-
-          <button className="hn-will-picker" type="button" disabled={busy} onClick={() => inputRef.current?.click()}>
-            <span className="hn-will-document-icon" aria-hidden="true">↑</span>
-            <strong>{t.choose}</strong>
-            <span>{t.chooseHint}</span>
-          </button>
-
-          {file && (
-            <div className="hn-will-selected">
-              <div>
-                <strong>{file.name}</strong>
-                <span>{formatFileSize(file.size)}</span>
-              </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setFile(null);
-                  if (inputRef.current) inputRef.current.value = '';
-                }}
-              >
-                {t.remove}
-              </button>
-            </div>
-          )}
+          <EvidenceFileUploader file={file} disabled={busy} lang={lang} required={false} onFileChange={(next) => {
+            setFile(next);
+            setErrors((old) => ({ ...old, file: null }));
+            setErrorCode(null);
+          }} />
 
           {errors.file && (
             <p className="hn-will-error" role="alert">
@@ -652,7 +609,6 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const inputRef = useRef(null);
   const requestRef = useRef(null);
   const pendingRef = useRef(false);
 
@@ -716,46 +672,11 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          <p className="hn-will-formats">{t.formats}</p>
-
-          <input
-            className="hn-will-file-input"
-            id="modal-version-file"
-            type="file"
-            ref={inputRef}
-            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-            disabled={busy}
-            onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
-              setErrors({});
-              setErrorCode(null);
-            }}
-          />
-
-          <button className="hn-will-picker" type="button" disabled={busy} onClick={() => inputRef.current?.click()}>
-            <span className="hn-will-document-icon" aria-hidden="true">↑</span>
-            <strong>{t.choose}</strong>
-            <span>{t.chooseHint}</span>
-          </button>
-
-          {file && (
-            <div className="hn-will-selected">
-              <div>
-                <strong>{file.name}</strong>
-                <span>{formatFileSize(file.size)}</span>
-              </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setFile(null);
-                  if (inputRef.current) inputRef.current.value = '';
-                }}
-              >
-                {t.remove}
-              </button>
-            </div>
-          )}
+          <EvidenceFileUploader file={file} disabled={busy} lang={lang} required={false} onFileChange={(next) => {
+            setFile(next);
+            setErrors({});
+            setErrorCode(null);
+          }} />
 
           {errors.file && (
             <p className="hn-will-error" role="alert">

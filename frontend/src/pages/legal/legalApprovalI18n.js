@@ -95,14 +95,14 @@ export const LEGAL_APPROVAL_TRANSLATIONS = {
     // Thẻ 5: Biểu mẫu ghi nhận quyết định thẩm định
     decisionSection: {
       title: 'Quyết định thẩm định',
-      prompt: 'Lựa chọn quyết định thẩm định (Bắt buộc):',
+      prompt: 'Lựa chọn quyết định thẩm định:',
       approveOption: 'Chấp thuận hồ sơ (Phê duyệt)',
       approveDesc:
         'Chấp thuận giấy tờ và thông tin phân chia tài sản đang xem.',
       rejectOption: 'Từ chối hồ sơ',
       rejectDesc:
         'Từ chối khi giấy tờ chưa hợp lệ hoặc thông tin phân chia chưa đủ căn cứ.',
-      reasonLabel: 'Lý do & Căn cứ thẩm định (Bắt buộc)',
+      reasonLabel: 'Lý do & Căn cứ thẩm định',
       reasonPlaceholder:
         'Nhập chi tiết nhận xét, viện dẫn căn cứ hoặc yêu cầu bổ sung nếu có...',
       reasonHint:

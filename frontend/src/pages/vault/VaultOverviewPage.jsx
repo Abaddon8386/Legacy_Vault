@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import {
   fetchVault,
   createVault,
@@ -131,10 +132,7 @@ export default function VaultOverviewPage({
     <div className="lv-vault-page">
       {/* Notification Toast */}
       {notification && (
-        <div className="lv-toast-alert" role="status" aria-live="polite">
-          <span className="lv-toast-check" aria-hidden="true">✓</span>
-          <span>{notification}</span>
-        </div>
+        <FeedbackNotice className="lv-feedback--floating" tone="success">{notification}</FeedbackNotice>
       )}
 
       {/* Dynamic View States */}

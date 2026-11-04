@@ -1,4 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
+import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import {
   fetchDmsConfig,
   saveDmsConfig,
@@ -716,10 +717,7 @@ export default function DMSOverviewPage({
     <div className="lv-dms-page">
       {/* Toast / Action Notice */}
       {checkInNotice && (
-        <div className="lv-dms-toast-notice lv-dms-stagger" style={{ '--stagger': 0 }} role="status" aria-live="polite">
-          <span className="lv-dms-toast-icon" aria-hidden="true">✓</span>
-          <span>{getDmsMessage(checkInNotice, lang)}</span>
-        </div>
+        <FeedbackNotice className="lv-feedback--floating" tone="success">{getDmsMessage(checkInNotice, lang)}</FeedbackNotice>
       )}
 
       {checkInError && (
