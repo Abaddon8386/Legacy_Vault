@@ -37,9 +37,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = authService.login(request, servletRequest.getRemoteAddr());
         return ResponseEntity.ok(response);
     }
 
