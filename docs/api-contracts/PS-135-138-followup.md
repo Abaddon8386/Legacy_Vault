@@ -33,9 +33,6 @@ explicit request. The existing `LEGAL_BASIS_DECIDED` notification is reused.
 Its event key now uses the persisted decision UUID so an independent second
 decision on the same document version cannot be collapsed into the first.
 
-Verification: Java 25 compile and focused service tests pass. Full Maven test run
-is blocked by missing `DB_URL` and `LEGAL_SQLSERVER_MASTER_URL`; SQL concurrency,
-rollback, persistent read state, HTTP two-account flow, and FE E2E remain unverified.
 The direct `/basis-dossier/review`, `/basis-dossier/request-supplementation`, and
 `/basis-dossier/reclassification` services now record their notifications inside the
 existing business transaction, after history and audit. Each persisted history row
@@ -51,19 +48,45 @@ Distribution workflow events and audit actions are preserved. Automatic snapshot
 evaluation still returns a null receipt; this fix covers explicit review,
 supplementation and resumption mutations.
 
-Historical follow-up verification (before A1 integration): 50 unit/controller tests pass, including HTTP receipt fields,
-distinct review event keys, null receipts and propagated notification errors.
-The SQL wrapper regression asserts a single persisted notification and matching
-receipt, but execution is NOT VERIFIED: `LEGAL_SQLSERVER_MASTER_URL` is absent
-(`The url cannot be null`). Real SQL rollback/concurrency and two-account FE E2E
-remain unverified. Inbox group labels were fixed separately in commit `ae6715b`.
+A1 integration verification (2026-11-04, tested commit `175f991`, based on
+`develop` `c923490`; source integration commit `a8420eb`):
 
-A1 integration verification (2026-11-04, commit `a8420eb` on `develop` `c923490`):
-46 tests passed across LegalBasisReviewServiceTest, BasisReclassificationServiceTest,
-LegalBasisDossierControllerTest and DistributionReplacementWorkflowTest. The SQL
-workflow test failed at setup with `The url cannot be null` because
-`LEGAL_SQLSERVER_MASTER_URL` was absent; it was not skipped or passed.
-The original 50-test result above describes an earlier checkout.
+- 54 related tests passed: LegalBasisReviewServiceTest (16),
+  BasisReclassificationServiceTest (9), LegalBasisDossierControllerTest (17),
+  DistributionReplacementWorkflowTest (4), WorkflowNotificationServiceTest (8).
+- 34 SQL tests passed on the real local SQL Server: DistributionWorkflowSqlServerTest
+  (10), LegalHoldSqlServerTest (12), LegalNotarialSqlServerTest (6),
+  LegalReviewSnapshotSqlServerTest (6).
+- Both Maven runs returned BUILD SUCCESS: zero failures, errors or skipped tests.
+  These results supersede the earlier 50/46-test notes and SQL setup blocker.
+
+The distribution SQL regression now verifies the wrapper notification count and
+matching action/receipt on real persistence. The selected SQL suites also exercise
+rollback, snapshot invalidation and concurrent workflow/hold transitions. This is
+focused coverage, not a claim that every race or rollback path has been tested.
+Inbox group labels were fixed separately in commit `ae6715b`.
+
+Reproduction from the A1 worktree (Java 25, Maven):
+
+```powershell
+mvn -B '-Dtest=LegalBasisReviewServiceTest,BasisReclassificationServiceTest,LegalBasisDossierControllerTest,DistributionReplacementWorkflowTest,WorkflowNotificationServiceTest' test -f backend/pom.xml
+# Set only in the test process; never point this variable at an application database.
+$env:LEGAL_SQLSERVER_MASTER_URL = 'jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=true;trustServerCertificate=true;integratedSecurity=true;'
+mvn -B '-Dtest=DistributionWorkflowSqlServerTest,LegalReviewSnapshotSqlServerTest,LegalHoldSqlServerTest,LegalNotarialSqlServerTest' '-DargLine=-Djava.library.path=<installed mssql-jdbc_auth 13.6.0.x64 directory>' test -f backend/pom.xml
+```
+
+The local instance was MSSQLSERVER, SQL Server version 17.0.1000.7. Windows
+integrated authentication succeeded; no credentials or machine configuration were
+saved or changed. The harness created and migrated a fresh
+`LegacyVault_LegalTest_<random UUID>` database per class and dropped it afterward.
+A read-only comparison found the same database inventory before and after, with
+zero test databases remaining. No existing application database was migrated,
+reset or used for fixture writes. Logs and inventories are local, untracked build
+artifacts in `backend/target/`: `a1-task5-tests.log`, `a1-sql-tests.log`,
+`a1-sql-databases-before.txt`, `a1-sql-databases-after.txt`.
+
+Remaining: full backend suite, persisted multi-account read/reassignment checks
+and browser FE E2E. SQL configuration no longer blocks the selected A1 tests.
 
 OpenAPI cross-check: `LegalBasisReviewResponse.notification` and
 `BasisDossierResponse.notification` reference nullable `WorkflowNotificationReceipt`.

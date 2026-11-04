@@ -65,13 +65,32 @@ supplementation uses LEGAL_BASIS_REVIEW_REQUIRED (both basis-review:<review UUID
 and resumption uses LEGAL_BASIS_RECLASSIFIED (basis-resume:<classification history UUID>).
 See the follow-up for recipients and response DTOs.
 
-Remaining verification: full inbox contract/fixtures, SQL persistence, rollback,
-concurrency, read/reassignment behavior and FE E2E. Do not infer ticket completion
-from this document. Local integration verification on 2026-11-04: 46 focused
-service/controller/workflow tests passed, with no failures or errors. The SQL
-workflow test failed during setup because LEGAL_SQLSERVER_MASTER_URL was absent
-(The url cannot be null); real SQL behavior remains unverified.
-SQL database safety check: migration versions are unique; no migration was changed.
-Existing SQL test DB name is LegacyVault_LegalTest_<random UUID>, so parallel runs
-do not target the application DB or reuse a fixed test DB name. The fixture accepts
-only a master connection via LEGAL_SQLSERVER_MASTER_URL. No DB rename/reset was done.
+A1 verification on 2026-11-04 (tested commit `175f991`, based on `develop` `c923490`):
+
+- 54 related tests passed: LegalBasisReviewServiceTest (16),
+  BasisReclassificationServiceTest (9), LegalBasisDossierControllerTest (17),
+  DistributionReplacementWorkflowTest (4), WorkflowNotificationServiceTest (8).
+- 34 real SQL Server tests passed: DistributionWorkflowSqlServerTest (10),
+  LegalHoldSqlServerTest (12), LegalNotarialSqlServerTest (6),
+  LegalReviewSnapshotSqlServerTest (6).
+- Both runs completed with zero failures, errors or skipped tests. OpenAPI parsing,
+  notification receipt schema checks and `git diff --check` also passed.
+
+The SQL configuration blocker is resolved. SQL Server `localhost:1433` accepted
+Windows integrated authentication. The master JDBC URL and installed JDBC native
+authentication library were supplied only to the test process, without credentials
+or machine configuration changes. The existing harness created a separate
+`LegacyVault_LegalTest_<random UUID>` database per class, migrated only those
+databases and dropped them in teardown. A read-only before/after inventory matched;
+zero matching test databases remained. No existing application database was
+migrated, reset or used for fixture writes; no migration source was changed.
+
+Logs are local build artifacts under `backend/target/`: `a1-task5-tests.log`,
+`a1-sql-tests.log`, `a1-sql-databases-before.txt`, `a1-sql-databases-after.txt`.
+They are not tracked in Git. See the follow-up for the reproduction command.
+
+Remaining verification: the full backend suite, full inbox contract/fixtures,
+persisted multi-account read/reassignment behavior and browser FE E2E. The selected
+SQL suite covers workflow notification counts/receipts, rollback and concurrency
+scenarios; it does not establish all rollback/race cases or production readiness.
+Do not infer ticket completion from these focused results.
