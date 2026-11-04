@@ -79,7 +79,7 @@ function PasswordSetupDialog({ session, lang, onDone }) {
     return () => { alive.current = false; controller.current?.abort(); };
   }, [session, lang]);
   const errors = validatePasswordFields({ password, confirmPassword: confirm }, lang);
-  if (new TextEncoder().encode(password).length > 72) errors.password = en ? 'Password must not exceed 72 bytes.' : 'Mật khẩu không được vượt quá 72 byte.';
+  if (new TextEncoder().encode(password).length > 72) errors.password = en ? 'This password is too long. Please use fewer characters.' : 'Mật khẩu quá dài. Vui lòng dùng ít ký tự hơn.';
   const labels = {
     GOOGLE_IDENTITY_MISMATCH: en ? 'Choose the Google account already linked to this account, then try again.' : 'Hãy chọn đúng tài khoản Google đã liên kết với tài khoản này rồi thử lại.',
     INVALID_GOOGLE_CREDENTIAL: en ? 'Verify with Google again to get a new confirmation.' : 'Vui lòng xác thực lại với Google để nhận xác nhận mới.',
@@ -116,7 +116,7 @@ function PasswordSetupDialog({ session, lang, onDone }) {
         <fieldset disabled={status !== 'ready'}>
           <label htmlFor={`${id}-password`}>{en ? 'New password' : 'Mật khẩu mới'}</label>
           <input id={`${id}-password`} type="password" autoComplete="new-password" maxLength={72} value={password} onChange={event => setPassword(event.target.value)} aria-describedby={`${id}-policy`} required />
-          <p id={`${id}-policy`} className="lv-password-setup__help">{en ? 'Use 8–72 characters, up to 72 bytes.' : 'Dùng 8–72 ký tự, tối đa 72 byte.'}</p>
+          <p id={`${id}-policy`} className="lv-password-setup__help">{en ? 'Use 8–72 characters.' : 'Dùng 8–72 ký tự.'}</p>
           {password && errors.password && <p role="alert">{errors.password}</p>}
           <label htmlFor={`${id}-confirm`}>{en ? 'Confirm new password' : 'Nhập lại mật khẩu mới'}</label>
           <input id={`${id}-confirm`} type="password" autoComplete="new-password" maxLength={72} value={confirm} onChange={event => setConfirm(event.target.value)} required />
