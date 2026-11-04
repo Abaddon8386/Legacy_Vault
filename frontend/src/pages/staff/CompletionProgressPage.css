@@ -9,7 +9,7 @@
   flex-direction: column;
   gap: 24px;
   width: 100%;
-  max-width: 1040px;
+  max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -255,15 +255,15 @@
 }
 
 .lv-completion-progress-view .lv-metric-badge--complete {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 .lv-completion-progress-view .lv-metric-badge--incomplete {
-  background-color: var(--lv-status-pending-bg, #f7f9fc);
-  color: var(--lv-status-pending-text, #2b5788);
-  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+  background-color: var(--lv-status-success-bg);
+  color: var(--lv-status-success-text);
+  border: 1px solid var(--lv-status-success-border);
 }
 
 .lv-completion-progress-view .lv-metric-badge--awaiting {

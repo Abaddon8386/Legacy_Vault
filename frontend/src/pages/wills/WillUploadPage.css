@@ -19,16 +19,7 @@
 .hn-will-page .lv-btn__content{display:inline-flex;align-items:center;gap:7px;justify-content:center}
 .hn-will-label{font-size:14px;font-weight:600;display:block;margin-bottom:6px;color:#364d3e}
 .hn-will-label>span{color:#79683e}
-.hn-will-file-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%)}
-.hn-will-picker{width:100%;display:flex;align-items:center;flex-direction:column;gap:10px;border:1px dashed #b9c7b7;background:#f9faf6;border-radius:9px;padding:24px 18px;color:#264a38;font:inherit;cursor:pointer}
-.hn-will-picker:hover{border-color:#487253;background:#f1f6ee}
-.hn-will-picker>span:last-child{font-size:14px;font-weight:400;color:#637068;line-height:1.7}
 .hn-will-document-icon{width:40px;height:40px;border-radius:8px;background:#edf3ee;display:grid;place-items:center;font-size:23px;color:#526b58;flex-shrink:0}
-.hn-will-selected{display:flex;align-items:center;gap:12px;margin-top:14px;border:1px solid #dfe5da;border-radius:8px;padding:12px;background:#f9fbf6}
-.hn-will-selected>div{flex:1;min-width:0}
-.hn-will-selected strong{display:block;font-size:14px;overflow-wrap:anywhere}
-.hn-will-selected span{display:block;margin-top:5px;font-size:14px;color:#637068}
-.hn-will-selected button{background:none;border:0;color:#79683e;font:inherit;font-size:14px;cursor:pointer;padding:8px;min-height:44px;flex-shrink:0}
 .hn-will-note-label{margin-top:22px;display:flex;justify-content:space-between;gap:12px}
 .hn-will-note-label span{font-size:14px;color:#637068;font-weight:400}
 .hn-will-modal-card textarea,.hn-will-card textarea{width:100%;font:inherit;font-size:14px;line-height:1.7;padding:12px;border:1px solid #d3d8cc;border-radius:7px;resize:vertical;min-height:100px;color:#25372e;background:white}
@@ -39,7 +30,6 @@
 .hn-will-secondary{background:white;border:1px solid #dfe2d8;color:#315c3d}
 .hn-will-page button:disabled{cursor:not-allowed;opacity:.6}
 .hn-will-page :focus-visible{outline:2px solid #315d43;outline-offset:3px}
-.hn-will-file-input:focus-visible+.hn-will-picker{outline:2px solid #315d43;outline-offset:3px}
 .hn-will-error{font-size:14px;line-height:1.7;color:#a43e30;margin:10px 0}
 .hn-will-error-panel{background:#fcf2ee;border:1px solid #e8cec5;border-radius:9px;padding:16px}
 .hn-will-progress{margin-top:20px;font-size:14px;color:#315c3d}
