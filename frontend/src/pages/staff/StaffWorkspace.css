@@ -122,3 +122,15 @@
 
 .lv-staff-surfaces .lv-staff-context-bar--active [class*="lv-staff-context-badge--outcome-"] { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px 5px 10px; font-weight: 700; box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-history { background: rgba(255,255,255,.14); color: #d6f0e2; }
+
+/* Quiet cards. Ordinary cards on staff screens get one thin neutral border and one corner radius, so the few
+   things that matter (the case header, the Legal verdict, the primary action) are the ones that stand out.
+   The animated gold glow and the 3px gold top border stay on the case header only. The doubled class beats the page-level rules. */
+.lv-staff-surfaces.lv-staff-surfaces .lv-staff-glow:not(.lv-staff-context-bar)::before,
+.lv-staff-surfaces.lv-staff-surfaces .lv-staff-glow:not(.lv-staff-context-bar)::after { content: none; animation: none; }
+.lv-staff-surfaces.lv-staff-surfaces :is(.lv-staff-glow, .lv-live-case-summary, .lv-live-case-picker, .lv-session-panel, .lv-session-detail,
+  .lv-counter-beneficiaries, .lv-counter-handover-card, .lv-staff-form-card, .lv-group-handover, .lv-counter-link):not(.lv-staff-context-bar) {
+  border: 1px solid #dfe4dc; border-radius: 14px; box-shadow: none;
+}
+.lv-live-handover.lv-staff-surfaces :is(section, aside) { border: 1px solid #dfe4dc; border-radius: 14px; }
+.lv-staff-surfaces.lv-staff-surfaces.lv-staff-live fieldset { border: 1px solid #dfe4dc; border-radius: 14px; }
