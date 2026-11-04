@@ -94,39 +94,35 @@
   margin: 6px 0;
 }
 
-.lv-staff-attachments-list {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.lv-staff-attachment-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.lv-staff-detail-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
   font-size: 16px;
-  padding: 6px 0;
 }
 
-.lv-staff-att-name {
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 320px;
+.lv-staff-detail-table th,
+.lv-staff-detail-table td {
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
-.lv-staff-att-size {
-  color: #64748b;
+.lv-staff-detail-table th {
+  width: 40%;
+  color: #475569;
   font-size: 14px;
-  white-space: nowrap;
+  font-weight: 600;
+}
+
+.lv-staff-attachments-table {
+  margin-top: 16px;
 }
 
 .lv-staff-btn-view-att {
-  margin: 0 0 0 auto !important;
-  flex: none;
+  margin: 0 !important;
   font-weight: 600;
   border: 1px solid #a3b8aa !important;
 }
@@ -135,19 +131,17 @@
   margin-top: 12px;
 }
 
-.lv-staff-attachment-upload-box label {
-  margin: 0 0 6px 0;
-  font-size: 14px;
-  font-weight: 500;
+.lv-staff-live .lv-evidence-uploader__input {
+  width: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
 }
 
-.lv-staff-selected-file-info {
+.lv-staff-upload-actions {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-  font-size: 14px;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .lv-staff-live .lv-staff-btn-submit-att {
@@ -167,10 +161,7 @@
   font-size: 14px;
   margin: 6px 0 0 0;
 }
-.lv-staff-live .lv-intake-feedback { display: grid; gap: 6px; padding: 16px 20px; border: 1px solid #e8cfaa; border-left: 4px solid #c18732; border-radius: 10px; background: #fff9ef; color: #77501d; margin: 18px 0; }
-.lv-staff-live .lv-intake-feedback p { margin: 0; font-size: 14px; }
-.lv-staff-live .lv-intake-feedback button { justify-self: start; margin: 6px 0 0; }
-.lv-staff-live .lv-intake-feedback.is-success { border-color: #b9dcca; background: #eff8f3; color: #245e44; }
+.lv-staff-live .lv-feedback__action button { margin: 0; }
 .lv-staff-live .lv-intake-assigned { font-size: 14px; color: #2c7051; margin: 12px 0; }
 
 /* Case dossier: plain heading, flat rows; the badge alone carries a document's status */
@@ -209,6 +200,7 @@
 .lv-staff-live .lv-intake-document-meta time { color: #52675b; }
 .lv-staff-live .lv-staff-record-reason { margin: 0; color: #52675b; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lv-staff-live .lv-staff-record-status { padding: 4px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; background: #eef0eb; color: #52675b; }
+.lv-staff-live .lv-staff-record-status.is-pending { background: var(--lv-status-await-bg); color: var(--lv-status-await-text); border: 1px solid var(--lv-status-await-border); }
 .lv-staff-live .lv-staff-record-status.is-positive { background: #e8f6ef; color: #1c6b48; }
 .lv-staff-live .lv-staff-record-status.is-negative { background: #fbeae8; color: #9b2c26; }
 .lv-staff-live .lv-staff-record-status.is-warning { background: #fff3d6; color: #6b4200; }

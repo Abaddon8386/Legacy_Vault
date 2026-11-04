@@ -249,7 +249,7 @@ test('Attachment unauthorized response invokes session handler and locks upload'
   const v=await mount();
   await act(async()=>v.root.render(React.createElement(Screen,{...v.options,onUnauthorized(){unauthorized++;}})));
   await act(async()=>button(v.host,'Xem chi tiết').click());
-  assert.equal(unauthorized,1);assert.equal(v.host.querySelector('.lv-staff-attachment-upload-box input').disabled,true);
+  assert.equal(unauthorized,1);assert.equal(v.host.querySelector('.lv-staff-attachment-upload-box'),null);
   await v.close();
 });
 
@@ -300,4 +300,40 @@ test('Pending attachment upload rejects double submit and aborts on category cha
     await act(async()=>button(v.host,'Di chúc gốc').click());
     assert.equal(aborted,1);assert.doesNotMatch(v.host.textContent,/Đính kèm tệp chứng cứ thành công/);
   } finally {await v.close();globalThis.XMLHttpRequest=prior;}
+});
+
+test('Details show the received information; attaching is only offered before a document reaches Legal', async () => {
+  const uid=n=>`${n}2345678-1234-4234-8234-123456789012`;
+  const record=(n,extra)=>({id:uid(n),caseId:id,receivedBy:id,receivedAt:`2026-10-2${n}T00:00:00Z`,documentType:'DEATH_CERTIFICATE',issuingAuthority:'UBND Phường 1',documentNumber:`SO-${n}`,issuedDate:'2026-10-10',evidenceReference:null,notes:null,legalDecision:null,...extra});
+  const records=[record(1),record(2),record(3,{legalDecision:{result:'NEEDS_CORRECTION',reason:'Thiếu bản scan',decidedAt:'2026-10-25T00:00:00Z'}})];
+  const attachment={id:uid(9),caseId:id,subjectType:'DEATH_DOCUMENT',subjectId:uid(2),uploadedBy:id,fileName:'da-gui.pdf',contentType:'application/pdf',sizeBytes:2048,sha256:'a'.repeat(64),uploadedAt:'2026-10-22T00:00:00Z'};
+  globalThis.fetch=async url=>json(url.endsWith(`${uid(2)}/attachments`)?[attachment]:url.endsWith('/attachments')?[]:url.endsWith('death-documents')?records:{...detail,assignmentStatus:'ASSIGNED_TO_CURRENT_STAFF'});
+  const v=await mount();
+  const open=async number=>{const row=[...v.host.querySelectorAll('.lv-staff-record-item')].find(item=>item.textContent.includes(`SO-${number}`));await act(async()=>row.querySelector('.lv-staff-btn-toggle-att').click());await act(async()=>{await new Promise(r=>setTimeout(r,10));});return row;};
+  try {
+    const empty=await open(1);
+    assert.ok(empty.querySelector('.lv-staff-attachment-upload-box'),'No file and no result: Staff can still attach');
+    assert.match(empty.querySelector('.lv-staff-detail-table').textContent,/Giấy chứng tử.*UBND Phường 1.*SO-1.*10\/10\/2026.*Tham chiếu bằng chứng—/);
+    assert.doesNotMatch(empty.querySelector('.lv-staff-attachments-pane').textContent,/Chờ Ban Pháp lý/,'The waiting status is only on the row');
+    const sent=await open(2);
+    assert.equal(sent.querySelector('.lv-staff-attachment-upload-box'),null,'A file already sent: no new attachment');
+    assert.match(sent.querySelector('.lv-staff-attachments-table').textContent,/da-gui\.pdf.*2\.0 KB.*Xem tệp/);
+    const decided=await open(3);
+    assert.equal(decided.querySelector('.lv-staff-attachment-upload-box'),null,'A Legal result: no new attachment');
+    assert.match(decided.querySelector('.lv-staff-attachments-pane').textContent,/Thiếu bản scan/);
+  } finally {await v.close();}
+});
+
+test('Intake result appears as a floating notice for both success and failure', async () => {
+  let fail=true;
+  globalThis.fetch=async(url,init)=>init?.method==='POST'?(fail?json({code:'VALIDATION_FAILED'},400):json({id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'},201)):json(url.endsWith('death-documents')?[]:{...detail,assignmentStatus:'ASSIGNED_TO_CURRENT_STAFF'});
+  const v=await mount();
+  try {
+    const submit=async()=>{await act(async()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));await act(async()=>{await new Promise(r=>setTimeout(r,10));});};
+    await submit();
+    assert.equal(v.host.querySelector('.lv-feedback--floating.lv-feedback--error [class*=title]').textContent,'Chưa thể hoàn tất');
+    fail=false;await submit();
+    assert.equal(v.host.querySelector('.lv-feedback--error'),null);
+    assert.match(v.host.querySelector('.lv-feedback--floating.lv-feedback--success').textContent,/Đã tiếp nhận giấy tờ thành công/);
+  } finally {await v.close();}
 });
