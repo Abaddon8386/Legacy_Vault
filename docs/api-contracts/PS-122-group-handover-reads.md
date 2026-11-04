@@ -1,6 +1,6 @@
 # PS-122 — read contract for the whole-group handover
 
-Status: **implemented on branch `feature/PS-122-125-group-handover-reads`, pending team review.** Endpoint and field names below were chosen by BE for PS-122 as the ticket asks ("BE chốt endpoint/DTO/error/filter/pagination"); they are not yet approved by the group. Nothing here changes a write path (PS-120), the delivery gate (PS-121), approval/unlock rules or the PS-119/120 contract; every addition is read-only and additive.
+Status: **implemented on `develop`** (read endpoints and richer detail, additive to PS-119/120/121). Endpoint and field names are kept exactly as implemented: the team plan of 02/11/2026 answers "giữ nguyên" because the Staff FE and PR #260 already call them; anyone who disagrees comments on that line of the plan. Nothing here changes a write path (PS-120), the delivery gate (PS-121), approval/unlock rules or the PS-119/120 contract; every addition is read-only and additive. Machine-readable shapes: `PS-119-120-group-handover.openapi.json`; example bodies: `fixtures/PS-122-group-handover-reads.json`.
 
 Business rule (Thái, 30/10/2026): see `PS-119-120-group-handover.md`. READY never means DELIVERED. Absent people and undelivered assets never leave a denominator. A GET never changes a lock, a right or a decision. Distinguish the legal `ON_HOLD` from this case-wide suspension (`SUSPENDED`).
 
@@ -24,7 +24,9 @@ Previously returned `state`, `snapshot`, `requiredRecipientIds`, `deliveryAllowe
 | `capabilities.canRecordAttendance` | Staff view only, session open |
 | `capabilities.canRequestReopen` | Staff view only: `SUSPENDED`, everyone present, report still current |
 | `capabilities.canDecide` | Legal view only: `AWAITING_LEGAL`, matching `requestId`, report still current |
-| `capabilities.deliveryBlockedReason` | `null` when delivery is allowed, else `ATTENDANCE_REQUIRED`, `MISSING_RECIPIENTS`, `LEGAL_REOPEN_REQUIRED`, `AWAITING_LEGAL_DECISION`, `ATTENDANCE_STALE` |
+| `capabilities.deliveryBlockedReason` | `null` when delivery is allowed, else `ATTENDANCE_REQUIRED`, `MISSING_RECIPIENTS`, `LEGAL_REOPEN_REQUIRED`, `AWAITING_LEGAL_DECISION`, `ATTENDANCE_STALE`, or `BLOCKED` (the gate refuses although the report is current) |
+
+The detail read needs the same open session as the writes (assigned Staff, or Legal workspace access): an ended session is refused with 409 `HANDOVER_SESSION_INVALID_STATE`, and a case, session or assignee outside scope with 404. After the session ends, use the history endpoint (section 3) or the recipient status (section 4).
 
 Capabilities only help the UI; every write re-checks on the backend. The read takes the same locks as the writes so state, counts and snapshot are one consistent picture; it still writes nothing.
 
@@ -59,12 +61,12 @@ Newest first. Item: `eventId`, `sessionId`, `operation` (`ATTENDANCE`/`REQUEST`/
 - Never returned: other recipients' identities, counts or presence, attendance ids, Staff/Legal reasons, snapshot/hash, actor data. The Staff/Legal DTO is not reused.
 - Content is still readable only for delivered items under the existing received-assets policy, including after archive.
 
-## Fixtures
+## Fixtures and evidence
 
-Safe example bodies (synthetic ids) are in `docs/verification/PS-122-125-group-handover-evidence.md` and in the SQL tests `GroupHandoverReadsSqlServerTest` / `GroupHandoverIntegrationSqlServerTest`.
+Safe example bodies (synthetic ids only) are in `fixtures/PS-122-group-handover-reads.json`. The SQL tests are `GroupHandoverReadsSqlServerTest` (reads) and `GroupHandoverGateSqlServerTest`, `GroupHandoverReopenSqlServerTest`, `GroupHandoverConcurrencySqlServerTest` (PS-125). AC-to-test evidence is in `docs/verification/PS-122-group-handover-reads-evidence.md` and `docs/verification/PS-125-group-handover-integration-evidence.md`.
 
 ## Not decided here
 
 - Retention/paging limits of the history are the generic ones (max 100 per page); no retention policy was invented.
 - The Legal list is filtered after the per-case gate check, so `totalElements` is the number of requests that are decidable now; pending requests are naturally few (at most one per open case).
-- Notification receipts of PS-135 are unchanged (`notification` stays `null` until that integration records one).
+- Notification receipts: the group mutations (PS-120) return a real receipt (`{id, recipientWorkspace, status: "RECORDED"}`), see `PS-119-120-group-handover.md`. The read endpoints in this document create no notification and return none.
