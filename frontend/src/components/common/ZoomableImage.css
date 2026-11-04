@@ -1,0 +1,18 @@
+.lv-zoomable { display: grid; gap: 8px; width: 100%; min-width: 0; }
+.lv-zoomable__toolbar { display: flex; justify-content: flex-end; gap: 4px; }
+.lv-zoomable__toolbar button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; margin: 0; padding: 0 8px;
+  border: 1px solid #cbd5df; border-radius: 8px;
+  background: #fff; color: #164639; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.lv-zoomable__toolbar button:hover:not(:disabled) { background: #edf5f1; }
+.lv-zoomable__toolbar button:disabled { color: #68736b; cursor: default; }
+.lv-zoomable__frame {
+  display: flex; box-sizing: border-box; height: var(--lv-zoom-height, min(65vh, 720px));
+  overflow: auto; border-radius: 8px; background: #f3f4f6;
+}
+.lv-zoomable__frame img {
+  display: block; flex: none; box-sizing: border-box; max-width: none; max-height: none;
+  margin: auto; object-fit: contain;
+}

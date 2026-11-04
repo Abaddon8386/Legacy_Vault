@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Download, X, FileText } from 'lucide-react';
 import { useModalFocus } from './useModalFocus.js';
 import { Button } from './Button.jsx';
+import ZoomableImage from './ZoomableImage.jsx';
 import './EvidencePreviewModal.css';
 
 export default function EvidencePreviewModal({
@@ -28,8 +29,9 @@ export default function EvidencePreviewModal({
 
   if (!isActuallyOpen || !activeUrl) return null;
 
-  const isPdf = contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
-  const isImage = contentType.startsWith('image/') || fileName.match(/\.(jpe?g|png)$/i);
+  const isDeclaredImage = contentType.startsWith('image/');
+  const isPdf = !isDeclaredImage && (contentType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf'));
+  const isImage = isDeclaredImage || fileName.match(/\.(jpe?g|png)$/i);
 
   const handleClose = () => {
     if (activeUrl) {
@@ -99,13 +101,7 @@ export default function EvidencePreviewModal({
               />
             </div>
           ) : isImage ? (
-            <div className="lv-evidence-preview-image-wrap">
-              <img
-                src={activeUrl}
-                alt={fileName}
-                className="lv-evidence-preview-image"
-              />
-            </div>
+            <ZoomableImage src={activeUrl} alt={fileName} lang={lang} />
           ) : (
             <div className="lv-evidence-preview-unsupported">
               <p>

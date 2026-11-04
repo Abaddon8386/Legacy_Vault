@@ -40,7 +40,6 @@ export const completionProgressI18n = {
     assetDataUnavailable: 'Chưa có thông tin về tài sản.',
     beneficiaryDataUnavailable: 'Chưa có thông tin về người thụ hưởng.',
     // Actions & Context
-    reloadBtn: 'Làm mới',
     reloadingBtn: 'Đang tải lại…',
     sessionLabel: 'Phiên bàn giao',
     selectSessionPrompt: 'Chọn phiên bàn giao...',
@@ -91,7 +90,6 @@ export const completionProgressI18n = {
     assetDataUnavailable: 'Asset information is unavailable.',
     beneficiaryDataUnavailable: 'Beneficiary information is unavailable.',
     // Actions & Context
-    reloadBtn: 'Reload Progress',
     reloadingBtn: 'Reloading…',
     sessionLabel: 'Handover Session',
     selectSessionPrompt: 'Select handover session...',

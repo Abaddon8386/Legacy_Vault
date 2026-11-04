@@ -134,3 +134,4 @@
 }
 .lv-live-handover.lv-staff-surfaces :is(section, aside) { border: 1px solid #dfe4dc; border-radius: 14px; }
 .lv-staff-surfaces.lv-staff-surfaces.lv-staff-live fieldset { border: 1px solid #dfe4dc; border-radius: 14px; }
+.lv-staff-surfaces.lv-live-handover.lv-live-handover.lv-live-handover :is(.lv-session-detail, .lv-group-handover) { border: 0; box-shadow: none; }
