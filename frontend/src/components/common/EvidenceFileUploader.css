@@ -175,6 +175,35 @@
   background-color: #fef2f2;
 }
 
+@media (max-width: 640px) {
+  .lv-evidence-file-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .lv-evidence-file-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lv-evidence-file-table td {
+    padding: 0;
+  }
+
+  .lv-evidence-file-table td.lv-evidence-file-table__name {
+    grid-column: 1 / -1;
+  }
+
+  .lv-evidence-file-table td:last-child {
+    width: auto;
+  }
+}
+
 /* Progress Bar */
 .lv-evidence-progress-area {
   display: flex;
