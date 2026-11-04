@@ -3,6 +3,7 @@ import DistributionWorkflowOverview from '../../workflows/DistributionWorkflowOv
 import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 import { canUseDistributionAction, loadDistributionWorkflow, preflightDistributionAction } from '../../workflows/distributionWorkflowService.js';
 import StaffDistributionAllocations from './StaffDistributionAllocations.jsx';
+import { distributionTabStatus } from '../../utils/distributionTabStatus.js';
 import { useState, useId, useEffect, useRef, useCallback } from 'react';
 import {
   AlertTriangle,
@@ -22,7 +23,6 @@ import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import {
   validateStaffLegalDocumentForm,
-  getStaffLegalDocumentErrorMessage,
   formatStaffLegalDocumentErrors,
 } from '../../utils/staffLegalDocumentsValidation.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
@@ -274,11 +274,6 @@ export default function StaffLegalDocumentsPage({
     setActionError(null);
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    setDossierRevision(value => value + 1);
-    distribution.refresh();
-  }, [distribution]);
-
   const [draftToken, setDraftToken] = useState(effectiveAccessToken);
   if (draftToken !== effectiveAccessToken) {
     setDraftToken(effectiveAccessToken); handleResetForm(); setDossier(null);
@@ -497,12 +492,12 @@ export default function StaffLegalDocumentsPage({
   }, [selectedCaseId, effectiveAccessToken, distribution.data?.phase, distribution.data?.document?.version, lang, en, onUnauthorized]);
 
   // Allocations management (Finding B)
-  const handleAddAllocation = (seed) => {
+  const handleAddAllocation = () => {
     setAllocations((prev) => [
       ...prev,
       {
         id: 'alloc-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6),
-        assetId: seed?.assetId || '',
+        assetId: '',
         beneficiaryId: '',
         recipientKind: 'existing',
         courtRecipient: {},
@@ -529,11 +524,7 @@ export default function StaffLegalDocumentsPage({
   const isRouteOnHold = dossier?.route === 'ON_HOLD' || dossier?.status === 'ON_HOLD';
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
-  // Order of the work: documents first, allocations only after Legal accepts them.
-  const workflowPhase = distribution.data?.phase;
-  const allocationsLocked = ['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED', 'AWAITING_DOCUMENTS', 'DOCUMENTS_UNDER_REVIEW'].includes(workflowPhase);
-  const todoTab = workflowPhase === 'AWAITING_DOCUMENTS' ? 'intake' : workflowPhase === 'AWAITING_ALLOCATIONS' ? 'allocations' : null;
-  const todoMark = todoTab && <span className="lv-staff-tab-todo">{en ? 'Action needed' : 'Cần xử lý'}</span>;
+  const tabStatus = distributionTabStatus(distribution.data, dossier?.versions?.length > 0, en);
   const basisTypeMatchesRoute = !legalBasisType || (!isRouteNotarial && !isRouteCourt)
     || (isRouteNotarial ? legalBasisType === 'NOTARIAL_PARTITION' : ['COURT_JUDGMENT','COURT_DECISION'].includes(legalBasisType));
   const basisTypeRouteError = basisTypeMatchesRoute ? '' : (isRouteNotarial
@@ -870,20 +861,6 @@ export default function StaffLegalDocumentsPage({
           )}
           <h1 className="lv-staff-title">{t.pageTitle}</h1>
         </div>
-        {selectedCaseId && (
-          <div className="lv-staff-title-actions">
-            <button
-              type="button"
-              className="lv-staff-refresh-btn"
-              onClick={handleRefresh}
-              disabled={isDossierLoading || distribution.loading || distribution.pending}
-              aria-label={en ? 'Refresh' : 'Làm mới'}
-            >
-              <RefreshCw size={15} className={(isDossierLoading || distribution.loading) ? 'lv-spin' : ''} aria-hidden="true" />
-              <span>{(isDossierLoading || distribution.loading) ? (en ? 'Refreshing…' : 'Đang làm mới…') : (en ? 'Refresh' : 'Làm mới')}</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Unified Staff Case Context Bar */}
@@ -1009,6 +986,7 @@ export default function StaffLegalDocumentsPage({
             onClick={() => setActiveTab('overview')}
           >
             <span>{t.tabOverview}</span>
+            <span className={`lv-staff-tab-dot is-${tabStatus.overview.tone}`} role="img" aria-label={tabStatus.overview.label} title={tabStatus.overview.label} />
           </button>
 
           <button
@@ -1022,7 +1000,7 @@ export default function StaffLegalDocumentsPage({
             onClick={() => setActiveTab('intake')}
           >
             <span>{t.tabIntake}</span>
-            {todoTab === 'intake' && todoMark}
+            <span className={`lv-staff-tab-dot is-${tabStatus.intake.tone}`} role="img" aria-label={tabStatus.intake.label} title={tabStatus.intake.label} />
           </button>
 
           <button
@@ -1031,14 +1009,12 @@ export default function StaffLegalDocumentsPage({
             id="tab-btn-allocations"
             aria-controls="panel-allocations"
             aria-selected={activeTab === 'allocations'}
-            aria-describedby={allocationsLocked ? 'tab-note-allocations' : undefined}
             tabIndex={activeTab === 'allocations' ? 0 : -1}
-            className={`lv-staff-tab-btn ${activeTab === 'allocations' ? 'lv-staff-tab-btn--active' : ''} ${allocationsLocked ? 'lv-staff-tab-btn--waiting' : ''}`}
+            className={`lv-staff-tab-btn ${activeTab === 'allocations' ? 'lv-staff-tab-btn--active' : ''}`}
             onClick={() => setActiveTab('allocations')}
           >
             <span>{en ? 'Asset allocations' : 'Phân bổ tài sản'}</span>
-            {todoTab === 'allocations' && todoMark}
-            {allocationsLocked && <small className="lv-staff-tab-note" id="tab-note-allocations">{en ? 'Opens after documents are approved' : 'Mở sau khi duyệt giấy tờ'}</small>}
+            <span className={`lv-staff-tab-dot is-${tabStatus.allocations.tone}`} role="img" aria-label={tabStatus.allocations.label} title={tabStatus.allocations.label} />
           </button>
 
           <button
@@ -1052,6 +1028,7 @@ export default function StaffLegalDocumentsPage({
             onClick={() => setActiveTab('history')}
           >
             <span>{t.tabHistory}</span>
+            <span className={`lv-staff-tab-dot is-${tabStatus.history.tone}`} role="img" aria-label={tabStatus.history.label} title={tabStatus.history.label} />
             {dossier?.versions?.length > 0 && (
               <span className="lv-staff-tab-count">{dossier.versions.length}</span>
             )}
@@ -1315,9 +1292,12 @@ export default function StaffLegalDocumentsPage({
             <form onSubmit={handleSubmitVersion} noValidate className="lv-intake-form">
               {/* Record the actual document submitted; Legal does not preselect its source. */}
               <div className="lv-form-group">
-                <label htmlFor={typeId} className="lv-form-label">
+                <label htmlFor={typeId} className="lv-form-label lv-form-label--required">
                   {t.legalBasisTypeLabel}
                 </label>
+                {(isRouteNotarial || isRouteCourt) && <p className="lv-form-note">({isRouteNotarial
+                  ? (en ? 'Current document source: notarial office' : 'Nguồn giấy tờ đang tiếp nhận: Công chứng')
+                  : (en ? 'Current document source: court' : 'Nguồn giấy tờ đang tiếp nhận: Tòa án')})</p>}
                 <select
                   id={typeId}
                   className="lv-form-select"
@@ -1331,18 +1311,16 @@ export default function StaffLegalDocumentsPage({
                   <option value="COURT_JUDGMENT" disabled={isRouteNotarial}>{t.typeCourtJudgment}</option>
                   <option value="COURT_DECISION" disabled={isRouteNotarial}>{t.typeCourtDecision}</option>
                 </select>
-                {(isRouteNotarial || isRouteCourt) && <p className="lv-field-help">{isRouteNotarial
-                  ? (en ? 'Current document source: notarial office.' : 'Nguồn giấy tờ đang tiếp nhận: Công chứng.')
-                  : (en ? 'Current document source: court.' : 'Nguồn giấy tờ đang tiếp nhận: Tòa án.')}</p>}
                 {basisTypeRouteError && <span className="lv-field-error" role="alert">{basisTypeRouteError}</span>}
               </div>
 
               {/* Grid 2 cột: Cơ quan & Số hiệu */}
               <div className="lv-form-row lv-form-row--2cols">
                 <div className="lv-form-group">
-                  <label htmlFor={issuerId} className="lv-form-label">
+                  <label htmlFor={issuerId} className="lv-form-label lv-form-label--required">
                     {legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notary office' : 'Tổ chức công chứng') : t.issuerLabel}
                   </label>
+                  <p className="lv-form-note">({t.issuerHint})</p>
                   <input
                     id={issuerId}
                     type="text"
@@ -1355,17 +1333,16 @@ export default function StaffLegalDocumentsPage({
                     disabled={isSubmitting || !canReceiveBasis}
                     maxLength={255}
                   />
-                  {errors.issuer ? (
+                  {errors.issuer && (
                     <span id={`${issuerId}-error`} className="lv-field-error" role="alert">{errors.issuer}</span>
-                  ) : (
-                    <span className="lv-form-hint">{t.issuerHint}</span>
                   )}
                 </div>
 
                 <div className="lv-form-group">
-                  <label htmlFor={docNumId} className="lv-form-label">
+                  <label htmlFor={docNumId} className="lv-form-label lv-form-label--required">
                     {t.documentNumberLabel}
                   </label>
+                  <p className="lv-form-note">({t.documentNumberHint})</p>
                   <input
                     id={docNumId}
                     type="text"
@@ -1378,10 +1355,8 @@ export default function StaffLegalDocumentsPage({
                     disabled={isSubmitting || !canReceiveBasis}
                     maxLength={100}
                   />
-                  {errors.documentNumber ? (
+                  {errors.documentNumber && (
                     <span id={`${docNumId}-error`} className="lv-field-error" role="alert">{errors.documentNumber}</span>
-                  ) : (
-                    <span className="lv-form-hint">{t.documentNumberHint}</span>
                   )}
                 </div>
               </div>
@@ -1389,9 +1364,10 @@ export default function StaffLegalDocumentsPage({
               {/* Grid 2 cột: Ngày ban hành & Mã tham chiếu hồ sơ giấy */}
               <div className="lv-form-row lv-form-row--2cols">
                 <div className="lv-form-group">
-                  <label htmlFor={dateId} className="lv-form-label">
+                  <label htmlFor={dateId} className="lv-form-label lv-form-label--required">
                     {t.issuanceDateLabel}
                   </label>
+                  <p className="lv-form-note">({t.issuanceDateHint})</p>
                   <DatePicker
                     id={dateId}
                     className={errors.issuanceDate ? 'lv-datepicker--error' : ''}
@@ -1407,18 +1383,16 @@ export default function StaffLegalDocumentsPage({
                     aria-invalid={Boolean(errors.issuanceDate)}
                     aria-describedby={errors.issuanceDate ? `${dateId}-error` : undefined}
                   />
-                  {errors.issuanceDate ? (
+                  {errors.issuanceDate && (
                     <span id={`${dateId}-error`} className="lv-field-error" role="alert">{errors.issuanceDate}</span>
-                  ) : (
-                    <span className="lv-form-hint">{t.issuanceDateHint}</span>
                   )}
                 </div>
 
-                <details className="lv-form-group lv-workflow-optional">
-                  <summary>{t.evidenceReferenceLabel}</summary>
+                <div className="lv-form-group">
                   <label htmlFor={evidenceRefId} className="lv-form-label">
                     {t.evidenceReferenceLabel}
                   </label>
+                  <p className="lv-form-note">({t.evidenceReferenceHint})</p>
                   <input
                     id={evidenceRefId}
                     type="text"
@@ -1429,13 +1403,11 @@ export default function StaffLegalDocumentsPage({
                     disabled={isSubmitting || !canReceiveBasis}
                     maxLength={500}
                   />
-                  <span className="lv-form-hint">{t.evidenceReferenceHint}</span>
-                </details>
+                </div>
               </div>
 
               {/* Ghi chú */}
-              <details className="lv-form-group lv-workflow-optional">
-                <summary>{t.notesLabel}</summary>
+              <div className="lv-form-group">
                 <label htmlFor={notesId} className="lv-form-label">
                   {t.notesLabel}
                 </label>
@@ -1449,11 +1421,11 @@ export default function StaffLegalDocumentsPage({
                   rows={2}
                   maxLength={1000}
                 />
-              </details>
+              </div>
 
               {/* Tệp số hóa */}
               <div className="lv-form-group">
-                <label className="lv-form-label">{t.fileUploadLabel}</label>
+                <label className="lv-form-label lv-form-label--required">{t.fileUploadLabel}</label>
                 <EvidenceFileUploader
                   file={evidenceFile}
                   error={errors.file}
@@ -1463,14 +1435,9 @@ export default function StaffLegalDocumentsPage({
                   }}
                   disabled={isSubmitting || !canReceiveBasis}
                   lang={lang}
-                  accept=".pdf,image/jpeg,image/png"
-                  maxSizeBytes={10 * 1024 * 1024}
-                  hint={t.fileUploadHint}
+                  required={false}
                 />
-                {errors.file && <span className="lv-field-error" role="alert">{getStaffLegalDocumentErrorMessage(errors.file, lang)}</span>}
               </div>
-
-              <p className="lv-intake-description">{en ? 'Upload only the requested documents here. Asset allocations are prepared in a separate step after Legal accepts these documents.' : 'Tại đây chỉ tải giấy tờ được yêu cầu. Phân bổ tài sản được lập ở bước riêng sau khi Ban Pháp lý duyệt căn cứ.'}</p>
 
               {/* Thanh tiến trình upload */}
               {uploadProgress && uploadProgress.phase !== 'error' && (

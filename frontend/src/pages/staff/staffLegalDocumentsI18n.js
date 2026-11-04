@@ -59,7 +59,7 @@ export const staffLegalDocumentsI18n = {
     // Biểu mẫu thông tin văn bản căn cứ
     formTitle: 'Tiếp nhận văn bản',
     formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Ban Pháp lý duyệt căn cứ.',
-    legalBasisTypeLabel: 'Loại văn bản căn cứ (Bắt buộc)',
+    legalBasisTypeLabel: 'Loại văn bản căn cứ',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
     typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',
     typeCourtDecision: 'Quyết định công nhận thỏa thuận của Tòa án',
@@ -67,16 +67,16 @@ export const staffLegalDocumentsI18n = {
     // Cơ quan ban hành
     issuerLabel: 'Cơ quan ban hành',
     issuerPlaceholder: 'VD: Tòa án nhân dân TP. Hà Nội',
-    issuerHint: 'Ghi đúng tên cơ quan trên văn bản.',
+    issuerHint: 'Ghi đúng tên cơ quan trên văn bản',
 
     // Số hiệu văn bản
     documentNumberLabel: 'Số hiệu văn bản',
     documentNumberPlaceholder: 'VD: 118/2026/VB-CC, 45/2026/QĐ-TA...',
-    documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ.',
+    documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ',
 
     // Ngày ban hành
     issuanceDateLabel: 'Ngày ban hành',
-    issuanceDateHint: 'Ngày ban hành văn bản (không ở tương lai)',
+    issuanceDateHint: 'Ngày ban hành văn bản, không ở tương lai',
 
     // Thông tin công chứng bổ sung (bắt buộc với NOTARIAL)
     notarySectionTitle: 'Thông tin công chứng xác thực',
@@ -89,13 +89,12 @@ export const staffLegalDocumentsI18n = {
     // Tham chiếu chứng từ & ghi chú
     evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy (không bắt buộc)',
     evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09, Ngăn lưu trữ B-12...',
-    evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng.',
+    evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng',
     notesLabel: 'Ghi chú bổ sung (không bắt buộc)',
     notesPlaceholder: 'Nội dung ghi chú hoặc lưu ý đặc biệt về văn bản...',
 
     // Tệp số hóa chứng cứ
     fileUploadLabel: 'Tệp số hóa văn bản căn cứ',
-    fileUploadHint: 'Định dạng PDF, JPEG hoặc PNG (tối đa 10 MB)',
 
     // Nút hành động
     btnSubmitVersion: 'Lưu và chuyển giấy tờ cho Ban Pháp lý',
@@ -226,16 +225,16 @@ export const staffLegalDocumentsI18n = {
     // Issuing authority
     issuerLabel: 'Issuing Authority',
     issuerPlaceholder: "e.g. People's Court of Hanoi",
-    issuerHint: 'Authorized organization or agency issuing or notarizing the document.',
+    issuerHint: 'Authorized organization or agency issuing or notarizing the document',
 
     // Document number
     documentNumberLabel: 'Document Number',
     documentNumberPlaceholder: 'e.g. 118/2026/VB-CC, 45/2026/QD-TA...',
-    documentNumberHint: 'Official reference number printed on the legal document.',
+    documentNumberHint: 'Official reference number printed on the legal document',
 
     // Issuance date
     issuanceDateLabel: 'Issuance Date',
-    issuanceDateHint: 'Date of issuance (cannot be in the future)',
+    issuanceDateHint: 'Date of issuance, cannot be in the future',
 
     // Notary fields
     notarySectionTitle: 'Notarial Certification Details',
@@ -248,13 +247,12 @@ export const staffLegalDocumentsI18n = {
     // References & notes
     evidenceReferenceLabel: 'Physical Record Reference (optional)',
     evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09, Storage Locker B-12...',
-    evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents.',
+    evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents',
     notesLabel: 'Additional Notes (optional)',
     notesPlaceholder: 'Enter any additional remarks or observations...',
 
     // File upload
     fileUploadLabel: 'Digitized Document File',
-    fileUploadHint: 'PDF, JPEG, or PNG format (up to 10 MB)',
 
     // Action buttons
     btnSubmitVersion: 'Save and send documents to Legal Department',
