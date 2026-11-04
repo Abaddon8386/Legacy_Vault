@@ -40,6 +40,9 @@ export const authStatusMessages = {
     INVALID_AUTH_RESPONSE: 'Phản hồi xác thực từ máy chủ không đúng định dạng quy chuẩn. Vui lòng thử lại sau.',
     SUCCESS: 'Đăng nhập thành công.',
     GOOGLE_SIGNIN_UNAVAILABLE: 'Đăng nhập Google hiện chưa khả dụng.',
+    GOOGLE_EMAIL_ALREADY_REGISTERED: 'Email này đã có tài khoản. Hãy đăng nhập bằng mật khẩu rồi liên kết Google trong hồ sơ.',
+    GOOGLE_EMAIL_NOT_VERIFIED: 'Google chưa xác minh email này. Hãy xác minh email với Google rồi thử lại.',
+    GOOGLE_ACCOUNT_UNAVAILABLE: 'Không thể tiếp tục bằng Google với tài khoản này. Tài khoản có thể đã bị khóa hoặc không còn hoạt động.',
     GOOGLE_SCRIPT_LOAD_ERROR: 'Không thể kết nối đến dịch vụ Google. Vui lòng kiểm tra kết nối mạng hoặc tiện ích chặn quảng cáo.',
     GOOGLE_CLIENT_ID_MISSING: 'Đăng nhập Google hiện chưa khả dụng.',
     INVALID_GOOGLE_CREDENTIAL: 'Thông tin xác thực từ Google không hợp lệ hoặc đã hết hạn.',
@@ -65,6 +68,9 @@ export const authStatusMessages = {
     INVALID_AUTH_RESPONSE: 'Authentication response from server has an invalid format. Please try again later.',
     SUCCESS: 'Login successful.',
     GOOGLE_SIGNIN_UNAVAILABLE: 'Google sign-in is currently unavailable.',
+    GOOGLE_EMAIL_ALREADY_REGISTERED: 'This email already has an account. Sign in with your password, then link Google in your profile.',
+    GOOGLE_EMAIL_NOT_VERIFIED: 'Google has not verified this email. Verify your email with Google, then try again.',
+    GOOGLE_ACCOUNT_UNAVAILABLE: 'Unable to continue with Google for this account. It may be locked or no longer active.',
     GOOGLE_SCRIPT_LOAD_ERROR: 'Unable to connect to Google services. Please check your network connection or ad blocker.',
     GOOGLE_CLIENT_ID_MISSING: 'Google sign-in is currently unavailable.',
     INVALID_GOOGLE_CREDENTIAL: 'Google authentication credential is invalid or has expired.',
@@ -103,7 +109,7 @@ export function isValidLoginResponse(data) {
 }
 
 /**
- * Proposed Google authentication contract for LegacyVault (awaiting Backend confirmation).
+ * Google authentication contract: both sign-in and first-time Owner registration use /auth/google.
  * Sends Google Identity Services (GIS) ID credential to /auth/google.
  *
  * SAFETY & ARCHITECTURAL COMPLIANCE:
@@ -129,7 +135,7 @@ export async function authenticateWithGoogle({ credential } = {}, options = {}) 
   }
 
   try {
-    // Proposed contract: POST /auth/google with { credential: string }
+    // The backend decides whether to sign in or register; never infer an account from Google claims.
     const data = await request('/auth/google', {
       ...options,
       method: 'POST',
@@ -150,6 +156,7 @@ export async function authenticateWithGoogle({ credential } = {}, options = {}) 
   } catch (error) {
     if (error.name === 'AbortError') throw error;
     let safeCode = error.code;
+    if (safeCode === 'INVALID_CREDENTIALS') safeCode = 'GOOGLE_ACCOUNT_UNAVAILABLE';
     if (
       ['BACKEND_NOT_READY', 'RESOURCE_NOT_FOUND', 'ENDPOINT_NOT_IMPLEMENTED', 'INVALID_RESPONSE'].includes(error.code) ||
       error.status === 404
