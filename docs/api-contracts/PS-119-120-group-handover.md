@@ -1,8 +1,8 @@
 # PS-119/120 — whole-group handover
 
-Implemented on develop 75ae03f; see PS-119-120-group-handover.openapi.json.
+Implemented on develop (first merged at 75ae03f); see PS-119-120-group-handover.openapi.json, which also describes the PS-122 read endpoints. The reads are explained in PS-122-group-handover-reads.md.
 Supersedes the obsolete per-allocation/time-based retention proposal in the separate old checkout.
-This is independent of the pending PS-135 branch and does not modify applied migrations.
+It does not modify applied migrations. Notification receipts follow PS-135 (see Receipt below).
 
 ## Confirmed policy
 
@@ -23,12 +23,16 @@ a current all-present report while SUSPENDED. The returned state.requestId is th
 Legal POST .../reopen-requests/{requestId}/decision takes expectedRevision, APPROVE/REJECT, reason.
 Only a current pending Staff request with unchanged all-present snapshot may be decided.
 APPROVE restores READY; REJECT leaves SUSPENDED. Decisions never set UNLOCKED/DELIVERED/close/archive.
-Both workspaces have GET .../group-handover for current state, required IDs and computed allowed flag.
+Both workspaces have GET .../group-handover for current state, required IDs and computed allowed flag. PS-122 enriched it additively (progress, current report, pending request, last decision, capabilities, blocked reason) and added history, a Legal pending-request list and a private recipient status; fields, filters and paging are in PS-122-group-handover-reads.md.
 Prefix: /api/v1/staff or /api/v1/legal-verifications, followed by
 /verification-cases/{caseId}/handover-sessions/{sessionId}. Every response is no-store.
 
 All POSTs require UUID Idempotency-Key. Receipt: caseId/sessionId/eventId/state/notification.
-notification is null until a real PS-135 integration records it; no notification delivery is claimed.
+notification is the PS-135 receipt `{id, recipientWorkspace: STAFF|LEGAL, status: "RECORDED"}`, written in the same transaction as the group event and the audit record. It means only that the notification row was recorded: delivery, display, reading and e-mail are not claimed. Action `HANDOVER_GROUP_<operation>`, event key `group:<eventId>`:
+- ATTENDANCE and REQUEST (Staff) notify the Legal workspace; the receipt is always present.
+- APPROVE and REJECT (Legal) notify the assigned Staff; the receipt is null only when the case has no assigned Staff.
+- A retry with the same key returns the receipt already recorded for that event and creates no second notification.
+- A failure to record the notification rolls the whole mutation back.
 Same assigned actor/case/key with same canonical payload returns the original receipt;
 different payload returns GROUP_HANDOVER_STALE. Recheck current role/scope and base legal gates
 before replay. New keys require expectedRevision to match current state. Body actor/time is ignored;

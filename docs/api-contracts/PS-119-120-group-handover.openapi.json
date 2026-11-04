@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "PS-119/120 whole-group handover API",
+    "title": "PS-119/120/122 whole-group handover API",
     "version": "1.0.0"
   },
   "security": [
@@ -83,9 +83,13 @@
             "format": "uuid"
           },
           "notification": {
-            "type": "object",
-            "description": "Currently null; no delivery or notification claim.",
-            "nullable": true
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GroupNotificationReceipt"
+              }
+            ],
+            "description": "Null only for APPROVE/REJECT when the case has no assigned Staff. ATTENDANCE and REQUEST always carry a receipt (Legal workspace). A retry returns the receipt already recorded."
           },
           "state": {
             "$ref": "#/components/schemas/GroupState"
@@ -178,9 +182,427 @@
           },
           "snapshot": {
             "type": "string"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseNumber": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionStatus": {
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/GroupProgress"
+          },
+          "attendance": {
+            "$ref": "#/components/schemas/GroupAttendance"
+          },
+          "request": {
+            "$ref": "#/components/schemas/GroupReopenRequest"
+          },
+          "lastDecision": {
+            "$ref": "#/components/schemas/GroupLegalDecision"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/GroupCapabilities"
           }
         },
-        "type": "object"
+        "type": "object",
+        "description": "state, snapshot, requiredRecipientIds and deliveryAllowed are the PS-119/120 fields; the others were added by PS-122 (additive). Needs an OPEN session."
+      },
+      "GroupNotificationReceipt": {
+        "type": "object",
+        "description": "PS-135 receipt: the notification row was recorded in the same transaction. It does not claim delivery, display, reading or e-mail.",
+        "required": [
+          "id",
+          "recipientWorkspace",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recipientWorkspace": {
+            "type": "string",
+            "enum": [
+              "STAFF",
+              "LEGAL"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RECORDED"
+            ]
+          }
+        }
+      },
+      "GroupPerson": {
+        "type": "object",
+        "required": [
+          "userId",
+          "fullName"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullName": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupAttendance": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "attendanceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recordedBy": {
+            "$ref": "#/components/schemas/GroupPerson"
+          },
+          "presentRecipientIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupReopenRequest": {
+        "type": "object",
+        "nullable": true,
+        "description": "Only while the state is AWAITING_LEGAL.",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requestedBy": {
+            "$ref": "#/components/schemas/GroupPerson"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupLegalDecision": {
+        "type": "object",
+        "nullable": true,
+        "description": "Latest Legal decision of the case; kept after it is made.",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ]
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedBy": {
+            "$ref": "#/components/schemas/GroupPerson"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupProgress": {
+        "type": "object",
+        "description": "Counts of the approved scope; absent people and undelivered assets never leave the totals.",
+        "properties": {
+          "totalAssets": {
+            "type": "integer"
+          },
+          "deliveredAssets": {
+            "type": "integer"
+          },
+          "requiredRecipients": {
+            "type": "integer"
+          },
+          "presentRecipients": {
+            "type": "integer"
+          }
+        }
+      },
+      "GroupCapabilities": {
+        "type": "object",
+        "description": "UI hints only; every mutation re-checks on the backend.",
+        "properties": {
+          "canRecordAttendance": {
+            "type": "boolean"
+          },
+          "canRequestReopen": {
+            "type": "boolean"
+          },
+          "canDecide": {
+            "type": "boolean"
+          },
+          "deliveryBlockedReason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "ATTENDANCE_REQUIRED",
+              "MISSING_RECIPIENTS",
+              "LEGAL_REOPEN_REQUIRED",
+              "AWAITING_LEGAL_DECISION",
+              "ATTENDANCE_STALE",
+              "BLOCKED"
+            ]
+          }
+        }
+      },
+      "GroupHistoryItem": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "ATTENDANCE",
+              "REQUEST",
+              "APPROVE",
+              "REJECT"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resultingStatus": {
+            "type": "string",
+            "enum": [
+              "UNCONFIRMED",
+              "READY",
+              "SUSPENDED",
+              "AWAITING_LEGAL"
+            ]
+          },
+          "allPresent": {
+            "type": "boolean"
+          },
+          "presentRecipients": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "by": {
+            "$ref": "#/components/schemas/GroupPerson"
+          }
+        }
+      },
+      "GroupHistoryPage": {
+        "type": "object",
+        "description": "Newest first; size 1..100.",
+        "required": [
+          "content",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupHistoryItem"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      },
+      "GroupPendingReopenRequest": {
+        "type": "object",
+        "description": "A request Legal can decide right now; the item is dropped when the decision itself would be refused.",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseNumber": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vaultName": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requestedBy": {
+            "$ref": "#/components/schemas/GroupPerson"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "allPresent": {
+            "type": "boolean"
+          },
+          "requiredRecipients": {
+            "type": "integer"
+          },
+          "presentRecipients": {
+            "type": "integer"
+          },
+          "totalAssets": {
+            "type": "integer"
+          },
+          "deliveredAssets": {
+            "type": "integer"
+          },
+          "decidable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GroupPendingReopenPage": {
+        "type": "object",
+        "description": "Oldest request first; size 1..100, default 20.",
+        "required": [
+          "content",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupPendingReopenRequest"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      },
+      "BeneficiaryHandoverStatus": {
+        "type": "object",
+        "description": "Private status of the authenticated recipient account; the account comes only from the token. No other recipient, reason, attendance id, snapshot or actor data is returned.",
+        "required": [
+          "subjectId",
+          "cases"
+        ],
+        "properties": {
+          "subjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "caseId",
+                "caseNumber",
+                "status",
+                "totalAssets",
+                "deliveredAssets"
+              ],
+              "properties": {
+                "caseId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "caseNumber": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "UNCONFIRMED",
+                    "SUSPENDED",
+                    "AWAITING_LEGAL",
+                    "READY"
+                  ],
+                  "description": "READY is not DELIVERED."
+                },
+                "totalAssets": {
+                  "type": "integer"
+                },
+                "deliveredAssets": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -502,6 +924,254 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/staff/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events": {
+      "get": {
+        "description": "PS-122 event history for the assigned Staff; readable after the session ends or the case is archived. A Staff who is not the assigned owner gets 404. no-store.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "caseId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Zero based"
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "1..100"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupHistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: bad paging or filter"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role (STAFF_EXECUTOR only)"
+          },
+          "404": {
+            "description": "Outside scope"
+          }
+        }
+      }
+    },
+    "/api/v1/legal-verifications/verification-cases/{caseId}/handover-sessions/{sessionId}/group-handover/events": {
+      "get": {
+        "description": "PS-122 event history for Legal. no-store.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "caseId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Zero based"
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "1..100"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupHistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: bad paging or filter"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role (LEGAL_VERIFIER only)"
+          },
+          "404": {
+            "description": "Outside scope"
+          }
+        }
+      }
+    },
+    "/api/v1/legal-verifications/group-handover/reopen-requests": {
+      "get": {
+        "description": "PS-122 pending reopen requests Legal can decide now. Decide with the PS-120 decision endpoint using requestId, revision as expectedRevision, a reason and an Idempotency-Key. no-store.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "caseId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Narrow to one case"
+          },
+          {
+            "in": "query",
+            "name": "caseNumber",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^HS-\\d{4}-\\d{6}$"
+            },
+            "description": "Case number, case-insensitive"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Zero based"
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "1..100"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPendingReopenPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: bad paging or filter"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role (LEGAL_VERIFIER only)"
+          },
+          "404": {
+            "description": "Outside scope"
+          }
+        }
+      }
+    },
+    "/api/v1/beneficiary-handover-status": {
+      "get": {
+        "description": "PS-122 private handover status of the authenticated recipient account; only cases where the account is currently a linked recipient with approved allocations. no-store.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK, Cache-Control no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeneficiaryHandoverStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: bad paging or filter"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role (BENEFICIARY only)"
+          },
+          "404": {
+            "description": "Outside scope"
           }
         }
       }
