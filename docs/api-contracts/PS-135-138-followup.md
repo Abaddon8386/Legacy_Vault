@@ -5,7 +5,7 @@ business transaction only. They do not assert delivery, display, read, or email.
 
 | Successful action | Recipient | Action / event key | Snapshot and opening target | Receipt |
 | --- | --- | --- | --- | --- |
-| Staff uploads a death or original-will attachment | Legal workspace | `INTAKE_ATTACHMENT_UPLOADED` / `attachment:<attachment public id>` | Case id in receipt; attachment metadata has subject id and SHA-256. Open the Legal case. | In upload response |
+| Staff uploads a death or original-will attachment | Legal workspace | `INTAKE_ATTACHMENT_UPLOADED` / `attachment:<attachment public id>` | Case id in the request path; attachment metadata has subject id and SHA-256. Open the Legal case. | In upload response |
 | Staff records group attendance | Legal workspace | `HANDOVER_GROUP_ATTENDANCE` / `group:<event public id>` | Group revision and snapshot in mutation response. Open the Legal case and handover session. | In mutation response |
 | Staff requests handover reopening | Legal workspace | `HANDOVER_GROUP_REQUEST` / `group:<event public id>` | Group revision and snapshot in mutation response. Open the Legal case and handover session. | In mutation response |
 | Legal approves or rejects reopening | Assigned Staff | `HANDOVER_GROUP_APPROVE` or `HANDOVER_GROUP_REJECT` / `group:<event public id>` | Group revision and snapshot in mutation response. Open the Staff case and handover session. | In mutation response, null without assigned Staff |
@@ -51,9 +51,25 @@ Distribution workflow events and audit actions are preserved. Automatic snapshot
 evaluation still returns a null receipt; this fix covers explicit review,
 supplementation and resumption mutations.
 
-Follow-up verification: 50 unit/controller tests pass, including HTTP receipt fields,
+Historical follow-up verification (before A1 integration): 50 unit/controller tests pass, including HTTP receipt fields,
 distinct review event keys, null receipts and propagated notification errors.
 The SQL wrapper regression asserts a single persisted notification and matching
 receipt, but execution is NOT VERIFIED: `LEGAL_SQLSERVER_MASTER_URL` is absent
 (`The url cannot be null`). Real SQL rollback/concurrency and two-account FE E2E
 remain unverified. Inbox group labels were fixed separately in commit `ae6715b`.
+
+A1 integration verification (2026-11-04, commit `a8420eb` on `develop` `c923490`):
+46 tests passed across LegalBasisReviewServiceTest, BasisReclassificationServiceTest,
+LegalBasisDossierControllerTest and DistributionReplacementWorkflowTest. The SQL
+workflow test failed at setup with `The url cannot be null` because
+`LEGAL_SQLSERVER_MASTER_URL` was absent; it was not skipped or passed.
+The original 50-test result above describes an earlier checkout.
+
+OpenAPI cross-check: `LegalBasisReviewResponse.notification` and
+`BasisDossierResponse.notification` reference nullable `WorkflowNotificationReceipt`.
+`DistributionWorkflowReceipt.notification` has the same nullable fields
+`id`, `recipientWorkspace`, `status`; the enclosing workflow receipt carries
+`caseId`, requested workflow `action` and `revision`. A notification receipt itself
+has no case id or action. The inbox item supplies `caseId` and the notification
+action. See [distribution contract](PS-135-distribution-notifications.md) for the
+current workflow-to-inbox action mapping and the two delegated event keys.
