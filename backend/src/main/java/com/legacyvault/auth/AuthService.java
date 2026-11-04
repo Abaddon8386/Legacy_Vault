@@ -7,6 +7,8 @@ import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
+import com.legacyvault.auth.dto.PasswordSetupRequest;
+import com.legacyvault.auth.dto.PasswordSetupResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
 import com.legacyvault.auth.dto.RegisterResponse;
 import com.legacyvault.auth.dto.ProfileResponse;
@@ -131,6 +133,84 @@ public class AuthService {
                 savedUser.getStatus(),
                 savedUser.getCreatedAt().toInstant(ZoneOffset.UTC)
         );
+    }
+
+    /**
+     * Creates the Owner account for a first-time Google sign-in. The caller has already verified the Google
+     * credential and that the email is Google-verified and not yet registered. The account has no usable
+     * password: the stored hash is random and unknown to everyone, and password login stays off until the
+     * user sets one through {@link #setupPassword}.
+     */
+    User createGoogleOwner(String normalizedEmail, String displayName) {
+        Role ownerRole = roleRepository.findByRoleCode(DEFAULT_ROLE)
+                .orElseThrow(() -> new IllegalStateException("Required role not found: " + DEFAULT_ROLE));
+
+        byte[] secret = new byte[32];
+        new java.security.SecureRandom().nextBytes(secret);
+
+        User user = new User();
+        String name = displayName == null ? "" : displayName.trim();
+        if (name.isEmpty()) {
+            name = normalizedEmail.substring(0, normalizedEmail.indexOf('@'));
+        }
+        user.setFullName(name.length() > 150 ? name.substring(0, 150) : name);
+        user.setEmail(normalizedEmail);
+        user.setPasswordHash(passwordEncoder.encode(java.util.Base64.getEncoder().encodeToString(secret)));
+        user.setPasswordLoginEnabled(false);
+        user.setStatus("ACTIVE");
+        user.setEmailVerifiedAt(LocalDateTime.now(ZoneOffset.UTC));
+
+        User saved = userRepository.saveAndFlush(user);
+        userRoleRepository.save(new UserRole(saved, ownerRole));
+
+        auditService.record(new AuditEvent(
+                AuditAction.AUTH_REGISTERED,
+                AuditActorType.USER,
+                saved.getUserId(),
+                null,
+                "USER",
+                saved.getUserId(),
+                null,
+                "{\"status\":\"ACTIVE\"}",
+                null,
+                Map.of("result", "SUCCESS", "provider", "GOOGLE"),
+                "AUTH_REGISTERED",
+                null
+        ));
+        return saved;
+    }
+
+    /** Lets a Google-only account choose its first password. Not allowed once password login is on. */
+    @Transactional
+    public PasswordSetupResponse setupPassword(Long userId, PasswordSetupRequest request) {
+        User user = userRepository.findActiveAccountForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
+        if (user.isPasswordLoginAllowed()) {
+            throw new BusinessException(ErrorCode.PASSWORD_ALREADY_SET);
+        }
+        if (!new PasswordPolicy().isValid(request.password(), null)) {
+            throw new BusinessException(ErrorCode.PASSWORD_POLICY);
+        }
+        // The current session stays valid (no auth-version bump): the user is mid-action and must not be logged out.
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setPasswordLoginEnabled(true);
+        userRepository.flush();
+
+        auditService.record(new AuditEvent(
+                AuditAction.AUTH_PASSWORD_SET,
+                AuditActorType.USER,
+                userId,
+                null,
+                "USER",
+                userId,
+                null,
+                null,
+                null,
+                Map.of("result", "SUCCESS"),
+                "AUTH_PASSWORD_SET",
+                null
+        ));
+        return new PasswordSetupResponse(true);
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -276,6 +356,9 @@ public class AuthService {
             throw new BusinessException(ErrorCode.PASSWORD_POLICY);
         }
         if (sensitiveChange) {
+            if (!user.isPasswordLoginAllowed()) {
+                throw new BusinessException(ErrorCode.PASSWORD_NOT_SET);
+            }
             if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
                 throw new BusinessException(ErrorCode.MALFORMED_REQUEST);
             }
@@ -392,7 +475,8 @@ public class AuthService {
                 user.getFullName(),
                 user.getEmail(),
                 user.getPhoneNumber(),
-                apiRoles
+                apiRoles,
+                user.isPasswordLoginAllowed()
         );
     }
 

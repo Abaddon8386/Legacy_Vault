@@ -24,7 +24,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 
-/** Authenticates explicitly linked Google subjects and supports authenticated self-linking only. */
+/**
+ * Signs in linked Google subjects, creates an Owner account for a brand-new Google user whose email is not yet
+ * registered, and supports authenticated self-linking. It never links an existing account by email.
+ */
 @Service
 public class GoogleAuthService {
     private static final String GOOGLE_PROVIDER = "GOOGLE";
@@ -66,6 +69,9 @@ public class GoogleAuthService {
                 .findByProviderCodeAndSubject(GOOGLE_PROVIDER, credential.subject())
                 .orElse(null);
         User user = identity == null ? null : identity.getUser();
+        if (identity == null) {
+            return signUp(credential);
+        }
         if (user == null || !"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
             auditService.recordLoginFailure(user == null ? null : user.getUserId());
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
@@ -85,6 +91,52 @@ public class GoogleAuthService {
         }
 
         return authService.issueLoginResponseForActiveUser(user);
+    }
+
+    /** First-time Google sign-in: unknown subject. Everything runs in the caller's single transaction. */
+    private LoginResponse signUp(GoogleIdTokenVerifier.VerifiedGoogleCredential credential) {
+        if (!credential.emailVerified()) {
+            throw new BusinessException(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
+        }
+        String rawEmail = credential.email();
+        if (rawEmail == null || rawEmail.isBlank() || rawEmail.indexOf('@') <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
+        }
+        String email = EmailNormalizer.normalize(rawEmail);
+        if (users.existsByEmail(email)) {
+            // Never merge by email: the owner proves control with the password, then links Google from the profile.
+            throw new BusinessException(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED);
+        }
+
+        consumeCredential(credential, null);
+
+        User created;
+        try {
+            created = authService.createGoogleOwner(email, credential.name());
+            identities.saveAndFlush(new ExternalAuthIdentity(GOOGLE_PROVIDER, credential.subject(), created));
+        } catch (DataIntegrityViolationException exception) {
+            // A parallel request with another token created the same email or subject first; unique indexes decide.
+            if (violatesConstraint(exception, "UQ_users_email")
+                    || violatesConstraint(exception, "UQ_external_auth_identities_provider_subject")) {
+                throw new BusinessException(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED);
+            }
+            throw exception;
+        }
+        return authService.issueLoginResponseForActiveUser(created);
+    }
+
+    private void consumeCredential(GoogleIdTokenVerifier.VerifiedGoogleCredential credential, User user) {
+        credentialUses.deleteByExpiresAtLessThanEqual(LocalDateTime.now(ZoneOffset.UTC));
+        try {
+            credentialUses.saveAndFlush(new GoogleLoginCredentialUse(
+                    credential.credentialHash(), LocalDateTime.ofInstant(credential.expiresAt(), ZoneOffset.UTC)));
+        } catch (DataIntegrityViolationException exception) {
+            if (!violatesConstraint(exception, "PK_google_login_credential_uses")) {
+                throw exception;
+            }
+            auditService.recordLoginFailure(user == null ? null : user.getUserId());
+            throw new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
+        }
     }
 
     /** Links only a verified Google subject to the authenticated account; never links by email. */

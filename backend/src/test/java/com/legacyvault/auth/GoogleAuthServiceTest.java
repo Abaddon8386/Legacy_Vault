@@ -39,7 +39,7 @@ class GoogleAuthServiceTest {
     private final User user = mock(User.class);
     private final String token = "synthetic.signed.credential";
     private final GoogleIdTokenVerifier.VerifiedGoogleCredential verified =
-            new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "a".repeat(64), Instant.now().plusSeconds(300));
+            new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "a".repeat(64), Instant.now().plusSeconds(300), null, false, null);
     private final LoginResponse response = new LoginResponse("legacy-jwt", "Bearer", 3600,
             new LoginResponse.AuthUserResponse(UUID.randomUUID(), "Linked User", "linked@example.test", java.util.List.of("VAULT_OWNER")));
 
@@ -66,16 +66,92 @@ class GoogleAuthServiceTest {
         verifyNoInteractions(audit);
     }
 
+    private GoogleIdTokenVerifier.VerifiedGoogleCredential newcomer(String email, boolean emailVerified) {
+        return new GoogleIdTokenVerifier.VerifiedGoogleCredential(
+                "google-sub", "c".repeat(64), Instant.now().plusSeconds(300), email, emailVerified, "New Person");
+    }
+
     @Test
-    void unlinkedGoogleSubjectIsRejectedWithoutEmailBasedLinking() {
+    void newGoogleUserWithUnusedVerifiedEmailGetsOwnerAccountAndLogsIn() {
+        User created = mock(User.class);
         when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("  New.Person@Example.test ", true));
+        when(users.existsByEmail("new.person@example.test")).thenReturn(false);
+        when(authService.createGoogleOwner("new.person@example.test", "New Person")).thenReturn(created);
+        when(authService.issueLoginResponseForActiveUser(created)).thenReturn(response);
+
+        assertSame(response, service.login(new GoogleLoginRequest(token)));
+
+        verify(uses).saveAndFlush(any(GoogleLoginCredentialUse.class));
+        verify(identities).saveAndFlush(argThat(identity -> "GOOGLE".equals(identity.getProviderCode())
+                && "google-sub".equals(identity.getSubject()) && identity.getUser() == created));
+    }
+
+    @Test
+    void existingEmailIsNeverMergedAndCreatesNothing() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("owner@example.test", true));
+        when(users.existsByEmail("owner@example.test")).thenReturn(true);
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.login(new GoogleLoginRequest(token)));
 
-        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
-        verify(audit).recordLoginFailure(null);
-        verifyNoInteractions(uses, authService);
+        assertEquals(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+        verify(identities, never()).saveAndFlush(any());
+        verifyNoInteractions(uses);
+    }
+
+    @Test
+    void unverifiedGoogleEmailIsRejectedWithoutCreatingAnything() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", false));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+        verifyNoInteractions(uses);
+    }
+
+    @Test
+    void tokenWithoutEmailCannotSignUp() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer(null, true));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+    }
+
+    @Test
+    void reusedCredentialCannotSignUpTwice() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", true));
+        when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class)))
+                .thenThrow(dataViolation("PK_google_login_credential_uses"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+    }
+
+    @Test
+    void concurrentSignUpLoserGetsEmailAlreadyRegistered() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", true));
+        when(authService.createGoogleOwner(any(), any())).thenThrow(dataViolation("UQ_users_email"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED, exception.getErrorCode());
+        verify(authService, never()).issueLoginResponseForActiveUser(any());
     }
 
     @Test
@@ -143,7 +219,7 @@ class GoogleAuthServiceTest {
             return saved;
         });
         GoogleIdTokenVerifier.VerifiedGoogleCredential loginCredential =
-                new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "b".repeat(64), Instant.now().plusSeconds(300));
+                new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "b".repeat(64), Instant.now().plusSeconds(300), null, false, null);
         when(verifier.verify("new-google-token")).thenReturn(verified);
         when(verifier.verify("next-google-token")).thenReturn(loginCredential);
 

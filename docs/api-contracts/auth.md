@@ -60,15 +60,23 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   `iat` và `sub`. Client không gửi profile/email/role để định danh tài khoản.
 - **Response 200:** cùng `LoginResponse` với đăng nhập mật khẩu; JWT, thời hạn và role đều lấy từ LegacyVault.
 - **Lỗi:** `400 VALIDATION_FAILED`; `401 INVALID_GOOGLE_CREDENTIAL` cho token không hợp lệ/hết hạn/dùng lại;
-  `401 INVALID_CREDENTIALS` cho subject chưa liên kết hoặc tài khoản không `ACTIVE`/đã xóa;
+  `401 INVALID_CREDENTIALS` cho tài khoản đã liên kết nhưng không `ACTIVE`/đã xóa;
+  `401 GOOGLE_EMAIL_NOT_VERIFIED` khi người mới có `email_verified` khác true (không tạo gì);
+  `409 GOOGLE_EMAIL_ALREADY_REGISTERED` khi email Google đã có tài khoản (không tự gộp, không tạo gì);
   `503 GOOGLE_SIGNIN_UNAVAILABLE` khi thiếu cấu hình client ID hoặc không truy cập được Google JWKS.
 - Credential hợp lệ chỉ được đổi lấy phiên thành công một lần. Database lưu fingerprint SHA-256 (không lưu credential);
   các fingerprint hết hạn được dọn ở lần đăng nhập Google tiếp theo. Endpoint stateless, nhận JSON và không dùng cookie;
   CORS vẫn giới hạn browser origin theo cấu hình.
-- Bảng `dbo.external_auth_identities` ánh xạ chính xác `provider_code=GOOGLE` + Google `sub` sang tài khoản. PS-85
-  không đăng ký Google, không liên kết theo email, không tự tạo tài khoản và không cấp role. Subject chưa có mapping bị
-  từ chối bằng lỗi chung `INVALID_CREDENTIALS`.
-- **Audit:** dùng `AUTH_LOGIN_SUCCEEDED`/`AUTH_LOGIN_FAILED` hiện có, không ghi credential, token, subject hoặc profile.
+- Bảng `dbo.external_auth_identities` ánh xạ chính xác `provider_code=GOOGLE` + Google `sub` sang tài khoản. Không bao
+  giờ liên kết theo email.
+- **Đăng ký lần đầu bằng Google:** subject chưa có mapping, token có `email_verified=true` và email (đã chuẩn hóa) chưa
+  tồn tại thì backend, trong một transaction: tạo user `ACTIVE` role Owner mặc định, `emailVerifiedAt` = bây giờ,
+  `password_login_enabled=false` (hash mật khẩu là chuỗi ngẫu nhiên không ai biết), thêm dòng `external_auth_identities`,
+  đánh dấu credential đã dùng, ghi audit `AUTH_REGISTERED` (context `provider=GOOGLE`) rồi trả `LoginResponse` như thường.
+  Tên hiển thị lấy từ claim `name` (thiếu thì phần trước `@`, cắt 150 ký tự). Hai request đồng thời chỉ tạo một tài
+  khoản (unique `UQ_users_email` / `(provider_code, subject)`; bên thua nhận `409 GOOGLE_EMAIL_ALREADY_REGISTERED`).
+  Không cấp thêm role nào ngoài Owner và không tự liên kết hồ sơ thụ hưởng.
+- **Audit:** đăng nhập dùng `AUTH_LOGIN_SUCCEEDED`/`AUTH_LOGIN_FAILED` hiện có; không ghi credential, token, subject hoặc profile.
 
 ## POST /api/v1/auth/google/link — PS-85
 
@@ -82,12 +90,26 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   đủ điều kiện; `401 INVALID_GOOGLE_CREDENTIAL` cho credential sai/hết hạn/đã dùng; `409 GOOGLE_IDENTITY_ALREADY_LINKED`
   nếu subject đã có mapping. Cạnh tranh tạo mapping được bảo vệ thêm bằng unique constraint `(provider_code, subject)`;
   toàn bộ thao tác mapping, đánh dấu credential đã dùng và audit nằm trong một transaction.
-- Chỉ liên kết vào chính tài khoản của JWT hiện tại; không hỗ trợ link tài khoản khác, email matching, Google signup,
+- Chỉ liên kết vào chính tài khoản của JWT hiện tại; không hỗ trợ link tài khoản khác, email matching,
   role assignment hay tự động khôi phục tài khoản. Audit chỉ ghi actor/action/provider, không ghi `sub`, credential hoặc email.
+
+## POST /api/v1/auth/password/setup — đăng ký Google
+
+- **Quyền:** JWT hợp lệ, tài khoản `ACTIVE`. Chỉ dùng được khi `password_login_enabled = false` (tài khoản tạo bằng Google).
+- **Request:** `{ "password": "..." }` — cùng quy tắc mật khẩu như đăng ký (8–72 ký tự/byte).
+- **Response 200:** `{ "passwordLoginEnabled": true }`. Bật `password_login_enabled`; không đổi auth version nên phiên hiện
+  tại vẫn dùng được để FE quay lại đúng thao tác đang làm. Audit `AUTH_PASSWORD_SET`.
+- **Lỗi:** `400 VALIDATION_FAILED`/`PASSWORD_POLICY`; `401 UNAUTHENTICATED`; `409 PASSWORD_ALREADY_SET` khi tài khoản đã có
+  mật khẩu (kể cả tài khoản cũ `password_login_enabled` NULL).
+- **Mã `PASSWORD_NOT_SET` (403):** mọi thao tác đòi mật khẩu hiện tại (`PasswordReauthService`: xem/sửa tài sản, tài liệu,
+  di chúc, tài sản nhận...; `PATCH /auth/me` đổi email/mật khẩu) trả mã này thay cho `REAUTH_FAILED` khi tài khoản chưa có
+  mật khẩu. Không tính vào bộ đếm sai mật khẩu. FE mở hộp thoại đặt mật khẩu, gọi endpoint trên rồi thử lại.
+- Tài khoản chỉ có Google chưa dùng được "Quên mật khẩu" (recovery bị chặn) cho tới khi đặt mật khẩu.
 
 ## GET /api/v1/auth/me — **[D-API-23]**
 
-- **Quyền:** đã đăng nhập. **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles" }`; roles đọc từ DB. Không trả trạng thái nội bộ, mật khẩu/hash hay token.
+- **Quyền:** đã đăng nhập. **Response 200:** `{ "id", "fullName", "email", "phoneNumber", "roles", "passwordLoginEnabled" }`;
+  `passwordLoginEnabled=false` nghĩa là tài khoản chỉ có Google, chưa đặt mật khẩu; roles đọc từ DB. Không trả trạng thái nội bộ, mật khẩu/hash hay token.
 - Danh tính chỉ lấy từ principal đã xác thực.
 - Để FE khởi tạo trạng thái đăng nhập mà không giải mã JWT phía client.
 - D-API-04 cập nhật 2026-10-19: FE khôi phục phiên từ `sessionStorage` của tab sau reload và xác minh qua endpoint này trước khi hiển thị trang bảo vệ. Không gia hạn token; lỗi mạng cho phép thử lại, 401 xóa phiên.
