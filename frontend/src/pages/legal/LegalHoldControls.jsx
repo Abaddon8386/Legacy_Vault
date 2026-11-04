@@ -1,3 +1,4 @@
+import ChoiceButtons from '../../components/common/ChoiceButtons.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { classifyLegalDossier, holdLegalDossier, loadLegalContext } from './legalLiveService.js';
 import { legalReadOnly } from './legalPresentation.js';
@@ -9,7 +10,7 @@ function scope(context) {
     dossier?.versions.map(item => [item.version, item.sha256, item.forwardStatus]), context.snapshot]);
 }
 
-export default function LegalHoldControls({ context, session, lang = 'vi', disabled, claimOperation, releaseOperation,
+export default function LegalHoldControls({ toolbar, context, session, lang = 'vi', disabled, claimOperation, releaseOperation,
   onComplete, onUnauthorized, onDenied, draft, onDraftChange, onPendingChange }) {
   const en = lang === 'en', dossier = context.basisDossier;
   const resume = dossier?.route === 'ON_HOLD' && dossier.status === 'DRAFT' && context.vaultStatus === 'ON_HOLD';
@@ -51,21 +52,18 @@ export default function LegalHoldControls({ context, session, lang = 'vi', disab
       if (!controller.signal.aborted) { lock.current = false; setPending(false); releaseOperation(); onPendingChange?.(false); }
     }
   }
-  if (!eligible) return null;
+  if (!eligible) return toolbar ? <div className="lv-legal-action-row">{toolbar}</div> : null;
   return <section className="lv-legal-step-data lv-legal-hold-controls" aria-label={en ? 'Pause or resume case processing' : 'Tạm dừng hoặc tiếp tục xử lý hồ sơ'}>
     {resume ? <><h2>{en ? 'Resume case processing' : 'Tiếp tục xử lý hồ sơ'}</h2>
       <p>{en ? 'The case is on hold. Review the reason and the available documents before resuming.' : 'Hồ sơ đang tạm dừng. Kiểm tra lý do và giấy tờ hiện có trước khi tiếp tục xử lý.'}</p>
       {dossier.routeReason && <p>{en ? 'Hold reason: ' : 'Lý do tạm dừng: '}{dossier.routeReason}</p>}</>
-      : <button type="button" disabled={disabled || pending} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
-        {en ? 'Place case on hold' : 'Tạm dừng xử lý'}</button>}
+      : <div className="lv-legal-action-row">{toolbar}<button type="button" className="lv-decision--hold" disabled={disabled || pending} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
+        {en ? 'Place case on hold' : 'Tạm dừng xử lý'}</button></div>}
     {(resume || expanded) && <form className="lv-distribution-form" onSubmit={submit}>
-      <label><span>{resume ? (en ? 'Resume with these documents' : 'Tiếp tục xử lý theo giấy tờ') : (en ? 'Cause' : 'Nguyên nhân')}<span className="lv-required-mark" aria-hidden="true">*</span></span>
-        <select required value={choice} disabled={disabled || pending || !!error} onChange={event => setChoice(event.target.value)}>
-          <option value="">{en ? 'Select' : 'Chọn'}</option>
-          {resume ? <><option value="NOTARIAL">{en ? 'Notarial documents' : 'Hồ sơ công chứng'}</option><option value="COURT">{en ? 'Court documents' : 'Giấy tờ Tòa án'}</option></>
-            : <><option value="NEW_DISPUTE">{en ? 'New dispute' : 'Tranh chấp mới'}</option><option value="INSUFFICIENT_EVIDENCE">{en ? 'Insufficient evidence' : 'Thiếu chứng cứ'}</option></>}
-        </select>
-      </label>
+      <ChoiceButtons title={resume ? (en ? 'Resume with these documents' : 'Tiếp tục xử lý theo giấy tờ') : (en ? 'Cause' : 'Nguyên nhân')} value={choice}
+        disabled={disabled || pending || !!error} onChange={setChoice} options={resume
+          ? [['NOTARIAL', en ? 'Notarial documents' : 'Hồ sơ công chứng'], ['COURT', en ? 'Court documents' : 'Giấy tờ Tòa án']]
+          : [['NEW_DISPUTE', en ? 'New dispute' : 'Tranh chấp mới'], ['INSUFFICIENT_EVIDENCE', en ? 'Insufficient evidence' : 'Thiếu chứng cứ']]} />
       <label><span>{en ? 'Reason' : 'Lý do'}<span className="lv-required-mark" aria-hidden="true">*</span></span><textarea required maxLength={1000} value={reason}
         disabled={disabled || pending || !!error} onChange={event => setReason(event.target.value)} /></label>
       <button type="submit" className={resume ? 'lv-decision--positive' : undefined} disabled={disabled || pending || !!error || !choice || !reason.trim()}>

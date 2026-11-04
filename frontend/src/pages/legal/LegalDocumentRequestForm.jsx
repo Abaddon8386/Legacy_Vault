@@ -31,6 +31,9 @@ export default function LegalDocumentRequestForm({ draft, onDraftChange, lang = 
       <header className="lv-legal-card-heading"><h2><FileText size={20} aria-hidden="true" />{en ? 'Documents to request' : 'Giấy tờ cần nộp'}</h2></header>
       <p>{en ? 'Death verification and will comparison are complete. Select the documents Staff should ask the applicant to prepare.'
         : 'Đã duyệt khai tử và đối chiếu di chúc. Chọn giấy tờ để Staff hướng dẫn người nộp chuẩn bị.'}</p>
+      <div className="lv-legal-request-why"><strong>{en ? 'Why are these documents needed?' : 'Vì sao cần giấy tờ này?'}</strong>
+        <p>{en ? 'Death verification and will comparison confirm the death and the will, but not how the assets are divided. Valid distribution documents are the basis for Staff to prepare allocations and for Legal to check them. If this case needs something else, select “Other documents” and name it.'
+          : 'Khai tử và đối chiếu di chúc mới xác nhận việc qua đời và di chúc, chưa cho biết tài sản được chia thế nào. Giấy tờ phân chia hợp lệ là căn cứ để Staff lập phân bổ và Ban Pháp lý kiểm tra. Nếu hồ sơ cần giấy tờ khác, chọn “Giấy tờ khác” và ghi rõ tên.'}</p></div>
       <label htmlFor={`${id}-kind`}><span>{en ? 'Document requirement' : 'Giấy tờ yêu cầu'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
         <select id={`${id}-kind`} required value={documentKind} disabled={locked} aria-describedby={`${id}-help`}
           onChange={event => update({ documentKind: event.target.value })}>

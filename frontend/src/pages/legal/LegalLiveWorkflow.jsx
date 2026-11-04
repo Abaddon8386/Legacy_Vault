@@ -10,6 +10,7 @@ import * as api from './legalLiveService.js';
 import LegalDistributionWorkspace, { LegalDistributionFinalWorkspace } from './LegalDistributionWorkspace.jsx';
 import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
+import ChoiceButtons from '../../components/common/ChoiceButtons.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
 import LegalHandoverReopen from './LegalHandoverReopen.jsx';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
@@ -266,12 +267,12 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
   const input = (name, title, values) => ['originalWillIntakeId', 'willVersion'].includes(name) && values.length === 1 ? <LegalRecordDetails rows={[[title, values[0][1]]]} /> : <label><span>{title}<span className="lv-required-mark" aria-hidden="true">*</span></span><select value={draft[name] || ''} onChange={e => set(name, e.target.value)} disabled={busy} required>
     <option value="">{en ? 'Select' : 'Chọn'}</option>{values.map(([value, title]) => <option key={value} value={value}>{title}</option>)}
   </select></label>;
-  const pick = (name, title, values) => input(name, title, values.map(value => [value, label(value, en)]));
+  const pick = (name, title, values) => <ChoiceButtons title={title} value={draft[name] || ''} disabled={busy} options={values.map(value => [value, label(value, en)])} onChange={value => set(name, value)} />;
   const latest = data?.dossier?.versions?.reduce((best, item) => !best || item.version > best.version ? item : best, null);
   const forwarded = data?.dossier?.status === 'LEGAL_BASIS_FORWARDED' && latest?.forwardStatus === 'FORWARDED'
     && latest.version >= data.dossier.requiredVersion && data.will.vaultStatus === 'LEGAL_BASIS_VERIFICATION' && data.will.approvalBlocked === false;
   const editable = !busy && !needsReload && !readOnly && Boolean(data);
-  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang, inlineOnDesktop: true,
+  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang,
     onUnauthorized, onDenied: failure => { setData(null); setReceipt(null); setError(failure); setNeedsReload(true); } };
   let eligible = false;
   if (step === 'death-verification') eligible = editable && data.verificationCaseStatus === 'OPEN' && data.vaultStatus === 'AWAITING_VERIFICATION' && data.decisions.length === 0;
@@ -379,7 +380,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         <h3>{en ? `Version ${item.version}` : `Phiên bản ${item.version}`} · {item.version === latest.version ? (en ? 'Current document' : 'Văn bản hiện tại') : (en ? 'Historical document' : 'Văn bản cũ để tra cứu')}</h3>
         <LegalRecordDetails rows={[[en ? 'Document number' : 'Số giấy tờ', item.documentNumber], [en ? 'Issuing authority' : 'Cơ quan ban hành', item.issuingAuthority], [en ? 'Issue date' : 'Ngày ban hành', legalDate(item.issueDate)], ...(data.dossier.route === 'NOTARIAL' ? [[en ? 'Notary office' : 'Tổ chức công chứng', item.notaryAuthority], [en ? 'Notarial document number' : 'Số văn bản công chứng', item.notarialDocumentNumber], [en ? 'Notarized on' : 'Ngày công chứng', legalDate(item.notarizedAt)]] : []), [en ? 'Forwarded at' : 'Thời gian chuyển thẩm định', legalDate(item.forwardedAt)]]} />
         <LegalAllocations version={item} lang={lang} />
-        {!busy && item.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
+        {!busy && item.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version} autoOpen={item.version === latest.version}
           file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />}
       </section>)}
       {data.court?.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /></div>)}</>}

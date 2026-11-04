@@ -39,10 +39,13 @@
 .lv-legal-basis-workspace { display:grid; gap:20px; min-width:0; align-items:start; }
 .lv-legal-basis-source { display:grid; gap:20px; min-width:0; }
 .lv-legal-basis-source:empty, .lv-legal-basis-workspace:not(:has(section)), .lv-legal-basis-other-actions:empty, .lv-legal-basis-hold-footer:empty { display:none; }
-.lv-legal-basis-hold-footer { padding-top:20px; border-top:1px solid #e2e5dc; }
+.lv-legal-action-row { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:8px; }
+@media (max-width:480px) { .lv-legal-action-row { grid-auto-flow:row; } }
+.lv-legal-live .lv-legal-action-row button { white-space:normal; }
+.lv-legal-live .lv-legal-action-row button.lv-decision--hold:not(:disabled) { background:#eef1f5; border-color:#7b8794; color:#334155; }
+.lv-legal-live .lv-legal-action-row button.lv-decision--hold:not(:disabled):hover { background:#e1e6ec; border-color:#52606d; }
 .lv-legal-basis-hold-footer .lv-legal-hold-controls:has(form) { padding:0; border:0; background:transparent; }
 .lv-legal-basis-hold-footer .lv-legal-hold-controls { display:grid; gap:16px; justify-items:stretch; }
-.lv-legal-basis-hold-footer .lv-legal-hold-controls > button { justify-self:start; }
 .lv-legal-live .lv-legal-basis-hold-footer .lv-legal-hold-controls button:disabled { background:#e8ebee; border:1px solid #d4d8df; color:#68727e; opacity:1; cursor:not-allowed; }
 @container(min-width:840px) {
  .lv-legal-basis-workspace.is-review { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
@@ -59,7 +62,6 @@
 .lv-legal-live .lv-legal-basis-decision button.lv-decision--warning:not(:disabled):hover { background:#fce8b9; border-color:#a47821; }
 .lv-legal-live .lv-legal-basis-decision .lv-distribution-actions button:disabled { background:#e8ebee; color:#68727e; border:1px solid #d4d8df; opacity:1; cursor:not-allowed; }
 .lv-legal-hold-controls { min-width:0; }
-.lv-legal-hold-controls > button { border-color:#c29b49; background:#fff8e8; color:#754b0d; }
 .lv-legal-hold-controls:has(form) { display:grid; gap:16px; padding:20px; border:1px solid #d8c49e; border-radius:14px; background:#fff; }
 @media(max-width:640px) {
  .lv-legal-step-data.lv-legal-live__card { padding:16px; }
@@ -132,7 +134,8 @@
 .lv-legal-evidence__preview a { display:inline-flex; align-items:center; min-height:44px; color:var(--legal-ink); }
 .lv-legal-evidence-inline { display:grid; gap:var(--lv-space-3,12px); margin-block-start:var(--lv-space-4,16px); min-width:0; }
 .lv-legal-evidence-inline > header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--lv-space-3,12px); }
-.lv-legal-evidence-inline h4 { margin:0; min-width:0; overflow-wrap:anywhere; font-size:14px; scroll-margin-block-start:112px; }
+.lv-legal-evidence-inline h4 { margin:0; min-width:0; overflow-wrap:anywhere; font-size:14px; }
+.lv-legal-evidence-inline time { color:var(--legal-muted); font-size:14px; }
 .lv-legal-workspace > [role=alert],.lv-legal-workspace > [role=status] { grid-column:1 / -1; }
 /* Evidence dialogs must stay above the shell and the adjacent action panel. */
 .lv-legal-surfaces .lv-legal-documents.lv-surface-card { isolation:auto; }
@@ -163,3 +166,9 @@
 .lv-legal-live .lv-workflow-feedback p { font-size:14px; margin:0; }
 .lv-legal-context-actions { display:flex; flex-wrap:wrap; gap:var(--lv-space-3,12px); margin-block:var(--lv-space-3,12px); }
 .lv-legal-context-actions button { display:inline-flex; align-items:center; gap:8px; min-height:44px; max-width:100%; white-space:normal; text-align:start; }
+
+/* The refresh action stays reachable while reading a long case, without covering the text. */
+.lv-legal-live .lv-legal-context-actions { position:fixed; right:24px; bottom:24px; z-index:20; margin:0; }
+.lv-legal-live .lv-legal-context-actions button { background:#fff; box-shadow:0 4px 14px rgb(13 37 28 / .18); }
+.lv-legal-live:has(.lv-legal-context-actions) { padding-bottom:72px; }
+@media (max-width:640px) { .lv-legal-live .lv-legal-context-actions { right:16px; bottom:16px; } }
