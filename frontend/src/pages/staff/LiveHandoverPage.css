@@ -277,14 +277,7 @@
 .lv-live-handover .lv-session-guidance {
   color: #52675b;
   margin: 12px 0 16px;
-  font-size: 14px;
-}
-
-.lv-live-handover .lv-session-guidance summary {
-  cursor: pointer;
-  color: #204f40;
-  font-weight: 600;
-  padding: 6px 0;
+  font-size: 16px;
 }
 
 /* Danh sách phiên bàn giao */
@@ -357,13 +350,13 @@
 }
 
 .lv-live-handover .lv-session-status--completed {
-  color: #166534;
-  background: #dcfce7;
+  color: #5e6b62;
+  background: #eef0eb;
 }
 
 .lv-live-handover .lv-session-status--open {
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: #166534;
+  background: #dcfce7;
 }
 
 .lv-live-handover .lv-session-status--cancelled {
@@ -386,6 +379,16 @@
   border-top: 3px solid #b69b62;
   background: #ffffff;
   border-radius: 14px;
+}
+/* Session list, selected session and attendance read as one block. */
+.lv-live-handover .lv-session-panel.lv-session-panel > :is(.lv-session-detail, .lv-group-handover) {
+  margin: 20px 0 0;
+  padding: 20px 0 0;
+  border: 0;
+  border-top: 1px solid #e2e5dc;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .lv-live-handover .lv-session-detail > * { margin: 0; }
 .lv-live-handover .lv-session-detail h3 { font-size: 21px; font-weight: 700; color: #203e33; }

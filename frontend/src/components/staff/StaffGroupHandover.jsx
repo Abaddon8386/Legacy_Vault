@@ -4,7 +4,7 @@ import {fetchStaffCaseBeneficiaries} from '../../pages/staff/liveHandoverService
 import {workflowFailure} from '../../utils/workflowFeedback.js';
 import './StaffGroupHandover.css';
 export default function StaffGroupHandover(props){return <GroupScope key={JSON.stringify([props.caseId,props.sessionId,props.accessToken,props.lang])} {...props}/>;}
-function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthorized}){
+function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthorized,layout,hideWhenAllowed=false}){
   const en=lang==='en',[result,setResult]=useState(null),[attempt,setAttempt]=useState(0),[error,setError]=useState(null),[busy,setBusy]=useState(false),[present,setPresent]=useState([]),[reason,setReason]=useState(''),[notice,setNotice]=useState('');
   const [editing,setEditing]=useState(false);
   const mutation=useRef(null),lock=useRef(false),retry=useRef(null),draftRevision=useRef(null),savedAttendance=useRef(null),auth=useRef(onUnauthorized);
@@ -32,15 +32,15 @@ function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthori
   const everyoneRecorded=!!view?.state.allPresent&&freshAttendance;
   const allSelected=!!view&&view.requiredRecipientIds.every(id=>present.includes(id));
   const awaiting=view?.state.status==='AWAITING_LEGAL';
-  const titles={UNCONFIRMED:en?'Staff must record attendance':'Nhân viên cần ghi nhận người có mặt',READY:en?'Attendance requirement satisfied':'Đã đủ điều kiện về người nhận',
+  const titles={UNCONFIRMED:en?'Record attendance':'Ghi nhận người có mặt',READY:en?'Attendance requirement satisfied':'Đã đủ điều kiện về người nhận',
     SUSPENDED:everyoneRecorded?(en?'Everyone present — request reopening':'Đã đủ người — cần gửi yêu cầu mở lại'):(en?'The whole handover is suspended':'Toàn bộ quy trình bàn giao đang tạm khóa'),
     AWAITING_LEGAL:everyoneRecorded?(en?'Everyone present — awaiting Legal reopening decision':'Đã đủ người — đang chờ Ban Pháp lý cho mở lại'):(en?'Attendance must be confirmed again':'Cần xác nhận lại tình hình có mặt')};
   const suspended=['SUSPENDED','AWAITING_LEGAL'].includes(view?.state.status);
   const content=view?.deliveryAllowed&&!busy&&!error&&!editing?(typeof children==='function'?children(view):children):null;
-  return <><section className="lv-group-handover" aria-busy={busy||(!current&&!error)}><h2>{titles[view?.state.status]||(en?'Attendance at the counter':'Người nhận có mặt tại quầy')}</h2>
+  const attendance=<section className="lv-group-handover" aria-busy={busy||(!current&&!error)}><h2>{titles[view?.state.status]||(en?'Attendance at the counter':'Người nhận có mặt tại quầy')}</h2>
     <p>{en?'All approved recipients must attend before any delivery. Missing anyone suspends the whole handover immediately. Only Legal can allow reopening after Staff requests it.':'Phải có đầy đủ người nhận đã được duyệt trước khi giao tài sản. Thiếu một người sẽ tạm khóa toàn bộ ngay. Nhân viên gửi yêu cầu mở lại khi đã đủ người; Ban Pháp lý xem xét cho phép.'}</p>
     {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{workflowFailure(error,lang).description}</p>}
-    <button type="button" onClick={()=>setAttempt(x=>x+1)} disabled={busy}>{en?'Refresh attendance status':'Cập nhật tình hình bàn giao'}</button>
+    <button type="button" onClick={()=>setAttempt(x=>x+1)} disabled={busy}>{en?'Reload attendance':'Tải lại danh sách có mặt'}</button>
     {!current&&!error&&<p role="status">{en?'Loading current recipients…':'Đang tải danh sách người nhận hiện hành…'}</p>}
     {view&&<><p role="status" className="lv-group-handover__state-note">{view.deliveryAllowed?(en?'The server permits delivery under the current attendance record.':'Đã đủ điều kiện về người nhận để tiếp tục bàn giao.')
       :everyoneRecorded&&suspended?(awaiting?(en?'Request sent. Do not record attendance again unless it changes; wait for Legal approval.':'Yêu cầu đã gửi. Chờ Ban Pháp lý cho phép mở lại; chỉ ghi nhận lại nếu tình hình có mặt thay đổi.'):(en?'Everyone is recorded as present. Delivery stays suspended until you request reopening and Legal approves it.':'Đã ghi nhận đủ người. Bàn giao vẫn tạm khóa cho đến khi bạn gửi yêu cầu mở lại và Ban Pháp lý chấp thuận.'))
@@ -50,5 +50,8 @@ function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthori
       {(!awaiting||editing)&&<><label>{everyoneRecorded&&allSelected&&view.state.status==='SUSPENDED'?(en?'Reason for reopening request':'Lý do yêu cầu mở lại'):(en?'Counter record / reason':'Ghi nhận thực tế / lý do')}<textarea maxLength={1000} value={reason} onChange={e=>setReason(e.target.value)} disabled={busy}/></label>
       <div className="lv-group-handover__actions">{(!everyoneRecorded||!allSelected||editing)&&<button type="button" className={allSelected?'is-primary':'is-negative'} onClick={()=>save('attendance')} disabled={busy||!namesReady||!reason.trim()}>{allSelected?(en?'Record everyone present':'Ghi nhận đã có đủ người'):(en?'Record absence and suspend all delivery':'Ghi nhận thiếu người và tạm khóa toàn bộ')}</button>}
       {suspended&&view.state.status==='SUSPENDED'&&everyoneRecorded&&<button type="button" className="is-primary" onClick={()=>save('reopen-requests')} disabled={busy||!namesReady||!reason.trim()||!allSelected}>{en?'Request Legal reopening':'Gửi Ban Pháp lý yêu cầu mở lại'}</button>}</div></>}</>}</>}
-  </section>{isValidElement(content)?cloneElement(content,{key:'group-workflow'}):content}</>;
+  </section>;
+  const delivery=isValidElement(content)?cloneElement(content,{key:'group-workflow'}):content;
+  if(layout)return layout(attendance,delivery);
+  return <>{hideWhenAllowed&&content?null:attendance}{delivery}</>;
 }
