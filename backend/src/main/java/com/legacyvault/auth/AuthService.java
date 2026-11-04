@@ -141,7 +141,8 @@ public class AuthService {
     public LoginResponse login(LoginRequest request, String clientIp) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
 
-        loginAttemptLimiter.requireAllowed(normalizedEmail, clientIp);
+        // Atomic check + count before any password work, so parallel requests cannot all slip under the limit.
+        long attemptId = loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
 
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
 
@@ -156,12 +157,14 @@ public class AuthService {
                 || !user.isPasswordLoginAllowed()
                 || !passwordMatches) {
 
-            loginAttemptLimiter.recordFailure(normalizedEmail, clientIp);
             auditService.recordLoginFailure(user != null ? user.getUserId() : null);
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        return issueLoginResponseForActiveUser(user);
+        LoginResponse response = issueLoginResponseForActiveUser(user);
+        // Only failures stay counted: a successful login gives its reservation back.
+        loginAttemptLimiter.releaseAttempt(attemptId);
+        return response;
     }
 
     private String dummyPasswordHash() {
