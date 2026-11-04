@@ -262,16 +262,34 @@ class WillComparisonServiceTest {
         verify(comparisonRepository, never()).saveAndFlush(any());
     }
 
+    private static final LocalDateTime T = LocalDateTime.of(2026, 10, 4, 10, 0);
+
+    private static WillComparisonRow row(int version, String result, LocalDateTime at) {
+        return new WillComparisonRow(UUID.randomUUID(), INTAKE_ID, WILL_ID, version, HASH, result,
+                UUID.randomUUID(), "lý do", at);
+    }
+
+    private static WillVersionView scan(int version) {
+        return new WillVersionView(WILL_DB_ID, version, "di-chuc.pdf", "application/pdf", 1234L, HASH, "UPLOADED",
+                LocalDateTime.of(2026, 10, 1, 9, 0));
+    }
+
+    /** Ca tồn tại, di chúc có các bản scan với số phiên bản cho trước. */
+    private void caseWithScanVersions(int... versions) {
+        when(caseRepository.findById(CASE_DB_ID)).thenReturn(Optional.of(openCase()));
+        when(willAssetRepository.findWill(WILL_ID, VAULT_ID)).thenReturn(Optional.of(will()));
+        when(assetVersionRepository.findVersions(WILL_DB_ID))
+                .thenReturn(java.util.Arrays.stream(versions).mapToObj(WillComparisonServiceTest::scan).toList());
+    }
+
     private void latestComparison(String result) {
-        WillComparison c = new WillComparison(CASE_DB_ID, INTAKE_DB_ID, 800L, HASH, result, LEGAL_ID, "lý do");
-        when(comparisonRepository.findFirstByVerificationCaseIdOrderByComparedAtDescWillComparisonIdDesc(CASE_DB_ID))
-                .thenReturn(Optional.of(c));
+        when(comparisonRepository.findRowsByCase(CASE_DB_ID)).thenReturn(List.of(row(2, result, T)));
     }
 
     @Test
     void approvalIsBlockedUnlessLatestComparisonIsMatch() {
-        when(comparisonRepository.findFirstByVerificationCaseIdOrderByComparedAtDescWillComparisonIdDesc(CASE_DB_ID))
-                .thenReturn(Optional.empty());
+        caseWithScanVersions(1, 2);
+        when(comparisonRepository.findRowsByCase(CASE_DB_ID)).thenReturn(List.of());
         assertThat(service.isApprovalBlocked(CASE_DB_ID)).as("chưa đối chiếu").isTrue();
 
         latestComparison("MISMATCH");
@@ -281,7 +299,55 @@ class WillComparisonServiceTest {
         assertThat(service.isApprovalBlocked(CASE_DB_ID)).as("INCONCLUSIVE").isTrue();
 
         latestComparison("MATCH");
-        assertThat(service.isApprovalBlocked(CASE_DB_ID)).as("MATCH").isFalse();
+        assertThat(service.isApprovalBlocked(CASE_DB_ID)).as("MATCH trên bản số mới nhất").isFalse();
+    }
+
+    @Test
+    void matchOnSupersededScanVersionBlocksApproval_PS139_AC4() {
+        // Legal đã MATCH bản số 1, sau đó Owner tải bản số 2: kết luận cũ không áp cho bản số mới.
+        caseWithScanVersions(1, 2);
+        when(comparisonRepository.findRowsByCase(CASE_DB_ID)).thenReturn(List.of(row(1, "MATCH", T)));
+
+        assertThat(service.isApprovalBlocked(CASE_DB_ID)).isTrue();
+    }
+
+    @Test
+    void newPaperWithMatchOnNewScanVersionUnblocksApprovalAgain() {
+        // Staff nhận bản giấy mới, Legal kết luận MATCH trên bản số 2; kết luận bản số 1 chỉ còn là lịch sử.
+        caseWithScanVersions(1, 2);
+        when(comparisonRepository.findRowsByCase(CASE_DB_ID)).thenReturn(List.of(
+                row(2, "MATCH", T), row(1, "MATCH", T.minusDays(1))));
+
+        assertThat(service.isApprovalBlocked(CASE_DB_ID)).isFalse();
+    }
+
+    @Test
+    void approvalIsBlockedWhenCaseOrComparedWillCannotBeFound() {
+        when(caseRepository.findById(CASE_DB_ID)).thenReturn(Optional.empty());
+        assertThat(service.isApprovalBlocked(CASE_DB_ID)).as("không có ca").isTrue();
+
+        when(caseRepository.findById(CASE_DB_ID)).thenReturn(Optional.of(openCase()));
+        when(willAssetRepository.findWill(WILL_ID, VAULT_ID)).thenReturn(Optional.empty());
+        when(comparisonRepository.findRowsByCase(CASE_DB_ID)).thenReturn(List.of(row(2, "MATCH", T)));
+        assertThat(service.isApprovalBlocked(CASE_DB_ID)).as("không có di chúc").isTrue();
+    }
+
+    @Test
+    void overview_matchOnSupersededScanVersion_keepsHistoryButBlocksApproval() {
+        when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.of(openCase()));
+        when(vaultRepository.findById(VAULT_ID)).thenReturn(Optional.of(vault("WILL_VERIFICATION")));
+        when(intakeRepository.findByVerificationCaseIdOrderByReceivedAtDescOriginalWillIntakeIdDesc(CASE_DB_ID))
+                .thenReturn(List.of(intake()));
+        when(willAssetRepository.findWills(any(Long.class), any())).thenReturn(new PageImpl<>(List.of(will())));
+        when(willAssetRepository.findWill(WILL_ID, VAULT_ID)).thenReturn(Optional.of(will()));
+        when(assetVersionRepository.findVersions(WILL_DB_ID)).thenReturn(List.of(scan(2), scan(1)));
+        when(comparisonRepository.findRowsByCase(CASE_DB_ID)).thenReturn(List.of(row(1, "MATCH", T)));
+
+        WillComparisonOverviewResponse response = service.overview(CASE_ID);
+
+        assertThat(response.latestResult()).as("lịch sử vẫn hiện").isEqualTo("MATCH");
+        assertThat(response.comparisons()).hasSize(1);
+        assertThat(response.approvalBlocked()).as("nhưng không còn mở luồng duyệt").isTrue();
     }
 
     @Test
