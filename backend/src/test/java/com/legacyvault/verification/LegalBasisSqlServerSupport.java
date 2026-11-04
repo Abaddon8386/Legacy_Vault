@@ -78,6 +78,8 @@ abstract class LegalBasisSqlServerSupport {
         long caseId = jdbc.queryForObject("INSERT dbo.verification_cases (public_id, vault_id, triggered_at, assigned_staff_user_id) OUTPUT inserted.verification_case_id VALUES (?, ?, SYSUTCDATETIME(), ?)", Long.class, casePublic.toString(), vaultId, userId);
         if (match) {
             long assetId = jdbc.queryForObject("INSERT dbo.assets (vault_id, asset_type, title) OUTPUT inserted.asset_id VALUES (?, 'DOCUMENT', 'Fixture will')", Long.class, vaultId);
+            // findWill only recognises an asset as a will when it has a WILL legal document (PS-139 gate depends on it).
+            jdbc.update("INSERT dbo.legal_documents (asset_id, document_type) VALUES (?, 'WILL')", assetId);
             long versionId = jdbc.queryForObject("INSERT dbo.asset_versions (asset_id, version_no, original_file_name, content_type, file_size_bytes, sha256_hash, encrypted_file_content, encryption_iv, encryption_key_version, uploaded_by_user_id) OUTPUT inserted.asset_version_id VALUES (?, 1, 'fixture.pdf', 'application/pdf', 1, ?, 0x01, 0x000000000000000000000000, 'test', ?)", Long.class, assetId, HASH, userId);
             long intakeId = jdbc.queryForObject("INSERT dbo.original_will_intakes (verification_case_id, delivered_by_name, received_by_user_id) OUTPUT inserted.original_will_intake_id VALUES (?, 'Fixture', ?)", Long.class, caseId, userId);
             jdbc.update("INSERT dbo.will_comparisons (verification_case_id, original_will_intake_id, asset_version_id, referenced_sha256_hash, comparison_result, checked_by_user_id) VALUES (?, ?, ?, ?, 'MATCH', ?)", caseId, intakeId, versionId, HASH, userId);
