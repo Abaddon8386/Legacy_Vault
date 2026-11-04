@@ -3,6 +3,7 @@ package com.legacyvault.verification;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -250,6 +251,234 @@ class DistributionWorkflowSqlServerTest extends LegalBasisSqlServerSupport {
         assertThrows(BusinessException.class, () -> workflow().unlock(f.publicCaseId(), f.legal()));
         assertEquals(6, count("distribution_workflow_events", "verification_case_id=?", f.caseId()),
                 "request, document approval, two submissions, one change request, allocation approval");
+    }
+
+    @Test
+    void finalRejectionBlocksFurtherStepsUntilSupplementationIsRequested() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the deed"));
+        upload(f);
+        workflow().forward(f.publicCaseId(), 1, f.legal());
+        act(f, LEGAL, "approveDocuments", body(view(f, LEGAL), "Deed is valid"));
+        UUID asset = asset(f.vaultId(), "Savings"), recipient = recipient(f.vaultId(), "Recipient A");
+        act(f, STAFF, "submitAllocations", submit(view(f, STAFF), asset, recipient, "All of it"));
+        act(f, LEGAL, "approveAllocations", allocationBody(view(f, LEGAL), "Allocation matches"));
+        assertEquals("FINAL_APPROVAL", view(f, LEGAL).phase());
+        var snapshot = workflow().legalContext(f.legal(), f.publicCaseId()).snapshot();
+        int notificationsBefore = count("workflow_notifications", "case_id=?", f.caseId());
+
+        var rejection = workflow().decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.REJECT, snapshot.currentVersion(),
+                        snapshot.sha256Hash(), snapshot.allocationHash(), "Missing supporting evidence"));
+
+        assertEquals("LEGAL_REJECTED", rejection.decision());
+        assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f));
+        assertEquals(1, allocationRows(f, "REJECTED"));
+        assertEquals(0, allocationRows(f, "APPROVED"));
+        var staffDecision = context.getBean(com.legacyvault.verification.service.BasisDossierViewService.class)
+                .forStaff(f.publicCaseId(), f.legal()).currentDecision();
+        assertNotNull(staffDecision);
+        assertEquals("LEGAL_REJECTED", staffDecision.status());
+        assertEquals("Missing supporting evidence", staffDecision.reason());
+        assertEquals(snapshot.currentVersion(), staffDecision.documentVersion());
+        assertEquals(snapshot.sha256Hash(), staffDecision.documentSha256());
+        assertEquals(snapshot.allocationHash(), staffDecision.allocationSha256());
+        assertEquals(1, count("legal_basis_review_history", "public_id=? AND review_status='LEGAL_REJECTED'",
+                staffDecision.id().toString()));
+        assertNotNull(rejection.notification());
+        assertEquals(notificationsBefore + 1, count("workflow_notifications", "case_id=?", f.caseId()));
+        assertEquals(1, count("workflow_notifications", "case_id=? AND public_id=? AND action='LEGAL_BASIS_DECIDED' AND event_key=?",
+                f.caseId(), rejection.notification().id().toString(), "decision:" + staffDecision.id()));
+
+        var legal = view(f, LEGAL);
+        var staff = view(f, STAFF);
+        assertEquals("REJECTED", legal.phase());
+        assertEquals("REJECTED", staff.phase());
+        assertTrue(legal.capabilities().get("requestDocumentSupplementation").allowed());
+        assertFalse(staff.capabilities().get("uploadDocuments").allowed());
+        assertFalse(staff.capabilities().get("submitAllocations").allowed());
+        assertFalse(legal.capabilities().get("approveDocuments").allowed());
+        assertFalse(legal.capabilities().get("approveAllocations").allowed());
+        var legalContext = workflow().legalContext(f.legal(), f.publicCaseId());
+        assertFalse(legalContext.capabilities().approval().allowed());
+        assertFalse(legalContext.capabilities().unlock().allowed());
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> upload(f)));
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> act(f, STAFF, "submitAllocations",
+                submit(staff, asset, recipient, "Changed allocation"))));
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> workflow().decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, snapshot.currentVersion(),
+                        snapshot.sha256Hash(), snapshot.allocationHash(), "Retry approval"))));
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> workflow().unlock(f.publicCaseId(), f.legal())));
+        assertEquals("REJECTED", view(f, LEGAL).phase());
+        assertEquals(notificationsBefore + 1, count("workflow_notifications", "case_id=?", f.caseId()));
+    }
+
+    @Test
+    void supplementationFromRejectionValidatesBeforeWritingAndReturnsTheCaseToStaff() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the deed"));
+        upload(f);
+        workflow().forward(f.publicCaseId(), 1, f.legal());
+        act(f, LEGAL, "approveDocuments", body(view(f, LEGAL), "Deed is valid"));
+        UUID asset = asset(f.vaultId(), "Savings"), recipient = recipient(f.vaultId(), "Recipient A");
+        act(f, STAFF, "submitAllocations", submit(view(f, STAFF), asset, recipient, "All of it"));
+        act(f, LEGAL, "approveAllocations", allocationBody(view(f, LEGAL), "Allocation matches"));
+        var snapshot = workflow().legalContext(f.legal(), f.publicCaseId()).snapshot();
+        workflow().decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.REJECT, snapshot.currentVersion(),
+                        snapshot.sha256Hash(), snapshot.allocationHash(), "Missing supporting evidence"));
+        var rejected = view(f, LEGAL);
+        assertEquals("REJECTED", rejected.phase());
+        long dossierId = jdbc.queryForObject("SELECT legal_basis_dossier_id FROM dbo.legal_basis_dossiers WHERE verification_case_id=?",
+                Long.class, f.caseId());
+        int historyBefore = count("legal_basis_review_history", "legal_basis_dossier_id=?", dossierId);
+        int eventsBefore = count("distribution_workflow_events", "verification_case_id=?", f.caseId());
+        int notificationsBefore = count("workflow_notifications", "case_id=?", f.caseId());
+        int auditsBefore = count("audit_logs", "vault_id=?", f.vaultId());
+        var views = context.getBean(com.legacyvault.verification.service.BasisDossierViewService.class);
+        var rejection = views.forStaff(f.publicCaseId(), f.legal()).currentDecision();
+        assertNotNull(rejection);
+
+        var invalidRequests = List.of(
+                java.util.Map.entry(ErrorCode.VALIDATION_FAILED, body(rejected, "   ")),
+                java.util.Map.entry(ErrorCode.DISTRIBUTION_WORKFLOW_STALE,
+                        new ActionBody(rejected.revision() - 1, "Bring more evidence", 1, snapshot.sha256Hash(), null, null, null)),
+                java.util.Map.entry(ErrorCode.DISTRIBUTION_WORKFLOW_STALE,
+                        new ActionBody(rejected.revision(), "Bring more evidence", 2, snapshot.sha256Hash(), null, null, null)),
+                java.util.Map.entry(ErrorCode.DISTRIBUTION_WORKFLOW_STALE,
+                        new ActionBody(rejected.revision(), "Bring more evidence", 1, "c".repeat(64), null, null, null)));
+        for (var invalid : invalidRequests) {
+            assertEquals(invalid.getKey(), codeOf(() -> workflow().perform(f.publicCaseId(), LEGAL,
+                    "requestDocumentSupplementation", invalid.getValue(), f.legal())));
+            assertEquals("REJECTED", view(f, LEGAL).phase());
+            assertEquals(rejected.revision(), view(f, LEGAL).revision());
+            assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f));
+            assertEquals(rejection, views.forStaff(f.publicCaseId(), f.legal()).currentDecision());
+            assertEquals(historyBefore, count("legal_basis_review_history", "legal_basis_dossier_id=?", dossierId));
+            assertEquals(eventsBefore, count("distribution_workflow_events", "verification_case_id=?", f.caseId()));
+            assertEquals(notificationsBefore, count("workflow_notifications", "case_id=?", f.caseId()));
+            assertEquals(auditsBefore, count("audit_logs", "vault_id=?", f.vaultId()));
+        }
+
+        var receipt = workflow().perform(f.publicCaseId(), LEGAL, "requestDocumentSupplementation",
+                body(rejected, "  Bring the missing supporting evidence  "), f.legal());
+        var returned = view(f, STAFF);
+        assertEquals("AWAITING_DOCUMENTS", returned.phase());
+        assertEquals(rejected.revision() + 1, returned.revision());
+        assertEquals("AWAITING_LEGAL_BASIS", vaultStatus(f));
+        assertEquals("LEGAL_BASIS_PROVIDED", jdbc.queryForObject(
+                "SELECT status FROM dbo.legal_basis_dossiers WHERE legal_basis_dossier_id=?", String.class, dossierId));
+        assertEquals("REVIEW_REQUIRED", jdbc.queryForObject(
+                "SELECT review_status FROM dbo.legal_basis_dossiers WHERE legal_basis_dossier_id=?", String.class, dossierId));
+        assertEquals("CHANGES_REQUESTED", returned.document().status());
+        assertEquals("Bring the missing supporting evidence", returned.feedback());
+        assertTrue(returned.capabilities().get("uploadDocuments").allowed());
+        assertFalse(returned.capabilities().get("submitAllocations").allowed());
+        assertNull(views.forStaff(f.publicCaseId(), f.legal()).currentDecision());
+        assertEquals(historyBefore + 1, count("legal_basis_review_history", "legal_basis_dossier_id=?", dossierId));
+        assertEquals(eventsBefore + 1, count("distribution_workflow_events", "verification_case_id=?", f.caseId()));
+        assertEquals(1, count("legal_basis_review_history", "public_id=? AND review_status='LEGAL_REJECTED'", rejection.id().toString()));
+        String reviewId = jdbc.queryForObject("SELECT CONVERT(varchar(36), public_id) FROM dbo.legal_basis_review_history "
+                + "WHERE legal_basis_dossier_id=? AND reason_code='LEGAL_REQUESTED_SUPPLEMENTATION'", String.class, dossierId);
+        assertNotNull(receipt.notification());
+        assertEquals("RECORDED", receipt.notification().status());
+        assertEquals(com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF, receipt.notification().recipientWorkspace());
+        assertEquals(notificationsBefore + 1, count("workflow_notifications", "case_id=?", f.caseId()));
+        assertEquals(1, count("workflow_notifications", "case_id=? AND public_id=? AND action='LEGAL_BASIS_REVIEW_REQUIRED' AND event_key=? AND reason=?",
+                f.caseId(), receipt.notification().id().toString(), "basis-review:" + reviewId, "Bring the missing supporting evidence"));
+    }
+
+    @Test
+    void supplementedNewVersionMustBeReviewedAgainBeforeFinalApprovalAndUnlock() {
+        var f = fixture(true);
+        act(f, LEGAL, "requestDocuments", body(view(f, LEGAL), "Bring the deed"));
+        upload(f);
+        workflow().forward(f.publicCaseId(), 1, f.legal());
+        act(f, LEGAL, "approveDocuments", body(view(f, LEGAL), "Deed is valid"));
+        UUID asset = asset(f.vaultId(), "Savings"), recipient = recipient(f.vaultId(), "Recipient A");
+        act(f, STAFF, "submitAllocations", submit(view(f, STAFF), asset, recipient, "All of it"));
+        act(f, LEGAL, "approveAllocations", allocationBody(view(f, LEGAL), "Allocation matches"));
+        var oldSnapshot = workflow().legalContext(f.legal(), f.publicCaseId()).snapshot();
+        var rejected = workflow().decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.REJECT, oldSnapshot.currentVersion(),
+                        oldSnapshot.sha256Hash(), oldSnapshot.allocationHash(), "Missing supporting evidence"));
+        assertEquals("REJECTED", view(f, LEGAL).phase());
+        var views = context.getBean(com.legacyvault.verification.service.BasisDossierViewService.class);
+        var oldDecision = views.forStaff(f.publicCaseId(), f.legal()).currentDecision();
+        assertNotNull(oldDecision);
+        act(f, LEGAL, "requestDocumentSupplementation", body(view(f, LEGAL), "Bring corrected evidence"));
+        assertEquals("AWAITING_DOCUMENTS", view(f, STAFF).phase());
+        assertNull(views.forStaff(f.publicCaseId(), f.legal()).currentDecision());
+
+        workflow().receive(f.publicCaseId(), f.legal(), notarialMetadata(List.of()),
+                new MockMultipartFile("file", "corrected-deed.pdf", "application/pdf",
+                        "%PDF-1.4\nCorrected deed with supporting evidence\n%%EOF".getBytes(StandardCharsets.UTF_8)));
+        var stored = view(f, STAFF);
+        assertEquals("AWAITING_DOCUMENTS", stored.phase());
+        assertEquals(2, stored.document().version());
+        assertEquals("PENDING", stored.document().status());
+        assertFalse(oldSnapshot.sha256Hash().equals(stored.document().sha256()));
+        assertTrue(stored.capabilities().get("forwardDocuments").allowed());
+        assertNull(views.forStaff(f.publicCaseId(), f.legal()).currentDecision());
+        workflow().forward(f.publicCaseId(), 2, f.legal());
+        var document = view(f, LEGAL);
+        assertEquals("DOCUMENTS_UNDER_REVIEW", document.phase());
+        assertEquals(2, document.document().version());
+        assertEquals("PENDING", document.document().status());
+        assertNull(views.forStaff(f.publicCaseId(), f.legal()).currentDecision());
+        assertEquals(ErrorCode.DISTRIBUTION_WORKFLOW_STALE, codeOf(() -> act(f, LEGAL, "approveDocuments",
+                new ActionBody(document.revision(), "Old document", oldSnapshot.currentVersion(), oldSnapshot.sha256Hash(), null, null, null))));
+        act(f, LEGAL, "approveDocuments", body(document, "Corrected deed is valid"));
+        assertEquals("AWAITING_ALLOCATIONS", view(f, STAFF).phase());
+        assertEquals("APPROVED", view(f, STAFF).document().status());
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> workflow().unlock(f.publicCaseId(), f.legal())));
+        act(f, STAFF, "submitAllocations", submit(view(f, STAFF), asset, recipient, "Corrected share"));
+        var allocation = view(f, LEGAL);
+        assertEquals("ALLOCATIONS_UNDER_REVIEW", allocation.phase());
+        assertEquals("SUBMITTED", allocation.allocation().status());
+        assertEquals("Corrected share", allocation.allocation().items().get(0).description());
+        assertFalse(workflow().legalContext(f.legal(), f.publicCaseId()).capabilities().approval().allowed());
+        int beforeReview = count("workflow_notifications", "case_id=?", f.caseId());
+        act(f, LEGAL, "approveAllocations", allocationBody(allocation, "Corrected allocation matches"));
+        assertEquals(beforeReview + 1, count("workflow_notifications", "case_id=?", f.caseId()));
+        assertEquals("FINAL_APPROVAL", view(f, LEGAL).phase());
+        var current = workflow().legalContext(f.legal(), f.publicCaseId());
+        assertTrue(current.snapshot().reviewFresh());
+        assertEquals(2, current.snapshot().currentVersion());
+        assertEquals(stored.document().sha256(), current.snapshot().sha256Hash());
+        assertTrue(current.capabilities().approval().allowed());
+        assertFalse(current.capabilities().unlock().allowed());
+        assertNull(views.forStaff(f.publicCaseId(), f.legal()).currentDecision());
+        assertEquals(ErrorCode.LEGAL_DECISION_STALE, codeOf(() -> workflow().decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, oldSnapshot.currentVersion(),
+                        oldSnapshot.sha256Hash(), oldSnapshot.allocationHash(), "Old snapshot"))));
+        assertEquals("FINAL_APPROVAL", view(f, LEGAL).phase());
+        assertEquals(beforeReview + 1, count("workflow_notifications", "case_id=?", f.caseId()));
+        assertEquals(ErrorCode.DISTRIBUTION_NOT_CURRENT_STEP, codeOf(() -> workflow().unlock(f.publicCaseId(), f.legal())));
+
+        var approved = workflow().decide(f.publicCaseId(), f.legal(),
+                new LegalApprovalRequest(LegalApprovalRequest.Decision.APPROVE, current.snapshot().currentVersion(),
+                        current.snapshot().sha256Hash(), current.snapshot().allocationHash(), "Corrected evidence accepted"));
+        assertEquals("LEGAL_APPROVED", approved.decision());
+        assertEquals("APPROVED", view(f, LEGAL).phase());
+        assertEquals("LEGAL_BASIS_VERIFICATION", vaultStatus(f));
+        var decision = views.forStaff(f.publicCaseId(), f.legal()).currentDecision();
+        assertNotNull(decision);
+        assertEquals("LEGAL_APPROVED", decision.status());
+        assertEquals(2, decision.documentVersion());
+        assertEquals(current.snapshot().sha256Hash(), decision.documentSha256());
+        assertEquals(current.snapshot().allocationHash(), decision.allocationSha256());
+        assertFalse(oldDecision.id().equals(decision.id()));
+        assertNotNull(approved.notification());
+        assertFalse(rejected.notification().id().equals(approved.notification().id()));
+        assertEquals(1, count("workflow_notifications", "case_id=? AND public_id=? AND action='LEGAL_BASIS_DECIDED' AND event_key=?",
+                f.caseId(), approved.notification().id().toString(), "decision:" + decision.id()));
+        assertEquals(1, count("legal_basis_review_history", "public_id=? AND review_status='LEGAL_REJECTED' AND version_no=1 AND sha256_hash=?",
+                oldDecision.id().toString(), oldSnapshot.sha256Hash()));
+        assertTrue(workflow().legalContext(f.legal(), f.publicCaseId()).capabilities().unlock().allowed());
+        workflow().unlock(f.publicCaseId(), f.legal());
+        assertEquals("UNLOCKED", view(f, LEGAL).phase());
+        assertEquals("UNLOCKED", vaultStatus(f));
     }
 
     @Test
