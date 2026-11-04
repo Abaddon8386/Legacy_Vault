@@ -1,5 +1,5 @@
 .lv-court-editor { display:grid; gap:16px; min-width:0; }
-.lv-court-editor__heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.lv-court-editor__heading { display:flex; flex-direction:column; align-items:flex-start; gap:12px; }
 .lv-court-editor__row { min-width:0; margin:0; padding:18px; border:1px solid #dbe3dc; border-radius:12px; background:#fafbf8; }
 .lv-court-editor__row legend { padding:0 8px; font-weight:600; }
 .lv-court-editor__fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-bottom:12px; }
