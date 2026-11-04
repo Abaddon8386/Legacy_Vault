@@ -263,7 +263,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     willVersion: storedDraft.willVersion || (digitalOptions.length === 1 ? digitalOptions[0] : '') };
   const set = (name, value) => setDraft(prev => ['originalWillIntakeId','willVersion'].includes(name)
     ? {...prev,[name]:value,result:'',reason:''} : ({ ...prev, [name]: value }));
-  const input = (name, title, values) => ['originalWillIntakeId', 'willVersion'].includes(name) && values.length === 1 ? <LegalRecordDetails rows={[[title, values[0][1]]]} /> : <label>{title}<select value={draft[name] || ''} onChange={e => set(name, e.target.value)} disabled={busy} required>
+  const input = (name, title, values) => ['originalWillIntakeId', 'willVersion'].includes(name) && values.length === 1 ? <LegalRecordDetails rows={[[title, values[0][1]]]} /> : <label><span>{title}<span className="lv-required-mark" aria-hidden="true">*</span></span><select value={draft[name] || ''} onChange={e => set(name, e.target.value)} disabled={busy} required>
     <option value="">{en ? 'Select' : 'Chọn'}</option>{values.map(([value, title]) => <option key={value} value={value}>{title}</option>)}
   </select></label>;
   const pick = (name, title, values) => input(name, title, values.map(value => [value, label(value, en)]));
@@ -398,7 +398,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         {draft.action === 'court' && pick('result', en ? 'Court decision result' : 'Kết luận quyết định tòa', ['VALID', 'INVALID', 'INCONCLUSIVE'])}
         {draft.action === 'hold' && pick('cause', en ? 'Cause' : 'Nguyên nhân', ['NEW_DISPUTE', 'INSUFFICIENT_EVIDENCE'])}
       </>}
-      <label>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}<textarea value={draft.reason || ''} maxLength={1000} disabled={busy} required={step !== 'will-document-verification' || draft.result !== 'MATCH'} onChange={e => set('reason', e.target.value)} /></label>
+      <label><span>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}{(step !== 'will-document-verification' || draft.result !== 'MATCH') && <span className="lv-required-mark" aria-hidden="true">*</span>}</span><textarea value={draft.reason || ''} maxLength={1000} disabled={busy} required={step !== 'will-document-verification' || draft.result !== 'MATCH'} onChange={e => set('reason', e.target.value)} /></label>
       <div className="lv-legal-form-actions"><button type="submit" className={draft.decision === 'REJECT' || ['MISMATCH', 'INVALID'].includes(draft.result) ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!eligible || !fieldsComplete} aria-describedby={!eligible || !fieldsComplete ? 'legal-review-blocked' : undefined}><FileCheck2 size={18} aria-hidden="true" />{en ? 'Record decision' : 'Ghi nhận quyết định'}</button></div>
       <WorkflowActionHint id="legal-review-blocked" reason={!eligible ? disabledReason : !fieldsComplete ? (en ? 'Complete the selections and enter a reason above.' : 'Chọn đầy đủ thông tin và nhập lý do phía trên.') : ''} />
     </form></section>}

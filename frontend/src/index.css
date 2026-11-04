@@ -1,5 +1,11 @@
 @import './styles/tokens.css';
 
+.lv-required-mark {
+  margin-inline-start: 4px;
+  color: var(--lv-required);
+  font-weight: 700;
+}
+
 /* ==========================================================================
    Base Reset & Normalization
    ========================================================================== */

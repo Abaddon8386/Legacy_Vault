@@ -224,7 +224,8 @@ public class WillComparisonService {
                                 .toList()))
                 .toList();
 
-        List<WillComparisonResponse> comparisons = comparisonRepository.findRowsByCase(caseDbId).stream()
+        List<WillComparisonRow> comparisonRows = comparisonRepository.findRowsByCase(caseDbId);
+        List<WillComparisonResponse> comparisons = comparisonRows.stream()
                 .map(row -> WillComparisonResponse.from(row, verificationCase.getPublicId()))
                 .toList();
 
@@ -232,7 +233,7 @@ public class WillComparisonService {
         return new WillComparisonOverviewResponse(
                 verificationCase.getPublicId(),
                 vault.getStatus(),
-                !WillComparison.RESULT_MATCH.equals(latest),
+                blockedByLatest(comparisonRows, vault.getVaultId()),
                 latest,
                 intakes,
                 wills,
@@ -242,14 +243,39 @@ public class WillComparisonService {
 
     /**
      * Cổng chặn luồng duyệt thông thường (LV-WILL-001): chỉ được qua khi kết quả đối chiếu <b>mới nhất</b> của ca là
-     * MATCH. Chưa đối chiếu, MISMATCH hoặc INCONCLUSIVE đều chặn. Dành cho bước duyệt ST-21 về sau.
+     * MATCH <b>và</b> bản scan được đối chiếu vẫn là phiên bản mới nhất của di chúc đó (PS-139 AC4). Chưa đối chiếu,
+     * MISMATCH, INCONCLUSIVE, hoặc MATCH của một bản số đã bị thay bằng bản mới hơn đều chặn: kết luận cũ chỉ là lịch sử
+     * của bản số cũ. Dành cho bước duyệt ST-21 về sau.
      */
     @Transactional(readOnly = true)
     public boolean isApprovalBlocked(Long verificationCaseId) {
-        return comparisonRepository
-                .findFirstByVerificationCaseIdOrderByComparedAtDescWillComparisonIdDesc(verificationCaseId)
-                .map(c -> !WillComparison.RESULT_MATCH.equals(c.getComparisonResult()))
-                .orElse(true);
+        Long vaultId = caseRepository.findById(verificationCaseId)
+                .map(VerificationCase::getVaultId)
+                .orElse(null);
+        if (vaultId == null) {
+            return true;
+        }
+        return blockedByLatest(comparisonRepository.findRowsByCase(verificationCaseId), vaultId);
+    }
+
+    /** @param rowsNewestFirst kết quả đối chiếu của ca, mới nhất trước (đúng thứ tự của {@code findRowsByCase}). */
+    private boolean blockedByLatest(List<WillComparisonRow> rowsNewestFirst, Long vaultId) {
+        if (rowsNewestFirst.isEmpty()) {
+            return true;
+        }
+        WillComparisonRow latest = rowsNewestFirst.get(0);
+        if (!WillComparison.RESULT_MATCH.equals(latest.result())) {
+            return true;
+        }
+        return !comparedScanIsStillCurrent(latest, vaultId);
+    }
+
+    /** Bản scan đã đối chiếu còn là phiên bản mới nhất của di chúc đó. Không tìm thấy di chúc thì coi là không còn hiện hành. */
+    private boolean comparedScanIsStillCurrent(WillComparisonRow comparison, Long vaultId) {
+        return willAssetRepository.findWill(comparison.willId(), vaultId)
+                .map(will -> assetVersionRepository.findVersions(will.getAssetId()).stream()
+                        .noneMatch(v -> v.versionNo() > comparison.version()))
+                .orElse(false);
     }
 
     private static void validate(RecordWillComparisonRequest request) {

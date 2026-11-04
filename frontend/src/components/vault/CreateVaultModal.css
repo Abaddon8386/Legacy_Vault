@@ -139,7 +139,7 @@
 }
 
 .lv-req-star {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-required);
 }
 
 .lv-char-count {

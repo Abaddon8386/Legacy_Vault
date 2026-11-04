@@ -45,7 +45,7 @@
 .lv-tb-field-group{display:flex;flex-direction:column;gap:6px;min-width:0}
 .lv-tb-field-group.full-width{grid-column:1/-1}
 .lv-tb-label{font-size:14px;font-weight:500;color:#364d3e;line-height:1.5}
-.lv-tb-req{color:#a43e30;margin-left:2px}
+.lv-tb-req{color:var(--lv-required);margin-left:2px}
 .lv-tb-input,.lv-tb-textarea{width:100%;min-width:0;min-height:44px;padding:11px 12px;border:1px solid #d3d8cc;border-radius:7px;font:inherit;font-size:14px;color:#25372e;background:#fff;line-height:1.5}
 .lv-tb-input::placeholder,.lv-tb-textarea::placeholder{color:#7a847b}
 .lv-tb-input.has-error,.lv-tb-textarea.has-error{border-color:#b74437;background:#fffaf8}

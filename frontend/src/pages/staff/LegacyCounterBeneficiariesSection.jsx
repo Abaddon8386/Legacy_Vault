@@ -240,7 +240,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
           }
         }}>
           <h4>{en ? 'Link existing account: ' : 'Liên kết tài khoản có sẵn: '}{linkTarget.fullName}</h4>
-          <label>{en ? 'Account email' : 'Email tài khoản'}
+          <label><span>{en ? 'Account email' : 'Email tài khoản'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
             <input type="email" required maxLength={254} value={accountEmail} disabled={linking}
               onChange={event => setAccountEmail(event.target.value)} autoComplete="off" />
           </label>
@@ -253,7 +253,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
           <h4>{en ? `Record in-person attestation: ${attestTarget.fullName}` : `Ghi nhận đối chiếu tại quầy: ${attestTarget.fullName}`}</h4>
           <div>
             <label>
-              {en ? 'Counter document reference: ' : 'Số tham chiếu chứng từ tại quầy: '}
+              <span>{en ? 'Counter document reference: ' : 'Số tham chiếu chứng từ tại quầy: '}<span className="lv-required-mark" aria-hidden="true">*</span></span>
               <input
                 type="text"
                 required

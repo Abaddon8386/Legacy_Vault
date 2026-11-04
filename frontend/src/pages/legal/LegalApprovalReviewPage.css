@@ -606,7 +606,7 @@
 }
 
 .lv-legal-approval-required {
-  color: #a83232;
+  color: var(--lv-required);
   margin-left: 2px;
 }
 

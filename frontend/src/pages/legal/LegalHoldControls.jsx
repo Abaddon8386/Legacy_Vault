@@ -59,14 +59,14 @@ export default function LegalHoldControls({ context, session, lang = 'vi', disab
       : <button type="button" disabled={disabled || pending} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
         {en ? 'Place case on hold' : 'Tạm dừng xử lý'}</button>}
     {(resume || expanded) && <form className="lv-distribution-form" onSubmit={submit}>
-      <label>{resume ? (en ? 'Resume with these documents' : 'Tiếp tục xử lý theo giấy tờ') : (en ? 'Cause' : 'Nguyên nhân')}
+      <label><span>{resume ? (en ? 'Resume with these documents' : 'Tiếp tục xử lý theo giấy tờ') : (en ? 'Cause' : 'Nguyên nhân')}<span className="lv-required-mark" aria-hidden="true">*</span></span>
         <select required value={choice} disabled={disabled || pending || !!error} onChange={event => setChoice(event.target.value)}>
           <option value="">{en ? 'Select' : 'Chọn'}</option>
           {resume ? <><option value="NOTARIAL">{en ? 'Notarial documents' : 'Hồ sơ công chứng'}</option><option value="COURT">{en ? 'Court documents' : 'Giấy tờ Tòa án'}</option></>
             : <><option value="NEW_DISPUTE">{en ? 'New dispute' : 'Tranh chấp mới'}</option><option value="INSUFFICIENT_EVIDENCE">{en ? 'Insufficient evidence' : 'Thiếu chứng cứ'}</option></>}
         </select>
       </label>
-      <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea required maxLength={1000} value={reason}
+      <label><span>{en ? 'Reason' : 'Lý do'}<span className="lv-required-mark" aria-hidden="true">*</span></span><textarea required maxLength={1000} value={reason}
         disabled={disabled || pending || !!error} onChange={event => setReason(event.target.value)} /></label>
       <button type="submit" className={resume ? 'lv-decision--positive' : undefined} disabled={disabled || pending || !!error || !choice || !reason.trim()}>
         {resume ? (en ? 'Resume processing' : 'Tiếp tục xử lý') : (en ? 'Confirm hold' : 'Xác nhận tạm dừng')}</button>

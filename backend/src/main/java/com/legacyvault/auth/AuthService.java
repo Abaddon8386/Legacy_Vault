@@ -54,6 +54,9 @@ public class AuthService {
     private final AuditService auditService;
     private final PasswordReauthService passwordReauthService;
     private final EmailVerificationService emailVerificationService;
+    private final LoginAttemptLimiter loginAttemptLimiter;
+    /** Hash verified when the email is unknown so the response time matches a real wrong password. */
+    private volatile String dummyPasswordHash;
 
     public AuthService(
             UserRepository userRepository,
@@ -63,7 +66,8 @@ public class AuthService {
             JwtService jwtService,
             AuditService auditService,
             PasswordReauthService passwordReauthService,
-            EmailVerificationService emailVerificationService
+            EmailVerificationService emailVerificationService,
+            LoginAttemptLimiter loginAttemptLimiter
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -73,6 +77,7 @@ public class AuthService {
         this.auditService = auditService;
         this.passwordReauthService = passwordReauthService;
         this.emailVerificationService = emailVerificationService;
+        this.loginAttemptLimiter = loginAttemptLimiter;
     }
 
     @Transactional
@@ -128,23 +133,47 @@ public class AuthService {
         );
     }
 
-    @Transactional
     public LoginResponse login(LoginRequest request) {
+        return login(request, null);
+    }
+
+    @Transactional
+    public LoginResponse login(LoginRequest request, String clientIp) {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
 
+        // Atomic check + count before any password work, so parallel requests cannot all slip under the limit.
+        long attemptId = loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
+
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
+
+        // Always run one BCrypt verification, even for an unknown email, so timing does not reveal
+        // which emails exist.
+        String hashToCheck = user != null ? user.getPasswordHash() : dummyPasswordHash();
+        boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
 
         if (user == null
                 || !"ACTIVE".equals(user.getStatus())
                 || user.getDeletedAt() != null
                 || !user.isPasswordLoginAllowed()
-                || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                || !passwordMatches) {
 
             auditService.recordLoginFailure(user != null ? user.getUserId() : null);
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        return issueLoginResponseForActiveUser(user);
+        LoginResponse response = issueLoginResponseForActiveUser(user);
+        // Only failures stay counted: a successful login gives its reservation back.
+        loginAttemptLimiter.releaseAttempt(attemptId);
+        return response;
+    }
+
+    private String dummyPasswordHash() {
+        String hash = dummyPasswordHash;
+        if (hash == null) {
+            hash = passwordEncoder.encode("legacyvault-dummy-password");
+            dummyPasswordHash = hash;
+        }
+        return hash;
     }
 
     /** Shared JWT/session issuance for password and already-linked provider logins. */

@@ -262,7 +262,7 @@
 }
 
 .lv-intake-required {
-  color: #c93b3b;
+  color: var(--lv-required);
   font-weight: 700;
 }
 

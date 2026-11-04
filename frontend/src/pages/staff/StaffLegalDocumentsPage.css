@@ -324,7 +324,7 @@
 
 .lv-staff-documents-view .lv-form-label--required::after {
   content: ' *';
-  color: #b42318;
+  color: var(--lv-required);
   font-weight: 700;
 }
 
@@ -824,7 +824,8 @@
    Staff Tabs Navigation
    -------------------------------------------------------------------------- */
 .lv-staff-documents-view .lv-staff-tabs-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   margin: 20px 0 16px;
   border: 0;
@@ -853,7 +854,6 @@
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  white-space: nowrap;
   transition: color 0.15s ease, border-color 0.15s ease;
   box-shadow: none;
 }
@@ -1422,11 +1422,16 @@
 }
 .lv-staff-documents-view .lv-dossier-card__header h2 { margin: 0; }
 
-/* Work order on the tabs: the next step is marked, allocations say when they open */
 .lv-staff-documents-view .lv-staff-tabs-nav { align-items: stretch; }
-.lv-staff-documents-view .lv-staff-tab-btn:has(.lv-staff-tab-note, .lv-staff-tab-todo) { flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; }
-.lv-staff-documents-view .lv-staff-tab-note { font-size: 14px; font-weight: 500; color: #6b7a72; }
-.lv-staff-documents-view .lv-staff-tab-btn--waiting:not(.lv-staff-tab-btn--active) { color: #6b7a72; }
-.lv-staff-documents-view .lv-staff-tab-todo { padding: 2px 10px; border-radius: 999px; background: #f3e3b3; color: #5d4308; font-size: 14px; font-weight: 700; }
+.lv-staff-documents-view .lv-staff-tab-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8a948d; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-waiting { border-color: #d9a21b; background: #d9a21b; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-active { border-color: #1f8a5b; background: #1f8a5b; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-done { background: #8a948d; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-rejected { border-color: var(--lv-required); background: var(--lv-required); }
+.lv-staff-documents-view .lv-form-note { margin: 0 0 6px; color: #53665a; font-size: 14px; font-style: italic; line-height: 1.5; }
+
+@media (max-width: 700px) {
+  .lv-staff-documents-view .lv-staff-tabs-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 
