@@ -108,7 +108,7 @@
 }
 
 .hn-req {
-  color: #c5a059;
+  color: var(--lv-required);
   margin-left: 2px;
 }
 

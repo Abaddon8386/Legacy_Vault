@@ -37,6 +37,15 @@
   --feedback-border: var(--lv-status-error-border, #f1c6c2);
 }
 
+.lv-feedback--floating {
+  position: fixed;
+  inset-block-start: 16px;
+  inset-inline-start: 16px;
+  z-index: 1100;
+  max-inline-size: min(420px, calc(100vw - 32px));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
 .lv-feedback__icon { flex-shrink: 0; margin-block-start: 2px; }
 .lv-feedback__content { flex: 1 1 180px; min-inline-size: 0; }
 .lv-feedback__title { margin: 0; color: inherit; font-weight: 700; }

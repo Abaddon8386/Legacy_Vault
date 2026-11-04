@@ -543,7 +543,7 @@
 }
 
 .lv-verify-required {
-  color: #c93b2b;
+  color: var(--lv-required);
   font-weight: 700;
 }
 

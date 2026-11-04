@@ -1,6 +1,6 @@
 ﻿.lv-staff-live { max-width: 960px; margin: auto; padding: 24px; }
-.lv-staff-live button, .lv-staff-live input, .lv-staff-live select { font: inherit; padding: 10px; border: 1px solid #b7c1b9; border-radius: 8px; }
-.lv-staff-live button { margin: 8px 8px 8px 0; cursor: pointer; }
+.lv-staff-live button:where(:not([class^=lv-datepicker])), .lv-staff-live input:where(:not([class^=lv-datepicker])), .lv-staff-live select { font: inherit; padding: 10px; border: 1px solid #b7c1b9; border-radius: 8px; }
+.lv-staff-live button:where(:not([class^=lv-datepicker])) { margin: 8px 8px 8px 0; cursor: pointer; }
 .lv-staff-live button:disabled { cursor: default; opacity: .55; }
 .lv-staff-live label { display: grid; gap: 6px; margin: 12px 0; }
 .lv-staff-live fieldset { border: 1px solid #b7c1b9; border-radius: 12px; padding: 20px; }
@@ -14,8 +14,8 @@
 .lv-staff-live .lv-intake-context > span:not(.lv-intake-status) { color: #65758a; }
 .lv-staff-live .lv-intake-status { padding: 3px 12px; border-radius: 20px; color: #1c6b48; background: #e8f6ef; font-size: 14px; font-weight: 600; }
 .lv-staff-live .lv-intake-status.is-closed { background: #eef0eb; color: #5e6b62; }
-.lv-staff-live button { font-size: 14px; padding: 9px 14px; background: #fff; color: #285444; border-color: #cbd8d1; }
-.lv-staff-live button:hover:not(:disabled) { background: #edf5f1; }
+.lv-staff-live button:where(:not([class^=lv-datepicker])) { font-size: 14px; padding: 9px 14px; background: #fff; color: #285444; border-color: #cbd8d1; }
+.lv-staff-live button:where(:not([class^=lv-datepicker])):hover:not(:disabled) { background: #edf5f1; }
 .lv-staff-live .lv-staff-live__records-section { background: #fff; border: 1px solid #dce4eb; border-radius: 16px; padding: 24px; margin: 24px 0; }
 .lv-staff-live .lv-staff-live__records-section > div:first-child { flex-wrap: wrap; }
 .lv-staff-live h2 { margin: 0; font: 600 19px/1.4 var(--lv-font-sans, system-ui); color: #243b53; }
@@ -175,7 +175,7 @@
 
 /* Case dossier: plain heading, flat rows; the badge alone carries a document's status */
 .lv-staff-live { font-size: 16px; color: #203e33; }
-.lv-staff-live button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; box-sizing: border-box; min-height: 44px; font-size: 14px; }
+.lv-staff-live button:where(:not([class^=lv-datepicker])) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; box-sizing: border-box; min-height: 44px; font-size: 14px; }
 .lv-staff-live label { font-size: 14px; }
 .lv-staff-live progress { accent-color: #204f40; }
 .lv-staff-live .lv-staff-live__back { margin: 0; font-weight: 600; }

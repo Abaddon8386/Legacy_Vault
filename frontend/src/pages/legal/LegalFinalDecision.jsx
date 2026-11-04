@@ -107,10 +107,10 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
         <form onSubmit={event => { event.preventDefault(); if (allowed && complete) setConfirmOpen(true); }}>
         {unlocking ? <label className="lv-legal-confirm"><input type="checkbox" checked={confirmed} disabled={!allowed} onChange={event => setConfirmed(event.target.checked)} />
           {en ? 'Confirm controlled unlocking for this case.' : 'Xác nhận mở khóa có kiểm soát cho hồ sơ này.'}</label>
-          : <><label>{en ? 'Decision' : 'Quyết định'}<select value={decision} disabled={!allowed} required onChange={event => setDecision(event.target.value)}>
+          : <><label><span>{en ? 'Decision' : 'Quyết định'}<span className="lv-required-mark" aria-hidden="true">*</span></span><select value={decision} disabled={!allowed} required onChange={event => setDecision(event.target.value)}>
             <option value="">{en ? 'Select' : 'Chọn'}</option><option value="APPROVE">{en ? 'Approve' : 'Chấp thuận'}</option>
             <option value="REJECT">{en ? 'Reject' : 'Từ chối'}</option></select></label>
-          <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea value={reason} maxLength={1000}
+          <label><span>{en ? 'Reason' : 'Lý do'}<span className="lv-required-mark" aria-hidden="true">*</span></span><textarea value={reason} maxLength={1000}
             required disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
         <button type="submit" className={decision === 'REJECT' && !unlocking ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
         <WorkflowActionHint id="legal-action-blocked" reason={blocked} />

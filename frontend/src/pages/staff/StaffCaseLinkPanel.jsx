@@ -175,9 +175,9 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
         <p>{en ? 'Help the recipient create an account, then ask them to sign in and submit the case number above.' : 'Hỗ trợ người nhận tạo tài khoản, sau đó hướng dẫn họ đăng nhập và gửi mã hồ sơ phía trên.'}</p>
         <form onSubmit={e => { e.preventDefault(); if (typeof actions?.createAccount !== 'function' || !name.trim() || !email.trim() || !password) return; const payload = { fullName: name.trim(), email: email.trim(), password }; setPassword(''); perform('create', payload); }}>
           <fieldset disabled={locked || typeof actions?.createAccount !== 'function'}>
-            <label>{en ? 'Full name' : 'Họ tên'}<input required maxLength={150} value={name} onChange={e => setName(e.target.value)} autoComplete="off" /></label>
-            <label>Email<input type="email" maxLength={254} required value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" /></label>
-            <label>{en ? 'Password chosen by recipient' : 'Mật khẩu do người nhận tự nhập'}<input type="password" minLength={8} maxLength={72} required value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" /></label>
+            <label><span>{en ? 'Full name' : 'Họ tên'}<span className="lv-required-mark" aria-hidden="true">*</span></span><input required maxLength={150} value={name} onChange={e => setName(e.target.value)} autoComplete="off" /></label>
+            <label><span>Email<span className="lv-required-mark" aria-hidden="true">*</span></span><input type="email" maxLength={254} required value={email} onChange={e => setEmail(e.target.value)} autoComplete="off" /></label>
+            <label><span>{en ? 'Password chosen by recipient' : 'Mật khẩu do người nhận tự nhập'}<span className="lv-required-mark" aria-hidden="true">*</span></span><input type="password" minLength={8} maxLength={72} required value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" /></label>
             <Button type="submit" disabled={!name.trim() || !email.trim() || !password || pending}>{en ? 'Create account only' : 'Tạo tài khoản'}</Button>
           </fieldset>
         </form>

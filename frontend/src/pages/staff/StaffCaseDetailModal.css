@@ -143,13 +143,24 @@
   background-color: var(--lv-brand-forest, #164639);
 }
 
-.lv-staff-status-badge--verified {
-  background-color: #eaf4ee;
-  border: 1px solid #bce1c9;
-  color: #1e6b3b;
+.lv-staff-status-badge--verified,
+.lv-staff-status-badge--closed {
+  background-color: #eef0eb;
+  border: 1px solid #d5d9d1;
+  color: #5e6b62;
 }
-.lv-staff-status-badge--verified .lv-staff-status-dot {
-  background-color: #2b9354;
+.lv-staff-status-badge--verified .lv-staff-status-dot,
+.lv-staff-status-badge--closed .lv-staff-status-dot {
+  background-color: #5e6b62;
+}
+
+.lv-staff-status-badge--cancelled {
+  background-color: var(--lv-status-danger-bg);
+  border: 1px solid var(--lv-status-danger-border);
+  color: var(--lv-status-danger-text);
+}
+.lv-staff-status-badge--cancelled .lv-staff-status-dot {
+  background-color: var(--lv-status-danger-text);
 }
 
 /* Modal Actions */

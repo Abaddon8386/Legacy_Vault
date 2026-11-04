@@ -9,10 +9,10 @@ const labels = {
 };
 export const legalStatus = (value, en = false) => labels[value]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
 export function legalStatusTone(value) {
-  if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS'].includes(value)) return 'warning';
-  if (['CANCELLED', 'CLOSED', 'ARCHIVED'].includes(value)) return 'neutral';
+  if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS', 'INCONCLUSIVE'].includes(value)) return 'warning';
+  if (['CLOSED', 'ARCHIVED'].includes(value)) return 'neutral';
   if (['COMPLETED', 'UNLOCKED', 'VALID'].includes(value)) return 'success';
-  if (value === 'INVALID') return 'error';
+  if (['CANCELLED', 'INVALID'].includes(value)) return 'error';
   return 'info';
 }
 export const legalReadOnly = context => ['CLOSED', 'CANCELLED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus)

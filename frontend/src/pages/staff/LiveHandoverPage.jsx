@@ -293,8 +293,8 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
               borderRadius: '9999px',
               fontSize: '14px',
               fontWeight: 600,
-              background: caseItem.status === 'CLOSED' ? '#fee2e2' : caseItem.status === 'OPEN' ? '#dcfce7' : '#f1f5f9',
-              color: caseItem.status === 'CLOSED' ? '#991b1b' : caseItem.status === 'OPEN' ? '#166534' : '#475569',
+              background: caseItem.status === 'CLOSED' ? '#eef0eb' : caseItem.status === 'OPEN' ? '#dcfce7' : '#fee2e2',
+              color: caseItem.status === 'CLOSED' ? '#5e6b62' : caseItem.status === 'OPEN' ? '#166534' : '#991b1b',
             }}>
               {caseItem.status === 'CLOSED' ? (en ? 'Closed' : 'Đã đóng') : caseItem.status === 'OPEN' ? (en ? 'Open' : 'Đang mở') : (en ? 'Cancelled' : 'Đã hủy')}
             </span>

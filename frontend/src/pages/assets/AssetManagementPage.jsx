@@ -6,8 +6,8 @@ import {
   AlertTriangle,
   FolderOpen,
   RefreshCw,
-  CheckCircle2,
 } from 'lucide-react'
+import FeedbackNotice from '../../components/common/FeedbackNotice.jsx'
 import { assetService } from '../../services/assetService'
 import { assetImageService } from '../../services/assetImageService.js'
 import { assetDocumentService } from '../../services/assetDocumentService.js'
@@ -284,18 +284,7 @@ export function AssetManagementPage({
       {readOnly && <p role="status">{lang === 'en' ? 'This vault is read-only. Assets cannot be added or edited in its current state.' : 'Kho hiện chỉ được xem. Không thể thêm hoặc sửa tài sản ở trạng thái này.'}</p>}
       {/* Toast Notification */}
       {toastMessage && (
-        <div
-          className={`lv-toast lv-toast--${toastMessage.type}`}
-          role="status"
-          aria-live="polite"
-        >
-          {toastMessage.type === 'success' ? (
-            <CheckCircle2 size={16} />
-          ) : (
-            <AlertTriangle size={16} />
-          )}
-          <span>{t.assets.alerts[toastMessage.key] || t.assets.alerts.saveError}</span>
-        </div>
+        <FeedbackNotice className="lv-feedback--floating" tone={toastMessage.type}>{t.assets.alerts[toastMessage.key] || t.assets.alerts.saveError}</FeedbackNotice>
       )}
 
       {/* Page Header */}

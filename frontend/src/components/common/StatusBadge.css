@@ -47,12 +47,12 @@
 }
 
 /* Tone: Info (Muted Cyan / Celadon) */
-.lv-status-badge.lv-tone-info {
-  background: var(--lv-status-info-bg, #eef6f6);
-  color: var(--lv-status-info-text, #1b6264);
-  border: 1px solid var(--lv-status-info-border, #cbe3e4);
+.lv-status-badge.lv-tone-danger {
+  background: var(--lv-status-danger-bg);
+  color: var(--lv-status-danger-text);
+  border: 1px solid var(--lv-status-danger-border);
 }
-.lv-status-badge.lv-tone-info .lv-status-dot {
+.lv-status-badge.lv-tone-danger .lv-status-dot {
   background: currentColor;
   box-shadow: 0 0 0 2px rgba(27, 98, 100, 0.2);
 }

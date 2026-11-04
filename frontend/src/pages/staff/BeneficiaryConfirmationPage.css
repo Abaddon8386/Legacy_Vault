@@ -127,7 +127,7 @@
 
 .lv-beneficiary-confirmation-view .lv-confirm-label--required::after {
   content: ' *';
-  color: #b3261e;
+  color: var(--lv-required);
 }
 
 .lv-beneficiary-confirmation-view .lv-confirm-hint {

@@ -618,7 +618,7 @@ function ScopedAdminSubscriptionPage({
                     <>
                       <div className="lv-admin-sub-form-row">
                         <div className="lv-admin-sub-form-group">
-                          <label htmlFor="f-nameVi">{en ? 'Plan Name (VI) *' : 'Tên gói (Tiếng Việt) *'}</label>
+                          <label htmlFor="f-nameVi">{en ? 'Plan Name (VI)' : 'Tên gói (Tiếng Việt)'}<span className="lv-required-mark" aria-hidden="true">*</span></label>
                           <input
                             id="f-nameVi"
                             type="text"
@@ -629,7 +629,7 @@ function ScopedAdminSubscriptionPage({
                           />
                         </div>
                         <div className="lv-admin-sub-form-group">
-                          <label htmlFor="f-nameEn">{en ? 'Plan Name (EN) *' : 'Tên gói (Tiếng Anh) *'}</label>
+                          <label htmlFor="f-nameEn">{en ? 'Plan Name (EN)' : 'Tên gói (Tiếng Anh)'}<span className="lv-required-mark" aria-hidden="true">*</span></label>
                           <input
                             id="f-nameEn"
                             type="text"
@@ -665,7 +665,7 @@ function ScopedAdminSubscriptionPage({
 
                       <div className="lv-admin-sub-form-row">
                         <div className="lv-admin-sub-form-group">
-                          <label htmlFor="f-price">{en ? 'Purchase Price (VND) *' : 'Giá mua một lần (VND) *'}</label>
+                          <label htmlFor="f-price">{en ? 'Purchase Price (VND)' : 'Giá mua một lần (VND)'}<span className="lv-required-mark" aria-hidden="true">*</span></label>
                           <input
                             id="f-price"
                             type="number"
@@ -693,7 +693,7 @@ function ScopedAdminSubscriptionPage({
 
                       <div className="lv-admin-sub-form-row">
                         <div className="lv-admin-sub-form-group">
-                          <label htmlFor="f-assets">{en ? 'Asset Quota (count) *' : 'Hạn mức tài sản *'}</label>
+                          <label htmlFor="f-assets">{en ? 'Asset Quota (count)' : 'Hạn mức tài sản'}<span className="lv-required-mark" aria-hidden="true">*</span></label>
                           <input
                             id="f-assets"
                             type="number"
@@ -705,7 +705,7 @@ function ScopedAdminSubscriptionPage({
                         </div>
 
                         <div className="lv-admin-sub-form-group">
-                          <label htmlFor="f-storage">{en ? 'Storage Limit (Bytes) *' : 'Dung lượng lưu trữ (Bytes) *'}</label>
+                          <label htmlFor="f-storage">{en ? 'Storage Limit (Bytes)' : 'Dung lượng lưu trữ (Bytes)'}<span className="lv-required-mark" aria-hidden="true">*</span></label>
                           <input
                             id="f-storage"
                             type="number"
