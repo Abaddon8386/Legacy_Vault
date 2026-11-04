@@ -32,7 +32,8 @@ class AuthServiceTest {
         JwtService jwt = mock(JwtService.class);
         AuditService audit = mock(AuditService.class);
         AuthService service = new AuthService(users, roles, userRoles, passwords, jwt, audit,
-                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                mock(LoginAttemptLimiter.class));
         User user = mock(User.class);
         Role role = new Role();
         role.setRoleCode("ROLE_VAULT_OWNER");
@@ -66,7 +67,8 @@ class AuthServiceTest {
         UserRepository users = mock(UserRepository.class);
         AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
                 mock(PasswordEncoder.class), mock(JwtService.class), mock(AuditService.class),
-                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                mock(LoginAttemptLimiter.class));
         User user = mock(User.class);
         when(users.findByEmail("user@example.test")).thenReturn(Optional.of(user));
         when(user.getStatus()).thenReturn("LOCKED");
@@ -75,5 +77,67 @@ class AuthServiceTest {
                 () -> service.login(new LoginRequest("user@example.test", "StrongPass123")));
 
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+    }
+
+    @Test
+    void unknownEmailStillRunsPasswordCheckAndRecordsFailure() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
+        when(passwords.encode(any())).thenReturn("dummy-bcrypt-hash");
+        AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
+                passwords, mock(JwtService.class), mock(AuditService.class),
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                limiter);
+        when(users.findByEmail("nobody@example.test")).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("nobody@example.test", "WhateverPass1"), "203.0.113.9"));
+
+        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+        verify(passwords).matches("WhateverPass1", "dummy-bcrypt-hash");
+        verify(limiter).recordFailure("nobody@example.test", "203.0.113.9");
+    }
+
+    @Test
+    void loginIsBlockedBeforeAnyPasswordCheckWhenOverTheLimit() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
+        doThrow(new BusinessException(ErrorCode.RATE_LIMITED)).when(limiter)
+                .requireAllowed("user@example.test", "203.0.113.9");
+        AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
+                passwords, mock(JwtService.class), mock(AuditService.class),
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                limiter);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("user@example.test", "StrongPass123"), "203.0.113.9"));
+
+        assertEquals(ErrorCode.RATE_LIMITED, exception.getErrorCode());
+        verify(users, never()).findByEmail(any());
+        verify(passwords, never()).matches(any(), any());
+    }
+
+    @Test
+    void wrongPasswordRecordsFailureForEmailAndIp() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
+        AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
+                passwords, mock(JwtService.class), mock(AuditService.class),
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                limiter);
+        User user = mock(User.class);
+        when(users.findByEmail("user@example.test")).thenReturn(Optional.of(user));
+        when(user.getStatus()).thenReturn("ACTIVE");
+        when(user.isPasswordLoginAllowed()).thenReturn(true);
+        when(user.getPasswordHash()).thenReturn("real-hash");
+        when(passwords.matches("WrongPass123", "real-hash")).thenReturn(false);
+
+        assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("user@example.test", "WrongPass123"), "203.0.113.9"));
+
+        verify(limiter).recordFailure("user@example.test", "203.0.113.9");
     }
 }
