@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import FirstPasswordButton from '../../components/auth/FirstPasswordButton.jsx';
 import { readReceivedPage, receivedActions, receivedPreviewAllowed, readReceivedDetail, readReceivedContent, formatDeliveredDate } from './receivedAssetsModel.js';
 import { PREVIEW_SUBJECT, previewReceivedActions } from './receivedAssetsPreview.js';
 import { Modal } from '../../components/common/Modal.jsx';
@@ -33,6 +34,7 @@ function DecryptForm({ en, busy, value, onChange, onSubmit, image = false }) {
   const id = useId();
   return (
     <form className="lv-received-decrypt" onSubmit={onSubmit}>
+      <FirstPasswordButton lang={en ? 'en' : 'vi'} onReady={value => onChange({ target: { value } })} disabled={busy} />
       <label htmlFor={id}>{en ? 'Verify your account' : 'Xác thực tài khoản'}</label>
       <p id={`${id}-hint`}>{en ? 'Enter your account password to view the protected content.' : 'Nhập mật khẩu tài khoản để xem nội dung được bảo vệ.'}</p>
       <div className="lv-received-decrypt__controls">

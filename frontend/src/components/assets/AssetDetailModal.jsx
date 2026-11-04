@@ -1,4 +1,5 @@
 import { AssetImageGallery } from './AssetImageGallery.jsx'
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import AssetDocuments from './AssetDocuments.jsx'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../common/Modal'
@@ -294,6 +295,7 @@ export function AssetDetailModal({
             ) : isReauthOpen ? (
               /* Case 2: Reauth password input form */
               <form onSubmit={handleRevealSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <FirstPasswordButton lang={lang} onReady={setPassword} disabled={isRevealing} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--lv-brand-forest, #164639)', fontWeight: 600 }}>
                   <Lock size={14} style={{ color: 'var(--lv-accent-gold, #c5a059)' }} />
                   <span>{t.assets.detailModal.passwordPrompt}</span>

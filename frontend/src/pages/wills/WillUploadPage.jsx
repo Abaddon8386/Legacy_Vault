@@ -1,5 +1,6 @@
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
+import FirstPasswordButton from '../../components/auth/FirstPasswordButton.jsx';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   willService,
@@ -851,6 +852,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
           </div>
         ) : (
         <form onSubmit={handleConfirm} noValidate>
+          <FirstPasswordButton lang={lang} onReady={setPassword} disabled={isSubmitting} />
           <p style={{ fontSize: '14px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6 }}>
             {isView ? t.reauthPromptView : t.reauthPrompt} <strong>v{version}</strong> ({fileName})
           </p>

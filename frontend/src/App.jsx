@@ -18,6 +18,7 @@ import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import { request, ApiError } from './api/http.js';
 import { readUser } from './api/contracts.js';
 import { createSession, isSessionActive, readStoredSession, storeSession } from './utils/session.js';
+import PasswordSetupProvider from './components/auth/PasswordSetupProvider.jsx';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
@@ -392,10 +393,15 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App({ invitationActions, beneficiaryAssetActions, legalDiscovery, caseLinkActions, counterLinkActions, dmsGraceActions } = {}) {
+export default function App(props) {
+  const [session, setSession] = useState(readStoredSession);
+  return <PasswordSetupProvider session={session} onConfigured={token => setSession(current => current?.accessToken === token
+    ? { ...current, user: { ...current.user, passwordLoginEnabled: true } } : current)}><AppContent {...props} session={session} setSession={setSession} /></PasswordSetupProvider>;
+}
+
+function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery, caseLinkActions, counterLinkActions, dmsGraceActions, session, setSession } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
-  const [session, setSession] = useState(readStoredSession);
   const profileSessionRef = useRef(session);
   const profileWriteRef = useRef(null);
   useLayoutEffect(() => { profileSessionRef.current = session; }, [session]);
@@ -567,7 +573,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         else setRestoreStatus('error');
       });
     return () => controller.abort();
-  }, [logout, restoreAttempt]);
+  }, [logout, restoreAttempt, setSession]);
 
   useEffect(() => { storeSession(session); }, [session]);
 
@@ -677,7 +683,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         setIsRefreshing(false);
       }
     }
-  }, [session, lang, logout, navigateTo]);
+  }, [session, lang, logout, navigateTo, setSession]);
 
   useEffect(() => {
     const onTriggerRefresh = () => { handleRefresh(); };

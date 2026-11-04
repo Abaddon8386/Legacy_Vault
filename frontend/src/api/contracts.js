@@ -9,6 +9,8 @@ export function readUser(raw) {
       typeof raw.email !== 'string' || !raw.email.includes('@') || !Array.isArray(raw.roles) ||
       !raw.roles.every(role => roleAliases.has(role))) throw new ApiError('INVALID_AUTH_RESPONSE');
   if (Object.hasOwn(raw, 'phoneNumber') && raw.phoneNumber !== null && typeof raw.phoneNumber !== 'string') throw new ApiError('INVALID_AUTH_RESPONSE');
+  if (Object.hasOwn(raw, 'passwordLoginEnabled') && typeof raw.passwordLoginEnabled !== 'boolean') throw new ApiError('INVALID_AUTH_RESPONSE');
   return { id: raw.id, fullName: raw.fullName, email: raw.email, roles: [...new Set(raw.roles.map(role => roleAliases.get(role)))],
-    ...(Object.hasOwn(raw, 'phoneNumber') ? { phoneNumber: raw.phoneNumber } : {}) };
+    ...(Object.hasOwn(raw, 'phoneNumber') ? { phoneNumber: raw.phoneNumber } : {}),
+    ...(Object.hasOwn(raw, 'passwordLoginEnabled') ? { passwordLoginEnabled: raw.passwordLoginEnabled } : {}) };
 }

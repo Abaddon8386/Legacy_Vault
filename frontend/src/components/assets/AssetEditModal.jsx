@@ -1,4 +1,5 @@
 import { useState, useLayoutEffect, useRef, useEffect } from 'react'
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import { AssetCredentialFields } from './AssetCredentialFields.jsx'
 import { AssetImagePicker } from './AssetImagePicker.jsx'
 import { DocumentPicker } from './AssetDocuments.jsx'
@@ -187,6 +188,7 @@ export function AssetEditModal({
         </div>
 
         <form onSubmit={handleSubmit} className="lv-modal__body lv-asset-form" noValidate>
+          <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
           <div className="lv-asset-form__scroll">
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
           {errors.save && !partial && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}

@@ -17,6 +17,12 @@ const overview = { totalAccounts: 100, activeVaults: 40, processingCases: 2,
   roleAssignments: { ROLE_ADMIN: 2, ROLE_VAULT_OWNER: 90, ROLE_BENEFICIARY: 30, ROLE_STAFF_EXECUTOR: 5, ROLE_LEGAL_VERIFIER: 3 },
   startedAt: '2026-10-20T12:00:00Z', completedAt: '2026-10-20T12:00:01Z', consistency: 'READ_COMMITTED_COLLECTION_WINDOW' };
 const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+test('the first-password audit from Google signup does not invalidate the Admin log', async () => {
+  await withFetch(async () => json({ content: [{ ...event, action: 'AUTH_PASSWORD_SET' }], page: 0, size: 20, totalElements: 1, totalPages: 1 }), async () => {
+    const result = await fetchAdminAuditLogs('T');
+    assert.equal(result.items[0].action, 'AUTH_PASSWORD_SET');
+  });
+});
 async function withFetch(fn, work) { const previous = globalThis.fetch; globalThis.fetch = fn; try { await work(); } finally { globalThis.fetch = previous; } }
 
 test('roles and user validation preserve multi-role and unknown status', () => {

@@ -1,5 +1,6 @@
 import { assetImageService } from './assetImageService.js';
 import { request, ApiError } from '../api/http.js';
+import { passwordRequest } from '../api/passwordRequest.js';
 import { isUuid, isUtcDate } from '../api/contracts.js';
 const bad = (message, code = 'VALIDATION_FAILED') => { const error = new ApiError(code); error.message = message; return error; };
 function context(vaultId) { if (!isUuid(vaultId)) throw bad('vaultId is required', 'VAULT_REQUIRED'); }
@@ -26,7 +27,7 @@ export const assetService = {
   if (!Object.keys(body).length) throw bad('No editable fields');
   if (typeof patch.password !== 'string' || !patch.password.trim() || patch.password.length > 72) throw bad('Current password is required');
   body.password = patch.password;
-  const item = readAsset(await request('/vaults/'+vaultId+'/assets/'+assetId, {...options,method:'PATCH',expectedStatus:200,body}),vaultId);
+  const item = readAsset(await passwordRequest('/vaults/'+vaultId+'/assets/'+assetId, {...options,method:'PATCH',expectedStatus:200,body}),vaultId);
   if (item.id !== assetId) throw new ApiError('INVALID_RESPONSE'); return item;
  },
  async getAssets(vaultId, options = {}) {
@@ -58,7 +59,7 @@ export const assetService = {
   if (typeof password !== 'string' || !password || password.length > 72) {
     throw bad('Password is required and must not exceed 72 characters', 'VALIDATION_FAILED');
   }
-  const data = await request(`/vaults/${vaultId}/assets/${assetId}/reveal`, {
+  const data = await passwordRequest(`/vaults/${vaultId}/assets/${assetId}/reveal`, {
     ...options,
     method: 'POST',
     expectedStatus: 200,

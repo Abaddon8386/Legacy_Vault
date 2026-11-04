@@ -1,4 +1,5 @@
 import { readUser } from '../../api/contracts.js';
+import { requestFirstPassword } from '../../utils/passwordSetupFlow.js';
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   User,
@@ -162,7 +163,8 @@ export default function AccountEditPage({
 
   const canSave = typeof saveProfile === 'function' && Boolean(initialData?.id) && !isDevPreviewActive;
   const fieldErrors = validateProfileEditForm({ fullName, phoneNumber, email }, { canEditEmail: emailPermission.canEdit }).errors;
-  if (emailChanged && !currentPassword.trim()) fieldErrors.currentPassword = 'REQUIRED';
+  const needsFirstPassword = session?.user?.passwordLoginEnabled === false;
+  if (emailChanged && !needsFirstPassword && !currentPassword.trim()) fieldErrors.currentPassword = 'REQUIRED';
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canSave || !dirty || pendingRef.current || accessDenied) return;
@@ -178,7 +180,11 @@ export default function AccountEditPage({
       const changes = {};
       if (isFormDirty(fullName, initialData.fullName)) changes.fullName = fullName.trim();
       if (phoneNumber.trim() !== (initialData.phoneNumber || '')) changes.phoneNumber = phoneNumber.trim();
-      if (emailChanged) { changes.email = email.trim().toLowerCase(); changes.currentPassword = currentPassword; }
+      if (emailChanged) {
+        const proof = needsFirstPassword ? await requestFirstPassword({ accessToken: session.accessToken, signal: controller.signal, lang }) : currentPassword;
+        if (controller.signal.aborted || activeScope.current !== saveScope) return;
+        changes.email = email.trim().toLowerCase(); changes.currentPassword = proof;
+      }
       const response = await saveProfile(changes, { signal: controller.signal, lang });
       if (controller.signal.aborted || requestRef.current !== controller || activeScope.current !== saveScope) return;
       const user = readUser(response);
@@ -189,7 +195,7 @@ export default function AccountEditPage({
       if (!controller.signal.aborted && requestRef.current === controller && activeScope.current === saveScope) {
         if (error.status === 401) onUnauthorized?.();
         if (error.status === 403 && error.code !== 'REAUTH_FAILED') setAccessDenied(true);
-        setSaveFeedback(error.code === 'REAUTH_FAILED' ? 'reauthFailed'
+        setSaveFeedback(error.code === 'PASSWORD_SETUP_CANCELLED' ? 'passwordSetupCancelled' : error.code === 'REAUTH_FAILED' ? 'reauthFailed'
           : error.status === 429 ? 'tooManyAttempts'
           : error.code === 'EMAIL_ALREADY_EXISTS' ? 'emailAlreadyExists'
           : error.status === 403 ? 'accessDenied'
@@ -305,12 +311,12 @@ export default function AccountEditPage({
             </div>
 
             {emailChanged && <div className="lv-form-group">
-              <label htmlFor="lv-edit-current-password" className="lv-form-label">{t.currentPasswordLabel}</label>
-              <input id="lv-edit-current-password" className="lv-input-text" type="password" autoComplete="current-password" value={currentPassword}
+              {needsFirstPassword ? <p className="lv-form-label">{lang === 'en' ? 'Confirm email change' : 'Xác nhận đổi email'}</p> : <label htmlFor="lv-edit-current-password" className="lv-form-label">{t.currentPasswordLabel}</label>}
+              {needsFirstPassword ? <p>{lang === 'en' ? 'When you save, set your account password first to confirm this email change.' : 'Khi lưu, bạn sẽ đặt mật khẩu lần đầu để xác nhận thay đổi email này.'}</p> : <input id="lv-edit-current-password" className="lv-input-text" type="password" autoComplete="current-password" value={currentPassword}
                 onChange={event => { setCurrentPassword(event.target.value); setValidationError(null); }} disabled={isSaving || accessDenied}
                 aria-invalid={Boolean(validationError && fieldErrors.currentPassword)}
-                aria-describedby={validationError && fieldErrors.currentPassword ? 'lv-current-password-error' : 'lv-current-password-help'} />
-              <p id="lv-current-password-help" className="lv-form-help">{t.currentPasswordHelp}</p>
+                aria-describedby={validationError && fieldErrors.currentPassword ? 'lv-current-password-error' : 'lv-current-password-help'} />}
+              {!needsFirstPassword && <p id="lv-current-password-help" className="lv-form-help">{t.currentPasswordHelp}</p>}
               {validationError && fieldErrors.currentPassword && <p id="lv-current-password-error" className="lv-form-error" role="alert">{t.currentPasswordRequired}</p>}
             </div>}
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx';
 import { assetImageService } from '../../services/assetImageService.js';
 import { AssetImagePicker } from './AssetImagePicker.jsx';
 
@@ -41,6 +42,7 @@ export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', 
     {selected&&<form onSubmit={e=>{e.preventDefault();const secret=password;setPassword('');const image=selected;
       run(async opts=>{const blob=await assetImageService.open(vaultId,assetId,image,secret,opts);if(opts.signal?.aborted)return;
         const src=URL.createObjectURL(blob);urls.current.push(src);setOpened(prev=>({...prev,[image.id]:src}));setSelected(null);});}}>
+      <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
       <label><span>{en?'Confirm your current password to view the photo':'Xác nhận mật khẩu hiện tại để xem ảnh'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
         <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required maxLength={72} autoComplete="current-password" disabled={busy}/>
       </label>
