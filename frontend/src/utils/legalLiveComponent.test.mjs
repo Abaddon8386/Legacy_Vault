@@ -26,6 +26,8 @@ async function mount(options = base) {
   return { host, render, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
 const change = async (element, value) => act(async () => props(element).onChange({ target: { value } }));
+const choose = (host, value) => act(async () => props(host.querySelector(`input[type=radio][value="${value}"]`)).onChange());
+const chosen = host => host.querySelector('input[type=radio]:checked')?.value || '';
 const getSelect = (host, name) => [...host.querySelectorAll('label')].find(item => item.textContent.startsWith(name))?.querySelector('select');
 const click = async (host, name) => act(async () => [...host.querySelectorAll('button')].find(item => item.textContent === name).click());
 const submit = async host => act(async () => { props(host.querySelector('form')).onSubmit({ preventDefault() {} }); });
@@ -36,8 +38,8 @@ test('paper intake histories never bleed into another paper and a recorded concl
  let writes=0;const old={id:a,originalWillIntakeId:a,version:1,result:'MATCH',comparedAt:now};
  globalThis.fetch=async(_url,init)=>{if(init.method==='POST')writes++;return json({caseId:a,vaultStatus:'WILL_VERIFICATION',approvalBlocked:false,originalWillIntakes:[{id:b,receivedAt:'2026-10-31T08:00:00Z'},{id:a,receivedAt:now}],wills:[{id:a,versions:[{version:1,sha256:digest}]}],comparisons:[old]});};
  const v=await mount({...base,step:'will-document-verification'});try{const select=getSelect(v.host,'Original intake');assert.match(select.querySelector(`option[value="${b}"]`).textContent,/Intake 2/);assert.match(select.querySelector(`option[value="${a}"]`).textContent,/Intake 1/);
- await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await change(getSelect(v.host,'Comparison result'),'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(writes,0);
- await change(select,b);assert.equal(getSelect(v.host,'Comparison result').value,'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);
+ await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await choose(v.host,'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(writes,0);
+ await change(select,b);assert.equal(chosen(v.host),'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);
  }finally{await v.close();}
 });
 
@@ -85,7 +87,7 @@ test('Death decision requires selected server document; duplicate clicks locked,
     assert.doesNotMatch(view.host.textContent, /Reload cases|Reload record|View latest status/);
     assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
     await selectDocument(view.host, a);
-    await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
+    await choose(view.host, 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
     await view.render({ ...base, lang: 'vi' }); assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     await submit(view.host); await submit(view.host); assert.equal(writes, 1);
     await act(async () => { saved = true; finish(json({ deathDocumentPublicId: a, verificationCasePublicId: a, verificationCaseStatus: 'OPEN', vaultStatus: 'DOCUMENT_VERIFICATION', result: 'APPROVED', verifierPublicId: a, decidedAt: now, reason: 'Reviewed' })); });
@@ -117,7 +119,7 @@ test('409 and malformed response preserve draft but require reload before retry;
   globalThis.fetch = async (_url, init) => init.method === 'POST' ? (++writes === 1 ? json({ code: 'LEGAL_VERIFICATION_ALREADY_DECIDED' }, 409) : new Promise(resolve => { finish = resolve; signal = init.signal; })) : json(detail());
   const view = await mount(); let closed = false;
   try {
-    await selectDocument(view.host, a); await change(getSelect(view.host, 'Decision'), 'REJECT'); await change(view.host.querySelector('textarea'), 'Keep this reason');
+    await selectDocument(view.host, a); await choose(view.host, 'REJECT'); await change(view.host.querySelector('textarea'), 'Keep this reason');
     await submit(view.host); assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(view.host.querySelector('button[type=submit]').disabled, true);
     await click(view.host, 'Try again'); await submit(view.host); assert.equal(writes, 2);
     await view.close(); closed = true; assert.equal(signal.aborted, true); await act(async () => finish(json({})));
@@ -131,7 +133,7 @@ test('Will picks original/version/hash from authorized overview, sends only cont
   };
   const view = await mount({ ...base, step: 'will-document-verification' });
   try {
-    assert.equal(getSelect(view.host, 'Original intake'), undefined); assert.equal(getSelect(view.host, 'Digitized version'), undefined); await change(getSelect(view.host, 'Comparison result'), 'MATCH');
+    assert.equal(getSelect(view.host, 'Original intake'), undefined); assert.equal(getSelect(view.host, 'Digitized version'), undefined); await choose(view.host, 'MATCH');
     await submit(view.host); assert.deepEqual(body, { originalWillIntakeId: a, willId: a, version: 2, result: 'MATCH', reason: '' }); assert.match(view.host.textContent, /Decision saved|Supplementation requested/);
   } finally { await view.close(); }
 });
@@ -159,7 +161,7 @@ test('Saving automatically refreshes parent context and document while preservin
   const view = await mount({ ...base, contextLoader });
   try {
     await selectDocument(view.host, a);
-    await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
+    await choose(view.host, 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
     await submit(view.host);
     const previousReads = documentReads;
     assert.equal(contextReads, 2, 'The refresh must read the parent case context, not only the document');
@@ -264,7 +266,7 @@ test('basis review keeps pause controls inside the result panel with separate fo
   const pause=result.querySelector('.lv-legal-hold-controls');
   assert.equal(result.querySelectorAll('form').length,2);
   assert.equal(result.querySelector('form form'),null);
-  await change(pause.querySelector('select'),'INSUFFICIENT_EVIDENCE');
+  await choose(pause,'INSUFFICIENT_EVIDENCE');
   await change(pause.querySelector('textarea'),'Pause draft');
   assert.equal(review.value,'Assessment draft');
   await click(view.host,'Place case on hold');await click(view.host,'Place case on hold');
@@ -360,7 +362,7 @@ for (const failure of [403, 404, 500, 'network', 'invalid']) test(`Discovery rev
   const view = await mount();
   try {
     await selectDocument(view.host, a);
-    await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Old case draft');
+    await choose(view.host, 'APPROVE'); await change(view.host.querySelector('textarea'), 'Old case draft');
     assert.equal(view.host.querySelector('button[type=submit]').disabled, false);
     const discovery = () => { reads++; return new Promise((resolve, reject) => { finish = { resolve, reject }; }); };
     await view.render({ ...base, discovery });
@@ -388,7 +390,7 @@ test('Session revalidation aborts pending decision and late success cannot resto
   const discovery = async ({ accessToken }) => accessToken === session.accessToken ? queue : new Promise((_resolve, reject) => { finishQueue = reject; });
   const view = await mount({ ...base, discovery });
   try {
-    await selectDocument(view.host, a); await change(getSelect(view.host, 'Decision'), 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
+    await selectDocument(view.host, a); await choose(view.host, 'APPROVE'); await change(view.host.querySelector('textarea'), 'Reviewed');
     await submit(view.host); assert.ok(signal); assert.equal(signal.aborted, false);
     await view.render({ ...base, discovery, session: { ...session, accessToken: 'new-token' } });
     assert.equal(signal.aborted, true); assert.equal(view.host.querySelector('form'), null);
@@ -429,13 +431,13 @@ test('Legal can refresh newly uploaded death documents while preserving an unfin
   globalThis.fetch = async url => url.endsWith('/attachments') ? json([]) : json(detail());
   const view = await mount({ ...base, contextLoader });
   try {
-    await change(getSelect(view.host, 'Decision'), 'REQUEST_MORE');
+    await choose(view.host, 'REQUEST_MORE');
     await change(view.host.querySelector('textarea'), 'Please clarify the issuing authority');
     extra = true;
     await click(view.host, 'Refresh documents and case');
     assert.equal(reads, 2);
     assert.equal(getSelect(view.host, 'Death document').querySelectorAll('option').length, 3);
     assert.equal(view.host.querySelector('textarea').value, 'Please clarify the issuing authority');
-    assert.equal(getSelect(view.host, 'Decision').value, 'REQUEST_MORE');
+    assert.equal(chosen(view.host), 'REQUEST_MORE');
   } finally { await view.close(); }
 });

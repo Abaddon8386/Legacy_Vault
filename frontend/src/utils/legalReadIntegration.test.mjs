@@ -63,6 +63,14 @@ async function mount(props = base, Component = Screen) {
   await render(props);
   return { host, render, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
+const reactProps = element => element[Object.keys(element).find(key => key.startsWith('__reactProps'))];
+const choose = (host, value) => act(async () => {
+  const element = host.querySelector(`input[type=radio][value="${value}"]`);
+  reactProps(element).onChange();
+  const reason = element.closest('form')?.querySelector('textarea');
+  if (value === 'APPROVE' && reason && !reason.value) reactProps(reason).onChange({ target: { value: 'Reviewed scope' } });
+});
+const chosen = host => host.querySelector('input[type=radio]:checked')?.value || '';
 const change = (element, value) => act(async () => {
   element[Object.keys(element).find(key => key.startsWith('__reactProps'))].onChange({ target: { value, checked: value } });
   const reason=element.closest('form')?.querySelector('textarea');
@@ -101,7 +109,7 @@ test('Legal rejection stays mounted during a late workflow poll and reports an u
   const view = await mount();
   try {
     await act(async () => window.dispatchEvent(new window.Event('focus')));
-    await change(view.host.querySelector('form select'), 'REJECT');
+    await choose(view.host, 'REJECT');
     await change(view.host.querySelector('textarea'), 'Distribution document needs correction');
     await submit(view.host);
     assert.equal(view.host.querySelector('.lv-legal-context-actions button').disabled, true);
@@ -166,7 +174,7 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
     assert.match(table.textContent, lang === 'en' ? /Court document/ : /Từ văn bản Tòa án/);
     assert.match(table.textContent, lang === 'en' ? /Named in version 2/ : /Ghi nhận từ phiên bản 2/);
     assert.match(table.textContent, lang === 'en' ? /Account not linked/ : /Chưa liên kết tài khoản/);
-    await change(view.host.querySelector('form select'), 'APPROVE');
+    await choose(view.host, 'APPROVE');
     assert.equal(view.host.querySelector('[type=submit]').disabled, false);
     await submit(view.host);
     assert.equal(writes, 1);
@@ -184,7 +192,7 @@ for (const status of [401, 403, 404, 500]) test(`post-save context HTTP ${status
   });
   const view = await mount();
   try {
-    await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+    await choose(view.host, 'APPROVE'); await submit(view.host);
     assert.equal(writes, 1); assert.ok(view.host.querySelector('[role=alert]'));
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('table'), null);
     if (status !== 500) assert.doesNotMatch(view.host.textContent, /Decision saved|Recipient C/);
@@ -201,11 +209,11 @@ test('a final-decision draft survives reloading a conflict but is discarded when
   globalThis.fetch = transport(url => json(courtContext(url.includes(b) ? b : a)), () => json({ code: 'LEGAL_DECISION_STALE' }, 409));
   const view = await mount();
   try {
-    await change(view.host.querySelector('form select'), 'REJECT'); await change(view.host.querySelector('textarea'), 'Keep this reason');
+    await choose(view.host, 'REJECT'); await change(view.host.querySelector('textarea'), 'Keep this reason');
     await submit(view.host); await click(view.host, 'Try again');
-    assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(view.host.querySelector('form select').value, 'REJECT');
+    assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(chosen(view.host), 'REJECT');
     await view.render({ ...base, caseId: b });
-    assert.equal(view.host.querySelector('textarea').value, ''); assert.equal(view.host.querySelector('form select').value, '');
+    assert.equal(view.host.querySelector('textarea').value, ''); assert.equal(chosen(view.host), '');
   } finally { await view.close(); }
 });
 
@@ -218,14 +226,14 @@ for (const decision of ['APPROVE', 'REJECT']) test(`final ${decision} reads cont
   });
   const view = await mount();
   try {
-    await change(view.host.querySelector('form select'), decision);
+    await choose(view.host, decision);
     if (decision === 'REJECT') assert.equal(view.host.querySelector('[type=submit]').disabled, true);
     await change(view.host.querySelector('textarea'), 'Reviewed scope');
     await submit(view.host); await submit(view.host);
     assert.equal(reads, 3); assert.equal(writes, 1);
     assert.deepEqual(body, { decision, versionNo: 1, sha256Hash: sha, allocationHash: allocation, reason: 'Reviewed scope' });
     assert.match(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
-    assert.equal(view.host.querySelector('form select').value, '', 'A saved decision must require a new explicit selection');
+    assert.equal(chosen(view.host), '', 'A saved decision must require a new explicit selection');
   } finally { await view.close(); }
 });
 
@@ -242,7 +250,7 @@ for (const field of ['allocationHash', 'sha256Hash', 'disputeStatus', 'courtResu
     return json(value);
   }, () => { writes++; return json({}); });
   const view = await mount();
-  try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+  try { await choose(view.host, 'APPROVE'); await submit(view.host);
     assert.equal(writes, 0); assert.match(view.host.textContent, /record changed/); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
   } finally { await view.close(); }
 });
@@ -265,7 +273,7 @@ test('final decision opens a consequence summary and cancelling sends no request
   globalThis.fetch = transport(() => json(contextFixture()), () => { writes++; return json({}); });
   const view = await mount();
   try {
-    await change(view.host.querySelector('form select'), 'REJECT');
+    await choose(view.host, 'REJECT');
     await change(view.host.querySelector('textarea'), 'Documents incomplete');
     await act(async () => view.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
     assert.equal(writes, 0);
@@ -298,7 +306,7 @@ for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal cont
 for (const status of [403, 409, 500]) test(`mutation HTTP ${status} cannot show success or permit blind retry`, async () => {
   globalThis.fetch = transport(() => json(contextFixture()), () => json({ code: 'CONFLICT' }, status));
   const view = await mount();
-  try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+  try { await choose(view.host, 'APPROVE'); await submit(view.host);
     assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/);
     if (status === 403) assert.equal(view.host.querySelector('form'), null);
     else assert.equal(view.host.querySelector('[type=submit]').disabled, true);
@@ -320,7 +328,7 @@ test('queue revalidation after a token change removes active forms and pending r
   const fetch = transport(() => json(contextFixture()), (_url, init) => new Promise(resolve => { finish = resolve; signal = init.signal; }));
   globalThis.fetch = (url, init) => deny && url.includes('verification-cases?') ? json({ code: 'ACCESS_DENIED' }, 403) : fetch(url, init);
   const view = await mount();
-  try { await change(view.host.querySelector('form select'), 'APPROVE'); await submit(view.host);
+  try { await choose(view.host, 'APPROVE'); await submit(view.host);
     deny = true; await view.render({ ...base, session: { ...session, accessToken: 'rotated-fixture-token' } }); assert.equal(signal.aborted, true);
     await act(async () => finish(json({}))); assert.equal(view.host.querySelector('form'), null);
     assert.ok(view.host.querySelector('[role=alert]')); assert.doesNotMatch(view.host.textContent, /Decision saved|Case approved|Case approval rejected|Vault unlocked/);
@@ -343,8 +351,8 @@ test('actual App Legal route uses default queue/context adapters without injecte
   window.history.replaceState({}, '', '/legal/approval-review?caseId=' + a + '&lang=en');
   globalThis.fetch = transport(() => json(contextFixture()));
   const view = await mount({}, App);
-  try { assert.match(view.host.textContent, /Final approval/); assert.ok(view.host.querySelector('form select'));
-    await change(view.host.querySelector('form select'), 'APPROVE'); assert.equal(view.host.querySelector('[type=submit]').disabled, false);
+  try { assert.match(view.host.textContent, /Final approval/); assert.ok(view.host.querySelector('form input[type=radio]'));
+    await choose(view.host, 'APPROVE'); assert.equal(view.host.querySelector('[type=submit]').disabled, false);
   } finally { await view.close(); }
 });
 
