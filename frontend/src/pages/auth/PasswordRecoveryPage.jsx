@@ -85,7 +85,7 @@ function RecoveryForm({ mode, initialLang = 'vi', onRequestRecovery, onResetPass
       {status === 'success' ? <p className="lv-recovery-success" role="status">{reset ? t.completed : t.accepted}</p> :
         <form className="hn-login-form" onSubmit={submit} noValidate aria-busy={busy}>
           {fields.map(field => <div className="hn-login-field-group" key={field}>
-            <label className="hn-login-label" htmlFor={`recovery-${field}`}>{t[field]}</label>
+            <label className="hn-login-label" htmlFor={`recovery-${field}`}>{t[field]}<span className="lv-required-mark" aria-hidden="true">*</span></label>
             <input id={`recovery-${field}`} className={`hn-login-input ${attempted && errors[field] ? 'has-error' : ''}`}
               type={field === 'email' ? 'email' : showPasswords ? 'text' : 'password'}
               autoComplete={field === 'email' ? 'email' : 'new-password'} required

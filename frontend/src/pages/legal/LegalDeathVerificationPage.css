@@ -176,7 +176,7 @@
 
 .lv-legal-view .lv-form-label--required::after {
   content: ' *';
-  color: #b42318;
+  color: var(--lv-required);
   font-weight: 700;
 }
 

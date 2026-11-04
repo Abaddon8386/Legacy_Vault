@@ -68,7 +68,7 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
     {!!actions.length && <section className="lv-legal-step-data lv-legal-live__card lv-legal-basis-decision">
       <h2>{documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ')}</h2>
       <form className="lv-distribution-form" onSubmit={submit}>
-        <label>{en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa'}
+        <label><span>{en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
           <textarea required maxLength={1000} rows={4} value={reason} disabled={workflow.pending}
             placeholder={en ? 'Enter your assessment or specify what needs to be supplemented.' : 'Nhập nhận xét hoặc nêu rõ nội dung cần bổ sung, chỉnh sửa.'}
             onChange={event => setDraft({ scope, reason: event.target.value })} /></label>

@@ -45,7 +45,7 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
    <form className="lv-tb-form" onSubmit={submit} noValidate>
     {error&&<p role="alert">{en?'Unable to update. Your changes have been kept; please try again.':'Không thể cập nhật. Nội dung đã nhập được giữ lại; vui lòng thử lại.'}</p>}
     <div className="lv-tb-form-grid">{fields.map(([key,label,type,maxLength])=><div className="lv-tb-field-group" key={key}>
-     <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'?' *':''}</label>
+     <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'&&<span className="lv-required-mark" aria-hidden="true">*</span>}</label>
      {type === 'date' ? (
        <DatePicker
          id={'related-edit-' + key}

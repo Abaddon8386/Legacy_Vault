@@ -10,6 +10,7 @@ import {
 } from './staffLiveService.js';
 import { validateEvidenceFile, formatFileSize, EVIDENCE_UPLOAD_I18N } from '../../utils/staffEvidenceUpload.js';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
+import { DatePicker } from '../../components/common/DatePicker.jsx';
 import { ArrowLeft, ChevronDown, RefreshCw } from 'lucide-react';
 import './StaffLiveCase.css';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
@@ -21,6 +22,7 @@ const labels = {
   deliveredByName: ['Họ tên người nộp', 'Delivered by'], deliveredByRelationship: ['Mối quan hệ', 'Relationship'],
   conditionNotes: ['Tình trạng bản gốc', 'Original condition'],
 };
+const requiredFields = ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName'];
 const fields = {
   'death-documents': ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'evidenceReference', 'notes'],
   'original-will-intakes': ['deliveredByName', 'deliveredByRelationship', 'evidenceReference', 'conditionNotes'],
@@ -525,12 +527,12 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     }); }}>
       <fieldset disabled={busy || closed || !writeReady}>
         <legend>{en ? 'Record new document intake' : 'Tiếp nhận giấy tờ mới'}</legend>
-        <div className="lv-intake-fields">{fields[kind].map(key => <label key={key}>{labels[key][en ? 1 : 0]}
+        <div className="lv-intake-fields">{fields[kind].map(key => <label key={key}><span>{labels[key][en ? 1 : 0]}{requiredFields.includes(key) && <span className="lv-required-mark" aria-hidden="true">*</span>}</span>
           {key === 'documentType' ? <select required value={draft[key] || ''} onChange={e => setDrafts(values => ({ ...values, [kind]: { ...values[kind], [key]: e.target.value } }))}>
             <option value="">{en ? 'Select' : 'Chọn'}</option>
             <option value="DEATH_CERTIFICATE">{en ? 'Death certificate' : 'Giấy chứng tử'}</option>
             <option value="DEATH_REGISTRATION_EXTRACT">{en ? 'Death registration extract' : 'Trích lục khai tử'}</option>
-          </select> : <input type={key === 'issuedDate' ? 'date' : 'text'} required={['issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName'].includes(key)}
+          </select> : key === 'issuedDate' ? <DatePicker required value={draft[key] || ''} max={new Date().toISOString().slice(0, 10)} lang={lang} onChange={value => setDrafts(values => ({ ...values, [kind]: { ...values[kind], [key]: value } }))} /> : <input type="text" required={requiredFields.includes(key)}
             maxLength={({ issuingAuthority: 255, documentNumber: 100, deliveredByName: 150, deliveredByRelationship: 100, evidenceReference: 500 })[key] || 1000}
             value={draft[key] || ''} onChange={e => setDrafts(values => ({ ...values, [kind]: { ...values[kind], [key]: e.target.value } }))} />}
         </label>)}</div>

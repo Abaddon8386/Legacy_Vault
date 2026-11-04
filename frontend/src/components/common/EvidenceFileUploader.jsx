@@ -1,10 +1,7 @@
-import { useState, useEffect, useRef, useId } from 'react';
+import { useState, useRef, useId } from 'react';
 import {
   UploadCloud,
-  FileText,
-  FileImage,
   X,
-  RefreshCw,
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
@@ -16,48 +13,6 @@ import {
 } from '../../utils/staffEvidenceUpload.js';
 import './EvidenceFileUploader.css';
 import FeedbackNotice from './FeedbackNotice.jsx';
-
-function EvidenceThumbnail({ file, alt }) {
-  const [objectUrl, setObjectUrl] = useState(null);
-
-  useEffect(() => {
-    if (!file) {
-      return;
-    }
-
-    const isImage = file.type?.startsWith('image/') || file.name?.match(/\.(jpe?g|png)$/i);
-    if (!isImage) {
-      return;
-    }
-
-    let active = true;
-    let url = null;
-
-    try {
-      url = URL.createObjectURL(file);
-      Promise.resolve().then(() => {
-        if (active) {
-          setObjectUrl(url);
-        }
-      });
-    } catch {
-      url = null;
-    }
-
-    return () => {
-      active = false;
-      if (url) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, [file]);
-
-  if (!objectUrl) {
-    return null;
-  }
-
-  return <img src={objectUrl} alt={alt} className="lv-evidence-preview-card__img" />;
-}
 
 export default function EvidenceFileUploader({
   file = null,
@@ -139,8 +94,6 @@ export default function EvidenceFileUploader({
   const isProcessing = uploadProgress?.phase === 'processing';
   const isSuccess = uploadProgress?.phase === 'success';
 
-  const isPdf = file?.type === 'application/pdf' || file?.name?.toLowerCase().endsWith('.pdf');
-  const isImageCandidate = file && (file.type?.startsWith('image/') || file.name?.match(/\.(jpe?g|png)$/i));
 
   return (
     <div className={`lv-evidence-uploader ${disabled ? 'lv-evidence-uploader--disabled' : ''}`}>
@@ -198,66 +151,29 @@ export default function EvidenceFileUploader({
       {/* Hiển thị tệp đã chọn và bản xem trước */}
       {file && (
         <div className="lv-evidence-preview-card">
-          <div className="lv-evidence-preview-card__main">
-            {/* Thumbnail preview */}
-            <div className="lv-evidence-preview-card__thumbnail">
-              {isImageCandidate && (
-                <EvidenceThumbnail file={file} alt={t.previewImageAlt} />
-              )}
-              {isPdf && (
-                <div className="lv-evidence-preview-card__pdf-badge">
-                  <FileText size={28} className="lv-evidence-preview-card__pdf-icon" aria-hidden="true" />
-                  <span className="lv-evidence-preview-card__pdf-label">PDF</span>
-                </div>
-              )}
-              {!isImageCandidate && !isPdf && (
-                <div className="lv-evidence-preview-card__doc-badge">
-                  <FileImage size={28} aria-hidden="true" />
-                </div>
-              )}
-            </div>
-
-            {/* Chi tiết file */}
-            <div className="lv-evidence-preview-card__info">
-              <span className="lv-evidence-preview-card__name" title={file.name}>
-                {file.name}
-              </span>
-              <div className="lv-evidence-preview-card__meta">
-                <span className="lv-evidence-preview-card__size">
-                  {formatFileSize(file.size, lang)}
-                </span>
-                <span className="lv-evidence-preview-card__dot">•</span>
-                <span className="lv-evidence-preview-card__type">
-                  {isPdf ? t.previewPdf : file.type || 'Binary'}
-                </span>
-              </div>
-            </div>
-
-            {/* Nút hành động */}
-            {!disabled && !isUploading && !isProcessing && (
-              <div className="lv-evidence-preview-card__actions">
-                <button
-                  type="button"
-                  className="lv-evidence-btn-change"
-                  onClick={() => fileInputRef.current?.click()}
-                  title={t.changeFile}
-                  aria-label={t.changeFile}
-                >
-                  <RefreshCw size={14} aria-hidden="true" />
-                  <span>{t.changeFile}</span>
-                </button>
-                <button
-                  type="button"
-                  className="lv-evidence-btn-remove"
-                  onClick={handleRemoveFile}
-                  title={t.removeFile}
-                  aria-label={t.removeFile}
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
-            )}
-          </div>
+          <table className="lv-evidence-file-table">
+            <thead>
+              <tr>
+                <th scope="col">{t.fileNameColumn}</th>
+                <th scope="col">{t.fileSizeColumn}</th>
+                <th scope="col">{t.fileActionColumn}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="lv-evidence-file-table__name">{file.name}</td>
+                <td className="lv-evidence-file-table__size">{formatFileSize(file.size, lang)}</td>
+                <td>
+                  {!disabled && !isUploading && !isProcessing && (
+                    <button type="button" className="lv-evidence-btn-remove" onClick={handleRemoveFile}>
+                      <X size={16} aria-hidden="true" />
+                      <span>{t.removeFile}</span>
+                    </button>
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
           {/* Thanh tiến trình */}
           {(isUploading || isProcessing || isSuccess) && (

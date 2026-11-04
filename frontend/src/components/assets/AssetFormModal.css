@@ -31,7 +31,7 @@
 }
 
 .lv-asset-page .lv-required {
-  color: var(--lv-danger);
+  color: var(--lv-required);
 }
 
 .lv-asset-page .lv-form-input,

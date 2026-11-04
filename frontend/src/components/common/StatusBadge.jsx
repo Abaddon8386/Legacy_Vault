@@ -9,13 +9,14 @@ const STATUS_LABELS = {
   DISABLED: { vi: 'Chưa kích hoạt', en: 'Not Configured', tone: 'neutral' },
   NOT_CONFIGURED: { vi: 'Chưa cấu hình', en: 'Not Configured', tone: 'neutral' },
   AWAITING_VERIFICATION: { vi: 'Chờ tiếp nhận', en: 'Awaiting Intake', tone: 'await' },
-  DOCUMENT_VERIFICATION: { vi: 'Thẩm định hồ sơ', en: 'Doc Verification', tone: 'await' },
-  WILL_VERIFICATION: { vi: 'Đối chiếu di chúc', en: 'Will Verification', tone: 'await' },
-  LEGAL_APPROVED: { vi: 'Đã phê duyệt', en: 'Legal Approved', tone: 'info' },
-  UNLOCKED: { vi: 'Đã mở khóa', en: 'Unlocked', tone: 'active' },
-  HANDOVER_IN_PROGRESS: { vi: 'Đang bàn giao', en: 'Handover in Progress', tone: 'await' },
-  HANDOVER_CONFIRMED: { vi: 'Nghiệm thu hoàn tất', en: 'Handover Confirmed', tone: 'active' },
+  DOCUMENT_VERIFICATION: { vi: 'Thẩm định hồ sơ', en: 'Doc Verification', tone: 'active' },
+  WILL_VERIFICATION: { vi: 'Đối chiếu di chúc', en: 'Will Verification', tone: 'active' },
+  LEGAL_APPROVED: { vi: 'Đã phê duyệt', en: 'Legal Approved', tone: 'neutral' },
+  UNLOCKED: { vi: 'Đã mở khóa', en: 'Unlocked', tone: 'neutral' },
+  HANDOVER_IN_PROGRESS: { vi: 'Đang bàn giao', en: 'Handover in Progress', tone: 'active' },
+  HANDOVER_CONFIRMED: { vi: 'Nghiệm thu hoàn tất', en: 'Handover Confirmed', tone: 'neutral' },
   ARCHIVED: { vi: 'Lưu trữ vĩnh viễn', en: 'Archived', tone: 'neutral' },
+  CANCELLED: { vi: 'Đã hủy', en: 'Cancelled', tone: 'danger' },
 };
 
 export default function StatusBadge({ status = 'ACTIVE', lang = 'vi' }) {

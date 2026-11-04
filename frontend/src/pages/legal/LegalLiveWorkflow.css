@@ -26,11 +26,11 @@
 .lv-legal-case-banner__content { display:flex; flex:1; flex-wrap:wrap; align-items:center; gap:8px 16px; min-width:0; }
 .lv-legal-case-banner__content > span:first-child { flex-basis:100%; font-size:14px; color:#d5e6dd; }
 .lv-legal-case-banner__content > strong { font-size:22px; line-height:1.4; overflow-wrap:anywhere; }
-.lv-legal-case-status { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; background:var(--lv-status-info-bg,#eff5f8); color:var(--lv-status-info-text,#35566a); font-size:14px; font-weight:600; }
+.lv-legal-case-status { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; background:var(--lv-status-success-bg,#edf6ee); color:var(--lv-status-success-text,#245e44); font-size:14px; font-weight:600; }
 .lv-legal-case-status svg { flex-shrink:0; }
 .lv-legal-case-status.is-warning { background:var(--lv-status-await-bg,#fff8e8); color:var(--lv-status-await-text,#76541b); }
 .lv-legal-case-status.is-neutral { background:#f2f2ed; color:#45564d; }
-.lv-legal-case-status.is-success { background:var(--lv-status-success-bg,#edf6ee); color:var(--lv-status-success-text,#245e44); }
+.lv-legal-case-status.is-success { background:#f2f2ed; color:#45564d; }
 .lv-legal-case-status.is-error { background:var(--lv-status-error-bg,#fff1f0); color:var(--lv-status-error-text,#a12525); }
 .lv-legal-case-banner__readonly { display:inline-flex; align-items:center; gap:8px; color:#e2c887; font-size:14px; }
 .lv-legal-workspace { display:grid; align-items:start; gap:20px; min-width:0; }

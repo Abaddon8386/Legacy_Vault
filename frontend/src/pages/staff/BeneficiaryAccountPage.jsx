@@ -484,7 +484,7 @@ function CounterHandoverContent({
             <form onSubmit={handleLinkExisting} noValidate>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {t.beneficiarySection.searchEmailPrompt}
+                  {t.beneficiarySection.searchEmailPrompt}<span className="lv-required-mark" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="email"
@@ -533,7 +533,7 @@ function CounterHandoverContent({
               </div>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {t.beneficiarySection.createEmailPrompt}
+                  {t.beneficiarySection.createEmailPrompt}<span className="lv-required-mark" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="email"
@@ -559,7 +559,7 @@ function CounterHandoverContent({
               </div>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {lang === 'en' ? 'Password (chosen by beneficiary at counter, 8–72 chars):' : 'Mật khẩu (người thụ hưởng tự nhập tại quầy, 8–72 ký tự):'}
+                  {lang === 'en' ? 'Password (chosen by beneficiary at counter, 8–72 chars):' : 'Mật khẩu (người thụ hưởng tự nhập tại quầy, 8–72 ký tự):'}<span className="lv-required-mark" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="password"

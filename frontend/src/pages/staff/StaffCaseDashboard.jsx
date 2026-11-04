@@ -229,9 +229,10 @@ export default function StaffCaseDashboard({
   const renderStatusBadge = (status) => {
     const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CLOSED' ? (lang === 'en' ? 'Closed' : 'Đã đóng') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeClass = 'lv-staff-status-badge--awaiting';
-    if (status === 'IN_PROGRESS') badgeClass = 'lv-staff-status-badge--progress';
+    if (status === 'OPEN' || status === 'IN_PROGRESS') badgeClass = 'lv-staff-status-badge--progress';
     if (status === 'VERIFIED') badgeClass = 'lv-staff-status-badge--verified';
-    if (status === 'CLOSED' || status === 'CANCELLED') badgeClass = 'lv-staff-status-badge--closed';
+    if (status === 'CLOSED') badgeClass = 'lv-staff-status-badge--closed';
+    if (status === 'CANCELLED') badgeClass = 'lv-staff-status-badge--cancelled';
 
     return (
       <span className={`lv-staff-status-badge ${badgeClass}`}>

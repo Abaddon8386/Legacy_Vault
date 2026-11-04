@@ -291,7 +291,7 @@ for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal cont
     assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
     const badge = view.host.querySelector('.lv-legal-case-status');
     assert.equal(badge.textContent, caseStatus === 'CANCELLED' ? 'Verification cancelled' : 'Closed');
-    assert.ok(badge.classList.contains('is-neutral'));
+    assert.ok(badge.classList.contains(caseStatus === 'CANCELLED' ? 'is-error' : 'is-neutral'));
   } finally { await view.close(); }
 });
 
