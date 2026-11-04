@@ -7,7 +7,6 @@ import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
-import com.legacyvault.auth.dto.PasswordSetupRequest;
 import com.legacyvault.auth.dto.PasswordSetupResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
 import com.legacyvault.auth.dto.RegisterResponse;
@@ -180,19 +179,22 @@ public class AuthService {
         return saved;
     }
 
-    /** Lets a Google-only account choose its first password. Not allowed once password login is on. */
+    /**
+     * Lets a Google-only account choose its first password. Not allowed once password login is on. The caller
+     * ({@link GoogleAuthService#setupPassword}) must already have proven control of the linked Google account.
+     */
     @Transactional
-    public PasswordSetupResponse setupPassword(Long userId, PasswordSetupRequest request) {
+    public PasswordSetupResponse setupPassword(Long userId, String password) {
         User user = userRepository.findActiveAccountForUpdate(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
         if (user.isPasswordLoginAllowed()) {
             throw new BusinessException(ErrorCode.PASSWORD_ALREADY_SET);
         }
-        if (!new PasswordPolicy().isValid(request.password(), null)) {
+        if (!new PasswordPolicy().isValid(password, null)) {
             throw new BusinessException(ErrorCode.PASSWORD_POLICY);
         }
         // The current session stays valid (no auth-version bump): the user is mid-action and must not be logged out.
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setPasswordHash(passwordEncoder.encode(password));
         user.setPasswordLoginEnabled(true);
         userRepository.flush();
 

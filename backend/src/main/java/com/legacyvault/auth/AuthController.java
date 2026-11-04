@@ -65,7 +65,7 @@ public class AuthController {
     public ResponseEntity<PasswordSetupResponse> setupPassword(
             @Valid @RequestBody PasswordSetupRequest request,
             @AuthenticationPrincipal CustomUserPrincipal principal) {
-        return ResponseEntity.ok(authService.setupPassword(CustomUserPrincipal.requireUserId(principal), request));
+        return ResponseEntity.ok(googleAuthService.setupPassword(CustomUserPrincipal.requireUserId(principal), request));
     }
 
     @GetMapping("/me")

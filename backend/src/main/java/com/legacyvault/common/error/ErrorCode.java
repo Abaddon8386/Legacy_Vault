@@ -40,6 +40,7 @@ public enum ErrorCode {
 	GOOGLE_SIGNIN_UNAVAILABLE(503, "error.auth.googleSignInUnavailable"),
 	GOOGLE_EMAIL_ALREADY_REGISTERED(409, "error.auth.googleEmailAlreadyRegistered"),
 	GOOGLE_EMAIL_NOT_VERIFIED(401, "error.auth.googleEmailNotVerified"),
+	GOOGLE_IDENTITY_MISMATCH(403, "error.auth.googleIdentityMismatch"),
 	PASSWORD_NOT_SET(403, "error.auth.passwordNotSet"),
 	PASSWORD_ALREADY_SET(409, "error.auth.passwordAlreadySet"),
 	ACCESS_DENIED(403, "error.auth.accessDenied"),

@@ -169,9 +169,10 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
-    void googleOnlyAccountSetsPasswordOnceThenUsesItNormally() {
+    void googleOnlyAccountSetsPasswordOnceWithFreshCredentialThenUsesItNormally() {
         String email = "setpw-" + UUID.randomUUID() + "@example.test";
-        login(credential("sub-" + UUID.randomUUID(), email, true));
+        String subject = "sub-" + UUID.randomUUID();
+        login(credential(subject, email, true));
         long userId = scalar("SELECT user_id FROM dbo.users WHERE email = ?", email);
         AuthService auth = context.getBean(AuthService.class);
         PasswordReauthService reauth = context.getBean(PasswordReauthService.class);
@@ -182,7 +183,7 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals(0, scalar("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='REAUTH_FAILED' AND actor_user_id = ?", userId));
 
         long versionBefore = scalar("SELECT auth_version FROM dbo.users WHERE user_id = ?", userId);
-        assertTrue(auth.setupPassword(userId, new PasswordSetupRequest("Brand-new-pass-1")).passwordLoginEnabled());
+        assertTrue(setupPassword(userId, "Brand-new-pass-1", credential(subject, email, true)).passwordLoginEnabled());
         assertEquals(versionBefore, scalar("SELECT auth_version FROM dbo.users WHERE user_id = ?", userId));
         assertEquals(1, scalar("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='AUTH_PASSWORD_SET' AND actor_user_id = ?", userId));
 
@@ -190,6 +191,50 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
         reauth.requirePassword(userId, null, "Brand-new-pass-1");
         assertNotNull(tx.execute(status -> auth.login(new LoginRequest(email, "Brand-new-pass-1"), "127.0.0.1")));
         assertEquals(ErrorCode.PASSWORD_ALREADY_SET, codeOf(
-                () -> auth.setupPassword(userId, new PasswordSetupRequest("Another-pass-22"))));
+                () -> setupPassword(userId, "Another-pass-22", credential(subject, email, true))));
+    }
+
+    @Test
+    void passwordSetupWithCredentialOfAnotherGoogleAccountIsRejectedAndChangesNothing() {
+        String mail = "owner-a-" + UUID.randomUUID() + "@example.test";
+        String subject = "sub-" + UUID.randomUUID();
+        login(credential(subject, mail, true));
+        long userId = scalar("SELECT user_id FROM dbo.users WHERE email = ?", mail);
+        String otherMail = "owner-b-" + UUID.randomUUID() + "@example.test";
+        String otherSubject = "sub-" + UUID.randomUUID();
+        login(credential(otherSubject, otherMail, true));
+
+        // Signed in as A, but the Google token belongs to B.
+        assertEquals(ErrorCode.GOOGLE_IDENTITY_MISMATCH, codeOf(
+                () -> setupPassword(userId, "Brand-new-pass-1", credential(otherSubject, otherMail, true))));
+        // A token whose subject is linked to nobody.
+        assertEquals(ErrorCode.GOOGLE_IDENTITY_MISMATCH, codeOf(
+                () -> setupPassword(userId, "Brand-new-pass-1", credential("sub-" + UUID.randomUUID(), mail, true))));
+
+        assertEquals(Boolean.FALSE, jdbc.queryForObject(
+                "SELECT password_login_enabled FROM dbo.users WHERE user_id = ?", Boolean.class, userId));
+        assertEquals(0, scalar("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='AUTH_PASSWORD_SET' AND actor_user_id = ?", userId));
+    }
+
+    @Test
+    void passwordSetupCredentialIsSingleUseButSurvivesAPasswordPolicyFailure() {
+        String email = "reuse-" + UUID.randomUUID() + "@example.test";
+        String subject = "sub-" + UUID.randomUUID();
+        login(credential(subject, email, true));
+        long userId = scalar("SELECT user_id FROM dbo.users WHERE email = ?", email);
+
+        String token = credential(subject, email, true);
+        // Weak password: whole transaction rolls back, so the token is not burned.
+        assertEquals(ErrorCode.PASSWORD_POLICY, codeOf(() -> setupPassword(userId, "short", token)));
+        assertTrue(setupPassword(userId, "Brand-new-pass-1", token).passwordLoginEnabled());
+
+        // Once used, the same token cannot be replayed.
+        String replayed = credential(subject, email, true);
+        assertEquals(ErrorCode.PASSWORD_ALREADY_SET, codeOf(() -> setupPassword(userId, "Another-pass-22", replayed)));
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, codeOf(() -> setupPassword(userId, "Another-pass-22", token)));
+    }
+
+    private com.legacyvault.auth.dto.PasswordSetupResponse setupPassword(long userId, String password, String token) {
+        return tx.execute(status -> google().setupPassword(userId, new PasswordSetupRequest(password, token)));
     }
 }

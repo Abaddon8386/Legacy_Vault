@@ -96,14 +96,21 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 ## POST /api/v1/auth/password/setup — đăng ký Google
 
 - **Quyền:** JWT hợp lệ, tài khoản `ACTIVE`. Chỉ dùng được khi `password_login_enabled = false` (tài khoản tạo bằng Google).
-- **Request:** `{ "password": "..." }` — cùng quy tắc mật khẩu như đăng ký (8–72 ký tự/byte).
+- **Request:** `{ "password": "...", "credential": "<Google ID token mới>" }` — mật khẩu theo cùng quy tắc như đăng ký (8–72 ký tự/byte).
+  `credential` bắt buộc: có phiên đăng nhập thôi không đặt được mật khẩu. BE xác minh token như đăng nhập Google, đánh dấu
+  đã dùng trong cùng transaction với việc đổi mật khẩu, và `sub` phải đang liên kết với chính tài khoản đang đăng nhập.
+  FE không dùng lại token lúc đăng nhập (đã bị đánh dấu đã dùng); phải cho người dùng bấm nút Google lại rồi gửi cùng `password`.
 - **Response 200:** `{ "passwordLoginEnabled": true }`. Bật `password_login_enabled`; không đổi auth version nên phiên hiện
   tại vẫn dùng được để FE quay lại đúng thao tác đang làm. Audit `AUTH_PASSWORD_SET`.
-- **Lỗi:** `400 VALIDATION_FAILED`/`PASSWORD_POLICY`; `401 UNAUTHENTICATED`; `409 PASSWORD_ALREADY_SET` khi tài khoản đã có
-  mật khẩu (kể cả tài khoản cũ `password_login_enabled` NULL).
+- **Lỗi:** `400 VALIDATION_FAILED` (thiếu `credential`/`password`) hoặc `PASSWORD_POLICY`; `401 UNAUTHENTICATED`;
+  `401 INVALID_GOOGLE_CREDENTIAL` khi token sai/hết hạn/đã dùng; `403 GOOGLE_IDENTITY_MISMATCH` khi `sub` chưa liên kết hoặc
+  thuộc tài khoản khác (FE báo chọn đúng tài khoản Google); `409 PASSWORD_ALREADY_SET` khi tài khoản đã có mật khẩu (kể cả
+  tài khoản cũ `password_login_enabled` NULL). Nếu bước đặt mật khẩu lỗi (mật khẩu yếu, đã có mật khẩu) thì rollback cả việc
+  đánh dấu token, nên token chưa bị mất; sau khi đặt thành công token không dùng lại được.
 - **Mã `PASSWORD_NOT_SET` (403):** mọi thao tác đòi mật khẩu hiện tại (`PasswordReauthService`: xem/sửa tài sản, tài liệu,
   di chúc, tài sản nhận...; `PATCH /auth/me` đổi email/mật khẩu) trả mã này thay cho `REAUTH_FAILED` khi tài khoản chưa có
-  mật khẩu. Không tính vào bộ đếm sai mật khẩu. FE mở hộp thoại đặt mật khẩu, gọi endpoint trên rồi thử lại.
+  mật khẩu. Không tính vào bộ đếm sai mật khẩu. FE mở hộp thoại đặt mật khẩu (có bước xác thực lại bằng nút Google),
+  gọi endpoint trên rồi thử lại. Phải xử lý mã này trước nhánh "mọi 403 khác `REAUTH_FAILED` là không có quyền".
 - Tài khoản chỉ có Google chưa dùng được "Quên mật khẩu" (recovery bị chặn) cho tới khi đặt mật khẩu.
 
 ## GET /api/v1/auth/me — **[D-API-23]**

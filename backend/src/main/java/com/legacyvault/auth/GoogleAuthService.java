@@ -6,6 +6,8 @@ import com.legacyvault.audit.AuditActorType;
 import com.legacyvault.audit.AuditEvent;
 import com.legacyvault.auth.dto.GoogleLoginRequest;
 import com.legacyvault.auth.dto.GoogleIdentityLinkResponse;
+import com.legacyvault.auth.dto.PasswordSetupRequest;
+import com.legacyvault.auth.dto.PasswordSetupResponse;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.entity.GoogleLoginCredentialUse;
 import com.legacyvault.auth.repository.GoogleLoginCredentialUseRepository;
@@ -108,7 +110,7 @@ public class GoogleAuthService {
             throw new BusinessException(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED);
         }
 
-        consumeCredential(credential, null);
+        consumeCredential(credential, null, true);
 
         User created;
         try {
@@ -125,7 +127,8 @@ public class GoogleAuthService {
         return authService.issueLoginResponseForActiveUser(created);
     }
 
-    private void consumeCredential(GoogleIdTokenVerifier.VerifiedGoogleCredential credential, User user) {
+    private void consumeCredential(GoogleIdTokenVerifier.VerifiedGoogleCredential credential, User user,
+            boolean auditReplayAsLoginFailure) {
         credentialUses.deleteByExpiresAtLessThanEqual(LocalDateTime.now(ZoneOffset.UTC));
         try {
             credentialUses.saveAndFlush(new GoogleLoginCredentialUse(
@@ -134,9 +137,30 @@ public class GoogleAuthService {
             if (!violatesConstraint(exception, "PK_google_login_credential_uses")) {
                 throw exception;
             }
-            auditService.recordLoginFailure(user == null ? null : user.getUserId());
+            if (auditReplayAsLoginFailure) {
+                auditService.recordLoginFailure(user == null ? null : user.getUserId());
+            }
             throw new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
         }
+    }
+
+    /**
+     * First password for a Google-only account. Requires a fresh Google ID token whose subject is linked to the
+     * signed-in account, so a session alone is not enough. The token is consumed in the same transaction as the
+     * password change; if the password step fails (policy, already set) everything rolls back and the token stays usable.
+     */
+    @Transactional
+    public PasswordSetupResponse setupPassword(Long authenticatedUserId, PasswordSetupRequest request) {
+        GoogleIdTokenVerifier.VerifiedGoogleCredential credential = verifier.verify(request.credential());
+        ExternalAuthIdentity identity = identities
+                .findByProviderCodeAndSubject(GOOGLE_PROVIDER, credential.subject())
+                .orElse(null);
+        if (identity == null || identity.getUser() == null
+                || !authenticatedUserId.equals(identity.getUser().getUserId())) {
+            throw new BusinessException(ErrorCode.GOOGLE_IDENTITY_MISMATCH);
+        }
+        consumeCredential(credential, null, false);
+        return authService.setupPassword(authenticatedUserId, request.password());
     }
 
     /** Links only a verified Google subject to the authenticated account; never links by email. */

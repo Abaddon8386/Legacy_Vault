@@ -3,7 +3,6 @@ package com.legacyvault.auth;
 import com.legacyvault.audit.AuditAction;
 import com.legacyvault.audit.AuditLogRepository;
 import com.legacyvault.audit.AuditService;
-import com.legacyvault.auth.dto.PasswordSetupRequest;
 import com.legacyvault.auth.dto.ProfileUpdateRequest;
 import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
@@ -89,7 +88,7 @@ class GoogleOnlyPasswordTest {
         when(users.findActiveAccountForUpdate(9L)).thenReturn(Optional.of(user));
         when(encoder.encode("StrongPass123")).thenReturn("new-hash");
 
-        assertTrue(service.setupPassword(9L, new PasswordSetupRequest("StrongPass123")).passwordLoginEnabled());
+        assertTrue(service.setupPassword(9L, "StrongPass123").passwordLoginEnabled());
 
         assertTrue(user.isPasswordLoginAllowed());
         assertEquals("new-hash", user.getPasswordHash());
@@ -97,7 +96,7 @@ class GoogleOnlyPasswordTest {
         verify(audit).record(argThat(event -> event.action() == AuditAction.AUTH_PASSWORD_SET));
 
         BusinessException second = assertThrows(BusinessException.class,
-                () -> service.setupPassword(9L, new PasswordSetupRequest("OtherPass456")));
+                () -> service.setupPassword(9L, "OtherPass456"));
         assertEquals(ErrorCode.PASSWORD_ALREADY_SET, second.getErrorCode());
         assertEquals("new-hash", user.getPasswordHash());
     }
@@ -109,7 +108,7 @@ class GoogleOnlyPasswordTest {
         when(users.findActiveAccountForUpdate(5L)).thenReturn(Optional.of(legacy));
 
         assertEquals(ErrorCode.PASSWORD_ALREADY_SET, assertThrows(BusinessException.class,
-                () -> service.setupPassword(5L, new PasswordSetupRequest("StrongPass123"))).getErrorCode());
+                () -> service.setupPassword(5L, "StrongPass123")).getErrorCode());
         verifyNoInteractions(audit);
     }
 
@@ -119,7 +118,7 @@ class GoogleOnlyPasswordTest {
         when(users.findActiveAccountForUpdate(9L)).thenReturn(Optional.of(user));
 
         assertEquals(ErrorCode.PASSWORD_POLICY, assertThrows(BusinessException.class,
-                () -> service.setupPassword(9L, new PasswordSetupRequest("short"))).getErrorCode());
+                () -> service.setupPassword(9L, "short")).getErrorCode());
         assertFalse(user.isPasswordLoginAllowed());
         verifyNoInteractions(audit);
     }
@@ -128,7 +127,7 @@ class GoogleOnlyPasswordTest {
     void setupPasswordRequiresActiveAccount() {
         when(users.findActiveAccountForUpdate(9L)).thenReturn(Optional.empty());
         assertEquals(ErrorCode.UNAUTHENTICATED, assertThrows(BusinessException.class,
-                () -> service.setupPassword(9L, new PasswordSetupRequest("StrongPass123"))).getErrorCode());
+                () -> service.setupPassword(9L, "StrongPass123")).getErrorCode());
     }
 
     @Test

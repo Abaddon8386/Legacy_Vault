@@ -3,6 +3,8 @@ package com.legacyvault.auth;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.auth.dto.GoogleLoginRequest;
 import com.legacyvault.auth.dto.GoogleIdentityLinkResponse;
+import com.legacyvault.auth.dto.PasswordSetupRequest;
+import com.legacyvault.auth.dto.PasswordSetupResponse;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.entity.GoogleLoginCredentialUse;
 import com.legacyvault.auth.repository.GoogleLoginCredentialUseRepository;
@@ -326,6 +328,81 @@ class GoogleAuthServiceTest {
     @Test
     void linkRunsInTransaction() throws Exception {
         assertTrue(GoogleAuthService.class.getMethod("linkIdentity", GoogleLoginRequest.class, Long.class)
+                .isAnnotationPresent(Transactional.class));
+    }
+
+    @Test
+    void passwordSetupWithCredentialOfTheSignedInAccountsGoogleIdentitySetsPasswordAndConsumesToken() {
+        PasswordSetupResponse done = new PasswordSetupResponse(true);
+        when(authService.setupPassword(41L, "StrongPass123")).thenReturn(done);
+
+        assertSame(done, service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        verify(uses).saveAndFlush(any(GoogleLoginCredentialUse.class));
+        verify(authService).setupPassword(41L, "StrongPass123");
+        verify(audit, never()).recordLoginFailure(any());
+    }
+
+    @Test
+    void passwordSetupRejectsCredentialOfAnotherAccountsGoogleIdentity() {
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(99L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.GOOGLE_IDENTITY_MISMATCH, exception.getErrorCode());
+        verifyNoInteractions(uses);
+        verify(authService, never()).setupPassword(any(), any());
+    }
+
+    @Test
+    void passwordSetupRejectsCredentialWhoseSubjectIsNotLinkedToAnyAccount() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.GOOGLE_IDENTITY_MISMATCH, exception.getErrorCode());
+        verify(authService, never()).setupPassword(any(), any());
+    }
+
+    @Test
+    void passwordSetupRejectsInvalidOrExpiredCredential() {
+        when(verifier.verify("bad-token")).thenThrow(new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", "bad-token")));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verifyNoInteractions(uses);
+        verify(authService, never()).setupPassword(any(), any());
+    }
+
+    @Test
+    void passwordSetupRejectsAlreadyUsedCredentialWithoutTouchingThePassword() {
+        when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class)))
+                .thenThrow(dataViolation("PK_google_login_credential_uses"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(authService, never()).setupPassword(any(), any());
+        verify(audit, never()).recordLoginFailure(any());
+    }
+
+    @Test
+    void passwordSetupFailureAfterTokenCheckPropagatesSoTheTransactionRollsBack() {
+        when(authService.setupPassword(41L, "StrongPass123"))
+                .thenThrow(new BusinessException(ErrorCode.PASSWORD_ALREADY_SET));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.PASSWORD_ALREADY_SET, exception.getErrorCode());
+    }
+
+    @Test
+    void passwordSetupRunsAsOneTransaction() throws Exception {
+        assertTrue(GoogleAuthService.class.getMethod("setupPassword", Long.class, PasswordSetupRequest.class)
                 .isAnnotationPresent(Transactional.class));
     }
 
