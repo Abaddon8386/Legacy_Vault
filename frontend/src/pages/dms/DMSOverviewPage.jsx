@@ -97,7 +97,6 @@ export default function DMSOverviewPage({
     return () => window.clearInterval(timer);
   }, []);
 
-  const [showInfoPopover, setShowInfoPopover] = useState(false);
   const isDevPreviewActive = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const searchParams = new URLSearchParams(window.location.search);
@@ -558,10 +557,7 @@ export default function DMSOverviewPage({
       pageTitle: "Giám sát hoạt động",
       pageSubtitle:
         'Thiết lập chu kỳ kiểm tra định kỳ để hệ thống theo dõi tín hiệu hiện diện và chủ động bảo vệ kho di sản của bạn.',
-      infoBtnLabel: 'Thông tin bảo vệ di sản',
-      infoPopoverTitle: 'Bảo vệ kho di sản số',
-      infoPopoverText:
-        'Quá hạn xác nhận hoạt động không đồng nghĩa với xác nhận qua đời và không tự động mở khóa kho di sản. Kho di sản vẫn được bảo vệ theo đúng quy tắc ủy quyền.',
+      protectionNote: 'Quá hạn xác nhận không đồng nghĩa với đã qua đời và không tự mở khóa kho. Kho vẫn được bảo vệ theo quy tắc ủy quyền.',
       statusCardTitle: 'Trạng thái giám sát hiện hành',
       statusCardSub: 'Thông tin chu kỳ và các mốc thời gian kiểm tra sự sống',
       metricStatus: 'Trạng thái theo dõi',
@@ -614,10 +610,7 @@ export default function DMSOverviewPage({
       pageTitle: "Dead Man's Switch (Activity Monitor)",
       pageSubtitle:
         'Configure periodic check-in intervals to monitor presence signals and safeguard your heritage vault.',
-      infoBtnLabel: 'Heritage Protection Info',
-      infoPopoverTitle: 'Heritage Vault Protection',
-      infoPopoverText:
-        'Check-in expiration does not signify owner decease and does not automatically unlock the heritage vault. The vault remains protected under configured authorization rules.',
+      protectionNote: 'A missed check-in does not mean the owner has died and does not unlock the vault. The vault stays protected under its authorization rules.',
       statusCardTitle: 'Current Vitality Status',
       statusCardSub: 'Monitoring schedule and countdown threshold parameters',
       metricStatus: 'Monitoring Status',
@@ -734,43 +727,6 @@ export default function DMSOverviewPage({
           <div className="lv-dms-header-titles">
             <div className="lv-dms-title-row">
               <h1 className="lv-dms-title">{t.pageTitle}</h1>
-              {/* Discrete Info Popover Toggle */}
-              <div className="lv-dms-info-wrap">
-                <button
-                  type="button"
-                  className="lv-dms-info-trigger"
-                  onClick={() => setShowInfoPopover((prev) => !prev)}
-                  aria-expanded={showInfoPopover}
-                  aria-label={t.infoBtnLabel}
-                  title={t.infoBtnLabel}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                  <span className="lv-dms-info-btn-text">{t.infoBtnLabel}</span>
-                </button>
-
-                {showInfoPopover && (
-                  <div className="lv-dms-info-popover" role="dialog" aria-label={t.infoPopoverTitle}>
-                    <div className="lv-dms-info-popover-header">
-                      <span className="lv-dms-info-popover-title">
-                        <span aria-hidden="true">🛡️</span> {t.infoPopoverTitle}
-                      </span>
-                      <button
-                        type="button"
-                        className="lv-dms-info-popover-close"
-                        onClick={() => setShowInfoPopover(false)}
-                        aria-label={lang === 'en' ? 'Close' : 'Đóng'}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <p className="lv-dms-info-popover-text">{t.infoPopoverText}</p>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -941,6 +897,8 @@ export default function DMSOverviewPage({
                 </div>
               </div>
             </div>
+
+              {!(isTriggered || isDeadlinePending) && <p className="lv-dms-protection-note">{t.protectionNote}</p>}
 
               {/* Cycle Timeline / Progress Indicator with visible animation */}
               {cycleProgress !== null && (

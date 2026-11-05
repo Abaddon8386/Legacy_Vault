@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act, StrictMode } from 'react';
@@ -98,6 +99,11 @@ test('DMS progress advances from backend timestamps and infers the first configu
   }
 });
 
+test('DMS has no protection popover: the note shows only while monitoring, overdue banners carry it otherwise', async () => {
+  const source = readFileSync(new URL('../pages/dms/DMSOverviewPage.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /lv-dms-info-popover|showInfoPopover/);
+  assert.match(source, /!\(isTriggered \|\| isDeadlinePending\) && <p className="lv-dms-protection-note">/);
+});
 test('DMS Owner check-in remains enabled only before the backend grace deadline', async () => {
   const original = globalThis.fetch;
   const payload = deadline => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'TRIGGERED',

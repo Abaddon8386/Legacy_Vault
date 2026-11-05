@@ -79,7 +79,7 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
             onClick={() => { setDraft(split(days * 1440)); setDirty(true); setSaved(false); }}>{en ? `${days} day${days > 1 ? 's' : ''}` : `${days} ngày`}</button>)}
         </div>
       </div>}
-      <div className="lv-dms-input-cluster lv-grace-settings__cluster">
+      <div className="lv-dms-input-cluster">
       <DurationFields legend={en ? 'Grace period length:' : 'Thời lượng ân hạn:'} disabled={!writable || busy || pending || Boolean(error)} describedBy="grace-help"
         fields={['days', 'hours', 'minutes'].map((unit, index) => ({ id: `grace-${unit}`, label: (en ? ['Days', 'Hours', 'Minutes'] : ['Số ngày', 'Số giờ', 'Số phút'])[index],
           placeholder: '0', max: unit === 'hours' ? 23 : unit === 'minutes' ? 59 : undefined, value: value[unit], invalid: dirty && invalid,
@@ -90,7 +90,7 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
         : !minuteMode ? (en ? 'Current service supports whole days only.' : 'Dịch vụ hiện tại chỉ lưu được số ngày nguyên.') : `${maxText} ${en ? 'Unused fields can be left blank (0).' : 'Ô không dùng có thể để trống (tính là 0).'}`}</p>
       {dirty && invalid && <p role="alert">{unsupportedPrecision ? (en ? 'Minute precision is not supported by the current service.' : 'Dịch vụ chưa hỗ trợ lưu theo giờ, phút.') : (en ? `Enter a valid duration within the allowed range. ${maxText}` : `Nhập thời gian hợp lệ trong khoảng cho phép. ${maxText}`)}</p>}
       <div className="lv-dms-form-actions">
-        <Button type="submit" isLoading={pending} disabled={!writable || busy || invalid || !dirty || Boolean(error)}>{en ? 'Save grace period' : 'Lưu thời gian ân hạn'}</Button>
+        <Button type="submit" className="lv-dms-submit-btn" isLoading={pending} disabled={!writable || busy || invalid || !dirty || Boolean(error)}>{en ? 'Save grace period' : 'Lưu thời gian ân hạn'}</Button>
       </div>
       </div>
     </form>
