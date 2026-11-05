@@ -34,6 +34,8 @@ Both existing Google buttons call `POST /api/v1/auth/google` with only `{credent
 
 Tests cover both auth pages in VI/EN, all protected adapters above, correct/incorrect Google identity, missing credential, cancelled/aborted setup, account change, timeout, retained draft, nested focus/GIS ownership, old-account behavior and email change. Test credentials and API responses are synthetic; they do not prove Google login, BE authorization, replay prevention or SQL persistence.
 
+The setup dialog was checked in a browser at 320, 390 and 1440 px in VI/EN with a simulated Google button. The dialog fits horizontally, keeps the 16/14 px text sizes and has controls at least 44 px tall.
+
 The user explicitly deferred real BE/Google acceptance on 04/11/2026. Resume with a BE containing #285 and the team's security fixes, matching Google client configuration, and a real test Google account. Verify: new Google owner; existing email not merged; setup with a fresh credential linked to that same user; then edit an asset; audit readable. Also verify wrong Google identity, expired/replayed credential and two simultaneous requests on the real server.
 
 PR #285 at `4671cd9` includes the server guard against linking another Google identity before setup, the concurrent-signup retry, and updated OpenAPI examples. The Admin audit whitelist uses the same `AUTH_PASSWORD_SET` entry as #285.

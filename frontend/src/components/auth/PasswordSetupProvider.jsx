@@ -109,7 +109,7 @@ function PasswordSetupDialog({ session, lang, onDone }) {
   return <div className="lv-password-setup" role="presentation">
     <section ref={ref} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} tabIndex={-1}>
       <h2 id={`${id}-title`}>{en ? 'Set your account password' : 'Đặt mật khẩu cho tài khoản'}</h2>
-      <p id={`${id}-description`}>{en ? 'You signed in with Google. Set a password once to continue this protected action. Your entered details will be kept.' : 'Bạn đang đăng nhập bằng Google. Đặt mật khẩu lần đầu để tiếp tục thao tác được bảo vệ. Thông tin đang nhập sẽ được giữ lại.'}</p>
+      <p id={`${id}-description`}>{en ? 'Set a password to continue. We’ll keep the details you entered.' : 'Đặt mật khẩu để tiếp tục. Thông tin bạn đã nhập sẽ được giữ lại.'}</p>
       {status === 'checking' && <p role="status">{en ? 'Checking your account…' : 'Đang kiểm tra tài khoản…'}</p>}
       {error && <p role="alert">{labels[error] || (en ? 'Unable to confirm the password setup. Try again, or close and check your account before retrying.' : 'Chưa xác nhận được việc đặt mật khẩu. Thử lại hoặc đóng hộp thoại và kiểm tra tài khoản trước khi thực hiện lại.')}</p>}
       <form onSubmit={submit}>
@@ -121,7 +121,7 @@ function PasswordSetupDialog({ session, lang, onDone }) {
           <label htmlFor={`${id}-confirm`}>{en ? 'Confirm new password' : 'Nhập lại mật khẩu mới'}</label>
           <input id={`${id}-confirm`} type="password" autoComplete="new-password" maxLength={72} value={confirm} onChange={event => setConfirm(event.target.value)} required />
           {confirm && errors.confirmPassword && <p role="alert">{errors.confirmPassword}</p>}
-          <p>{en ? 'Verify again with the Google account linked to this account.' : 'Xác thực lại bằng tài khoản Google đã liên kết với tài khoản này.'}</p>
+          <p>{en ? 'Verify with your linked Google account.' : 'Xác nhận bằng tài khoản Google đã liên kết.'}</p>
           <GoogleSignInButton id={`${id}-google`} lang={lang} disabled={status !== 'ready'} onCredentialReceived={value => { setCredential(value.credential); setError(''); }} onError={value => setError(value.code)} />
           {credential && <p role="status">{en ? 'Google confirmation received.' : 'Đã nhận xác nhận từ Google.'}</p>}
         </fieldset>
