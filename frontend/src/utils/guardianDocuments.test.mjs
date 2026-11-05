@@ -135,12 +135,12 @@ test('guardian panel UI states: empty, minor warning, inline field validation + 
  };
  const v=await mount(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyễn Minh Châu',beneficiaryRelationship:'Con gái',isMinorHint:true,accessToken:'token-1',lang:'vi'});
  try{
-  assert.doesNotMatch(v.host.textContent,/Cho người thụ hưởng/);
+  assert.match(v.host.textContent,/Cho người thụ hưởng: Nguyễn Minh Châu \(Con gái\)/);
   assert.match(v.host.textContent,/Dưới 18 tuổi \(Chưa thành niên\)/);
   await act(async()=>button(v.host,'Người giám hộ').click());
   assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
   assert.match(v.host.textContent,/Nên bổ sung người giám hộ cho người thụ hưởng chưa thành niên\./);
-  assert.match(v.host.textContent,/Chỉ lưu thông tin liên hệ, không cấp quyền xem hay nhận tài sản\./);
+  assert.match(v.host.textContent,/không phải Người thi hành bên ngoài \(Trustee\)/);
   await act(async()=>button(v.host,'Thêm / thay thế người giám hộ').click());
   const form=v.host.querySelector('form');
   const inputs=v.host.querySelectorAll('input');
@@ -178,7 +178,7 @@ test('guardian panel UI states: empty, minor warning, inline field validation + 
   assert.match(v.host.textContent,/Đã thu hồi thông tin người giám hộ hiện hành\./);
   assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
   await act(async()=>v.root.render(React.createElement(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyen Minh Chau',isMinorHint:true,accessToken:'token-1',lang:'en'})));
-  assert.doesNotMatch(v.host.textContent,/For beneficiary/);
+  assert.match(v.host.textContent,/For beneficiary: Nguyen Minh Chau/);
   assert.match(v.host.textContent,/Under 18 \(Minor\)/);
  }finally{await v.close();globalThis.fetch=old;}
 });

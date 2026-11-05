@@ -382,6 +382,13 @@ function GuardianContent({
             {en ? 'Guardian' : 'Người giám hộ'}
           </button>
 
+          {beneficiaryName && (
+            <span className="lv-tb-guardian-owner-tag">
+              {en ? 'For beneficiary:' : 'Cho người thụ hưởng:'}{' '}
+              <strong>{beneficiaryName}</strong>
+              {beneficiaryRelationship ? ` (${beneficiaryRelationship})` : ''}
+            </span>
+          )}
         </div>
 
         <div className="lv-tb-guardian-bar-right">
@@ -398,21 +405,21 @@ function GuardianContent({
             >
               {context.guardian
                 ? en
-                ? 'Guardian recorded'
-                : 'Đã có người giám hộ'
+                  ? 'Guardian recorded'
+                  : 'Đã có người giám hộ'
                 : en
                 ? 'Not set'
                 : 'Chưa khai báo'}
             </span>
           )}
-          {expanded && errorMessage && (
+          {expanded && (
             <button
               type="button"
               className="lv-tb-guardian-reload-btn"
               disabled={busy}
               onClick={load}
             >
-              {en ? 'Retry' : 'Thử lại'}
+              {en ? 'Reload guardian' : 'Tải lại người giám hộ'}
             </button>
           )}
         </div>
@@ -432,8 +439,8 @@ function GuardianContent({
           {/* Role Distinction Notice: Guardian vs Trustee */}
           <p className="lv-tb-guardian-scope-note">
             {en
-              ? 'Contact information only, does not grant permission to view or receive assets.'
-              : 'Chỉ lưu thông tin liên hệ, không cấp quyền xem hay nhận tài sản.'}
+              ? 'Contact information only; this does not grant account or asset access. A beneficiary’s guardian is distinct from the vault’s External Executor (Trustee).'
+              : 'Chỉ lưu thông tin liên hệ; không cấp tài khoản hay quyền xem, nhận tài sản. Người giám hộ gắn riêng với người thụ hưởng này, không phải Người thi hành bên ngoài (Trustee) của kho.'}
           </p>
 
           {/* Loading State */}
@@ -535,11 +542,13 @@ function GuardianContent({
                   <p className="lv-tb-guardian-empty-title">
                     {en ? 'No current guardian.' : 'Chưa có người giám hộ hiện hành.'}
                   </p>
-                  {isAdult && (
-                    <p className="lv-tb-guardian-empty-sub">
-                      {en ? 'This beneficiary is 18 or older and does not need a guardian.' : 'Người thụ hưởng đã đủ 18 tuổi nên không cần người giám hộ.'}
-                    </p>
-                  )}
+                  <p className="lv-tb-guardian-empty-sub">
+                    {isAdult
+                      ? (en ? 'This beneficiary is 18 or older and does not need a guardian.' : 'Người thụ hưởng đã đủ 18 tuổi nên không cần người giám hộ.')
+                      : en
+                      ? 'You can record one contact person for this beneficiary at any time.'
+                      : 'Bạn có thể thêm thông tin liên hệ của người giám hộ cho người thụ hưởng này bất cứ lúc nào.'}
+                  </p>
                 </div>
               )}
 
