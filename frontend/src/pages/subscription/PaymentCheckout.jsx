@@ -43,17 +43,11 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
       window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
     };
     const responseCode = query.get('vnp_ResponseCode');
-    // The browser return only tells us the user did not finish; it never activates a plan.
-    if (responseCode && responseCode !== '00') {
-      const notice = responseCode === '24'
-        ? (en ? 'You cancelled the payment. Your plan has not changed.' : 'Bạn đã hủy thanh toán. Gói chưa thay đổi.')
-        : (en ? 'Payment was not completed. Your plan has not changed.' : 'Thanh toán chưa hoàn tất. Gói chưa thay đổi.');
-      clearCallbackQuery();
-      queueMicrotask(() => { if (alive.current) setMessage(notice); });
-      // Best effort: the signed query lets the server close the order so another checkout can start at once.
-      reportPaymentReturnFailure(paymentId, query, { accessToken }).catch(() => {});
-      return;
-    }
+    // The browser return only says the user did not finish; the order status from the server decides what we show.
+    const returnedFailure = Boolean(responseCode) && responseCode !== '00';
+    const failedNotice = !returnedFailure ? null : responseCode === '24'
+      ? (en ? 'You cancelled the payment. Your plan has not changed.' : 'Bạn đã hủy thanh toán. Gói chưa thay đổi.')
+      : (en ? 'Payment was not completed. Your plan has not changed.' : 'Thanh toán chưa hoàn tất. Gói chưa thay đổi.');
     dismissed.current = false;
     const controller = new AbortController();
     let timer, attempts = 0;
@@ -66,6 +60,7 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
             PENDING: 'Waiting for VNPay confirmation. You can refresh this page.', EXPIRED: 'Checkout expired. Any delayed confirmation will be processed by the server.' }
           : { SUCCEEDED: 'Đã xác nhận thanh toán và kích hoạt gói.', FAILED: 'Thanh toán thất bại. Gói chưa thay đổi.',
             PENDING: 'Đang chờ VNPay xác nhận. Bạn có thể tải lại trang.', EXPIRED: 'Liên kết thanh toán đã hết hạn. Backend vẫn xử lý xác nhận đến muộn.' };
+        if (failedNotice) labels.FAILED = failedNotice;
         const waiting = ['PENDING', 'EXPIRED'].includes(p.status);
         // After the user closes the popup, keep checking quietly; only a final result reopens it.
         if (!(waiting && dismissed.current)) setMessage(labels[p.status]);
@@ -73,12 +68,16 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
           clearCallbackQuery();
           onPaidRef.current();
         }
+        else if (p.status === 'FAILED') { if (returnedFailure) clearCallbackQuery(); }
         else if (['PENDING', 'EXPIRED'].includes(p.status) && ++attempts < 20) timer = setTimeout(check, 3000);
       } catch (error) {
         if (error.name !== 'AbortError') setMessage(en ? 'Unable to verify payment. Please refresh.' : 'Chưa kiểm tra được thanh toán. Vui lòng tải lại trang.');
       }
     };
-    check();
+    if (returnedFailure) {
+      // Best effort: the signed query lets the server close the order so another checkout can start at once.
+      reportPaymentReturnFailure(paymentId, query, { accessToken }).catch(() => {}).then(() => { if (!controller.signal.aborted) check(); });
+    } else check();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [accessToken, en]);
   const fail = error => {
