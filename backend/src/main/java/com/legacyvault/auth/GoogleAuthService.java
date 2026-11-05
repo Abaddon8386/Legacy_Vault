@@ -106,6 +106,12 @@ public class GoogleAuthService {
         }
         String email = EmailNormalizer.normalize(rawEmail);
         if (users.existsByEmail(email)) {
+            // A parallel request for this very Google identity may have committed the account between our identity
+            // lookup and this check (SQL Server blocks the email read until it commits). Re-read the identity: if it
+            // exists now this is that race, so the caller retries and signs the same Google user in.
+            if (identities.findByProviderCodeAndSubject(GOOGLE_PROVIDER, credential.subject()).isPresent()) {
+                throw new GoogleSignupRaceException();
+            }
             // Never merge by email: the owner proves control with the password, then links Google from the profile.
             throw new BusinessException(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED);
         }

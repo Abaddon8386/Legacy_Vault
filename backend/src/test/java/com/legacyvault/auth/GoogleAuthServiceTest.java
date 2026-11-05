@@ -160,6 +160,19 @@ class GoogleAuthServiceTest {
     }
 
     @Test
+    void emailTakenByAParallelRequestForTheSameGoogleIdentityIsMarkedAsARaceNotAPasswordConflict() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
+                .thenReturn(Optional.empty(), Optional.of(new ExternalAuthIdentity("GOOGLE", "google-sub", user)));
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", true));
+        when(users.existsByEmail("new@example.test")).thenReturn(true);
+
+        assertThrows(GoogleSignupRaceException.class, () -> service.login(new GoogleLoginRequest(token)));
+
+        verify(authService, never()).createGoogleOwner(any(), any());
+        verifyNoInteractions(uses);
+    }
+
+    @Test
     void existingEmailIsNotMarkedAsARace() {
         when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
         when(verifier.verify(token)).thenReturn(newcomer("owner@example.test", true));
