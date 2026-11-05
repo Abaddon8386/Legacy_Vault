@@ -375,16 +375,6 @@
   color: #374151;
 }
 
-.lv-received-image__img {
-  display: block;
-  max-width: 100%;
-  max-height: 320px;
-  object-fit: contain;
-  margin-top: 12px;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
-}
-
 @media (max-width: 640px) {
   .lv-received-decrypt { padding: 16px; }
   .lv-received-decrypt__controls { flex-direction: column; }

@@ -26,6 +26,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import './WillUploadPage.css';
+import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 
 const copy = {
   vi: {
@@ -847,7 +848,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
           <div className="hn-will-inline-preview">
             {previewFile.type === 'application/pdf'
               ? <iframe src={previewFile.url} title={previewFile.name} />
-              : <img src={previewFile.url} alt={previewFile.name} />}
+              : <ZoomableImage src={previewFile.url} alt={previewFile.name} lang={lang} />}
           </div>
         ) : (
         <form onSubmit={handleConfirm} noValidate>

@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   HelpCircle,
   Award,
-  ArrowLeft,
   AlertCircle,
   RotateCw,
   ExternalLink,
@@ -373,49 +372,6 @@ function CompletionProgressContext({
 
   return (
     <div className="lv-completion-progress-view">
-      {/* Context navigation back */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        {activeTrimmed && selectedSessionId && (
-          <a
-            href={`/staff/handover?caseId=${encodeURIComponent(activeTrimmed)}&sessionId=${encodeURIComponent(selectedSessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '14px',
-              minHeight: '44px',
-              fontWeight: 600,
-              color: '#164639',
-              textDecoration: 'none',
-            }}
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
-          </a>
-        )}
-        {onNavigateCases && (
-          <button
-            type="button"
-            onClick={onNavigateCases}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '14px',
-              minHeight: '44px',
-              fontWeight: 600,
-              color: '#164639',
-              padding: 0,
-            }}
-          >
-            <span>{lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
-          </button>
-        )}
-      </div>
-
       {/* Warning when context is missing in real mode */}
       {!activeTrimmed && !effectiveIsDevPreview && (
         <section className="lv-progress-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
@@ -446,21 +402,10 @@ function CompletionProgressContext({
       )}
 
       {/* Header */}
-      <div className="lv-progress-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="lv-progress-header">
         <div>
           <h1 className="lv-progress-title">{t.pageTitle}</h1>
         </div>
-        {activeTrimmed && selectedSessionId && !isClosedCaseError && (
-          <button
-            type="button"
-            className="lv-progress-btn-reload"
-            onClick={handleReload}
-            disabled={loading}
-          >
-            <RotateCw size={14} className={loading ? 'lv-spin' : ''} aria-hidden="true" />
-            <span>{loading ? t.reloadingBtn : t.reloadBtn}</span>
-          </button>
-        )}
       </div>
 
       {/* Staff Case Context Bar */}

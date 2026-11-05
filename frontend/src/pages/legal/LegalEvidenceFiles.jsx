@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, FileText } from 'lucide-react';
 import { listLegalEvidence, readLegalEvidence } from './legalEvidenceService.js';
 import { legalDate } from './legalPresentation.js';
+import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 
 const fileErrorText = (error, en) => error.status === 404
   ? (en ? 'The file is unavailable or has not been forwarded for Legal review.' : 'Tệp không khả dụng hoặc chưa được chuyển để Pháp lý thẩm định.')
@@ -42,7 +43,7 @@ function EvidencePreview({ subject, item, accessToken, lang, onFailure, onRetry 
         // A sandboxed frame cannot run the browser's PDF viewer; the service only lets verified PDF, JPEG and PNG through.
         ? <><iframe src={content.url} title={content.fileName} referrerPolicy="no-referrer" />
           {globalThis.navigator?.pdfViewerEnabled === false && <a href={content.url} download={content.fileName}>{en ? 'Download file' : 'Tải tệp'}</a>}</>
-        : <img src={content.url} alt={content.fileName} />}
+        : <ZoomableImage src={content.url} alt={content.fileName} lang={lang} />}
       </div>}
   </section>;
 }
