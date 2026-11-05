@@ -185,6 +185,22 @@ class PaymentSqlServerTest {
         var other=create(PlanCode.STANDARD);assertEquals("99",service.ipn(callback(other,"00","01")).code());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
         assertEquals("00",service.ipn(callback(other,"00","00")).code());
     }
+    @Test void signedBrowserReturnClosesCancelledOrderButNeverGrants() {
+        var p=create(PlanCode.STANDARD);
+        var tampered=callback(p,"24","02");tampered.set("vnp_Amount","100");
+        assertEquals("97",service.recordReturnFailure(owner,p.paymentId(),tampered).code());
+        assertEquals("99",service.recordReturnFailure(owner,p.paymentId(),callback(p,"00","00")).code());
+        assertEquals("99",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","01")).code());
+        assertEquals("PENDING",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        assertThrows(BusinessException.class,()->service.recordReturnFailure(owner+999999,p.paymentId(),callback(p,"24","02")));
+        var wrongRef=callback(p,"24","02");wrongRef.set("vnp_TxnRef",UUID.randomUUID().toString().replace("-",""));resign(wrongRef);
+        assertEquals("01",service.recordReturnFailure(owner,p.paymentId(),wrongRef).code());
+        assertEquals("00",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","02")).code());
+        assertEquals("FAILED",service.read(owner,p.paymentId()).status());
+        assertEquals("02",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","02")).code());
+        assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='SUBSCRIPTION_PAYMENT_FAILED' AND rule_id='VERIFIED_RETURN_FAILURE' AND JSON_VALUE(details,'$.paymentId')=?",Integer.class,p.paymentId().toString()));
+    }
     @Test void lateCallbackDoesNotDowngradeHigherPaidPlan() {
         var old=create(PlanCode.STANDARD);
         jdbc.update("UPDATE dbo.subscription_payments SET created_at=DATEADD(MINUTE,-20,created_at),expires_at=DATEADD(MINUTE,-20,expires_at) WHERE payment_id=?",old.paymentId().toString());
