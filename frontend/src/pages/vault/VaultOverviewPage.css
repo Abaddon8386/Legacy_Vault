@@ -1,20 +1,22 @@
 /* Vault overview: restrained heritage identity, readable information first. */
-.lv-vault-page{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;color:#25372e;font-family:var(--lv-font-sans,'Plus Jakarta Sans',system-ui,sans-serif);padding-bottom:40px}
-.lv-vault-view{display:flex;flex-direction:column;gap:28px;width:100%}
-.lv-vault-hero-card{background:white;border:1px solid #dedfd6;border-radius:14px;padding:28px 30px;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:30px;align-items:center}
+.lv-vault-page{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;color:#25372e;font-family:var(--lv-font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}
+/* The overview should fit one laptop screen, so this page uses less of the shell margin. */
+.lv-shell-content:has(.lv-vault-page){padding-block:16px}
+.lv-vault-view{display:flex;flex-direction:column;gap:16px;width:100%}
+.lv-vault-hero-card{background:white;border:1px solid #d3d5c9;border-radius:14px;box-shadow:0 8px 22px rgb(22 70 57 / 7%);padding:18px 26px;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:30px;align-items:center}
 .lv-hero-content-col{display:flex;flex-direction:column;min-width:0}
-.lv-hero-top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.lv-hero-top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
 .lv-hero-eyebrow-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
 .lv-hero-eyebrow{font-size:14px;font-weight:600;letter-spacing:.06em;color:#79683e}
 .lv-vault-page .lv-sim-tag{font-size:14px;color:#79683e;line-height:1.5}
 .lv-hero-status-wrap{display:flex;align-items:center}
-.lv-vault-name{padding-bottom:12px;font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);font-size:30px;font-weight:600;line-height:1.3;letter-spacing:-.4px;color:#164639;margin:0 0 10px;overflow-wrap:anywhere}
+.lv-vault-name{padding-bottom:8px;font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);font-size:30px;font-weight:600;line-height:1.3;letter-spacing:-.4px;color:#164639;margin:0 0 10px;overflow-wrap:anywhere}
 .lv-vault-description{margin:0 0 22px;font-size:14px;line-height:1.7;color:#637068;overflow-wrap:anywhere}
-.lv-vault-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding-top:18px;border-top:1px solid #ecece5}
-.lv-meta-item{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lv-vault-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding-top:12px;border-top:1px solid #ecece5}
+.lv-meta-item{display:flex;flex-direction:column;gap:2px;min-width:0}
 .lv-meta-label{font-size:14px;color:#637068}
 .lv-meta-value{font-size:14px;font-weight:500;line-height:1.6;color:#364d3e;overflow-wrap:anywhere}
-.lv-hero-artwork-col{min-width:0;height:190px;display:flex}
+.lv-hero-artwork-col{min-width:0;height:140px;display:flex}
 .lv-vault-page .lv-living-wave-container{min-height:0;height:100%;border-radius:10px;box-shadow:none;border:0}
 .lv-vault-page .lv-living-wave-container::before{content:none}
 .lv-vault-page .lv-wave-ambient-glow{display:none}
@@ -27,3 +29,6 @@
 @media(max-width:800px){.lv-vault-hero-card{grid-template-columns:1fr;gap:22px}.lv-hero-artwork-col{height:130px}.lv-vault-page .lv-wave-emblem-wrap{transform:scale(.8);transform-origin:center top}}
 @media(max-width:480px){.lv-vault-view{gap:24px}.lv-vault-hero-card{padding:22px 18px}.lv-vault-name{padding-bottom:12px;font-size:27px}.lv-vault-meta-grid{gap:14px}.lv-hero-artwork-col{height:110px}.lv-vault-page .lv-wave-emblem-text{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.lv-vault-skeleton>div{animation:none}}
+@media(min-width:801px) and (min-height:720px){.lv-vault-hero-card{padding:24px 30px}.lv-hero-artwork-col{height:clamp(170px,27vh,240px)}.lv-vault-view{gap:20px}}
+/* The attention banner needs room, so the hero stays compact while it shows. */
+@media(min-width:801px){.lv-vault-view:has(.lv-summary-attention){gap:16px}.lv-vault-view:has(.lv-summary-attention) .lv-vault-hero-card{padding:18px 26px}.lv-vault-view:has(.lv-summary-attention) .lv-hero-artwork-col{height:140px}}

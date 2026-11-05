@@ -3,13 +3,12 @@ import { useEffect, useState } from 'react';
 import {
   Layers,
   Users,
-  ShieldCheck,
   Clock,
   ArrowRight,
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
-import { fetchVaultSummary, describeNextCheck } from '../../utils/vaultSummaryService.js';
+import { fetchVaultSummary, describeNextCheck, confirmationState } from '../../utils/vaultSummaryService.js';
 import { mockDmsAdapter } from '../../utils/dmsService.js';
 import { fetchSubscription, formatStorageBytes } from '../../utils/subscriptionService.js';
 import './VaultSummary.css';
@@ -166,40 +165,36 @@ export default function VaultSummary({
   const dmsDescription = dms ? describeNextCheck(dms, lang) : '';
   const isDmsOverdue = dms ? dms.status !== 'MONITORING' : false;
   const isDmsDue = dms ? (dmsDescription.includes('đến hạn') || dmsDescription.includes('due')) : false;
-  const dmsPillClass = isDmsOverdue
-    ? 'lv-summary-pill lv-summary-pill--danger'
-    : isDmsDue
-    ? 'lv-summary-pill lv-summary-pill--urgent'
-    : 'lv-summary-pill lv-summary-pill--success';
+  const dmsNeedsAttention = isDmsOverdue || isDmsDue;
+  const dmsPillClass = dmsNeedsAttention ? 'lv-summary-pill lv-summary-pill--urgent' : 'lv-summary-pill lv-summary-pill--success';
+  const DmsPillIcon = dmsNeedsAttention ? AlertCircle : CheckCircle2;
+  const dmsState = dms ? confirmationState(dms) : { past: false, canConfirm: false };
+  const vaultClosedToConfirmation = ['ARCHIVED', 'HANDOVER_IN_PROGRESS', 'UNLOCKED'].includes(vaultStatus);
+  const canConfirmNow = dmsState.canConfirm && !vaultClosedToConfirmation;
+  const dmsActionLabel = canConfirmNow ? (en ? 'Confirm now' : 'Xác nhận ngay') : (en ? 'View monitoring' : 'Xem giám sát');
 
   return (
     <section
       className="lv-overview-summary"
       aria-label={en ? 'Vault resource and operational overview' : 'Tổng quan tài nguyên và vận hành kho'}
     >
-      {/* Header Row */}
-      <div className="lv-summary-header">
-        <div className="lv-summary-header__title-group">
-          <h2 className="lv-summary-header__title">
-            {en ? 'Resources & activity' : 'Tài nguyên và hoạt động'}
-          </h2>
-        </div>
-        {isSimulation && (
+      {isSimulation && (
+        <div className="lv-summary-header">
           <span className="lv-sim-tag">
             {en ? 'Sample data' : 'Dữ liệu minh họa'}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
-      {!['ARCHIVED', 'HANDOVER_IN_PROGRESS', 'UNLOCKED'].includes(vaultStatus) && isDmsConfigured && isDmsOverdue && <div className="lv-summary-attention" role="status">
+      {!vaultClosedToConfirmation && isDmsConfigured && isDmsOverdue && <div className="lv-summary-attention" role="status">
         <div><strong>{en ? 'Activity confirmation needs attention' : 'Cần kiểm tra trạng thái xác nhận hoạt động'}</strong>
           <p>{dmsDescription}{dms.nextCheckAt ? ` · ${formatNextDate(dms.nextCheckAt, lang)}` : ''}</p></div>
-        <button type="button" className="lv-summary-cta-btn" onClick={() => onNavigate?.('dms')}>
-          {en ? 'View monitoring' : 'Xem giám sát'} <ArrowRight size={16} aria-hidden="true" />
+        <button type="button" className={`lv-summary-cta-btn${canConfirmNow ? ' lv-summary-cta-btn--action' : ''}`} onClick={() => onNavigate?.('dms')}>
+          {dmsActionLabel} <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>}
 
-      {/* 4 Information Cards Grid */}
+      {/* Information Cards */}
       <div className="lv-summary-grid">
         {/* Card 1: Assets Count */}
         <div className="lv-summary-card lv-summary-card--metric lv-owner-card">
@@ -265,39 +260,7 @@ export default function VaultSummary({
               </span>
             )}
 
-          </div>
-
-          <div className="lv-summary-card__footer">
-            <button
-              type="button"
-              className="lv-summary-link-btn"
-              onClick={() => onNavigate?.('beneficiaries')}
-            >
-              <span>{en ? 'Manage list' : 'Xem danh sách'}</span>
-              <ArrowRight size={13} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        {/* Card 3: Beneficiary Requirement Condition (Strictly: "Đã đáp ứng yêu cầu có người thụ hưởng") */}
-        <div className="lv-summary-card lv-summary-card--status lv-owner-card">
-          <div className="lv-summary-card__header">
-            <div className="lv-summary-card__icon lv-summary-card__icon--gold" aria-hidden="true">
-              <ShieldCheck size={18} />
-            </div>
-            <span className="lv-summary-card__label">
-              {en ? 'Beneficiary Status' : 'Tình trạng người thụ hưởng'}
-            </span>
-          </div>
-
-          <div className="lv-summary-card__body">
-            {isLoading ? (
-              <span className="lv-summary-loading">{en ? 'Checking…' : 'Đang kiểm tra…'}</span>
-            ) : !config ? (
-              <div className="lv-summary-pill lv-summary-pill--neutral">
-                <span>{en ? 'Information unavailable' : 'Chưa có thông tin'}</span>
-              </div>
-            ) : isBeneficiaryReady ? (
+            {config && (isBeneficiaryReady ? (
               <div className="lv-summary-pill lv-summary-pill--success">
                 <CheckCircle2 size={13} aria-hidden="true" />
                 <span>{en ? 'Beneficiary requirement met' : 'Đã đáp ứng yêu cầu có người thụ hưởng'}</span>
@@ -307,7 +270,7 @@ export default function VaultSummary({
                 <AlertCircle size={13} aria-hidden="true" />
                 <span>{en ? 'No beneficiaries' : 'Chưa có người thụ hưởng'}</span>
               </div>
-            )}
+            ))}
 
             {config && !isBeneficiaryReady && <p className="lv-summary-card__desc">
               {en ? 'Add at least one beneficiary.' : 'Cần thêm ít nhất một người thụ hưởng.'}
@@ -315,7 +278,7 @@ export default function VaultSummary({
           </div>
 
           <div className="lv-summary-card__footer">
-            {config?.beneficiaryCount === 0 && (
+            {config?.beneficiaryCount === 0 ? (
               <button
                 type="button"
                 className="lv-summary-cta-btn lv-summary-cta-btn--primary"
@@ -324,11 +287,20 @@ export default function VaultSummary({
                 <span>{en ? 'Add a beneficiary' : 'Thêm người thụ hưởng'}</span>
                 <ArrowRight size={13} aria-hidden="true" />
               </button>
+            ) : (
+              <button
+                type="button"
+                className="lv-summary-link-btn"
+                onClick={() => onNavigate?.('beneficiaries')}
+              >
+                <span>{en ? 'Manage list' : 'Xem danh sách'}</span>
+                <ArrowRight size={13} aria-hidden="true" />
+              </button>
             )}
           </div>
         </div>
 
-        {/* Card 4: Activity Confirmation Schedule (DMS) */}
+        {/* Card 3: Activity Confirmation Schedule (DMS) */}
         <div className="lv-summary-card lv-summary-card--status lv-owner-card">
           <div className="lv-summary-card__header">
             <div className="lv-summary-card__icon lv-summary-card__icon--forest" aria-hidden="true">
@@ -354,7 +326,7 @@ export default function VaultSummary({
               </div>
             ) : isDmsConfigured ? (
               <div className={dmsPillClass}>
-                <CheckCircle2 size={13} aria-hidden="true" />
+                <DmsPillIcon size={13} aria-hidden="true" />
                 <span>{dmsDescription}</span>
               </div>
             ) : (
@@ -371,7 +343,7 @@ export default function VaultSummary({
                 : isDmsConfigured && dms.nextCheckAt
                 ? (
                   <span className="lv-summary-date-line">
-                    <span className="lv-summary-date-label">{en ? 'Next confirmation:' : 'Xác nhận tiếp theo:'}</span>
+                    <span className="lv-summary-date-label">{dmsState.past ? (en ? 'Confirmation due:' : 'Hạn xác nhận:') : (en ? 'Next confirmation:' : 'Xác nhận tiếp theo:')}</span>
                     <strong className="lv-summary-date-val">{formatNextDate(dms.nextCheckAt, lang)}</strong>
                   </span>
                 )
@@ -383,10 +355,10 @@ export default function VaultSummary({
             {(isDmsUnconfigured || isDmsConfigured) && (
               <button
                 type="button"
-                className="lv-summary-cta-btn lv-summary-cta-btn--gold"
+                className={`lv-summary-cta-btn lv-summary-cta-btn--gold${canConfirmNow ? ' lv-summary-cta-btn--action' : ''}`}
                 onClick={() => onNavigate?.('dms')}
               >
-                <span>{isDmsUnconfigured ? (en ? 'Set up now' : 'Thiết lập ngay') : (en ? 'View monitoring' : 'Xem giám sát')}</span>
+                <span>{isDmsUnconfigured ? (en ? 'Set up now' : 'Thiết lập ngay') : dmsActionLabel}</span>
                 <ArrowRight size={13} aria-hidden="true" />
               </button>
             )}
