@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowUpRight, ArrowDown, Shield, LockKeyhole, FileText, Users } from 'lucide-react';
+import { ArrowUpRight, ArrowDown, Shield, LockKeyhole, FileText, Users, LifeBuoy } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../utils/subscriptionPlans.js';
 import { isSessionActive } from '../../utils/session.js';
 import { observeLandingReveals } from './landingMotion.js';
@@ -15,7 +15,7 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
   const hasValidSession = !isRestoringSession && isSessionActive(session);
   const isDashboardEligible = hasValidSession && (userRoles.includes('VAULT_OWNER') || userRoles.includes('BENEFICIARY'));
 
-  return <div className="lv-landing" ref={pageRef}>
+  return <div className="lv-landing" lang={lang} ref={pageRef}>
     <header className="lv-landing-nav">
       <a className="lv-landing-brand" href="#top"><Shield size={28} strokeWidth={1.6} /><span>LegacyVault</span></a>
       <nav aria-label={en ? 'Main navigation' : 'Điều hướng chính'}>
@@ -84,6 +84,18 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
         <button data-reveal="up" className="lv-landing-end-cta" disabled={isRestoringSession} onClick={() => (isDashboardEligible ? onDashboard : onRegister)?.(lang)}>{isDashboardEligible ? (en ? 'Dashboard' : 'Bảng điều khiển') : (en ? 'Create an account' : 'Tạo tài khoản')}<ArrowUpRight size={18} /></button>
       </section>
     </main>
-    <footer className="lv-landing-footer" data-reveal="up"><span>LegacyVault</span><span>© 2026</span></footer>
+    <footer className="lv-landing-footer">
+      <div className="lv-landing-footer-inner">
+        <div className="lv-landing-footer-brand">
+          <span><Shield size={24} strokeWidth={1.6} aria-hidden="true" /> LegacyVault</span>
+          <p>{en ? 'A home for your digital legacy.' : 'Nơi lưu giữ di sản số của bạn.'}</p>
+        </div>
+        <nav aria-label={en ? 'Footer navigation' : 'Điều hướng chân trang'}>
+          <a href={`/support?lang=${lang}`}><LifeBuoy size={18} aria-hidden="true" />{en ? 'Help & Support' : 'Trợ giúp và hỗ trợ'}</a>
+          <a href={`/privacy?lang=${lang}`}><LockKeyhole size={18} aria-hidden="true" />{en ? 'Privacy & Security' : 'Điều khoản bảo mật'}</a>
+        </nav>
+        <small>© 2026 LegacyVault</small>
+      </div>
+    </footer>
   </div>;
 }

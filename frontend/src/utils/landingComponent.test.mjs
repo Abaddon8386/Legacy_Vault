@@ -11,12 +11,13 @@ globalThis.document = dom.window.document;
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 async function component(production = false, entry = 'src/pages/landing/LandingPage.jsx') {
+  const reactModules = ['react', 'react-dom', 'react/jsx-runtime'];
   const result = await build({ configFile: false, plugins: [react()], logLevel: 'silent',
     define: { 'import.meta.env.DEV': String(!production), 'import.meta.env.PROD': String(production) },
     build: { write: false, minify: false, lib: { entry, formats: ['es'] },
-      rollupOptions: { external: ['react', 'react/jsx-runtime'] } } });
+      rollupOptions: { external: reactModules } } });
   let code = (Array.isArray(result) ? result[0] : result).output.find(item => item.type === 'chunk' && item.isEntry).code;
-  for (const name of ['react', 'react/jsx-runtime']) code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
+  for (const name of reactModules) code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
   return (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
 }
 async function mount(Component, props) {
@@ -202,5 +203,47 @@ test('all landing calls to action preserve language and route authenticated user
       await act(async () => view.host.querySelector('.lv-landing-end-cta').click());
       assert.deepEqual(calls, [[authenticated ? 'dashboard':'register','en'],[authenticated ? 'dashboard':'register','en']]);
     } finally { await view.close(); }
+  }
+});
+
+test('the homepage links to localized public support and privacy pages', async () => {
+  const Landing = await component();
+  const view = await mount(Landing);
+  try {
+    const links = () => [...view.host.querySelectorAll('footer a')].map(a => [a.textContent, a.getAttribute('href')]);
+    assert.deepEqual(links(), [['Trợ giúp và hỗ trợ', '/support?lang=vi'], ['Điều khoản bảo mật', '/privacy?lang=vi']]);
+    await act(async () => view.host.querySelector('.lv-landing-language').click());
+    assert.deepEqual(links(), [['Help & Support', '/support?lang=en'], ['Privacy & Security', '/privacy?lang=en']]);
+  } finally { await view.close(); }
+});
+
+test('support and privacy are public routes with working content links', async () => {
+  const App = await component(false, 'src/App.jsx');
+  const originalUrl = window.location.href;
+  try {
+    window.history.replaceState({}, '', '/support?lang=vi#beneficiaries');
+    const support = await mount(App);
+    try {
+      assert.equal(support.host.querySelector('h1').textContent, 'Trợ giúp và hỗ trợ');
+      assert.equal(support.host.querySelector('#beneficiaries h2').textContent, 'Người thụ hưởng');
+      assert.equal(support.host.querySelectorAll('details').length, 6);
+      assert.ok(support.host.querySelector('a[href="/forgot-password?lang=vi"]'));
+      assert.ok(support.host.querySelector('a[href="/privacy?lang=vi"]'));
+      for (const link of support.host.querySelectorAll('nav a[href^="#"]')) {
+        assert.ok(support.host.querySelector(link.getAttribute('href')), link.href);
+      }
+    } finally { await support.close(); }
+
+    window.history.replaceState({}, '', '/privacy?lang=en');
+    const privacy = await mount(App);
+    try {
+      assert.equal(privacy.host.querySelector('h1').textContent, 'Privacy & Security');
+      assert.match(privacy.host.querySelector('#protection').textContent, /encrypted when stored/);
+      assert.match(privacy.host.querySelector('.lv-public-info__notice').textContent, /formal privacy policy is being finalized/);
+      assert.ok(privacy.host.querySelector('a[href="/support?lang=en"]'));
+      assert.ok(privacy.host.querySelector('a[href="/privacy?lang=vi"]'));
+    } finally { await privacy.close(); }
+  } finally {
+    window.history.replaceState({}, '', originalUrl);
   }
 });
