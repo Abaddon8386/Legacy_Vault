@@ -74,6 +74,7 @@ for (const entry of ['src/pages/auth/LoginPage.jsx','src/pages/auth/RegisterPage
             const safeCode=code==='INVALID_CREDENTIALS'?'GOOGLE_ACCOUNT_UNAVAILABLE':code;
             assert.ok(v.host.textContent.includes(getAuthMessage(safeCode,lang)));
             assert.doesNotMatch(v.host.textContent,/unsafe server text|email hoặc mật khẩu không chính xác|Invalid email address or password/);
+            if (code === 'INVALID_CREDENTIALS') assert.doesNotMatch(v.host.textContent, /bị khóa|may be locked/i);
           }
           response=new Response(JSON.stringify({accessToken:'server-session',tokenType:'Bearer',expiresInSeconds:3600,user}),{status:200,headers:{'Content-Type':'application/json'}});
           await act(async()=>callback({credential:'fresh-google'}));
