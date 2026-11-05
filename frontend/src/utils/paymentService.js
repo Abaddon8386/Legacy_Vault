@@ -32,6 +32,13 @@ export async function createPayment(plan, key, options) {
     || payment.currency !== 'VND' || payment.billingModel !== 'LIFETIME') throw new ApiError('INVALID_RESPONSE');
   return checkoutUrl(payment.checkoutUrl);
 }
+/** Sends VNPay's signed return query so the server can close a cancelled checkout; it can never grant a plan. */
+export async function reportPaymentReturnFailure(id, query, options) {
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)) throw new ApiError('INVALID_RESPONSE');
+  const signed = new URLSearchParams();
+  for (const [key, value] of query) if (key.startsWith('vnp_')) signed.append(key, value);
+  return request(`/subscriptions/me/payments/${id}/return-failure?${signed}`, { ...options, method: 'POST' });
+}
 export async function readPayment(id, options) {
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)) throw new ApiError('INVALID_RESPONSE');
   const payment = await request(`/subscriptions/me/payments/${id}`, options);

@@ -11,12 +11,13 @@ globalThis.document = dom.window.document;
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 async function component(production = false, entry = 'src/pages/landing/LandingPage.jsx') {
+  const reactModules = ['react', 'react-dom', 'react/jsx-runtime'];
   const result = await build({ configFile: false, plugins: [react()], logLevel: 'silent',
     define: { 'import.meta.env.DEV': String(!production), 'import.meta.env.PROD': String(production) },
     build: { write: false, minify: false, lib: { entry, formats: ['es'] },
-      rollupOptions: { external: ['react', 'react/jsx-runtime'] } } });
+      rollupOptions: { external: reactModules } } });
   let code = (Array.isArray(result) ? result[0] : result).output.find(item => item.type === 'chunk' && item.isEntry).code;
-  for (const name of ['react', 'react/jsx-runtime']) code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
+  for (const name of reactModules) code = code.replaceAll('from "' + name + '"', 'from "' + import.meta.resolve(name) + '"');
   return (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
 }
 async function mount(Component, props) {
@@ -200,7 +201,97 @@ test('all landing calls to action preserve language and route authenticated user
       await act(async () => view.host.querySelector('.lv-landing-language').click());
       await act(async () => view.host.querySelector('.lv-landing-primary').click());
       await act(async () => view.host.querySelector('.lv-landing-end-cta').click());
+      assert.equal(view.host.querySelector('footer button'), null);
       assert.deepEqual(calls, [[authenticated ? 'dashboard':'register','en'],[authenticated ? 'dashboard':'register','en']]);
     } finally { await view.close(); }
+  }
+});
+
+test('the footer groups links by topic and keeps page anchors and language in their destinations', async () => {
+  const Landing = await component();
+  const view = await mount(Landing);
+  try {
+    const footer = view.host.querySelector('#site-footer');
+    for (const lang of ['vi', 'en']) {
+      if (lang === 'en') await act(async () => view.host.querySelector('.lv-landing-language').click());
+      const en = lang === 'en';
+      const headings = [...footer.querySelectorAll('nav h2')].map(heading => heading.textContent);
+      assert.deepEqual(headings, en ? ['Product', 'Resources', 'Security', 'LegacyVault'] : ['Sản phẩm', 'Tài nguyên', 'Bảo mật', 'LegacyVault']);
+      const support = `/support?lang=${lang}`;
+      const privacy = `/privacy?lang=${lang}`;
+      assert.deepEqual([...footer.querySelectorAll('nav a')].map(link => link.getAttribute('href')), [
+        '#features', '#how-it-works', '#plans', support, `${support}#faq`, `${support}#beneficiaries`,
+        `${privacy}#protection`, `${privacy}#access`, `${privacy}#account-safety`, `/about?lang=${lang}`, `${support}#contact`,
+      ]);
+      const legal = footer.querySelector('.lv-landing-footer-bottom a');
+      assert.equal(legal.getAttribute('href'), privacy);
+      assert.equal(legal.textContent, en ? 'Privacy & Security' : 'Bảo mật và quyền riêng tư');
+      for (const link of footer.querySelectorAll('a[href^="#"]')) {
+        assert.ok(view.host.querySelector(link.getAttribute('href')), link.href);
+      }
+    }
+  } finally { await view.close(); }
+});
+
+test('support, privacy and about are public routes with working content links', async () => {
+  const App = await component(false, 'src/App.jsx');
+  const originalUrl = window.location.href;
+  try {
+    window.history.replaceState({}, '', '/support?lang=vi#beneficiaries');
+    const support = await mount(App);
+    try {
+      assert.equal(support.host.querySelector('h1').textContent, 'Trợ giúp và hỗ trợ');
+      assert.equal(support.host.querySelector('#beneficiaries h2').textContent, 'Người thụ hưởng');
+      assert.equal(support.host.querySelectorAll('details').length, 6);
+      assert.ok(support.host.querySelector('a[href="/forgot-password?lang=vi"]'));
+      assert.ok(support.host.querySelector('a[href="/privacy?lang=vi"]'));
+      assert.match(support.host.querySelector('#beneficiaries').textContent, /chọn Tài sản thụ hưởng trên thanh bên/);
+      assert.match(support.host.querySelector('#vault').textContent, /thời gian ân hạn/);
+      const languageLink = support.host.querySelector('.lv-public-info__language');
+      assert.equal(languageLink.getAttribute('href'), '/support?lang=en#beneficiaries');
+      for (const link of support.host.querySelectorAll('nav a[href^="#"]')) {
+        assert.ok(support.host.querySelector(link.getAttribute('href')), link.href);
+      }
+      await act(async () => {
+        const hashChanged = new Promise(resolve => window.addEventListener('hashchange', resolve, { once: true }));
+        window.location.hash = '#faq';
+        await hashChanged;
+      });
+      assert.equal(languageLink.getAttribute('href'), '/support?lang=en#faq');
+    } finally { await support.close(); }
+
+    window.history.replaceState({}, '', '/support?lang=en#beneficiaries');
+    const englishSupport = await mount(App);
+    try {
+      assert.match(englishSupport.host.querySelector('#beneficiaries').textContent, /choose Shared with me in the sidebar/);
+      assert.equal(englishSupport.host.querySelector('.lv-public-info__language').getAttribute('href'), '/support?lang=vi#beneficiaries');
+    } finally { await englishSupport.close(); }
+
+    window.history.replaceState({}, '', '/privacy?lang=vi');
+    const vietnamesePrivacy = await mount(App);
+    try {
+      assert.equal(vietnamesePrivacy.host.querySelector('h1').textContent, 'Bảo mật và quyền riêng tư');
+    } finally { await vietnamesePrivacy.close(); }
+
+    window.history.replaceState({}, '', '/privacy?lang=en');
+    const privacy = await mount(App);
+    try {
+      assert.equal(privacy.host.querySelector('h1').textContent, 'Privacy & Security');
+      assert.match(privacy.host.querySelector('#protection').textContent, /encrypted when stored/);
+      assert.match(privacy.host.querySelector('.lv-public-info__notice').textContent, /formal privacy policy is being finalized/);
+      assert.ok(privacy.host.querySelector('a[href="/support?lang=en"]'));
+      assert.ok(privacy.host.querySelector('a[href="/privacy?lang=vi"]'));
+    } finally { await privacy.close(); }
+
+    window.history.replaceState({}, '', '/about?lang=vi');
+    const about = await mount(App);
+    try {
+      assert.equal(about.host.querySelector('h1').textContent, 'Về LegacyVault');
+      assert.ok(about.host.querySelector('#handover'));
+      assert.ok(about.host.querySelector('a[href="/about?lang=en"]'));
+      assert.ok(about.host.querySelector('a[href="/support?lang=vi"]'));
+    } finally { await about.close(); }
+  } finally {
+    window.history.replaceState({}, '', originalUrl);
   }
 });

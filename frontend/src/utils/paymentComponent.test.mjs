@@ -58,6 +58,71 @@ test('return success flag alone never activates a plan', async () => {
   try { assert.match(view.host.textContent, /Đang chờ VNPay/); assert.equal(paid, 0); }
   finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
 });
+test('cancelled return reports to the server, then shows the cancel notice once the order is FAILED', async () => {
+  const previous = globalThis.fetch; const reports = []; let status = 'PENDING';
+  window.history.replaceState({}, '', '/subscription?lang=vi&vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=24&vnp_TransactionStatus=02');
+  globalThis.fetch = async (path, init) => {
+    if (path.includes('return-failure')) { reports.push({ path, method: init.method }); status = 'FAILED'; return response({ status: 'FAILED' }); }
+    if (path.endsWith('subscription-plans')) return response([plan]);
+    return response({ paymentId: '12345678-1234-1234-1234-123456789abc', status });
+  };
+  const view = await mount();
+  try {
+    assert.match(view.host.textContent, /đã hủy thanh toán/); assert.equal(window.location.search, '?lang=vi');
+    assert.equal(reports.length, 1); assert.equal(reports[0].method, 'POST');
+    assert.match(reports[0].path, /payments\/12345678-1234-1234-1234-123456789abc\/return-failure\?/);
+    assert.match(reports[0].path, /vnp_ResponseCode=24/); assert.doesNotMatch(reports[0].path, /lang=/);
+  }
+  finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
+test('cancelled return never says cancelled when the server already confirmed the payment', async () => {
+  const previous = globalThis.fetch; let paid = 0;
+  window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=24&vnp_TransactionStatus=02');
+  globalThis.fetch = async path => {
+    if (path.includes('return-failure')) return response({ status: 'SUCCEEDED' });
+    return response(path.endsWith('subscription-plans') ? [plan] : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'SUCCEEDED' });
+  };
+  const view = await mount(() => { paid++; });
+  try { assert.match(view.host.textContent, /Đã xác nhận thanh toán/); assert.doesNotMatch(view.host.textContent, /hủy/); assert.equal(paid, 1); }
+  finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
+test('cancelled return keeps checking when the report call fails and the order is still pending', async () => {
+  const previous = globalThis.fetch;
+  window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=24&vnp_TransactionStatus=02');
+  globalThis.fetch = async path => {
+    if (path.includes('return-failure')) throw new TypeError('network');
+    return response(path.endsWith('subscription-plans') ? [plan] : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'PENDING' });
+  };
+  const view = await mount();
+  try { assert.match(view.host.textContent, /Đang chờ VNPay/); assert.doesNotMatch(view.host.textContent, /đã hủy/); assert.match(window.location.search, /vnp_TxnRef/); }
+  finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
+test('cancelled return reads the order without waiting for a hung report call', async () => {
+  const previous = globalThis.fetch;
+  window.history.replaceState({}, '', '/subscription?lang=vi&vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=24&vnp_TransactionStatus=02');
+  globalThis.fetch = async path => {
+    if (path.includes('return-failure')) return new Promise(() => {});
+    return response(path.endsWith('subscription-plans') ? [plan] : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'FAILED' });
+  };
+  const view = await mount();
+  try { assert.match(view.host.textContent, /đã hủy thanh toán/); }
+  finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
+test('closing the pending notice keeps it closed while polling continues', async () => {
+  const previous = globalThis.fetch;
+  window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc');
+  globalThis.fetch = async path => response(path.endsWith('subscription-plans') ? [plan]
+    : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'PENDING' });
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  await act(async () => { root.render(React.createElement(Page, { accessToken: 'fixture', lang: 'vi', currentPlan: 'BASIC', onPaid() {}, PlanView: () => null, planViewProps: {} })); });
+  const view = { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
+  try {
+    assert.match(view.host.textContent, /Đang chờ VNPay/);
+    await act(async () => view.host.querySelector('[aria-label="Đóng"]').click());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 3300)); });
+    assert.doesNotMatch(view.host.textContent, /Đang chờ VNPay/);
+  } finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
 test('verified backend success refreshes once and clears callback query', async () => {
   const previous = globalThis.fetch; let paid = 0;
   window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=00');

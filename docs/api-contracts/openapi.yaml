@@ -240,12 +240,31 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Unknown payment or different owner }
+  /api/v1/subscriptions/me/payments/{id}/return-failure:
+    post:
+      tags: [Subscriptions]
+      summary: Close own cancelled or failed checkout from VNPay's signed browser return (Owner)
+      description: Query is the signed vnp_* parameters VNPay returned to the browser. Only closes a PENDING order as FAILED; it can never record success or grant a plan. See payments-vnpay.md.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current order status; unchanged when the query is not a valid signed failure for this order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPayment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Unknown payment or different owner }
   /api/v1/payments/vnpay/ipn:
     get:
       tags: [Subscriptions]
       security: []
       summary: Public VNPay IPN, HMAC-SHA512 authentication
-      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Only this endpoint records payment results.
+      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Success is recorded only here or by server-side QueryDR reconciliation; a signed browser return can only close an order as failed.
       responses:
         '200':
           description: VNPay acknowledgment; 99 means processing failed and transaction rolled back
