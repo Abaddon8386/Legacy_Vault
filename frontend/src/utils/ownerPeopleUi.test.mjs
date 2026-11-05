@@ -490,6 +490,46 @@ test('vault widget explains subscription policy pending without inventing plan o
   }
 });
 
+test('overdue activity card points to the next real step and beneficiaries share one card', async () => {
+  const originalFetch = globalThis.fetch;
+  const day = 86400000, iso = time => new Date(time).toISOString();
+  globalThis.fetch = async url => {
+    if (url.includes('/assets')) return json({ totalElements: 1, content: [] });
+    if (url.includes('/configuration-check')) return json({ beneficiaryCount: 1, ready: true, issues: [] });
+    if (url.includes('/dms')) return json({ ownerId: vaultId, status: 'TRIGGERED', checkIntervalDays: 30, gracePeriodDays: 7,
+      nextCheckAt: iso(Date.now() - day), graceDeadline: iso(Date.now() + day) });
+    return json({});
+  };
+  const render = async vaultStatus => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => root.render(React.createElement(Summary, { vaultId, ownerId: vaultId, vaultStatus, accessToken: 'synthetic', lang: 'vi' })));
+    return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
+  };
+  try {
+    const active = await render('ACTIVE');
+    assert.equal(active.host.querySelectorAll('.lv-summary-card').length, 3);
+    assert.match(active.host.textContent, /Đã đáp ứng yêu cầu có người thụ hưởng/);
+    assert.match(active.host.textContent, /Hạn xác nhận:/);
+    assert.doesNotMatch(active.host.textContent, /Xác nhận tiếp theo:/);
+    assert.ok(active.host.querySelector('.lv-summary-pill--urgent'));
+    assert.equal(active.host.querySelector('.lv-summary-pill--danger'), null);
+    assert.ok(active.host.querySelector('.lv-summary-attention'));
+    assert.ok([...active.host.querySelectorAll('.lv-summary-cta-btn--action')].every(button => /Xác nhận ngay/.test(button.textContent)));
+    assert.equal(active.host.querySelectorAll('.lv-summary-cta-btn--action').length, 2);
+    await active.close();
+
+    const handover = await render('HANDOVER_IN_PROGRESS');
+    assert.equal(handover.host.querySelector('.lv-summary-attention'), null);
+    assert.equal(handover.host.querySelector('.lv-summary-cta-btn--action'), null);
+    assert.match(handover.host.textContent, /Xem giám sát/);
+    await handover.close();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('TASK #22: vault widget renders Upgrade plan / Nâng cấp gói button and navigates to subscription', async () => {
   const originalFetch = globalThis.fetch;
   const subPayload = {

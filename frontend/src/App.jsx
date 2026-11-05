@@ -10,6 +10,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { createLiveReceivedAssetActions } from './services/receivedAssetService.js';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
+import PublicInfoPage from './pages/landing/PublicInfoPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import PasswordRecoveryRoute from './pages/auth/PasswordRecoveryRoute.jsx';
 import InvitationPage from './pages/beneficiary/InvitationPage.jsx';
@@ -57,6 +58,7 @@ import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
 import { updateProfile } from './services/profileService.js';
 
+const publicInfoPages = { '/support': 'support', '/privacy': 'privacy', '/about': 'about' };
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
@@ -554,7 +556,8 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
 
   useEffect(() => {
-    if (['/forgot-password', '/reset-password'].includes(window.location.pathname)) return;
+    const { pathname } = window.location;
+    if (publicInfoPages[pathname] || ['/forgot-password', '/reset-password'].includes(pathname)) return;
     const candidate = readStoredSession();
     if (!candidate) return;
     const controller = new AbortController();
@@ -734,6 +737,8 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const rawPath = location.split('?')[0];
   const path = rawPath === '/beneficiary' ? '/shared-with-me' : rawPath;
   const isSharedWithMeRoute = path === '/shared-with-me';
+  const publicInfoPage = publicInfoPages[path];
+  if (publicInfoPage) return <PublicInfoPage key={path} page={publicInfoPage} lang={lang} />;
   if (path === '/verify-email') return <VerifyEmailPage session={restoreStatus === 'ready' ? session : null} lang={lang} />;
   if (path === '/forgot-password' || path === '/reset-password') {
     return <PasswordRecoveryRoute key={location} mode={path === '/reset-password' ? 'reset' : 'request'} initialLang={new URLSearchParams(location.split('?')[1] || '').get('lang')}
@@ -1711,7 +1716,7 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} onNavigateToSubscription={() => navigateTo('/subscription')} />
             : isDmsRoute ? <DMSOverviewPage graceActions={dmsGraceActions} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
-              : <VaultOverviewPage onCreated={() => setRefreshTrigger(n => n + 1)} onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
+              : <VaultOverviewPage onCreated={() => setRefreshTrigger(n => n + 1)} onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} ownerName={session?.user.fullName} showDevToolbar={preview} />}
     </AppShell></div>;
   }
   if (path === '/') {

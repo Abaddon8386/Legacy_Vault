@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchVaultSummary, describeNextCheck } from './vaultSummaryService.js';
+import { fetchVaultSummary, describeNextCheck, confirmationState } from './vaultSummaryService.js';
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 test('Overview uses authenticated API totals and keeps unavailable endpoints separate', async () => {
@@ -32,4 +32,14 @@ test('Overview never mistakes a failed DMS endpoint for an unconfigured schedule
     const result = await fetchVaultSummary(id, { fetchFn: async () => response() });
     assert.equal(result.dms.available, false);
   }
+});
+
+test('confirmation can be done now only while the DMS page would still accept it', () => {
+  const now = Date.parse('2026-11-05T00:00:00Z'), before = '2026-10-26T00:00:00Z', after = '2026-11-20T00:00:00Z';
+  assert.deepEqual(confirmationState({ status: 'MONITORING', nextCheckAt: after }, now), { past: false, canConfirm: false });
+  assert.deepEqual(confirmationState({ status: 'MONITORING', nextCheckAt: before }, now), { past: true, canConfirm: true });
+  assert.deepEqual(confirmationState({ status: 'TRIGGERED', nextCheckAt: before, graceDeadline: after }, now), { past: true, canConfirm: true });
+  assert.deepEqual(confirmationState({ status: 'TRIGGERED', nextCheckAt: before, graceDeadline: before }, now), { past: true, canConfirm: false });
+  assert.deepEqual(confirmationState({ status: 'TRIGGERED', nextCheckAt: before, graceDeadline: null }, now), { past: true, canConfirm: false });
+  assert.deepEqual(confirmationState({ status: 'GRACE_PERIOD_EXCEEDED', nextCheckAt: before, graceDeadline: after }, now), { past: true, canConfirm: false });
 });
