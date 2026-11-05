@@ -1,6 +1,7 @@
 // Presentation labels only; API event codes and filter values stay unchanged.
 const actions = {
   AUTH_REGISTERED: ['Tạo tài khoản', 'Account registered'],
+  AUTH_PASSWORD_SET: ['Đặt mật khẩu lần đầu', 'First password set'],
   AUTH_LOGIN_SUCCEEDED: ['Đăng nhập thành công', 'Signed in'],
   AUTH_LOGIN_FAILED: ['Đăng nhập thất bại', 'Sign-in failed'],
   VAULT_CREATED: ['Tạo kho', 'Vault created'],

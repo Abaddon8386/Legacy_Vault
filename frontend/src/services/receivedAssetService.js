@@ -1,4 +1,5 @@
 import { request, ApiError, API_BASE } from '../api/http.js';
+import { passwordRequest, passwordFetch } from '../api/passwordRequest.js';
 import { isUuid } from '../api/contracts.js';
 
 const invalid = () => { throw new ApiError('INVALID_RESPONSE'); };
@@ -113,7 +114,7 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
         throw err;
       }
 
-      const res = await request(`/received-assets/${itemId}/content`, {
+      const res = await passwordRequest(`/received-assets/${itemId}/content`, {
         ...opts,
         method: 'POST',
         body: { password: opts.password },
@@ -148,12 +149,12 @@ export function createLiveReceivedAssetActions(globalDefaults = {}) {
       if (opts.accessToken) headers.Authorization = `Bearer ${opts.accessToken}`;
       if (opts.lang) headers['Accept-Language'] = opts.lang;
 
-      const res = await fetchFn(`${API_BASE}/received-assets/${itemId}/images/${imageId}/download`, {
+      const res = await passwordFetch(`${API_BASE}/received-assets/${itemId}/images/${imageId}/download`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ password: opts.password }),
         signal: opts.signal,
-      });
+      }, { ...opts, fetchFn });
 
       if (!res.ok) {
         let errBody;

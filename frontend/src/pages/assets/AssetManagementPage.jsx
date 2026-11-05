@@ -251,7 +251,7 @@ export function AssetManagementPage({
       closeSelection(); loadAssets(); showToast('editSuccess')
     } catch (error) {
       if (controller.signal.aborted || !aliveRef.current) return
-      if (['REAUTH_FAILED', 'TOO_MANY_ATTEMPTS'].includes(error.code)) throw error
+      if (['REAUTH_FAILED', 'TOO_MANY_ATTEMPTS', 'PASSWORD_SETUP_CANCELLED'].includes(error.code)) throw error
       if (error.status === 401) { closeSelection(); onNavigateToLogin?.(); return }
       if ([403,404].includes(error.status)) { closeSelection(); setAssets([]); setTotalElements(0); setError(error.code) }
       else setEditErrorKey(error.code || 'editError')

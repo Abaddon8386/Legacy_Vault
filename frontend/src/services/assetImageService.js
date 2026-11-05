@@ -1,4 +1,5 @@
 import { API_BASE, ApiError, request } from '../api/http.js';
+import { passwordFetch } from '../api/passwordRequest.js';
 export const MAX_ASSET_IMAGES = 5;
 export const MAX_ASSET_IMAGE_BYTES = 5 * 1024 * 1024;
 export function validateAssetImages(files, existingCount = 0) {
@@ -38,10 +39,10 @@ export const assetImageService = {
   },
   async open(vault, asset, image, password, options = {}) {
     let response;
-    try { response = await (options.fetchFn || fetch)(API_BASE + path(vault, asset) + '/' + image.id + '/download', {
+    try { response = await passwordFetch(API_BASE + path(vault, asset) + '/' + image.id + '/download', {
       method: 'POST', headers: { Authorization: `Bearer ${options.accessToken}`, 'Content-Type': 'application/json', 'Accept-Language': options.lang || 'vi' },
       body: JSON.stringify({ password }), signal: options.signal, credentials: 'omit',
-    }); } catch (e) { if (e.name === 'AbortError') throw e; throw new ApiError('NETWORK_ERROR'); }
+    }, options); } catch (e) { if (e.name === 'AbortError' || e.code) throw e; throw new ApiError('NETWORK_ERROR'); }
     if (!response.ok) { const data = await response.json().catch(() => ({})); throw new ApiError(data.code || 'NETWORK_ERROR', response.status); }
     return new Blob([await response.arrayBuffer()], { type: image.contentType });
   },

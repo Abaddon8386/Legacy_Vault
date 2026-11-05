@@ -1,10 +1,12 @@
 import { AssetImageGallery } from './AssetImageGallery.jsx'
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import AssetDocuments from './AssetDocuments.jsx'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { FileText, KeyRound, Lock, Calendar, Clock, ShieldCheck, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { assetService } from '../../services/assetService'
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js'
 import './AssetListTable.css'
 
 /**
@@ -294,6 +296,7 @@ export function AssetDetailModal({
             ) : isReauthOpen ? (
               /* Case 2: Reauth password input form */
               <form onSubmit={handleRevealSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <FirstPasswordButton lang={lang} onReady={setPassword} disabled={isRevealing} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--lv-brand-forest, #164639)', fontWeight: 600 }}>
                   <Lock size={14} style={{ color: 'var(--lv-accent-gold, #c5a059)' }} />
                   <span>{t.assets.detailModal.passwordPrompt}</span>
@@ -372,7 +375,7 @@ export function AssetDetailModal({
 
                 {revealErrorKey && (
                   <p
-                    role="alert"
+                    role={revealErrorKey === 'PASSWORD_SETUP_CANCELLED' ? 'status' : 'alert'}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -384,7 +387,8 @@ export function AssetDetailModal({
                   >
                     <AlertCircle size={14} />
                     <span>
-                      {t.assets.alerts[revealErrorKey] ||
+                      {revealErrorKey === 'PASSWORD_SETUP_CANCELLED' ? passwordSetupCancelledMessage(lang) :
+                        t.assets.alerts[revealErrorKey] ||
                         (revealErrorKey === 'passwordRequired'
                           ? t.assets.validation.payloadRequired
                           : t.assets.alerts.loadError)}

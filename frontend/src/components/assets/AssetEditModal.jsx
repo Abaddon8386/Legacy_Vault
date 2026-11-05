@@ -1,10 +1,12 @@
 import { useState, useLayoutEffect, useRef, useEffect } from 'react'
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import { AssetCredentialFields } from './AssetCredentialFields.jsx'
 import { AssetImagePicker } from './AssetImagePicker.jsx'
 import { DocumentPicker } from './AssetDocuments.jsx'
 import { assetImageService } from '../../services/assetImageService.js'
 import { assetDocumentService } from '../../services/assetDocumentService.js'
 import { credentialPayload } from '../../utils/credentialPayload.js'
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
 import { AlertCircle, Lock, KeyRound, FileText } from 'lucide-react'
@@ -128,7 +130,8 @@ export function AssetEditModal({
           setExistingDocumentCount(n => n + done.savedDocuments.length)
           setPartial({ savedNames: [...(done.savedFields ? [name.trim()] : []), ...done.savedImages.map(f => f.name), ...done.savedDocuments.map(f => f.name)], failedNames: [...(done.failedFields ? [name.trim()] : []), ...done.failedImages.map(f => f.name), ...done.failedDocuments.map(f => f.name)] })
         }
-        setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
+        if (error.code === 'PASSWORD_SETUP_CANCELLED') setErrors({ passwordSetupCancelled: true })
+        else setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
       }
     } finally {
       if (submission.current === controller) {
@@ -187,9 +190,11 @@ export function AssetEditModal({
         </div>
 
         <form onSubmit={handleSubmit} className="lv-modal__body lv-asset-form" noValidate>
+          <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
           <div className="lv-asset-form__scroll">
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
           {errors.save && !partial && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
+          {errors.passwordSetupCancelled && <p role="status">{passwordSetupCancelledMessage(lang)}</p>}
           {partial && <div className="lv-form-error" role="alert" data-testid="edit-partial"><p>{t.assets.alerts.editPartial}</p>{!!partial.savedNames.length && <p>{t.assets.alerts.editSavedLabel}: {partial.savedNames.join(', ')}</p>}{!!partial.failedNames.length && <p>{t.assets.alerts.editFailedLabel}: {partial.failedNames.join(', ')}</p>}<p>{t.assets.alerts.editRetryHint}</p></div>}
           {errors.rateLimited && <p className="lv-form-error" role="alert">{t.assets.alerts.TOO_MANY_ATTEMPTS}</p>}
           {errors.noChanges && <p className="lv-form-error" role="alert">{t.assets.editModal.noChangesError}</p>}

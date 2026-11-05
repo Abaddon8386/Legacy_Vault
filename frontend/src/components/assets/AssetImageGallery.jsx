@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx';
 import { assetImageService } from '../../services/assetImageService.js';
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js';
 import { AssetImagePicker } from './AssetImagePicker.jsx';
 import ZoomableImage from '../common/ZoomableImage.jsx';
 
@@ -23,12 +25,20 @@ export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', 
     if(pending.current) return; pending.current=true; setBusy(true); setError('');
     const signal=controller.current?.signal;
     try { await action({accessToken,lang,signal}); }
-    catch(e){ if(!signal?.aborted) { if(e.status===401) onUnauthorized?.(); setError(en?'Unable to complete. Check your password, photo limits and vault status, then retry.':'Không thực hiện được. Kiểm tra mật khẩu, giới hạn ảnh và trạng thái kho rồi thử lại.'); } }
+    catch(e){
+      if(!signal?.aborted) {
+        if(e.status===401) onUnauthorized?.();
+        setError(e.code === 'PASSWORD_SETUP_CANCELLED' ? e.code :
+          (en?'Unable to complete. Check your password, photo limits and vault status, then retry.':'Không thực hiện được. Kiểm tra mật khẩu, giới hạn ảnh và trạng thái kho rồi thử lại.'));
+      }
+    }
     finally {pending.current=false; if(!signal?.aborted)setBusy(false);}
   };
   return <section className="lv-asset-images" aria-label={en?'Asset photos':'Ảnh tài sản'}>
     <h3>{en?'Asset photos':'Ảnh tài sản'} ({images.length}/5)</h3>
-    {error&&<p role="alert">{error}</p>}
+    {error && (error === 'PASSWORD_SETUP_CANCELLED'
+      ? <p role="status">{passwordSetupCancelledMessage(lang)}</p>
+      : <p role="alert">{error}</p>)}
     <div className="lv-asset-image-grid">{images.map(image=><figure key={image.id} className={opened[image.id]?'is-opened':undefined}>
       {opened[image.id]&&<ZoomableImage src={opened[image.id]} alt={image.fileName} lang={lang}/>}
       <figcaption>{image.fileName}</figcaption>
@@ -42,6 +52,7 @@ export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', 
     {selected&&<form onSubmit={e=>{e.preventDefault();const secret=password;setPassword('');const image=selected;
       run(async opts=>{const blob=await assetImageService.open(vaultId,assetId,image,secret,opts);if(opts.signal?.aborted)return;
         const src=URL.createObjectURL(blob);urls.current.push(src);setOpened(prev=>({...prev,[image.id]:src}));setSelected(null);});}}>
+      <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
       <label><span>{en?'Confirm your current password to view the photo':'Xác nhận mật khẩu hiện tại để xem ảnh'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
         <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required maxLength={72} autoComplete="current-password" disabled={busy}/>
       </label>

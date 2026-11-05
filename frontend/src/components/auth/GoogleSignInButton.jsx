@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { getAuthMessage } from '../../utils/loginService.js';
 import { loadGoogleIdentityScript } from '../../utils/googleIdentity.js';
 import './GoogleSignInButton.css';
+// GIS has one active callback. Restore the underlying screen after a reauthentication dialog closes.
+const configurations = [];
 
 /**
  * Official Google 4-color "G" Icon conforming to Google Branding Guidelines.
@@ -81,6 +83,7 @@ export default function GoogleSignInButton({
 
   useEffect(() => {
     let isMounted = true;
+    let configuration;
 
     if (!isConfigured) {
       return;
@@ -98,7 +101,7 @@ export default function GoogleSignInButton({
           return;
         }
 
-        window.google.accounts.id.initialize({
+        configuration = {
           client_id: clientId.trim(),
           callback: (response) => {
             if (!isMounted || disabledRef.current || isPendingRef.current) return;
@@ -113,7 +116,9 @@ export default function GoogleSignInButton({
           },
           auto_select: false,
           cancel_on_tap_outside: true,
-        });
+        };
+        configurations.push(configuration);
+        window.google.accounts.id.initialize(configuration);
 
         if (containerRef.current) {
           containerRef.current.innerHTML = '';
@@ -143,6 +148,10 @@ export default function GoogleSignInButton({
 
     return () => {
       isMounted = false;
+      const active = configurations.at(-1) === configuration;
+      const index = configurations.indexOf(configuration);
+      if (index >= 0) configurations.splice(index, 1);
+      if (active && configurations.length) window.google?.accounts?.id?.initialize(configurations.at(-1));
     };
   }, [clientId, isConfigured, lang, text]);
 

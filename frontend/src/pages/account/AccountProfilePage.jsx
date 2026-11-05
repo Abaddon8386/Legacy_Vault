@@ -20,6 +20,7 @@ import {
 } from '../../utils/accountProfileValidation.js';
 import { accountProfileI18n } from './accountProfileI18n.js';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton.jsx';
+import FirstPasswordButton from '../../components/auth/FirstPasswordButton.jsx';
 import { linkGoogleAccount } from '../../utils/googleLinkService.js';
 import { getAuthMessage } from '../../utils/loginService.js';
 import './AccountProfilePage.css';
@@ -412,10 +413,11 @@ export default function AccountProfilePage({
 
             {/* Action Area */}
             <div className="lv-profile-google-action">
+              <FirstPasswordButton lang={lang} onReady={() => {}} disabled={isLinking} />
               <GoogleSignInButton
                 key={`${session?.user?.id || ''}:${activeToken || ''}`}
                 id="lv-profile-google-link-btn"
-                disabled={isLinking || !session?.accessToken}
+                disabled={isLinking || !session?.accessToken || session?.user?.passwordLoginEnabled === false}
                 lang={lang}
                 text="continue_with"
                 onCredentialReceived={handleGoogleCredential}
