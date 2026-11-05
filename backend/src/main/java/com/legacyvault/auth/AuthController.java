@@ -48,7 +48,13 @@ public class AuthController {
 
     @PostMapping("/google")
     public ResponseEntity<LoginResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        return ResponseEntity.ok(googleAuthService.login(request));
+        try {
+            return ResponseEntity.ok(googleAuthService.login(request));
+        } catch (GoogleSignupRaceException race) {
+            // The parallel request that won created the account and this transaction rolled back (token not used).
+            // One retry signs the same Google user in, or returns the real GOOGLE_EMAIL_ALREADY_REGISTERED.
+            return ResponseEntity.ok(googleAuthService.login(request));
+        }
     }
 
     @PostMapping("/google/link")

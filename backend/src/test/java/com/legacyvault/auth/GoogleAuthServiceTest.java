@@ -51,6 +51,7 @@ class GoogleAuthServiceTest {
         when(user.getStatus()).thenReturn("ACTIVE");
         when(user.getDeletedAt()).thenReturn(null);
         when(user.getUserId()).thenReturn(41L);
+        when(user.isPasswordLoginAllowed()).thenReturn(true);
         when(users.findById(41L)).thenReturn(Optional.of(user));
         when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
                 .thenReturn(Optional.of(new ExternalAuthIdentity("GOOGLE", "google-sub", user)));
@@ -153,7 +154,33 @@ class GoogleAuthServiceTest {
                 () -> service.login(new GoogleLoginRequest(token)));
 
         assertEquals(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED, exception.getErrorCode());
+        // Marked as a race so the controller retries instead of telling the user to "sign in with a password".
+        assertInstanceOf(GoogleSignupRaceException.class, exception);
         verify(authService, never()).issueLoginResponseForActiveUser(any());
+    }
+
+    @Test
+    void existingEmailIsNotMarkedAsARace() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("owner@example.test", true));
+        when(users.existsByEmail("owner@example.test")).thenReturn(true);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertFalse(exception instanceof GoogleSignupRaceException);
+    }
+
+    @Test
+    void linkRejectsGoogleOnlyAccountBeforeTouchingTheCredential() {
+        when(user.isPasswordLoginAllowed()).thenReturn(false);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.linkIdentity(new GoogleLoginRequest(token), 41L));
+
+        assertEquals(ErrorCode.PASSWORD_NOT_SET, exception.getErrorCode());
+        verifyNoInteractions(verifier, uses, audit);
+        verify(identities, never()).saveAndFlush(any());
     }
 
     @Test

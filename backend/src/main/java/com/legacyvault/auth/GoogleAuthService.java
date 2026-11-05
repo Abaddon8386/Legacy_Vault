@@ -118,9 +118,11 @@ public class GoogleAuthService {
             identities.saveAndFlush(new ExternalAuthIdentity(GOOGLE_PROVIDER, credential.subject(), created));
         } catch (DataIntegrityViolationException exception) {
             // A parallel request with another token created the same email or subject first; unique indexes decide.
+            // This transaction is now rolled back, so the caller retries once: if the winner is the same Google
+            // user the retry signs them in, and if the email really belongs to someone else it gets the real 409.
             if (violatesConstraint(exception, "UQ_users_email")
                     || violatesConstraint(exception, "UQ_external_auth_identities_provider_subject")) {
-                throw new BusinessException(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED);
+                throw new GoogleSignupRaceException();
             }
             throw exception;
         }
@@ -169,6 +171,11 @@ public class GoogleAuthService {
         User user = users.findById(authenticatedUserId)
                 .filter(found -> "ACTIVE".equals(found.getStatus()) && found.getDeletedAt() == null)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
+        // A Google-only account (no password yet) must not add another Google identity: that would let a bare
+        // session sidestep the re-authentication that setting the first password requires. Set a password first.
+        if (!user.isPasswordLoginAllowed()) {
+            throw new BusinessException(ErrorCode.PASSWORD_NOT_SET);
+        }
 
         GoogleIdTokenVerifier.VerifiedGoogleCredential credential = verifier.verify(request.credential());
         if (identities.findByProviderCodeAndSubject(GOOGLE_PROVIDER, credential.subject()).isPresent()) {

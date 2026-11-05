@@ -74,7 +74,9 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   `password_login_enabled=false` (hash mật khẩu là chuỗi ngẫu nhiên không ai biết), thêm dòng `external_auth_identities`,
   đánh dấu credential đã dùng, ghi audit `AUTH_REGISTERED` (context `provider=GOOGLE`) rồi trả `LoginResponse` như thường.
   Tên hiển thị lấy từ claim `name` (thiếu thì phần trước `@`, cắt 150 ký tự). Hai request đồng thời chỉ tạo một tài
-  khoản (unique `UQ_users_email` / `(provider_code, subject)`; bên thua nhận `409 GOOGLE_EMAIL_ALREADY_REGISTERED`).
+  khoản (unique `UQ_users_email` / `(provider_code, subject)`). Bên thua bị rollback (token chưa bị đánh dấu đã dùng) và
+  controller thử lại đúng một lần: nếu bên thắng là cùng người Google thì bên thua đăng nhập bình thường; nếu email thật sự
+  thuộc người khác thì nhận `409 GOOGLE_EMAIL_ALREADY_REGISTERED` đúng nghĩa.
   Không cấp thêm role nào ngoài Owner và không tự liên kết hồ sơ thụ hưởng.
 - **Audit:** đăng nhập dùng `AUTH_LOGIN_SUCCEEDED`/`AUTH_LOGIN_FAILED` hiện có; không ghi credential, token, subject hoặc profile.
 
@@ -87,7 +89,8 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
 - **Response 200:** `{ "linked": true }`. Sau đó cùng Google ID token mới (mỗi credential chỉ dùng một lần) có thể đăng nhập
   qua mapping `GOOGLE + sub` vừa tạo.
 - **Lỗi:** `400 VALIDATION_FAILED`; `401 UNAUTHENTICATED` khi không có principal hợp lệ hoặc tài khoản hiện tại không còn
-  đủ điều kiện; `401 INVALID_GOOGLE_CREDENTIAL` cho credential sai/hết hạn/đã dùng; `409 GOOGLE_IDENTITY_ALREADY_LINKED`
+  đủ điều kiện; `403 PASSWORD_NOT_SET` khi tài khoản chỉ có Google chưa đặt mật khẩu (không cho thêm Google khác để vượt qua
+  bước xác thực lại; kiểm tra trước khi xác minh token nên token chưa bị dùng); `401 INVALID_GOOGLE_CREDENTIAL` cho credential sai/hết hạn/đã dùng; `409 GOOGLE_IDENTITY_ALREADY_LINKED`
   nếu subject đã có mapping. Cạnh tranh tạo mapping được bảo vệ thêm bằng unique constraint `(provider_code, subject)`;
   toàn bộ thao tác mapping, đánh dấu credential đã dùng và audit nằm trong một transaction.
 - Chỉ liên kết vào chính tài khoản của JWT hiện tại; không hỗ trợ link tài khoản khác, email matching,

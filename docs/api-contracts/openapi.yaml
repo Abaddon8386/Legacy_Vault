@@ -1297,7 +1297,8 @@ paths:
                   value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_GOOGLE_CREDENTIAL, messageKey: error.auth.googleCredentialInvalid, message: 'Thông tin xác thực Google không hợp lệ, đã hết hạn hoặc đã được sử dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
                 emailNotVerified:
                   value: { timestamp: '2026-11-04T10:00:00Z', status: 401, code: GOOGLE_EMAIL_NOT_VERIFIED, messageKey: error.auth.googleEmailNotVerified, message: 'Google chưa xác minh email của tài khoản này nên không thể đăng ký bằng Google.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
-                unlinkedIdentity:
+                inactiveLinkedAccount:
+                  summary: 'Tài khoản Google đã liên kết nhưng bị khóa hoặc đã xóa. Google chưa liên kết không còn bị từ chối: người mới được tự tạo tài khoản.'
                   value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_CREDENTIALS, messageKey: error.auth.invalidCredentials, message: 'Email hoặc mật khẩu không đúng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
         '409':
           description: Email Google đã có tài khoản LegacyVault; không tự gộp. Đăng nhập bằng mật khẩu rồi liên kết Google trong hồ sơ.
@@ -1333,6 +1334,12 @@ paths:
               example: { linked: true }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: Tài khoản chỉ có Google chưa đặt mật khẩu (`PASSWORD_NOT_SET`); phải đặt mật khẩu trước khi liên kết thêm Google.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-11-05T10:00:00Z', status: 403, code: PASSWORD_NOT_SET, messageKey: error.auth.passwordNotSet, message: 'Tài khoản này chưa đặt mật khẩu. Hãy đặt mật khẩu trước khi thực hiện thao tác này.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
         '409':
           description: Google subject đã liên kết với một tài khoản.
           content:

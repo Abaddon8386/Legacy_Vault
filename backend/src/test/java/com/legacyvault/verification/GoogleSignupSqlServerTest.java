@@ -1,10 +1,12 @@
 package com.legacyvault.verification;
 
 import com.legacyvault.audit.AuditService;
+import com.legacyvault.auth.AuthController;
 import com.legacyvault.auth.AuthService;
 import com.legacyvault.auth.GoogleAuthService;
 import com.legacyvault.auth.GoogleIdTokenVerifier;
 import com.legacyvault.auth.dto.GoogleLoginRequest;
+import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.PasswordSetupRequest;
 import com.legacyvault.auth.repository.GoogleLoginCredentialUseRepository;
@@ -40,6 +42,21 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
                 context.getBean(GoogleLoginCredentialUseRepository.class),
                 context.getBean(AuthService.class),
                 context.getBean(AuditService.class));
+    }
+
+    /** The manually built service has no Spring proxy, so each login attempt gets its own transaction here. */
+    private GoogleAuthService transactionalGoogle() {
+        return new GoogleAuthService(verifier,
+                context.getBean(ExternalAuthIdentityRepository.class),
+                context.getBean(UserRepository.class),
+                context.getBean(GoogleLoginCredentialUseRepository.class),
+                context.getBean(AuthService.class),
+                context.getBean(AuditService.class)) {
+            @Override
+            public LoginResponse login(GoogleLoginRequest request) {
+                return tx.execute(status -> super.login(request));
+            }
+        };
     }
 
     private String credential(String subject, String email, boolean verified) {
@@ -133,7 +150,7 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
-    void parallelSignUpsForTheSameGoogleUserCreateExactlyOneAccount() throws Exception {
+    void parallelSignUpsForTheSameGoogleUserCreateOneAccountAndEveryRequestSignsIn() throws Exception {
         String email = "race-" + UUID.randomUUID() + "@example.test";
         String subject = "sub-" + UUID.randomUUID();
         int attempts = 6;
@@ -147,8 +164,10 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
             Callable<String> task = () -> {
                 start.await();
                 try {
-                    login(token);
-                    return "OK";
+                    // Through the controller, like a real request: a lost race is retried once there.
+                    AuthController controller = new AuthController(context.getBean(AuthService.class), transactionalGoogle());
+                    return controller.googleLogin(new GoogleLoginRequest(token)).getBody().accessToken() != null
+                            ? "OK" : "NO_TOKEN";
                 } catch (BusinessException exception) {
                     return exception.getErrorCode().name();
                 }
@@ -162,10 +181,30 @@ class GoogleSignupSqlServerTest extends LegalBasisSqlServerSupport {
 
         assertEquals(1, scalar("SELECT COUNT(*) FROM dbo.users WHERE email = ?", email), outcomes.toString());
         assertEquals(1, scalar("SELECT COUNT(*) FROM dbo.external_auth_identities WHERE subject = ?", subject));
-        assertTrue(outcomes.contains("OK"), outcomes.toString());
+        // Same Google user in every request, so none of them may be told the email belongs to someone else.
         for (String outcome : outcomes) {
-            assertTrue(outcome.equals("OK") || outcome.equals("GOOGLE_EMAIL_ALREADY_REGISTERED"), outcomes.toString());
+            assertEquals("OK", outcome, outcomes.toString());
         }
+    }
+
+    @Test
+    void googleOnlyAccountCannotLinkAnotherGoogleUntilItHasAPassword() {
+        String email = "link-" + UUID.randomUUID() + "@example.test";
+        String subject = "sub-" + UUID.randomUUID();
+        login(credential(subject, email, true));
+        long userId = scalar("SELECT user_id FROM dbo.users WHERE email = ?", email);
+        String otherSubject = "sub-" + UUID.randomUUID();
+        String otherToken = credential(otherSubject, "someone-else@example.test", true);
+
+        assertEquals(ErrorCode.PASSWORD_NOT_SET, codeOf(
+                () -> tx.execute(status -> google().linkIdentity(new GoogleLoginRequest(otherToken), userId))));
+        assertEquals(0, scalar("SELECT COUNT(*) FROM dbo.external_auth_identities WHERE subject = ?", otherSubject));
+
+        // After the first password is set (with the original Google), linking another Google is allowed again.
+        assertTrue(setupPassword(userId, "Brand-new-pass-1", credential(subject, email, true)).passwordLoginEnabled());
+        assertTrue(tx.execute(status -> google().linkIdentity(new GoogleLoginRequest(otherToken), userId)).linked());
+        assertEquals(1, scalar("SELECT COUNT(*) FROM dbo.external_auth_identities WHERE subject = ? AND user_id = ?",
+                otherSubject, userId));
     }
 
     @Test
