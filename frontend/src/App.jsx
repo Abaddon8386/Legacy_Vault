@@ -58,7 +58,7 @@ import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
 import { updateProfile } from './services/profileService.js';
 
-const publicInfoPages = { '/support': 'support', '/privacy': 'privacy' };
+const publicInfoPages = { '/support': 'support', '/privacy': 'privacy', '/about': 'about' };
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (

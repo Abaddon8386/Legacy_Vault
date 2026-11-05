@@ -44,6 +44,27 @@ export const publicInfoContent = {
       ],
       related: ['Tìm hiểu cách dữ liệu được bảo vệ', '/privacy'],
     },
+    about: {
+      title: 'Về LegacyVault',
+      intro: 'LegacyVault giúp bạn sắp xếp tài sản số, lưu giữ giấy tờ và chuẩn bị thông tin cho người thụ hưởng.',
+      sections: [
+        {
+          id: 'digital-legacy',
+          title: 'Chuẩn bị di sản số',
+          paragraphs: [
+            'Chủ sở hữu có thể tạo kho riêng, lưu nội dung tài sản và các phiên bản di chúc, ghi nhận người thụ hưởng và đặt lịch xác nhận hoạt động.',
+          ],
+        },
+        {
+          id: 'handover',
+          title: 'Từ hồ sơ đến bàn giao',
+          paragraphs: [
+            'Nhân viên tiếp nhận giấy tờ, bộ phận pháp lý thẩm định hồ sơ và hệ thống ghi nhận việc bàn giao. Người thụ hưởng xem phần tài sản đã được bàn giao cho mình trong tài khoản riêng.',
+          ],
+        },
+      ],
+      related: ['Tìm hướng dẫn sử dụng LegacyVault', '/support'],
+    },
     privacy: {
       title: 'Điều khoản bảo mật',
       intro: 'Tìm hiểu LegacyVault lưu thông tin nào, bảo vệ nội dung trong kho ra sao và kiểm tra quyền truy cập như thế nào.',
@@ -128,6 +149,27 @@ export const publicInfoContent = {
         },
       ],
       related: ['Learn how your data is protected', '/privacy'],
+    },
+    about: {
+      title: 'About LegacyVault',
+      intro: 'LegacyVault helps you organise digital assets, keep important documents and prepare information for your beneficiaries.',
+      sections: [
+        {
+          id: 'digital-legacy',
+          title: 'Preparing your digital legacy',
+          paragraphs: [
+            'Owners can create a private vault, store asset contents and will versions, record beneficiaries and schedule check-ins.',
+          ],
+        },
+        {
+          id: 'handover',
+          title: 'From case intake to handover',
+          paragraphs: [
+            'Staff receive documents, legal reviewers assess the case, and the system records the handover. Beneficiaries can view the assets handed over to them in their own accounts.',
+          ],
+        },
+      ],
+      related: ['Find help using LegacyVault', '/support'],
     },
     privacy: {
       title: 'Privacy & Security',

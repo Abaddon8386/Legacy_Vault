@@ -1,16 +1,16 @@
 import { useEffect } from 'react';
-import { ArrowLeft, ArrowUpRight, ChevronDown, LifeBuoy, LockKeyhole, Shield } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BookOpen, ChevronDown, LifeBuoy, LockKeyhole, Shield } from 'lucide-react';
 import { publicInfoContent } from './publicInfoContent.js';
 import './PublicInfoPage.css';
+
+const emblems = { support: LifeBuoy, privacy: LockKeyhole, about: BookOpen };
 
 export default function PublicInfoPage({ page, lang }) {
   const copy = publicInfoContent[lang];
   const info = copy[page];
-  const isSupport = page === 'support';
-  const pagePath = isSupport ? '/support' : '/privacy';
   const oppositeLang = lang === 'en' ? 'vi' : 'en';
   const href = path => `${path}?lang=${lang}`;
-  const Emblem = isSupport ? LifeBuoy : LockKeyhole;
+  const Emblem = emblems[page];
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -24,7 +24,7 @@ export default function PublicInfoPage({ page, lang }) {
       <header className="lv-public-info__masthead">
         <div className="lv-public-info__container lv-public-info__masthead-inner">
           <a className="lv-public-info__brand" href={href('/')}><Shield size={26} strokeWidth={1.6} aria-hidden="true" /> LegacyVault</a>
-          <a className="lv-public-info__language" href={`${pagePath}?lang=${oppositeLang}`} aria-label={copy.switchLanguage}>
+          <a className="lv-public-info__language" href={`/${page}?lang=${oppositeLang}`} aria-label={copy.switchLanguage}>
             {oppositeLang.toUpperCase()}
           </a>
         </div>
