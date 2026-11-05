@@ -1,0 +1,14 @@
+.lv-duration-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.lv-duration-fields legend { margin-bottom: 10px; padding: 0; font-size: 14px; font-weight: 600; color: #364d3e; }
+.lv-duration-fields__row { display: grid; grid-template-columns: repeat(3, minmax(0, 120px)); gap: 12px; }
+.lv-duration-fields__field { min-width: 0; }
+.lv-duration-fields label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: #526259; }
+.lv-duration-fields input {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px;
+  border: 1px solid #d3d8cc; border-radius: 7px; background: #fff; color: #264a38; font: inherit; font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.lv-duration-fields input:focus-visible { outline: 2px solid #164639; outline-offset: 2px; }
+.lv-duration-fields input[aria-invalid="true"] { border-color: #b74437; }
+.lv-duration-fields input:disabled { background: #f3f4ee; color: #637068; }
+@media (max-width: 420px) { .lv-duration-fields__row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }

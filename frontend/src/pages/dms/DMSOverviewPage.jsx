@@ -17,6 +17,7 @@ import MagneticButton from '../../components/common/MagneticButton.jsx';
 import OwnerCancelAlert from '../../components/dms/OwnerCancelAlert.jsx';
 import OwnerLiveCancelAlert from '../../components/dms/OwnerLiveCancelAlert.jsx';
 import DmsGraceSettings from '../../components/dms/DmsGraceSettings.jsx';
+import DurationFields from '../../components/dms/DurationFields.jsx';
 import './DMSOverviewPage.css';
 
 export default function DMSOverviewPage({
@@ -970,6 +971,7 @@ export default function DMSOverviewPage({
             </section>
           )}
 
+          <div className="lv-dms-config-grid">
           {/* Configure Interval Form Card */}
           <section className="lv-dms-card lv-dms-config-card lv-dms-stagger lv-owner-card" style={{ '--stagger': 3 }} aria-labelledby="dms-config-heading">
             <div className="lv-dms-card-header">
@@ -1038,80 +1040,14 @@ export default function DMSOverviewPage({
               {/* Custom Duration Inputs & Action Cluster */}
               <div className="lv-dms-input-cluster">
                 <div className="lv-dms-duration-wrapper">
-                  <span className="lv-dms-duration-title">{t.inputLabel}</span>
-                  <div className="lv-dms-duration-grid">
-                    {/* Ô Ngày */}
-                    <div className="lv-dms-input-col">
-                      <label htmlFor="dms-interval-input" className="lv-dms-input-sublabel">
-                        {t.daysLabel}
-                      </label>
-                      <div className="lv-dms-input-wrap">
-                        <input
-                          id="dms-interval-input"
-                          name="check_interval_days"
-                          type="number"
-                          min="0"
-                          max="180"
-                          step="1"
-                          className={`lv-dms-input ${currentErrors.days || currentErrors.check_interval_days || currentErrors.duration ? 'is-invalid' : ''}`}
-                          value={intervalInput}
-                          onChange={handleIntervalInputChange}
-                          disabled={isSaving || configReadOnly}
-                          aria-invalid={Boolean(currentErrors.days || currentErrors.check_interval_days || currentErrors.duration)}
-                          aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
-                        />
-                        <span className="lv-dms-input-unit">{t.daysUnit}</span>
-                      </div>
-                    </div>
-
-                    {/* Ô Giờ */}
-                    <div className="lv-dms-input-col">
-                      <label htmlFor="dms-interval-hours-input" className="lv-dms-input-sublabel">
-                        {t.hoursLabel}
-                      </label>
-                      <div className="lv-dms-input-wrap">
-                        <input
-                          id="dms-interval-hours-input"
-                          name="check_interval_hours"
-                          type="number"
-                          min="0"
-                          max="23"
-                          step="1"
-                          className={`lv-dms-input ${currentErrors.hours ? 'is-invalid' : ''}`}
-                          value={hoursInput}
-                          onChange={handleHoursInputChange}
-                          disabled={isSaving || configReadOnly}
-                          aria-invalid={Boolean(currentErrors.hours)}
-                          aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
-                        />
-                        <span className="lv-dms-input-unit">{t.hoursUnit}</span>
-                      </div>
-                    </div>
-
-                    {/* Ô Phút */}
-                    <div className="lv-dms-input-col">
-                      <label htmlFor="dms-interval-minutes-input" className="lv-dms-input-sublabel">
-                        {t.minutesLabel}
-                      </label>
-                      <div className="lv-dms-input-wrap">
-                        <input
-                          id="dms-interval-minutes-input"
-                          name="check_interval_minutes"
-                          type="number"
-                          min="0"
-                          max="59"
-                          step="1"
-                          className={`lv-dms-input ${currentErrors.minutes ? 'is-invalid' : ''}`}
-                          value={minutesInput}
-                          onChange={handleMinutesInputChange}
-                          disabled={isSaving || configReadOnly}
-                          aria-invalid={Boolean(currentErrors.minutes)}
-                          aria-describedby={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
-                        />
-                        <span className="lv-dms-input-unit">{t.minutesUnit}</span>
-                      </div>
-                    </div>
-                  </div>
+                  <DurationFields legend={t.inputLabel} disabled={isSaving || configReadOnly}
+                    describedBy={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
+                    fields={[
+                      { id: 'dms-interval-input', name: 'check_interval_days', label: t.daysLabel, max: 180, value: intervalInput, onChange: handleIntervalInputChange,
+                        invalid: currentErrors.days || currentErrors.check_interval_days || currentErrors.duration },
+                      { id: 'dms-interval-hours-input', name: 'check_interval_hours', label: t.hoursLabel, max: 23, value: hoursInput, onChange: handleHoursInputChange, invalid: currentErrors.hours },
+                      { id: 'dms-interval-minutes-input', name: 'check_interval_minutes', label: t.minutesLabel, max: 59, value: minutesInput, onChange: handleMinutesInputChange, invalid: currentErrors.minutes },
+                    ]} />
 
                   {firstErrorMsg ? (
                     <span id="dms-interval-error" className="lv-dms-field-error" role="alert">
@@ -1176,6 +1112,7 @@ export default function DMSOverviewPage({
               visibilityAbortControllerRef.current?.abort();
               setDmsData({ ...value, snapshotTimestamp: Date.now() });
             }} />
+          </div>
 
         </div>
       )}
