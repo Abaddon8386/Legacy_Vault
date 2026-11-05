@@ -692,6 +692,44 @@ test('DMS StrictMode - language change when user typed 181: keeps 181, error cha
   }
 });
 
+test('DMS: 29 days 24 hours equals the saved 30 days but keeps Save and Cancel and shows the error on submit', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => json({
+    ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    status: 'MONITORING',
+    checkIntervalDays: 30,
+    gracePeriodDays: 1,
+    lastCheckInAt: '2026-10-15T00:00:00Z',
+    nextCheckAt: '2026-11-14T00:00:00Z',
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => {
+      root.render(React.createElement(DMSOverviewPage, { vaultId: 'vlt-test', accessToken: 'synthetic', lang: 'vi' }));
+    });
+    const actions = () => host.querySelector('#dms-cycle-heading')?.closest('section')?.querySelector('.lv-duration-setting__actions');
+    assert.equal(Boolean(actions()), false, 'no actions before any change');
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-input'), '29'); });
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-hours-input'), '24'); });
+    assert.ok(actions(), 'Save and Cancel stay visible after an edit even when the total equals the saved value');
+    assert.equal(actions().querySelectorAll('button').length, 2);
+    await act(async () => {
+      host.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    });
+    assert.ok(host.querySelector('#dms-interval-error'), 'submitting shows the hours error');
+    assert.ok(actions(), 'actions remain after the error appears');
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-hours-input'), '0'); });
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-input'), '30'); });
+    assert.equal(Boolean(actions()), false, 'actions hide again once the text matches the saved value');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 // 6. Response cũ đến muộn bị bỏ qua (Race condition protection)
 test('DMS StrictMode - stale response coming late is ignored', async () => {
   let initialResolved = false;

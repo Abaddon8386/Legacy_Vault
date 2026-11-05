@@ -68,7 +68,7 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
     onPreset={preset => { setDraft(split(preset.minutes)); setDirty(true); setSaved(false); }}
     legend={en ? 'Grace period length' : 'Thời lượng ân hạn'} helpId="grace-help" help={minuteMode ? maxText : (en ? 'Whole days only.' : 'Chỉ lưu được số ngày nguyên.')}
     error={dirty && invalid ? (unsupportedPrecision ? (en ? 'Minutes are not supported yet.' : 'Chưa hỗ trợ lưu theo giờ, phút.') : (en ? `Enter a value within the limit. ${maxText}` : `Hãy nhập giá trị trong giới hạn. ${maxText}`)) : null}
-    disabled={blocked} saving={pending} saveDisabled={invalid} dirty={dirty && total !== savedTotal} onSubmit={save}
+    disabled={blocked} saving={pending} saveDisabled={invalid} dirty={dirty && (total !== savedTotal || invalid)} onSubmit={save}
     onCancel={() => { setDirty(false); setSaved(false); }}
     fields={['days', 'hours', 'minutes'].map((unit, index) => ({ id: `grace-${unit}`, label: (en ? ['Days', 'Hours', 'Minutes'] : ['Số ngày', 'Số giờ', 'Số phút'])[index],
       placeholder: '0', max: unit === 'hours' ? 23 : unit === 'minutes' ? 59 : undefined, value: value[unit], invalid: dirty && invalid,

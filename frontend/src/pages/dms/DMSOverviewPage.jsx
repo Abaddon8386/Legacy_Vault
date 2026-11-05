@@ -661,6 +661,9 @@ export default function DMSOverviewPage({
   const configReadOnly = isSavingGrace || configLocked;
   const intervalTotal = Number(intervalInput) * 1440 + Number(hoursInput) * 60 + Number(minutesInput);
   const savedIntervalTotal = dmsData ? (dmsData.checkIntervalTotalMinutes ?? ((dmsData.days ?? dmsData.checkIntervalDays ?? 0) * 1440 + (dmsData.hours ?? 0) * 60 + (dmsData.minutes ?? 0))) : undefined;
+  // Compare the typed text, not the total: 29 days 24 hours equals 30 days but must keep Save (the only way to see the error) and Cancel.
+  const intervalChanged = savedIntervalTotal !== undefined && (String(intervalInput) !== String(Math.floor(savedIntervalTotal / 1440))
+    || String(hoursInput) !== String(Math.floor(savedIntervalTotal % 1440 / 60)) || String(minutesInput) !== String(savedIntervalTotal % 60));
   const handleCancelInterval = () => {
     const saved = savedIntervalTotal || 0;
     setIntervalInput(String(Math.floor(saved / 1440)));
@@ -944,7 +947,7 @@ export default function DMSOverviewPage({
               presets={INTERVAL_PRESETS.map(preset => ({ minutes: preset.days * 1440, label: lang === 'vi' ? preset.labelVi : preset.labelEn, days: preset.days }))}
               onPreset={preset => handlePresetSelect(preset.days)}
               legend={t.inputLabel} helpId="dms-interval-helper" help={t.inputHelper} error={firstErrorMsg} errorId="dms-interval-error"
-              disabled={isSaving || configReadOnly} saving={isSaving} dirty={!dmsData || intervalTotal !== savedIntervalTotal}
+              disabled={isSaving || configReadOnly} saving={isSaving} dirty={!dmsData || intervalChanged}
               fields={[
                 { id: 'dms-interval-input', name: 'check_interval_days', label: t.daysLabel, max: 180, value: intervalInput, onChange: handleIntervalInputChange,
                   invalid: currentErrors.days || currentErrors.check_interval_days || currentErrors.duration },
