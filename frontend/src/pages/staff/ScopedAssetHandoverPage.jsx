@@ -8,7 +8,6 @@ import {
   Clock,
   Send,
   RefreshCw,
-  ArrowLeft,
   User,
   CheckSquare,
   X,
@@ -412,18 +411,6 @@ function ScopedAssetHandoverPageContext({
 
   return (
     <div className="lv-asset-handover-view">
-      {/* Context navigation back link */}
-      {caseReference && sessionId && (
-        <div className="lv-handover-nav-back">
-          <a
-            href={`/staff/handover?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}`}
-            className="lv-btn-back-link"
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>{en ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
-          </a>
-        </div>
-      )}
 
       {/* Page Title & Context Header */}
       <div className="lv-handover-header">

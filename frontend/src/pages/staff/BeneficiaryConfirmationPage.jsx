@@ -7,7 +7,6 @@ import {
   HelpCircle,
   AlertTriangle,
   RefreshCw,
-  ArrowLeft,
   FolderOpen,
 } from 'lucide-react';
 import {
@@ -590,48 +589,6 @@ function BeneficiaryConfirmationPageContext({
         <h1 className="lv-confirm-title">{t.pageTitle}</h1>
       </div>
 
-      {/* Context navigation back */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        {caseReference && sessionId && (
-          <a
-            href={`/staff/handover?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#164639',
-              textDecoration: 'none',
-            }}
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
-          </a>
-        )}
-        {onNavigateCases && (
-          <button
-            type="button"
-            onClick={onNavigateCases}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              minHeight: '44px',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#6b7280',
-              padding: 0,
-            }}
-          >
-            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
-          </button>
-        )}
-      </div>
-
       {/* Staff Case Context Bar */}
       <StaffCaseContextBar
         caseId={caseReference}
@@ -1003,7 +960,8 @@ function BeneficiaryConfirmationPageContext({
         </div>
 
         <form onSubmit={handleSubmitConfirmation} noValidate>
-          <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
+          <div className="lv-confirm-form-row">
+            <div className="lv-confirm-input-group">
             <label htmlFor={benSelectId} className="lv-confirm-label lv-confirm-label--required">
               {t.beneficiarySelectLabel}
             </label>
@@ -1044,6 +1002,17 @@ function BeneficiaryConfirmationPageContext({
               </div>
             )}
           </div>
+            <div className="lv-confirm-input-group">
+            <label htmlFor={paperReceiptId} className="lv-confirm-label">{lang === 'en' ? 'Paper receipt number (optional)' : 'Số trên giấy biên nhận (tùy chọn)'}</label>
+              <input id={paperReceiptId} aria-label={lang === 'en' ? 'Paper receipt number' : 'Số trên giấy biên nhận'} className="lv-confirm-input" value={receiptReference} maxLength={200} onChange={e => handleReceiptChange(e.target.value)} disabled={!hasValidData || isSubmitting || isSelectedAlreadyConfirmed} />
+              {errors.receiptReference && (
+              <div className="lv-confirm-error-msg" role="alert">
+                <AlertTriangle size={13} aria-hidden="true" />
+                <span>{t[errors.receiptReference] || errors.receiptReference}</span>
+              </div>
+            )}
+            </div>
+          </div>
 
           <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
             <EvidenceFileUploader key={`${caseReference}:${sessionId}:${selectedBeneficiaryId}`} file={signedFile} lang={lang}
@@ -1054,15 +1023,7 @@ function BeneficiaryConfirmationPageContext({
           </div>
 
           <div className="lv-confirm-input-group" style={{ marginBottom: 16 }}>
-            <label htmlFor={paperReceiptId} className="lv-confirm-label">{lang === 'en' ? 'Paper receipt number (optional)' : 'Số trên giấy biên nhận (tùy chọn)'}</label>
-              <input id={paperReceiptId} aria-label={lang === 'en' ? 'Paper receipt number' : 'Số trên giấy biên nhận'} className="lv-confirm-input" value={receiptReference} maxLength={200} onChange={e => handleReceiptChange(e.target.value)} disabled={!hasValidData || isSubmitting || isSelectedAlreadyConfirmed} />
             <label className="lv-confirm-signed-check"><input type="checkbox" checked={attested} disabled={!signedFile || isSubmitting || isSelectedAlreadyConfirmed} onChange={e => setAttested(e.target.checked)} />{lang === 'en' ? 'I checked the receipt and the recipient has signed.' : 'Tôi đã đối chiếu biên nhận và người nhận đã ký.'}</label>
-            {errors.receiptReference && (
-              <div className="lv-confirm-error-msg" role="alert">
-                <AlertTriangle size={13} aria-hidden="true" />
-                <span>{t[errors.receiptReference] || errors.receiptReference}</span>
-              </div>
-            )}
             {errors.currentStatus && (
               <div className="lv-confirm-error-msg" role="alert">
                 <AlertTriangle size={13} aria-hidden="true" />

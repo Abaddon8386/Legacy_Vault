@@ -517,3 +517,5 @@
 .lv-beneficiary-confirmation-view .lv-confirm-history-card .lv-confirm-history-list strong { font-size: 18px; }
 .lv-beneficiary-confirmation-view .lv-confirm-form-actions > a, .lv-beneficiary-confirmation-view .lv-confirm-form-actions > button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border: 1px solid #a9bdb0; border-radius: 9px; background: #fff; color: #164639; font-size: 14px; font-weight: 600; text-decoration: none; }
 .lv-beneficiary-confirmation-view .lv-confirm-form-actions > a:first-child { background: #164639; color: #fff; border-color: #164639; }
+.lv-beneficiary-confirmation-view .lv-confirm-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; margin-bottom: 16px; }
+@media (max-width: 640px) { .lv-beneficiary-confirmation-view .lv-confirm-form-row { grid-template-columns: minmax(0, 1fr); } }

@@ -4,6 +4,7 @@ import { readReceivedPage, receivedActions, receivedPreviewAllowed, readReceived
 import { PREVIEW_SUBJECT, previewReceivedActions } from './receivedAssetsPreview.js';
 import { Modal } from '../../components/common/Modal.jsx';
 import './ReceivedAssets.css';
+import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 
 function ReceivedContent({ text, en }) {
   let credential = null;
@@ -141,7 +142,7 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
           onChange={e => setImagePassword(e.target.value)} onSubmit={handlePasswordSubmit} image />
       )}
       {state.error && <p role="alert" className="lv-received-detail__error">{errorMessage(state.error, en)}</p>}
-      {state.blobUrl && <img src={state.blobUrl} alt={image.label} className="lv-received-image__img" />}
+      {state.blobUrl && <ZoomableImage src={state.blobUrl} alt={image.label} lang={lang} />}
     </div>
   );
 }

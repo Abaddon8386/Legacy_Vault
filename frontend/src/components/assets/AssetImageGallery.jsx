@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import FirstPasswordButton from '../auth/FirstPasswordButton.jsx';
 import { assetImageService } from '../../services/assetImageService.js';
 import { AssetImagePicker } from './AssetImagePicker.jsx';
+import ZoomableImage from '../common/ZoomableImage.jsx';
 
 export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', onUnauthorized, readOnly = false }) {
   const en=lang==='en';
@@ -29,8 +30,8 @@ export function AssetImageGallery({ vaultId, assetId, accessToken, lang = 'vi', 
   return <section className="lv-asset-images" aria-label={en?'Asset photos':'Ảnh tài sản'}>
     <h3>{en?'Asset photos':'Ảnh tài sản'} ({images.length}/5)</h3>
     {error&&<p role="alert">{error}</p>}
-    <div className="lv-asset-image-grid">{images.map(image=><figure key={image.id}>
-      {opened[image.id]&&<img src={opened[image.id]} alt={image.fileName}/>}
+    <div className="lv-asset-image-grid">{images.map(image=><figure key={image.id} className={opened[image.id]?'is-opened':undefined}>
+      {opened[image.id]&&<ZoomableImage src={opened[image.id]} alt={image.fileName} lang={lang}/>}
       <figcaption>{image.fileName}</figcaption>
       <button type="button" disabled={busy} onClick={()=>{setSelected(image);setPassword('');}}>{en?'View photo':'Xem ảnh'}</button>
       {!readOnly && <button type="button" disabled={busy} onClick={()=> {

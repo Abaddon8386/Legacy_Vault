@@ -284,7 +284,7 @@ test('App + Live Adapter: REAUTH_FAILED keeps modal open for retry, unlocks cont
     await act(async () => submitForm(decryptImgBtn));
 
     // Ảnh hiển thị thành công!
-    const imgEl = dialog.querySelector('img.lv-received-image__img');
+    const imgEl = dialog.querySelector('.lv-zoomable__frame img');
     assert.ok(imgEl, 'Decrypted image must be rendered');
     assert.equal(imgEl.getAttribute('src'), 'blob:decrypted-image');
 
