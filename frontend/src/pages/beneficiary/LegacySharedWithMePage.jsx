@@ -120,7 +120,7 @@ export default function SharedWithMePage({
       {/* Page Header */}
       <div className="lv-shared-header">
         <h1 id="shared-heading" className="lv-shared-title">
-          {en ? 'Shared with me' : 'Được chia sẻ với tôi'}
+          {en ? 'Shared with me' : 'Tài sản thụ hưởng'}
         </h1>
       </div>
 

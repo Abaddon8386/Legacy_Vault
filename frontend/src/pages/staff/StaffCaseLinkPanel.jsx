@@ -45,7 +45,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
   useEffect(() => () => { mutation.current?.abort(); read.current?.abort(); }, []);
   const messages = {
     attest: en ? 'In-person check recorded. The account is not linked yet.' : 'Đã ghi nhận đối chiếu tại quầy. Tài khoản chưa được liên kết.',
-    create: en ? 'Account created. Ask the recipient to sign in on their own device and enter the case number in Shared with me.' : 'Đã tạo tài khoản. Hướng dẫn người nhận đăng nhập trên thiết bị của họ, vào Được chia sẻ với tôi và nhập mã hồ sơ.',
+    create: en ? 'Account created. Ask the recipient to sign in on their own device and enter the case number in Shared with me.' : 'Đã tạo tài khoản. Hướng dẫn người nhận đăng nhập trên thiết bị của họ, vào Tài sản thụ hưởng và nhập mã hồ sơ.',
     approve: en ? 'Link confirmed. Asset access starts only after handover.' : 'Đã xác nhận liên kết. Người nhận chỉ xem được tài sản sau bàn giao.',
     reject: en ? 'Request declined.' : 'Đã từ chối yêu cầu.',
   };
@@ -131,7 +131,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
       <details className="lv-counter-link__instructions">
         <summary>{en ? 'How to link an account' : 'Hướng dẫn liên kết'}</summary>
       <ol>
-        <li>{en ? 'Recipient signs in → Shared with me → enters this case number → Submit request.' : 'Người nhận đăng nhập → Được chia sẻ với tôi → nhập mã hồ sơ trên → Gửi yêu cầu.'}</li>
+        <li>{en ? 'Recipient signs in → Shared with me → enters this case number → Submit request.' : 'Người nhận đăng nhập → Tài sản thụ hưởng → nhập mã hồ sơ trên → Gửi yêu cầu.'}</li>
         <li>{en ? 'Staff reloads requests, selects the requesting account and the matching recipient below.' : 'Staff bấm Tải lại trạng thái, chọn tài khoản gửi yêu cầu và đúng người nhận trong hồ sơ bên dưới.'}</li>
         <li>{en ? 'Verify identity at the counter and confirm the account link.' : 'Đối chiếu người tại quầy và xác nhận liên kết tài khoản.'}</li>
       </ol>
@@ -152,7 +152,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
           {evidenceRequired && <label>{en ? 'Counter record reference' : 'Mã chứng từ đối chiếu'}<input placeholder={en ? 'Reference on the counter record' : 'Số trên chứng từ đối chiếu tại quầy'} aria-describedby="counter-evidence-help" value={evidence} maxLength={200} disabled={locked || !recipient} onChange={e => setEvidence(e.target.value)} /></label>}
         </div>
         {evidenceRequired && <p id="counter-evidence-help" className="lv-counter-link__empty">{en ? 'Use the reference on the counter identity-check record. This is separate from the signed asset receipt uploaded after handover.' : 'Nhập số trên chứng từ ghi nhận đối chiếu tại quầy. Đây là bước liên kết tài khoản, khác với biên nhận có chữ ký tải lên sau bàn giao.'}</p>}
-        {ready && !snapshot.requests.length && <p className="lv-counter-link__empty">{en ? 'No pending requests. Ask the recipient to enter this case number in Shared with me, then reload here.' : 'Chưa có yêu cầu chờ. Người nhận nhập mã hồ sơ trong Được chia sẻ với tôi, sau đó bạn tải lại trạng thái.'}</p>}
+        {ready && !snapshot.requests.length && <p className="lv-counter-link__empty">{en ? 'No pending requests. Ask the recipient to enter this case number in Shared with me, then reload here.' : 'Chưa có yêu cầu chờ. Người nhận nhập mã hồ sơ trong Tài sản thụ hưởng, sau đó bạn tải lại trạng thái.'}</p>}
         {(selected || recipient) && <div className="lv-counter-link__identity">
           {selected && <span><strong>{selected.accountName}</strong> · {selected.accountEmail}</span>}
           {recipient && <span>{en ? 'Recipient' : 'Người nhận'}: <strong>{recipient.fullName}</strong>{recipient.sourceLabel && <> · {recipient.sourceLabel}</>}{recipient.legalReference && <> · {recipient.legalReference}</>}</span>}

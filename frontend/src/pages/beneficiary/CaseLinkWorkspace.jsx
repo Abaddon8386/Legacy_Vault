@@ -255,7 +255,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   );
 
   return <div className="lv-shared-view" aria-labelledby="shared-heading">
-    <div className="lv-shared-header"><h1 id="shared-heading" className="lv-shared-title">{en ? 'Shared with me' : 'Được chia sẻ với tôi'}</h1></div>
+    <div className="lv-shared-header"><h1 id="shared-heading" className="lv-shared-title">{en ? 'Shared with me' : 'Tài sản thụ hưởng'}</h1></div>
     {preview && <FeedbackNotice tone="warning">{en ? 'UI preview — sample data, no server changes.' : 'Xem trước giao diện — dữ liệu minh họa, chưa lưu lên máy chủ.'}</FeedbackNotice>}
 
     <div key="assets-wrapper" style={{ order: hasDeliveredAssets ? 1 : 3 }}>
