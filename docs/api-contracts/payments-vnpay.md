@@ -15,7 +15,7 @@ Return URL là trang Owner `/subscription` hoặc `/subscriptions`, không query
 - `POST /api/v1/subscriptions/me/payments` body `{planCode:"STANDARD"|"EXTENDED",catalogVersion,idempotencyKey:<UUID>}` trả 200 `SubscriptionPayment`: `paymentId,planCode,catalogVersion,amountVnd,currency,billingModel,status,createdAt,expiresAt,checkoutUrl`. Checkout hạn 15 phút; gói đã mua không hết hạn. IP lấy từ servlet, không tin X-Forwarded-For tự gửi.
 - Cùng Owner/key/body replay cùng đơn; key đổi nội dung hoặc còn đơn chờ chưa hết hạn → 409 `PAYMENT_REQUEST_CONFLICT`. Catalog cũ → `SUBSCRIPTION_CATALOG_STALE`; mua cùng/hạ gói → `SUBSCRIPTION_DOWNGRADE_NOT_ALLOWED`; chưa cấu hình → `SUBSCRIPTION_UPGRADE_UNAVAILABLE`. Giữ key khi retry lỗi mạng.
 - `GET /api/v1/subscriptions/me/payments/{paymentId}` chỉ cho Owner xem đơn của mình, đơn khác/không tồn tại cùng trả 404; checkoutUrl=null. Không lộ user ID/secret/callback thô.
-- FE xác nhận giá server trước khi sang VNPay; Return query chỉ chọn đơn để đọc từ backend, không cấp gói. Poll tối đa 20 lượt/3 giây. Endpoint `/subscriptions/me/upgrade` cũ vẫn chặn self-grant.
+- FE xác nhận giá server trước khi sang VNPay; Return query thành công chỉ chọn đơn để đọc từ backend, không cấp gói; return thất bại xem mục bổ sung 05/11/2026. Poll tối đa 20 lượt/3 giây. Endpoint `/subscriptions/me/upgrade` cũ vẫn chặn self-grant.
 
 `vnp_TxnRef` là UUID của payment bỏ dấu gạch (32 ký tự hex) để tuân thủ định dạng alphanumeric. FE khôi phục UUID khi đọc trạng thái; ID công khai trong JSON và URL API vẫn là UUID chuẩn.
 
@@ -43,3 +43,9 @@ Request/response QueryDR dùng HMAC-SHA512 chuỗi UTF-8 phân tách bằng dấ
 Hoàn tất dùng cùng khóa User→payment, transaction, tính idempotent và audit như IPN; audit nguồn VERIFIED_QUERYDR. IPN và QueryDR chạy đồng thời chỉ một lần cập nhật/ghi audit. Phản hồi của GET không đổi schema. Tắt gateway dừng cả IPN/QueryDR; quyền lợi đã xác nhận vẫn giữ. IPN vẫn nên cấu hình cho xử lý chủ động khi người dùng không mở lại đơn.
 
 Nguồn: https://sandbox.vnpayment.vn/apis/docs/truy-van-hoan-tien/querydr%26refund.html
+
+## Bổ sung 05/11/2026 — đóng đơn khi quay về sau khi hủy
+
+`POST /api/v1/subscriptions/me/payments/{id}/return-failure` (Owner, JWT) nhận nguyên query `vnp_*` có chữ ký mà VNPay trả về trình duyệt. Backend kiểm tra đơn thuộc Owner (khác Owner/không tồn tại trả 404), chữ ký, `vnp_TxnRef` khớp `{id}`, rồi chỉ đóng đơn thành `FAILED` khi `vnp_ResponseCode` khác `00` và `vnp_TransactionStatus` là `02`. Thành công không bao giờ được ghi nhận qua đường này: cấp gói vẫn chỉ đến từ IPN hoặc QueryDR.
+
+Trả 200 `SubscriptionPayment` là trạng thái hiện tại của đơn, kể cả khi dữ liệu trả về không hợp lệ và đơn không đổi. Audit `SUBSCRIPTION_PAYMENT_FAILED` với nguồn `VERIFIED_RETURN_FAILURE`. Đơn đã đóng thì Owner tạo được đơn mới ngay, không phải chờ hết hạn.

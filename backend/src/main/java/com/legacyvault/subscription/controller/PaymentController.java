@@ -30,6 +30,15 @@ public class PaymentController {
     public PaymentView read(@AuthenticationPrincipal CustomUserPrincipal user,@PathVariable UUID id) {
         return reconciliation.read(CustomUserPrincipal.requireUserId(user),id);
     }
+    /** VNPay's signed return query is posted back so a cancelled checkout is closed and can be retried at once. */
+    @PostMapping("/api/v1/subscriptions/me/payments/{id}/return-failure")
+    @PreAuthorize("hasRole('VAULT_OWNER')")
+    public PaymentView returnFailure(@AuthenticationPrincipal CustomUserPrincipal user,@PathVariable UUID id,
+            @RequestParam MultiValueMap<String,String> query) {
+        long owner=CustomUserPrincipal.requireUserId(user);
+        payments.recordReturnFailure(owner,id,query);
+        return payments.read(owner,id);
+    }
     @GetMapping("/api/v1/payments/vnpay/ipn")
     public IpnResult ipn(@RequestParam MultiValueMap<String,String> query) {
         // Catch outside transactional proxy: failures have rolled back before telling VNPay to retry.

@@ -601,6 +601,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                         beneficiaryRelationship={b.relationship}
                         beneficiaryDob={b.dateOfBirth}
                         isMinorHint={bIsMinor}
+                        isAdultHint={bAge !== null && bAge >= 18}
                         accessToken={accessToken}
                         lang={lang}
                         onUnauthorized={onUnauthorized}

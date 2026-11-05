@@ -70,6 +70,21 @@ public class PaymentService {
         if(verified.isEmpty()) return result("97");
         return applyVerified(verified.get(), "VERIFIED_IPN_ONLY");
     }
+    /**
+     * Browser return of a signed, explicitly failed or cancelled checkout. The VNPay signature makes it trustworthy
+     * enough to close the order, but the browser can never grant a plan: success must come from IPN or QueryDR.
+     */
+    @Transactional
+    public IpnResult recordReturnFailure(long owner, UUID paymentId, MultiValueMap<String,String> query) {
+        payments.find(paymentId).filter(p -> p.owner()==owner)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        var verified = gateway.verified(query);
+        if (verified.isEmpty()) return result("97");
+        var fields = verified.get();
+        if (!paymentId.toString().replace("-", "").equals(fields.get("vnp_TxnRef"))) return result("01");
+        if ("00".equals(fields.get("vnp_ResponseCode")) || !"02".equals(fields.get("vnp_TransactionStatus"))) return result("99");
+        return applyVerified(fields, "VERIFIED_RETURN_FAILURE");
+    }
     /** Server-to-server QueryDR only. Browser return parameters cannot call this completion path. */
     @Transactional
     public IpnResult reconcile(long owner, UUID paymentId, Map<?,?> response) {
