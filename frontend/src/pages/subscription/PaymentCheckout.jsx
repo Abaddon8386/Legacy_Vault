@@ -50,7 +50,7 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
       : (en ? 'Payment was not completed. Your plan has not changed.' : 'Thanh toán chưa hoàn tất. Gói chưa thay đổi.');
     dismissed.current = false;
     const controller = new AbortController();
-    let timer, attempts = 0;
+    let timer, attempts = 0, settled = false;
     const check = async () => {
       try {
         const p = await readPayment(id, { accessToken, signal: controller.signal });
@@ -65,19 +65,23 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
         // After the user closes the popup, keep checking quietly; only a final result reopens it.
         if (!(waiting && dismissed.current)) setMessage(labels[p.status]);
         if (p.status === 'SUCCEEDED') {
+          settled = true;
           clearCallbackQuery();
           onPaidRef.current();
         }
-        else if (p.status === 'FAILED') { if (returnedFailure) clearCallbackQuery(); }
+        else if (p.status === 'FAILED') { settled = true; if (returnedFailure) clearCallbackQuery(); }
         else if (['PENDING', 'EXPIRED'].includes(p.status) && ++attempts < 20) timer = setTimeout(check, 3000);
       } catch (error) {
         if (error.name !== 'AbortError') setMessage(en ? 'Unable to verify payment. Please refresh.' : 'Chưa kiểm tra được thanh toán. Vui lòng tải lại trang.');
       }
     };
+    check();
     if (returnedFailure) {
       // Best effort: the signed query lets the server close the order so another checkout can start at once.
-      reportPaymentReturnFailure(paymentId, query, { accessToken }).catch(() => {}).then(() => { if (!controller.signal.aborted) check(); });
-    } else check();
+      // Never wait for it: a slow or hung request must not delay reading the order; read once more after it settles.
+      reportPaymentReturnFailure(paymentId, query, { accessToken }).catch(() => {})
+        .then(() => { if (!controller.signal.aborted && !settled) { clearTimeout(timer); check(); } });
+    }
     return () => { controller.abort(); clearTimeout(timer); };
   }, [accessToken, en]);
   const fail = error => {

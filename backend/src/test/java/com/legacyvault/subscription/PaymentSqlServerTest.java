@@ -193,8 +193,8 @@ class PaymentSqlServerTest {
         assertEquals("99",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","01")).code());
         assertEquals("PENDING",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
         assertThrows(BusinessException.class,()->service.recordReturnFailure(owner+999999,p.paymentId(),callback(p,"24","02")));
-        var other=create(PlanCode.STANDARD);
-        assertEquals("01",service.recordReturnFailure(owner,p.paymentId(),callback(other,"24","02")).code());
+        var wrongRef=callback(p,"24","02");wrongRef.set("vnp_TxnRef",UUID.randomUUID().toString().replace("-",""));resign(wrongRef);
+        assertEquals("01",service.recordReturnFailure(owner,p.paymentId(),wrongRef).code());
         assertEquals("00",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","02")).code());
         assertEquals("FAILED",service.read(owner,p.paymentId()).status());
         assertEquals("02",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","02")).code());

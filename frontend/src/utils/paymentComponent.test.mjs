@@ -97,6 +97,17 @@ test('cancelled return keeps checking when the report call fails and the order i
   try { assert.match(view.host.textContent, /Đang chờ VNPay/); assert.doesNotMatch(view.host.textContent, /đã hủy/); assert.match(window.location.search, /vnp_TxnRef/); }
   finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
 });
+test('cancelled return reads the order without waiting for a hung report call', async () => {
+  const previous = globalThis.fetch;
+  window.history.replaceState({}, '', '/subscription?lang=vi&vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=24&vnp_TransactionStatus=02');
+  globalThis.fetch = async path => {
+    if (path.includes('return-failure')) return new Promise(() => {});
+    return response(path.endsWith('subscription-plans') ? [plan] : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'FAILED' });
+  };
+  const view = await mount();
+  try { assert.match(view.host.textContent, /đã hủy thanh toán/); }
+  finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
 test('closing the pending notice keeps it closed while polling continues', async () => {
   const previous = globalThis.fetch;
   window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc');
