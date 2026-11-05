@@ -48,9 +48,8 @@ for (const status of ['TRIGGERED','GRACE_PERIOD_EXCEEDED']) test(`DMS ${status}:
  try {
   await act(async()=>root.render(React.createElement(DMSOverviewPage,{accessToken:'fixture',lang:'vi'})));
   const checkIn=host.querySelector('.lv-dms-checkin-btn'),save=host.querySelector('.lv-dms-submit-btn');
-  assert.equal(checkIn?.disabled,true);assert.equal(save?.disabled,true);
-  assert.match(host.textContent,/Thời hạn check-in đã kết thúc/);
-  await act(async()=>host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(checkIn?.disabled,true);assert.equal(save,null);assert.equal(host.querySelector('form'),null);
+  assert.match(host.textContent,/Đã hết thời hạn xác nhận/);
   await act(async()=>checkIn.click());assert.equal(writes,0);
  }finally{await act(async()=>root.unmount());host.remove();globalThis.fetch=original;}
 });
@@ -160,12 +159,12 @@ test('DMS deadline status refresh shows one overdue notice and keeps it singular
     assert.equal(host.querySelectorAll('.lv-dms-triggered-banner').length, 1);
     const noticeDelay = Date.now() - deadlineMs;
     assert.ok(noticeDelay >= 0 && noticeDelay < 1500, `Deadline notice should appear promptly (${noticeDelay} ms after deadline)`);
-    assert.match(host.textContent, /Đang xác minh trạng thái DMS/);
-    assert.doesNotMatch(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/,
+    assert.match(host.textContent, /Đang kiểm tra lại/);
+    assert.doesNotMatch(host.textContent, /Đã quá hạn xác nhận hoạt động/,
       'The UI must not claim the backend triggered DMS while its status request is pending');
 
     await act(async () => { resolveTriggered(); await new Promise(resolve => setTimeout(resolve, 0)); });
-    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/,
+    assert.match(host.textContent, /Đã quá hạn xác nhận hoạt động/,
       'The confirmed notice replaces the pending deadline notice after backend confirmation');
 
     await act(async () => root.unmount());
@@ -228,7 +227,7 @@ test('DMS waits for backend grace deadline and renders it with the triggered not
     await act(async () => { resolveCompleteResponse(); await new Promise(resolve => setTimeout(resolve, 0)); });
     const banner = host.querySelector('.lv-dms-triggered-banner');
     assert.ok(banner);
-    assert.match(banner.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/);
+    assert.match(banner.textContent, /Đã quá hạn xác nhận hoạt động/);
     assert.match(banner.textContent, /Thời hạn ân hạn:/);
     assert.ok(banner.querySelector('.lv-dms-triggered-deadline-tag').textContent.includes(formatDmsDate(graceDeadline, 'vi')),
       'Deadline is rendered from the API response');
@@ -1201,7 +1200,7 @@ test('Task 3: DMS mutation sequence race: polling starts -> interval save succee
 
     assert.ok(delayedPollResolve, 'Polling request #2 should be pending');
 
-    const saveForm = host.querySelector('form.lv-dms-time-row__form');
+    const saveForm = host.querySelector('.lv-duration-setting form');
     await act(async () => {
       const props = intervalInput[Object.keys(intervalInput).find((k) => k.startsWith('__reactProps'))];
       props.onChange({ target: { value: '60' } });
@@ -1327,7 +1326,7 @@ test('DMS polling lifecycle on accessToken change: aborts/ignores in-flight poll
       dmsRequests[2].resolve(json(triggeredWithGrace));
       await new Promise((r) => setTimeout(r, 20));
     });
-    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/, 'New token poll must update DMS state to TRIGGERED');
+    assert.match(host.textContent, /Đã quá hạn xác nhận hoạt động/, 'New token poll must update DMS state to TRIGGERED');
     assert.equal(unauthorizedCalls, 0);
   } finally {
     await act(async () => root.unmount());

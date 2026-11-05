@@ -163,7 +163,7 @@ test('Grace zero is valid data; UI respects supplied range and preserves minute 
 for (const status of ['TRIGGERED', 'GRACE_PERIOD_EXCEEDED']) test(`Grace is read-only in ${status}`, async () => {
   let writes = 0;
   const v = await mount(Grace, { data: readDms({ ...rawDms, status }), actions: { policy: { min: 0, max: 30 }, save: async () => { writes++; } } });
-  try { assert.equal(v.host.querySelector('input').disabled, true); await submit(v.host); assert.equal(writes, 0); } finally { await v.close(); }
+  try { assert.equal(v.host.querySelector('input'), null); assert.equal(v.host.querySelector('form'), null); assert.match(v.host.textContent, /1 ngày/); assert.equal(writes, 0); } finally { await v.close(); }
 });
 test('Grace network error preserves draft and prevents another mutation until reload', async () => {
   let writes = 0;
@@ -197,7 +197,7 @@ test('Grace presets fill the fields, respect the policy limit and only mark the 
   globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => rawDms, clone() { return this; }, text: async () => JSON.stringify(rawDms) });
   const v = await mount(DmsPage, { ownerId: rawDms.ownerId, accessToken: 'owner', graceActions: { policy: { min: 0, max: 7 }, save: async () => rawDms } });
   try {
-    const pills = () => [...v.host.querySelectorAll('.lv-grace-settings .lv-dms-preset-pill')];
+    const pills = () => [...v.host.querySelectorAll('.lv-grace-settings .lv-dms-preset-pill:not(.is-custom)')];
     assert.deepEqual(pills().map(p => p.textContent), ['1 ngày', '3 ngày', '7 ngày']);
     await act(async () => pills()[1].click());
     assert.equal(v.host.querySelector('#grace-days').value, '3');

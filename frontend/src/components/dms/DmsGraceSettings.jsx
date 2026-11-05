@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '../common/Button.jsx';
 import FeedbackNotice from '../common/FeedbackNotice.jsx';
 import { readDms } from '../../utils/dmsService.js';
-import DurationFields from './DurationFields.jsx';
-import './DmsGraceSettings.css';
+import DurationSetting from './DurationSetting.jsx';
 
 const PRESET_DAYS = [1, 3, 7, 14];
 
@@ -58,35 +56,26 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
       if (request.current === c) { onBusyChange?.(false); request.current = null; if (!c.signal.aborted) setPending(false); }
     }
   }
-  return <section className="lv-dms-time-row lv-grace-settings" aria-labelledby="grace-heading">
-    <form className="lv-dms-time-row__form" onSubmit={save} noValidate>
-      <h3 id="grace-heading" className="lv-dms-time-row__title">{en ? 'Grace period' : 'Thời gian ân hạn'}</h3>
-      <div className="lv-dms-time-row__main">
-      {ready && <div className="lv-dms-presets-section">
-        <div className="lv-dms-presets-grid" role="group" aria-label={en ? 'Suggested periods' : 'Gợi ý thời gian'}>
-          {PRESET_DAYS.filter(days => days * 1440 >= min && days * 1440 <= max).map(days => <button key={days} type="button"
-            className={`lv-dms-preset-pill${total === days * 1440 ? ' is-active' : ''}`} aria-pressed={total === days * 1440}
-            disabled={!writable || busy || pending || Boolean(error)}
-            onClick={() => { setDraft(split(days * 1440)); setDirty(true); setSaved(false); }}>{en ? `${days} day${days > 1 ? 's' : ''}` : `${days} ngày`}</button>)}
-        </div>
-      </div>}
-      <DurationFields legend={en ? 'Grace period length:' : 'Thời lượng ân hạn:'} disabled={!writable || busy || pending || Boolean(error)} describedBy="grace-help"
-        fields={['days', 'hours', 'minutes'].map((unit, index) => ({ id: `grace-${unit}`, label: (en ? ['Days', 'Hours', 'Minutes'] : ['Số ngày', 'Số giờ', 'Số phút'])[index],
-          placeholder: '0', max: unit === 'hours' ? 23 : unit === 'minutes' ? 59 : undefined, value: value[unit], invalid: dirty && invalid,
-          onChange: e => { setDraft({ ...value, [unit]: e.target.value }); setDirty(true); setSaved(false); } }))} />
-      <p id="grace-help">{!data ? (en ? 'Configure a check-in cycle first.' : 'Hãy thiết lập chu kỳ xác nhận trước.')
-        : !ready ? (en ? 'Grace period changes are not available yet.' : 'Chưa hỗ trợ thay đổi thời gian ân hạn.')
-        : data.status !== 'MONITORING' ? null : !writable ? (en ? 'Grace period can only be changed while monitoring is active.' : 'Chỉ được đổi thời gian ân hạn khi hệ thống đang theo dõi bình thường.')
-        : !minuteMode ? (en ? 'Current service supports whole days only.' : 'Dịch vụ hiện tại chỉ lưu được số ngày nguyên.') : `${maxText} ${en ? 'Unused fields can be left blank (0).' : 'Ô không dùng có thể để trống (tính là 0).'}`}</p>
-      {dirty && invalid && <p role="alert">{unsupportedPrecision ? (en ? 'Minute precision is not supported by the current service.' : 'Dịch vụ chưa hỗ trợ lưu theo giờ, phút.') : (en ? `Enter a valid duration within the allowed range. ${maxText}` : `Nhập thời gian hợp lệ trong khoảng cho phép. ${maxText}`)}</p>}
-      </div>
-      <div className="lv-dms-form-actions">
-        <Button type="submit" className="lv-dms-submit-btn" isLoading={pending} disabled={!writable || busy || invalid || !dirty || Boolean(error)}>{en ? 'Save grace period' : 'Lưu thời gian ân hạn'}</Button>
-      </div>
-    </form>
+  const savedTotal = data ? (confirmed?.source === data ? confirmed.total : initialMinutes) : undefined;
+  const lockedText = !data ? (en ? 'Set a check-in interval first.' : 'Hãy thiết lập chu kỳ kiểm tra trước.')
+    : !ready ? (en ? 'Not available yet.' : 'Chưa hỗ trợ thay đổi.')
+    : data.status === 'MONITORING' ? (en ? 'Only the vault owner can change this.' : 'Chỉ chủ kho mới đổi được.') : null;
+  const locked = !writable;
+  const blocked = busy || pending || Boolean(error);
+  return <DurationSetting id="grace-heading" className="lv-grace-settings" title={en ? 'Grace period' : 'Thời gian ân hạn'} lang={lang}
+    locked={locked} lockedText={lockedText} savedTotal={savedTotal} total={total}
+    presets={PRESET_DAYS.filter(days => days * 1440 >= min && days * 1440 <= max).map(days => ({ minutes: days * 1440, label: en ? `${days} day${days > 1 ? 's' : ''}` : `${days} ngày` }))}
+    onPreset={preset => { setDraft(split(preset.minutes)); setDirty(true); setSaved(false); }}
+    legend={en ? 'Grace period length' : 'Thời lượng ân hạn'} helpId="grace-help" help={minuteMode ? maxText : (en ? 'Whole days only.' : 'Chỉ lưu được số ngày nguyên.')}
+    error={dirty && invalid ? (unsupportedPrecision ? (en ? 'Minutes are not supported yet.' : 'Chưa hỗ trợ lưu theo giờ, phút.') : (en ? `Enter a value within the limit. ${maxText}` : `Hãy nhập giá trị trong giới hạn. ${maxText}`)) : null}
+    disabled={blocked} saving={pending} saveDisabled={invalid} dirty={dirty && total !== savedTotal} onSubmit={save}
+    onCancel={() => { setDirty(false); setSaved(false); }}
+    fields={['days', 'hours', 'minutes'].map((unit, index) => ({ id: `grace-${unit}`, label: (en ? ['Days', 'Hours', 'Minutes'] : ['Số ngày', 'Số giờ', 'Số phút'])[index],
+      placeholder: '0', max: unit === 'hours' ? 23 : unit === 'minutes' ? 59 : undefined, value: value[unit], invalid: dirty && invalid,
+      onChange: e => { setDraft({ ...value, [unit]: e.target.value }); setDirty(true); setSaved(false); } }))}>
     {saved && <div className="lv-grace-feedback"><FeedbackNotice tone="success">{en ? 'Grace period saved.' : 'Đã lưu thời gian ân hạn.'}</FeedbackNotice></div>}
     {error && <div className="lv-grace-feedback"><FeedbackNotice tone="error">{error === 'changed'
       ? (en ? 'The status has changed. Reload before saving again.' : 'Trạng thái đã thay đổi. Hãy tải lại trước khi lưu tiếp.')
-      : (en ? 'The save could not be confirmed. Your draft is preserved; check the current status before trying again.' : 'Chưa xác nhận được kết quả lưu. Bản nháp được giữ lại; hãy kiểm tra trạng thái trước khi thử lại.')}</FeedbackNotice></div>}
-  </section>;
+      : (en ? 'The save could not be confirmed. Check the current status before trying again.' : 'Chưa xác nhận được kết quả lưu. Hãy kiểm tra trạng thái trước khi thử lại.')}</FeedbackNotice></div>}
+  </DurationSetting>;
 }

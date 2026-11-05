@@ -17,7 +17,7 @@ import MagneticButton from '../../components/common/MagneticButton.jsx';
 import OwnerCancelAlert from '../../components/dms/OwnerCancelAlert.jsx';
 import OwnerLiveCancelAlert from '../../components/dms/OwnerLiveCancelAlert.jsx';
 import DmsGraceSettings from '../../components/dms/DmsGraceSettings.jsx';
-import DurationFields from '../../components/dms/DurationFields.jsx';
+import DurationSetting from '../../components/dms/DurationSetting.jsx';
 import './DMSOverviewPage.css';
 
 export default function DMSOverviewPage({
@@ -553,114 +553,68 @@ export default function DMSOverviewPage({
 
   const content = {
     vi: {
-      eyebrow: 'GIÁM SÁT HOẠT ĐỘNG ĐỊNH KỲ',
       pageTitle: "Giám sát hoạt động",
-      pageSubtitle:
-        'Thiết lập chu kỳ kiểm tra định kỳ để hệ thống theo dõi tín hiệu hiện diện và chủ động bảo vệ kho di sản của bạn.',
-      protectionNote: 'Quá hạn xác nhận không đồng nghĩa với đã qua đời và không tự mở khóa kho. Kho vẫn được bảo vệ theo quy tắc ủy quyền.',
-      statusCardTitle: 'Trạng thái giám sát hiện hành',
-      statusCardSub: 'Thông tin chu kỳ và các mốc thời gian kiểm tra sự sống',
+      protectionNote: 'Quá hạn xác nhận không có nghĩa là đã xác nhận qua đời và không tự mở khóa kho.',
+      statusCardTitle: 'Trạng thái giám sát',
       metricStatus: 'Trạng thái theo dõi',
       metricNextCheck: 'Hạn kiểm tra tiếp theo',
-      metricNextCheckSub: 'Thời điểm cần gửi xác nhận hoạt động',
       metricInterval: 'Chu kỳ kiểm tra',
-      metricIntervalSub: 'Tần suất giữa các lần kiểm tra',
       metricLastCheck: 'Xác nhận gần nhất',
-      metricLastCheckSub: 'Ghi nhận tín hiệu kiểm tra trước đó',
       cycleProgressTitle: 'Tiến trình chu kỳ hiện tại',
       cycleProgressElapsed: 'Đã trôi qua',
-      daysUnit: 'ngày',
-      hoursUnit: 'giờ',
-      minutesUnit: 'phút',
       daysLabel: 'Số ngày',
       hoursLabel: 'Số giờ',
       minutesLabel: 'Số phút',
-      savingFeedback: 'Đang lưu cấu hình…',
       demoNotice: 'Dữ liệu minh họa — chưa lưu lên máy chủ',
-      actionCardTitle: 'Xác nhận hiện diện trực tuyến',
-      actionCardSub: 'Gửi tín hiệu xác nhận để làm mới bộ đếm thời gian chu kỳ tiếp theo',
+      actionCardTitle: 'Xác nhận hoạt động',
       checkInBtn: 'Xác nhận còn hoạt động',
       checkingInBtn: 'Đang xác nhận…',
-      checkInDisabledTriggered: 'Chức năng tạm khóa trong thời gian kích hoạt quá hạn.',
-      triggeredAlertTitle: 'Thông báo: Đã quá hạn xác nhận hoạt động',
-      triggeredAlertDesc:
-        'Đã quá hạn xác nhận hoạt động. Quá hạn xác nhận hoạt động không đồng nghĩa với xác nhận qua đời và không tự động mở khóa kho di sản.',
+      triggeredAlertTitle: 'Đã quá hạn xác nhận hoạt động',
+      triggeredAlertDesc: 'Điều này không có nghĩa là đã xác nhận qua đời và không tự mở khóa kho.',
       triggeredDeadlinePrefix: 'Thời hạn ân hạn:',
       deadlinePendingTitle: 'Đã đến hạn xác nhận hoạt động',
-      deadlinePendingDesc: 'Đang xác minh trạng thái DMS mới nhất từ máy chủ. Quá hạn check-in chưa đồng nghĩa với việc DMS đã kích hoạt.',
+      deadlinePendingDesc: 'Đang kiểm tra lại. Đến hạn chưa có nghĩa là cảnh báo đã kích hoạt.',
       configCardTitle: 'Cài đặt thời gian',
       cycleRowTitle: 'Chu kỳ kiểm tra',
       configLockedNote: 'Chỉ đổi được khi hệ thống đang theo dõi bình thường.',
-      configCardSub:
-        'Tùy chỉnh khoảng thời gian giữa các lần hệ thống yêu cầu bạn gửi tín hiệu xác nhận.',
-      presetsLabel: 'Gợi ý chu kỳ đề xuất:',
-      presetsHelper: 'Chọn nhanh hoặc điều chỉnh ngày, giờ, phút bên dưới.',
       inputLabel: 'Thời lượng chu kỳ:',
-      inputHelper: 'Nhập số nguyên; tổng thời gian từ 1 phút đến 180 ngày.',
-      saveBtn: 'Lưu cấu hình chu kỳ',
-      savingBtn: 'Đang lưu cấu hình…',
+      inputHelper: 'Từ 1 phút đến 180 ngày.',
       emptyBadge: 'CHƯA CẤU HÌNH',
       emptyTitle: 'Chưa cấu hình chu kỳ kiểm tra',
-      emptyDesc:
-        'Kho di sản chưa được thiết lập lịch kiểm tra hoạt động định kỳ. Hãy thiết lập chu kỳ để hệ thống bắt đầu theo dõi các mốc check-in của bạn.',
-      emptyAction: 'Thiết lập chu kỳ ngay',
-      policyFootnote:
-        'Quá hạn xác nhận hoạt động không đồng nghĩa với xác nhận qua đời và không tự động mở khóa kho di sản.',
+      emptyDesc: 'Thiết lập chu kỳ để bắt đầu theo dõi.',
+      emptyAction: 'Thiết lập chu kỳ',
     },
     en: {
-      eyebrow: 'PERIODIC ACTIVITY MONITORING',
       pageTitle: "Dead Man's Switch (Activity Monitor)",
-      pageSubtitle:
-        'Configure periodic check-in intervals to monitor presence signals and safeguard your heritage vault.',
-      protectionNote: 'A missed check-in does not mean the owner has died and does not unlock the vault. The vault stays protected under its authorization rules.',
-      statusCardTitle: 'Current Vitality Status',
-      statusCardSub: 'Monitoring schedule and countdown threshold parameters',
+      protectionNote: 'A missed check-in does not confirm death and does not unlock the vault.',
+      statusCardTitle: 'Monitoring status',
       metricStatus: 'Monitoring Status',
       metricNextCheck: 'Next Check-in Deadline',
-      metricNextCheckSub: 'Scheduled time for vitality confirmation prompt',
       metricInterval: 'Check-in Interval',
-      metricIntervalSub: 'Countdown frequency between periodic checks',
       metricLastCheck: 'Last Activity Confirmed',
-      metricLastCheckSub: 'Previous successful presence verification',
       cycleProgressTitle: 'Current Cycle Progress',
       cycleProgressElapsed: 'Elapsed',
-      daysUnit: 'days',
-      hoursUnit: 'hours',
-      minutesUnit: 'minutes',
       daysLabel: 'Days',
       hoursLabel: 'Hours',
       minutesLabel: 'Minutes',
-      savingFeedback: 'Saving configuration…',
       demoNotice: 'Demo data — not saved to the server',
-      actionCardTitle: 'Online Vitality Confirmation',
-      actionCardSub: 'Transmit an active presence signal to refresh your upcoming check-in timer',
-      checkInBtn: "Confirm Vitality (I'm active)",
+      actionCardTitle: 'Activity check-in',
+      checkInBtn: "Confirm I'm active",
       checkingInBtn: 'Confirming…',
-      checkInDisabledTriggered: 'Temporarily disabled during overdue grace period.',
-      triggeredAlertTitle: 'Notice: Vitality Check-in Overdue',
-      triggeredAlertDesc:
-        'Vitality confirmation is overdue. Check-in expiration does not signify owner decease and does not automatically unlock the heritage vault.',
+      triggeredAlertTitle: 'Check-in overdue',
+      triggeredAlertDesc: 'This does not confirm death and does not unlock the vault.',
       triggeredDeadlinePrefix: 'Grace period deadline:',
       deadlinePendingTitle: 'Check-in deadline reached',
-      deadlinePendingDesc: 'Confirming the latest DMS status with the server. A missed check-in deadline alone does not mean DMS has been triggered.',
+      deadlinePendingDesc: 'Checking again. Reaching the deadline does not mean the alert has been triggered.',
       configCardTitle: 'Time settings',
       cycleRowTitle: 'Check-in interval',
       configLockedNote: 'These can only be changed while monitoring is active.',
-      configCardSub:
-        'Customize the duration between required activity check-in confirmations.',
-      presetsLabel: 'Suggested Presets:',
-      presetsHelper: 'Choose a preset or adjust days, hours and minutes below.',
       inputLabel: 'Check-in interval:',
-      inputHelper: 'Enter whole numbers; total duration must be 1 minute to 180 days.',
-      saveBtn: 'Save Interval Settings',
-      savingBtn: 'Saving Settings…',
+      inputHelper: '1 minute to 180 days.',
       emptyBadge: 'NOT CONFIGURED',
       emptyTitle: 'Check-in Interval Not Configured',
-      emptyDesc:
-        'Your heritage vault currently has no active check-in schedule. Configure an interval to begin tracking your scheduled check-ins.',
-      emptyAction: 'Configure Interval Now',
-      policyFootnote:
-        'Check-in expiration does not signify owner decease and does not automatically unlock the heritage vault.',
+      emptyDesc: 'Set an interval to start monitoring.',
+      emptyAction: 'Set interval',
     },
   };
 
@@ -703,12 +657,23 @@ export default function DMSOverviewPage({
     Number.isFinite(Date.parse(dmsData.graceDeadline || '')) &&
     clockNow < Date.parse(dmsData.graceDeadline);
   const cannotCheckIn = !isOwner || (dmsData?.status !== 'MONITORING' && !canCheckInDuringGrace);
-  const configReadOnly = isSavingGrace || Boolean(dmsData && dmsData.status !== 'MONITORING');
+  const configLocked = Boolean(dmsData && dmsData.status !== 'MONITORING');
+  const configReadOnly = isSavingGrace || configLocked;
+  const intervalTotal = Number(intervalInput) * 1440 + Number(hoursInput) * 60 + Number(minutesInput);
+  const savedIntervalTotal = dmsData ? (dmsData.checkIntervalTotalMinutes ?? ((dmsData.days ?? dmsData.checkIntervalDays ?? 0) * 1440 + (dmsData.hours ?? 0) * 60 + (dmsData.minutes ?? 0))) : undefined;
+  const handleCancelInterval = () => {
+    const saved = savedIntervalTotal || 0;
+    setIntervalInput(String(Math.floor(saved / 1440)));
+    setHoursInput(String(Math.floor(saved % 1440 / 60)));
+    setMinutesInput(String(saved % 60));
+    setFieldErrors({});
+    setSaveError('');
+  };
   const monitoringLockedMessage = !isOwner
     ? (lang === 'en' ? 'Only the Owner can check in.' : 'Chỉ Chủ sở hữu mới có thể xác nhận hoạt động.')
     : (lang === 'en'
-      ? 'The check-in window has closed; check-in and schedule changes are locked.'
-      : 'Thời hạn check-in đã kết thúc; chức năng xác nhận và đổi chu kỳ đang khóa.');
+      ? 'The check-in window has closed.'
+      : 'Đã hết thời hạn xác nhận.');
   const isNotConfigured = !dmsData || dmsData.status === 'DISABLED' || dmsData.status === 'NOT_CONFIGURED';
 
   return (
@@ -972,86 +937,20 @@ export default function DMSOverviewPage({
               </div>
             )}
 
-            {dmsData && dmsData.status !== 'MONITORING' && <p className="lv-dms-time-locked">{t.configLockedNote}</p>}
+            {configLocked && <p className="lv-dms-time-locked">{t.configLockedNote}</p>}
 
-            <div className="lv-dms-time-row">
-            <form className="lv-dms-time-row__form" onSubmit={handleSaveInterval} noValidate>
-              <h3 className="lv-dms-time-row__title">{t.cycleRowTitle}</h3>
-              <div className="lv-dms-time-row__main">
-              {/* Recommended Presets */}
-              <div className="lv-dms-presets-section">
-                <div className="lv-dms-presets-grid" role="group" aria-label={t.presetsLabel}>
-                  {INTERVAL_PRESETS.map((preset) => {
-                    const isActive = Number(intervalInput) === preset.days;
-                    return (
-                      <button
-                        key={preset.days}
-                        type="button"
-                        className={`lv-dms-preset-pill ${isActive ? 'is-active' : ''}`}
-                        onClick={() => handlePresetSelect(preset.days)}
-                        aria-pressed={isActive}
-                        disabled={configReadOnly || isSaving}
-                      >
-                        {lang === 'vi' ? preset.labelVi : preset.labelEn}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="lv-dms-duration-wrapper">
-                  <DurationFields legend={t.inputLabel} disabled={isSaving || configReadOnly}
-                    describedBy={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
-                    fields={[
-                      { id: 'dms-interval-input', name: 'check_interval_days', label: t.daysLabel, max: 180, value: intervalInput, onChange: handleIntervalInputChange,
-                        invalid: currentErrors.days || currentErrors.check_interval_days || currentErrors.duration },
-                      { id: 'dms-interval-hours-input', name: 'check_interval_hours', label: t.hoursLabel, max: 23, value: hoursInput, onChange: handleHoursInputChange, invalid: currentErrors.hours },
-                      { id: 'dms-interval-minutes-input', name: 'check_interval_minutes', label: t.minutesLabel, max: 59, value: minutesInput, onChange: handleMinutesInputChange, invalid: currentErrors.minutes },
-                    ]} />
-
-                  {firstErrorMsg ? (
-                    <span id="dms-interval-error" className="lv-dms-field-error" role="alert">
-                      {firstErrorMsg}
-                    </span>
-                  ) : (
-                    <span id="dms-interval-helper" className="lv-dms-input-helper">
-                      {t.inputHelper}
-                    </span>
-                  )}
-
-                  {/* Thanh chờ không xác định khi đang lưu cấu hình */}
-                  {isSaving && (
-                    <div
-                      className="lv-dms-save-feedback-area"
-                      role="status"
-                      aria-live="polite"
-                      aria-busy="true"
-                    >
-                      <div className="lv-dms-save-progress-track">
-                        <div className="lv-dms-save-progress-bar" />
-                      </div>
-                      <div className="lv-dms-save-feedback-label">
-                        <span className="lv-btn-spinner" aria-hidden="true" />
-                        <span>{t.savingFeedback}</span>
-                      </div>
-                    </div>
-                  )}
-              </div>
-              </div>
-
-                {/* Action Buttons */}
-                <div className="lv-dms-form-actions">
-                  <MagneticButton
-                    type="submit"
-                    className="lv-dms-submit-btn"
-                    disabled={isSaving || configReadOnly}
-                    maxOffset={2}
-                  >
-                    {isSaving && <span className="lv-btn-spinner" aria-hidden="true" />}
-                    <span>{isSaving ? t.savingBtn : t.saveBtn}</span>
-                  </MagneticButton>
-                </div>
-            </form>
-            </div>
+            <DurationSetting id="dms-cycle-heading" title={t.cycleRowTitle} lang={lang} locked={configLocked}
+              savedTotal={savedIntervalTotal} total={intervalTotal} onSubmit={handleSaveInterval} onCancel={dmsData ? handleCancelInterval : undefined}
+              presets={INTERVAL_PRESETS.map(preset => ({ minutes: preset.days * 1440, label: lang === 'vi' ? preset.labelVi : preset.labelEn, days: preset.days }))}
+              onPreset={preset => handlePresetSelect(preset.days)}
+              legend={t.inputLabel} helpId="dms-interval-helper" help={t.inputHelper} error={firstErrorMsg} errorId="dms-interval-error"
+              disabled={isSaving || configReadOnly} saving={isSaving} dirty={!dmsData || intervalTotal !== savedIntervalTotal}
+              fields={[
+                { id: 'dms-interval-input', name: 'check_interval_days', label: t.daysLabel, max: 180, value: intervalInput, onChange: handleIntervalInputChange,
+                  invalid: currentErrors.days || currentErrors.check_interval_days || currentErrors.duration },
+                { id: 'dms-interval-hours-input', name: 'check_interval_hours', label: t.hoursLabel, max: 23, value: hoursInput, onChange: handleHoursInputChange, invalid: currentErrors.hours },
+                { id: 'dms-interval-minutes-input', name: 'check_interval_minutes', label: t.minutesLabel, max: 59, value: minutesInput, onChange: handleMinutesInputChange, invalid: currentErrors.minutes },
+              ]} />
           <DmsGraceSettings data={dmsData} actions={graceActions} ownerId={ownerId} accessToken={accessToken}
             resetKey={`${refreshKey}:${onRefreshTrigger}`} lang={lang} isOwner={isOwner} onUnauthorized={onUnauthorized}
             busy={isSaving || isCheckingIn || loading}
