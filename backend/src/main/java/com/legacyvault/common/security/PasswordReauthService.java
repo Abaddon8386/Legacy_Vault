@@ -59,6 +59,11 @@ public class PasswordReauthService {
 		if (!"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
 			throw new BusinessException(ErrorCode.UNAUTHENTICATED);
 		}
+		// Google-only account: there is no password to confirm yet. Tell the client to set one, and do not
+		// record a failure, so this never counts toward the wrong-password limit.
+		if (!user.isPasswordLoginAllowed()) {
+			throw new BusinessException(ErrorCode.PASSWORD_NOT_SET);
+		}
 
 		LocalDateTime since = LocalDateTime.now(ZoneOffset.UTC).minus(window);
 		long failures = auditLogRepository.countByActorUserIdAndActionAndOccurredAtAfter(userId,
@@ -68,7 +73,7 @@ public class PasswordReauthService {
 			throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
 		}
 
-		if (!user.isPasswordLoginAllowed() || rawPassword == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+		if (rawPassword == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
 			failureRecorder.record(userId, vaultId);
 			throw new BusinessException(ErrorCode.REAUTH_FAILED);
 		}

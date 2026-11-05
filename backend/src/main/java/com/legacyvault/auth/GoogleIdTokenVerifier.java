@@ -62,7 +62,13 @@ public class GoogleIdTokenVerifier {
             throw invalidCredential();
         }
 
-        return new VerifiedGoogleCredential(subject, sha256(credential), expiresAt);
+        return new VerifiedGoogleCredential(subject, sha256(credential), expiresAt,
+                jwt.getClaimAsString("email"), isTrue(jwt.getClaim("email_verified")), jwt.getClaimAsString("name"));
+    }
+
+    /** Google sends {@code email_verified} as a boolean, but older tokens carried the string "true". */
+    private static boolean isTrue(Object claim) {
+        return Boolean.TRUE.equals(claim) || (claim instanceof String text && "true".equalsIgnoreCase(text));
     }
 
     private static String sha256(String value) {
@@ -78,6 +84,8 @@ public class GoogleIdTokenVerifier {
         return new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL);
     }
 
-    public record VerifiedGoogleCredential(String subject, String credentialHash, Instant expiresAt) {
+    /** {@code email}/{@code name} are null when the token carries no such claim; {@code emailVerified} defaults to false. */
+    public record VerifiedGoogleCredential(String subject, String credentialHash, Instant expiresAt,
+            String email, boolean emailVerified, String name) {
     }
 }

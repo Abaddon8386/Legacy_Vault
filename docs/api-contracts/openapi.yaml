@@ -1271,7 +1271,7 @@ paths:
     post:
       tags: [Auth]
       summary: Đăng nhập bằng Google GIS ID credential (PS-85)
-      description: Backend xác minh OIDC/JWKS. Chỉ subject đã được liên kết tường minh với tài khoản LegacyVault mới đăng nhập được; không tạo tài khoản hoặc ghép theo email.
+      description: Backend xác minh OIDC/JWKS. Subject đã liên kết thì đăng nhập. Subject chưa liên kết mà email Google đã xác minh và chưa có tài khoản thì tự tạo tài khoản Owner đang hoạt động (không mật khẩu, `passwordLoginEnabled=false`) và đăng nhập ngay. Email đã có tài khoản thì 409 `GOOGLE_EMAIL_ALREADY_REGISTERED`, không ghép theo email.
       x-status: implemented
       security: []
       requestBody:
@@ -1288,15 +1288,24 @@ paths:
               schema: { $ref: '#/components/schemas/LoginResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401':
-          description: Credential Google sai/hết hạn/đã dùng lại, hoặc danh tính chưa liên kết/tài khoản không đủ điều kiện.
+          description: Credential Google sai/hết hạn/đã dùng lại, Google chưa xác minh email của người mới (`GOOGLE_EMAIL_NOT_VERIFIED`), hoặc tài khoản đã liên kết không đủ điều kiện (khóa/đã xóa).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
               examples:
                 invalidGoogleCredential:
                   value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_GOOGLE_CREDENTIAL, messageKey: error.auth.googleCredentialInvalid, message: 'Thông tin xác thực Google không hợp lệ, đã hết hạn hoặc đã được sử dụng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
-                unlinkedIdentity:
+                emailNotVerified:
+                  value: { timestamp: '2026-11-04T10:00:00Z', status: 401, code: GOOGLE_EMAIL_NOT_VERIFIED, messageKey: error.auth.googleEmailNotVerified, message: 'Google chưa xác minh email của tài khoản này nên không thể đăng ký bằng Google.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+                inactiveLinkedAccount:
+                  summary: 'Tài khoản Google đã liên kết nhưng bị khóa hoặc đã xóa. Google chưa liên kết không còn bị từ chối: người mới được tự tạo tài khoản.'
                   value: { timestamp: '2026-10-20T10:00:00Z', status: 401, code: INVALID_CREDENTIALS, messageKey: error.auth.invalidCredentials, message: 'Email hoặc mật khẩu không đúng.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '409':
+          description: Email Google đã có tài khoản LegacyVault; không tự gộp. Đăng nhập bằng mật khẩu rồi liên kết Google trong hồ sơ.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-11-04T10:00:00Z', status: 409, code: GOOGLE_EMAIL_ALREADY_REGISTERED, messageKey: error.auth.googleEmailAlreadyRegistered, message: 'Email này đã có tài khoản. Hãy đăng nhập bằng mật khẩu rồi liên kết Google trong hồ sơ.', path: /api/v1/auth/google, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
         '503':
           description: Backend thiếu Google Client ID hoặc không truy cập được Google JWKS.
           content:
@@ -1325,6 +1334,12 @@ paths:
               example: { linked: true }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          description: Tài khoản chỉ có Google chưa đặt mật khẩu (`PASSWORD_NOT_SET`); phải đặt mật khẩu trước khi liên kết thêm Google.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-11-05T10:00:00Z', status: 403, code: PASSWORD_NOT_SET, messageKey: error.auth.passwordNotSet, message: 'Tài khoản này chưa đặt mật khẩu. Hãy đặt mật khẩu trước khi thực hiện thao tác này.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
         '409':
           description: Google subject đã liên kết với một tài khoản.
           content:
@@ -1337,6 +1352,45 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
               example: { timestamp: '2026-10-20T10:00:00Z', status: 503, code: GOOGLE_SIGNIN_UNAVAILABLE, messageKey: error.auth.googleSignInUnavailable, message: 'Đăng nhập Google hiện chưa được cấu hình hoặc tạm thời không khả dụng.', path: /api/v1/auth/google/link, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+
+  /api/v1/auth/password/setup:
+    post:
+      tags: [Auth]
+      summary: Đặt mật khẩu lần đầu cho tài khoản chỉ có Google
+      description: Yêu cầu JWT và một Google ID token MỚI (`credential`; không dùng lại token lúc đăng nhập vì token đó đã bị đánh dấu đã dùng). BE xác minh token, đánh dấu đã dùng trong cùng transaction, và `sub` phải đang liên kết với chính tài khoản đang đăng nhập. Chỉ dùng được khi `passwordLoginEnabled=false`; thành công thì bật đăng nhập mật khẩu. Phiên hiện tại vẫn hợp lệ (không đổi auth version). Cùng quy tắc mật khẩu như đăng ký.
+      x-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordSetupRequest' }
+            example: { password: 'MatKhau@123', credential: '<Google ID token mới>' }
+      responses:
+        '200':
+          description: Đã đặt mật khẩu.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordSetupResponse' }
+              example: { passwordLoginEnabled: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Không có JWT hợp lệ (`UNAUTHENTICATED`), hoặc Google credential sai/hết hạn/đã dùng (`INVALID_GOOGLE_CREDENTIAL`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-11-04T10:00:00Z', status: 401, code: INVALID_GOOGLE_CREDENTIAL, messageKey: error.auth.googleCredentialInvalid, message: 'Thông tin xác thực Google không hợp lệ, đã hết hạn hoặc đã được sử dụng.', path: /api/v1/auth/password/setup, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '403':
+          description: Google credential hợp lệ nhưng `sub` không phải tài khoản Google đã liên kết với tài khoản đang đăng nhập (`GOOGLE_IDENTITY_MISMATCH`). FE báo người dùng chọn đúng tài khoản Google.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-11-04T10:00:00Z', status: 403, code: GOOGLE_IDENTITY_MISMATCH, messageKey: error.auth.googleIdentityMismatch, message: 'Tài khoản Google này không phải tài khoản Google đã liên kết với tài khoản đang đăng nhập.', path: /api/v1/auth/password/setup, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
+        '409':
+          description: Tài khoản đã có mật khẩu (`PASSWORD_ALREADY_SET`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              example: { timestamp: '2026-11-04T10:00:00Z', status: 409, code: PASSWORD_ALREADY_SET, messageKey: error.auth.passwordAlreadySet, message: 'Tài khoản này đã có mật khẩu.', path: /api/v1/auth/password/setup, traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10, errors: [] }
 
   /api/v1/auth/me:
     get:
@@ -4218,7 +4272,7 @@ components:
             traceId: 7f3c1e2a-5b4d-4c1e-9a77-0d9f2b1c3a10
             errors: []
     ReauthenticationFailed:
-      description: REAUTH_FAILED — mật khẩu hiện tại không hợp lệ cho thao tác nhạy cảm
+      description: REAUTH_FAILED — mật khẩu hiện tại không hợp lệ cho thao tác nhạy cảm; hoặc PASSWORD_NOT_SET — tài khoản chỉ có Google chưa đặt mật khẩu (FE mở hộp thoại gọi POST /api/v1/auth/password/setup rồi thử lại)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
@@ -4722,6 +4776,11 @@ components:
             - INVALID_GOOGLE_CREDENTIAL
             - GOOGLE_SIGNIN_UNAVAILABLE
             - GOOGLE_IDENTITY_ALREADY_LINKED
+            - GOOGLE_EMAIL_ALREADY_REGISTERED
+            - GOOGLE_EMAIL_NOT_VERIFIED
+            - GOOGLE_IDENTITY_MISMATCH
+            - PASSWORD_NOT_SET
+            - PASSWORD_ALREADY_SET
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
@@ -4888,7 +4947,7 @@ components:
         currentPassword: { type: string, writeOnly: true, description: Required only when email or password changes; used only for PasswordReauthService. }
     ProfileResponse:
       type: object
-      required: [id, fullName, email, roles]
+      required: [id, fullName, email, roles, passwordLoginEnabled]
       properties:
         id: { type: string, format: uuid }
         fullName: { type: string }
@@ -4897,6 +4956,23 @@ components:
         roles:
           type: array
           items: { type: string, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, ADMIN, BENEFICIARY] }
+        passwordLoginEnabled:
+          type: boolean
+          description: false = tài khoản chỉ có Google, chưa đặt mật khẩu; FE phải cho đặt mật khẩu trước thao tác cần mật khẩu.
+    PasswordSetupRequest:
+      type: object
+      required: [password, credential]
+      properties:
+        password: { type: string, minLength: 8, maxLength: 72 }
+        credential:
+          type: string
+          maxLength: 8192
+          description: Google ID token mới, lấy lại từ nút Google ngay trước khi gửi. Mỗi token chỉ dùng một lần.
+    PasswordSetupResponse:
+      type: object
+      required: [passwordLoginEnabled]
+      properties:
+        passwordLoginEnabled: { type: boolean }
     LoginResponse:
       type: object
       required: [accessToken, tokenType, expiresInSeconds, user]

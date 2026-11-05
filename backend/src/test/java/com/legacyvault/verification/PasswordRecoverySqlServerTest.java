@@ -216,7 +216,7 @@ class PasswordRecoverySqlServerTest extends LegalBasisSqlServerSupport {
         jdbc.update("INSERT dbo.external_auth_identities(provider_code,subject,user_id) VALUES ('GOOGLE',?,?)",subject,a.id());
         var verifier=mock(GoogleIdTokenVerifier.class);
         when(verifier.verify("fixture-google-credential")).thenReturn(new GoogleIdTokenVerifier.VerifiedGoogleCredential(
-                subject,"b".repeat(64),Instant.now().plusSeconds(300)));
+                subject,"b".repeat(64),Instant.now().plusSeconds(300),null,false,null));
         var google=new GoogleAuthService(verifier,
                 context.getBean(com.legacyvault.user.repository.ExternalAuthIdentityRepository.class),
                 context.getBean(UserRepository.class),
