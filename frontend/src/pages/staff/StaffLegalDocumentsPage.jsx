@@ -724,10 +724,11 @@ export default function StaffLegalDocumentsPage({
       });
       if (c.signal.aborted) return;
       const url = URL.createObjectURL(blob);
+      const contentType = version.contentType || blob.type || 'application/pdf';
       setPreviewDoc({
         blobUrl: url,
-        fileName: 'legal-basis-v' + version.version + '-' + selectedCaseId.slice(0, 8) + '.pdf',
-        contentType: version.contentType || 'application/pdf',
+        fileName: 'legal-basis-v' + version.version + '-' + selectedCaseId.slice(0, 8) + ({ 'image/jpeg': '.jpg', 'image/png': '.png' }[contentType] || '.pdf'),
+        contentType,
       });
     } catch (err) {
       if (c.signal.aborted) return;
