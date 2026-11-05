@@ -39,34 +39,28 @@ const i18n = {
     trusteeUnconfigured: 'Chưa thiết lập (Tùy chọn)',
 
     // Section A: Trustee
-    trusteeTag: 'TÙY CHỌN',
-    trusteeTitle: '2. Người thi hành bên ngoài (Trustee)',
-    trusteeSubtitle:
-      'Người hỗ trợ kích hoạt quy trình chuyển giao di sản số khi xảy ra biến cố.',
+    trusteeTitle: '2. Người thi hành bên ngoài',
     trusteeNotice:
-      'Người thi hành bên ngoài là tùy chọn. Bạn có thể bỏ qua bước này. Người thi hành bên ngoài KHÔNG cần tài khoản, KHÔNG có quyền mở khóa, giải mã hay xem bí mật, và KHÔNG mặc nhiên là Người thụ hưởng. Mỗi két chỉ có tối đa 1 Người thi hành bên ngoài được chỉ định.',
+      'Người thi hành bên ngoài là tùy chọn và không cần tài khoản. Người này không được mở khóa hay xem nội dung bảo mật, và việc chỉ định không tự thêm họ vào danh sách người thụ hưởng.',
     trusteeSkippedBadge: 'Đã bỏ qua Người thi hành bên ngoài',
     trusteeSkippedDesc:
-      'Bạn đã chọn không chỉ định Người thi hành bên ngoài cho két này. Bạn có thể thiết lập bất cứ lúc nào nếu đổi ý.',
+      'Bạn đã chọn không chỉ định Người thi hành bên ngoài cho kho này. Bạn có thể thiết lập bất cứ lúc nào nếu đổi ý.',
     unskipTrusteeBtn: 'Thiết lập Người thi hành bên ngoài',
     skipTrusteeBtn: 'Bỏ qua Người thi hành bên ngoài',
     maxTrusteeReachedNotice:
-      'Két đã có 1 Người thi hành bên ngoài được chỉ định (Đã đạt giới hạn tối đa 1 Người thi hành bên ngoài trên mỗi két).',
+      'Kho đã có 1 Người thi hành bên ngoài được chỉ định (Đã đạt giới hạn tối đa 1 Người thi hành bên ngoài trên mỗi kho).',
     duplicateTrusteeError:
-      'Két đã có Người thi hành bên ngoài được chỉ định. Mỗi két chỉ có tối đa 1 Người thi hành bên ngoài hiện tại.',
+      'Kho đã có Người thi hành bên ngoài được chỉ định. Mỗi kho chỉ có tối đa 1 Người thi hành bên ngoài hiện tại.',
     vaultNotEditableError:
-      'Két đang ở trạng thái không thể chỉnh sửa.',
+      'Kho đang ở trạng thái không thể chỉnh sửa.',
 
     // Section B: Beneficiary
-    beneficiaryTag: 'CẦN ÍT NHẤT MỘT NGƯỜI',
-    beneficiaryTitle: '1. Người thụ hưởng (Beneficiary)',
-    beneficiarySubtitle:
-      'Người được chỉ định nhận thông tin và di sản sau khi quy trình chuyển giao được kích hoạt hợp lệ.',
+    beneficiaryTitle: '1. Người thụ hưởng',
     beneficiaryNotice:
-      'Cần ít nhất 1 Người thụ hưởng để hoàn tất cấu hình. Người thụ hưởng KHÔNG cần tài khoản, hệ thống KHÔNG tạo tài khoản người dùng, KHÔNG cấp liên kết nhận quyền (Claim Link), KHÔNG tạo Cổng khách (Guest Portal) hay mã OTP, và KHÔNG phân bổ tỷ lệ phần trăm chia tài sản tại bước này.',
+      'Người thụ hưởng không cần tạo tài khoản.',
     noBeneficiaries:
       'Chưa có Người thụ hưởng nào được thêm. Vui lòng thêm ít nhất 1 Người thụ hưởng bên dưới.',
-    beneficiaryListTitle: 'Danh sách Người thụ hưởng hiện tại:',
+    beneficiaryListTitle: 'Danh sách Người thụ hưởng',
 
     // Form fields
     fullNameLabel: 'Họ và tên',
@@ -86,15 +80,15 @@ const i18n = {
     saveTrusteeBtn: 'Lưu Người thi hành bên ngoài',
     addBeneficiaryBtn: 'Thêm Người thụ hưởng',
     submitting: 'Đang xử lý...',
-    appointedStatus: 'Đã chỉ định (APPOINTED)',
+    appointedStatus: 'Đã chỉ định',
     addedSuccessTrustee: 'Đã thêm Người thi hành bên ngoài thành công.',
-    skippedSuccessTrustee: 'Đã đánh dấu bỏ qua Người thi hành bên ngoài (Cục bộ).',
+    skippedSuccessTrustee: 'Đã đánh dấu bỏ qua Người thi hành bên ngoài.',
     addedSuccessBeneficiary: 'Đã thêm Người thụ hưởng thành công.',
   },
   en: {
     brandName: 'LegacyVault',
     eyebrow: 'LEGACY & EXTERNAL EXECUTOR SETUP',
-    pageTitle: 'Beneficiaries & Trustee Setup',
+    pageTitle: 'Beneficiaries & External Executor Setup',
     pageDesc:
       'Configure digital legacy trusteeship and beneficiaries with security, clarity, and legal precision.',
     navBack: '← Back',
@@ -108,40 +102,34 @@ const i18n = {
     readyMsg: 'Minimum requirements met: At least 1 Beneficiary is configured.',
     pendingMsg: 'At least 1 Beneficiary is required to complete vault configuration.',
     beneficiaryCountLabel: 'Beneficiaries:',
-    trusteeStatusLabel: 'Trustee:',
+    trusteeStatusLabel: 'External Executor:',
     trusteeConfigured: 'Appointed',
     trusteeSkipped: 'Skipped (Optional)',
     trusteeUnconfigured: 'Not Configured (Optional)',
 
     // Section A: Trustee
-    trusteeTag: 'OPTIONAL',
-    trusteeTitle: '2. External Executor (Trustee)',
-    trusteeSubtitle:
-      'The designated person who assists in initiating the heritage handover upon designated events.',
+    trusteeTitle: '2. External Executor',
     trusteeNotice:
-      'Trustee is optional. You may skip this step. The Trustee does NOT need an account, has NO permissions to unlock, decrypt, or view secrets, and is NOT automatically a beneficiary. Max 1 appointed Trustee per Vault.',
-    trusteeSkippedBadge: 'Trustee Skipped',
+      'The external executor is optional and does not need an account. They cannot unlock or view secure content, and appointment does not add them as a beneficiary.',
+    trusteeSkippedBadge: 'External Executor skipped',
     trusteeSkippedDesc:
-      'You chose not to designate a Trustee for this vault. You can configure one at any time if you change your mind.',
-    unskipTrusteeBtn: 'Set up Trustee',
-    skipTrusteeBtn: 'Skip Trustee',
+      'You chose not to designate an External Executor for this vault. You can configure one at any time if you change your mind.',
+    unskipTrusteeBtn: 'Set up External Executor',
+    skipTrusteeBtn: 'Skip External Executor',
     maxTrusteeReachedNotice:
-      'The vault already has 1 appointed Trustee (Maximum of 1 appointed Trustee per Vault reached).',
+      'The vault already has 1 appointed External Executor (Maximum of 1 appointed External Executor per Vault reached).',
     duplicateTrusteeError:
-      'A trustee has already been appointed for this vault. Maximum 1 appointed trustee per vault.',
+      'An external executor has already been appointed for this vault. Maximum 1 appointed external executor per vault.',
     vaultNotEditableError:
       'The vault is in a state that cannot be edited.',
 
     // Section B: Beneficiary
-    beneficiaryTag: 'AT LEAST ONE REQUIRED',
     beneficiaryTitle: '1. Beneficiaries',
-    beneficiarySubtitle:
-      'Individuals designated to receive legacy records once the handover process is duly executed.',
     beneficiaryNotice:
-      'At least 1 Beneficiary is required for vault readiness. Beneficiaries do NOT need an account. The system does NOT create accounts, does NOT issue Claim Links, Guest Portals, or OTPs, and does NOT allocate inheritance percentages at this step.',
+      'Beneficiaries do not need an account.',
     noBeneficiaries:
       'No beneficiaries added yet. Please add at least 1 beneficiary below.',
-    beneficiaryListTitle: 'Current Beneficiaries:',
+    beneficiaryListTitle: 'Current Beneficiaries',
 
     // Form fields
     fullNameLabel: 'Full Name',
@@ -158,18 +146,18 @@ const i18n = {
     contactNotice: '* At least one contact method (Phone or Email) is required.',
 
     // Buttons & alerts
-    saveTrusteeBtn: 'Save Trustee',
+    saveTrusteeBtn: 'Save External Executor',
     addBeneficiaryBtn: 'Add Beneficiary',
     submitting: 'Saving...',
-    appointedStatus: 'Appointed (APPOINTED)',
-    addedSuccessTrustee: 'Trustee added successfully.',
-    skippedSuccessTrustee: 'Trustee skipped (Local choice).',
+    appointedStatus: 'Appointed',
+    addedSuccessTrustee: 'External Executor added successfully.',
+    skippedSuccessTrustee: 'External Executor skipped.',
     addedSuccessBeneficiary: 'Beneficiary added successfully.',
   },
 };
 
-Object.assign(i18n.vi,{updatedSuccess:'Cập nhật thông tin thành công.',pageDesc:'Khai báo người thi hành bên ngoài tùy chọn và người thụ hưởng cho kho di sản.',trusteeSubtitle:'Người liên hệ hỗ trợ gia đình theo quy trình được xác minh.',trusteeNotice:'Bạn có thể bỏ qua hoặc chỉ định một người thi hành bên ngoài. Người này không cần tài khoản và không được mở khóa hay xem nội dung bí mật. Chỉ định người thi hành bên ngoài không tự thêm họ vào danh sách người thụ hưởng.',beneficiarySubtitle:'Người được ghi nhận trong kế hoạch di sản; việc bàn giao theo quy trình được duyệt.',beneficiaryNotice:'Cần ít nhất một người thụ hưởng để hoàn tất cấu hình kho. Bạn có thể khai báo mà không cần tạo tài khoản cho họ. Phần chia tài sản được xác định theo căn cứ pháp lý được duyệt.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Bạn đã chọn bỏ qua người thi hành bên ngoài.'});
-Object.assign(i18n.en,{updatedSuccess:'Information updated successfully.',pageDesc:'Record optional trustees and beneficiaries for your heritage vault.',trusteeSubtitle:'A contact who can help your family through a verified process.',trusteeNotice:'You may skip this step or appoint one trustee. They do not need an account and cannot unlock or view secret content. Appointing a trustee does not add them as a beneficiary.',beneficiarySubtitle:'A person recorded in your heritage plan; transfer follows the approved process.',beneficiaryNotice:'At least one beneficiary is needed to complete vault configuration. You can record them without creating an account. Asset shares follow approved legal documents.',appointedStatus:'Appointed',skippedSuccessTrustee:'You chose to skip the trustee.'});
+Object.assign(i18n.vi,{updatedSuccess:'Cập nhật thông tin thành công.',pageDesc:'Khai báo người thi hành bên ngoài tùy chọn và người thụ hưởng cho kho di sản.',trusteeNotice:'Người thi hành bên ngoài là tùy chọn và không cần tài khoản. Người này không được mở khóa hay xem nội dung bảo mật, và việc chỉ định không tự thêm họ vào danh sách người thụ hưởng.',beneficiaryNotice:'Người thụ hưởng không cần tạo tài khoản.',appointedStatus:'Đã chỉ định',skippedSuccessTrustee:'Đã đánh dấu bỏ qua Người thi hành bên ngoài.'});
+Object.assign(i18n.en,{updatedSuccess:'Information updated successfully.',pageDesc:'Record an optional external executor and beneficiaries for your heritage vault.',trusteeNotice:'The external executor is optional and does not need an account. They cannot unlock or view secure content, and appointment does not add them as a beneficiary.',beneficiaryNotice:'Beneficiaries do not need an account.',appointedStatus:'Appointed',skippedSuccessTrustee:'External Executor skipped.'});
 const emptyTrustee={fullName:'',phone:'',email:'',relationship:''};
 const emptyBeneficiary={fullName:'',relationship:'',dateOfBirth:'',phone:'',email:''};
 const safeError=(code,lang)=>({TRUSTEE_ALREADY_EXISTS:lang==='en'?'A trustee is already appointed.':'Kho đã có người thi hành bên ngoài.',VAULT_NOT_EDITABLE:lang==='en'?'This vault cannot be edited now.':'Kho hiện không cho phép chỉnh sửa.',VALIDATION_FAILED:lang==='en'?'Please check the form.':'Vui lòng kiểm tra thông tin.',ACCESS_DENIED:lang==='en'?'You do not have access to this vault.':'Bạn không có quyền truy cập kho này.',RESOURCE_NOT_FOUND:lang==='en'?'No accessible vault was found.':'Không tìm thấy kho thuộc quyền truy cập.'}[code] || (lang==='en'?'Unable to load or save records. Please retry.':'Không thể tải hoặc lưu thông tin. Vui lòng thử lại.'));
@@ -454,16 +442,10 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
 
         {/* Configuration Readiness Banner */}
         <section className="lv-tb-readiness-banner" aria-label="Configuration Readiness Status">
-          <div className="lv-tb-readiness-header">
+          <div className="lv-tb-readiness-row">
             <span className="lv-tb-readiness-title">
               <span aria-hidden="true">✦</span> {t.readinessTitle}
             </span>
-            <span className={`lv-tb-status-badge ${readiness.isReady ? 'ready' : 'pending'}`}>
-              {readiness.isReady ? t.statusReady : t.statusPending}
-            </span>
-          </div>
-
-          <div className="lv-tb-readiness-grid">
             <div className="lv-tb-readiness-item">
               <span className="lv-tb-readiness-label">{t.beneficiaryCountLabel}</span>
               <span className={`lv-tb-readiness-val ${readiness.beneficiaryCount >= 1 ? 'done' : 'warn'}`}>
@@ -482,9 +464,11 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                   : t.trusteeUnconfigured}
               </span>
             </div>
+            <span className={`lv-tb-status-badge ${readiness.isReady ? 'ready' : 'pending'}`}>
+              {readiness.isReady ? t.statusReady : t.statusPending}
+            </span>
           </div>
         </section>
-
 
         {/* Navigation Tabs to choose distinct list (Bug 17) */}
         <div className="lv-tb-tabs" role="tablist" aria-label={lang === 'en' ? 'People categories' : 'Phân loại người liên quan'}>
@@ -515,7 +499,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
             className={`lv-tb-tab-btn ${activeTab === 'trustee' ? 'is-active' : ''}`}
             onClick={() => handleTabSwitch('trustee')}
           >
-            <span className="lv-tb-tab-title">{lang === 'en' ? '2. External Executor (Trustee)' : '2. Người thi hành bên ngoài'}</span>
+            <span className="lv-tb-tab-title">{lang === 'en' ? '2. External Executor' : '2. Người thi hành bên ngoài'}</span>
             <span className="lv-tb-tab-status">
               {appointedTrustee
                 ? (lang === 'en' ? 'Appointed' : 'Đã chỉ định')
@@ -534,11 +518,9 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
             <div className="lv-tb-section-header">
               <button type="button" className="lv-tb-btn-primary" onClick={openBeneficiaryDialog}>+ {t.addBeneficiaryBtn}</button>
               <div className="lv-tb-section-title-wrap">
-                <span className="lv-tb-section-tag">{t.beneficiaryTag}</span>
                 <h2 id="beneficiary-heading" className="lv-tb-section-title">
                   {t.beneficiaryTitle}
                 </h2>
-                <p className="lv-tb-section-subtitle">{t.beneficiarySubtitle}</p>
               </div>
             </div>
 
@@ -560,7 +542,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
                     marginBottom: '12px',
                   }}
                 >
-                  {t.beneficiaryListTitle} ({beneficiaries.length})
+                  {t.beneficiaryListTitle}
                 </h3>
                 {beneficiaries.map((b) => {
                   const bAge = beneficiaryAge(b.dateOfBirth);
@@ -762,11 +744,9 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
           <section className="lv-tb-section-card lv-owner-card" aria-labelledby="trustee-heading">
             <div className="lv-tb-section-header">
               <div className="lv-tb-section-title-wrap">
-                <span className="lv-tb-section-tag">{t.trusteeTag}</span>
                 <h2 id="trustee-heading" className="lv-tb-section-title">
                   {t.trusteeTitle}
                 </h2>
-                <p className="lv-tb-section-subtitle">{t.trusteeSubtitle}</p>
               </div>
 
               {!appointedTrustee && !isSkipped && (
@@ -830,7 +810,7 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
               <>
               <button type="button" className="lv-tb-btn-primary" onClick={openTrusteeDialog}>{t.unskipTrusteeBtn}</button>
               <dialog ref={trusteeDialog} className="lv-tb-dialog" aria-labelledby="trustee-form-title" onClose={()=>lastActiveElementRef.current?.focus()} onCancel={event=>{if(pending.current)event.preventDefault()}}>
-              <div className="lv-tb-dialog-header"><h3 id="trustee-form-title">{t.unskipTrusteeBtn}</h3><button type="button" className="lv-tb-btn-secondary" disabled={isSubmittingTrustee} onClick={()=>closeDialog(trusteeDialog)}>{lang==='en'?'Close':'Đóng'}</button></div>
+              <div className="lv-tb-dialog-header"><h3 id="trustee-form-title">{t.unskipTrusteeBtn}</h3><button type="button" className="lv-tb-dialog-close-btn" disabled={isSubmittingTrustee} onClick={()=>closeDialog(trusteeDialog)} aria-label={lang==='en'?'Close':'Đóng'}>✕</button></div>
               {isDevPreviewActive && (
                 <div className="lv-tb-dialog-preview-notice" role="note">
                   <span className="lv-tb-preview-badge">

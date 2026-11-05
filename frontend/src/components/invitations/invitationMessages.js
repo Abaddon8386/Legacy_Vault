@@ -17,9 +17,9 @@ export const invitationMessages = {
     invalid: 'Mã mời không hợp lệ.', expired: 'Mã mời đã hết hạn.', used: 'Mã mời đã được sử dụng.', revoked: 'Mã mời không còn hiệu lực.',
     mismatch: 'Không thể liên kết mã mời với tài khoản này.', limited: 'Bạn đã thử nhiều lần. Vui lòng thử lại sau.',
     error: 'Chưa thể thực hiện yêu cầu. Vui lòng thử lại.',
-    ownerLabel: 'Mã mời liên kết tài khoản', ownerUnavailable: 'Mã mời hiện chưa khả dụng.',
+    ownerLabel: 'Mã mời',
     ownerLoading: 'Đang tải mã mời…', ownerEmpty: 'Chưa có mã mời để hiển thị.',
-    ownerError: 'Người thụ hưởng đã có trong danh sách. Chưa tải được mã mời; thử lại sẽ không thêm người lần nữa.',
+    ownerError: 'Chưa tải được mã mời.',
     retry: 'Thử tải lại mã', copy: 'Sao chép mã', copied: 'Đã sao chép mã.', copyError: 'Chưa thể sao chép. Bạn có thể chọn và sao chép mã đang hiển thị.',
   },
   en: {
@@ -40,9 +40,9 @@ export const invitationMessages = {
     invalid: 'The invitation code is invalid.', expired: 'The invitation code has expired.', used: 'The invitation code has already been used.', revoked: 'The invitation is no longer valid.',
     mismatch: 'This invitation could not be linked to this account.', limited: 'Too many attempts. Please try again later.',
     error: 'Unable to process the request. Please try again.',
-    ownerLabel: 'Account invitation code', ownerUnavailable: 'The invitation code is currently unavailable.',
+    ownerLabel: 'Invitation code',
     ownerLoading: 'Loading invitation code…', ownerEmpty: 'No invitation code is available to display.',
-    ownerError: 'The beneficiary is already listed. The invitation code could not be loaded; retrying will not add the person again.',
+    ownerError: 'Failed to load invitation code.',
     retry: 'Retry loading code', copy: 'Copy code', copied: 'Code copied.', copyError: 'Unable to copy. You can select and copy the displayed code.',
   },
 };

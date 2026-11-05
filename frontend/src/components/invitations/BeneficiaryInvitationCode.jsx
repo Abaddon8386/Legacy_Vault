@@ -39,14 +39,15 @@ function InvitationCodeView({ vaultId, beneficiaryId, accessToken, lang = 'vi', 
     } catch { if (active.current) setCopyState('error'); }
     finally { copying.current = false; }
   }
+  if (!available) return null;
   return <section className="lv-invitation-code" aria-label={t.ownerLabel}>
     <strong>{t.ownerLabel}</strong>
-    {!available ? <p role="note">{t.ownerUnavailable}</p> : error ? <p role="alert">{t.ownerError}</p> :
+    {error ? <p role="alert">{t.ownerError}</p> :
       !view ? <p role="status">{t.ownerLoading}</p> : view.state === 'available' ? <>
         <code dir="ltr">{view.code}</code>
         <button type="button" onClick={copy}>{t.copy}</button>
       </> : <p role="status">{view.state === 'empty' ? t.ownerEmpty : t[view.state]}</p>}
-    {available && (error || view?.state === 'empty') && <button type="button" onClick={() => {
+    {(error || view?.state === 'empty') && <button type="button" onClick={() => {
       setView(null); setError(false); setCopyState('idle'); setRetry(value => value + 1);
     }}>{t.retry}</button>}
     {copyState !== 'idle' && <p role={copyState === 'error' ? 'alert' : 'status'}>{copyState === 'success' ? t.copied : t.copyError}</p>}
