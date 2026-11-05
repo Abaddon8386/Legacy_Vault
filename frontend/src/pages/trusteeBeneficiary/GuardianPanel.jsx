@@ -103,6 +103,7 @@ function GuardianContent({
   beneficiaryRelationship,
   beneficiaryDob,
   isMinorHint = false,
+  isAdultHint = false,
   accessToken,
   lang = 'vi',
   onUnauthorized,
@@ -124,6 +125,16 @@ function GuardianContent({
   const errorBannerRef = useRef(null);
 
   useEffect(() => () => controller.current?.abort(), []);
+
+  // An adult needs no guardian, but one recorded before they turned 18 must stay visible and revocable.
+  useEffect(() => {
+    if (!isAdultHint) return undefined;
+    const c = new AbortController();
+    guardianService.get(vaultId, beneficiaryId, { accessToken, lang, signal: c.signal })
+      .then((value) => { if (!c.signal.aborted) setContext(value); })
+      .catch((err) => { if (!c.signal.aborted && err.status === 401) onUnauthorized?.(); });
+    return () => c.abort();
+  }, [isAdultHint, vaultId, beneficiaryId, accessToken, lang, onUnauthorized]);
 
   async function run(actionType, task) {
     if (controller.current) return;
@@ -272,6 +283,8 @@ function GuardianContent({
         : 'Đã thu hồi thông tin người giám hộ hiện hành.'
       : null;
 
+  const isAdult = context?.ageStatus === 'ADULT';
+
   const ageBadge = context
     ? context.ageStatus === 'MINOR'
       ? {
@@ -330,6 +343,9 @@ function GuardianContent({
   ];
 
   const baseId = `guardian-${beneficiaryId || 'panel'}`;
+
+  // Stays only long enough to confirm a revocation.
+  if (isAdultHint && !successMsg && !context?.guardian && (!context || isAdult)) return null;
 
   return (
     <section
@@ -521,7 +537,9 @@ function GuardianContent({
                     {en ? 'No current guardian.' : 'Chưa có người giám hộ hiện hành.'}
                   </p>
                   <p className="lv-tb-guardian-empty-sub">
-                    {en
+                    {isAdult
+                      ? (en ? 'This beneficiary is 18 or older and does not need a guardian.' : 'Người thụ hưởng đã đủ 18 tuổi nên không cần người giám hộ.')
+                      : en
                       ? 'You can record one contact person for this beneficiary at any time.'
                       : 'Bạn có thể thêm thông tin liên hệ của người giám hộ cho người thụ hưởng này bất cứ lúc nào.'}
                   </p>
@@ -530,6 +548,7 @@ function GuardianContent({
 
               {/* Action Toolbar */}
               <div className="lv-tb-guardian-actions">
+                {!isAdult && (
                 <button
                   type="button"
                   className="lv-tb-guardian-btn lv-tb-guardian-btn--primary"
@@ -538,6 +557,7 @@ function GuardianContent({
                 >
                   {en ? 'Add / replace guardian' : 'Thêm / thay thế người giám hộ'}
                 </button>
+                )}
 
                 {context.guardian && (
                   <button
