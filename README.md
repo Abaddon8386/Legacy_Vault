@@ -109,4 +109,21 @@ Fixture chỉ phục vụ kiểm thử FE, không phải backend nghiệp vụ v
 
 ## Bằng chứng
 
+### Kiểm tra tự động trên PR
+
+Workflow [CI](.github/workflows/ci.yml) chạy khi mở/cập nhật PR vào `develop`, khi có push vào `develop`,
+và có thể chạy thủ công sau khi workflow có trên nhánh mặc định. Hai job độc lập:
+
+- **Frontend:** Node 24, `npm ci`, lint, toàn bộ test FE và build.
+- **Backend:** Java 25, biên dịch, unit test và đóng gói bằng Maven Wrapper. Lệnh tương đương trên PowerShell:
+  `cd backend; .\mvnw.cmd -B --no-transfer-progress '-Dtest=*,!**/*SqlServer*,!**/LegacyvaultBackendApplicationTests' package`.
+
+CI gọn không cấp cấu hình DB hoặc secret của môi trường thật; loại các lớp có `SqlServer` trong tên và
+`LegacyvaultBackendApplicationTests` cần khởi động toàn bộ Spring với DB. Các test tích hợp khác có điều kiện
+môi trường vẫn có thể được báo skipped. Kết quả xanh không chứng minh migration/SQL Server, Google Login,
+VNPay, email hoặc UI desktop/mobile đã được kiểm chứng thực tế; nhóm vẫn chạy và ghi bằng chứng riêng.
+
+CI bổ sung cho review chéo của thành viên. Workflow không tự approve, merge, deploy hoặc thay đổi branch
+protection/required checks; các quyết định review và merge vẫn theo quy trình nhóm.
+
 Kết quả kiểm tra và giới hạn được ghi tại [docs/VERIFICATION.md](docs/VERIFICATION.md). Không đánh dấu ticket Jira Done chỉ vì đã dựng lại bộ khung.
