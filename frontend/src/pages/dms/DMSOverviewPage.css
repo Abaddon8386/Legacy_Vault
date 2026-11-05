@@ -54,7 +54,6 @@
 .lv-dms-triggered-desc{margin:0;font-size:14px;line-height:1.65;color:#5e4a2a}
 .lv-dms-triggered-actions-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px}
 .lv-dms-triggered-deadline-tag{font-size:14px;color:#6f4a18;font-weight:600;line-height:1.6}
-.lv-dms-form-group{display:flex;flex-direction:column;gap:24px}
 .lv-dms-presets-section{display:grid;gap:12px}
 .lv-dms-presets-header{display:flex;flex-direction:column;gap:6px}
 .lv-dms-presets-label,.lv-dms-input-label{font-size:14px;font-weight:600;color:#364d3e}
@@ -63,7 +62,6 @@
 .lv-dms-preset-pill{min-height:44px;padding:10px 22px;background:#f9faf6;color:#526259;border:1px solid #dfe2d8;border-radius:7px;font:inherit;font-size:14px;cursor:pointer}
 .lv-dms-preset-pill.is-active{background:#edf3ee;color:#264a38;border-color:#487253;font-weight:600}
 .lv-dms-preset-pill:hover{border-color:#487253}
-.lv-dms-input-cluster{display:flex;gap:24px;align-items:flex-start;padding-top:22px;border-top:1px solid #ecece5;flex-wrap:wrap}
 .lv-dms-field-error{font-size:14px;color:#a43e30;line-height:1.6}
 .lv-dms-form-actions{display:flex;gap:10px;padding-top:23px;flex-wrap:wrap}
 .lv-dms-reset-btn{min-height:44px;padding:10px 18px;border:1px solid #dfe2d8;border-radius:8px;background:white;color:#526259;font:inherit;font-size:14px;cursor:pointer}
@@ -98,13 +96,25 @@
 @keyframes lv-dms-indeterminate{0%{left:-35%;width:35%}50%{left:35%;width:45%}100%{left:100%;width:35%}}
 
 @media(prefers-reduced-motion:reduce){.lv-dms-save-progress-bar{animation:none;left:0;width:100%;opacity:.75}.lv-dms-save-feedback-area .lv-btn-spinner{animation:none}}
-.lv-dms-config-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:stretch}
-@media(min-width:1280px){.lv-dms-config-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .lv-dms-protection-note{margin:0;font-size:14px;line-height:1.6;color:#637068}
 .lv-dms-status-badge-wrap .lv-status-badge.lv-tone-await{background:#fdf0c8;border-color:#e6c869;color:#6f4a18}
 .lv-dms-status-badge-wrap .lv-status-badge.lv-tone-await .lv-status-dot{background:#b7791f}
-/* Both save buttons line up at the bottom of their cards, whatever the help text length. */
-.lv-dms-config-grid .lv-dms-card{height:100%;box-sizing:border-box}
-.lv-dms-config-grid .lv-dms-form-group,.lv-dms-config-grid .lv-dms-input-cluster{flex:1}
-.lv-dms-config-grid .lv-dms-input-cluster{flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:12px}
-.lv-dms-config-grid .lv-dms-form-actions{margin-top:auto;padding-top:12px}
+.lv-dms-time-locked{margin:0;font-size:14px;line-height:1.6;color:#637068}
+.lv-dms-time-row{padding-top:20px;border-top:1px solid #ecece5}
+/* Title and save button share the left column; the DOM order keeps the button after the inputs for keyboard users. */
+.lv-dms-time-row__form{display:grid;grid-template-columns:200px minmax(0,1fr);grid-template-rows:auto 1fr;column-gap:20px;row-gap:10px;min-width:0}
+.lv-dms-time-row__title{grid-column:1;grid-row:1;margin:0;font-size:16px;font-weight:600;line-height:1.5;color:#264a38}
+.lv-dms-time-row__main{grid-column:2;grid-row:1 / 3;display:flex;flex-wrap:wrap;align-items:flex-end;column-gap:24px;row-gap:10px;min-width:0}
+.lv-dms-time-row .lv-dms-form-actions{grid-column:1;grid-row:2;align-self:end;padding-top:0}
+.lv-dms-time-row .lv-dms-presets-section{gap:0}
+.lv-dms-time-row .lv-dms-duration-wrapper{display:contents}
+.lv-dms-time-row .lv-duration-fields{flex:1 1 280px;min-width:0}
+.lv-dms-time-row__main>:is(.lv-dms-input-helper,.lv-dms-field-error,.lv-dms-save-feedback-area,p),.lv-dms-time-row .lv-dms-duration-wrapper>:is(.lv-dms-input-helper,.lv-dms-field-error,.lv-dms-save-feedback-area){flex-basis:100%}
+.lv-dms-time-row .lv-grace-feedback{margin-top:12px}
+@media(max-width:860px){.lv-dms-time-row__form{grid-template-columns:minmax(0,1fr);grid-template-rows:none}.lv-dms-time-row__title,.lv-dms-time-row__main,.lv-dms-time-row .lv-dms-form-actions{grid-column:1;grid-row:auto}.lv-dms-time-row .lv-dms-form-actions>*{width:100%}}
+/* Equal preset widths keep the duration fields of both rows on the same vertical line. */
+.lv-dms-time-row .lv-dms-presets-section{flex:0 0 400px}
+.lv-dms-time-row .lv-dms-presets-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.lv-dms-time-row .lv-dms-preset-pill{padding:10px 6px}
+@media(max-width:860px){.lv-dms-time-row .lv-dms-presets-section{flex-basis:100%}}
+@media(max-width:480px){.lv-dms-time-row .lv-dms-presets-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -1201,7 +1201,7 @@ test('Task 3: DMS mutation sequence race: polling starts -> interval save succee
 
     assert.ok(delayedPollResolve, 'Polling request #2 should be pending');
 
-    const saveForm = host.querySelector('form.lv-dms-form-group');
+    const saveForm = host.querySelector('form.lv-dms-time-row__form');
     await act(async () => {
       const props = intervalInput[Object.keys(intervalInput).find((k) => k.startsWith('__reactProps'))];
       props.onChange({ target: { value: '60' } });

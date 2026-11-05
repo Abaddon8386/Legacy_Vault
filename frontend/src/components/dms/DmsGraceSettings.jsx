@@ -58,20 +58,11 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
       if (request.current === c) { onBusyChange?.(false); request.current = null; if (!c.signal.aborted) setPending(false); }
     }
   }
-  return <section className="lv-dms-card lv-grace-settings lv-owner-card" aria-labelledby="grace-heading">
-    <div className="lv-dms-card-header">
-      <div className="lv-dms-card-heading-group">
-        <div className="lv-dms-card-icon-wrap" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 2h12M6 22h12M7 2v4a5 5 0 0 0 10 0V2M7 22v-4a5 5 0 0 1 10 0v4" />
-          </svg>
-        </div>
-        <h2 id="grace-heading" className="lv-dms-card-title">{en ? 'Grace period' : 'Thời gian ân hạn'}</h2>
-      </div>
-    </div>
-    <form className="lv-dms-form-group" onSubmit={save} noValidate>
+  return <section className="lv-dms-time-row lv-grace-settings" aria-labelledby="grace-heading">
+    <form className="lv-dms-time-row__form" onSubmit={save} noValidate>
+      <h3 id="grace-heading" className="lv-dms-time-row__title">{en ? 'Grace period' : 'Thời gian ân hạn'}</h3>
+      <div className="lv-dms-time-row__main">
       {ready && <div className="lv-dms-presets-section">
-        <span className="lv-dms-presets-label">{en ? 'Suggested periods:' : 'Gợi ý thời gian:'}</span>
         <div className="lv-dms-presets-grid" role="group" aria-label={en ? 'Suggested periods' : 'Gợi ý thời gian'}>
           {PRESET_DAYS.filter(days => days * 1440 >= min && days * 1440 <= max).map(days => <button key={days} type="button"
             className={`lv-dms-preset-pill${total === days * 1440 ? ' is-active' : ''}`} aria-pressed={total === days * 1440}
@@ -79,24 +70,23 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
             onClick={() => { setDraft(split(days * 1440)); setDirty(true); setSaved(false); }}>{en ? `${days} day${days > 1 ? 's' : ''}` : `${days} ngày`}</button>)}
         </div>
       </div>}
-      <div className="lv-dms-input-cluster">
       <DurationFields legend={en ? 'Grace period length:' : 'Thời lượng ân hạn:'} disabled={!writable || busy || pending || Boolean(error)} describedBy="grace-help"
         fields={['days', 'hours', 'minutes'].map((unit, index) => ({ id: `grace-${unit}`, label: (en ? ['Days', 'Hours', 'Minutes'] : ['Số ngày', 'Số giờ', 'Số phút'])[index],
           placeholder: '0', max: unit === 'hours' ? 23 : unit === 'minutes' ? 59 : undefined, value: value[unit], invalid: dirty && invalid,
           onChange: e => { setDraft({ ...value, [unit]: e.target.value }); setDirty(true); setSaved(false); } }))} />
       <p id="grace-help">{!data ? (en ? 'Configure a check-in cycle first.' : 'Hãy thiết lập chu kỳ xác nhận trước.')
         : !ready ? (en ? 'Grace period changes are not available yet.' : 'Chưa hỗ trợ thay đổi thời gian ân hạn.')
-        : !writable ? (en ? 'Grace period can only be changed while monitoring is active.' : 'Chỉ được đổi thời gian ân hạn khi hệ thống đang theo dõi bình thường.')
+        : data.status !== 'MONITORING' ? null : !writable ? (en ? 'Grace period can only be changed while monitoring is active.' : 'Chỉ được đổi thời gian ân hạn khi hệ thống đang theo dõi bình thường.')
         : !minuteMode ? (en ? 'Current service supports whole days only.' : 'Dịch vụ hiện tại chỉ lưu được số ngày nguyên.') : `${maxText} ${en ? 'Unused fields can be left blank (0).' : 'Ô không dùng có thể để trống (tính là 0).'}`}</p>
       {dirty && invalid && <p role="alert">{unsupportedPrecision ? (en ? 'Minute precision is not supported by the current service.' : 'Dịch vụ chưa hỗ trợ lưu theo giờ, phút.') : (en ? `Enter a valid duration within the allowed range. ${maxText}` : `Nhập thời gian hợp lệ trong khoảng cho phép. ${maxText}`)}</p>}
+      </div>
       <div className="lv-dms-form-actions">
         <Button type="submit" className="lv-dms-submit-btn" isLoading={pending} disabled={!writable || busy || invalid || !dirty || Boolean(error)}>{en ? 'Save grace period' : 'Lưu thời gian ân hạn'}</Button>
       </div>
-      </div>
     </form>
-    {saved && <FeedbackNotice tone="success">{en ? 'Grace period saved.' : 'Đã lưu thời gian ân hạn.'}</FeedbackNotice>}
-    {error && <FeedbackNotice tone="error">{error === 'changed'
+    {saved && <div className="lv-grace-feedback"><FeedbackNotice tone="success">{en ? 'Grace period saved.' : 'Đã lưu thời gian ân hạn.'}</FeedbackNotice></div>}
+    {error && <div className="lv-grace-feedback"><FeedbackNotice tone="error">{error === 'changed'
       ? (en ? 'The status has changed. Reload before saving again.' : 'Trạng thái đã thay đổi. Hãy tải lại trước khi lưu tiếp.')
-      : (en ? 'The save could not be confirmed. Your draft is preserved; check the current status before trying again.' : 'Chưa xác nhận được kết quả lưu. Bản nháp được giữ lại; hãy kiểm tra trạng thái trước khi thử lại.')}</FeedbackNotice>}
+      : (en ? 'The save could not be confirmed. Your draft is preserved; check the current status before trying again.' : 'Chưa xác nhận được kết quả lưu. Bản nháp được giữ lại; hãy kiểm tra trạng thái trước khi thử lại.')}</FeedbackNotice></div>}
   </section>;
 }

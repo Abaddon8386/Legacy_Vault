@@ -588,7 +588,9 @@ export default function DMSOverviewPage({
       triggeredDeadlinePrefix: 'Thời hạn ân hạn:',
       deadlinePendingTitle: 'Đã đến hạn xác nhận hoạt động',
       deadlinePendingDesc: 'Đang xác minh trạng thái DMS mới nhất từ máy chủ. Quá hạn check-in chưa đồng nghĩa với việc DMS đã kích hoạt.',
-      configCardTitle: 'Cấu hình chu kỳ kiểm tra',
+      configCardTitle: 'Cài đặt thời gian',
+      cycleRowTitle: 'Chu kỳ kiểm tra',
+      configLockedNote: 'Chỉ đổi được khi hệ thống đang theo dõi bình thường.',
       configCardSub:
         'Tùy chỉnh khoảng thời gian giữa các lần hệ thống yêu cầu bạn gửi tín hiệu xác nhận.',
       presetsLabel: 'Gợi ý chu kỳ đề xuất:',
@@ -641,7 +643,9 @@ export default function DMSOverviewPage({
       triggeredDeadlinePrefix: 'Grace period deadline:',
       deadlinePendingTitle: 'Check-in deadline reached',
       deadlinePendingDesc: 'Confirming the latest DMS status with the server. A missed check-in deadline alone does not mean DMS has been triggered.',
-      configCardTitle: 'Configure Check-in Interval',
+      configCardTitle: 'Time settings',
+      cycleRowTitle: 'Check-in interval',
+      configLockedNote: 'These can only be changed while monitoring is active.',
       configCardSub:
         'Customize the duration between required activity check-in confirmations.',
       presetsLabel: 'Suggested Presets:',
@@ -929,7 +933,6 @@ export default function DMSOverviewPage({
             </section>
           )}
 
-          <div className="lv-dms-config-grid">
           {/* Configure Interval Form Card */}
           <section className="lv-dms-card lv-dms-config-card lv-dms-stagger lv-owner-card" style={{ '--stagger': 3 }} aria-labelledby="dms-config-heading">
             <div className="lv-dms-card-header">
@@ -969,12 +972,14 @@ export default function DMSOverviewPage({
               </div>
             )}
 
-            <form className="lv-dms-form-group" onSubmit={handleSaveInterval} noValidate>
+            {dmsData && dmsData.status !== 'MONITORING' && <p className="lv-dms-time-locked">{t.configLockedNote}</p>}
+
+            <div className="lv-dms-time-row">
+            <form className="lv-dms-time-row__form" onSubmit={handleSaveInterval} noValidate>
+              <h3 className="lv-dms-time-row__title">{t.cycleRowTitle}</h3>
+              <div className="lv-dms-time-row__main">
               {/* Recommended Presets */}
               <div className="lv-dms-presets-section">
-                <div className="lv-dms-presets-header">
-                  <span className="lv-dms-presets-label">{t.presetsLabel}</span>
-                </div>
                 <div className="lv-dms-presets-grid" role="group" aria-label={t.presetsLabel}>
                   {INTERVAL_PRESETS.map((preset) => {
                     const isActive = Number(intervalInput) === preset.days;
@@ -993,11 +998,7 @@ export default function DMSOverviewPage({
                   })}
                 </div>
               </div>
-
-              {/* Custom Input & Action Cluster */}
-              {/* Custom Duration Inputs & Action Cluster */}
-              <div className="lv-dms-input-cluster">
-                <div className="lv-dms-duration-wrapper">
+              <div className="lv-dms-duration-wrapper">
                   <DurationFields legend={t.inputLabel} disabled={isSaving || configReadOnly}
                     describedBy={firstErrorMsg ? 'dms-interval-error' : 'dms-interval-helper'}
                     fields={[
@@ -1034,7 +1035,8 @@ export default function DMSOverviewPage({
                       </div>
                     </div>
                   )}
-                </div>
+              </div>
+              </div>
 
                 {/* Action Buttons */}
                 <div className="lv-dms-form-actions">
@@ -1048,9 +1050,8 @@ export default function DMSOverviewPage({
                     <span>{isSaving ? t.savingBtn : t.saveBtn}</span>
                   </MagneticButton>
                 </div>
-              </div>
             </form>
-          </section>
+            </div>
           <DmsGraceSettings data={dmsData} actions={graceActions} ownerId={ownerId} accessToken={accessToken}
             resetKey={`${refreshKey}:${onRefreshTrigger}`} lang={lang} isOwner={isOwner} onUnauthorized={onUnauthorized}
             busy={isSaving || isCheckingIn || loading}
@@ -1070,7 +1071,7 @@ export default function DMSOverviewPage({
               visibilityAbortControllerRef.current?.abort();
               setDmsData({ ...value, snapshotTimestamp: Date.now() });
             }} />
-          </div>
+          </section>
 
         </div>
       )}
