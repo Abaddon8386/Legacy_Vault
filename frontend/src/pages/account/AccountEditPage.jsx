@@ -236,7 +236,7 @@ export default function AccountEditPage({
       </div>
 
       }
-      {saveFeedback && <p role={saveFeedback === 'success' ? 'status' : 'alert'}>{saveFeedback === 'success' ? t.saveSuccess : t[saveFeedback] || t.saveError}</p>}
+      {saveFeedback && <p role={['success', 'passwordSetupCancelled'].includes(saveFeedback) ? 'status' : 'alert'}>{saveFeedback === 'success' ? t.saveSuccess : t[saveFeedback] || t.saveError}</p>}
 
       {/* Main Form Content */}
       {initialData ? (

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import FirstPasswordButton from '../../components/auth/FirstPasswordButton.jsx';
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js';
 import { readReceivedPage, receivedActions, receivedPreviewAllowed, readReceivedDetail, readReceivedContent, formatDeliveredDate } from './receivedAssetsModel.js';
 import { PREVIEW_SUBJECT, previewReceivedActions } from './receivedAssetsPreview.js';
 import { Modal } from '../../components/common/Modal.jsx';
@@ -59,6 +60,7 @@ function isPasswordOrReauthError(err) {
 }
 
 function errorMessage(error, en) {
+  if (error?.code === 'PASSWORD_SETUP_CANCELLED') return passwordSetupCancelledMessage(en ? 'en' : 'vi');
   if (error?.status === 429) return en ? 'Too many attempts. Please try again later.' : 'Quá nhiều lần thử. Vui lòng thử lại sau.';
   if (error?.status === 403 && !isPasswordOrReauthError(error)) return en ? 'Access denied. You do not have permission to view this item.' : 'Truy cập bị từ chối. Bạn không có quyền xem mục này.';
   if (isPasswordOrReauthError(error)) return en ? 'Password verification failed. Please try again.' : 'Xác thực mật khẩu không đúng. Vui lòng thử lại.';
@@ -98,7 +100,9 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
     } catch (error) {
       if (!c.signal.aborted) {
         setImagePassword('');
-        if (isPasswordOrReauthError(error)) {
+        if (error.code === 'PASSWORD_SETUP_CANCELLED') {
+          setState({ busy: false, blobUrl: null, error });
+        } else if (isPasswordOrReauthError(error)) {
           setShowPasswordPrompt(true);
           setState({ busy: false, blobUrl: null, error: !pwd && error.code !== 'TOO_MANY_ATTEMPTS' && error.status !== 429 ? null : error });
         } else {
@@ -141,7 +145,7 @@ function ReceivedImage({ itemId, image, actions, options, lang, onError }) {
         <DecryptForm en={en} busy={state.busy} value={imagePassword}
           onChange={e => setImagePassword(e.target.value)} onSubmit={handlePasswordSubmit} image />
       )}
-      {state.error && <p role="alert" className="lv-received-detail__error">{errorMessage(state.error, en)}</p>}
+      {state.error && <p role={state.error.code === 'PASSWORD_SETUP_CANCELLED' ? 'status' : 'alert'} className="lv-received-detail__error">{errorMessage(state.error, en)}</p>}
       {state.blobUrl && <ZoomableImage src={state.blobUrl} alt={image.label} lang={lang} />}
     </div>
   );
@@ -186,7 +190,9 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
     } catch (error) {
       if (!c.signal.aborted) {
         setPasswordInput('');
-        if (isPasswordOrReauthError(error)) {
+        if (error.code === 'PASSWORD_SETUP_CANCELLED') {
+          setContent({ busy: false, text: null, error });
+        } else if (isPasswordOrReauthError(error)) {
           setShowPasswordForm(true);
           setContent({ busy: false, text: null, error: !pwd && error.code !== 'TOO_MANY_ATTEMPTS' && error.status !== 429 ? null : error });
         } else {
@@ -260,7 +266,7 @@ function ItemDetail({ itemId, subjectId, actions, accessToken, lang, onError, on
                 <DecryptForm en={en} busy={content.busy} value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)} onSubmit={handlePasswordSubmit} />
               )}
-              {content.error && <p role="alert" className="lv-received-detail__error">{errorMessage(content.error, en)}</p>}
+              {content.error && <p role={content.error.code === 'PASSWORD_SETUP_CANCELLED' ? 'status' : 'alert'} className="lv-received-detail__error">{errorMessage(content.error, en)}</p>}
               {content.text !== null && (
                 <div className="lv-received-detail__content-wrap">
                   <ReceivedContent text={content.text} en={en} />

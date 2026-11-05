@@ -6,6 +6,7 @@ import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { FileText, KeyRound, Lock, Calendar, Clock, ShieldCheck, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { assetService } from '../../services/assetService'
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js'
 import './AssetListTable.css'
 
 /**
@@ -374,7 +375,7 @@ export function AssetDetailModal({
 
                 {revealErrorKey && (
                   <p
-                    role="alert"
+                    role={revealErrorKey === 'PASSWORD_SETUP_CANCELLED' ? 'status' : 'alert'}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -386,7 +387,8 @@ export function AssetDetailModal({
                   >
                     <AlertCircle size={14} />
                     <span>
-                      {t.assets.alerts[revealErrorKey] ||
+                      {revealErrorKey === 'PASSWORD_SETUP_CANCELLED' ? passwordSetupCancelledMessage(lang) :
+                        t.assets.alerts[revealErrorKey] ||
                         (revealErrorKey === 'passwordRequired'
                           ? t.assets.validation.payloadRequired
                           : t.assets.alerts.loadError)}

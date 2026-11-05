@@ -1,6 +1,6 @@
 # Google signup — FE H1 / H2
 
-Base: develop `12f5cb7`. BE contract inspected from PR #285 at `5b0a8e2`; API names come from source/DTO and `auth.md`, including the fresh Google credential requirement omitted by the PR description.
+Base: develop `c6877e0`. BE contract inspected from PR #285 at `4671cd9`, including the fresh Google credential requirement in the DTO and `auth.md`.
 
 ## H1: Login and registration
 
@@ -14,7 +14,7 @@ Both existing Google buttons call `POST /api/v1/auth/google` with only `{credent
 - Before setup, re-read `/auth/me`, require the same user and `passwordLoginEnabled: false`. Require confirmation of the new password and a fresh GIS callback. Never reuse the sign-in credential.
 - `POST /api/v1/auth/password/setup`: Bearer session, `{password, credential}`, success **200 `{passwordLoginEnabled:true}`**. Use the 8–72 character policy and 72-byte ceiling. No client-supplied subject, actor or role.
 - `GOOGLE_IDENTITY_MISMATCH`: choose the already linked Google account. Invalid/reused credentials require a new Google callback. No `/auth/google/link` call is used to establish the setup identity.
-- Cancel, abort, account change and logout do not replay the protected action. Late setup responses cannot restore another account's draft. Setup has a 20-second timeout; an unconfirmed result is not called successful. A failed attempt clears the credential while retaining the entered passwords in the open dialog; closing clears the dialog state.
+- Cancel, abort, account change and logout do not replay the protected action. Cancelling shows a localized status on the originating form, which keeps its draft. Late setup responses cannot restore another account's draft. Setup has a 20-second timeout; an unconfirmed result is not called successful. A failed attempt clears the credential while retaining the entered passwords in the open dialog; closing clears the dialog state.
 - New passwords/credentials live only in mounted form state and the immediate request continuation; no browser storage, URL or log entry contains them. The session stores only the capability flag after a confirmed receipt.
 - Nested dialogs retain their draft and focus. Escape dismisses setup without closing the underlying dialog; the underlying GIS callback is restored after setup closes.
 - Admin accepts and translates `AUTH_PASSWORD_SET`, so the new audit event does not invalidate the inbox of audit logs.
@@ -36,4 +36,4 @@ Tests cover both auth pages in VI/EN, all protected adapters above, correct/inco
 
 The user explicitly deferred real BE/Google acceptance on 04/11/2026. Resume with a BE containing #285 and the team's security fixes, matching Google client configuration, and a real test Google account. Verify: new Google owner; existing email not merged; setup with a fresh credential linked to that same user; then edit an asset; audit readable. Also verify wrong Google identity, expired/replayed credential and two simultaneous requests on the real server.
 
-Remaining BE review items in the supplied report are outside these FE changes: guarding extra Google linking while no password exists, concurrent-signup messaging, and stale PR/OpenAPI examples. This FE does not make a claim that those server issues have been fixed.
+PR #285 at `4671cd9` includes the server guard against linking another Google identity before setup, the concurrent-signup retry, and updated OpenAPI examples. The Admin audit whitelist uses the same `AUTH_PASSWORD_SET` entry as #285.

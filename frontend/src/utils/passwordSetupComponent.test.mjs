@@ -12,6 +12,9 @@ const entries={
   Modal:['Modal','src/components/common/Modal.jsx'], Account:['default','src/pages/account/AccountEditPage.jsx'],
   passwordRequest:['passwordRequest','src/api/passwordRequest.js'], requestFirstPassword:['requestFirstPassword','src/utils/passwordSetupFlow.js'],
   updateProfile:['updateProfile','src/services/profileService.js'],
+  AssetDetail:['AssetDetailModal','src/components/assets/AssetDetailModal.jsx'],
+  assetI18n:['ASSET_I18N','src/pages/assets/assetI18n.js'],
+  WillDownload:['DownloadReauthModal','src/pages/wills/WillUploadPage.jsx'],
 };
 const virtual='password-setup-fixture.js';
 const built=await build({configFile:false,logLevel:'silent',define:{'import.meta.env.VITE_GOOGLE_CLIENT_ID':'"test.apps.googleusercontent.com"'},
@@ -19,7 +22,7 @@ const built=await build({configFile:false,logLevel:'silent',define:{'import.meta
   build:{write:false,minify:false,lib:{entry:virtual,formats:['es']},rollupOptions:{external:['react','react-dom','react-dom/client','react/jsx-runtime']}}});
 let code=(Array.isArray(built)?built[0]:built).output.find(x=>x.type==='chunk'&&x.isEntry).code;
 for(const name of ['react','react-dom','react-dom/client','react/jsx-runtime'])code=code.replaceAll(`from "${name}"`,`from "${import.meta.resolve(name)}"`);
-const {Provider,Google,Modal,Account,passwordRequest,requestFirstPassword,updateProfile}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const {Provider,Google,Modal,Account,passwordRequest,requestFirstPassword,updateProfile,AssetDetail,assetI18n,WillDownload}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 const id='11111111-1111-4111-8111-111111111111';
 const user={id,fullName:'Google Owner',email:'owner@example.com',phoneNumber:null,roles:['VAULT_OWNER'],passwordLoginEnabled:false};
 const session={accessToken:'test-only',expiresAt:Date.now()+3600000,user};
@@ -86,6 +89,55 @@ test('Escape only closes setup, preserves the underlying modal and restores its 
     await act(async()=>google.callback({credential:'fresh-link'}));assert.equal(googleCalls,1);
   } finally {await view.close();}
 });
+
+for (const lang of ['vi', 'en']) {
+  test(`cancelling from asset details or will download keeps the original dialog open (${lang})`, async () => {
+    const itemId = '22222222-2222-4222-8222-222222222222';
+    const t = assetI18n[lang];
+    const screens = [
+      React.createElement(AssetDetail, {
+        isOpen: true, vaultId: id, asset: { id: itemId, name: 'Test asset', assetType: 'TEXT', hasPayload: true },
+        t, lang, accessToken: session.accessToken, onClose: () => assert.fail('Asset details closed'),
+      }),
+      React.createElement(WillDownload, {
+        vaultId: id, willId: itemId, version: 1, fileName: 'will.pdf', mode: 'view',
+        t: { errors: { DOWNLOAD_FAILED: 'File unavailable' }, passwordLabel: 'Password', cancel: 'Cancel',
+          confirmViewBtn: 'View', reauthModalTitleView: 'Verify password' },
+        lang, accessToken: session.accessToken, onClose: () => assert.fail('Will download closed'),
+      }),
+    ];
+    let protectedCalls = 0;
+    globalThis.fetch = async (url, options) => {
+      if (url.endsWith('/auth/me')) return json(user);
+      if (options.method === 'GET') return json([]);
+      assert.match(url, /\/reveal$|\/download$/);
+      protectedCalls++;
+      return json({ code: 'PASSWORD_NOT_SET' }, 403);
+    };
+    for (const [index, screen] of screens.entries()) {
+      const view = await mount(screen);
+      try {
+        if (index === 0) {
+          const reveal = [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === t.assets.detailModal.revealBtn);
+          await act(async () => reveal.click());
+        }
+        const form = view.host.querySelector('form');
+        const input = form.querySelector('input[type=password]');
+        await act(async () => props(input).onChange({ target: { value: 'unused-password' } }));
+        await act(async () => { void props(form).onSubmit({ preventDefault() {} }); });
+        const setupDialog = dialog(view);
+        assert.ok(setupDialog);
+        await act(async () => setupDialog.querySelector('.lv-password-setup__actions button[type=button]').click());
+        assert.equal(dialog(view), null);
+        assert.equal(view.host.querySelector('form'), form);
+        assert.equal(input.value, '');
+        assert.equal(view.host.querySelector('[role=alert]'), null);
+        assert.match(view.host.querySelector('[role=status]').textContent, lang === 'en' ? /cancelled password setup/ : /đã hủy đặt mật khẩu/);
+        assert.equal(protectedCalls, index + 1, 'the protected operation is not retried');
+      } finally { await view.close(); }
+    }
+  });
+}
 
 test('switching accounts during setup aborts the pending POST and cannot retry the old action',async()=>{
   let finish,signal,protectedCalls=0;

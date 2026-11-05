@@ -9,6 +9,7 @@ import {
   formatDateTime,
   downloadBlobFile,
 } from '../../utils/willService.js';
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js';
 import {
   getWillUploadErrors,
   willValidationMessages,
@@ -909,9 +910,9 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
           </div>
 
           {errorKey && (
-            <p className="hn-will-error hn-will-error-panel" role="alert" style={{ margin: '0 0 16px', padding: '10px 14px' }}>
+            <p className="hn-will-error hn-will-error-panel" role={errorKey === 'PASSWORD_SETUP_CANCELLED' ? 'status' : 'alert'} style={{ margin: '0 0 16px', padding: '10px 14px' }}>
               <AlertCircle size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-              <span>{t.errors[errorKey] || t.errors.DOWNLOAD_FAILED}</span>
+              <span>{errorKey === 'PASSWORD_SETUP_CANCELLED' ? passwordSetupCancelledMessage(lang) : t.errors[errorKey] || t.errors.DOWNLOAD_FAILED}</span>
             </p>
           )}
 

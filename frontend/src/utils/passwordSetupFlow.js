@@ -7,6 +7,11 @@ export function registerPasswordSetup(handlerForSession) {
 export function passwordSetupError(code = 'PASSWORD_SETUP_CANCELLED') {
   return Object.assign(new Error(code), { code, status: code === 'PASSWORD_NOT_SET' ? 403 : 0 });
 }
+export function passwordSetupCancelledMessage(lang) {
+  return lang === 'en'
+    ? 'You cancelled password setup. Set a password to continue.'
+    : 'Bạn đã hủy đặt mật khẩu. Hãy đặt mật khẩu để tiếp tục.';
+}
 export function requestFirstPassword(options = {}) {
   if (options.signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
   if (!handler) return Promise.reject(passwordSetupError('PASSWORD_NOT_SET'));

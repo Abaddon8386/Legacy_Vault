@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import FirstPasswordButton from '../auth/FirstPasswordButton.jsx';
 import { assetDocumentService, validateDocuments } from '../../services/assetDocumentService.js';
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js';
 import '../common/RelatedAttachments.css';
 import './AssetFilePicker.css';
 export function DocumentPicker({files,onChange,disabled,lang='vi',existingCount=0}) {
@@ -15,7 +16,8 @@ function Documents({vaultId,assetId,accessToken,lang,onUnauthorized,readOnly=fal
   const load=()=>run(async(o,c)=>{const value=await assetDocumentService.list(vaultId,assetId,o);if(!c.signal.aborted)setItems(value);});
   return <section className="lv-asset-documents"><button type="button" disabled={busy} onClick={()=>{setOpened(true);load();}}>{en?'PDF / Word documents':'Tài liệu PDF / Word'}</button>{opened&&<>
     {busy&&<p role="status">{en?'Processing…':'Đang xử lý…'}</p>}
-    {error&&<p role="alert">{error.code==='REAUTH_FAILED'?(en?'Incorrect password. Try again.':'Mật khẩu không đúng. Vui lòng thử lại.'):error.status===429?(en?'Too many attempts. Try later.':'Quá nhiều lần thử. Vui lòng thử lại sau.'):(en?'Unable to complete. Reload before retrying.':'Chưa thực hiện được. Tải lại để kiểm tra trước khi thử lại.')}</p>}
+    {error?.code==='PASSWORD_SETUP_CANCELLED' && <p role="status">{passwordSetupCancelledMessage(lang)}</p>}
+    {error&&error.code!=='PASSWORD_SETUP_CANCELLED'&&<p role="alert">{error.code==='REAUTH_FAILED'?(en?'Incorrect password. Try again.':'Mật khẩu không đúng. Vui lòng thử lại.'):error.status===429?(en?'Too many attempts. Try later.':'Quá nhiều lần thử. Vui lòng thử lại sau.'):(en?'Unable to complete. Reload before retrying.':'Chưa thực hiện được. Tải lại để kiểm tra trước khi thử lại.')}</p>}
     <button type="button" disabled={busy} onClick={load}>{en?'Reload documents':'Tải lại tài liệu'}</button>
     {items&&<><ul>{items.map(item=><li key={item.id}>{item.fileName} · {item.sizeBytes} B <button type="button" disabled={busy} onClick={()=>{setTarget(item);setPassword('');}}>{en?'Download':'Tải xuống'}</button>{!readOnly&&<button type="button" disabled={busy} onClick={()=>setRemoveTarget(item)}>{en?'Delete':'Xóa'}</button>}</li>)}</ul>{!items.length&&<p>{en?'No documents attached.':'Chưa có tài liệu đính kèm.'}</p>}
       {!readOnly&&<><DocumentPicker files={files} onChange={setFiles} disabled={busy} lang={lang}/><button type="button" disabled={busy||!files.length} onClick={()=>run(async(o,c)=>{validateDocuments(files,items.length);await assetDocumentService.upload(vaultId,assetId,files,o);if(c.signal.aborted)return;setFiles([]);setItems(null);const value=await assetDocumentService.list(vaultId,assetId,o);if(!c.signal.aborted)setItems(value);})}>{en?'Upload documents':'Tải tài liệu lên'}</button></>}
