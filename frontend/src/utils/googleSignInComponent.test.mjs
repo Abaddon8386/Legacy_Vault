@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
+import { getAuthMessage } from './loginService.js';
 
 const dom = new JSDOM('<html><body></body></html>', { url: 'http://localhost:5173/login' });
 globalThis.window = dom.window;
@@ -52,6 +53,36 @@ async function mount(Component, props) {
       host.remove();
     },
   };
+}
+
+for (const entry of ['src/pages/auth/LoginPage.jsx','src/pages/auth/RegisterPageHenedo.jsx']) {
+  test(`${entry}: first-time Google users enter with the server session; errors are Google-specific in VI/EN`, async () => {
+    const oldFetch=globalThis.fetch;
+    let callback, response, signedIn;
+    window.google={accounts:{id:{initialize:config=>{callback=config.callback;},renderButton(){}}}};
+    const Page=await loadComponent(entry,{'import.meta.env.VITE_GOOGLE_CLIENT_ID':'"test.apps.googleusercontent.com"'});
+    const user={id:'11111111-1111-4111-8111-111111111111',email:'new@example.com',fullName:'Google Owner',roles:['VAULT_OWNER']};
+    globalThis.fetch=async(url,init)=>{assert.equal(url,'/api/v1/auth/google');assert.deepEqual(JSON.parse(init.body),{credential:'fresh-google'});return response;};
+    try {
+      for(const lang of ['vi','en']) {
+        window.history.replaceState({},'',`/login?lang=${lang}`);
+        const v=await mount(Page,{onAuthenticated:session=>{signedIn=session;}});
+        try {
+          for(const [code,status] of [['GOOGLE_EMAIL_ALREADY_REGISTERED',409],['GOOGLE_EMAIL_NOT_VERIFIED',401],['INVALID_CREDENTIALS',401]]) {
+            response=new Response(JSON.stringify({code,message:'unsafe server text'}),{status,headers:{'Content-Type':'application/json'}});
+            await act(async()=>callback({credential:'fresh-google'}));
+            const safeCode=code==='INVALID_CREDENTIALS'?'GOOGLE_ACCOUNT_UNAVAILABLE':code;
+            assert.ok(v.host.textContent.includes(getAuthMessage(safeCode,lang)));
+            assert.doesNotMatch(v.host.textContent,/unsafe server text|email hoặc mật khẩu không chính xác|Invalid email address or password/);
+            if (code === 'INVALID_CREDENTIALS') assert.doesNotMatch(v.host.textContent, /bị khóa|may be locked/i);
+          }
+          response=new Response(JSON.stringify({accessToken:'server-session',tokenType:'Bearer',expiresInSeconds:3600,user}),{status:200,headers:{'Content-Type':'application/json'}});
+          await act(async()=>callback({credential:'fresh-google'}));
+          assert.equal(signedIn.accessToken,'server-session');assert.equal(signedIn.user.id,user.id);
+        } finally {await v.close();}
+      }
+    } finally {globalThis.fetch=oldFetch;delete window.google;window.history.replaceState({},'','/login');}
+  });
 }
 
 test('GoogleSignInButton - Renders disabled fallback with friendly message when Client ID is unconfigured', async () => {
