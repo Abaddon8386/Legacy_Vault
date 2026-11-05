@@ -58,6 +58,38 @@ test('return success flag alone never activates a plan', async () => {
   try { assert.match(view.host.textContent, /Đang chờ VNPay/); assert.equal(paid, 0); }
   finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
 });
+test('cancelled return shows a cancel notice, clears the query and does not poll', async () => {
+  const previous = globalThis.fetch; const reads = []; const reports = [];
+  window.history.replaceState({}, '', '/subscription?lang=vi&vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=24&vnp_TransactionStatus=02');
+  globalThis.fetch = async (path, init) => {
+    if (path.includes('return-failure')) { reports.push({ path, method: init.method }); return response({ status: 'FAILED' }); }
+    if (!path.endsWith('subscription-plans')) reads.push(path);
+    return response([plan]);
+  };
+  const view = await mount();
+  try {
+    assert.match(view.host.textContent, /đã hủy thanh toán/); assert.equal(reads.length, 0); assert.equal(window.location.search, '?lang=vi');
+    assert.equal(reports.length, 1); assert.equal(reports[0].method, 'POST');
+    assert.match(reports[0].path, /payments\/12345678-1234-1234-1234-123456789abc\/return-failure\?/);
+    assert.match(reports[0].path, /vnp_ResponseCode=24/); assert.doesNotMatch(reports[0].path, /lang=/);
+  }
+  finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
+test('closing the pending notice keeps it closed while polling continues', async () => {
+  const previous = globalThis.fetch;
+  window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc');
+  globalThis.fetch = async path => response(path.endsWith('subscription-plans') ? [plan]
+    : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'PENDING' });
+  const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
+  await act(async () => { root.render(React.createElement(Page, { accessToken: 'fixture', lang: 'vi', currentPlan: 'BASIC', onPaid() {}, PlanView: () => null, planViewProps: {} })); });
+  const view = { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
+  try {
+    assert.match(view.host.textContent, /Đang chờ VNPay/);
+    await act(async () => view.host.querySelector('[aria-label="Đóng"]').click());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 3300)); });
+    assert.doesNotMatch(view.host.textContent, /Đang chờ VNPay/);
+  } finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
+});
 test('verified backend success refreshes once and clears callback query', async () => {
   const previous = globalThis.fetch; let paid = 0;
   window.history.replaceState({}, '', '/subscription?vnp_TxnRef=12345678123412341234123456789abc&vnp_ResponseCode=00');

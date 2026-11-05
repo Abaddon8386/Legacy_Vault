@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { paymentCatalog, paymentQuote, createPayment, readPayment } from '../../utils/paymentService.js';
+import { paymentCatalog, paymentQuote, createPayment, readPayment, reportPaymentReturnFailure } from '../../utils/paymentService.js';
 import { Button } from '../../components/common/Button.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
 import './PaymentCheckout.css';
@@ -15,6 +15,9 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
   const requestKey = useRef(null);
   const inFlight = useRef(false);
   const alive = useRef(true);
+  const dismissed = useRef(false);
+  const onPaidRef = useRef(onPaid);
+  useEffect(() => { onPaidRef.current = onPaid; }, [onPaid]);
   const en = lang === 'en';
   useEffect(() => {
     alive.current = true;
@@ -29,9 +32,29 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     return () => { alive.current = false; controller.abort(); };
   }, [accessToken, catalogRetry]);
   useEffect(() => {
-    const reference = new URLSearchParams(window.location.search).get('vnp_TxnRef');
+    const query = new URLSearchParams(window.location.search);
+    const reference = query.get('vnp_TxnRef');
     if (!reference) return;
-    const id = reference.replace(/^([a-f0-9]{8})([a-f0-9]{4})([a-f0-9]{4})([a-f0-9]{4})([a-f0-9]{12})$/i, '$1-$2-$3-$4-$5');
+    const paymentId = reference.replace(/^([a-f0-9]{8})([a-f0-9]{4})([a-f0-9]{4})([a-f0-9]{4})([a-f0-9]{12})$/i, '$1-$2-$3-$4-$5');
+    const id = paymentId;
+    const clearCallbackQuery = () => {
+      const url = new URL(window.location.href);
+      for (const key of [...url.searchParams.keys()]) if (key.startsWith('vnp_')) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    };
+    const responseCode = query.get('vnp_ResponseCode');
+    // The browser return only tells us the user did not finish; it never activates a plan.
+    if (responseCode && responseCode !== '00') {
+      const notice = responseCode === '24'
+        ? (en ? 'You cancelled the payment. Your plan has not changed.' : 'Bạn đã hủy thanh toán. Gói chưa thay đổi.')
+        : (en ? 'Payment was not completed. Your plan has not changed.' : 'Thanh toán chưa hoàn tất. Gói chưa thay đổi.');
+      clearCallbackQuery();
+      queueMicrotask(() => { if (alive.current) setMessage(notice); });
+      // Best effort: the signed query lets the server close the order so another checkout can start at once.
+      reportPaymentReturnFailure(paymentId, query, { accessToken }).catch(() => {});
+      return;
+    }
+    dismissed.current = false;
     const controller = new AbortController();
     let timer, attempts = 0;
     const check = async () => {
@@ -43,12 +66,12 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
             PENDING: 'Waiting for VNPay confirmation. You can refresh this page.', EXPIRED: 'Checkout expired. Any delayed confirmation will be processed by the server.' }
           : { SUCCEEDED: 'Đã xác nhận thanh toán và kích hoạt gói.', FAILED: 'Thanh toán thất bại. Gói chưa thay đổi.',
             PENDING: 'Đang chờ VNPay xác nhận. Bạn có thể tải lại trang.', EXPIRED: 'Liên kết thanh toán đã hết hạn. Backend vẫn xử lý xác nhận đến muộn.' };
-        setMessage(labels[p.status]);
+        const waiting = ['PENDING', 'EXPIRED'].includes(p.status);
+        // After the user closes the popup, keep checking quietly; only a final result reopens it.
+        if (!(waiting && dismissed.current)) setMessage(labels[p.status]);
         if (p.status === 'SUCCEEDED') {
-          const url = new URL(window.location.href);
-          for (const key of [...url.searchParams.keys()]) if (key.startsWith('vnp_')) url.searchParams.delete(key);
-          window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
-          onPaid();
+          clearCallbackQuery();
+          onPaidRef.current();
         }
         else if (['PENDING', 'EXPIRED'].includes(p.status) && ++attempts < 20) timer = setTimeout(check, 3000);
       } catch (error) {
@@ -57,7 +80,7 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     };
     check();
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [accessToken, en, onPaid]);
+  }, [accessToken, en]);
   const fail = error => {
     const code = error?.code;
     setMessage(code === 'SUBSCRIPTION_UPGRADE_UNAVAILABLE'
@@ -91,7 +114,7 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
   const tier = ['BASIC', 'STANDARD', 'EXTENDED'];
   const planName = code => ({ BASIC: en ? 'Basic' : 'Cơ bản', STANDARD: en ? 'Standard' : 'Tiêu chuẩn', EXTENDED: en ? 'Extended' : 'Mở rộng' }[code] || code);
   const retryCatalog = () => { setCatalogLoading(true); setCatalogError(false); setCatalogRetry(value => value + 1); };
-  const close = () => { if (!inFlight.current) { setSelection(null); setMessage(''); } };
+  const close = () => { if (!inFlight.current) { dismissed.current = true; setSelection(null); setMessage(''); } };
   return <>
     {PlanView && <PlanView {...planViewProps} payment={{ plans, busy, onChoose: choose, catalogLoading, catalogError, retryCatalog }} />}
     {!PlanView && <section className="lv-payment-checkout" aria-label={en ? 'Buy a lifetime plan' : 'Mua gói trọn đời'} aria-busy={busy}>
