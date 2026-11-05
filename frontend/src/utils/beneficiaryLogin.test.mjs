@@ -47,7 +47,7 @@ for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs i
   const currentUser = { ...user, roles: [accountRole] };
   const destination = accountRole === 'ADMIN' ? '/admin' : '/shared-with-me';
   const heading = accountRole === 'ADMIN' ? '#admin-home-title' : '#shared-heading';
-  const menuLabel = accountRole === 'ADMIN' ? 'Tổng quan quản trị' : 'Được chia sẻ với tôi';
+  const menuLabel = accountRole === 'ADMIN' ? 'Tổng quan quản trị' : 'Tài sản thụ hưởng';
   globalThis.__beneficiaryUser = currentUser;
   const originalFetch = globalThis.fetch; const urls = [];
   globalThis.fetch = async url => { urls.push(url); return new Response(JSON.stringify(url.endsWith('/auth/email-verification')?{verified:false,verifiedAt:null,requestAvailable:false,lastRequestState:null}:url.includes('/received-assets?') ? { content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 } : currentUser), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
@@ -57,11 +57,11 @@ for (const accountRole of ['BENEFICIARY', 'ADMIN']) test(`${accountRole} signs i
     assert.equal(window.location.pathname, destination);
     assert.ok(view.host.querySelector(heading));
     const nav = view.host.querySelector('.lv-sidebar-nav');
-    assert.ok(!nav.textContent.includes('Kho di sản số'));
+    assert.ok(!nav.textContent.includes('Kho di sản'));
     await act(async () => view.host.querySelector('.lv-user-badge-card').click());
     await act(async () => [...view.host.querySelectorAll('.lv-account-menu-item')].find(button => /Hồ sơ tài khoản/.test(button.textContent)).click());
     assert.equal(window.location.pathname, '/account/profile');
-    assert.ok(!view.host.querySelector('.lv-sidebar-nav').textContent.includes('Kho di sản số'));
+    assert.ok(!view.host.querySelector('.lv-sidebar-nav').textContent.includes('Kho di sản'));
     await act(async () => [...view.host.querySelectorAll('.lv-nav-item')].find(button => button.textContent.includes(menuLabel)).click());
     assert.equal(window.location.pathname, destination);
     await act(async () => view.host.querySelector('.lv-user-badge-card').click());
@@ -96,6 +96,6 @@ test('created roleless account signs in to Shared with me without Owner or deliv
     assert.ok(view.host.querySelector('#case-link-number'));
     assert.equal(view.host.querySelector('#case-link-number').disabled, false);
     assert.equal(urls.some(url => url.includes('received-assets') || url.includes('/vault')), false);
-    assert.equal(view.host.querySelector('.lv-sidebar-nav').textContent.includes('Kho di sản số'), false);
+    assert.equal(view.host.querySelector('.lv-sidebar-nav').textContent.includes('Kho di sản'), false);
   } finally { await view.close(); globalThis.fetch = originalFetch; delete globalThis.__beneficiaryUser; }
 });
