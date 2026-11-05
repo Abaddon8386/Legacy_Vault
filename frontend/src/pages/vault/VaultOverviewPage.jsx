@@ -17,6 +17,7 @@ export default function VaultOverviewPage({
   lang = 'vi',
   accessToken,
   ownerId,
+  ownerName,
   onUnauthorized,
   showDevToolbar = false,
   onNavigateToLogin,
@@ -102,7 +103,6 @@ export default function VaultOverviewPage({
       overviewEyebrow: 'KHO DI SẢN SỐ',
       createdLabel: 'Khởi tạo:',
       ownerRoleLabel: 'Chủ sở hữu:',
-      ownerRoleVal: 'Chủ sở hữu cá nhân',
       overviewHeading: 'Tổng quan Kho di sản',
       statusHeading: 'Trạng thái vận hành:',
       createAnotherNotice:
@@ -115,7 +115,6 @@ export default function VaultOverviewPage({
       overviewEyebrow: 'HERITAGE VAULT',
       createdLabel: 'Initialized:',
       ownerRoleLabel: 'Ownership:',
-      ownerRoleVal: 'Personal Vault Owner',
       overviewHeading: 'Heritage Sanctuary Overview',
       statusHeading: 'Operational Status:',
       createAnotherNotice:
@@ -198,10 +197,10 @@ export default function VaultOverviewPage({
                       : (lang === 'en' ? 'Not recorded' : 'Chưa ghi nhận')}
                   </span>
                 </div>
-                <div className="lv-meta-item">
+                {ownerName && <div className="lv-meta-item">
                   <span className="lv-meta-label">{t.ownerRoleLabel}</span>
-                  <span className="lv-meta-value">{t.ownerRoleVal}</span>
-                </div>
+                  <span className="lv-meta-value">{ownerName}</span>
+                </div>}
 
               </div>
             </div>

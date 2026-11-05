@@ -1711,7 +1711,7 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} onNavigateToSubscription={() => navigateTo('/subscription')} />
             : isDmsRoute ? <DMSOverviewPage graceActions={dmsGraceActions} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
-              : <VaultOverviewPage onCreated={() => setRefreshTrigger(n => n + 1)} onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
+              : <VaultOverviewPage onCreated={() => setRefreshTrigger(n => n + 1)} onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} ownerName={session?.user.fullName} showDevToolbar={preview} />}
     </AppShell></div>;
   }
   if (path === '/') {

@@ -197,7 +197,6 @@
   border-color: rgba(197, 160, 89, 0.45);
   color: #ffffff;
   font-weight: 600;
-  box-shadow: inset 0 0 12px rgba(197, 160, 89, 0.12);
 }
 
 /* Single active marker: a thin gold bar on the left edge (replaces the old dot). */
@@ -295,7 +294,7 @@
   height: 32px;
   border-radius: 50%;
   background: var(--lv-accent-gold, #c5a059);
-  color: #ffffff;
+  color: var(--lv-brand-forest-dark, #0c2b22);
   display: grid;
   place-items: center;
   font-size: 14px;
