@@ -21,7 +21,7 @@ export const publicInfoContent = {
           title: 'Kho di sản',
           items: [
             ['Tôi có thể lưu gì trong kho?', 'Bạn có thể lưu nội dung tài sản số, tệp đính kèm và các phiên bản di chúc số. Xem gói đang sử dụng để biết giới hạn số tài sản và dung lượng lưu trữ.'],
-            ['Điều gì xảy ra khi tôi bỏ lỡ lịch xác nhận hoạt động?', 'Hệ thống chuyển lịch xác nhận sang trạng thái cảnh báo. Cảnh báo và việc hết thời gian gia hạn không tự xác nhận tử vong, mở kho hoặc chuyển giao tài sản.'],
+            ['Điều gì xảy ra khi tôi bỏ lỡ lịch xác nhận hoạt động?', 'Hệ thống chuyển lịch xác nhận sang trạng thái cảnh báo. Cảnh báo và việc hết thời gian ân hạn không tự xác nhận tử vong, mở kho hoặc chuyển giao tài sản.'],
           ],
         },
         {
@@ -29,7 +29,7 @@ export const publicInfoContent = {
           title: 'Người thụ hưởng',
           items: [
             ['Tôi nhận được lời mời, bắt đầu từ đâu?', 'Làm theo hướng dẫn trong lời mời để đăng nhập hoặc tạo tài khoản. Quyền xem tài sản phụ thuộc vào việc liên kết tài khoản với hồ sơ và tiến độ bàn giao.'],
-            ['Tôi tìm tài sản đã nhận ở đâu?', 'Đăng nhập bằng tài khoản người thụ hưởng và mở mục Tài sản đã nhận. Bạn chỉ xem được tài sản đã bàn giao cho chính mình.'],
+            ['Tôi tìm tài sản đã nhận ở đâu?', 'Đăng nhập bằng tài khoản người thụ hưởng, chọn Tài sản thụ hưởng trên thanh bên rồi xem phần Tài sản đã nhận. Bạn chỉ xem được tài sản đã bàn giao cho chính mình.'],
           ],
           action: ['/login', 'Đến trang đăng nhập'],
         },
@@ -66,7 +66,7 @@ export const publicInfoContent = {
       related: ['Tìm hướng dẫn sử dụng LegacyVault', '/support'],
     },
     privacy: {
-      title: 'Điều khoản bảo mật',
+      title: 'Bảo mật và quyền riêng tư',
       intro: 'Tìm hiểu LegacyVault lưu thông tin nào, bảo vệ nội dung trong kho ra sao và kiểm tra quyền truy cập như thế nào.',
       notice: 'Thông tin này mô tả các cơ chế đang có trong sản phẩm. Chính sách quyền riêng tư chính thức đang được hoàn thiện.',
       sections: [
@@ -135,7 +135,7 @@ export const publicInfoContent = {
           title: 'For beneficiaries',
           items: [
             ['I received an invitation. Where do I start?', 'Follow the invitation instructions to sign in or create an account. Access depends on linking your account to the case and on the progress of the handover.'],
-            ['Where can I find the assets I received?', 'Sign in as a beneficiary and open Received assets. You can see the assets that have been handed over to you.'],
+            ['Where can I find the assets I received?', 'Sign in as a beneficiary, choose Shared with me in the sidebar, and look under Received assets. You can see the assets that have been handed over to you.'],
           ],
           action: ['/login', 'Go to sign-in'],
         },

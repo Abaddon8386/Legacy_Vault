@@ -1,4 +1,5 @@
 import { Shield } from 'lucide-react';
+import { publicInfoContent } from './publicInfoContent.js';
 
 export default function LandingFooter({ lang }) {
   const en = lang === 'en';
@@ -55,7 +56,7 @@ export default function LandingFooter({ lang }) {
         </nav>
         <div className="lv-landing-footer-bottom">
           <small>© 2026 LegacyVault</small>
-          <a href={privacy}>{en ? 'Privacy & Security' : 'Điều khoản bảo mật'}</a>
+          <a href={privacy}>{publicInfoContent[lang].privacy.title}</a>
         </div>
       </div>
     </footer>

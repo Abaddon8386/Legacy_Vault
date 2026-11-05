@@ -225,7 +225,7 @@ test('the footer groups links by topic and keeps page anchors and language in th
       ]);
       const legal = footer.querySelector('.lv-landing-footer-bottom a');
       assert.equal(legal.getAttribute('href'), privacy);
-      assert.equal(legal.textContent, en ? 'Privacy & Security' : 'Điều khoản bảo mật');
+      assert.equal(legal.textContent, en ? 'Privacy & Security' : 'Bảo mật và quyền riêng tư');
       for (const link of footer.querySelectorAll('a[href^="#"]')) {
         assert.ok(view.host.querySelector(link.getAttribute('href')), link.href);
       }
@@ -245,10 +245,33 @@ test('support, privacy and about are public routes with working content links', 
       assert.equal(support.host.querySelectorAll('details').length, 6);
       assert.ok(support.host.querySelector('a[href="/forgot-password?lang=vi"]'));
       assert.ok(support.host.querySelector('a[href="/privacy?lang=vi"]'));
+      assert.match(support.host.querySelector('#beneficiaries').textContent, /chọn Tài sản thụ hưởng trên thanh bên/);
+      assert.match(support.host.querySelector('#vault').textContent, /thời gian ân hạn/);
+      const languageLink = support.host.querySelector('.lv-public-info__language');
+      assert.equal(languageLink.getAttribute('href'), '/support?lang=en#beneficiaries');
       for (const link of support.host.querySelectorAll('nav a[href^="#"]')) {
         assert.ok(support.host.querySelector(link.getAttribute('href')), link.href);
       }
+      await act(async () => {
+        const hashChanged = new Promise(resolve => window.addEventListener('hashchange', resolve, { once: true }));
+        window.location.hash = '#faq';
+        await hashChanged;
+      });
+      assert.equal(languageLink.getAttribute('href'), '/support?lang=en#faq');
     } finally { await support.close(); }
+
+    window.history.replaceState({}, '', '/support?lang=en#beneficiaries');
+    const englishSupport = await mount(App);
+    try {
+      assert.match(englishSupport.host.querySelector('#beneficiaries').textContent, /choose Shared with me in the sidebar/);
+      assert.equal(englishSupport.host.querySelector('.lv-public-info__language').getAttribute('href'), '/support?lang=vi#beneficiaries');
+    } finally { await englishSupport.close(); }
+
+    window.history.replaceState({}, '', '/privacy?lang=vi');
+    const vietnamesePrivacy = await mount(App);
+    try {
+      assert.equal(vietnamesePrivacy.host.querySelector('h1').textContent, 'Bảo mật và quyền riêng tư');
+    } finally { await vietnamesePrivacy.close(); }
 
     window.history.replaceState({}, '', '/privacy?lang=en');
     const privacy = await mount(App);
