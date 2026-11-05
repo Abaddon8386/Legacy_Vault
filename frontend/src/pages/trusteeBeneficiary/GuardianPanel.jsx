@@ -119,6 +119,7 @@ function GuardianContent({
   const [touched, setTouched] = useState({});
   const [history, setHistory] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [adultProbeFailed, setAdultProbeFailed] = useState(false);
 
   const controller = useRef(null);
   const fieldRefs = useRef({});
@@ -132,7 +133,11 @@ function GuardianContent({
     const c = new AbortController();
     guardianService.get(vaultId, beneficiaryId, { accessToken, lang, signal: c.signal })
       .then((value) => { if (!c.signal.aborted) setContext(value); })
-      .catch((err) => { if (!c.signal.aborted && err.status === 401) onUnauthorized?.(); });
+      .catch((err) => {
+        if (c.signal.aborted) return;
+        if (err.status === 401) onUnauthorized?.();
+        else setAdultProbeFailed(true); // unknown: keep the panel so the owner can load it and retry
+      });
     return () => c.abort();
   }, [isAdultHint, vaultId, beneficiaryId, accessToken, lang, onUnauthorized]);
 
@@ -345,7 +350,7 @@ function GuardianContent({
   const baseId = `guardian-${beneficiaryId || 'panel'}`;
 
   // Stays only long enough to confirm a revocation.
-  if (isAdultHint && !successMsg && !context?.guardian && (!context || isAdult)) return null;
+  if (isAdultHint && !adultProbeFailed && !successMsg && !context?.guardian && (!context || isAdult)) return null;
 
   return (
     <section

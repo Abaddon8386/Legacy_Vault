@@ -55,6 +55,18 @@ test('adult beneficiary gets no add-guardian interface but keeps an existing gua
   await open(minor);assert.ok(button(minor.host,'Thêm / thay thế người giám hộ'));await minor.close();
  } finally { globalThis.fetch=previous; }
 });
+test('adult beneficiary keeps the guardian panel when the first read fails, so it can be loaded again',async()=>{
+ const previous=globalThis.fetch;const guardian={id:other,fullName:'Synthetic Guardian',relationship:'Parent',email:'g@example.test'};
+ let healthy=false;globalThis.fetch=async()=>healthy?json({...ctx,ageStatus:'ADULT',guardianRecommended:false,warningCode:null,guardian}):json({code:'UNAVAILABLE'},503);
+ const view=await mount(Guardian,{vaultId:id,beneficiaryId:id,accessToken:'synthetic',lang:'vi',isAdultHint:true});
+ try{
+  await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  assert.ok(button(view.host,'Người giám hộ'),'a failed read must not hide a possibly existing guardian');
+  healthy=true;
+  await act(async()=>button(view.host,'Người giám hộ').click());await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  assert.match(view.host.textContent,/Synthetic Guardian/);assert.ok(button(view.host,'Thu hồi người giám hộ'));
+ } finally { globalThis.fetch=previous;await view.close(); }
+});
 test('guardian panel loads on demand and aborts pending writes when principal changes',async()=>{
  const old=globalThis.fetch;let release,signal,writes=0;
  globalThis.fetch=async(url,init)=>{if(init.method==='PUT'){writes++;signal=init.signal;return new Promise(resolve=>{release=resolve;});}return json(ctx);};
