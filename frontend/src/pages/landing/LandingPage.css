@@ -131,7 +131,6 @@
   max-inline-size: 1268px;
   margin-inline: auto;
 }
-.lv-landing-footer-top,
 .lv-landing-footer-bottom {
   display: flex;
   flex-wrap: wrap;
@@ -139,7 +138,7 @@
   align-items: center;
   gap: 12px 24px;
 }
-.lv-landing-footer-top { padding-block-end: 32px; }
+.lv-landing-footer-brand { padding-block-end: 32px; }
 .lv-landing-footer-brand a {
   display: inline-flex;
   align-items: center;
@@ -149,28 +148,6 @@
 }
 .lv-landing-footer-brand svg { color: #d2bd89; }
 .lv-landing-footer-brand p { font-size: 14px; color: #bdcfc4; }
-.lv-landing-footer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-.lv-landing-footer-actions button {
-  min-block-size: 44px;
-  padding: 8px 14px;
-  border: 1px solid #92a89a;
-  border-radius: 6px;
-  color: #f6f5ee;
-  font-weight: 600;
-}
-.lv-landing-footer-actions button:hover { background: #28483d; }
-.lv-landing-footer-actions .lv-landing-footer-primary {
-  border-color: #e2c88f;
-  background: #e2c88f;
-  color: #102a23;
-}
-.lv-landing-footer-actions .lv-landing-footer-primary:hover { background: #f2dcac; }
 .lv-landing-footer-nav {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -210,7 +187,7 @@
   .lv-landing-footer-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) {
-  .lv-landing-footer-top { align-items: flex-start; flex-direction: column; gap: 20px; padding-block-end: 24px; }
+  .lv-landing-footer-brand { padding-block-end: 24px; }
   .lv-landing-footer-nav { padding-block: 24px; }
   .lv-landing-footer-bottom { padding-block-start: 18px; }
 }

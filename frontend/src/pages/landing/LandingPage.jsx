@@ -85,7 +85,6 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
         <button data-reveal="up" className="lv-landing-end-cta" disabled={isRestoringSession} onClick={() => (isDashboardEligible ? onDashboard : onRegister)?.(lang)}>{isDashboardEligible ? (en ? 'Dashboard' : 'Bảng điều khiển') : (en ? 'Create an account' : 'Tạo tài khoản')}<ArrowUpRight size={18} /></button>
       </section>
     </main>
-    <LandingFooter lang={lang} isDashboardEligible={isDashboardEligible} isRestoringSession={isRestoringSession}
-      onLogin={onLogin} onRegister={onRegister} onDashboard={onDashboard} />
+    <LandingFooter lang={lang} />
   </div>;
 }

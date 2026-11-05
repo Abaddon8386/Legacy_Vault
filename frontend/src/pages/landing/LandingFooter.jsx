@@ -1,6 +1,6 @@
 import { Shield } from 'lucide-react';
 
-export default function LandingFooter({ lang, isDashboardEligible, isRestoringSession, onLogin, onRegister, onDashboard }) {
+export default function LandingFooter({ lang }) {
   const en = lang === 'en';
   const support = `/support?lang=${lang}`;
   const privacy = `/privacy?lang=${lang}`;
@@ -41,27 +41,9 @@ export default function LandingFooter({ lang, isDashboardEligible, isRestoringSe
   return (
     <footer id="site-footer" className="lv-landing-footer">
       <div className="lv-landing-footer-inner">
-        <div className="lv-landing-footer-top">
-          <div className="lv-landing-footer-brand">
-            <a href="#top"><Shield size={28} strokeWidth={1.6} aria-hidden="true" />LegacyVault</a>
-            <p>{en ? 'A home for your digital legacy.' : 'Nơi lưu giữ di sản số của bạn.'}</p>
-          </div>
-          <div className="lv-landing-footer-actions">
-            {isRestoringSession ? (
-              <span role="status">{en ? 'Checking…' : 'Đang kiểm tra…'}</span>
-            ) : isDashboardEligible ? (
-              <button type="button" className="lv-landing-footer-primary" onClick={() => onDashboard?.(lang)}>
-                {en ? 'Dashboard' : 'Bảng điều khiển'}
-              </button>
-            ) : (
-              <>
-                <button type="button" onClick={() => onLogin?.(lang)}>{en ? 'Sign in' : 'Đăng nhập'}</button>
-                <button type="button" className="lv-landing-footer-primary" onClick={() => onRegister?.(lang)}>
-                  {en ? 'Create an account' : 'Tạo tài khoản'}
-                </button>
-              </>
-            )}
-          </div>
+        <div className="lv-landing-footer-brand">
+          <a href="#top"><Shield size={28} strokeWidth={1.6} aria-hidden="true" />LegacyVault</a>
+          <p>{en ? 'A home for your digital legacy.' : 'Nơi lưu giữ di sản số của bạn.'}</p>
         </div>
         <nav className="lv-landing-footer-nav" aria-label={en ? 'Footer navigation' : 'Điều hướng chân trang'}>
           {groups.map(({ title, links }) => (

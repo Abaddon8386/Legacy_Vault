@@ -196,16 +196,13 @@ test('all landing calls to action preserve language and route authenticated user
   for (const authenticated of [false, true]) {
     const calls = [];
     const view = await mount(Landing, { session: authenticated ? { accessToken: 'fixture', expiresAt: Date.now()+60000, user: { id: 'owner', roles: ['VAULT_OWNER'] } } : null,
-      onRegister: lang => calls.push(['register',lang]), onDashboard: lang => calls.push(['dashboard',lang]),
-      onLogin: lang => calls.push(['login',lang]) });
+      onRegister: lang => calls.push(['register',lang]), onDashboard: lang => calls.push(['dashboard',lang]) });
     try {
       await act(async () => view.host.querySelector('.lv-landing-language').click());
       await act(async () => view.host.querySelector('.lv-landing-primary').click());
       await act(async () => view.host.querySelector('.lv-landing-end-cta').click());
-      const footerActions = [...view.host.querySelectorAll('.lv-landing-footer-actions button')];
-      assert.deepEqual(footerActions.map(button => button.textContent.trim()), authenticated ? ['Dashboard'] : ['Sign in', 'Create an account']);
-      for (const button of footerActions) await act(async () => button.click());
-      assert.deepEqual(calls, (authenticated ? ['dashboard', 'dashboard', 'dashboard'] : ['register', 'register', 'login', 'register']).map(action => [action, 'en']));
+      assert.equal(view.host.querySelector('footer button'), null);
+      assert.deepEqual(calls, [[authenticated ? 'dashboard':'register','en'],[authenticated ? 'dashboard':'register','en']]);
     } finally { await view.close(); }
   }
 });
