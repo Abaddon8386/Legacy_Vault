@@ -11,7 +11,7 @@
 .hn-will-header-actions{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
 .hn-will-card{background:#fff;border:1px solid #dedfd6;border-radius:14px;padding:26px 28px;min-width:0}
 .hn-will-card h2{margin:0 0 8px;font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);font-size:23px;font-weight:600;color:#164639;line-height:1.4;overflow-wrap:anywhere}
-.hn-will-formats{font-size:14px;color:#637068;margin:0 0 20px;line-height:1.6}
+.hn-will-formats{font-size:14px;color:#637068;margin:0 0 20px;line-height:1.6;max-width:68ch}
 .hn-will-page .lv-btn{box-shadow:none;border-radius:8px;min-height:44px;font-size:14px;transform:none;transition:background-color .15s ease}
 .hn-will-page .lv-btn--primary{background:#264a38;border-color:#264a38;color:white}
 .hn-will-page .lv-btn--primary:hover:not(:disabled){background:#193b29;transform:none;box-shadow:none}
@@ -50,10 +50,12 @@
 .hn-will-detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid #ecece5}
 .hn-will-detail-header>div{min-width:0;flex:1 1 300px}
 .hn-will-version-badge{display:inline-flex;align-items:center;font-size:14px;font-weight:600;padding:4px 7px;border-radius:5px;background:#f1f3ec;color:#526b58;font-variant-numeric:tabular-nums}
+.hn-will-history-title{margin:28px 0 16px;font-size:17px;color:#164639}
+.hn-will-legal-notice{max-width:68ch;margin:16px 0 0;padding-top:10px;border-top:1px solid #f0f3ee;font-size:14px;color:#889085;line-height:1.5}
 .hn-will-table-wrap{overflow-x: auto;border:1px solid #e2e5db;border-radius:9px}
 .hn-will-table{width:100%;border-collapse:collapse;font-size:14px;text-align:left;line-height:1.6}
-.hn-will-table th{background:#f8f9f5;color:#637068;font-weight:500;padding:12px;border-bottom:1px solid #e2e5db}
-.hn-will-table td{padding:14px 12px;border-bottom:1px solid #ecefe6;vertical-align:middle;overflow-wrap:anywhere;max-width:240px;font-variant-numeric:tabular-nums}
+.hn-will-table th{background:#faf8f5;color:#637068;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:12px 18px;border-bottom:1px solid #e2e5db;white-space:nowrap}
+.hn-will-table td{padding:14px 18px;border-bottom:1px solid #ecefe6;vertical-align:middle;overflow-wrap:anywhere;max-width:240px;font-variant-numeric:tabular-nums}
 .hn-will-table tr:last-child td{border-bottom:none}
 .hn-will-table tr:hover td{background:#fafbf7}
 .hn-will-hash-inline{font-family:monospace;font-size:14px;color:#637068;overflow-wrap:anywhere}
