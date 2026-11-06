@@ -943,7 +943,7 @@ test('Actual App case-number entry keeps received items and disables requests wi
   const v = await mount(DevApp, { caseLinkActions: null });
   try {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
-    assert.match(v.host.textContent, /Yêu cầu liên kết hồ sơ/);
+    assert.match(v.host.textContent, /Liên kết hồ sơ/);
     assert.doesNotMatch(v.host.textContent, /Liên kết mã mời/);
     assert.equal(v.host.querySelector('#case-link-number').disabled, true);
     assert.match(v.host.textContent, /Chưa hỗ trợ gửi yêu cầu/);

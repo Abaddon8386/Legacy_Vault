@@ -669,10 +669,12 @@ test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling con
   }
 });
 
-test('status reload button is hidden when there are no requests and visible when requests exist', async () => {
+test('empty state shows one link card, and the requests card with its reload button appears only when requests exist', async () => {
   let v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [], submit: async () => {} } });
   try {
-    assert.match(v.host.textContent, /Chưa có yêu cầu nào\./);
+    assert.doesNotMatch(v.host.textContent, /Yêu cầu của tôi|Chưa có yêu cầu nào/);
+    assert.doesNotMatch(v.host.textContent, /Tài sản đã nhận/);
+    assert.match(v.host.textContent, /Nhân viên xác nhận xong, tài sản được giao sẽ hiện ở đây\./);
     const reloadBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Tải lại trạng thái'));
     assert.equal(reloadBtn, undefined, 'Reload button must be hidden when requests list is empty');
   } finally { await v.close(); }

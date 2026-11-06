@@ -198,24 +198,18 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     <><BeneficiaryHandoverStatus userId={session?.user?.id || user?.id || 'preview'} accessToken={session?.accessToken} lang={lang} loadStatus={caseLinkActions?.loadHandoverStatus} preview={preview} />
     <ReceivedAssets actions={receivedAssetActions} userId={session?.user?.id || user?.id} accessToken={session?.accessToken} lang={lang}
       isDevPreview={preview} scenario={previewScenario} onUnauthorized={onUnauthorized} refreshKey={`${refreshKey}:${readRevision}`} onStageChange={recordStage} /></>
-  ) : (
-    <section className="lv-shared-card lv-owner-card" role="note">
-      <h2>{en ? 'Received assets' : 'Tài sản đã nhận'}</h2>
-      <p>{en
-        ? 'Assets appear here after staff confirm the link and handover.'
-        : 'Tài sản hiện ở đây sau khi nhân viên xác nhận liên kết và bàn giao.'}</p>
-    </section>
-  );
+  ) : null;
 
   const linkCard = (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="link-section-title">
-      <h2 id="link-section-title">{hasDeliveredAssets ? (en ? 'Link another case' : 'Yêu cầu liên kết hồ sơ khác') : (en ? 'Request a record link' : 'Yêu cầu liên kết hồ sơ')}</h2>
+      <h2 id="link-section-title">{hasDeliveredAssets ? (en ? 'Link another case' : 'Liên kết hồ sơ khác') : (en ? 'Link a case' : 'Liên kết hồ sơ')}</h2>
       <form onSubmit={e => { e.preventDefault(); if (code.trim()) mutate('submit'); }} noValidate>
         <label htmlFor="case-link-number">{en ? 'Case number' : 'Mã hồ sơ'}</label>
         <div className="lv-shared-input-row"><input id="case-link-number" className="lv-shared-input" value={code} onChange={e => setCode(e.target.value)}
           placeholder="HS-2026-000123" autoComplete="off" autoCapitalize="characters" spellCheck="false" disabled={!ready || pending} aria-describedby={!ready ? 'case-link-availability' : undefined} />
           <Button className="lv-shared-btn lv-shared-btn-primary" type="submit" disabled={!ready || pending || loading || uncertain || !code.trim()} isLoading={pending}>{en ? 'Send request' : 'Gửi yêu cầu'}</Button></div>
       </form>
+      {!canRead && <p className="lv-link-hint">{en ? 'Once staff confirm, delivered assets appear here.' : 'Nhân viên xác nhận xong, tài sản được giao sẽ hiện ở đây.'}</p>}
       {!eligible ? <FeedbackNotice tone="warning">{en ? 'Use a personal recipient account to request a link.' : 'Hãy dùng tài khoản cá nhân của người nhận để gửi yêu cầu.'}</FeedbackNotice>
         : !ready && <FeedbackNotice id="case-link-availability">{en ? 'Requests are not available yet.' : 'Chưa hỗ trợ gửi yêu cầu.'}</FeedbackNotice>}
       {notice && <FeedbackNotice tone="success">{notice === 'submit'
@@ -225,13 +219,11 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     </section>
   );
 
-  const requestsCard = ready && (
+  const requestsCard = ready && (requests.length > 0 || error) && (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="my-requests-title" aria-busy={loading}>
       <div className="lv-link-heading"><h2 id="my-requests-title">{en ? 'My requests' : 'Yêu cầu của tôi'}</h2>
-        {(requests.length > 0 || error) && (
-          <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button>
-        )}</div>
-      {loading ? <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p> : !error && !requests.length && <p>{en ? 'No requests yet.' : 'Chưa có yêu cầu nào.'}</p>}
+        <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button></div>
+      {loading && <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
       <ul className="lv-link-requests">{requests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
         <div>
           <strong>{item.caseNumber || `${en ? 'Request' : 'Yêu cầu'} #${item.id.slice(0, 8)}`}</strong>
@@ -260,9 +252,11 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     <div className="lv-shared-header"><h1 id="shared-heading" className="lv-shared-title">{en ? 'Shared with me' : 'Tài sản thụ hưởng'}</h1></div>
     {preview && <FeedbackNotice tone="warning">{en ? 'UI preview — sample data, no server changes.' : 'Xem trước giao diện — dữ liệu minh họa, chưa lưu lên máy chủ.'}</FeedbackNotice>}
 
-    <div key="assets-wrapper" style={{ order: hasDeliveredAssets ? 1 : 3 }}>
-      {assetsSection}
-    </div>
+    {assetsSection && (
+      <div key="assets-wrapper" style={{ order: hasDeliveredAssets ? 1 : 3 }}>
+        {assetsSection}
+      </div>
+    )}
     <div key="link-wrapper" style={{ order: hasDeliveredAssets ? 2 : 1 }}>
       {linkCard}
     </div>
