@@ -194,11 +194,21 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   }
   const hasDeliveredAssets = ['PARTIAL', 'RECEIVED'].includes(receivedStage);
 
+  const emptyAssets = !canRead ? (
+    <section className="lv-shared-card lv-owner-card lv-shared-empty" aria-labelledby="delivered-empty-title">
+      <span className="lv-shared-card__icon-wrap" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg></span>
+      <div>
+        <h2 id="delivered-empty-title">{en ? 'Delivered assets' : 'Tài sản được giao'}</h2>
+        <p>{en ? 'No assets yet. Once staff confirm, delivered assets appear here.' : 'Chưa có tài sản nào. Nhân viên xác nhận xong, tài sản được giao sẽ hiện ở đây.'}</p>
+      </div>
+    </section>
+  ) : null;
+
   const assetsSection = canRead ? (
     <><BeneficiaryHandoverStatus userId={session?.user?.id || user?.id || 'preview'} accessToken={session?.accessToken} lang={lang} loadStatus={caseLinkActions?.loadHandoverStatus} preview={preview} />
     <ReceivedAssets actions={receivedAssetActions} userId={session?.user?.id || user?.id} accessToken={session?.accessToken} lang={lang}
       isDevPreview={preview} scenario={previewScenario} onUnauthorized={onUnauthorized} refreshKey={`${refreshKey}:${readRevision}`} onStageChange={recordStage} /></>
-  ) : null;
+  ) : emptyAssets;
 
   const linkCard = (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="link-section-title">
@@ -209,7 +219,6 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
           placeholder="HS-2026-000123" autoComplete="off" autoCapitalize="characters" spellCheck="false" disabled={!ready || pending} aria-describedby={!ready ? 'case-link-availability' : undefined} />
           <Button className="lv-shared-btn lv-shared-btn-primary" type="submit" disabled={!ready || pending || loading || uncertain || !code.trim()} isLoading={pending}>{en ? 'Send request' : 'Gửi yêu cầu'}</Button></div>
       </form>
-      {!canRead && <p className="lv-link-hint">{en ? 'Once staff confirm, delivered assets appear here.' : 'Nhân viên xác nhận xong, tài sản được giao sẽ hiện ở đây.'}</p>}
       {!eligible ? <FeedbackNotice tone="warning">{en ? 'Use a personal recipient account to request a link.' : 'Hãy dùng tài khoản cá nhân của người nhận để gửi yêu cầu.'}</FeedbackNotice>
         : !ready && <FeedbackNotice id="case-link-availability">{en ? 'Requests are not available yet.' : 'Chưa hỗ trợ gửi yêu cầu.'}</FeedbackNotice>}
       {notice && <FeedbackNotice tone="success">{notice === 'submit'

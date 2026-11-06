@@ -203,4 +203,8 @@
     justify-content: center;
   }
 }
-.lv-link-hint { margin: 12px 0 0; color: #52685c; font-size: 14px; }
+.lv-shared-view .lv-shared-input { flex: 0 1 420px; }
+.lv-shared-empty { display: flex; align-items: center; gap: 16px; border-style: dashed; background: #fbfaf6; box-shadow: none; }
+.lv-shared-empty h2 { margin: 0; font-size: 21px; color: #234237; }
+.lv-shared-empty p { margin: 4px 0 0; color: #52685c; font-size: 16px; }
+@media (max-width: 640px) { .lv-shared-view .lv-shared-input { flex: none; width: 100%; } }
