@@ -1,4 +1,4 @@
-﻿.lv-received {
+.lv-received {
   background: #ffffff;
   border: 1px solid #e0e6df;
   border-radius: 18px;
@@ -81,6 +81,7 @@
   color: #4b6358;
   margin: 0 0 16px;
   line-height: 1.5;
+  max-width: 68ch;
 }
 
 .lv-received-pending {
@@ -101,6 +102,7 @@
   font-size: 14px;
   color: #63776e;
   margin: 0;
+  max-width: 68ch;
 }
 
 .lv-received-error-box {

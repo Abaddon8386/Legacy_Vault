@@ -430,7 +430,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
   const isRevertingPopStateRef = useRef(false);
   const restoreControllerRef = useRef(null);
   const refreshControllerRef = useRef(null);
-  const [refreshError, setRefreshError] = useState(null);
 
   const effectiveBeneficiaryAssetActions = useMemo(() => {
     if (beneficiaryAssetActions !== undefined) return beneficiaryAssetActions;
@@ -540,7 +539,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
     setIsRefreshing(false);
-    setRefreshError(null);
     storeSession(null);
     setRestoreStatus('ready');
     isEditFormDirtyRef.current = false;
@@ -553,7 +551,7 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     setStaffContextSessionId('');
     setStaffActiveCase(null);
     navigateTo('/login');
-  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
+  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
 
   useEffect(() => {
     const { pathname } = window.location;
@@ -626,7 +624,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
     setIsRefreshing(false);
-    setRefreshError(null);
     const candidate = createSession(result);
     const user = readUser(await request('/auth/me', { ...options, accessToken: candidate.accessToken }));
     if (options.signal?.aborted) return;
@@ -647,7 +644,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     const controller = new AbortController();
     refreshControllerRef.current = controller;
     setIsRefreshing(true);
-    setRefreshError(null);
     try {
       const result = await request('/auth/me', {
         accessToken: currentSession.accessToken,
@@ -674,11 +670,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
       if (controller.signal.aborted || refreshControllerRef.current !== controller || err.name === 'AbortError') return;
       if (err.status === 401 || err.code === 'INVALID_AUTH_RESPONSE') {
         logout();
-      } else {
-        const msg = lang === 'en'
-          ? (err.code === 'NETWORK_ERROR' ? 'Network error. Please retry.' : 'Failed to refresh account privileges.')
-          : (err.code === 'NETWORK_ERROR' ? 'Lỗi kết nối máy chủ. Vui lòng thử lại.' : 'Không thể làm mới quyền hạn tài khoản.');
-        setRefreshError(msg);
       }
     } finally {
       if (refreshControllerRef.current === controller) {
@@ -710,7 +701,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
     setIsRefreshing(false);
-    setRefreshError(null);
     profileWriteRef.current = options.signal;
     try {
       const user = await updateProfile(snapshot, changes, options);
@@ -854,12 +844,6 @@ function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery
           isRefreshing={isRefreshing}
           onNavigateTab={handleExecuteNavigation}
         >
-          <div className="lv-page-actions">
-            <button type="button" className="lv-shared-btn" disabled={isRefreshing} onClick={handleRefresh}>
-              {isRefreshing ? (lang === 'en' ? 'Refreshing…' : 'Đang làm mới…') : (lang === 'en' ? 'Refresh' : 'Làm mới tài khoản')}
-            </button>
-            {refreshError && <div role="alert">{refreshError} <button type="button" onClick={handleRefresh}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button></div>}
-          </div>
           <SharedWithMePage
             key={`${session?.user?.id || 'anon'}:${session?.accessToken || ''}`}
             lang={lang}

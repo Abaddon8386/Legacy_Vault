@@ -242,9 +242,10 @@ test('actual App uses only refreshed server roles and does not force a multi-rol
     assert.ok(view.host.querySelector('#shared-heading'), 'PS-90 landing remains available after PS-89 acceptance');
     assert.match(view.host.textContent, /Test account/);
     const expiry = readStoredSession().expiresAt;
-    const refresh = [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Refresh');
-    assert.ok(refresh, 'The beneficiary landing exposes account refresh');
-    await act(async () => refresh.click());
+    assert.equal([...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Refresh'), undefined);
+    await act(async () => {
+      window.dispatchEvent(new window.CustomEvent('lv:refresh'));
+    });
     assert.equal(readStoredSession().expiresAt, expiry);
     assert.deepEqual(readStoredSession().user.roles, ['VAULT_OWNER', 'BENEFICIARY']);
     await act(async () => view.host.querySelector('.lv-user-badge-card').click());
