@@ -1,0 +1,17 @@
+.lv-duration-setting { display: grid; gap: 12px; min-width: 0; padding-top: 20px; border-top: 1px solid #ecece5; }
+.lv-duration-setting h3 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; color: #264a38; }
+.lv-duration-setting strong { font-weight: 600; color: #264a38; }
+.lv-duration-setting p { margin: 0; font-size: 14px; line-height: 1.6; color: #637068; }
+.lv-duration-setting__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.lv-duration-setting__head > span { font-size: 14px; color: #637068; }
+.lv-duration-setting form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; min-width: 0; }
+.lv-duration-setting form > .lv-dms-presets-grid { flex: 1 1 auto; }
+.lv-duration-setting__custom { display: grid; gap: 8px; flex: 1 0 100%; order: 1; }
+.lv-duration-setting__custom[hidden] { display: none; }
+.lv-duration-setting .lv-duration-setting__error { flex: 1 0 100%; order: 1; color: #a43e30; }
+.lv-duration-setting__actions { display: flex; flex-shrink: 0; gap: 8px; }
+.lv-duration-setting__saving { align-self: center; font-size: 14px; color: #637068; }
+.lv-duration-setting.is-locked { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; padding-block: 14px 0; }
+.lv-duration-setting.is-locked p { grid-column: 1 / -1; }
+.lv-grace-feedback { margin-top: 4px; }
+@media (max-width: 600px) { .lv-duration-setting__actions { flex: 1 0 100%; order: 2; } .lv-duration-setting__actions > * { flex: 1; } }
