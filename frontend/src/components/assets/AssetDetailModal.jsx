@@ -218,12 +218,14 @@ export function AssetDetailModal({
         </div>
 
         {/* Description */}
-        <div className="lv-detail-group">
-          <span className="lv-detail-label">{t.assets.detailModal.descLabel}</span>
-          <p className="lv-detail-desc">
-            {asset.description || t.assets.noDescription}
-          </p>
-        </div>
+        {asset.description && asset.description.trim() ? (
+          <div className="lv-detail-group">
+            <span className="lv-detail-label">{t.assets.detailModal.descLabel}</span>
+            <p className="lv-detail-desc">
+              {asset.description.trim()}
+            </p>
+          </div>
+        ) : null}
 
         <AssetImageGallery key={[vaultId, asset.id, accessToken, lang].join(':')} vaultId={vaultId} assetId={asset.id}
           accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly />
@@ -232,7 +234,7 @@ export function AssetDetailModal({
         {asset.hasPayload && (
           <div
             style={{
-              padding: '14px 16px',
+              padding: '18px 20px',
               backgroundColor: '#faf8f5',
               border: '1px solid var(--lv-border-subtle, #eae5dc)',
               borderRadius: 'var(--lv-radius-control, 10px)',
@@ -397,22 +399,14 @@ export function AssetDetailModal({
                 )}
               </form>
             ) : (
-              /* Case 3: Initial state: Protected notice with Reveal button */
+              /* Case 3: Initial state: Reveal button */
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Lock size={14} style={{ color: 'var(--lv-accent-gold, #c5a059)', flexShrink: 0 }} />
-                  <span style={{ color: 'var(--lv-text-muted, #68736b)' }}>
-                    {t.assets.detailModal.payloadNotice}
-                  </span>
-                </div>
                 <Button
                   type="button"
                   variant="secondary"
@@ -420,12 +414,13 @@ export function AssetDetailModal({
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
+                    gap: '8px',
                     fontSize: '14px',
-                    padding: '6px 14px',
+                    minHeight: '44px',
+                    padding: '8px 18px',
                   }}
                 >
-                  <Eye size={14} />
+                  <Eye size={16} />
                   <span>{t.assets.detailModal.revealBtn}</span>
                 </Button>
               </div>

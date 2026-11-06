@@ -281,7 +281,6 @@ export function AssetManagementPage({
 
   return (
     <div className="lv-asset-page">
-      {readOnly && <p role="status">{lang === 'en' ? 'This vault is read-only. Assets cannot be added or edited in its current state.' : 'Kho hiện chỉ được xem. Không thể thêm hoặc sửa tài sản ở trạng thái này.'}</p>}
       {/* Toast Notification */}
       {toastMessage && (
         <FeedbackNotice className="lv-feedback--floating" tone={toastMessage.type}>{t.assets.alerts[toastMessage.key] || t.assets.alerts.saveError}</FeedbackNotice>
@@ -306,6 +305,8 @@ export function AssetManagementPage({
           <span className="lv-add-btn__text">{t.assets.addNewBtn}</span>
         </Button>
       </div>
+
+      {readOnly && <div className="lv-asset-quota-notice" role="status"><p>{lang === 'en' ? "This vault is read-only, so assets can't be added or edited." : 'Kho hiện chỉ được xem nên chưa thể thêm hoặc sửa tài sản.'}</p></div>}
 
       {enforceQuota && (quotaFull || quotaError || quotaLoading) && (
         <div className="lv-asset-quota-notice" role="status">

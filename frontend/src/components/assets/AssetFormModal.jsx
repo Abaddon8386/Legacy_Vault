@@ -121,7 +121,6 @@ export function AssetFormModal({
             <h2 id="asset-modal-title" className="lv-modal__title">
               {t.assets.addModal.title}
             </h2>
-            <p className="lv-modal__desc">{t.assets.addModal.desc}</p>
           </div>
           <button
             type="button"
@@ -241,22 +240,6 @@ export function AssetFormModal({
                 <AlertCircle size={14} /> {t.assets.validation[errors.description]}
               </p>
             )}
-          </div>
-
-          {/* Non-blocking Beneficiary Vault Configuration Notice */}
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: '#fbf7ee',
-              border: '1px solid #e7d8b8',
-              borderRadius: 'var(--lv-radius-control, 10px)',
-              fontSize: '14px',
-              color: '#775722',
-              lineHeight: 1.5,
-              margin: '12px 0 16px',
-            }}
-          >
-            <span>{t.assets.addModal.beneficiaryHint}</span>
           </div>
 
           <AssetImagePicker files={images} onChange={setImages} disabled={isSubmitting} lang={lang} />
