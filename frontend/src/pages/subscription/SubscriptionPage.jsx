@@ -301,11 +301,6 @@ export default function SubscriptionPage({
       {/* Page Header */}
       <header className="lv-sub-header">
         <h1 className="lv-sub-title">{lang === 'en' ? 'Your subscription' : 'Gói sử dụng'}</h1>
-        <p className="lv-sub-intro">
-          {lang === 'en'
-            ? 'One payment, yours for life. Upgrades cost the full price of the new plan; earlier purchases are not credited.'
-            : 'Mua một lần, dùng trọn đời. Nâng cấp tính đủ giá gói mới, không trừ tiền gói đã mua.'}
-        </p>
       </header>
 
       {/* Hero Card: Current Subscription & Quota Gauges */}
