@@ -51,8 +51,8 @@ public class PaymentRepository {
         jdbc.queryForObject("SELECT user_id FROM dbo.users WITH(UPDLOCK,HOLDLOCK) WHERE user_id=?",Long.class,owner);
     }
     public void complete(UUID id,String status,String gatewayNo,String code,String gatewayStatus) {
-        int changed=jdbc.update("UPDATE dbo.subscription_payments SET status=?,gateway_transaction_no=?,response_code=?,transaction_status=?,completed_at=SYSUTCDATETIME() WHERE payment_id=? AND status='PENDING'",
-            status,gatewayNo,code,gatewayStatus,id.toString());
+        int changed=jdbc.update("UPDATE dbo.subscription_payments SET status=?,gateway_transaction_no=?,response_code=?,transaction_status=?,completed_at=SYSUTCDATETIME() WHERE payment_id=? AND (status='PENDING' OR (status='FAILED' AND ?='SUCCEEDED'))",
+            status,gatewayNo,code,gatewayStatus,id.toString(),status);
         if(changed!=1) throw new IllegalStateException("Payment state changed unexpectedly");
     }
     public Optional<Plan> effective(long owner) {
