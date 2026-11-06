@@ -133,8 +133,8 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
     </section>}
     <Modal isOpen={Boolean(selection || (PlanView && message))} onClose={close} title={selection ? (en ? 'Confirm plan upgrade' : 'Xác nhận nâng cấp gói') : (en ? 'Payment information' : 'Thông tin thanh toán')} closeLabel={en ? 'Close' : 'Đóng'}>
     {selection && <div className="lv-payment-checkout__confirmation" role="group" aria-label={en ? 'Confirm purchase' : 'Xác nhận mua gói'} aria-busy={busy}>
-      <p>{planName(selection.code)}: <strong>{selection.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND</strong> — {en ? 'one-time payment, no recurring charge' : 'trả một lần, không tự động gia hạn'}</p>
-      <p>{en ? 'The full target plan price applies; previous purchases are not credited. Complete payment at VNPay to activate this plan.' : 'Thanh toán đủ giá gói mới, không trừ tiền gói đã mua. Gói được kích hoạt sau khi thanh toán tại VNPay được xác nhận.'}</p>
+      <p>{planName(selection.code)}: <strong>{selection.priceVnd.toLocaleString(en ? 'en-US' : 'vi-VN')} VND</strong>, {en ? 'one-time payment.' : 'trả một lần.'}</p>
+      <p>{en ? 'Upgrades cost the full price of the new plan; earlier purchases are not credited. The plan activates once VNPay confirms payment.' : 'Thanh toán đủ giá gói mới, không trừ tiền gói đã mua. Gói kích hoạt sau khi VNPay xác nhận thanh toán.'}</p>
       <div className="lv-payment-checkout__actions">
       <Button type="button" isLoading={busy} onClick={pay}>{en ? 'Continue to VNPay' : 'Tiếp tục đến VNPay'}</Button>
       <Button type="button" disabled={busy} variant="secondary" onClick={close}>{en ? 'Cancel' : 'Hủy'}</Button>
