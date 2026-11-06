@@ -123,6 +123,8 @@ CI gọn không cấp cấu hình DB hoặc secret của môi trường thật; 
 môi trường vẫn có thể được báo skipped. Kết quả xanh không chứng minh migration/SQL Server, Google Login,
 VNPay, email hoặc UI desktop/mobile đã được kiểm chứng thực tế; nhóm vẫn chạy và ghi bằng chứng riêng.
 
+Job thứ ba **Backend SQL Server integration tests** chỉ chạy thủ công (`workflow_dispatch`) hoặc theo lịch đêm trên `develop`, không chạy trên mỗi PR. Job dựng container SQL Server tạm với mật khẩu SA sinh ngẫu nhiên và chạy `-Dtest=*SqlServer*` qua `LEGAL_SQLSERVER_MASTER_URL`/`STAFF_SQLSERVER_MASTER_URL`; các lớp cần `PS77_SQLSERVER_TEST_DATABASE` hoặc `DMS_SQLSERVER_TEST_URL` vẫn skipped.
+
 CI bổ sung cho review chéo của thành viên. Workflow không tự approve, merge, deploy hoặc thay đổi branch
 protection/required checks; các quyết định review và merge vẫn theo quy trình nhóm.
 
