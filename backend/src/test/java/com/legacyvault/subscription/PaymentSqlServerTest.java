@@ -178,12 +178,33 @@ class PaymentSqlServerTest {
         q=callback(p,"00","00");q.set("vnp_TxnRef",UUID.randomUUID().toString().replace("-",""));resign(q);assertEquals("01",service.ipn(q).code());
         assertEquals("BASIC",quotas.current(owner).effectivePlan().code());assertEquals("PENDING",service.read(owner,p.paymentId()).status());
     }
-    @Test void failureIsTerminalDuplicateAndOutOfOrderCallbacksNeverGrant() {
+    @Test void verifiedSuccessAfterFailureGrantsOnceAndDuplicatesAreIgnored() {
         var p=create(PlanCode.STANDARD);assertEquals("00",service.ipn(callback(p,"24","02")).code());
-        assertEquals("02",service.ipn(callback(p,"00","00")).code());assertEquals("FAILED",service.read(owner,p.paymentId()).status());
-        assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        assertEquals("FAILED",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
         var other=create(PlanCode.STANDARD);assertEquals("99",service.ipn(callback(other,"00","01")).code());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        assertEquals("00",service.ipn(callback(p,"00","00")).code());
+        assertEquals("SUCCEEDED",service.read(owner,p.paymentId()).status());assertEquals("STANDARD",quotas.current(owner).effectivePlan().code());
+        assertEquals("02",service.ipn(callback(p,"00","00")).code());assertEquals("02",service.ipn(callback(p,"24","02")).code());
+        assertEquals("SUCCEEDED",service.read(owner,p.paymentId()).status());
         assertEquals("00",service.ipn(callback(other,"00","00")).code());
+    }
+    @Test void cancelledInBrowserThenPaidElsewhereIsGrantedOnlyByVerifiedGatewaySuccess() {
+        var p=create(PlanCode.STANDARD);
+        assertEquals("00",service.recordReturnFailure(owner,p.paymentId(),callback(p,"24","02")).code());
+        assertEquals("FAILED",service.read(owner,p.paymentId()).status());
+        // The browser can never reopen or grant: a signed "success" return is rejected and the order stays closed.
+        assertEquals("99",service.recordReturnFailure(owner,p.paymentId(),callback(p,"00","00")).code());
+        assertEquals("FAILED",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        // A success outside the order's checkout window is still refused.
+        var early=callback(p,"00","00");
+        early.set("vnp_PayDate",DateTimeFormatter.ofPattern("uuuuMMddHHmmss").withZone(ZoneId.of("Asia/Ho_Chi_Minh")).format(p.createdAt().minusSeconds(1)));
+        resign(early);assertEquals("99",service.ipn(early).code());
+        assertEquals("FAILED",service.read(owner,p.paymentId()).status());assertEquals("BASIC",quotas.current(owner).effectivePlan().code());
+        // Verified IPN success inside the window reopens and grants, with one success audit row.
+        assertEquals("00",service.ipn(callback(p,"00","00")).code());
+        assertEquals("SUCCEEDED",service.read(owner,p.paymentId()).status());assertEquals("STANDARD",quotas.current(owner).effectivePlan().code());
+        assertEquals("02",service.ipn(callback(p,"00","00")).code());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM dbo.audit_logs WHERE action='SUBSCRIPTION_PAYMENT_SUCCEEDED' AND JSON_VALUE(details,'$.paymentId')=?",Integer.class,p.paymentId().toString()));
     }
     @Test void signedBrowserReturnClosesCancelledOrderButNeverGrants() {
         var p=create(PlanCode.STANDARD);

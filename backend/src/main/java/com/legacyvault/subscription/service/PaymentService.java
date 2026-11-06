@@ -118,8 +118,11 @@ public class PaymentService {
             || (f.containsKey("vnp_CurrCode") && !"VND".equals(f.get("vnp_CurrCode")))) return result("04");
         String code=f.getOrDefault("vnp_ResponseCode",""), state=f.getOrDefault("vnp_TransactionStatus","");
         if(!code.matches("[0-9]{2}") || !state.matches("[0-9]{2}")) return result("99");
-        if(!p.status().equals("PENDING")) return result("02");
         boolean success=code.equals("00") && state.equals("00");
+        // A closed (FAILED) order is reopened only by a verified gateway success (IPN or QueryDR): the customer may have
+        // paid in another tab after cancelling. SUCCEEDED stays final; a failure never changes a closed order.
+        boolean paidAfterClose=success && p.status().equals("FAILED");
+        if(!p.status().equals("PENDING") && !paidAfterClose) return result("02");
         // Intermediate/inconsistent statuses must not turn a processing payment into a terminal failure.
         if(!success && !(state.equals("02") && !code.equals("00"))) return result("99");
         String number=f.getOrDefault("vnp_TransactionNo","");
