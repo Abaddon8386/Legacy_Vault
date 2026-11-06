@@ -470,12 +470,31 @@ test('canonical account refresh preserves expiry and removes revoked capabilitie
   });
   try {
     user = { ...user, roles: ['BENEFICIARY'] };
-    const button = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
-    await act(async () => button.click());
+    const refreshButton = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
+    assert.equal(refreshButton, undefined, 'Page actions must no longer include "Làm mới tài khoản" button');
+    await act(async () => {
+      window.dispatchEvent(new window.CustomEvent('lv:refresh'));
+    });
     assert.equal(window.location.pathname, '/shared-with-me');
     assert.equal(JSON.parse(window.sessionStorage.getItem('legacyvault.session.v1')).expiresAt, expiresAt);
     assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản/);
     assert.ok(v.host.querySelector('#shared-heading'));
+  } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
+});
+
+test('shared with me view has no legacy account refresh button on page', async () => {
+  const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Personal', email: 'personal@example.test', roles: ['BENEFICIARY'] };
+  window.history.replaceState({}, '', '/shared-with-me');
+  window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt: Date.now() + 3600000 }));
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(user), { headers: { 'Content-Type': 'application/json' } });
+  const v = await mount(App, {
+    caseLinkActions: { listOwn: async () => [], submit: async () => {} },
+    beneficiaryAssetActions: { list: async () => ({ items: [], page: 0, totalElements: 0, totalPages: 0 }) },
+  });
+  try {
+    const refreshBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
+    assert.equal(refreshBtn, undefined, 'There must be no "Làm mới tài khoản" button on shared-with-me');
   } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
 });
 

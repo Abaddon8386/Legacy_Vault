@@ -53,7 +53,7 @@ test('pending request does not grant asset reads, and double submit makes one re
     await act(async () => { v.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); v.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); });
     assert.equal(writes, 1);
     await act(async () => finish(req));
-    assert.match(v.host.textContent, /Chờ Staff đối chiếu/); assert.equal(reads, 0);
+    assert.match(v.host.textContent, /Chờ nhân viên đối chiếu/); assert.equal(reads, 0);
     assert.doesNotMatch(v.host.textContent, /c@example.test/);
   } finally { await v.close(); }
 });
@@ -304,7 +304,7 @@ test('Task 4: REJECTED request without reason (real BE contract) renders neutral
   });
   try {
     assert.match(vEn.host.textContent, /Your request was declined/);
-    assert.match(vEn.host.textContent, /contact Staff at the counter/);
+    assert.match(vEn.host.textContent, /contact staff at the counter/);
   } finally {
     await vEn.close();
   }
@@ -452,7 +452,7 @@ test('CaseLinkWorkspace polling: slow response (> 4s) is not aborted by poll tim
     await act(async () => {
       resolvers[0]([pendingItem]);
     });
-    assert.match(v.host.textContent, /Chờ Staff đối chiếu/);
+    assert.match(v.host.textContent, /Chờ nhân viên đối chiếu/);
     assert.equal(calls, 1, 'Poll #2 waits for 4000ms timeout after read #1 settles');
 
     // Advance 4000ms -> poll #2 starts
@@ -667,4 +667,19 @@ test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling con
     await v.close();
     t.mock.timers.reset();
   }
+});
+
+test('status reload button is hidden when there are no requests and visible when requests exist', async () => {
+  let v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [], submit: async () => {} } });
+  try {
+    assert.match(v.host.textContent, /Chưa có yêu cầu nào\./);
+    const reloadBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Tải lại trạng thái'));
+    assert.equal(reloadBtn, undefined, 'Reload button must be hidden when requests list is empty');
+  } finally { await v.close(); }
+
+  v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [req], submit: async () => {} } });
+  try {
+    const reloadBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Tải lại trạng thái'));
+    assert.ok(reloadBtn, 'Reload button must be visible when requests exist');
+  } finally { await v.close(); }
 });

@@ -1,21 +1,23 @@
-﻿.lv-shared-view {
+.lv-shared-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 960px;
+  gap: 20px;
+  position: relative;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 8px 16px 40px;
+  padding-bottom: 40px;
 }
 
 .lv-shared-header {
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .lv-shared-title {
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--lv-font-serif, Georgia, serif);
   font-size: 26px;
-  font-weight: 700;
-  color: #1a332a;
+  font-weight: 600;
+  color: var(--lv-brand-forest, #164639);
+  line-height: 1.25;
   margin: 0;
 }
 
@@ -64,6 +66,8 @@
   flex: 1;
   min-width: 0;
   padding: 10px 14px;
+  min-height: 44px;
+  box-sizing: border-box;
   font-size: 14px;
   border: 1px solid #ccd8cf;
   border-radius: 10px;
@@ -72,14 +76,17 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.lv-link-steps { padding-left: 24px; line-height: 1.8; margin: 16px 0 24px; color: #52685c; }
+.lv-link-steps { padding-left: 24px; line-height: 1.8; margin: 16px 0 24px; color: #52685c; max-width: 68ch; }
 .lv-link-heading, .lv-link-requests > li { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .lv-link-requests { list-style: none; margin: 0; padding: 0; }
 .lv-link-requests > li { padding: 18px 0; border-top: 1px solid #e0e6df; overflow-wrap: anywhere; }
-.lv-link-requests p { margin: 6px 0 0; color: #52685c; }
+.lv-link-requests p { margin: 6px 0 0; color: #52685c; max-width: 68ch; }
 .lv-shared-card .lv-feedback { margin-top: 16px; }
-.lv-shared-card > h2 { font-size: 21px; color: #234237; }
+.lv-shared-card > h2, .lv-link-heading h2 { font-size: 21px; color: #234237; }
+.lv-link-heading h2 { margin: 0; }
 .lv-shared-card { overflow-wrap: anywhere; }
+.lv-shared-card p { max-width: 68ch; }
+.lv-link-rejected-guidance { max-width: 68ch; }
 .lv-shared-view :is(h1, h2) { font-family: var(--lv-font-serif, Georgia, serif); }
 .lv-shared-view form { margin-top: 20px; }
 .lv-shared-view .lv-shared-input-row { margin-top: 8px; }
@@ -120,6 +127,8 @@
   align-items: center;
   gap: 6px;
   padding: 10px 20px;
+  min-height: 44px;
+  box-sizing: border-box;
   font-size: 14px;
   font-weight: 600;
   border-radius: 10px;
@@ -176,11 +185,12 @@
   color: #63776e;
   margin: 0;
   font-weight: 500;
+  max-width: 68ch;
 }
 
 @media (max-width: 640px) {
   .lv-shared-view {
-    padding: 8px 12px 30px;
+    padding-bottom: 30px;
   }
   .lv-shared-card {
     padding: 18px;

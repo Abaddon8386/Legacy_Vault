@@ -127,7 +127,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     };
   }, [ready, caseLinkActions, session?.accessToken, lang, refreshKey, revision, runPoll]);
 
-  // Auto-refresh when any request is PENDING so Beneficiary sees Staff decision without manual reload.
+  // Auto-refresh when any request is PENDING so Beneficiary sees staff decision without manual reload.
   // Wait for in-flight request and mutations to settle before scheduling the next poll; never abort an active poll on timer/focus.
   const hasPendingRequests = requests.some(r => r.status === 'PENDING');
   useEffect(() => {
@@ -202,8 +202,8 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     <section className="lv-shared-card lv-owner-card" role="note">
       <h2>{en ? 'Received assets' : 'Tài sản đã nhận'}</h2>
       <p>{en
-        ? 'Assets appear here after Staff confirms your account link and hands them over. You can only view the items delivered to you.'
-        : 'Tài sản xuất hiện tại đây sau khi Staff xác nhận liên kết tài khoản và bàn giao. Bạn chỉ xem được phần đã giao cho mình.'}</p>
+        ? 'Assets appear here after staff confirm the link and handover.'
+        : 'Tài sản hiện ở đây sau khi nhân viên xác nhận liên kết và bàn giao.'}</p>
     </section>
   );
 
@@ -219,7 +219,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
       {!eligible ? <FeedbackNotice tone="warning">{en ? 'Use a personal recipient account to request a link.' : 'Hãy dùng tài khoản cá nhân của người nhận để gửi yêu cầu.'}</FeedbackNotice>
         : !ready && <FeedbackNotice id="case-link-availability">{en ? 'Requests are not available yet.' : 'Chưa hỗ trợ gửi yêu cầu.'}</FeedbackNotice>}
       {notice && <FeedbackNotice tone="success">{notice === 'submit'
-        ? (en ? 'Request sent. Wait for Staff to verify and confirm the link at the counter.' : 'Đã gửi yêu cầu. Vui lòng chờ Staff đối chiếu và xác nhận liên kết tại quầy.')
+        ? (en ? 'Request sent. Wait for staff to verify and confirm the link at the counter.' : 'Đã gửi yêu cầu. Vui lòng chờ nhân viên đối chiếu và xác nhận liên kết tại quầy.')
         : (en ? 'Request cancelled.' : 'Đã hủy yêu cầu.')}</FeedbackNotice>}
       {error && <FeedbackNotice tone="error">{caseLinkError(error, lang)}</FeedbackNotice>}
     </section>
@@ -228,7 +228,9 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   const requestsCard = ready && (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="my-requests-title" aria-busy={loading}>
       <div className="lv-link-heading"><h2 id="my-requests-title">{en ? 'My requests' : 'Yêu cầu của tôi'}</h2>
-        <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button></div>
+        {(requests.length > 0 || error) && (
+          <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button>
+        )}</div>
       {loading ? <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p> : !error && !requests.length && <p>{en ? 'No requests yet.' : 'Chưa có yêu cầu nào.'}</p>}
       <ul className="lv-link-requests">{requests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
         <div>
@@ -241,7 +243,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
               ) : (
                 <p style={{ margin: 0 }}>
                   {en
-                    ? 'Your request was declined. Please verify your case information or contact Staff at the counter for assistance.'
+                    ? 'Your request was declined. Please verify your case information or contact staff at the counter for assistance.'
                     : 'Yêu cầu liên kết đã bị từ chối. Vui lòng kiểm tra lại thông tin hồ sơ hoặc liên hệ nhân viên tại quầy để được hỗ trợ giải quyết.'}
                 </p>
               )}
