@@ -1,20 +1,36 @@
 .lv-asset-page .lv-asset-modal {
   max-width: 580px;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lv-asset-page .lv-asset-modal .lv-modal__header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #ffffff;
+  padding: 20px 24px;
 }
 
 .lv-asset-page .lv-asset-modal .lv-asset-form {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 0;
   overflow: hidden;
 }
-.lv-asset-form__scroll { overflow-y: auto; min-height: 0; padding: 24px; }
-.lv-asset-page .lv-asset-form > .lv-form-actions { flex-shrink: 0; padding: 16px 24px; background: #fff; }
+.lv-asset-form__scroll { overflow-y: auto; min-height: 0; flex: 1 1 auto; padding: 24px; }
+.lv-asset-page .lv-asset-form > .lv-form-actions { flex-shrink: 0; padding: 16px 24px; background: #fff; border-top: 1px solid var(--lv-border-subtle); }
 @media (max-width: 640px) {
+  .lv-asset-page .lv-asset-modal .lv-modal__header { padding: 16px 20px; }
   .lv-asset-form__scroll { padding: 16px; }
   .lv-asset-page .lv-asset-form > .lv-form-actions { padding: 12px 16px; flex-wrap: wrap; }
-  .lv-asset-form > .lv-form-actions > button { flex: 1; }
+  .lv-asset-form > .lv-form-actions > button { flex: 1; min-height: 44px; }
 }
 
 .lv-asset-page .lv-form-group {
