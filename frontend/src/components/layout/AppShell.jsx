@@ -666,10 +666,6 @@ export default function AppShell({
                   </li>
                 )}
 
-                {hasSession && <li role="none"><a role="menuitem" className="lv-account-menu-item"
-                  href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
-                  {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
-                </a></li>}
                 {hasSession && (isStaff || isLegal || isAdmin) && resolvedUser?.roles?.includes('BENEFICIARY') && (
                   <li role="none">
                     <a role="menuitem" className="lv-account-menu-item" href={`/shared-with-me?lang=${lang}`} style={{ textDecoration: 'none' }}>

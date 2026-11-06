@@ -155,13 +155,13 @@
 .lv-tb-guardian-collapsed-hint {
   margin: 10px 0 0;
   padding: 8px 12px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #fdf8ed;
   border: 1px solid #ead8b1;
-  border-left: 3px solid #b7812b;
   color: #5c4318;
   font-size: 14px;
   line-height: 1.55;
+  max-width: 68ch;
 }
 
 .lv-tb-guardian-body {
@@ -180,9 +180,9 @@
   line-height: 1.65;
   background: #f1f5f0;
   border: 1px solid #dce4d9;
-  border-left: 3px solid #2d6a4f;
   border-radius: 8px;
   padding: 10px 14px;
+  max-width: 68ch;
 }
 
 /* Status Banners: Loading, Error, Success */
