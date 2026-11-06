@@ -344,7 +344,7 @@ test('DMS UI - Renders days, hours, and minutes inputs with presets', async () =
   }
 });
 
-test('DMS UI - Indeterminate save progress bar appears during pending save and disappears after completion', async () => {
+test('DMS UI - saving status appears during pending save and disappears after completion', async () => {
   const originalFetch = globalThis.fetch;
   const deferred = createDeferred();
   globalThis.fetch = async (_url, options = {}) => {
@@ -385,11 +385,11 @@ test('DMS UI - Indeterminate save progress bar appears during pending save and d
     });
 
     // Verify indeterminate progress bar and feedback are rendered while pending
-    const saveProgress = host.querySelector('.lv-dms-save-feedback-area');
-    assert.ok(saveProgress, 'Indeterminate save progress area must appear while request is pending');
+    const saveProgress = host.querySelector('.lv-duration-setting__saving');
+    assert.ok(saveProgress, 'Saving status must appear while request is pending');
     assert.equal(saveProgress.getAttribute('role'), 'status');
     assert.equal(saveProgress.getAttribute('aria-busy'), 'true');
-    assert.ok(saveProgress.textContent.includes('Đang lưu cấu hình…'));
+    assert.ok(saveProgress.textContent.includes('Đang lưu…'));
 
     // Submit button should be disabled to prevent duplicate submissions
     const submitBtn = host.querySelector('.lv-dms-submit-btn');
@@ -408,8 +408,8 @@ test('DMS UI - Indeterminate save progress bar appears during pending save and d
     });
 
     // Progress bar must disappear after completion
-    assert.equal(host.querySelector('.lv-dms-save-feedback-area'), null, 'Save progress must be removed after completion');
-    assert.equal(submitBtn.disabled, false, 'Submit button must re-enable');
+    assert.equal(host.querySelector('.lv-duration-setting__saving'), null, 'Save progress must be removed after completion');
+    assert.equal(host.querySelector('.lv-dms-submit-btn'), null, 'Save button goes away once the value is saved');
   } finally {
     await act(async () => root.unmount());
     host.remove();
