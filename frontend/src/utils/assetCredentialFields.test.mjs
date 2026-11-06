@@ -91,7 +91,7 @@ test('revealed credential JSON is decrypted by API and displayed as labeled fiel
  globalThis.fetch=async url=>new Response(JSON.stringify(url.endsWith('/reveal')?{id,payload:JSON.stringify({username:'owner@example.test',password:'account-secret'})}:[]),{status:200,headers:{'Content-Type':'application/json'}});
  const view=await mount(AssetDetailModal,{isOpen:true,asset,vaultId,accessToken:'test-token',t:ASSET_I18N.en,lang:'en',onClose(){}});
  try{
-  const reveal=[...view.host.querySelectorAll('button')].find(button=>button.textContent.includes('View secret content'));assert.ok(reveal);await act(async()=>reveal.click());
+  const reveal=[...view.host.querySelectorAll('button')].find(button=>button.textContent.includes('View secure content') || button.textContent.includes('View secret content'));assert.ok(reveal);await act(async()=>reveal.click());
   const input=view.host.querySelector('input[type=password]');const inputKey=Object.keys(input).find(k=>k.startsWith('__reactProps$'));await act(async()=>inputKey&&input[inputKey].onChange({target:{value:'current-password'}}));
   await act(async()=>view.host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   assert.match(view.host.textContent,/Username/);assert.match(view.host.textContent,/owner@example\.test/);assert.match(view.host.textContent,/Password/);assert.match(view.host.textContent,/account-secret/);assert.doesNotMatch(view.host.textContent,/\{"username"/);

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act, StrictMode } from 'react';
@@ -47,9 +48,8 @@ for (const status of ['TRIGGERED','GRACE_PERIOD_EXCEEDED']) test(`DMS ${status}:
  try {
   await act(async()=>root.render(React.createElement(DMSOverviewPage,{accessToken:'fixture',lang:'vi'})));
   const checkIn=host.querySelector('.lv-dms-checkin-btn'),save=host.querySelector('.lv-dms-submit-btn');
-  assert.equal(checkIn?.disabled,true);assert.equal(save?.disabled,true);
-  assert.match(host.textContent,/Thời hạn check-in đã kết thúc/);
-  await act(async()=>host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  assert.equal(checkIn?.disabled,true);assert.equal(save,null);assert.equal(host.querySelector('form'),null);
+  assert.match(host.textContent,/Đã hết thời hạn xác nhận/);
   await act(async()=>checkIn.click());assert.equal(writes,0);
  }finally{await act(async()=>root.unmount());host.remove();globalThis.fetch=original;}
 });
@@ -98,6 +98,11 @@ test('DMS progress advances from backend timestamps and infers the first configu
   }
 });
 
+test('DMS has no protection popover: the note shows only while monitoring, overdue banners carry it otherwise', async () => {
+  const source = readFileSync(new URL('../pages/dms/DMSOverviewPage.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /lv-dms-info-popover|showInfoPopover/);
+  assert.match(source, /!\(isTriggered \|\| isDeadlinePending\) && <p className="lv-dms-protection-note">/);
+});
 test('DMS Owner check-in remains enabled only before the backend grace deadline', async () => {
   const original = globalThis.fetch;
   const payload = deadline => ({ ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'TRIGGERED',
@@ -154,12 +159,12 @@ test('DMS deadline status refresh shows one overdue notice and keeps it singular
     assert.equal(host.querySelectorAll('.lv-dms-triggered-banner').length, 1);
     const noticeDelay = Date.now() - deadlineMs;
     assert.ok(noticeDelay >= 0 && noticeDelay < 1500, `Deadline notice should appear promptly (${noticeDelay} ms after deadline)`);
-    assert.match(host.textContent, /Đang xác minh trạng thái DMS/);
-    assert.doesNotMatch(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/,
+    assert.match(host.textContent, /Đang kiểm tra lại/);
+    assert.doesNotMatch(host.textContent, /Đã quá hạn xác nhận hoạt động/,
       'The UI must not claim the backend triggered DMS while its status request is pending');
 
     await act(async () => { resolveTriggered(); await new Promise(resolve => setTimeout(resolve, 0)); });
-    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/,
+    assert.match(host.textContent, /Đã quá hạn xác nhận hoạt động/,
       'The confirmed notice replaces the pending deadline notice after backend confirmation');
 
     await act(async () => root.unmount());
@@ -222,7 +227,7 @@ test('DMS waits for backend grace deadline and renders it with the triggered not
     await act(async () => { resolveCompleteResponse(); await new Promise(resolve => setTimeout(resolve, 0)); });
     const banner = host.querySelector('.lv-dms-triggered-banner');
     assert.ok(banner);
-    assert.match(banner.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/);
+    assert.match(banner.textContent, /Đã quá hạn xác nhận hoạt động/);
     assert.match(banner.textContent, /Thời hạn ân hạn:/);
     assert.ok(banner.querySelector('.lv-dms-triggered-deadline-tag').textContent.includes(formatDmsDate(graceDeadline, 'vi')),
       'Deadline is rendered from the API response');
@@ -680,6 +685,44 @@ test('DMS StrictMode - language change when user typed 181: keeps 181, error cha
       setInputValue(input, '90');
     });
     assert.equal(host.querySelector('#dms-interval-error'), null, 'Error clears on valid input');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('DMS: 29 days 24 hours equals the saved 30 days but keeps Save and Cancel and shows the error on submit', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => json({
+    ownerId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    status: 'MONITORING',
+    checkIntervalDays: 30,
+    gracePeriodDays: 1,
+    lastCheckInAt: '2026-10-15T00:00:00Z',
+    nextCheckAt: '2026-11-14T00:00:00Z',
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => {
+      root.render(React.createElement(DMSOverviewPage, { vaultId: 'vlt-test', accessToken: 'synthetic', lang: 'vi' }));
+    });
+    const actions = () => host.querySelector('#dms-cycle-heading')?.closest('section')?.querySelector('.lv-duration-setting__actions');
+    assert.equal(Boolean(actions()), false, 'no actions before any change');
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-input'), '29'); });
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-hours-input'), '24'); });
+    assert.ok(actions(), 'Save and Cancel stay visible after an edit even when the total equals the saved value');
+    assert.equal(actions().querySelectorAll('button').length, 2);
+    await act(async () => {
+      host.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    });
+    assert.ok(host.querySelector('#dms-interval-error'), 'submitting shows the hours error');
+    assert.ok(actions(), 'actions remain after the error appears');
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-hours-input'), '0'); });
+    await act(async () => { setInputValue(host.querySelector('#dms-interval-input'), '30'); });
+    assert.equal(Boolean(actions()), false, 'actions hide again once the text matches the saved value');
   } finally {
     await act(async () => root.unmount());
     host.remove();
@@ -1195,7 +1238,7 @@ test('Task 3: DMS mutation sequence race: polling starts -> interval save succee
 
     assert.ok(delayedPollResolve, 'Polling request #2 should be pending');
 
-    const saveForm = host.querySelector('form.lv-dms-form-group');
+    const saveForm = host.querySelector('.lv-duration-setting form');
     await act(async () => {
       const props = intervalInput[Object.keys(intervalInput).find((k) => k.startsWith('__reactProps'))];
       props.onChange({ target: { value: '60' } });
@@ -1321,7 +1364,7 @@ test('DMS polling lifecycle on accessToken change: aborts/ignores in-flight poll
       dmsRequests[2].resolve(json(triggeredWithGrace));
       await new Promise((r) => setTimeout(r, 20));
     });
-    assert.match(host.textContent, /Thông báo: Đã quá hạn xác nhận hoạt động/, 'New token poll must update DMS state to TRIGGERED');
+    assert.match(host.textContent, /Đã quá hạn xác nhận hoạt động/, 'New token poll must update DMS state to TRIGGERED');
     assert.equal(unauthorizedCalls, 0);
   } finally {
     await act(async () => root.unmount());

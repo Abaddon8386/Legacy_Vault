@@ -163,7 +163,7 @@ test('Grace zero is valid data; UI respects supplied range and preserves minute 
 for (const status of ['TRIGGERED', 'GRACE_PERIOD_EXCEEDED']) test(`Grace is read-only in ${status}`, async () => {
   let writes = 0;
   const v = await mount(Grace, { data: readDms({ ...rawDms, status }), actions: { policy: { min: 0, max: 30 }, save: async () => { writes++; } } });
-  try { assert.equal(v.host.querySelector('input').disabled, true); await submit(v.host); assert.equal(writes, 0); } finally { await v.close(); }
+  try { assert.equal(v.host.querySelector('input'), null); assert.equal(v.host.querySelector('form'), null); assert.match(v.host.textContent, /1 ngày/); assert.equal(writes, 0); } finally { await v.close(); }
 });
 test('Grace network error preserves draft and prevents another mutation until reload', async () => {
   let writes = 0;
@@ -191,6 +191,19 @@ test('live cancel does not expose cancellation during grace or for a non-owner',
   globalThis.fetch = async () => { reads++; throw new Error('must not read'); };
   const v = await mount(CancelAlert, { accessToken: 'owner', isOwner: true, dmsStatus: 'TRIGGERED' });
   try { assert.equal(v.host.textContent, ''); await v.render({ accessToken: 'staff', isOwner: false, dmsStatus: 'GRACE_PERIOD_EXCEEDED' }); assert.equal(reads, 0); } finally { await v.close(); globalThis.fetch = original; }
+});
+test('Grace presets fill the fields, respect the policy limit and only mark the matching one', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => rawDms, clone() { return this; }, text: async () => JSON.stringify(rawDms) });
+  const v = await mount(DmsPage, { ownerId: rawDms.ownerId, accessToken: 'owner', graceActions: { policy: { min: 0, max: 7 }, save: async () => rawDms } });
+  try {
+    const pills = () => [...v.host.querySelectorAll('.lv-grace-settings .lv-dms-preset-pill:not(.is-custom)')];
+    assert.deepEqual(pills().map(p => p.textContent), ['1 ngày', '3 ngày', '7 ngày']);
+    await act(async () => pills()[1].click());
+    assert.equal(v.host.querySelector('#grace-days').value, '3');
+    assert.equal(v.host.querySelector('#grace-hours').value, '0');
+    assert.deepEqual(pills().map(p => p.getAttribute('aria-pressed')), ['false', 'true', 'false']);
+  } finally { await v.close(); globalThis.fetch = original; }
 });
 test('actual DMS page coordinates Grace, interval and check-in writes', async () => {
   const original = globalThis.fetch; let writes = 0, finish;

@@ -405,13 +405,13 @@
 .lv-detail-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .lv-detail-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .lv-detail-label {
@@ -423,19 +423,20 @@
 }
 
 .lv-detail-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--lv-brand-forest);
+  margin: 0;
 }
 
 .lv-detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  padding: 14px;
+  padding: 18px 20px;
   background-color: #faf8f5;
   border: 1px solid var(--lv-border-subtle);
-  border-radius: var(--lv-radius-control);
+  border-radius: var(--lv-radius-control, 10px);
 }
 
 .lv-detail-value {
@@ -447,11 +448,12 @@
 .lv-detail-desc {
   font-size: 14px;
   color: var(--lv-text-ink);
-  line-height: 1.5;
-  padding: 12px;
+  line-height: 1.6;
+  padding: 14px 18px;
   background-color: #faf9f6;
-  border-radius: var(--lv-radius-control);
+  border-radius: var(--lv-radius-control, 10px);
   border: 1px solid var(--lv-border-subtle);
+  margin: 0;
 }
 
 /* Mobile card list container (hidden by default on desktop) */

@@ -293,8 +293,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--lv-accent-gold, #c5a059);
-  color: var(--lv-brand-forest-dark, #0c2b22);
+  background: #7d6228;
+  color: #ffffff;
   display: grid;
   place-items: center;
   font-size: 14px;
