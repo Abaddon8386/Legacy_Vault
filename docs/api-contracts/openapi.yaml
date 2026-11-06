@@ -264,7 +264,7 @@ paths:
       tags: [Subscriptions]
       security: []
       summary: Public VNPay IPN, HMAC-SHA512 authentication
-      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Success is recorded only here or by server-side QueryDR reconciliation; a signed browser return can only close an order as failed.
+      description: Signed vnp_* query parameters per VNPay PAY 2.1.0. Duplicated keys rejected. See payments-vnpay.md. Success is recorded only here or by server-side QueryDR reconciliation; a signed browser return can only close an order as failed. A verified success also reopens an order previously closed as FAILED (customer paid after cancelling); SUCCEEDED stays final.
       responses:
         '200':
           description: VNPay acknowledgment; 99 means processing failed and transaction rolled back
