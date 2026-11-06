@@ -3,6 +3,7 @@ import { isPersonalRecipient } from '../../utils/caseLinkModel.js';
 import { trackOwnerSurface } from './ownerSurfaceMotion.js';
 import './OwnerSurfaces.css';
 import LanguageToggle from '../common/LanguageToggle.jsx';
+import ErrorBoundary from '../common/ErrorBoundary.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   resolveAppShellAuthState,
@@ -900,7 +901,7 @@ export default function AppShell({
 
         {/* Scrollable Content Container */}
         <main id="main-content" className={`lv-shell-content ${isStaff ? 'lv-staff-surfaces' : isLegal ? 'lv-legal-surfaces' : isAdmin ? 'lv-admin-surfaces' : ['vault', 'assets', 'dms', 'wills', 'beneficiaries', 'subscription', 'shared-with-me'].includes(currentTab) ? 'lv-owner-surfaces' : ''}`} onPointerMove={trackOwnerSurface}>
-          {children}
+          <ErrorBoundary lang={lang} resetKey={`${currentTab}|${typeof window === 'undefined' ? '' : window.location.pathname}`}>{children}</ErrorBoundary>
         </main>
       </div>
     </div>
