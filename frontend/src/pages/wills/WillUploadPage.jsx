@@ -19,7 +19,6 @@ import { Button } from '../../components/common/Button.jsx';
 import {
   FileText,
   Plus,
-  RefreshCw,
   Download,
   Eye,
   EyeOff,
@@ -33,7 +32,6 @@ import ZoomableImage from '../../components/common/ZoomableImage.jsx';
 const copy = {
   vi: {
     title: 'Hồ sơ di chúc số hóa',
-    intro: 'Lưu giữ, kiểm tra tính toàn vẹn và theo dõi lịch sử các phiên bản di chúc trong kho di sản.',
     formTitle: 'Tài liệu di chúc ban đầu',
     versionFormTitle: 'Tải lên phiên bản di chúc mới',
     progress: 'Tiến trình tải lên',
@@ -48,15 +46,14 @@ const copy = {
     uploadNewVersionBtn: 'Tải lên phiên bản mới',
     versionsHistoryTitle: 'Lịch sử các phiên bản',
     noWillsTitle: 'Chưa có hồ sơ di chúc nào',
-    noWillsDesc: 'Lưu giữ bản quét hoặc bản chụp di chúc của bạn để bảo toàn dữ liệu và đối chiếu toàn vẹn.',
-    selectWillPrompt: 'Chọn một hồ sơ di chúc để xem chi tiết và các phiên bản đã lưu.',
+    noWillsDesc: 'Tải lên bản quét hoặc ảnh chụp di chúc để lưu giữ.',
     downloadBtn: 'Tải xuống',
     downloadingBtn: 'Đang tải tệp…',
     viewBtn: 'Mở xem',
     reauthModalTitle: 'Xác nhận mật khẩu để tải tệp',
     reauthModalTitleView: 'Xác nhận mật khẩu để mở xem tệp',
-    reauthPrompt: 'Nhập lại mật khẩu đăng nhập hiện tại để tải phiên bản tệp:',
-    reauthPromptView: 'Nhập lại mật khẩu đăng nhập hiện tại để mở xem phiên bản tệp:',
+    reauthPrompt: 'Nhập mật khẩu để tải phiên bản tệp:',
+    reauthPromptView: 'Nhập mật khẩu để mở xem phiên bản tệp:',
     passwordLabel: 'Mật khẩu đăng nhập hiện tại',
     passwordPlaceholder: 'Nhập mật khẩu đăng nhập hiện tại',
     confirmDownloadBtn: 'Xác nhận & Tải tệp',
@@ -69,7 +66,7 @@ const copy = {
     hashCol: 'Mã băm SHA-256',
     dateCol: 'Thời gian tải lên',
     actionCol: 'Thao tác',
-    refreshBtn: 'Làm mới',
+    retryBtn: 'Thử lại',
     backToListBtn: 'Quay lại danh sách',
     errors: {
       BACKEND_NOT_READY: 'Chưa thể kết nối hồ sơ di chúc. Vui lòng thử lại sau.',
@@ -93,7 +90,6 @@ const copy = {
   },
   en: {
     title: 'Digitized Will Documents',
-    intro: 'Store, verify integrity, and track version history of your will documents in your heritage vault.',
     formTitle: 'Initial will document',
     versionFormTitle: 'Upload new will version',
     progress: 'Upload progress',
@@ -108,15 +104,14 @@ const copy = {
     uploadNewVersionBtn: 'Upload New Version',
     versionsHistoryTitle: 'Version History',
     noWillsTitle: 'No digitized wills found',
-    noWillsDesc: 'Store scanned or photographed copies of your will to preserve records and track integrity.',
-    selectWillPrompt: 'Select a will document to view details and version history.',
+    noWillsDesc: 'Upload a scan or photo of your will to keep it safe.',
     downloadBtn: 'Download',
     downloadingBtn: 'Downloading…',
     viewBtn: 'Open View',
     reauthModalTitle: 'Verify Password to Download',
     reauthModalTitleView: 'Verify Password to Open Document',
-    reauthPrompt: 'Re-enter your current login password to download version:',
-    reauthPromptView: 'Re-enter your current login password to open version:',
+    reauthPrompt: 'Enter your password to download version:',
+    reauthPromptView: 'Enter your password to open version:',
     passwordLabel: 'Current login password',
     passwordPlaceholder: 'Enter your current login password',
     confirmDownloadBtn: 'Confirm & Download',
@@ -129,7 +124,7 @@ const copy = {
     hashCol: 'SHA-256 Hash',
     dateCol: 'Uploaded At',
     actionCol: 'Actions',
-    refreshBtn: 'Refresh',
+    retryBtn: 'Retry',
     backToListBtn: 'Back to records',
     errors: {
       BACKEND_NOT_READY: 'Will records cannot be reached yet. Please try again later.',
@@ -266,15 +261,6 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
           <Plus size={16} />
           <span>{t.uploadNewWillBtn}</span>
         </Button>
-        <Button
-          variant="secondary"
-          onClick={loadWills}
-          disabled={isLoadingWills}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-        >
-          <RefreshCw size={14} className={isLoadingWills ? 'hn-will-spin' : ''} />
-          <span>{t.refreshBtn}</span>
-        </Button>
       </div>
 
       {/* Main Content Area */}
@@ -287,7 +273,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
         <div className="hn-will-card hn-will-error-panel" role="alert">
           <p className="hn-will-error">{t.errors[listError] || t.errors.BACKEND_NOT_READY}</p>
           <Button variant="secondary" onClick={loadWills}>
-            {t.refreshBtn}
+            {t.retryBtn || 'Thử lại'}
           </Button>
         </div>
       ) : wills.length === 0 ? (
@@ -318,9 +304,6 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                       v{selectedWill.currentVersion?.version || 1}
                     </span>
                   </div>
-                  <p style={{ margin: '6px 0 0', fontSize: '14px', color: '#68736b' }}>
-                    {messages.CREATED_AT_LABEL}: {formatDateTime(selectedWill.createdAt, language)} · {messages.FILE_SIZE_LABEL}: {formatFileSize(selectedWill.currentVersion?.sizeBytes)}
-                  </p>
                 </div>
                 <Button
                   variant="primary"
@@ -335,7 +318,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
               </div>
 
               {/* Version History Table */}
-              <h3 style={{ margin: '24px 0 12px', fontSize: '17px', color: '#164639' }}>
+              <h3 className="hn-will-history-title">
                 {t.versionsHistoryTitle}
               </h3>
               {isLoadingVersions ? (
@@ -343,7 +326,7 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
               ) : versionsError ? (
                 <div role="alert">
                   <p className="hn-will-error">{t.errors[versionsError] || t.errors.BACKEND_NOT_READY}</p>
-                  <Button variant="secondary" onClick={loadWills}>{t.refreshBtn}</Button>
+                  <Button variant="secondary" onClick={loadWills}>{t.retryBtn || 'Thử lại'}</Button>
                 </div>
               ) : (
                 <div className="hn-will-table-wrap">
@@ -384,9 +367,9 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                                     mode: 'view',
                                   })
                                 }
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '14px' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '14px', minHeight: '44px' }}
                               >
-                                <Eye size={13} />
+                                <Eye size={14} />
                                 <span>{t.viewBtn}</span>
                               </Button>
                               <Button
@@ -399,9 +382,9 @@ export default function WillUploadPage({ lang = 'vi', vaultId, accessToken, onUn
                                     mode: 'download',
                                   })
                                 }
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', fontSize: '14px' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '14px', minHeight: '44px' }}
                               >
-                                <Download size={13} />
+                                <Download size={14} />
                                 <span>{t.downloadBtn}</span>
                               </Button>
                             </div>
@@ -540,7 +523,7 @@ function CreateWillModal({ lang, t, messages, vaultId, accessToken, onUnauthoriz
       <div className="hn-will-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="hn-will-modal-header">
           <h2>{t.formTitle}</h2>
-          <button type="button" className="hn-will-modal-close" onClick={onClose} disabled={busy} aria-label="Đóng">
+          <button type="button" className="hn-will-modal-close" onClick={onClose} disabled={busy} aria-label={lang === 'en' ? 'Close' : 'Đóng'}>
             <X size={18} />
           </button>
         </div>
@@ -669,7 +652,7 @@ function UploadVersionModal({ lang, t, messages, vaultId, willId, currentVersion
       <div className="hn-will-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="hn-will-modal-header">
           <h2>{t.versionFormTitle} (v{currentVersionNumber + 1})</h2>
-          <button type="button" className="hn-will-modal-close" onClick={onClose} disabled={busy} aria-label="Đóng">
+          <button type="button" className="hn-will-modal-close" onClick={onClose} disabled={busy} aria-label={lang === 'en' ? 'Close' : 'Đóng'}>
             <X size={18} />
           </button>
         </div>
@@ -841,7 +824,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
       <div ref={dialogRef} className={`hn-will-modal-card ${previewFile ? 'hn-will-preview-card' : ''}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={previewFile ? fileName : (isView ? t.reauthModalTitleView : t.reauthModalTitle)} style={{ maxWidth: previewFile ? '1000px' : '440px' }}>
         <div className="hn-will-modal-header">
           <h2>{previewFile ? previewFile.name : (isView ? t.reauthModalTitleView : t.reauthModalTitle)}</h2>
-          <button type="button" className="hn-will-modal-close" onClick={handleClose} disabled={isSubmitting} aria-label="Đóng">
+          <button type="button" className="hn-will-modal-close" onClick={handleClose} disabled={isSubmitting} aria-label={lang === 'en' ? 'Close' : 'Đóng'}>
             <X size={18} />
           </button>
         </div>
@@ -855,7 +838,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
         ) : (
         <form onSubmit={handleConfirm} noValidate>
           <FirstPasswordButton lang={lang} onReady={setPassword} disabled={isSubmitting} />
-          <p style={{ fontSize: '14px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '14px', color: '#68736b', margin: '0 0 16px', lineHeight: 1.6, maxWidth: '68ch' }}>
             {isView ? t.reauthPromptView : t.reauthPrompt} <strong>v{version}</strong> ({fileName})
           </p>
 
@@ -879,7 +862,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
-                padding: '11px 40px 11px 14px',
+                padding: '11px 44px 11px 14px',
                 border: '1px solid #dce2da',
                 borderRadius: '10px',
                 fontSize: '14px',
@@ -890,17 +873,19 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
               tabIndex={-1}
-              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              aria-label={showPassword ? (lang === 'en' ? 'Hide password' : 'Ẩn mật khẩu') : (lang === 'en' ? 'Show password' : 'Hiện mật khẩu')}
               style={{
                 position: 'absolute',
-                right: '10px',
+                right: '2px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'none',
                 border: 'none',
                 color: '#68736b',
                 cursor: 'pointer',
-                padding: '4px',
+                minWidth: '44px',
+                minHeight: '44px',
+                padding: 0,
                 display: 'grid',
                 placeItems: 'center',
               }}
@@ -925,7 +910,7 @@ export function DownloadReauthModal({ lang, t, vaultId, willId, version, fileNam
             </Button>
           </div>
 
-          <p style={{ fontSize: '14px', color: '#889085', marginTop: '16px', marginBottom: 0, lineHeight: 1.5, borderTop: '1px solid #f0f3ee', paddingTop: '10px' }}>
+          <p className="hn-will-legal-notice">
             {t.legalNoticeViewOnly}
           </p>
         </form>
