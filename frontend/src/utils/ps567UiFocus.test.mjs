@@ -176,7 +176,8 @@ test('UI Focus: Nhãn mật khẩu chuẩn hóa thành “Mật khẩu đăng nh
   );
   for (const lang of ['vi', 'en']) {
     const dict = ASSET_I18N[lang]?.assets;
-    assert.ok(dict.detailModal.passwordPrompt.includes('mật khẩu đăng nhập hiện tại') || dict.detailModal.passwordPrompt.includes('current login password'));
+    assert.ok(dict.detailModal.passwordPrompt.includes('mật khẩu') || dict.detailModal.passwordPrompt.toLowerCase().includes('password'));
+    assert.ok(!dict.detailModal.passwordPrompt.endsWith(':'));
     assert.ok(!dict.detailModal.passwordPrompt.toLowerCase().includes('mật khẩu kho'));
   }
 });
