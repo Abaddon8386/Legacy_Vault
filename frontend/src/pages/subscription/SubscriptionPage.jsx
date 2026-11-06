@@ -69,8 +69,8 @@ function PlanComparison({ data, lang, t, payment }) {
                 ))}
               </ul>
 
-              {payment && isUpgrade && <div className="lv-plan-card-footer">
-                {(
+              <div className="lv-plan-card-footer">
+                {payment && isUpgrade && (
                   <button
                     type="button"
                     className="lv-plan-select-btn"
@@ -84,7 +84,7 @@ function PlanComparison({ data, lang, t, payment }) {
                     <span aria-hidden="true"> →</span>
                   </button>
                 )}
-              </div>}
+              </div>
             </div>
           );
         })}

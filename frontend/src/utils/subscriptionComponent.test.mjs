@@ -76,7 +76,7 @@ test('Subscription component displays scenario quotas and hides local-only plan 
     const currentBadge = currentCard.querySelector('.lv-plan-current-badge');
     assert.ok(currentBadge);
     assert.ok(currentBadge.closest('.lv-plan-card-header'), 'badge sits beside the plan name');
-    assert.equal(currentCard.querySelector('.lv-plan-card-footer'), null, 'current plan has no action footer');
+    assert.equal(currentCard.querySelector('.lv-plan-select-btn'), null, 'current plan has no action button');
     assert.doesNotMatch(currentCard.textContent, /Bạn đang dùng gói này/);
     assert.doesNotMatch(currentCard.textContent, /Đã có quyền lợi gói này/);
   } finally { await view.close(); }
