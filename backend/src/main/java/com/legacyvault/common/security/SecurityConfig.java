@@ -20,8 +20,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Khung bảo mật tối thiểu của PS-74: chứng minh 401/403 trả đúng JSON lỗi chung.
- * Xác thực JWT, role VAULT_OWNER... thuộc PS-10/PS-11, mở rộng file này (không viết lại).
+ * Cấu hình bảo mật: API stateless, 401/403 trả JSON lỗi chung, phân quyền theo đường dẫn/role.
+ * Xác thực Bearer JWT nằm ở {@link JwtAuthenticationFilter}.
  */
 @Configuration
 @EnableMethodSecurity
@@ -76,7 +76,7 @@ public class SecurityConfig {
 
 	/**
 	 * Chặn Spring Boot tự sinh tài khoản "user" kèm mật khẩu ngẫu nhiên in ra log.
-	 * PS-10/PS-11 thay bean này bằng UserDetailsService đọc từ DB.
+	 * Bean giữ lại có chủ đích: xác thực thật do JwtAuthenticationFilter xử lý, không tra cứu người dùng qua UserDetailsService.
 	 */
 	@Bean
 	UserDetailsService noUsersYet() {

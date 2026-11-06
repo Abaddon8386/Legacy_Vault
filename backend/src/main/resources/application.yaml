@@ -27,7 +27,7 @@ spring:
     fallback-to-system-locale: false
 logging:
   level:
-    org.flywaydb: DEBUG
+    org.flywaydb: INFO
     # Debug/TRACE logs may include the signed VNPay callback query string.
     org.springframework.security: INFO
   pattern:
