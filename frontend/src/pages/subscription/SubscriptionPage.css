@@ -4,8 +4,9 @@
 .lv-sub-title,.lv-sub-plan-name,.lv-sub-section-title,.lv-plan-card-name{font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);color:#164639;margin:0;line-height:1.2}
 .lv-sub-title{font-size:clamp(22px,2.8vh,28px);font-weight:600}
 .lv-sub-subtitle,.lv-sub-section-desc{margin:0;color:#637068;font-size:14px;line-height:1.6}
-.lv-sub-current-card{background:#fff;border:1px solid #dedfd6;border-radius:12px;padding:clamp(10px,1.8vh,16px) clamp(16px,2vw,24px);display:flex;align-items:center;justify-content:space-between;gap:clamp(16px,2.5vw,32px)}
-.lv-sub-current-left{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.lv-sub-current-card{background:#fff;border:1px solid #dedfd6;border-radius:12px;padding:clamp(10px,1.8vh,16px) 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;gap:clamp(12px,2vw,20px)}
+.lv-sub-current-card>*,.lv-sub-quota-item{padding-inline:clamp(12px,2vh,22px)}
+.lv-sub-current-left{display:flex;flex-direction:column;gap:2px}
 .lv-sub-plan-status{font-size:14px;font-weight:600;color:#22553e;background:#edf3ee;border-radius:5px;padding:5px 8px}
 .lv-sub-trial-tag{font-size:13px;color:#775d2c}
 .lv-sub-plan-name{font-size:clamp(19px,2.4vh,24px);font-weight:700}
@@ -15,7 +16,7 @@
 .lv-sub-expiry-val{font-weight:600;color:#264a38}
 .lv-sub-vault-count{margin:0;color:#7a8a81;font-size:14px}
 .lv-sub-vault-count strong{color:#264a38;font-variant-numeric:tabular-nums}
-.lv-sub-quota-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.5vw,28px);flex:1;max-width:680px;border-top:none;padding-top:0}
+.lv-sub-quota-grid{display:contents}
 .lv-sub-quota-item{display:flex;flex-direction:column;gap:5px;min-width:0}
 .lv-sub-quota-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .lv-sub-quota-label{display:inline-flex;gap:6px;align-items:center;font-size:14px;color:#526259;white-space:nowrap}
@@ -67,7 +68,7 @@
 .lv-sub-skeleton-plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .lv-sub-skeleton-plans>div{height:220px}
 @keyframes lv-sub-loading{to{opacity:.45}}
-@media(max-width:760px){.lv-sub-cards-grid{grid-template-columns:1fr}.lv-plan-card{padding:18px}.lv-sub-current-card{flex-direction:column;align-items:stretch;gap:14px}.lv-sub-quota-grid{grid-template-columns:1fr;max-width:none;gap:14px}.lv-sub-common-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lv-sub-skeleton-plans{grid-template-columns:1fr}}
+@media(max-width:760px){.lv-sub-cards-grid{grid-template-columns:1fr}.lv-plan-card{padding:18px}.lv-sub-current-card{grid-template-columns:1fr;gap:14px}.lv-sub-current-card>*,.lv-sub-quota-item{padding-inline:18px}.lv-sub-common-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lv-sub-skeleton-plans{grid-template-columns:1fr}}
 @media(max-width:640px){.lv-sub-common-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.lv-sub-page{gap:16px}.lv-sub-title{font-size:22px}.lv-sub-current-card{padding:14px 12px}.lv-sub-dev-controls{width:100%;flex-wrap:wrap}.lv-sub-dev-select{width:100%;min-height:44px}.lv-sub-dev-banner{padding:8px}.lv-sub-common-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.lv-sub-progress-bar{transition:none}.lv-sub-skeleton-current,.lv-sub-skeleton-plans>div{animation:none}}
