@@ -13,6 +13,8 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
+        // Gửi X-Forwarded-For để backend (FORWARD_HEADERS_STRATEGY=native) giới hạn theo IP thật.
+        xfwd: true,
         configure(proxy) {
           proxy.on('proxyReq', (proxyReq, req) => {
             // Same-origin browser requests become same-origin at the upstream hop too.
