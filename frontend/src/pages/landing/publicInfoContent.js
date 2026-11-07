@@ -62,6 +62,15 @@ export const publicInfoContent = {
             'Nhân viên tiếp nhận giấy tờ, bộ phận pháp lý thẩm định hồ sơ và hệ thống ghi nhận việc bàn giao. Người thụ hưởng xem phần tài sản đã được bàn giao cho mình trong tài khoản riêng.',
           ],
         },
+        {
+          id: 'legal',
+          title: 'Giá trị pháp lý và giới hạn',
+          paragraphs: [
+            'LegacyVault giúp bạn lưu giữ thông tin và chuẩn bị bàn giao theo quy trình của hệ thống. LegacyVault không thay thế di chúc hợp pháp, công chứng hay tư vấn pháp lý, và không xác nhận quyền sở hữu hay giá trị pháp lý của tài sản bạn lưu.',
+            'Mỗi loại tài sản có quy định pháp luật riêng, và quy định về một số loại, như tài sản số hay tiền mã hóa, đang được xây dựng và có thể thay đổi. Việc một tài sản được lưu trong kho không có nghĩa tài sản đó được pháp luật công nhận hoặc được phép chuyển giao.',
+            'Hãy tham khảo luật sư hoặc công chứng viên trước khi dựa vào LegacyVault cho việc phân chia di sản.',
+          ],
+        },
       ],
       related: ['Tìm hướng dẫn sử dụng LegacyVault', '/support'],
     },
@@ -166,6 +175,15 @@ export const publicInfoContent = {
           title: 'From case intake to handover',
           paragraphs: [
             'Staff receive documents, legal reviewers assess the case, and the system records the handover. Beneficiaries can view the assets handed over to them in their own accounts.',
+          ],
+        },
+        {
+          id: 'legal',
+          title: 'Legal status and limits',
+          paragraphs: [
+            'LegacyVault helps you keep information and prepare a handover through its own process. It does not replace a valid will, notarisation or legal advice, and it does not confirm ownership or the legal status of what you store.',
+            'Each kind of asset has its own legal rules, and the rules for some kinds, such as digital assets and crypto assets, are still being developed and may change. Storing an asset in your vault does not mean the law recognises it or allows it to be transferred.',
+            'Please consult a lawyer or a notary before relying on LegacyVault to divide an estate.',
           ],
         },
       ],
