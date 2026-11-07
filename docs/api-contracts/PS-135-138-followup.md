@@ -96,3 +96,11 @@ OpenAPI cross-check: `LegalBasisReviewResponse.notification` and
 has no case id or action. The inbox item supplies `caseId` and the notification
 action. See [distribution contract](PS-135-distribution-notifications.md) for the
 current workflow-to-inbox action mapping and the two delegated event keys.
+
+Earlier follow-up (recorded on `main` before the A1 verification above; the SQL execution gap it mentions is covered by the A1 SQL results):
+Follow-up verification: 50 unit/controller tests pass, including HTTP receipt fields,
+distinct review event keys, null receipts and propagated notification errors.
+The SQL wrapper regression asserts a single persisted notification and matching
+receipt, but execution is NOT VERIFIED: `LEGAL_SQLSERVER_MASTER_URL` is absent
+(`The url cannot be null`). Real SQL rollback/concurrency and two-account FE E2E
+remain unverified. Inbox group labels were fixed separately in commit `ae6715b`.
