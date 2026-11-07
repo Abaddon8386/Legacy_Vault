@@ -5,7 +5,7 @@ import { DocumentPicker } from './AssetDocuments.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
-import { AlertCircle, Lock, X } from 'lucide-react'
+import { AlertCircle, Info, Lock, X } from 'lucide-react'
 import './AssetFormModal.css'
 import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
@@ -248,6 +248,16 @@ export function AssetFormModal({
           <DocumentPicker files={documents} onChange={setDocuments} disabled={isSubmitting} lang={lang} />
 
           </div>
+          {/* Legal notice stays visible next to the actions, outside the scrolling fields. */}
+          {t.assets.addModal.legalNote && (
+            <div className="lv-asset-legal-note" role="note">
+              <Info size={18} aria-hidden="true" />
+              <p>
+                {t.assets.addModal.legalNote}{' '}
+                <a href={`/about?lang=${lang}#legal`} target="_blank" rel="noopener noreferrer">{t.assets.addModal.legalNoteLink}</a>
+              </p>
+            </div>
+          )}
           {/* Actions remain outside the scrolling fields. */}
           <div className="lv-form-actions">
             <Button
