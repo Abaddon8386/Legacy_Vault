@@ -58,24 +58,6 @@
   font-weight: 600;
 }
 
-.lv-received__reload-btn {
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  border: 1px solid #ccd8cf;
-  background: #f7faf6;
-  color: #21483d;
-  border-radius: 8px;
-  padding: 6px 14px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.lv-received__reload-btn:hover {
-  background: #eef5ec;
-  border-color: #21483d;
-}
-
 .lv-received-status {
   font-size: 14px;
   color: #4b6358;
