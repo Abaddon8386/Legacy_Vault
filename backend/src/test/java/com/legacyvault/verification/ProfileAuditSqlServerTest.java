@@ -100,8 +100,11 @@ class ProfileAuditSqlServerTest extends LegalBasisSqlServerSupport {
         PasswordEncoder encoder = context.getBean(PasswordEncoder.class);
         jdbc.update("UPDATE dbo.users SET password_hash=?, password_login_enabled=1, email_verified_at=SYSUTCDATETIME() WHERE user_id=?",
                 encoder.encode(currentPassword), fixture.userId());
+        // A real account always has a role. Without one, login "repairs" it into a personal owner and writes a
+        // second AUTH_PROFILE_UPDATED audit row (personalOwnerRole), which this test does not want to count.
+        jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_VAULT_OWNER'", fixture.userId());
         AuthService auth = context.getBean(AuthService.class);
-        String oldJwt = auth.login(new LoginRequest(fixture.legal().email(), currentPassword)).accessToken();
+        String oldJwt =auth.login(new LoginRequest(fixture.legal().email(), currentPassword)).accessToken();
 
         var authentication = UsernamePasswordAuthenticationToken.authenticated(fixture.legal(), null, List.of());
         ProfileUpdateRequest request = new ProfileUpdateRequest();

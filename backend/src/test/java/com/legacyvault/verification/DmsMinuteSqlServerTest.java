@@ -31,8 +31,15 @@ class DmsMinuteSqlServerTest extends LegalBasisSqlServerSupport {
         owner=jdbc.queryForObject("INSERT dbo.users(public_id,full_name,email,password_hash,status) OUTPUT inserted.user_id VALUES(?,'Minute fixture',?,'unused','ACTIVE')",Long.class,publicOwner.toString(),publicOwner+"@example.test");
         vault=jdbc.queryForObject("INSERT dbo.vaults(owner_user_id,vault_name,status) OUTPUT inserted.vault_id VALUES(?,'Minute fixture','ACTIVE')",Long.class,owner);
         jdbc.update("INSERT dbo.beneficiaries(vault_id,full_name) VALUES(?,'Minute beneficiary')",vault);
+        addDmsPrerequisites(vault);
         dms=context.getBean(DmsService.class);login("VAULT_OWNER");
         mvc=MockMvcBuilders.webAppContextSetup((WebApplicationContext)context).apply(springSecurity()).build();
+    }
+    /** DmsService.configure requires a non-document asset, a will document and a beneficiary in the vault. */
+    static void addDmsPrerequisites(long vaultId) {
+        jdbc.update("INSERT dbo.assets(public_id,vault_id,asset_type,title) VALUES(?,?,'TEXT','Minute asset')",UUID.randomUUID().toString(),vaultId);
+        long will=jdbc.queryForObject("INSERT dbo.assets(public_id,vault_id,asset_type,title) OUTPUT inserted.asset_id VALUES(?,?,'DOCUMENT','Minute will')",Long.class,UUID.randomUUID().toString(),vaultId);
+        jdbc.update("INSERT dbo.legal_documents(asset_id,document_type) VALUES(?,'WILL')",will);
     }
     void login(String role) {
         SecurityContextHolder.getContext().setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
