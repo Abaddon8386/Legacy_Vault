@@ -63,18 +63,27 @@ public class DmsConfig {
 		this.gracePeriodMinutes = Math.multiplyExact(gracePeriodDays, 1440);
 		this.status = "MONITORING";
 		this.nextCheckAt = nextCheckAt;
-		this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+		this.updatedAt = utcNow();
+	}
+
+	/**
+	 * Current UTC time at microsecond precision. SQL Server datetime2 keeps 100 ns and rounds, while Linux clocks
+	 * return nanoseconds; a value computed here and the same value read back would otherwise differ, and a
+	 * deadline compared against its own stored copy could land on the wrong side.
+	 */
+	static LocalDateTime utcNow() {
+		return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
 	}
 
 	@PrePersist
 	void onCreate() {
 		if (status == null) status = "MONITORING";
-		if (updatedAt == null) updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+		if (updatedAt == null) updatedAt = utcNow();
 	}
 
 	@PreUpdate
 	void onUpdate() {
-		updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+		updatedAt = utcNow();
 	}
 
 	public void configure(int checkIntervalDays, LocalDateTime nextCheckAt) {
@@ -98,7 +107,7 @@ public class DmsConfig {
 		if (graceMinutes < 0 || graceMinutes > MAX_GRACE_MINUTES) throw new IllegalArgumentException("Invalid DMS grace minutes");
 		this.gracePeriodMinutes = graceMinutes;
 		this.gracePeriodDays = graceMinutes / 1440;
-		this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+		this.updatedAt = utcNow();
 	}
 
 	public void configureMinutes(int minutes, LocalDateTime nextCheckAt) {
@@ -110,7 +119,7 @@ public class DmsConfig {
 		this.nextCheckAt = nextCheckAt;
 		this.triggeredAt = null;
 		this.graceDeadline = null;
-		this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+		this.updatedAt = utcNow();
 	}
 
 	public void checkIn(LocalDateTime now) {
