@@ -228,14 +228,16 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     </section>
   );
 
-  const requestsCard = ready && (requests.length > 0 || error) && (
+  // A linked request needs nothing more once the account can read: the delivered assets above are the outcome.
+  const visibleRequests = requests.filter(item => !(item.status === 'APPROVED' && canRead));
+  const requestsCard = ready && (visibleRequests.length > 0 || error) && (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="my-requests-title" aria-busy={loading}>
       <div className="lv-link-heading"><h2 id="my-requests-title">{en ? 'My requests' : 'Yêu cầu của tôi'}</h2>
-        <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button></div>
+        {(error || uncertain) && <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button>}</div>
       {loading && <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
-      <ul className="lv-link-requests">{requests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
+      <ul className="lv-link-requests">{visibleRequests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
         <div>
-          <strong>{item.caseNumber || `${en ? 'Request' : 'Yêu cầu'} #${item.id.slice(0, 8)}`}</strong>
+          <strong>{item.caseNumber || (en ? 'Link request' : 'Yêu cầu liên kết')}</strong>
           <p>{requestStatusLabel(item.status, lang)}</p>
           {item.status === 'REJECTED' && (
             <div className="lv-link-rejected-guidance" style={{ fontSize: '14px', color: '#b91c1c', marginTop: '6px', lineHeight: 1.4 }}>

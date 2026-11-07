@@ -401,7 +401,6 @@ function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDe
   const preview = receivedPreviewAllowed({ accessToken, isDevPreview });
   const previewActions = useMemo(() => previewReceivedActions(scenario, lang), [scenario, lang]);
   const source = receivedActions(actions, { accessToken, isDevPreview, previewActions });
-  const [revision, setRevision] = useState(0);
   const subjectId = preview ? PREVIEW_SUBJECT : userId;
   return (
     <section className="lv-received lv-owner-card" aria-labelledby="received-assets-title">
@@ -415,15 +414,6 @@ function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDe
         )}
         <div className="lv-received__header-actions">
           {preview && <span className="lv-received-demo" role="note">{en ? 'Demo data' : 'Dữ liệu minh họa'}</span>}
-          {source && (
-            <button
-              type="button"
-              className="lv-received__reload-btn"
-              onClick={() => { setPage(0); setRevision(v => v + 1); }}
-            >
-              {en ? 'Reload' : 'Tải lại'}
-            </button>
-          )}
         </div>
       </header>
       {!source ? (
@@ -433,7 +423,7 @@ function ReceivedAssetsContent({ actions, userId, accessToken, lang = 'vi', isDe
         </div>
       ) : (
         <AssetPage
-          key={`${subjectId}:${accessToken || 'demo'}:${page}:${revision}:${refreshKey}:${scenario}`}
+          key={`${subjectId}:${accessToken || 'demo'}:${page}:${refreshKey}:${scenario}`}
           actions={source}
           subjectId={subjectId}
           accessToken={accessToken}

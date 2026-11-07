@@ -500,7 +500,7 @@ test('CaseLinkWorkspace polling: slow response (> 4s) is not aborted by poll tim
 
     // Now test account/token change while a poll is in-flight:
     // First manual reload returns PENDING again
-    await click(v.host, 'Tải lại trạng thái');
+    await v.render({ ...base, caseLinkActions: actions, lang: 'vi', refreshKey: 1 }); // the button only shows after an error or uncertain write
     assert.equal(calls, 3);
     await act(async () => {
       resolvers[2]([pendingItem]);
@@ -624,7 +624,7 @@ test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling con
       return reqCCancelled;
     };
 
-    await click(v.host, 'Tải lại trạng thái');
+    await v.render({ ...base, caseLinkActions: actions, lang: 'vi', refreshKey: 1 }); // the button only shows after an error or uncertain write
     assert.equal(listCalls, 3);
     await act(async () => {
       resolvers[2]([reqC, reqD]);
@@ -682,7 +682,22 @@ test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling con
   }
 });
 
-test('empty state shows one link card, and the requests card with its reload button appears only when requests exist', async () => {
+test('a linked request is hidden once the account can read, and a request without a case number never shows a raw id', async () => {
+  const approved = { id: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa', caseNumber: null, status: 'APPROVED' };
+  const beneficiary = { session: { user: { id: 'b1', roles: ['BENEFICIARY'] }, accessToken: 'fixture' } };
+  let v = await mount(Shared, { ...beneficiary, caseLinkActions: { listOwn: async () => [approved], submit: async () => {} } });
+  try {
+    assert.doesNotMatch(v.host.textContent, /Yêu cầu của tôi|Đã liên kết|aaaaaaaa/);
+    assert.equal([...v.host.querySelectorAll('button')].some(b => /Tải lại|Cập nhật tình hình/.test(b.textContent)), false, 'no refresh buttons in the normal state');
+  } finally { await v.close(); }
+  v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [{ ...req, caseNumber: null }], submit: async () => {} } });
+  try {
+    assert.match(v.host.textContent, /Yêu cầu liên kết/);
+    assert.doesNotMatch(v.host.textContent, /Yêu cầu #|#r1/);
+  } finally { await v.close(); }
+});
+
+test('empty state shows one link card; the requests card appears only for requests that still need attention, without a reload button', async () => {
   let v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [], submit: async () => {} } });
   try {
     assert.doesNotMatch(v.host.textContent, /Yêu cầu của tôi|Chưa có yêu cầu nào/);
@@ -695,6 +710,7 @@ test('empty state shows one link card, and the requests card with its reload but
   v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [req], submit: async () => {} } });
   try {
     const reloadBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Tải lại trạng thái'));
-    assert.ok(reloadBtn, 'Reload button must be visible when requests exist');
+    assert.equal(reloadBtn, undefined, 'Reload button stays hidden while the list loads normally');
+    assert.match(v.host.textContent, /Yêu cầu của tôi/);
   } finally { await v.close(); }
 });
