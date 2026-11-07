@@ -70,6 +70,47 @@ export const publicInfoContent = {
             'Mỗi loại tài sản có quy định pháp luật riêng, và quy định về một số loại, như tài sản số hay tiền mã hóa, đang được xây dựng và có thể thay đổi. Việc một tài sản được lưu trong kho không có nghĩa tài sản đó được pháp luật công nhận hoặc được phép chuyển giao.',
             'Hãy tham khảo luật sư hoặc công chứng viên trước khi dựa vào LegacyVault cho việc phân chia di sản.',
           ],
+          references: {
+            title: 'Cơ sở pháp lý tham khảo',
+            note: 'Danh sách để tham khảo, không phải tư vấn pháp lý. Đã đối chiếu với văn bản chính thức ngày 07/11/2026; văn bản có thể được sửa đổi sau thời điểm này.',
+            items: [
+              {
+                name: 'Bộ luật Dân sự 2015 (Luật số 91/2015/QH13)',
+                note: 'Điều 105 (tài sản); Điều 609, 612 và 649 (quyền thừa kế, di sản, thừa kế theo pháp luật); Điều 624 và 630 (di chúc, di chúc hợp pháp); Điều 46 (giám hộ); Điều 71 (tuyên bố chết). Có hiệu lực từ 01/01/2017.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-91-2015-qh13-18397.htm',
+              },
+              {
+                name: 'Luật Công chứng (Luật số 46/2024/QH15)',
+                note: 'Điều 58 đến Điều 61: công chứng di chúc, văn bản phân chia di sản, văn bản từ chối nhận di sản; gửi giữ và công bố di chúc. Có hiệu lực từ 01/07/2025; Luật số 04/2026/QH16 sửa đổi, bổ sung có hiệu lực từ 01/01/2027.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-46-2024-qh15-43574.htm',
+              },
+              {
+                name: 'Luật Hộ tịch (Luật số 60/2014/QH13)',
+                note: 'Điều 32 đến Điều 34: thẩm quyền, thời hạn, trách nhiệm và thủ tục đăng ký khai tử. Có hiệu lực từ 01/01/2016; Luật Hộ tịch số 03/2026/QH16 (thông qua 23/04/2026) có hiệu lực từ 01/03/2027.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-60-2014-qh13-5264.htm',
+              },
+              {
+                name: 'Luật Giao dịch điện tử (Luật số 20/2023/QH15)',
+                note: 'Điều 8 đến Điều 13: giá trị pháp lý của thông điệp dữ liệu (như văn bản, như bản gốc, làm chứng cứ), chuyển đổi hình thức và lưu trữ. Có hiệu lực từ 01/07/2024.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-20-2023-qh15-39848.htm',
+              },
+              {
+                name: 'Luật Công nghiệp công nghệ số (Luật số 71/2025/QH15)',
+                note: 'Điều 46 đến Điều 48: tài sản số, phân loại (gồm tài sản ảo và tài sản mã hóa) và quản lý tài sản số. Có hiệu lực từ 01/01/2026.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-71-2025-qh15-45555.htm',
+              },
+              {
+                name: 'Nghị quyết số 05/2025/NQ-CP của Chính phủ',
+                note: 'Thí điểm thị trường tài sản mã hóa trong 5 năm kể từ 09/09/2025.',
+                href: 'https://vanban.chinhphu.vn/?pageid=27160&docid=215249',
+              },
+              {
+                name: 'Luật Bảo vệ dữ liệu cá nhân (Luật số 91/2025/QH15)',
+                note: 'Điều 1 (phạm vi), Điều 4 (quyền và nghĩa vụ của chủ thể dữ liệu), Điều 9 (sự đồng ý). Có hiệu lực từ 01/01/2026.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-91-2025-qh15-45578.htm',
+              },
+            ],
+          },
         },
       ],
       related: ['Tìm hướng dẫn sử dụng LegacyVault', '/support'],
@@ -185,6 +226,47 @@ export const publicInfoContent = {
             'Each kind of asset has its own legal rules, and the rules for some kinds, such as digital assets and crypto assets, are still being developed and may change. Storing an asset in your vault does not mean the law recognises it or allows it to be transferred.',
             'Please consult a lawyer or a notary before relying on LegacyVault to divide an estate.',
           ],
+          references: {
+            title: 'Legal references',
+            note: 'For reference only, not legal advice. Checked against the official texts on 7 November 2026; they may be amended after that date. The texts are in Vietnamese.',
+            items: [
+              {
+                name: 'Civil Code 2015 (Law No. 91/2015/QH13)',
+                note: 'Article 105 (property); Articles 609, 612 and 649 (right of inheritance, the estate, intestate succession); Articles 624 and 630 (wills, valid wills); Article 46 (guardianship); Article 71 (declaration of death). In force since 1 January 2017.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-91-2015-qh13-18397.htm',
+              },
+              {
+                name: 'Law on Notarization (Law No. 46/2024/QH15)',
+                note: 'Articles 58 to 61: notarising wills, estate-division documents and refusals of an inheritance; depositing and disclosing wills. In force since 1 July 2025; Law No. 04/2026/QH16 amending it takes effect on 1 January 2027.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-46-2024-qh15-43574.htm',
+              },
+              {
+                name: 'Law on Civil Status (Law No. 60/2014/QH13)',
+                note: 'Articles 32 to 34: authority, deadline, responsibility and procedure for registering a death. In force since 1 January 2016; Civil Status Law No. 03/2026/QH16 (passed 23 April 2026) takes effect on 1 March 2027.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-60-2014-qh13-5264.htm',
+              },
+              {
+                name: 'Law on Electronic Transactions (Law No. 20/2023/QH15)',
+                note: 'Articles 8 to 13: legal value of data messages (as writing, as an original, as evidence), format conversion and storage. In force since 1 July 2024.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-20-2023-qh15-39848.htm',
+              },
+              {
+                name: 'Law on Digital Technology Industry (Law No. 71/2025/QH15)',
+                note: 'Articles 46 to 48: digital assets, their classification (including virtual assets and crypto assets) and their management. In force since 1 January 2026.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-71-2025-qh15-45555.htm',
+              },
+              {
+                name: 'Government Resolution No. 05/2025/NQ-CP',
+                note: 'A five-year pilot of the crypto asset market from 9 September 2025.',
+                href: 'https://vanban.chinhphu.vn/?pageid=27160&docid=215249',
+              },
+              {
+                name: 'Law on Personal Data Protection (Law No. 91/2025/QH15)',
+                note: 'Article 1 (scope), Article 4 (rights and duties of data subjects), Article 9 (consent). In force since 1 January 2026.',
+                href: 'https://congbao.chinhphu.vn/van-ban/luat-so-91-2025-qh15-45578.htm',
+              },
+            ],
+          },
         },
       ],
       related: ['Find help using LegacyVault', '/support'],
