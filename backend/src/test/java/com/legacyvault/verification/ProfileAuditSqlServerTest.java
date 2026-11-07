@@ -104,7 +104,7 @@ class ProfileAuditSqlServerTest extends LegalBasisSqlServerSupport {
         // second AUTH_PROFILE_UPDATED audit row (personalOwnerRole), which this test does not want to count.
         jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_VAULT_OWNER'", fixture.userId());
         AuthService auth = context.getBean(AuthService.class);
-        String oldJwt =auth.login(new LoginRequest(fixture.legal().email(), currentPassword)).accessToken();
+        String oldJwt = auth.login(new LoginRequest(fixture.legal().email(), currentPassword)).accessToken();
 
         var authentication = UsernamePasswordAuthenticationToken.authenticated(fixture.legal(), null, List.of());
         ProfileUpdateRequest request = new ProfileUpdateRequest();
