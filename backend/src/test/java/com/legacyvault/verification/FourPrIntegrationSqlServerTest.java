@@ -22,6 +22,8 @@ class FourPrIntegrationSqlServerTest extends LegalBasisSqlServerSupport {
         // Preverified case fixture; physical death/counter evidence is not being asserted by this test.
         jdbc.update("UPDATE dbo.vaults SET status='ACTIVE' WHERE vault_id=?",f.vaultId());
         jdbc.update("INSERT dbo.beneficiaries(vault_id,full_name) VALUES(?,'DMS trial fixture')",f.vaultId());
+        // DmsService.configure also needs a non-document asset (the will comes from fixture(true)).
+        jdbc.update("INSERT dbo.assets(public_id,vault_id,asset_type,title) VALUES(?,?,'TEXT','DMS trial asset')",UUID.randomUUID().toString(),f.vaultId());
         jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code IN ('ROLE_ADMIN','ROLE_VAULT_OWNER','ROLE_LEGAL_VERIFIER','ROLE_STAFF_EXECUTOR')",f.userId());
         String token=context.getBean(JwtService.class).generateAccessToken(f.legal().publicId(),f.legal().email(),List.of("ROLE_ADMIN","ROLE_VAULT_OWNER","ROLE_LEGAL_VERIFIER","ROLE_STAFF_EXECUTOR"));
         Map<?,?> configured=call("PUT","/dms",Map.of("checkIntervalMinutes",90),token,200);
