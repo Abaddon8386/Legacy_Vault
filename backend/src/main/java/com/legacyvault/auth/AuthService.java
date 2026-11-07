@@ -215,6 +215,9 @@ public class AuthService {
         return new PasswordSetupResponse(true);
     }
 
+    // Transactional here too: the call below is a self-invocation, so the annotation on the two-argument
+    // method is bypassed when this one is entered (lazy roles and the locked read then run without a session).
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         return login(request, null);
     }

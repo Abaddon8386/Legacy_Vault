@@ -252,7 +252,9 @@ public class BeneficiaryInvitationService {
                 Map.of("beneficiaryId", beneficiary.getPublicId().toString(), "generation", invitation.getGeneration(),
                         "stateAfter", invitation.state(now())));
     }
-    private LocalDateTime now() { return LocalDateTime.now(ZoneOffset.UTC); }
+    // SQL Server datetime2 keeps 100 ns; Linux clocks return nanoseconds, so the value returned right after
+    // issue() would differ from the one read back. Micros fit every platform and the column.
+    private LocalDateTime now() { return LocalDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS); }
     private BusinessException invalid() { return error(ErrorCode.BENEFICIARY_INVITATION_INVALID); }
     private BusinessException error(ErrorCode code) { return new BusinessException(code); }
 }
