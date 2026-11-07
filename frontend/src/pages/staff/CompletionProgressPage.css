@@ -9,7 +9,7 @@
   flex-direction: column;
   gap: 24px;
   width: 100%;
-  max-width: 1040px;
+  max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -69,7 +69,7 @@
 }
 
 .lv-completion-progress-view .lv-progress-notice-banner__body p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-body, #2b302c);
   line-height: 1.5;
   margin: 0;
@@ -144,7 +144,7 @@
 .lv-completion-progress-view .lv-overall-missing-list {
   margin: 8px 0 0 18px;
   padding: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   color: #b3261e;
   line-height: 1.6;
 }
@@ -177,7 +177,7 @@
 }
 
 .lv-completion-progress-view .lv-progress-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-body, #2b302c);
 }
@@ -236,7 +236,7 @@
 }
 
 .lv-completion-progress-view .lv-metric-card__desc {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0;
   line-height: 1.4;
@@ -249,21 +249,21 @@
   gap: 5px;
   padding: 4px 10px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .lv-completion-progress-view .lv-metric-badge--complete {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 .lv-completion-progress-view .lv-metric-badge--incomplete {
-  background-color: var(--lv-status-pending-bg, #f7f9fc);
-  color: var(--lv-status-pending-text, #2b5788);
-  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+  background-color: var(--lv-status-success-bg);
+  color: var(--lv-status-success-text);
+  border: 1px solid var(--lv-status-success-border);
 }
 
 .lv-completion-progress-view .lv-metric-badge--awaiting {
@@ -314,7 +314,7 @@
 }
 
 .lv-completion-progress-view .lv-unverified-notice {
-  font-size: 13px;
+  font-size: 14px;
   color: #b46b18;
   display: flex;
   align-items: center;
@@ -362,7 +362,7 @@
   border: 1px solid var(--lv-border-medium, #ded9ce);
   background-color: #ffffff;
   color: var(--lv-text-body, #2b302c);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -388,7 +388,7 @@
   border: none;
   background-color: var(--lv-brand-forest, #164639);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -416,7 +416,7 @@
   padding: 0 12px;
   border: 1px solid var(--lv-border-medium, #ded9ce);
   border-radius: var(--lv-radius-md, 8px);
-  font-size: 13.5px;
+  font-size: 14px;
   background-color: #ffffff;
   color: var(--lv-text-ink, #1f2421);
   min-width: 280px;
@@ -463,7 +463,7 @@
 }
 
 .lv-completion-progress-view .lv-progress-error-banner p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #78350f;
   margin: 0;
   line-height: 1.5;
@@ -478,7 +478,7 @@
   to { transform: rotate(360deg); }
 }
 
-.lv-completion-progress-view .lv-progress-technical { margin: 0; font-size: 12px; color: #667385; }
+.lv-completion-progress-view .lv-progress-technical { margin: 0; font-size: 14px; color: #667385; }
 .lv-completion-progress-view .lv-progress-technical > summary { cursor: pointer; width: fit-content; padding: 8px 0; }
 .lv-completion-progress-view .lv-progress-technical .lv-progress-card { margin-top: 8px; }
 .lv-completion-progress-view .lv-progress-title { color: #1e293b; }

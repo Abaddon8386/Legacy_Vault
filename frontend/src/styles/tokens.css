@@ -107,6 +107,10 @@
   --lv-status-danger-bg: var(--lv-status-error-bg);
   --lv-status-danger-text: var(--lv-status-error-text);
   --lv-status-danger-border: var(--lv-status-error-border);
+  --lv-status-done-bg: #eef0eb;
+  --lv-status-done-text: #5e6b62;
+  --lv-status-done-border: #d5d9d1;
+  --lv-required: #b42318;
 
   /* ------------------------------------------------------------------------
      6. RADII & GEOMETRY

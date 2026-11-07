@@ -33,7 +33,7 @@ class AuthProfileServiceTest {
     private final JwtService jwt = mock(JwtService.class);
     private final AuditService audit = mock(AuditService.class);
     private final PasswordReauthService reauth = mock(PasswordReauthService.class);
-    private final AuthService service = new AuthService(users, roles, userRoles, encoder, jwt, audit, reauth, mock(com.legacyvault.auth.emailverification.EmailVerificationService.class));
+    private final AuthService service = new AuthService(users, roles, userRoles, encoder, jwt, audit, reauth, mock(com.legacyvault.auth.emailverification.EmailVerificationService.class), mock(LoginAttemptLimiter.class));
     private final Long userId = 8L;
     private final UUID publicId = UUID.randomUUID();
     private final User user = mock(User.class);
@@ -47,6 +47,7 @@ class AuthProfileServiceTest {
         when(user.getUserId()).thenReturn(userId);
         when(user.getPublicId()).thenReturn(publicId);
         when(user.getStatus()).thenReturn("ACTIVE");
+        when(user.isPasswordLoginAllowed()).thenReturn(true);
         when(user.getEmail()).thenReturn("before@example.com");
         when(user.getPhoneNumber()).thenReturn("0900000000");
         when(userRoles.findByUserIdWithRole(userId)).thenReturn(List.of());
@@ -62,6 +63,13 @@ class AuthProfileServiceTest {
         assertThat(response.fullName()).isEqualTo("A User");
         assertThat(response.phoneNumber()).isEqualTo("0900000000");
         assertThat(response.roles()).isEmpty();
+        assertThat(response.passwordLoginEnabled()).isTrue();
+    }
+
+    @Test
+    void selfReadReportsGoogleOnlyAccountHasNoPasswordYet() {
+        when(user.isPasswordLoginAllowed()).thenReturn(false);
+        assertThat(service.getCurrentUser(auth).passwordLoginEnabled()).isFalse();
     }
 
     @Test

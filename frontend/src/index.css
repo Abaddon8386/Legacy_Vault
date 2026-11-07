@@ -1,5 +1,11 @@
 @import './styles/tokens.css';
 
+.lv-required-mark {
+  margin-inline-start: 4px;
+  color: var(--lv-required);
+  font-weight: 700;
+}
+
 /* ==========================================================================
    Base Reset & Normalization
    ========================================================================== */
@@ -76,4 +82,56 @@ a {
 :focus-visible {
   outline: 2px solid var(--lv-border-focus);
   outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Accessibility: touch target floor (44px)
+   Controls measured under 44px on the app screens; sizes only, no colours.
+   ========================================================================== */
+.hn-login-lang-btn,
+.hn-lang-btn,
+.hn-login-eye-btn,
+.henedo-eye-btn {
+  min-height: 44px !important;
+  min-width: 44px !important;
+}
+.lv-staff-context-bar__change-btn,
+.lv-staff-context-bar__select-btn,
+.lv-handover-btn-sm,
+.lv-handover-header-btn,
+.lv-ca-btn-receipt,
+.lv-ca-btn-primary,
+.lv-confirm-select,
+.lv-confirm-input,
+.lv-legal-approval-btn,
+.lv-legal-approval-scenario-select,
+.lv-legal-approval-reset-btn,
+.lv-profile-edit-btn,
+.lv-profile-refresh-btn,
+.lv-sub-dev-select {
+  min-height: 44px !important;
+}
+.lv-btn-back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+details > summary {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding-block: 11px;
+}
+
+/* ==========================================================================
+   Accessibility: respect the "reduce motion" system setting everywhere
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

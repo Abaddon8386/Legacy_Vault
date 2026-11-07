@@ -96,4 +96,5 @@ public class DistributionWorkflowEvent {
     public String getDocumentSha256() { return documentSha256; }
     public Integer getAllocationVersion() { return allocationVersion; }
     public String getAllocationSha256() { return allocationSha256; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }

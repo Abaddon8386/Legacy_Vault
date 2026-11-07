@@ -1,4 +1,5 @@
 import { API_BASE, ApiError, request } from '../api/http.js';
+import { passwordFetch } from '../api/passwordRequest.js';
 import { isUtcDate } from '../api/contracts.js';
 import { getWillUploadErrors, getWillContentType } from './willValidation.js';
 
@@ -335,15 +336,15 @@ export const willService = {
 
     let response;
     try {
-      response = await fetchFn(url, {
+      response = await passwordFetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify({ password }),
         signal: options.signal,
         credentials: 'omit',
-      });
+      }, { ...options, fetchFn });
     } catch (err) {
-      if (err.name === 'AbortError') throw err;
+      if (err.name === 'AbortError' || err.code === 'PASSWORD_SETUP_CANCELLED' || err.code === 'PASSWORD_NOT_SET') throw err;
       throw new ApiError('NETWORK_ERROR');
     }
 

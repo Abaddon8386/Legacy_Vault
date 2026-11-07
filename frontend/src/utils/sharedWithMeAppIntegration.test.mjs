@@ -168,7 +168,7 @@ test('SharedWithMePage - renders header and honest counter guidance without fake
   try {
     const heading = v.host.querySelector('#shared-heading');
     assert.ok(heading, 'Page heading must exist');
-    assert.equal(heading.textContent.trim(), 'Được chia sẻ với tôi');
+    assert.equal(heading.textContent.trim(), 'Tài sản thụ hưởng');
 
     const counterText = v.host.querySelector('.lv-shared-counter-text');
     assert.ok(counterText, 'Counter guidance must exist');
@@ -245,7 +245,7 @@ test('AppShell - Shared with me is visible for personal Owners and Beneficiaries
 
   try {
     const navButtons = [...v.host.querySelectorAll('button, a')];
-    const sharedTab = navButtons.find(b => b.textContent.includes('Được chia sẻ với tôi'));
+    const sharedTab = navButtons.find(b => b.textContent.includes('Tài sản thụ hưởng'));
     assert.ok(sharedTab, 'Personal Owner must be able to enter the new case-link workflow');
 
     const vaultTab = navButtons.find(b => b.textContent.includes('Kho di sản'));
@@ -256,7 +256,7 @@ test('AppShell - Shared with me is visible for personal Owners and Beneficiaries
 
     const breadcrumb = v.host.querySelector('.lv-header-breadcrumbs');
     assert.ok(breadcrumb, 'Header breadcrumbs must exist');
-    assert.match(breadcrumb.textContent, /Được chia sẻ với tôi/);
+    assert.match(breadcrumb.textContent, /Tài sản thụ hưởng/);
 
     // 2. Beneficiary layout: only Shared with me
     await v.render({
@@ -412,10 +412,10 @@ test('counter-created personal Owner can create their own vault and use Shared w
     const create = [...v.host.querySelectorAll('button')].find(b => /Khởi tạo kho/.test(b.textContent));
     assert.ok(create, 'Owner permission exposes the explicit create-vault action');
     const nav = text => [...v.host.querySelectorAll('.lv-nav-item')].find(b => b.textContent.includes(text));
-    await act(async () => nav('Được chia sẻ với tôi').click());
+    await act(async () => nav('Tài sản thụ hưởng').click());
     assert.equal(window.location.pathname, '/shared-with-me');
     assert.ok(v.host.querySelector('#case-link-number'));
-    await act(async () => nav('Kho di sản số').click());
+    await act(async () => nav('Kho di sản').click());
     assert.equal(window.location.pathname, '/vault');
     assert.deepEqual(writes, [], 'Navigation must not create a vault or link automatically');
   } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
@@ -470,12 +470,31 @@ test('canonical account refresh preserves expiry and removes revoked capabilitie
   });
   try {
     user = { ...user, roles: ['BENEFICIARY'] };
-    const button = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
-    await act(async () => button.click());
+    const refreshButton = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
+    assert.equal(refreshButton, undefined, 'Page actions must no longer include "Làm mới tài khoản" button');
+    await act(async () => {
+      window.dispatchEvent(new window.CustomEvent('lv:refresh'));
+    });
     assert.equal(window.location.pathname, '/shared-with-me');
     assert.equal(JSON.parse(window.sessionStorage.getItem('legacyvault.session.v1')).expiresAt, expiresAt);
-    assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản số/);
+    assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản/);
     assert.ok(v.host.querySelector('#shared-heading'));
+  } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
+});
+
+test('shared with me view has no legacy account refresh button on page', async () => {
+  const user = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', fullName: 'Personal', email: 'personal@example.test', roles: ['BENEFICIARY'] };
+  window.history.replaceState({}, '', '/shared-with-me');
+  window.sessionStorage.setItem('legacyvault.session.v1', JSON.stringify({ accessToken: 'fixture', user, expiresAt: Date.now() + 3600000 }));
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(user), { headers: { 'Content-Type': 'application/json' } });
+  const v = await mount(App, {
+    caseLinkActions: { listOwn: async () => [], submit: async () => {} },
+    beneficiaryAssetActions: { list: async () => ({ items: [], page: 0, totalElements: 0, totalPages: 0 }) },
+  });
+  try {
+    const refreshBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Làm mới tài khoản'));
+    assert.equal(refreshBtn, undefined, 'There must be no "Làm mới tài khoản" button on shared-with-me');
   } finally { await v.close(); globalThis.fetch = oldFetch; window.sessionStorage.clear(); }
 });
 
@@ -495,11 +514,11 @@ for (const internalRole of ['ADMIN', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
       },
     });
     try {
-      assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản số|Giám sát hoạt động/);
+      assert.doesNotMatch(v.host.querySelector('.lv-sidebar-nav').textContent, /Kho di sản|Giám sát/);
       assert.equal(reads, 0, 'Internal roles cannot request personal recipient links');
       assert.ok(receivedReads > 0, 'An existing Beneficiary grant still enables received asset reads');
       await act(async () => v.host.querySelector('[aria-haspopup="menu"]').click());
-      const entry = [...v.host.querySelectorAll('a[role="menuitem"]')].find(el => el.textContent.trim() === 'Được chia sẻ với tôi');
+      const entry = [...v.host.querySelectorAll('a[role="menuitem"]')].find(el => el.textContent.trim() === 'Tài sản thụ hưởng');
       assert.ok(entry, `${internalRole} + Beneficiary needs a replacement entry in the account menu`);
       assert.equal(entry.getAttribute('href'), '/shared-with-me?lang=vi');
       const destinations = {
@@ -539,7 +558,7 @@ test('Owner workspace keeps one shared sidebar entry for an Owner with internal 
   const user = { id: 'mixed-owner', roles: ['VAULT_OWNER', 'STAFF_EXECUTOR', 'BENEFICIARY'] };
   const view = await mount(AppShell, { role: 'OWNER', user, session: { user, accessToken: 'fixture', expiresAt: Date.now() + 3600000 }, isAuthenticated: true });
   try {
-    assert.equal([...view.host.querySelectorAll('.lv-sidebar-nav button')].filter(el => el.textContent.trim() === 'Được chia sẻ với tôi').length, 1);
+    assert.equal([...view.host.querySelectorAll('.lv-sidebar-nav button')].filter(el => el.textContent.trim() === 'Tài sản thụ hưởng').length, 1);
   } finally { await view.close(); }
 });
 
@@ -552,8 +571,8 @@ test('Regression Finding 1: Existing Bene landing Shared with me button must nav
   globalThis.fetch = async () => new Response(JSON.stringify(user), { status: 200, headers: { 'Content-Type': 'application/json' } });
   const v = await mount(App, {});
   try {
-    const btn = [...v.host.querySelectorAll('button')].find(x => x.textContent.trim() === 'Được chia sẻ với tôi');
-    assert.ok(btn, 'Button "Được chia sẻ với tôi" must exist on Bene landing');
+    const btn = [...v.host.querySelectorAll('button')].find(x => x.textContent.trim() === 'Tài sản thụ hưởng');
+    assert.ok(btn, 'Button "Tài sản thụ hưởng" must exist on Bene landing');
     await act(async () => btn.click());
     assert.equal(window.location.pathname, '/shared-with-me', 'Clicking Shared with me tab in Bene landing must reach /shared-with-me');
   } finally {
@@ -591,7 +610,7 @@ test('Multi-role Owner can navigate from vault to Shared with me and back to vau
   globalThis.fetch = async () => new Response(JSON.stringify(user), { status: 200, headers: { 'Content-Type': 'application/json' } });
   const v = await mount(App, {});
   try {
-    const sharedTab = [...v.host.querySelectorAll('button')].find(x => x.textContent.trim() === 'Được chia sẻ với tôi');
+    const sharedTab = [...v.host.querySelectorAll('button')].find(x => x.textContent.trim() === 'Tài sản thụ hưởng');
     assert.ok(sharedTab, 'Owner sidebar must have Shared with me tab');
     await act(async () => sharedTab.click());
     assert.equal(window.location.pathname, '/shared-with-me', 'Owner clicking Shared with me must reach /shared-with-me');
@@ -903,7 +922,7 @@ test('Actual App DEV preview: tab navigation preserves active preview scenario w
     assert.match(v.host.textContent, /Đã nhận một phần/);
 
     // Click navigation tab 'shared-with-me'
-    const sharedTab = [...v.host.querySelectorAll('button, a')].find(b => b.textContent.includes('Được chia sẻ với tôi'));
+    const sharedTab = [...v.host.querySelectorAll('button, a')].find(b => b.textContent.includes('Tài sản thụ hưởng'));
     if (sharedTab) {
       await act(async () => { sharedTab.click(); });
       await act(async () => new Promise(r => setTimeout(r, 100)));
@@ -924,11 +943,10 @@ test('Actual App case-number entry keeps received items and disables requests wi
   const v = await mount(DevApp, { caseLinkActions: null });
   try {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
-    assert.match(v.host.textContent, /Yêu cầu liên kết hồ sơ/);
+    assert.match(v.host.textContent, /Liên kết hồ sơ/);
     assert.doesNotMatch(v.host.textContent, /Liên kết mã mời/);
     assert.equal(v.host.querySelector('#case-link-number').disabled, true);
     assert.match(v.host.textContent, /Chưa hỗ trợ gửi yêu cầu/);
     assert.ok(v.host.querySelector('.lv-received-list'), 'Previously delivered items remain visible');
-    assert.match(v.host.querySelector('.lv-workflow-guide').textContent, /Đã nhận một phần/);
   } finally { await v.close(); window.sessionStorage.clear(); }
 });

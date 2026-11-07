@@ -404,7 +404,7 @@ function CounterHandoverContent({
                             <span className="lv-handover-badge lv-handover-badge--unlocked">
                               {t.beneficiarySection.accountLinked}
                             </span>
-                            <span style={{ display: 'block', fontSize: '11px', color: '#6b726b', marginTop: '2px' }}>
+                            <span style={{ display: 'block', fontSize: '14px', color: '#6b726b', marginTop: '2px' }}>
                               {b.linkedEmail}
                             </span>
                           </div>
@@ -455,7 +455,7 @@ function CounterHandoverContent({
               </tbody>
             </table>
           </div>
-          <p style={{ margin: '14px 0 0', fontSize: '12.5px', color: '#6b726b', fontStyle: 'italic' }}>
+          <p style={{ margin: '14px 0 0', fontSize: '14px', color: '#6b726b', fontStyle: 'italic' }}>
             {t.beneficiarySection.boundaryNote}
           </p>
           <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end' }}>
@@ -478,13 +478,13 @@ function CounterHandoverContent({
           <div ref={linkDialogRef} className="lv-handover-modal-dialog" role="dialog" aria-modal="true" aria-label={t.beneficiarySection.modalLinkTitle}>
             {actionError && <p role="alert">{actionErrorText}</p>}
             <h3 className="lv-handover-modal-dialog__title">{t.beneficiarySection.modalLinkTitle}</h3>
-            <p style={{ fontSize: '13.5px', color: '#4b554b' }}>
+            <p style={{ fontSize: '14px', color: '#4b554b' }}>
               {linkModalBeneficiary.fullName} ({linkModalBeneficiary.relationship})
             </p>
             <form onSubmit={handleLinkExisting} noValidate>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {t.beneficiarySection.searchEmailPrompt}
+                  {t.beneficiarySection.searchEmailPrompt}<span className="lv-required-mark" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="email"
@@ -533,7 +533,7 @@ function CounterHandoverContent({
               </div>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {t.beneficiarySection.createEmailPrompt}
+                  {t.beneficiarySection.createEmailPrompt}<span className="lv-required-mark" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="email"
@@ -559,7 +559,7 @@ function CounterHandoverContent({
               </div>
               <div className="lv-handover-modal-dialog__form-group">
                 <label className="lv-handover-modal-dialog__label">
-                  {lang === 'en' ? 'Password (chosen by beneficiary at counter, 8–72 chars):' : 'Mật khẩu (người thụ hưởng tự nhập tại quầy, 8–72 ký tự):'}
+                  {lang === 'en' ? 'Password (chosen by beneficiary at counter, 8–72 chars):' : 'Mật khẩu (người thụ hưởng tự nhập tại quầy, 8–72 ký tự):'}<span className="lv-required-mark" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="password"
@@ -595,7 +595,7 @@ function CounterHandoverContent({
             <h3 className="lv-handover-modal-dialog__title">
               {lang === 'en' ? 'Offline Handover Protocol (No Online Account)' : 'Quy trình bàn giao ngoại tuyến (Không tạo tài khoản)'}
             </h3>
-            <div style={{ fontSize: '13.5px', color: '#4b554b', lineHeight: 1.6, margin: '14px 0' }}>
+            <div style={{ fontSize: '14px', color: '#4b554b', lineHeight: 1.6, margin: '14px 0' }}>
               <p>
                 <strong>1. {lang === 'en' ? 'In-person verification: ' : 'Đối chiếu danh tính: '}</strong>
                 {lang === 'en'

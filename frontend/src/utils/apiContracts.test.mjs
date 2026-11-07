@@ -17,6 +17,30 @@ const dms = { ownerId: id, status: 'MONITORING', checkIntervalDays: 30, gracePer
 const page = content => ({ content, page: 0, size: 20, totalElements: content.length, totalPages: content.length ? 1 : 0 });
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
+test('HTTP retains gateway status for caller classification without changing other adapters error codes', async () => {
+  for (const status of [500, 502, 503, 504]) {
+    await assert.rejects(request('/admin/audit-logs', {fetchFn:async()=>new Response('Gateway error',{status})}),
+      error=>error.status===status && error.code==='BACKEND_NOT_READY');
+  }
+  for (const [status,code] of [[401,'UNAUTHENTICATED'],[403,'ACCESS_DENIED'],[404,'BACKEND_NOT_READY'],[501,'BACKEND_NOT_READY']]) {
+    await assert.rejects(request('/admin/audit-logs', {fetchFn:async()=>new Response('Unavailable',{status})}),{status,code});
+  }
+});
+
+test('HTTP preserves body cancellation and distinguishes a lost body connection from malformed JSON', async () => {
+  const abort=new DOMException('Cancelled','AbortError');
+  for(const [failure,check] of [[abort,error=>error===abort],[new TypeError('Connection lost'),error=>error.code==='NETWORK_ERROR'],
+    [new SyntaxError('Bad JSON'),error=>error.code==='INVALID_RESPONSE' && error.status===200]]) {
+    await assert.rejects(request('/admin/audit-logs',{fetchFn:async()=>({ok:true,status:200,
+      headers:new Headers({'Content-Type':'application/json'}),json:async()=>{throw failure;}})}),check);
+  }
+  for(const status of [401,403]) {
+    await assert.rejects(request('/admin/audit-logs',{fetchFn:async()=>({ok:false,status,
+      headers:new Headers({'Content-Type':'application/json'}),json:async()=>{throw new TypeError('Connection lost');}})}),
+      error=>error.code==='NETWORK_ERROR' && error.status===status);
+  }
+});
+
 test('HTTP forwards Bearer, locale and AbortSignal; errors preserve code/trace without raw SQL', async () => {
   const controller = new AbortController();
   await assert.rejects(request('/vaults', { accessToken: login.accessToken, lang: 'en', signal: controller.signal,

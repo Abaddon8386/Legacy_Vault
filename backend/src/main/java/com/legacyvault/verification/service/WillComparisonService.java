@@ -43,6 +43,9 @@ import java.util.UUID;
  * WILL_VERIFICATION đúng ST-15 (Main Flow v4.2); các kết quả khác không đổi trạng thái. Cổng chặn luồng duyệt
  * thông thường là {@link #isApprovalBlocked(Long)}: chỉ qua khi kết quả đối chiếu mới nhất của ca là MATCH.
  *
+ * <p>PS-139: mỗi bản giấy (originalWillIntakeId) chỉ có tối đa một kết luận; ghi lần hai bị từ chối
+ * {@code WILL_COMPARISON_ALREADY_RECORDED} (409) và không sửa kết luận cũ. Quy tắc khi bản số đổi sau kết luận chưa được chốt.
+ *
  * <p>Thứ tự khóa dòng: Vault -> ca xác minh (như Cancel Alert và quyết định chứng tử) để không deadlock.
  *
  */
@@ -107,7 +110,7 @@ public class WillComparisonService {
             throw new BusinessException(ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
         }
         // ST-15 đi sau ST-12: ca còn mở và giấy tờ khai tử đã được Legal chấp thuận. Sau MATCH đầu tiên Vault đã ở
-        // WILL_VERIFICATION; vẫn cho đối chiếu lại ở trạng thái này.
+        // WILL_VERIFICATION; vẫn cho ghi kết luận cho một bản giấy khác ở trạng thái này.
         boolean statusAllowsComparison = Vault.STATUS_DOCUMENT_VERIFICATION.equals(vault.getStatus())
                 || Vault.STATUS_WILL_VERIFICATION.equals(vault.getStatus());
         if (!verificationCase.isOpen() || !statusAllowsComparison) {
@@ -122,6 +125,17 @@ public class WillComparisonService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         WillVersionRef version = assetVersionRepository.findRef(will.getAssetId(), request.version())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // PS-139: mỗi bản giấy chỉ có một kết luận bất biến. Mọi lần ghi đều giữ khóa Vault -> ca ở trên nên kiểm tra
+        // này không thể chạy đua; kết luận lịch sử không bao giờ bị ghi đè hay xóa.
+        if (comparisonRepository.existsByOriginalWillIntakeId(intake.getOriginalWillIntakeId())) {
+            throw new BusinessException(ErrorCode.WILL_COMPARISON_ALREADY_RECORDED);
+        }
+        // Phiên bản bản scan đã bị thay bằng bản mới hơn thì không còn là bản đang đối chiếu.
+        if (assetVersionRepository.findVersions(will.getAssetId()).stream()
+                .anyMatch(v -> v.versionNo() > version.versionNo())) {
+            throw new BusinessException(ErrorCode.LEGAL_VERIFICATION_INVALID_STATE);
+        }
 
         String result = request.result().name();
         String vaultStatusBefore = vault.getStatus();
@@ -210,7 +224,8 @@ public class WillComparisonService {
                                 .toList()))
                 .toList();
 
-        List<WillComparisonResponse> comparisons = comparisonRepository.findRowsByCase(caseDbId).stream()
+        List<WillComparisonRow> comparisonRows = comparisonRepository.findRowsByCase(caseDbId);
+        List<WillComparisonResponse> comparisons = comparisonRows.stream()
                 .map(row -> WillComparisonResponse.from(row, verificationCase.getPublicId()))
                 .toList();
 
@@ -218,7 +233,7 @@ public class WillComparisonService {
         return new WillComparisonOverviewResponse(
                 verificationCase.getPublicId(),
                 vault.getStatus(),
-                !WillComparison.RESULT_MATCH.equals(latest),
+                blockedByLatest(comparisonRows, vault.getVaultId()),
                 latest,
                 intakes,
                 wills,
@@ -228,14 +243,39 @@ public class WillComparisonService {
 
     /**
      * Cổng chặn luồng duyệt thông thường (LV-WILL-001): chỉ được qua khi kết quả đối chiếu <b>mới nhất</b> của ca là
-     * MATCH. Chưa đối chiếu, MISMATCH hoặc INCONCLUSIVE đều chặn. Dành cho bước duyệt ST-21 về sau.
+     * MATCH <b>và</b> bản scan được đối chiếu vẫn là phiên bản mới nhất của di chúc đó (PS-139 AC4). Chưa đối chiếu,
+     * MISMATCH, INCONCLUSIVE, hoặc MATCH của một bản số đã bị thay bằng bản mới hơn đều chặn: kết luận cũ chỉ là lịch sử
+     * của bản số cũ. Dành cho bước duyệt ST-21 về sau.
      */
     @Transactional(readOnly = true)
     public boolean isApprovalBlocked(Long verificationCaseId) {
-        return comparisonRepository
-                .findFirstByVerificationCaseIdOrderByComparedAtDescWillComparisonIdDesc(verificationCaseId)
-                .map(c -> !WillComparison.RESULT_MATCH.equals(c.getComparisonResult()))
-                .orElse(true);
+        Long vaultId = caseRepository.findById(verificationCaseId)
+                .map(VerificationCase::getVaultId)
+                .orElse(null);
+        if (vaultId == null) {
+            return true;
+        }
+        return blockedByLatest(comparisonRepository.findRowsByCase(verificationCaseId), vaultId);
+    }
+
+    /** @param rowsNewestFirst kết quả đối chiếu của ca, mới nhất trước (đúng thứ tự của {@code findRowsByCase}). */
+    private boolean blockedByLatest(List<WillComparisonRow> rowsNewestFirst, Long vaultId) {
+        if (rowsNewestFirst.isEmpty()) {
+            return true;
+        }
+        WillComparisonRow latest = rowsNewestFirst.get(0);
+        if (!WillComparison.RESULT_MATCH.equals(latest.result())) {
+            return true;
+        }
+        return !comparedScanIsStillCurrent(latest, vaultId);
+    }
+
+    /** Bản scan đã đối chiếu còn là phiên bản mới nhất của di chúc đó. Không tìm thấy di chúc thì coi là không còn hiện hành. */
+    private boolean comparedScanIsStillCurrent(WillComparisonRow comparison, Long vaultId) {
+        return willAssetRepository.findWill(comparison.willId(), vaultId)
+                .map(will -> assetVersionRepository.findVersions(will.getAssetId()).stream()
+                        .noneMatch(v -> v.versionNo() > comparison.version()))
+                .orElse(false);
     }
 
     private static void validate(RecordWillComparisonRequest request) {

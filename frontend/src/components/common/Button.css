@@ -35,7 +35,7 @@
 }
 
 /* Small controls keep the touch target; only typography and padding shrink. */
-.lv-btn--sm { padding: 8px 12px; font-size: 13px; }
+.lv-btn--sm { padding: 8px 12px; font-size: 14px; }
 .lv-btn--lg { min-block-size: 48px; padding: 12px 24px; font-size: 15px; }
 
 .lv-btn--primary {

@@ -7,7 +7,7 @@
 
 .lv-staff-documents-view {
   width: 100%;
-  max-width: 1040px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -26,8 +26,74 @@
   flex-wrap: wrap;
 }
 
+.lv-staff-documents-view .lv-staff-title-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lv-staff-documents-view .lv-staff-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lv-staff-documents-view .lv-staff-back-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #a3b8aa;
+  border-radius: 8px;
+  background: #fff;
+  color: #164639;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+  align-self: flex-start;
+  transition: background-color 0.15s ease;
+}
+
+.lv-staff-documents-view .lv-staff-back-link-btn:hover {
+  background-color: #edf5f1;
+}
+
+.lv-staff-documents-view .lv-staff-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #a3b8aa;
+  border-radius: 8px;
+  background: #fff;
+  color: #164639;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.lv-staff-documents-view .lv-staff-refresh-btn:hover:not(:disabled) {
+  background-color: #edf5f1;
+}
+
+.lv-staff-documents-view .lv-staff-refresh-btn:disabled {
+  background-color: #edf0eb;
+  color: #748077;
+  border-color: #d8dfd8;
+  cursor: default;
+  opacity: 0.6;
+}
+
 .lv-staff-documents-view .lv-staff-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--lv-font-serif, 'Playfair Display', Georgia, serif);
   font-size: 28px;
   color: var(--lv-brand-forest, #164639);
   margin: 0 0 6px;
@@ -38,7 +104,7 @@
 
 .lv-staff-documents-view .lv-staff-subtitle {
   color: var(--lv-text-muted, #6b726b);
-  font-size: 14.5px;
+  font-size: 14px;
   margin: 0;
   line-height: 1.5;
 }
@@ -97,38 +163,41 @@
 }
 
 .lv-staff-documents-view .lv-dossier-card__header h2 {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 19px;
-  font-weight: 600;
-  color: var(--lv-brand-forest, #164639);
+  font-family: var(--lv-font-sans, system-ui, -apple-system, sans-serif);
+  font-size: 21px;
+  font-weight: 700;
+  color: #203e33;
   margin: 0 0 16px;
+  line-height: 1.4;
 }
 
-.lv-staff-documents-view .lv-dossier-unconnected-box {
-  border: 1px dashed var(--lv-border-medium, #ded9ce);
-  border-radius: 10px;
-  background: #faf8f5;
-  padding: 24px 20px;
-  text-align: center;
-  margin-bottom: 20px;
+.lv-staff-documents-view .lv-dossier-unconnected-box,
+.lv-staff-documents-view .lv-dossier-empty-state {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 12px 0 16px;
+  text-align: left;
+  margin-bottom: 16px;
 }
 
 .lv-staff-documents-view .lv-dossier-unconnected-icon {
-  color: var(--lv-brand-forest, #164639);
-  margin: 0 auto 10px;
-  display: block;
+  display: none;
 }
 
-.lv-staff-documents-view .lv-dossier-unconnected-box h3 {
-  font-size: 15px;
+.lv-staff-documents-view .lv-dossier-unconnected-box h3,
+.lv-staff-documents-view .lv-dossier-empty-state h3 {
+  font-family: var(--lv-font-sans, system-ui, sans-serif);
+  font-size: 16px;
   font-weight: 600;
-  color: var(--lv-text-heading, #1f2421);
+  color: #203e33;
   margin: 0 0 6px;
 }
 
-.lv-staff-documents-view .lv-dossier-unconnected-box p {
-  font-size: 13.5px;
-  color: var(--lv-text-muted, #6b726b);
+.lv-staff-documents-view .lv-dossier-unconnected-box p,
+.lv-staff-documents-view .lv-dossier-empty-state p {
+  font-size: 14px;
+  color: #52675b;
   margin: 0;
   line-height: 1.5;
 }
@@ -150,7 +219,7 @@
 }
 
 .lv-staff-documents-view .lv-dossier-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-heading, #1f2421);
 }
@@ -159,7 +228,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
   background-color: #eef4f1;
@@ -173,7 +242,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #7a5510;
   background-color: #fffbf0;
@@ -185,7 +254,7 @@
 }
 
 .lv-staff-documents-view .lv-dossier-value-unloaded {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   font-style: italic;
 }
@@ -196,7 +265,7 @@
   border-radius: 8px;
   padding: 12px 14px;
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  font-size: 13.5px;
+  font-size: 14px;
   color: #1f2421;
   word-break: break-all;
   overflow-wrap: break-word;
@@ -223,15 +292,15 @@
 }
 
 .lv-staff-documents-view .lv-form-card__header h2 {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--lv-brand-forest, #164639);
+  font-family: var(--lv-font-sans, system-ui, -apple-system, sans-serif);
+  font-size: 21px;
+  font-weight: 700;
+  color: #203e33;
   margin: 0 0 4px;
 }
 
 .lv-staff-documents-view .lv-form-card__header p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0 0 24px;
 }
@@ -255,12 +324,12 @@
 
 .lv-staff-documents-view .lv-form-label--required::after {
   content: ' *';
-  color: #b42318;
+  color: var(--lv-required);
   font-weight: 700;
 }
 
 .lv-staff-documents-view .lv-form-hint {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin-bottom: 8px;
   line-height: 1.4;
@@ -328,7 +397,7 @@
   align-items: center;
   gap: 6px;
   color: #b42318;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 6px;
 }
@@ -392,7 +461,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: #828a84;
 }
 
@@ -402,7 +471,7 @@
   gap: 8px;
   padding: 12px 16px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 4px;
 }
@@ -480,7 +549,7 @@
   display: inline-block;
   background-color: #2563eb;
   color: #ffffff;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 2px 8px;
@@ -489,7 +558,7 @@
 }
 
 .lv-staff-documents-view .lv-staff-preview-banner__text {
-  font-size: 13px;
+  font-size: 14px;
   color: #1e3a8a;
 }
 
@@ -525,7 +594,7 @@
   padding: 10px 18px;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14px;
   background-color: var(--lv-brand-forest, #164639);
   color: #ffffff;
   border: 1px solid var(--lv-brand-forest, #164639);
@@ -544,7 +613,7 @@
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 9999px;
@@ -552,27 +621,27 @@
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--legal_basis_forwarded {
-  background-color: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
+  background-color: var(--lv-status-success-bg);
+  color: var(--lv-status-success-text);
+  border: 1px solid var(--lv-status-success-border);
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--legal_basis_provided {
-  background-color: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--draft {
-  background-color: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-staff-documents-view .lv-dossier-status-pill--on_hold {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-staff-documents-view .lv-dossier-hold-banner {
@@ -584,7 +653,7 @@
   border: 1px solid #fecdd3;
   border-radius: 10px;
   color: #9f1239;
-  font-size: 13.5px;
+  font-size: 14px;
   margin-top: 12px;
 }
 
@@ -595,7 +664,7 @@
 
 .lv-staff-documents-view .lv-dossier-hold-banner p {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   color: #be123c;
 }
 
@@ -643,7 +712,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: #64748b;
 }
 
@@ -660,15 +729,15 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 6px;
 }
 
 .lv-staff-documents-view .lv-forward-badge--forwarded {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
 }
 
 .lv-staff-documents-view .lv-forward-badge--pending {
@@ -710,7 +779,7 @@
 }
 
 .lv-staff-documents-view .lv-notary-subform__title {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   color: #334155;
   margin: 0 0 12px;
@@ -755,59 +824,67 @@
    Staff Tabs Navigation
    -------------------------------------------------------------------------- */
 .lv-staff-documents-view .lv-staff-tabs-nav {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 20px 0 16px;
+  border: 0;
+  border-bottom: 1px solid #e2e5dc;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 4px;
-  background: #f4f6f4;
-  border: 1px solid #e1e7e2;
-  border-radius: 10px;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: none;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 -1px;
+  padding: 0 16px;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
-  color: var(--lv-text-muted, #6b726b);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 13.5px;
-  font-weight: 600;
+  color: #52675b;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
-  margin-bottom: 0;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  border-radius: 8px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn:hover {
-  color: var(--lv-brand-forest, #164639);
-  background-color: rgba(22, 70, 57, 0.05);
+  color: #204f40;
+  background: transparent;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn:focus-visible {
-  outline: 2px solid var(--lv-brand-forest, #164639);
+  outline: 3px solid #b7d9ca;
   outline-offset: 2px;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn--active,
-.lv-staff-documents-view .lv-staff-tab-btn--active:hover {
-  color: #ffffff;
-  background-color: #164639;
-  box-shadow: 0 2px 6px rgba(22, 70, 57, 0.15);
+.lv-staff-documents-view .lv-staff-tab-btn--active:hover,
+.lv-staff-documents-view .lv-staff-tab-btn[aria-selected="true"] {
+  border-bottom: 2px solid #204f40;
+  color: #164639;
+  font-weight: 600;
+  background: transparent;
+  box-shadow: none;
 }
 
 .lv-staff-documents-view .lv-staff-tab-count {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 12px;
-  background-color: rgba(22, 70, 57, 0.12);
-  color: var(--lv-brand-forest, #164639);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #eef0eb;
+  color: #52675b;
 }
 
 /* --------------------------------------------------------------------------
@@ -839,7 +916,7 @@
 }
 
 .lv-staff-documents-view .lv-allocations-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 0;
 }
@@ -853,7 +930,7 @@
   border: 1px solid var(--lv-brand-forest, #164639);
   background-color: #ffffff;
   color: var(--lv-brand-forest, #164639);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -873,7 +950,7 @@
   align-items: flex-start;
   gap: 10px;
   color: #946200;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   margin-bottom: 14px;
 }
@@ -890,7 +967,7 @@
 
 .lv-staff-documents-view .lv-allocations-blocker-text {
   max-width: 580px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: #8c5800;
   background-color: #fff8e6;
@@ -906,7 +983,7 @@
   border: 1px solid #c5a059;
   color: #8c6b23;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -921,7 +998,7 @@
 .lv-staff-documents-view .lv-allocations-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .lv-staff-documents-view .lv-allocations-table th {
@@ -944,7 +1021,7 @@
   padding: 7px 10px;
   border: 1px solid #d4cebe;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-family: inherit;
   box-sizing: border-box;
 }
@@ -982,7 +1059,7 @@
 }
 
 .lv-staff-documents-view .lv-technical-details__summary {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-muted, #6b726b);
   cursor: pointer;
@@ -997,7 +1074,7 @@
 
 .lv-staff-documents-view .lv-hash-code {
   font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 14px;
   background-color: #f0ece4;
   padding: 4px 8px;
   border-radius: 4px;
@@ -1018,7 +1095,7 @@
   align-items: flex-start;
   gap: 12px;
   color: #334155;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   margin-bottom: 16px;
 }
@@ -1070,7 +1147,7 @@
 .lv-staff-documents-view .lv-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .lv-staff-documents-view .lv-history-table th {
@@ -1085,7 +1162,21 @@
 .lv-staff-documents-view .lv-history-table td {
   padding: 12px 14px;
   border-bottom: 1px solid #f0ece6;
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+.lv-staff-documents-view .lv-history-table .lv-btn-view-version-file { min-height:44px; min-width:88px; white-space:nowrap; font-size:14px; }
+.lv-staff-documents-view .lv-history-table :is(.lv-forward-badge,.lv-alloc-count-badge,.lv-version-pill) { font-size:14px; }
+.lv-staff-documents-view .lv-history-table .lv-version-pill { display:inline-flex; white-space:nowrap; }
+.lv-staff-documents-view .lv-history-table .lv-alloc-count-badge { display:inline-flex; white-space:nowrap; }
+@media(max-width:760px) {
+  .lv-staff-documents-view .lv-history-table-wrap { overflow:visible; border:0; }
+  .lv-staff-documents-view .lv-history-table,
+  .lv-staff-documents-view .lv-history-table tbody { display:block; width:100%; }
+  .lv-staff-documents-view .lv-history-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .lv-staff-documents-view .lv-history-table tr { display:block; margin-bottom:16px; padding:12px; border:1px solid #d7e1e6; border-radius:8px; }
+  .lv-staff-documents-view .lv-history-table td { display:block; padding:8px 0; border:0; overflow-wrap:anywhere; }
+  .lv-staff-documents-view .lv-history-table td::before { display:block; content:attr(data-label); margin-bottom:4px; font-size:14px; font-weight:600; }
 }
 
 .lv-staff-documents-view .lv-version-pill {
@@ -1097,7 +1188,7 @@
 }
 
 .lv-staff-documents-view .lv-alloc-count-badge {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   padding: 2px 8px;
   background-color: #edf7ed;
@@ -1153,7 +1244,7 @@
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   background: #ffffff;
   color: var(--lv-text-dark, #333333);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1164,7 +1255,7 @@
   border: none;
   background-color: #b3261e;
   color: #ffffff;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1177,7 +1268,7 @@
   border: none;
   padding: 0;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-brand-forest, #164639);
   cursor: pointer;
@@ -1227,21 +1318,22 @@
 .lv-staff-documents-view .lv-btn-view-version-file {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12.5px;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
   color: #164639;
-  background-color: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background-color: #fff;
+  border: 1px solid #a3b8aa;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .lv-staff-documents-view .lv-btn-view-version-file:hover:not(:disabled) {
-  background-color: #dcfce7;
-  border-color: #86efac;
+  background-color: #edf5f1;
 }
 
 .lv-staff-documents-view .lv-btn-view-document:disabled,
@@ -1252,12 +1344,13 @@
 
 /* Intake uses the same card and control system as the dossier overview. */
 .lv-staff-documents-view { color: #293c31; gap: 22px; }
-.lv-staff-documents-view .lv-staff-form-card { padding: 28px; border-top: 3px solid #37765a; box-shadow: 0 4px 22px #163d2706; }
+.lv-staff-documents-view .lv-staff-form-card { padding: 28px; border: 1px solid var(--lv-border-subtle, #eae5dc); border-top: 3px solid #b69b62; border-radius: 14px; background: #fff; box-shadow: none; }
 .lv-staff-documents-view .lv-staff-form-card__header { padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e8ece5; }
-.lv-staff-documents-view .lv-staff-form-card__header h2 { font-family: inherit; color: #263d2e; font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+.lv-staff-documents-view .lv-staff-form-card__header h2 { font-family: var(--lv-font-sans, system-ui, -apple-system, sans-serif); color: #203e33; font-size: 21px; font-weight: 700; margin: 0 0 8px; }
 .lv-staff-documents-view .lv-staff-form-card__header p { color: #53665a; font-size: 14px; margin: 0; line-height: 1.6; }
 .lv-staff-documents-view .lv-intake-form { display: flex; flex-direction: column; gap: 22px; }
 .lv-staff-documents-view .lv-form-row--2cols { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.lv-staff-documents-view .lv-form-col { display: flex; flex-direction: column; gap: 20px; }
 .lv-staff-documents-view .lv-intake-form .lv-form-group { min-width: 0; margin: 0; gap: 7px; }
 .lv-staff-documents-view .lv-intake-form .lv-form-label { color: #344c3d; font-size: 14px; font-weight: 700; margin: 0; }
 .lv-staff-documents-view .lv-intake-form .lv-form-hint { color: #53665a; font-size: 14px; line-height: 1.5; margin: 0; }
@@ -1265,12 +1358,14 @@
 .lv-staff-documents-view .lv-form-textarea,
 .lv-staff-documents-view .lv-intake-form .lv-form-input { width: 100%; max-width: 100%; min-height: 46px; font: inherit; font-size: 14px; line-height: 1.5; color: #27382d; background: #fff; border: 1px solid #d8e0d7; border-radius: 9px; padding: 11px 14px; box-sizing: border-box; }
 .lv-staff-documents-view .lv-form-select { cursor: pointer; padding-right: 32px; }
-.lv-staff-documents-view .lv-form-textarea { min-height: 92px; resize: vertical; }
+.lv-staff-documents-view .lv-form-textarea { min-height: 110px; resize: vertical; }
 .lv-staff-documents-view .lv-form-select:focus-visible,
 .lv-staff-documents-view .lv-form-textarea:focus-visible,
 .lv-staff-documents-view .lv-intake-form .lv-form-input:focus { outline: none; border-color: #57846a; box-shadow: 0 0 0 3px #37765a18; }
 .lv-staff-documents-view .lv-intake-form .lv-form-input::placeholder,
-.lv-staff-documents-view .lv-form-textarea::placeholder { color: #859186; font-size: 13px; }
+.lv-staff-documents-view .lv-form-textarea::placeholder { color: #859186; font-size: 16px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-form .lv-intake-description { font-size:16px; line-height:1.6; }
+.lv-staff-documents-view .lv-intake-form .lv-evidence-uploader__hint { font-size:14px; }
 .lv-staff-documents-view .lv-form-select:disabled,
 .lv-staff-documents-view .lv-form-textarea:disabled,
 .lv-staff-documents-view .lv-intake-form .lv-form-input:disabled { background: #f2f4f0; color: #7b877c; cursor: not-allowed; }
@@ -1279,7 +1374,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #b91c1c;
   margin-top: 6px;
@@ -1292,11 +1387,12 @@
 .lv-staff-documents-view .lv-allocations-section { background: #f5f7f2; border-color: #dce5d6; margin-top: 0; padding: 22px; }
 .lv-staff-documents-view .lv-allocations-title { color: #2e5e3e; font-size: 16px; }
 .lv-staff-documents-view .lv-intake-form-actions { border-top: 1px solid #e5eae0; padding-top: 22px; display: flex; justify-content: flex-end; }
-.lv-staff-documents-view .lv-btn-submit-version { min-height: 46px; padding: 12px 22px; border-radius: 9px; }
+.lv-staff-documents-view .lv-btn-submit-version { background: #204f40; color: #fff; border: 1px solid #204f40; min-height: 46px; padding: 12px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.lv-staff-documents-view .lv-btn-submit-version:hover:not(:disabled) { background: #164639; border-color: #164639; }
 @media(max-width:700px) {
   .lv-staff-documents-view .lv-staff-form-card { padding: 20px 16px; }
-  .lv-staff-documents-view .lv-form-row--2cols { grid-template-columns: 1fr; gap: 22px; }
-  .lv-staff-documents-view .lv-staff-tab-btn { padding: 10px 12px; font-size: 13px; }
+  .lv-staff-documents-view .lv-form-row--2cols { grid-template-columns: 1fr; gap: 20px; }
+  .lv-staff-documents-view .lv-staff-tab-btn { padding: 10px 14px; font-size: 14px; min-height: 44px; }
   .lv-staff-documents-view .lv-intake-form-actions > button { width: 100%; }
 }
 
@@ -1314,3 +1410,28 @@
 .lv-staff-documents-view .lv-dossier-overview-actions > button:disabled { background: #edf0eb; color: #748077; border-color: #d8dfd8; opacity: 1; cursor: not-allowed; }
 @media(max-width:640px) { .lv-staff-documents-view .lv-dossier-specs-grid { grid-template-columns: minmax(0,1fr); padding: 16px; } }
 .lv-staff-documents-view .lv-dossier-specs-grid .lv-forward-badge--not-forwarded { background: #fff3d8; color: #76541b; }
+
+/* Card header: title left, status pill right (the pill used to wrap under the title and touch the inner box) */
+.lv-staff-documents-view .lv-dossier-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+.lv-staff-documents-view .lv-dossier-card__header h2 { margin: 0; }
+
+.lv-staff-documents-view .lv-staff-tabs-nav { align-items: stretch; }
+.lv-staff-documents-view .lv-staff-tab-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8a948d; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-waiting { border-color: #d9a21b; background: #d9a21b; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-active { border-color: #1f8a5b; background: #1f8a5b; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-done { background: #8a948d; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-rejected { border-color: var(--lv-required); background: var(--lv-required); }
+.lv-staff-documents-view .lv-form-note { margin: 0 0 6px; color: #53665a; font-size: 14px; font-style: italic; line-height: 1.5; }
+
+@media (max-width: 700px) {
+  .lv-staff-documents-view .lv-staff-tabs-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+

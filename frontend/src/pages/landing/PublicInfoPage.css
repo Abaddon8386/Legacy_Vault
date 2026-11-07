@@ -1,0 +1,170 @@
+.lv-public-info {
+  --info-ink: #193d32;
+  --info-muted: #4e6055;
+  --info-paper: #f6f5f0;
+  --info-rule: #d8dfd5;
+  --info-gold: #d2bd89;
+  color: var(--info-ink);
+  background: var(--info-paper);
+  min-block-size: 100svh;
+  font: 16px/1.6 var(--lv-font-sans, Arial, sans-serif);
+}
+.lv-public-info__container {
+  inline-size: min(100% - clamp(32px, 12vw, 112px), 1080px);
+  margin-inline: auto;
+}
+.lv-public-info a { color: inherit; }
+.lv-public-info :is(a, summary, section):focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.lv-public-info__masthead-inner,
+.lv-public-info__hero-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.lv-public-info__masthead-inner { min-block-size: 72px; }
+.lv-public-info__brand,
+.lv-public-info__language,
+.lv-public-info__back,
+.lv-public-info__action,
+.lv-public-info__related {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-block-size: 44px;
+}
+.lv-public-info__brand {
+  font: 600 23px var(--lv-font-serif, Georgia, serif);
+  text-decoration: none;
+}
+.lv-public-info__language {
+  min-inline-size: 44px;
+  justify-content: center;
+  border: 1px solid #c5cec2;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.lv-public-info__language:hover { background: #e6ece3; }
+.lv-public-info__hero {
+  padding-block: clamp(24px, 5vw, 64px) clamp(32px, 5vw, 70px);
+  color: #f6f5ee;
+  background: #173e31;
+}
+.lv-public-info .lv-public-info__back { color: #e6d5ad; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.lv-public-info__hero h1 {
+  margin-block: 10px 14px;
+  color: inherit;
+  font: 500 clamp(35px, 5vw, 60px)/1.14 var(--lv-font-serif, Georgia, serif);
+  letter-spacing: -.025em;
+}
+.lv-public-info__hero p { max-inline-size: 54ch; margin: 0; color: #e1e9df; }
+.lv-public-info__seal {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 112px;
+  block-size: 112px;
+  margin-inline-end: 16px;
+  border: 1px solid #b9a371;
+  outline: 1px solid #b9a37170;
+  outline-offset: 6px;
+  border-radius: 50%;
+  color: var(--info-gold);
+}
+.lv-public-info__body {
+  display: grid;
+  grid-template-columns: minmax(0, 218px) minmax(0, 1fr);
+  gap: clamp(32px, 6vw, 88px);
+  align-items: start;
+  padding-block: clamp(30px, 6vw, 72px);
+}
+.lv-public-info__index { position: sticky; inset-block-start: 24px; }
+.lv-public-info__index h2 { margin: 0 0 8px; color: var(--info-ink); font: 700 14px/1.5 var(--lv-font-sans, Arial, sans-serif); }
+.lv-public-info__index ul { margin: 0; padding: 0; list-style: none; border-inline-start: 1px solid #c6cfc3; }
+.lv-public-info__index a {
+  display: flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding: 7px 14px;
+  color: var(--info-muted);
+  font-size: 14px;
+  text-underline-offset: 3px;
+}
+.lv-public-info__index a:hover { color: var(--info-ink); background: #e8eee6; text-decoration: underline; }
+.lv-public-info__content { min-inline-size: 0; }
+.lv-public-info__content section {
+  scroll-margin-block-start: 24px;
+  padding-block-end: 28px;
+}
+.lv-public-info__content section + section { border-block-start: 1px solid var(--info-rule); padding-block-start: 28px; }
+.lv-public-info__content h2 {
+  margin: 0 0 14px;
+  color: var(--info-ink);
+  font: 500 clamp(25px, 3vw, 33px)/1.25 var(--lv-font-serif, Georgia, serif);
+}
+.lv-public-info__content p {
+  max-inline-size: 68ch;
+  margin: 0;
+  color: var(--info-muted);
+}
+.lv-public-info__content p + p { margin-block-start: 12px; }
+.lv-public-info__content .lv-public-info__notice {
+  max-inline-size: none;
+  margin-block-end: 28px;
+  padding: 14px 18px;
+  border-inline-start: 3px solid #9f874f;
+  background: #eeeadc;
+  color: #49452f;
+  font-size: 14px;
+}
+.lv-public-info__questions {
+  padding-inline: clamp(12px, 3vw, 20px);
+  border: 1px solid var(--info-rule);
+  border-radius: 12px;
+  background: #fffefa;
+}
+.lv-public-info__questions details + details { border-block-start: 1px solid var(--info-rule); }
+.lv-public-info__questions summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-block-size: 52px;
+  padding-block: 10px;
+  list-style: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lv-public-info__questions summary::-webkit-details-marker { display: none; }
+.lv-public-info__questions summary svg { flex: none; }
+.lv-public-info__questions details[open] summary svg { rotate: 180deg; }
+.lv-public-info__questions details p { padding-block: 0 14px; }
+.lv-public-info__refs { margin-block-start: 20px; }
+.lv-public-info__content .lv-public-info__refs h3 { margin: 0 0 6px; color: var(--info-ink); font: 700 18px/1.4 var(--lv-font-sans, Arial, sans-serif); }
+.lv-public-info__content .lv-public-info__refs-note { margin-block-end: 12px; font-size: 14px; }
+.lv-public-info__refs ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--info-rule); border-radius: 12px; background: #fffefa; }
+.lv-public-info__refs li { display: grid; gap: 2px; padding: 12px clamp(12px, 3vw, 20px); }
+.lv-public-info__refs li + li { border-block-start: 1px solid var(--info-rule); }
+.lv-public-info__refs li a { display: inline-flex; align-items: center; gap: 6px; color: var(--info-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.lv-public-info__refs li span { color: var(--info-muted); font-size: 14px; line-height: 1.5; }
+.lv-public-info__action { margin-block-start: 8px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.lv-public-info__related {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #e4ebe1;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+.lv-public-info__related svg { flex: none; }
+.lv-public-info__related:hover { background: #d8e4d7; }
+@media (max-width: 680px) {
+  .lv-public-info__seal { display: none; }
+  .lv-public-info__body { grid-template-columns: minmax(0, 1fr); }
+  .lv-public-info__index { position: static; }
+  .lv-public-info__index ul { display: flex; flex-wrap: wrap; gap: 4px 10px; border: 0; }
+  .lv-public-info__index a { padding-inline: 9px; border-radius: 6px; background: #e8eee6; }
+}

@@ -22,11 +22,11 @@
 }
 
 .lv-evidence-uploader__required-mark {
-  color: #dc2626;
+  color: var(--lv-required);
 }
 
 .lv-evidence-uploader__hint {
-  font-size: 0.775rem;
+  font-size: 0.875rem;
   color: var(--text-secondary, #64748b);
   margin: 0;
 }
@@ -101,7 +101,7 @@
 }
 
 .lv-evidence-dropzone__sub {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #64748b;
 }
 
@@ -117,124 +117,91 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.lv-evidence-preview-card__main {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
-
-.lv-evidence-preview-card__thumbnail {
-  flex-shrink: 0;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  background-color: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.lv-evidence-preview-card__img {
+.lv-evidence-file-table {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  border-collapse: collapse;
+  font-size: 16px;
 }
 
-.lv-evidence-preview-card__pdf-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #dc2626;
-  gap: 0.125rem;
-}
-
-.lv-evidence-preview-card__pdf-icon {
-  color: #dc2626;
-}
-
-.lv-evidence-preview-card__pdf-label {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: #b91c1c;
-}
-
-.lv-evidence-preview-card__doc-badge {
-  color: #64748b;
-}
-
-.lv-evidence-preview-card__info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.lv-evidence-preview-card__name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;
+.lv-evidence-file-table th {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 0 12px 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: start;
 }
 
-.lv-evidence-preview-card__meta {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: #64748b;
+.lv-evidence-file-table td {
+  padding: 8px 12px 0 0;
+  vertical-align: middle;
 }
 
-.lv-evidence-preview-card__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+.lv-evidence-file-table th:last-child,
+.lv-evidence-file-table td:last-child {
+  padding-inline-end: 0;
+  width: 1%;
+  white-space: nowrap;
 }
 
-.lv-evidence-btn-change {
-  min-height: var(--lv-control-min-size);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #2563eb;
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
+.lv-evidence-file-table__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
-.lv-evidence-btn-change:hover {
-  background-color: #dbeafe;
+.lv-evidence-file-table__size {
+  white-space: nowrap;
 }
 
 .lv-evidence-btn-remove {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: var(--lv-control-min-size);
-  height: var(--lv-control-min-size);
-  color: #64748b;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
 
 .lv-evidence-btn-remove:hover {
+  border-color: #dc2626;
   color: #dc2626;
   background-color: #fef2f2;
+}
+
+@media (max-width: 640px) {
+  .lv-evidence-file-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .lv-evidence-file-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lv-evidence-file-table td {
+    padding: 0;
+  }
+
+  .lv-evidence-file-table td.lv-evidence-file-table__name {
+    grid-column: 1 / -1;
+  }
+
+  .lv-evidence-file-table td:last-child {
+    width: auto;
+  }
 }
 
 /* Progress Bar */
@@ -288,7 +255,7 @@
 .lv-evidence-progress-status {
   display: flex;
   align-items: center;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: #64748b;
 }
 
@@ -326,12 +293,3 @@
   font-weight: 600;
 }
 
-@media (max-width: 640px) {
-  .lv-evidence-preview-card__main {
-    flex-wrap: wrap;
-  }
-  .lv-evidence-preview-card__actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}

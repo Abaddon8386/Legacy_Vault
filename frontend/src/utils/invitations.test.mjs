@@ -63,7 +63,7 @@ test('VI/EN dictionaries match and unavailable invitation operations do not fabr
     assert.deepEqual(user.roles, ['VAULT_OWNER']);
   } finally { await view.close(); }
   const code = await mount(Code, { vaultId, beneficiaryId, lang: 'en' });
-  try { assert.match(code.host.textContent, /currently unavailable/); assert.equal(code.host.querySelector('code'), null); }
+  try { assert.equal(code.host.innerHTML, ''); assert.equal(code.host.querySelector('.lv-invitation-code'), null); }
   finally { await code.close(); }
 });
 
@@ -189,7 +189,7 @@ test('beneficiary creation succeeds once even when its invitation load fails and
   try {
     await change(view.host, '#ben-fullname', 'Saved beneficiary'); await submit(view.host);
     assert.equal(creates, 1); assert.match(view.host.textContent, /Saved beneficiary/);
-    assert.match(view.host.textContent, /retrying will not add/);
+    assert.match(view.host.textContent, /Failed to load invitation code/);
     await click(view.host, 'Retry loading code'); assert.equal(creates, 1);
     assert.equal(view.host.querySelector('.lv-invitation-code code').textContent, 'Loaded after retry');
   } finally { await view.close(); globalThis.fetch = originalFetch; }
@@ -242,21 +242,34 @@ test('actual App uses only refreshed server roles and does not force a multi-rol
     assert.ok(view.host.querySelector('#shared-heading'), 'PS-90 landing remains available after PS-89 acceptance');
     assert.match(view.host.textContent, /Test account/);
     const expiry = readStoredSession().expiresAt;
-    const refresh = [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Refresh');
-    assert.ok(refresh, 'The beneficiary landing exposes account refresh');
-    await act(async () => refresh.click());
+    assert.equal([...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Refresh'), undefined);
+    await act(async () => {
+      window.dispatchEvent(new window.CustomEvent('lv:refresh'));
+    });
     assert.equal(readStoredSession().expiresAt, expiry);
     assert.deepEqual(readStoredSession().user.roles, ['VAULT_OWNER', 'BENEFICIARY']);
     await act(async () => view.host.querySelector('.lv-user-badge-card').click());
-    assert.ok(view.host.querySelector('a[href="/invitations?lang=en"]'), 'PS-89 invitation entry survives the AppShell conflict resolution');
+    assert.equal(view.host.querySelector('a[href^="/invitations"]'), null, 'Account menu no longer contains invitation link');
   } finally { await view.close(); globalThis.fetch = originalFetch; storeSession(null); }
 });
 
-test('signed-in accounts have an invitation entry in the existing account widget', async () => {
+test('signed-in account menu does not contain invitation entry', async () => {
   const session = createSession({ accessToken: 'session-test-token', tokenType: 'Bearer', expiresInSeconds: 3600, user });
   const view = await mount(Shell, { session, user, role: 'VAULT_OWNER', isAuthenticated: true, lang: 'en', onLogout(){} });
   try {
     await act(async () => view.host.querySelector('.lv-user-badge-card').click());
-    assert.ok(view.host.querySelector('a[href="/invitations?lang=en"]'));
+    assert.equal(view.host.querySelector('a[href^="/invitations"]'), null);
   } finally { await view.close(); }
+});
+
+test('BeneficiaryInvitationCode does not render when loadInvitation is omitted or unavailable', async () => {
+  for (const lang of ['vi', 'en']) {
+    const view = await mount(Code, { vaultId, beneficiaryId, lang });
+    try {
+      assert.equal(view.host.innerHTML, '');
+      assert.equal(view.host.querySelector('.lv-invitation-code'), null);
+    } finally {
+      await view.close();
+    }
+  }
 });

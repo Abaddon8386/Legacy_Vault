@@ -52,7 +52,7 @@
   gap: 6px;
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   background-color: rgba(197, 160, 89, 0.15);
   color: #785d26;
@@ -69,7 +69,7 @@
   background-color: #fff9ed;
   border: 1px solid #f0dfb7;
   color: #7d5b1e;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -111,7 +111,7 @@
 }
 
 .lv-account-edit-view .lv-edit-card__desc {
-  font-size: 13.5px;
+  font-size: 14px;
   color: #4f5950;
   margin: -14px 0 0;
   line-height: 1.5;
@@ -133,7 +133,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #2b332d;
 }
@@ -142,7 +142,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 6px;
@@ -188,14 +188,14 @@
 }
 
 .lv-account-edit-view .lv-form-help {
-  font-size: 12.5px;
+  font-size: 14px;
   color: #4f5950;
   line-height: 1.4;
   margin: 0;
 }
 
 .lv-account-edit-view .lv-form-error {
-  font-size: 12.5px;
+  font-size: 14px;
   color: #c94a3d;
   font-weight: 500;
   margin: 0;
@@ -215,7 +215,7 @@
   gap: 6px;
   padding: 6px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   background-color: rgba(22, 70, 57, 0.08);
   color: #164639;

@@ -5,6 +5,7 @@ import { legalBlocker, legalDate, legalReadOnly, legalStatus } from './legalPres
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import { Modal } from '../../components/common/Modal.jsx';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
+import ChoiceButtons from '../../components/common/ChoiceButtons.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
 import { ArrowRight, FileCheck2, LockKeyhole, RefreshCw, ShieldCheck } from 'lucide-react';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
@@ -22,7 +23,7 @@ function legalDecisionScope(value) {
     value.capabilities.unlock.allowed, value.capabilities.unlock.blockedReason]);
 }
 
-export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged, workflowReadOnly = false, beforeCommit }) {
+export default function LegalFinalDecision({ session, context, step, lang, draft, setDraft, onReload, onSaved, onUnauthorized, onDenied, onContextChanged, onPendingChange, workflowReadOnly = false, beforeCommit }) {
   const en = lang === 'en', unlocking = step === 'controlled-unlock';
   const { decision = '', reason = '', confirmed = false } = draft;
   const setDecision = value => setDraft(previous => ({ ...previous, decision: value }));
@@ -34,7 +35,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const [needsReload, setNeedsReload] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const controller = useRef(null), lock = useRef(false);
-  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => () => { controller.current?.abort(); onPendingChange?.(false); }, [onPendingChange]);
   const capability = context.capabilities[unlocking ? 'unlock' : 'approval'];
   const readOnly = legalReadOnly(context) || workflowReadOnly;
   const allowed = capability.allowed && !needsReload && !pending && !readOnly;
@@ -52,7 +53,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   async function submit() {
     if (!allowed || !complete || lock.current) return;
     setConfirmOpen(false);
-    lock.current = true;
+    lock.current = true; onPendingChange?.(true);
     const current = new AbortController(); controller.current = current;
     setPending(true); setError(null); setResult(null);
     const options = { accessToken: session.accessToken, roles: session.user.roles, userId: session.user.id, lang, signal: current.signal };
@@ -76,7 +77,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       if (failure.status === 401) onUnauthorized?.();
       if (failure.status === 403) onDenied?.(failure);
     } finally {
-      if (!current.signal.aborted) { lock.current = false; setPending(false); }
+      if (!current.signal.aborted) { lock.current = false; setPending(false); onPendingChange?.(false); }
     }
   }
   const denied = error && [401, 403, 404].includes(error.status);
@@ -95,7 +96,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
           ...(context.basisDossier?.route === 'COURT' ? [[en ? 'Court assessment' : 'Kết luận thẩm định quyết định tòa án', legalStatus(context.snapshot.courtResult, en)]] : []),
           [en ? 'Current approval' : 'Phê duyệt còn hiệu lực', context.snapshot.approvalCurrent ? (en ? 'Yes' : 'Có') : (en ? 'No' : 'Không')]] : [])]} />
       {documentVersion && <LegalAllocations version={documentVersion} lang={lang} />}
-      {documentVersion?.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles inlineOnDesktop kind="basis" caseId={context.caseId} versionNo={documentVersion.version}
+      {documentVersion?.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles kind="basis" caseId={context.caseId} versionNo={documentVersion.version}
         file={{ contentType: documentVersion.contentType, sizeBytes: documentVersion.sizeBytes, sha256: documentVersion.sha256 }}
         accessToken={session.accessToken} lang={lang} onUnauthorized={onUnauthorized} onDenied={failure => { setError(failure); setNeedsReload(true); onDenied?.(failure); }} />}
       {readOnly && <p className="lv-legal-live__notice" role="status">{workflowReadOnly && !legalReadOnly(context) ? (en ? 'This step is not ready. You can review the documents while awaiting the preceding decisions.' : 'Hồ sơ chưa đến bước này. Bạn có thể xem giấy tờ trong khi chờ các bước trước hoàn tất.') : (en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.')}</p>}
@@ -107,10 +108,9 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
         <form onSubmit={event => { event.preventDefault(); if (allowed && complete) setConfirmOpen(true); }}>
         {unlocking ? <label className="lv-legal-confirm"><input type="checkbox" checked={confirmed} disabled={!allowed} onChange={event => setConfirmed(event.target.checked)} />
           {en ? 'Confirm controlled unlocking for this case.' : 'Xác nhận mở khóa có kiểm soát cho hồ sơ này.'}</label>
-          : <><label>{en ? 'Decision' : 'Quyết định'}<select value={decision} disabled={!allowed} required onChange={event => setDecision(event.target.value)}>
-            <option value="">{en ? 'Select' : 'Chọn'}</option><option value="APPROVE">{en ? 'Approve' : 'Chấp thuận'}</option>
-            <option value="REJECT">{en ? 'Reject' : 'Từ chối'}</option></select></label>
-          <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea value={reason} maxLength={1000}
+          : <><ChoiceButtons title={en ? 'Decision' : 'Quyết định'} value={decision} disabled={!allowed} onChange={setDecision}
+            options={[['APPROVE', en ? 'Approve' : 'Chấp thuận'], ['REJECT', en ? 'Reject' : 'Từ chối']]} />
+          <label><span>{en ? 'Reason' : 'Lý do'}<span className="lv-required-mark" aria-hidden="true">*</span></span><textarea value={reason} maxLength={1000}
             required disabled={!allowed} onChange={event => setReason(event.target.value)} /></label></>}
         <button type="submit" className={decision === 'REJECT' && !unlocking ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
         <WorkflowActionHint id="legal-action-blocked" reason={blocked} />

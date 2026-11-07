@@ -24,7 +24,7 @@ export const legalBasisRouteI18n = {
     docketRefPlaceholder: 'VD: BASIS-ROUTE-2026-001',
 
     // 3 lựa chọn theo AC (không hiển thị mã nội bộ)
-    routeGroupLabel: 'Phương án xử lý (Bắt buộc)',
+    routeGroupLabel: 'Phương án xử lý',
     routeNotarialTitle: 'Công chứng',
     routeNotarialDesc: 'Áp dụng khi phù hợp và không có tranh chấp.',
     routeCourtTitle: 'Tòa án',
@@ -33,7 +33,7 @@ export const legalBasisRouteI18n = {
     routeOnHoldDesc: 'Áp dụng khi thiếu bằng chứng hoặc phát sinh tranh chấp mới.',
 
     // Lý do lựa chọn
-    reasonLabel: 'Lý do lựa chọn (Bắt buộc)',
+    reasonLabel: 'Lý do lựa chọn',
     reasonHint: 'Nhập lý do lựa chọn phương án xử lý.',
     reasonPlaceholder: 'Nhập lý do lựa chọn phương án xử lý...',
 

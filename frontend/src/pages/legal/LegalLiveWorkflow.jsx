@@ -1,5 +1,5 @@
-import { workflowNotificationFeedback } from '../../utils/workflowNotificationFeedback.js';
-import { useEffect, useRef, useState } from 'react';
+import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import { legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
@@ -10,10 +10,12 @@ import * as api from './legalLiveService.js';
 import LegalDistributionWorkspace, { LegalDistributionFinalWorkspace } from './LegalDistributionWorkspace.jsx';
 import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
 import LegalEvidenceFiles from './LegalEvidenceFiles.jsx';
+import ChoiceButtons from '../../components/common/ChoiceButtons.jsx';
 import LegalAllocations from './LegalAllocations.jsx';
+import LegalHandoverReopen from './LegalHandoverReopen.jsx';
 import { LEGAL_NAVIGATION_REGISTRY, legalStepTitle } from '../../utils/legalNavigation.js';
 import './LegalLiveWorkflow.css';
-import WorkflowGuide, { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
+import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import { legalGuidance } from '../../utils/workflowGuidance.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 
@@ -107,17 +109,18 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       </div>}
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
+    {step === 'controlled-unlock' && <LegalHandoverReopen session={session} lang={lang} caseId={caseId}
+      onNavigate={onNavigate} onUnauthorized={onUnauthorized} />}
     {selected && <>
       <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
         lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
-        onNavigate={onNavigate}
         onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
     </>}
     {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
   </section>;
 }
 
-function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied, onNavigate }) {
+function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied }) {
   const [result, setResult] = useState(null);
   const [guidanceStale, setGuidanceStale] = useState(false);
 
@@ -127,6 +130,10 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   // the caller's case/step/session key still discards the draft when scope changes.
   const [draft, setDraft] = useState({});
   const [distributionDraft,setDistributionDraft] = useState({scope:'',reason:''});
+  const [holdDraft, setHoldDraft] = useState({ expanded: false, choice: '', reason: '' });
+  const mutation = useRef(false);
+  const [mutationPending, setMutationPending] = useState(false);
+  const onPendingChange = useCallback(value => { mutation.current = value; setMutationPending(value); }, []);
   const [documentId, setDocumentId] = useState('');
   const [savedReceipt, setSavedReceipt] = useState(null);
   const en = lang === 'en';
@@ -149,7 +156,8 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   const current = result?.attempt === attempt && result.session === session && result.contextLoader === contextLoader ? result : null;
   const distribution = useDistributionWorkflow({ caseId: selected.caseId, workspace: 'LEGAL', accessToken: session.accessToken, lang,
     enabled: !!current?.data && current.data.basisDossier?.route !== 'ON_HOLD' && current.data.vaultStatus !== 'ON_HOLD'
-      && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied, onExternalChange:()=>setAttempt(value=>value+1) });
+      && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
+    isMutationPending: () => mutation.current, onExternalChange:()=>setAttempt(value=>value+1) });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
   const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
     : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case processing resumed.' : 'Đã tiếp tục xử lý hồ sơ.')
@@ -159,13 +167,14 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked.' : 'Đã mở khóa kho.')
     : visibleReceipt?.reviewRequired ? (en ? 'Supplementation requested.' : 'Đã yêu cầu bổ sung giấy tờ.')
     : (en ? 'Decision saved.' : 'Đã lưu quyết định.');
-  const notificationFeedback = workflowNotificationFeedback(visibleReceipt, 'STAFF', lang);
+  const notificationFeedback = workflowNotificationStatus(visibleReceipt, 'STAFF', lang);
   const confirmation = visibleReceipt && <FeedbackNotice className="lv-workflow-feedback" tone="success" title={outcome}>
     {notificationFeedback && <p>{notificationFeedback.trim()}</p>}
     {!current && <p>{en ? 'Checking the latest case status before further action.' : 'Đang kiểm tra trạng thái mới nhất trước khi tiếp tục.'}</p>}
     {current?.error && <p>{en ? 'Saved successfully, but the latest case status could not be loaded. Retry before continuing.' : 'Thao tác đã lưu, nhưng chưa tải được trạng thái mới nhất. Hãy thử lại trước khi tiếp tục.'}</p>}
   </FeedbackNotice>;
   const saved = receipt => {
+    if (receipt.holdAction) setHoldDraft({ expanded: false, choice: '', reason: '' });
     setSavedReceipt({ ...receipt, workflowStep:step });
     window.dispatchEvent(new window.Event('lv-workflow-notifications-changed'));
     if (['approval-review', 'controlled-unlock'].includes(step)) setDraft({});
@@ -179,7 +188,6 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   }
   const guideModel = legalGuidance({ context: guidanceStale ? null : { ...current.data, distributionWorkflow: distribution.data }, error: guidanceStale, current: step, caseId: selected.caseId, lang });
   if (guidanceStale) guideModel.message = en ? 'Reload the record to check the next step.' : 'Tải lại hồ sơ để kiểm tra bước tiếp theo.';
-  const guide = <WorkflowGuide lang={lang} onNavigate={onNavigate} model={guideModel} />;
   const context = current.data;
   const readOnly = legalReadOnly(context);
   const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : context.vaultStatus;
@@ -190,7 +198,10 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
-    {guide}
+    <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
+      onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
+      <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
+    </button></div>
     <div className="lv-legal-case-banner lv-surface-card">
       <div className="lv-legal-case-banner__icon"><FolderOpen size={28} aria-hidden="true" /></div>
       <div className="lv-legal-case-banner__content"><span>{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
@@ -200,22 +211,24 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
     </div>
     {step === 'basis-route-selection'
-      ? <LegalDistributionWorkspace workflow={distribution} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
+      ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
+          holdDraft={holdDraft} onHoldDraftChange={setHoldDraft} onPendingChange={onPendingChange}
           onComplete={() => setAttempt(value => value + 1)} onSaved={saved} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : ['approval-review', 'controlled-unlock'].includes(step)
       ? <LegalDistributionFinalWorkspace workflow={distribution} session={session} context={context} step={step} lang={lang}
-        draft={draft} setDraft={setDraft} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
+        draft={draft} setDraft={setDraft} onPendingChange={onPendingChange} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
       : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id) }}
-        step={step === 'basis-route-selection' ? 'dossier-review' : step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved}
+        step={step === 'basis-route-selection' ? 'dossier-review' : step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved} onPendingChange={onPendingChange}
         draft={draft} setDraft={setDraft} documentId={context.deathDocuments.some(item => item.id === documentId) ? documentId : context.deathDocuments.length === 1 ? context.deathDocuments[0].id : ''}
         setDocumentId={setDocumentId} onReload={() => setAttempt(value => value + 1)} />}
   </>;
 }
 
-function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied, onSaved, readOnly, draft: storedDraft, setDraft, documentId, setDocumentId, onReload }) {
+function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied, onSaved, onPendingChange, readOnly, draft: storedDraft, setDraft, documentId, setDocumentId, onReload }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
+  useEffect(() => () => onPendingChange?.(false), [onPendingChange]);
   const [error, setError] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [needsReload, setNeedsReload] = useState(false);
@@ -251,15 +264,15 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     willVersion: storedDraft.willVersion || (digitalOptions.length === 1 ? digitalOptions[0] : '') };
   const set = (name, value) => setDraft(prev => ['originalWillIntakeId','willVersion'].includes(name)
     ? {...prev,[name]:value,result:'',reason:''} : ({ ...prev, [name]: value }));
-  const input = (name, title, values) => ['originalWillIntakeId', 'willVersion'].includes(name) && values.length === 1 ? <LegalRecordDetails rows={[[title, values[0][1]]]} /> : <label>{title}<select value={draft[name] || ''} onChange={e => set(name, e.target.value)} disabled={busy} required>
+  const input = (name, title, values) => ['originalWillIntakeId', 'willVersion'].includes(name) && values.length === 1 ? <LegalRecordDetails rows={[[title, values[0][1]]]} /> : <label><span>{title}<span className="lv-required-mark" aria-hidden="true">*</span></span><select value={draft[name] || ''} onChange={e => set(name, e.target.value)} disabled={busy} required>
     <option value="">{en ? 'Select' : 'Chọn'}</option>{values.map(([value, title]) => <option key={value} value={value}>{title}</option>)}
   </select></label>;
-  const pick = (name, title, values) => input(name, title, values.map(value => [value, label(value, en)]));
+  const pick = (name, title, values) => <ChoiceButtons title={title} value={draft[name] || ''} disabled={busy} options={values.map(value => [value, label(value, en)])} onChange={value => set(name, value)} />;
   const latest = data?.dossier?.versions?.reduce((best, item) => !best || item.version > best.version ? item : best, null);
   const forwarded = data?.dossier?.status === 'LEGAL_BASIS_FORWARDED' && latest?.forwardStatus === 'FORWARDED'
     && latest.version >= data.dossier.requiredVersion && data.will.vaultStatus === 'LEGAL_BASIS_VERIFICATION' && data.will.approvalBlocked === false;
   const editable = !busy && !needsReload && !readOnly && Boolean(data);
-  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang, inlineOnDesktop: true,
+  const evidenceProps = { caseId: selected.caseId, accessToken: session.accessToken, lang,
     onUnauthorized, onDenied: failure => { setData(null); setReceipt(null); setError(failure); setNeedsReload(true); } };
   let eligible = false;
   if (step === 'death-verification') eligible = editable && data.verificationCaseStatus === 'OPEN' && data.vaultStatus === 'AWAITING_VERIFICATION' && data.decisions.length === 0;
@@ -280,7 +293,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
 
   async function submit(e) {
     e.preventDefault(); if (lock.current || !eligible) return;
-    lock.current = true; const c = new AbortController(); controller.current = c; setBusy(true); setError(null); setReceipt(null);
+    lock.current = true; onPendingChange?.(true); const c = new AbortController(); controller.current = c; setBusy(true); setError(null); setReceipt(null);
     const opts = { ...options, signal: c.signal };
     try {
       let value;
@@ -322,7 +335,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       if ([401, 403, 404].includes(err.status)) setData(null);
       if (err.status === 403) onDenied?.(err);
       if ([401, 403, 404, 409].includes(err.status) || ['INVALID_RESPONSE', 'NETWORK_ERROR'].includes(err.code)) setNeedsReload(true);
-    } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); } }
+    } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); onPendingChange?.(false); } }
   }
   return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}`} aria-busy={busy}>
     <section className="lv-legal-live__card lv-legal-documents lv-surface-card">
@@ -367,7 +380,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         <h3>{en ? `Version ${item.version}` : `Phiên bản ${item.version}`} · {item.version === latest.version ? (en ? 'Current document' : 'Văn bản hiện tại') : (en ? 'Historical document' : 'Văn bản cũ để tra cứu')}</h3>
         <LegalRecordDetails rows={[[en ? 'Document number' : 'Số giấy tờ', item.documentNumber], [en ? 'Issuing authority' : 'Cơ quan ban hành', item.issuingAuthority], [en ? 'Issue date' : 'Ngày ban hành', legalDate(item.issueDate)], ...(data.dossier.route === 'NOTARIAL' ? [[en ? 'Notary office' : 'Tổ chức công chứng', item.notaryAuthority], [en ? 'Notarial document number' : 'Số văn bản công chứng', item.notarialDocumentNumber], [en ? 'Notarized on' : 'Ngày công chứng', legalDate(item.notarizedAt)]] : []), [en ? 'Forwarded at' : 'Thời gian chuyển thẩm định', legalDate(item.forwardedAt)]]} />
         <LegalAllocations version={item} lang={lang} />
-        {!busy && item.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version}
+        {!busy && item.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles {...evidenceProps} kind="basis" versionNo={item.version} autoOpen={item.version === latest.version}
           file={{ contentType: item.contentType, sizeBytes: item.sizeBytes, sha256: item.sha256 }} />}
       </section>)}
       {data.court?.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /></div>)}</>}
@@ -386,7 +399,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
         {draft.action === 'court' && pick('result', en ? 'Court decision result' : 'Kết luận quyết định tòa', ['VALID', 'INVALID', 'INCONCLUSIVE'])}
         {draft.action === 'hold' && pick('cause', en ? 'Cause' : 'Nguyên nhân', ['NEW_DISPUTE', 'INSUFFICIENT_EVIDENCE'])}
       </>}
-      <label>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}<textarea value={draft.reason || ''} maxLength={1000} disabled={busy} required={step !== 'will-document-verification' || draft.result !== 'MATCH'} onChange={e => set('reason', e.target.value)} /></label>
+      <label><span>{en ? 'Reason (up to 1000 characters)' : 'Lý do (tối đa 1000 ký tự)'}{(step !== 'will-document-verification' || draft.result !== 'MATCH') && <span className="lv-required-mark" aria-hidden="true">*</span>}</span><textarea value={draft.reason || ''} maxLength={1000} disabled={busy} required={step !== 'will-document-verification' || draft.result !== 'MATCH'} onChange={e => set('reason', e.target.value)} /></label>
       <div className="lv-legal-form-actions"><button type="submit" className={draft.decision === 'REJECT' || ['MISMATCH', 'INVALID'].includes(draft.result) ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!eligible || !fieldsComplete} aria-describedby={!eligible || !fieldsComplete ? 'legal-review-blocked' : undefined}><FileCheck2 size={18} aria-hidden="true" />{en ? 'Record decision' : 'Ghi nhận quyết định'}</button></div>
       <WorkflowActionHint id="legal-review-blocked" reason={!eligible ? disabledReason : !fieldsComplete ? (en ? 'Complete the selections and enter a reason above.' : 'Chọn đầy đủ thông tin và nhập lý do phía trên.') : ''} />
     </form></section>}

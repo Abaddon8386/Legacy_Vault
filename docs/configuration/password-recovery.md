@@ -21,3 +21,11 @@ Startup fails closed if email-enabled=true but required settings are missing/inv
 Run integration tests with email disabled and a test-only transport. Never migrate shared/application databases as part of tests. LEGAL_SQLSERVER_MASTER_URL must target master; SQL fixture classes create/drop UUID-named databases. Use existing JWT/encryption configuration independently; never rotate the vault encryption key to revoke sessions.
 
 PS-112 now uses a single V41 migration after develop's V40 (PS-103), including email binding and PREPARED state from creation. The old unpublished recovery V39/V40 files must not ship. Keep email disabled during deployment and testing. Signing-key rotation also changes the derived email-binding HMAC key, invalidating outstanding links. For rollback, follow the explicit route-block/revocation/session-invalidation procedure in password-recovery.md; never start an earlier recovery binary with delivery disabled while leaving reset publicly reachable. Do not repair or relabel migration history on databases that used the obsolete private feature migrations; review them separately from develop V40 upgrades.
+
+## Client IP behind a proxy (rate limits)
+
+Login, password-recovery, email-verification and payment limits key on `request.getRemoteAddr()`.
+Behind a proxy every user shares the proxy IP, so set `FORWARD_HEADERS_STRATEGY=native` (default `none`)
+so Tomcat reads `X-Forwarded-For`. Enable it only when the backend is reachable solely through a trusted
+proxy (the Vite dev proxy sends only `X-Forwarded-For`; nginx must set `X-Forwarded-For`); otherwise clients can spoof their IP.
+If a proxy also sends `X-Forwarded-Host`, the browser `Origin` must equal that public host; otherwise Spring answers 403 `Invalid CORS request` (the Vite proxy therefore must not use `xfwd`).

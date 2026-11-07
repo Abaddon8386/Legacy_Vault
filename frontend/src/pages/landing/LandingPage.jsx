@@ -3,6 +3,7 @@ import { ArrowUpRight, ArrowDown, Shield, LockKeyhole, FileText, Users } from 'l
 import { SUBSCRIPTION_PLANS } from '../../utils/subscriptionPlans.js';
 import { isSessionActive } from '../../utils/session.js';
 import { observeLandingReveals } from './landingMotion.js';
+import LandingFooter from './LandingFooter.jsx';
 import './LandingPage.css';
 
 export default function LandingPage({ onLogin, onRegister, onDashboard, session, isRestoringSession = false }) {
@@ -15,7 +16,7 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
   const hasValidSession = !isRestoringSession && isSessionActive(session);
   const isDashboardEligible = hasValidSession && (userRoles.includes('VAULT_OWNER') || userRoles.includes('BENEFICIARY'));
 
-  return <div className="lv-landing" ref={pageRef}>
+  return <div className="lv-landing" lang={lang} ref={pageRef}>
     <header className="lv-landing-nav">
       <a className="lv-landing-brand" href="#top"><Shield size={28} strokeWidth={1.6} /><span>LegacyVault</span></a>
       <nav aria-label={en ? 'Main navigation' : 'Điều hướng chính'}>
@@ -84,6 +85,6 @@ export default function LandingPage({ onLogin, onRegister, onDashboard, session,
         <button data-reveal="up" className="lv-landing-end-cta" disabled={isRestoringSession} onClick={() => (isDashboardEligible ? onDashboard : onRegister)?.(lang)}>{isDashboardEligible ? (en ? 'Dashboard' : 'Bảng điều khiển') : (en ? 'Create an account' : 'Tạo tài khoản')}<ArrowUpRight size={18} /></button>
       </section>
     </main>
-    <footer className="lv-landing-footer" data-reveal="up"><span>LegacyVault</span><span>© 2026</span></footer>
+    <LandingFooter lang={lang} />
   </div>;
 }

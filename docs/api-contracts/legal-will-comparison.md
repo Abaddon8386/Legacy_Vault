@@ -14,8 +14,13 @@ ghi ở [D-API-35](open-decisions.md).
 - Mỗi kết quả lưu **phiên bản và SHA-256** của bản scan đã được so (hash do server lấy từ dữ liệu đã lưu, không nhận từ
   request). Hash chỉ xác định đúng phiên bản và phát hiện thay đổi, **không** chứng minh giá trị pháp lý.
 - Ba kết quả: `MATCH`, `MISMATCH`, `INCONCLUSIVE` (chưa đủ cơ sở kết luận). `MISMATCH` và `INCONCLUSIVE` **bắt buộc có `reason`**.
-- **Chặn luồng duyệt thông thường:** `approvalBlocked = true` cho tới khi kết quả đối chiếu **mới nhất** của ca là `MATCH`. Chưa
-  đối chiếu, `MISMATCH` và `INCONCLUSIVE` đều chặn. Đối chiếu lại (sau khi bổ sung chứng cứ) là một bản ghi mới; bản ghi cũ giữ nguyên.
+- **Chặn luồng duyệt thông thường:** `approvalBlocked = true` cho tới khi kết quả đối chiếu **mới nhất** của ca là `MATCH`
+  **trên bản scan vẫn là phiên bản mới nhất** của di chúc đó. Chưa đối chiếu, `MISMATCH` và `INCONCLUSIVE` đều chặn. Đối chiếu
+  lại (sau khi bổ sung chứng cứ) là một bản ghi mới; bản ghi cũ giữ nguyên.
+- **Bản số đổi (PS-139 AC4):** mỗi bản giấy chỉ có một kết luận. Khi Owner tải phiên bản scan mới hơn, kết luận cũ chỉ còn là
+  **lịch sử của bản số cũ** (vẫn hiện trong `comparisons[]` và `latestResult`) và **không được dùng cho bản số mới**: `approvalBlocked`
+  và các cổng dùng kết luận về sau (phân loại căn cứ, tuyến Tòa, phân bổ) quay lại `true`. Để mở lại, Staff ghi nhận bản giấy mới
+  (PS-39) rồi Legal kết luận trên bản đó với đúng số phiên bản mới. Không có endpoint mới.
 - Chỉ ghi nhận kết quả: không đóng ca, không mở khóa, không phê duyệt. **Kết quả `MATCH` đầu tiên chuyển Vault
   `DOCUMENT_VERIFICATION → WILL_VERIFICATION`** đúng ST-15 (Main Flow v4.2); `MISMATCH` và `INCONCLUSIVE` không đổi trạng thái.
   Cổng `approvalBlocked` dành cho các bước sau (phân loại ST-16, duyệt ST-21).

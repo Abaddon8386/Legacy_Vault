@@ -64,8 +64,9 @@ public class GlobalExceptionHandler {
 		return respond(factory.create(request, ErrorCode.VALIDATION_FAILED, List.of()));
 	}
 
+	// A required request header that is absent (for example Idempotency-Key) is a client error, not a server fault.
 	@ExceptionHandler({ HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
-			MethodArgumentTypeMismatchException.class })
+			org.springframework.web.bind.MissingRequestHeaderException.class, MethodArgumentTypeMismatchException.class })
 	ResponseEntity<ApiError> handleMalformed(Exception ex, HttpServletRequest request) {
 		return respond(factory.create(request, ErrorCode.MALFORMED_REQUEST, List.of()));
 	}

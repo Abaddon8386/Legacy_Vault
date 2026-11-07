@@ -85,3 +85,78 @@ test('document acceptance and allocation corrections open the Staff allocation t
   try { await view.expand(); await act(async () => view.host.querySelector('li button').click()); assert.deepEqual(destinations, ['/staff/legal-documents?caseId=' + caseId + '&lang=vi&tab=allocations']); }
   finally { await view.close(); }
 });
+
+test('the new Legal review action opens the same Staff allocation tab as the legacy action in both languages', async () => {
+ for (const action of ['LEGAL_BASIS_REVIEW_RECORDED','DISTRIBUTION_ALLOCATIONS_APPROVED']) for (const lang of ['vi','en']) {
+  const destinations=[],calls=[];
+  globalThis.fetch=async(url,init)=>{calls.push({url,method:init.method});return init.method==='PUT'?json({id,read:true}):json([{...item,action}]);};
+  const view=await mount({session:{accessToken:'staff-token'},role:'STAFF',lang,onNavigate:url=>destinations.push(url)});
+  try {
+   await view.expand();
+   await act(async()=>view.host.querySelector('li button').click());
+   assert.deepEqual(destinations,[`/staff/legal-documents?caseId=${caseId}&lang=${lang}&tab=allocations`]);
+   assert.deepEqual(calls.map(call=>call.method),['GET','PUT']);
+   assert.ok(calls[1].url.endsWith(`${id}/read?workspace=STAFF`));
+  } finally {await view.close();}
+ }
+});
+
+test('unknown actions coexist with known notices, acknowledge locally and never navigate in either workspace or language', async () => {
+ for (const role of ['STAFF','LEGAL']) for (const lang of ['vi','en']) for (const action of ['FUTURE_CASE_ACTION','__proto__']) {
+  const destinations=[],calls=[];
+  globalThis.fetch=async(url,init)=>{calls.push({url,method:init.method});return init.method==='PUT'?json({id:url.includes(caseId+'/read')?caseId:id,read:true}):json([{...item,action},{...item,id:caseId,read:true}]);};
+  const view=await mount({session:{accessToken:'test-token'},role,lang,onNavigate:url=>destinations.push(url)});
+  try {
+   await view.expand();
+   assert.equal(view.host.querySelectorAll('li').length,2);
+   assert.equal(view.host.querySelector('li strong').textContent,lang==='en'?'There is an update about the case':'Có cập nhật về hồ sơ');
+   assert.match(view.host.querySelector('li').textContent,/HS-2026-000001/);
+   assert.match(view.host.querySelector('li').textContent,/Bổ sung trang cuối/);
+   assert.ok(view.host.querySelector('li button.is-unread'));
+   await act(async()=>view.host.querySelector('li button').click());
+   assert.deepEqual(destinations,[]);
+   assert.deepEqual(calls.map(call=>call.method),['GET','PUT']);
+   assert.ok(calls[1].url.endsWith(`${id}/read?workspace=${role}`));
+   assert.equal(view.host.querySelector('li button.is-unread'),null);
+   assert.equal(view.host.querySelector('.lv-workflow-notifications__dot'),null);
+   assert.equal(view.host.querySelector('li button').disabled,false);
+   await act(async()=>view.host.querySelectorAll('li button')[1].click());
+   assert.equal(destinations.length,1,'known notices remain usable');
+  } finally {await view.close();}
+ }
+});
+
+test('unknown actions still require a confirmed read receipt and valid notification fields', async () => {
+ for (const receipt of [{id,read:false},{id:caseId,read:true}]) {
+  const destinations=[];
+  globalThis.fetch=async(_url,init)=>init.method==='PUT'?json(receipt):json([{...item,action:'FUTURE_CASE_ACTION'}]);
+  const view=await mount({session:{accessToken:'staff-token'},role:'STAFF',onNavigate:url=>destinations.push(url)});
+  try {
+   await view.expand();await act(async()=>view.host.querySelector('li button').click());
+   assert.deepEqual(destinations,[]);assert.match(view.host.textContent,/Chưa tải được thông báo/);
+  } finally {await view.close();}
+ }
+ for (const invalid of [{action:null},{action:{}},{action:''},{action:'  '},{caseId:'invalid'},{read:'false'},{occurredAt:'invalid'}]) {
+  globalThis.fetch=async()=>json([{...item,action:'FUTURE_CASE_ACTION',...invalid}]);
+  const view=await mount();
+  try {await view.expand();assert.equal(view.host.querySelector('li button'),null);assert.match(view.host.textContent,/Chưa tải được thông báo/);}
+  finally {await view.close();}
+ }
+});
+
+test('late acknowledgement of an unknown action cannot change notices after switching accounts', async () => {
+ let finish,signal;const destinations=[];
+ globalThis.fetch=async(_url,init)=>{
+  if(init.method==='PUT')return new Promise(resolve=>{finish=resolve;signal=init.signal;});
+  return json(init.headers.Authorization==='Bearer first'?[{...item,action:'FUTURE_CASE_ACTION'}]:[]);
+ };
+ const view=await mount({session:{accessToken:'first'},role:'STAFF',onNavigate:url=>destinations.push(url)});
+ try {
+  await view.expand();await act(async()=>view.host.querySelector('li button').click());
+  await view.render({session:{accessToken:'second'},role:'STAFF',onNavigate:url=>destinations.push(url)});
+  assert.equal(signal.aborted,true);
+  await act(async()=>finish(json({id,read:true})));
+  assert.deepEqual(destinations,[]);assert.match(view.host.textContent,/Chưa có thông báo/);
+  assert.doesNotMatch(view.host.textContent,/HS-2026-000001/);
+ } finally {await view.close();}
+});

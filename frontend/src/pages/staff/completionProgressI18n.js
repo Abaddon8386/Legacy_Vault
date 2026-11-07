@@ -9,7 +9,7 @@ export const completionProgressI18n = {
     sessionLoadFailed: 'Chưa tải được danh sách phiên bàn giao. Vui lòng thử lại.',
     errorStateTitle: 'Hồ sơ chưa ở trạng thái cho phép xem tiến độ',
     errorStateDesc: 'Kiểm tra trạng thái hồ sơ, phiên và phê duyệt hiện hành rồi tải lại.',
-    pageTitle: 'Tiến độ hoàn tất hồ sơ',
+    pageTitle: 'Tiến độ hoàn tất',
     pageSubtitle: 'Theo dõi đồng thời hai tiến độ độc lập: bàn giao tài sản và xác nhận của người thụ hưởng.',
     ruleNoticeTitle: 'Điều kiện hoàn tất hồ sơ',
     ruleNoticeBody: 'Hồ sơ chỉ được xác định là hoàn tất khi cả hai điều kiện được đáp ứng đồng thời: 100% tài sản đã được bàn giao VÀ 100% người thụ hưởng đã xác nhận.',
@@ -40,7 +40,6 @@ export const completionProgressI18n = {
     assetDataUnavailable: 'Chưa có thông tin về tài sản.',
     beneficiaryDataUnavailable: 'Chưa có thông tin về người thụ hưởng.',
     // Actions & Context
-    reloadBtn: 'Tải lại tiến độ',
     reloadingBtn: 'Đang tải lại…',
     sessionLabel: 'Phiên bàn giao',
     selectSessionPrompt: 'Chọn phiên bàn giao...',
@@ -51,7 +50,7 @@ export const completionProgressI18n = {
     openSessionAction: 'Mở phiên bàn giao tại quầy',
     errorClosedCaseTitle: 'Hồ sơ xác minh hoặc phiên bàn giao đã đóng',
     errorClosedCaseDesc: 'Tiến độ chỉ cập nhật khi phiên đang mở. Bạn có thể xem lại biên nhận bên dưới.',
-    errorClosedCaseAction: 'Xem lịch sử biên lai & đóng ca',
+    errorClosedCaseAction: 'Xem biên nhận',
     errorNotFoundTitle: 'Không tìm thấy hồ sơ hoặc phiên bàn giao',
     errorNotFoundDesc: 'Không tìm thấy thông tin hoặc hồ sơ/phiên chưa được phân công cho bạn.',
     retryBtn: 'Thử lại',
@@ -91,7 +90,6 @@ export const completionProgressI18n = {
     assetDataUnavailable: 'Asset information is unavailable.',
     beneficiaryDataUnavailable: 'Beneficiary information is unavailable.',
     // Actions & Context
-    reloadBtn: 'Reload Progress',
     reloadingBtn: 'Reloading…',
     sessionLabel: 'Handover Session',
     selectSessionPrompt: 'Select handover session...',

@@ -61,7 +61,7 @@
 
 .lv-empty-badge {
   display: inline-block;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--lv-control-text);
@@ -157,14 +157,14 @@
 
 .lv-pillar-content strong {
   display: block;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-heading, #164639);
   margin-bottom: 4px;
 }
 
 .lv-pillar-content p {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   line-height: 1.45;
 }

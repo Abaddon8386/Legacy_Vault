@@ -3,6 +3,8 @@ package com.legacyvault.auth;
 import com.legacyvault.audit.AuditService;
 import com.legacyvault.auth.dto.GoogleLoginRequest;
 import com.legacyvault.auth.dto.GoogleIdentityLinkResponse;
+import com.legacyvault.auth.dto.PasswordSetupRequest;
+import com.legacyvault.auth.dto.PasswordSetupResponse;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.entity.GoogleLoginCredentialUse;
 import com.legacyvault.auth.repository.GoogleLoginCredentialUseRepository;
@@ -39,7 +41,7 @@ class GoogleAuthServiceTest {
     private final User user = mock(User.class);
     private final String token = "synthetic.signed.credential";
     private final GoogleIdTokenVerifier.VerifiedGoogleCredential verified =
-            new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "a".repeat(64), Instant.now().plusSeconds(300));
+            new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "a".repeat(64), Instant.now().plusSeconds(300), null, false, null);
     private final LoginResponse response = new LoginResponse("legacy-jwt", "Bearer", 3600,
             new LoginResponse.AuthUserResponse(UUID.randomUUID(), "Linked User", "linked@example.test", java.util.List.of("VAULT_OWNER")));
 
@@ -49,6 +51,7 @@ class GoogleAuthServiceTest {
         when(user.getStatus()).thenReturn("ACTIVE");
         when(user.getDeletedAt()).thenReturn(null);
         when(user.getUserId()).thenReturn(41L);
+        when(user.isPasswordLoginAllowed()).thenReturn(true);
         when(users.findById(41L)).thenReturn(Optional.of(user));
         when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
                 .thenReturn(Optional.of(new ExternalAuthIdentity("GOOGLE", "google-sub", user)));
@@ -66,16 +69,131 @@ class GoogleAuthServiceTest {
         verifyNoInteractions(audit);
     }
 
+    private GoogleIdTokenVerifier.VerifiedGoogleCredential newcomer(String email, boolean emailVerified) {
+        return new GoogleIdTokenVerifier.VerifiedGoogleCredential(
+                "google-sub", "c".repeat(64), Instant.now().plusSeconds(300), email, emailVerified, "New Person");
+    }
+
     @Test
-    void unlinkedGoogleSubjectIsRejectedWithoutEmailBasedLinking() {
+    void newGoogleUserWithUnusedVerifiedEmailGetsOwnerAccountAndLogsIn() {
+        User created = mock(User.class);
         when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("  New.Person@Example.test ", true));
+        when(users.existsByEmail("new.person@example.test")).thenReturn(false);
+        when(authService.createGoogleOwner("new.person@example.test", "New Person")).thenReturn(created);
+        when(authService.issueLoginResponseForActiveUser(created)).thenReturn(response);
+
+        assertSame(response, service.login(new GoogleLoginRequest(token)));
+
+        verify(uses).saveAndFlush(any(GoogleLoginCredentialUse.class));
+        verify(identities).saveAndFlush(argThat(identity -> "GOOGLE".equals(identity.getProviderCode())
+                && "google-sub".equals(identity.getSubject()) && identity.getUser() == created));
+    }
+
+    @Test
+    void existingEmailIsNeverMergedAndCreatesNothing() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("owner@example.test", true));
+        when(users.existsByEmail("owner@example.test")).thenReturn(true);
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.login(new GoogleLoginRequest(token)));
 
-        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
-        verify(audit).recordLoginFailure(null);
-        verifyNoInteractions(uses, authService);
+        assertEquals(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+        verify(identities, never()).saveAndFlush(any());
+        verifyNoInteractions(uses);
+    }
+
+    @Test
+    void unverifiedGoogleEmailIsRejectedWithoutCreatingAnything() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", false));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+        verifyNoInteractions(uses);
+    }
+
+    @Test
+    void tokenWithoutEmailCannotSignUp() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer(null, true));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+    }
+
+    @Test
+    void reusedCredentialCannotSignUpTwice() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", true));
+        when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class)))
+                .thenThrow(dataViolation("PK_google_login_credential_uses"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(authService, never()).createGoogleOwner(any(), any());
+    }
+
+    @Test
+    void concurrentSignUpLoserGetsEmailAlreadyRegistered() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", true));
+        when(authService.createGoogleOwner(any(), any())).thenThrow(dataViolation("UQ_users_email"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.GOOGLE_EMAIL_ALREADY_REGISTERED, exception.getErrorCode());
+        // Marked as a race so the controller retries instead of telling the user to "sign in with a password".
+        assertInstanceOf(GoogleSignupRaceException.class, exception);
+        verify(authService, never()).issueLoginResponseForActiveUser(any());
+    }
+
+    @Test
+    void emailTakenByAParallelRequestForTheSameGoogleIdentityIsMarkedAsARaceNotAPasswordConflict() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub"))
+                .thenReturn(Optional.empty(), Optional.of(new ExternalAuthIdentity("GOOGLE", "google-sub", user)));
+        when(verifier.verify(token)).thenReturn(newcomer("new@example.test", true));
+        when(users.existsByEmail("new@example.test")).thenReturn(true);
+
+        assertThrows(GoogleSignupRaceException.class, () -> service.login(new GoogleLoginRequest(token)));
+
+        verify(authService, never()).createGoogleOwner(any(), any());
+        verifyNoInteractions(uses);
+    }
+
+    @Test
+    void existingEmailIsNotMarkedAsARace() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+        when(verifier.verify(token)).thenReturn(newcomer("owner@example.test", true));
+        when(users.existsByEmail("owner@example.test")).thenReturn(true);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertFalse(exception instanceof GoogleSignupRaceException);
+    }
+
+    @Test
+    void linkRejectsGoogleOnlyAccountBeforeTouchingTheCredential() {
+        when(user.isPasswordLoginAllowed()).thenReturn(false);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.linkIdentity(new GoogleLoginRequest(token), 41L));
+
+        assertEquals(ErrorCode.PASSWORD_NOT_SET, exception.getErrorCode());
+        verifyNoInteractions(verifier, uses, audit);
+        verify(identities, never()).saveAndFlush(any());
     }
 
     @Test
@@ -143,7 +261,7 @@ class GoogleAuthServiceTest {
             return saved;
         });
         GoogleIdTokenVerifier.VerifiedGoogleCredential loginCredential =
-                new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "b".repeat(64), Instant.now().plusSeconds(300));
+                new GoogleIdTokenVerifier.VerifiedGoogleCredential("google-sub", "b".repeat(64), Instant.now().plusSeconds(300), null, false, null);
         when(verifier.verify("new-google-token")).thenReturn(verified);
         when(verifier.verify("next-google-token")).thenReturn(loginCredential);
 
@@ -250,6 +368,81 @@ class GoogleAuthServiceTest {
     @Test
     void linkRunsInTransaction() throws Exception {
         assertTrue(GoogleAuthService.class.getMethod("linkIdentity", GoogleLoginRequest.class, Long.class)
+                .isAnnotationPresent(Transactional.class));
+    }
+
+    @Test
+    void passwordSetupWithCredentialOfTheSignedInAccountsGoogleIdentitySetsPasswordAndConsumesToken() {
+        PasswordSetupResponse done = new PasswordSetupResponse(true);
+        when(authService.setupPassword(41L, "StrongPass123")).thenReturn(done);
+
+        assertSame(done, service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        verify(uses).saveAndFlush(any(GoogleLoginCredentialUse.class));
+        verify(authService).setupPassword(41L, "StrongPass123");
+        verify(audit, never()).recordLoginFailure(any());
+    }
+
+    @Test
+    void passwordSetupRejectsCredentialOfAnotherAccountsGoogleIdentity() {
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(99L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.GOOGLE_IDENTITY_MISMATCH, exception.getErrorCode());
+        verifyNoInteractions(uses);
+        verify(authService, never()).setupPassword(any(), any());
+    }
+
+    @Test
+    void passwordSetupRejectsCredentialWhoseSubjectIsNotLinkedToAnyAccount() {
+        when(identities.findByProviderCodeAndSubject("GOOGLE", "google-sub")).thenReturn(Optional.empty());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.GOOGLE_IDENTITY_MISMATCH, exception.getErrorCode());
+        verify(authService, never()).setupPassword(any(), any());
+    }
+
+    @Test
+    void passwordSetupRejectsInvalidOrExpiredCredential() {
+        when(verifier.verify("bad-token")).thenThrow(new BusinessException(ErrorCode.INVALID_GOOGLE_CREDENTIAL));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", "bad-token")));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verifyNoInteractions(uses);
+        verify(authService, never()).setupPassword(any(), any());
+    }
+
+    @Test
+    void passwordSetupRejectsAlreadyUsedCredentialWithoutTouchingThePassword() {
+        when(uses.saveAndFlush(any(GoogleLoginCredentialUse.class)))
+                .thenThrow(dataViolation("PK_google_login_credential_uses"));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.INVALID_GOOGLE_CREDENTIAL, exception.getErrorCode());
+        verify(authService, never()).setupPassword(any(), any());
+        verify(audit, never()).recordLoginFailure(any());
+    }
+
+    @Test
+    void passwordSetupFailureAfterTokenCheckPropagatesSoTheTransactionRollsBack() {
+        when(authService.setupPassword(41L, "StrongPass123"))
+                .thenThrow(new BusinessException(ErrorCode.PASSWORD_ALREADY_SET));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.setupPassword(41L, new PasswordSetupRequest("StrongPass123", token)));
+
+        assertEquals(ErrorCode.PASSWORD_ALREADY_SET, exception.getErrorCode());
+    }
+
+    @Test
+    void passwordSetupRunsAsOneTransaction() throws Exception {
+        assertTrue(GoogleAuthService.class.getMethod("setupPassword", Long.class, PasswordSetupRequest.class)
                 .isAnnotationPresent(Transactional.class));
     }
 

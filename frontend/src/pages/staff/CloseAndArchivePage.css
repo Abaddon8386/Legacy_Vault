@@ -5,7 +5,7 @@
  */
 
 .lv-close-archive-view {
-  max-width: 1040px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 32px 24px 64px;
   font-family: var(--lv-font-sans, 'Plus Jakarta Sans', system-ui, sans-serif);
@@ -86,7 +86,7 @@
 }
 
 .lv-close-archive-view .lv-ca-card__desc {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-color-text-muted, #606863);
   margin: 0 0 20px;
   line-height: 1.5;
@@ -110,11 +110,9 @@
 }
 
 .lv-close-archive-view .lv-ca-status-box__label {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-color-text-muted, #606863);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .lv-close-archive-view .lv-ca-status-box__value {
@@ -131,17 +129,17 @@
 .lv-close-archive-view .lv-ca-status-box__value--completed,
 .lv-close-archive-view .lv-ca-status-box__value--archived,
 .lv-close-archive-view .lv-ca-status-box__value--closed {
-  background: #e8f3ed;
-  color: #1a5e3a;
-  border: 1px solid #b7dcc8;
+  background: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 .lv-close-archive-view .lv-ca-status-box__value--active,
 .lv-close-archive-view .lv-ca-status-box__value--in-progress,
 .lv-close-archive-view .lv-ca-status-box__value--open {
-  background: #fdf5e6;
-  color: #9c6c19;
-  border: 1px solid #f2dab2;
+  background: var(--lv-status-success-bg);
+  color: var(--lv-status-success-text);
+  border: 1px solid var(--lv-status-success-border);
 }
 
 .lv-close-archive-view .lv-ca-status-box__value--unknown,
@@ -221,7 +219,7 @@
 .lv-close-archive-view .lv-ca-unmet-list {
   margin: 0;
   padding-left: 20px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: #555555;
   line-height: 1.6;
 }
@@ -274,7 +272,7 @@
   width: 100%;
   min-width: 600px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -304,7 +302,7 @@
 .lv-close-archive-view .lv-ca-code-badge {
   font-family: var(--lv-font-mono, ui-monospace, 'JetBrains Mono', Consolas, monospace);
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-color-primary, #164639);
   background: #eef4f0;
   padding: 3px 8px;
@@ -317,7 +315,7 @@
   display: inline-block;
   padding: 3px 8px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   background: #faf8f5;
   color: #555555;
@@ -337,14 +335,11 @@
 }
 
 .lv-close-archive-view .lv-ca-empty-box p {
-  font-size: 13.5px;
+  font-size: 14px;
   margin: 0;
 }
 
 .lv-close-archive-view .lv-ca-empty-box--unavailable {
-  border: 1px dashed var(--lv-color-border, #e6ded1);
-  border-radius: 10px;
-  background: #faf8f5;
 }
 
 /* Action Section */
@@ -381,7 +376,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: #735118;
   background: #fdf7ec;
   border: 1px solid #f2dab2;
@@ -391,7 +386,7 @@
 }
 
 .lv-close-archive-view .lv-ca-disabled-note {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-color-text-muted, #606863);
   margin: 0;
   line-height: 1.4;
@@ -420,8 +415,8 @@
 .lv-close-archive-view .lv-ca-recipient-field { display: grid; gap: 10px; max-width: 560px; margin-bottom: 24px; }
 .lv-close-archive-view .lv-ca-recipient-field label { font-size: 14px; font-weight: 600; color: #243b53; }
 .lv-close-archive-view select { width: 100%; min-height: 46px; padding: 10px 14px; border: 1px solid #bdcbd5; border-radius: 10px; background: #fff; color: #243b53; font: inherit; }
-.lv-close-archive-view .lv-ca-recipient-field p { margin: 0; font-size: 13px; color: #61758a; }
-.lv-close-archive-view .lv-ca-empty-box { background: #f8fafc; border: 1px dashed #ced8e0; border-radius: 12px; margin-top: 20px; padding: 28px 16px; }
+.lv-close-archive-view .lv-ca-recipient-field p { margin: 0; font-size: 14px; color: #61758a; }
+.lv-close-archive-view .lv-ca-empty-box { margin-top: 12px; padding: 8px 0; text-align: left; }
 .lv-close-archive-view .lv-ca-card { min-width: 0; }
 .lv-close-archive-view .lv-ca-table-wrapper { overflow-x: auto; }
 @media(max-width:760px) { .lv-close-archive-view .lv-ca-preconditions-grid { grid-template-columns: 1fr; } }

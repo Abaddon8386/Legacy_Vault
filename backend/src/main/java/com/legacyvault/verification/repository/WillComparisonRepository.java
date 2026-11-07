@@ -16,6 +16,9 @@ public interface WillComparisonRepository extends JpaRepository<WillComparison, 
             Long verificationCaseId
     );
 
+    /** PS-139: kết luận đối chiếu là duy nhất cho mỗi bản giấy; gọi khi đã giữ khóa Vault -> ca. */
+    boolean existsByOriginalWillIntakeId(Long originalWillIntakeId);
+
     @Query("""
         select new com.legacyvault.verification.repository.WillComparisonRow(
             c.publicId, i.publicId, a.publicId, v.versionNo, c.referencedSha256Hash,

@@ -5,7 +5,7 @@ import { DocumentPicker } from './AssetDocuments.jsx'
 import { useState } from 'react'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
-import { AlertCircle, Lock, X } from 'lucide-react'
+import { AlertCircle, Info, Lock, X } from 'lucide-react'
 import './AssetFormModal.css'
 import { getAssetTranslations } from '../../pages/assets/assetI18n.js'
 
@@ -121,7 +121,6 @@ export function AssetFormModal({
             <h2 id="asset-modal-title" className="lv-modal__title">
               {t.assets.addModal.title}
             </h2>
-            <p className="lv-modal__desc">{t.assets.addModal.desc}</p>
           </div>
           <button
             type="button"
@@ -243,28 +242,22 @@ export function AssetFormModal({
             )}
           </div>
 
-          {/* Non-blocking Beneficiary Vault Configuration Notice */}
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: '#fbf7ee',
-              border: '1px solid #e7d8b8',
-              borderRadius: 'var(--lv-radius-control, 10px)',
-              fontSize: '12.5px',
-              color: '#775722',
-              lineHeight: 1.5,
-              margin: '12px 0 16px',
-            }}
-          >
-            <span>{t.assets.addModal.beneficiaryHint}</span>
-          </div>
-
           <AssetImagePicker files={images} onChange={setImages} disabled={isSubmitting} lang={lang} />
           </fieldset>
           {assetSaved && <p role="status">{lang==='en'?'Asset saved. Retry documents only; no duplicate asset will be created.':'Tài sản đã lưu. Thử lại chỉ tải tài liệu, không tạo tài sản trùng.'}</p>}
           <DocumentPicker files={documents} onChange={setDocuments} disabled={isSubmitting} lang={lang} />
 
           </div>
+          {/* Legal notice stays visible next to the actions, outside the scrolling fields. */}
+          {t.assets.addModal.legalNote && (
+            <div className="lv-asset-legal-note" role="note">
+              <Info size={18} aria-hidden="true" />
+              <p>
+                {t.assets.addModal.legalNote}{' '}
+                <a href={`/about?lang=${lang}#legal`} target="_blank" rel="noopener noreferrer">{t.assets.addModal.legalNoteLink}</a>
+              </p>
+            </div>
+          )}
           {/* Actions remain outside the scrolling fields. */}
           <div className="lv-form-actions">
             <Button

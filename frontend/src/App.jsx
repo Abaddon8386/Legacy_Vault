@@ -10,15 +10,16 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { createLiveReceivedAssetActions } from './services/receivedAssetService.js';
 import RegisterPageHenedo from './pages/auth/RegisterPageHenedo.jsx';
 import LandingPage from './pages/landing/LandingPage.jsx';
+import PublicInfoPage from './pages/landing/PublicInfoPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import PasswordRecoveryRoute from './pages/auth/PasswordRecoveryRoute.jsx';
 import InvitationPage from './pages/beneficiary/InvitationPage.jsx';
 import VaultOverviewPage from './pages/vault/VaultOverviewPage.jsx';
-import OwnerWorkflowGuide from './components/vault/OwnerWorkflowGuide.jsx';
 import DMSOverviewPage from './pages/dms/DMSOverviewPage.jsx';
 import { request, ApiError } from './api/http.js';
 import { readUser } from './api/contracts.js';
 import { createSession, isSessionActive, readStoredSession, storeSession } from './utils/session.js';
+import PasswordSetupProvider from './components/auth/PasswordSetupProvider.jsx';
 import AssetsRoute from './pages/assets/AssetsRoute.jsx';
 import WillsRoute from './pages/wills/WillsRoute.jsx';
 import TrusteeBeneficiaryRoute from './pages/trusteeBeneficiary/TrusteeBeneficiaryRoute.jsx';
@@ -57,6 +58,7 @@ import AccountEditPage from './pages/account/AccountEditPage.jsx';
 import { canAccessAccountEdit } from './utils/accountEditValidation.js';
 import { updateProfile } from './services/profileService.js';
 
+const publicInfoPages = { '/support': 'support', '/privacy': 'privacy', '/about': 'about' };
 
 function NotFoundFallback({ onNavigateToRegister, onNavigateToLogin }) {
   return (
@@ -393,10 +395,15 @@ function LegalAccessDeniedFallback({ lang, onLogout, onNavigateToVault, canRetur
   );
 }
 
-export default function App({ invitationActions, beneficiaryAssetActions, legalDiscovery, caseLinkActions, counterLinkActions, dmsGraceActions } = {}) {
+export default function App(props) {
+  const [session, setSession] = useState(readStoredSession);
+  return <PasswordSetupProvider session={session} onConfigured={token => setSession(current => current?.accessToken === token
+    ? { ...current, user: { ...current.user, passwordLoginEnabled: true } } : current)}><AppContent {...props} session={session} setSession={setSession} /></PasswordSetupProvider>;
+}
+
+function AppContent({ invitationActions, beneficiaryAssetActions, legalDiscovery, caseLinkActions, counterLinkActions, dmsGraceActions, session, setSession } = {}) {
   const [location, setLocation] = useState(() => window.location.pathname + window.location.search);
   const [lang, setLang] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'vi'));
-  const [session, setSession] = useState(readStoredSession);
   const profileSessionRef = useRef(session);
   const profileWriteRef = useRef(null);
   useLayoutEffect(() => { profileSessionRef.current = session; }, [session]);
@@ -423,7 +430,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const isRevertingPopStateRef = useRef(false);
   const restoreControllerRef = useRef(null);
   const refreshControllerRef = useRef(null);
-  const [refreshError, setRefreshError] = useState(null);
 
   const effectiveBeneficiaryAssetActions = useMemo(() => {
     if (beneficiaryAssetActions !== undefined) return beneficiaryAssetActions;
@@ -533,7 +539,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
     setIsRefreshing(false);
-    setRefreshError(null);
     storeSession(null);
     setRestoreStatus('ready');
     isEditFormDirtyRef.current = false;
@@ -546,10 +551,11 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     setStaffContextSessionId('');
     setStaffActiveCase(null);
     navigateTo('/login');
-  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setRefreshError, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
+  }, [navigateTo, setRestoreStatus, setIsEditFormDirty, setPendingNavigationTarget, setSession, setInvitationIntent, setPendingInvitationCode, setIsRefreshing, setStaffContextCaseId, setStaffContextSessionId, setStaffActiveCase]);
 
   useEffect(() => {
-    if (['/forgot-password', '/reset-password'].includes(window.location.pathname)) return;
+    const { pathname } = window.location;
+    if (publicInfoPages[pathname] || ['/forgot-password', '/reset-password'].includes(pathname)) return;
     const candidate = readStoredSession();
     if (!candidate) return;
     const controller = new AbortController();
@@ -568,7 +574,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         else setRestoreStatus('error');
       });
     return () => controller.abort();
-  }, [logout, restoreAttempt]);
+  }, [logout, restoreAttempt, setSession]);
 
   useEffect(() => { storeSession(session); }, [session]);
 
@@ -618,7 +624,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
     setIsRefreshing(false);
-    setRefreshError(null);
     const candidate = createSession(result);
     const user = readUser(await request('/auth/me', { ...options, accessToken: candidate.accessToken }));
     if (options.signal?.aborted) return;
@@ -639,7 +644,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     const controller = new AbortController();
     refreshControllerRef.current = controller;
     setIsRefreshing(true);
-    setRefreshError(null);
     try {
       const result = await request('/auth/me', {
         accessToken: currentSession.accessToken,
@@ -666,11 +670,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
       if (controller.signal.aborted || refreshControllerRef.current !== controller || err.name === 'AbortError') return;
       if (err.status === 401 || err.code === 'INVALID_AUTH_RESPONSE') {
         logout();
-      } else {
-        const msg = lang === 'en'
-          ? (err.code === 'NETWORK_ERROR' ? 'Network error. Please retry.' : 'Failed to refresh account privileges.')
-          : (err.code === 'NETWORK_ERROR' ? 'Lỗi kết nối máy chủ. Vui lòng thử lại.' : 'Không thể làm mới quyền hạn tài khoản.');
-        setRefreshError(msg);
       }
     } finally {
       if (refreshControllerRef.current === controller) {
@@ -678,7 +677,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         setIsRefreshing(false);
       }
     }
-  }, [session, lang, logout, navigateTo]);
+  }, [session, lang, logout, navigateTo, setSession]);
 
   useEffect(() => {
     const onTriggerRefresh = () => { handleRefresh(); };
@@ -702,7 +701,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
     refreshControllerRef.current?.abort();
     refreshControllerRef.current = null;
     setIsRefreshing(false);
-    setRefreshError(null);
     profileWriteRef.current = options.signal;
     try {
       const user = await updateProfile(snapshot, changes, options);
@@ -729,6 +727,8 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
   const rawPath = location.split('?')[0];
   const path = rawPath === '/beneficiary' ? '/shared-with-me' : rawPath;
   const isSharedWithMeRoute = path === '/shared-with-me';
+  const publicInfoPage = publicInfoPages[path];
+  if (publicInfoPage) return <PublicInfoPage key={path} page={publicInfoPage} lang={lang} />;
   if (path === '/verify-email') return <VerifyEmailPage session={restoreStatus === 'ready' ? session : null} lang={lang} />;
   if (path === '/forgot-password' || path === '/reset-password') {
     return <PasswordRecoveryRoute key={location} mode={path === '/reset-password' ? 'reset' : 'request'} initialLang={new URLSearchParams(location.split('?')[1] || '').get('lang')}
@@ -844,12 +844,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           isRefreshing={isRefreshing}
           onNavigateTab={handleExecuteNavigation}
         >
-          <div className="lv-page-actions">
-            <button type="button" className="lv-shared-btn" disabled={isRefreshing} onClick={handleRefresh}>
-              {isRefreshing ? (lang === 'en' ? 'Refreshing…' : 'Đang làm mới…') : (lang === 'en' ? 'Refresh' : 'Làm mới tài khoản')}
-            </button>
-            {refreshError && <div role="alert">{refreshError} <button type="button" onClick={handleRefresh}>{lang === 'en' ? 'Retry' : 'Thử lại'}</button></div>}
-          </div>
           <SharedWithMePage
             key={`${session?.user?.id || 'anon'}:${session?.accessToken || ''}`}
             lang={lang}
@@ -1696,7 +1690,6 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
           handleExecuteNavigation(tab);
         }
       }}>
-      {!preview && !isSubscriptionRoute && <OwnerWorkflowGuide {...context} refreshKey={refreshTrigger} route={path} onNavigate={navigateTo} />}
       {preview && isWillsRoute ? <section className="lv-overview-summary" aria-label={lang === 'en' ? 'Preview availability' : 'Phạm vi xem thử'}>
         <h2>{lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số'}</h2>
         <p>{lang === 'en' ? 'This screen uses the live API and has no simulated data yet. Sign in to test it with your own vault.' : 'Màn hình này sử dụng API thật và chưa có dữ liệu mô phỏng. Hãy đăng nhập để thử với kho của bạn.'}</p>
@@ -1707,7 +1700,7 @@ export default function App({ invitationActions, beneficiaryAssetActions, legalD
         : isWillsRoute ? <WillsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} />
           : isAssetsRoute ? <AssetsRoute key={session?.user.id || 'preview'} {...context} onNavigateToVault={() => navigateTo(preview ? previewRoute('vault', window.location.search, lang) : '/vault')} onNavigateToSubscription={() => navigateTo('/subscription')} />
             : isDmsRoute ? <DMSOverviewPage graceActions={dmsGraceActions} key={session?.user.id || 'preview'} {...context} isDevPreview={preview} />
-              : <VaultOverviewPage onCreated={() => setRefreshTrigger(n => n + 1)} onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} showDevToolbar={preview} />}
+              : <VaultOverviewPage onCreated={() => setRefreshTrigger(n => n + 1)} onNavigate={tab => navigateTo(preview ? previewRoute(tab, window.location.search, lang) : `/${tab}?lang=${lang}`)} key={session?.user.id || 'preview'} {...context} ownerName={session?.user.fullName} showDevToolbar={preview} />}
     </AppShell></div>;
   }
   if (path === '/') {

@@ -1,10 +1,12 @@
 import { AssetImageGallery } from './AssetImageGallery.jsx'
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import AssetDocuments from './AssetDocuments.jsx'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Modal } from '../common/Modal'
 import { Button } from '../common/Button'
 import { FileText, KeyRound, Lock, Calendar, Clock, ShieldCheck, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { assetService } from '../../services/assetService'
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js'
 import './AssetListTable.css'
 
 /**
@@ -216,12 +218,14 @@ export function AssetDetailModal({
         </div>
 
         {/* Description */}
-        <div className="lv-detail-group">
-          <span className="lv-detail-label">{t.assets.detailModal.descLabel}</span>
-          <p className="lv-detail-desc">
-            {asset.description || t.assets.noDescription}
-          </p>
-        </div>
+        {asset.description && asset.description.trim() ? (
+          <div className="lv-detail-group">
+            <span className="lv-detail-label">{t.assets.detailModal.descLabel}</span>
+            <p className="lv-detail-desc">
+              {asset.description.trim()}
+            </p>
+          </div>
+        ) : null}
 
         <AssetImageGallery key={[vaultId, asset.id, accessToken, lang].join(':')} vaultId={vaultId} assetId={asset.id}
           accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly />
@@ -230,11 +234,11 @@ export function AssetDetailModal({
         {asset.hasPayload && (
           <div
             style={{
-              padding: '14px 16px',
+              padding: '18px 20px',
               backgroundColor: '#faf8f5',
               border: '1px solid var(--lv-border-subtle, #eae5dc)',
               borderRadius: 'var(--lv-radius-control, 10px)',
-              fontSize: '13px',
+              fontSize: '14px',
               color: 'var(--lv-text-ink, #243c32)',
               marginTop: '4px',
             }}
@@ -262,7 +266,7 @@ export function AssetDetailModal({
                       border: '1px solid var(--lv-border-subtle, #eae5dc)',
                       borderRadius: '6px',
                       padding: '4px 10px',
-                      fontSize: '12px',
+                      fontSize: '14px',
                       color: 'var(--lv-text-muted, #68736b)',
                       cursor: 'pointer',
                     }}
@@ -276,7 +280,7 @@ export function AssetDetailModal({
                     border: '1px solid #dce2da',
                     borderRadius: '8px',
                     padding: '12px',
-                    fontSize: '13px',
+                    fontSize: '14px',
                     margin: 0,
                     maxHeight: '200px',
                     overflowY: 'auto',
@@ -294,6 +298,7 @@ export function AssetDetailModal({
             ) : isReauthOpen ? (
               /* Case 2: Reauth password input form */
               <form onSubmit={handleRevealSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <FirstPasswordButton lang={lang} onReady={setPassword} disabled={isRevealing} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--lv-brand-forest, #164639)', fontWeight: 600 }}>
                   <Lock size={14} style={{ color: 'var(--lv-accent-gold, #c5a059)' }} />
                   <span>{t.assets.detailModal.passwordPrompt}</span>
@@ -319,7 +324,7 @@ export function AssetDetailModal({
                         padding: '10px 36px 10px 12px',
                         border: '1px solid #dce2da',
                         borderRadius: '8px',
-                        fontSize: '13px',
+                        fontSize: '14px',
                         fontFamily: 'inherit',
                       }}
                     />
@@ -350,7 +355,7 @@ export function AssetDetailModal({
                     type="submit"
                     variant="primary"
                     disabled={isRevealing || !password}
-                    style={{ padding: '9px 16px', fontSize: '13px' }}
+                    style={{ padding: '9px 16px', fontSize: '14px' }}
                   >
                     {isRevealing ? t.assets.detailModal.revealingBtn : t.assets.detailModal.confirmBtn}
                   </Button>
@@ -364,7 +369,7 @@ export function AssetDetailModal({
                       setPassword('')
                       setRevealErrorKey(null)
                     }}
-                    style={{ padding: '9px 14px', fontSize: '13px' }}
+                    style={{ padding: '9px 14px', fontSize: '14px' }}
                   >
                     {t.assets.detailModal.cancelBtn}
                   </Button>
@@ -372,19 +377,20 @@ export function AssetDetailModal({
 
                 {revealErrorKey && (
                   <p
-                    role="alert"
+                    role={revealErrorKey === 'PASSWORD_SETUP_CANCELLED' ? 'status' : 'alert'}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
                       color: '#a03832',
-                      fontSize: '12.5px',
+                      fontSize: '14px',
                       margin: '2px 0 0',
                     }}
                   >
                     <AlertCircle size={14} />
                     <span>
-                      {t.assets.alerts[revealErrorKey] ||
+                      {revealErrorKey === 'PASSWORD_SETUP_CANCELLED' ? passwordSetupCancelledMessage(lang) :
+                        t.assets.alerts[revealErrorKey] ||
                         (revealErrorKey === 'passwordRequired'
                           ? t.assets.validation.payloadRequired
                           : t.assets.alerts.loadError)}
@@ -393,22 +399,14 @@ export function AssetDetailModal({
                 )}
               </form>
             ) : (
-              /* Case 3: Initial state: Protected notice with Reveal button */
+              /* Case 3: Initial state: Reveal button */
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Lock size={14} style={{ color: 'var(--lv-accent-gold, #c5a059)', flexShrink: 0 }} />
-                  <span style={{ color: 'var(--lv-text-muted, #68736b)' }}>
-                    {t.assets.detailModal.payloadNotice}
-                  </span>
-                </div>
                 <Button
                   type="button"
                   variant="secondary"
@@ -416,12 +414,13 @@ export function AssetDetailModal({
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '12.5px',
-                    padding: '6px 14px',
+                    gap: '8px',
+                    fontSize: '14px',
+                    minHeight: '44px',
+                    padding: '8px 18px',
                   }}
                 >
-                  <Eye size={14} />
+                  <Eye size={16} />
                   <span>{t.assets.detailModal.revealBtn}</span>
                 </Button>
               </div>

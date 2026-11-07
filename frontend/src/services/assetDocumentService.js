@@ -1,4 +1,5 @@
 import { API_BASE, ApiError, request } from '../api/http.js';
+import { passwordFetch } from '../api/passwordRequest.js';
 import { isUuid } from '../api/contracts.js';
 export const DOCUMENT_TYPES=['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 export function validateDocuments(files,count=0) {
@@ -11,8 +12,10 @@ function read(value) {
 }
 async function send(url,init,options) {
   let response;
-  try {response=await(options.fetchFn||fetch)(API_BASE+url,{...init,headers:{Authorization:`Bearer ${options.accessToken}`,'Accept-Language':options.lang||'vi',...init.headers},signal:options.signal,credentials:'omit'});}
-  catch(err){if(err.name==='AbortError')throw err;throw new ApiError('NETWORK_ERROR');}
+  const transport = init.body && init.headers?.['Content-Type'] === 'application/json'
+    ? (url, init) => passwordFetch(url, init, options) : (options.fetchFn || fetch);
+  try {response=await transport(API_BASE+url,{...init,headers:{Authorization:`Bearer ${options.accessToken}`,'Accept-Language':options.lang||'vi',...init.headers},signal:options.signal,credentials:'omit'});}
+  catch(err){if(err.name==='AbortError'||err.code)throw err;throw new ApiError('NETWORK_ERROR');}
   if(!response.ok){const body=await response.json().catch(()=>({}));throw new ApiError(body.code||({401:'UNAUTHENTICATED',403:'ACCESS_DENIED',404:'RESOURCE_NOT_FOUND'}[response.status])||'DOCUMENT_REQUEST_FAILED',response.status);}
   return response;
 }

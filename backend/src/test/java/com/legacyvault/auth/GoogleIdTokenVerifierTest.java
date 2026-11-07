@@ -42,6 +42,30 @@ class GoogleIdTokenVerifierTest {
     }
 
     @Test
+    void returnsEmailNameAndVerifiedFlagFromClaims() throws Exception {
+        var verified = verifier.verify(token(trustedKey, "https://accounts.google.com", "legacyvault-web-client", "sub-1",
+                Instant.now().plusSeconds(300),
+                ",\"email\":\"new@example.test\",\"email_verified\":true,\"name\":\"New Person\""));
+
+        assertEquals("new@example.test", verified.email());
+        assertTrue(verified.emailVerified());
+        assertEquals("New Person", verified.name());
+    }
+
+    @Test
+    void emailIsOnlyVerifiedWhenGoogleSaysTrue() throws Exception {
+        for (String claim : new String[] {",\"email\":\"a@example.test\",\"email_verified\":false",
+                ",\"email\":\"a@example.test\"", ",\"email\":\"a@example.test\",\"email_verified\":\"no\""}) {
+            var verified = verifier.verify(token(trustedKey, "https://accounts.google.com", "legacyvault-web-client",
+                    "sub-1", Instant.now().plusSeconds(300), claim));
+            assertFalse(verified.emailVerified(), claim);
+        }
+        var stringTrue = verifier.verify(token(trustedKey, "https://accounts.google.com", "legacyvault-web-client",
+                "sub-1", Instant.now().plusSeconds(300), ",\"email\":\"a@example.test\",\"email_verified\":\"true\""));
+        assertTrue(stringTrue.emailVerified());
+    }
+
+    @Test
     void rejectsSignatureFromUntrustedKey() throws Exception {
         assertInvalid(token(otherKey, "https://accounts.google.com", "legacyvault-web-client",
                 "subject", Instant.now().plusSeconds(300)));
@@ -87,10 +111,15 @@ class GoogleIdTokenVerifierTest {
 
     private static String token(KeyPair keyPair, String issuer, String audience, String subject, Instant expiresAt)
             throws Exception {
+        return token(keyPair, issuer, audience, subject, expiresAt, "");
+    }
+
+    private static String token(KeyPair keyPair, String issuer, String audience, String subject, Instant expiresAt,
+            String extraClaims) throws Exception {
         Instant issuedAt = Instant.now();
         String header = base64("{\"alg\":\"RS256\",\"typ\":\"JWT\"}");
         String payload = base64("{\"iss\":\"" + issuer + "\",\"aud\":\"" + audience + "\",\"sub\":\""
-                + subject + "\",\"iat\":" + issuedAt.getEpochSecond() + ",\"exp\":" + expiresAt.getEpochSecond() + "}");
+                + subject + "\",\"iat\":" + issuedAt.getEpochSecond() + ",\"exp\":" + expiresAt.getEpochSecond() + extraClaims + "}");
         String signedContent = header + "." + payload;
         Signature signature = Signature.getInstance("SHA256withRSA");
         signature.initSign(keyPair.getPrivate());

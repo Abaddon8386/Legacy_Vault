@@ -1,13 +1,15 @@
 import { useState, useLayoutEffect, useRef, useEffect } from 'react'
+import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import { AssetCredentialFields } from './AssetCredentialFields.jsx'
 import { AssetImagePicker } from './AssetImagePicker.jsx'
 import { DocumentPicker } from './AssetDocuments.jsx'
 import { assetImageService } from '../../services/assetImageService.js'
 import { assetDocumentService } from '../../services/assetDocumentService.js'
 import { credentialPayload } from '../../utils/credentialPayload.js'
+import { passwordSetupCancelledMessage } from '../../utils/passwordSetupFlow.js'
 import { useModalFocus } from '../common/useModalFocus'
 import { Button } from '../common/Button'
-import { AlertCircle, Lock, KeyRound, FileText } from 'lucide-react'
+import { AlertCircle, KeyRound, FileText } from 'lucide-react'
 import './AssetFormModal.css'
 
 /**
@@ -128,7 +130,8 @@ export function AssetEditModal({
           setExistingDocumentCount(n => n + done.savedDocuments.length)
           setPartial({ savedNames: [...(done.savedFields ? [name.trim()] : []), ...done.savedImages.map(f => f.name), ...done.savedDocuments.map(f => f.name)], failedNames: [...(done.failedFields ? [name.trim()] : []), ...done.failedImages.map(f => f.name), ...done.failedDocuments.map(f => f.name)] })
         }
-        setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
+        if (error.code === 'PASSWORD_SETUP_CANCELLED') setErrors({ passwordSetupCancelled: true })
+        else setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
       }
     } finally {
       if (submission.current === controller) {
@@ -172,7 +175,6 @@ export function AssetEditModal({
             <h2 id="asset-edit-modal-title" className="lv-modal__title">
               {t.assets.editModal.title}
             </h2>
-            <p className="lv-modal__desc">{t.assets.editModal.desc}</p>
           </div>
 
           <button
@@ -190,6 +192,7 @@ export function AssetEditModal({
           <div className="lv-asset-form__scroll">
           {errorKey && <p className="lv-form-error" role="alert">{t.assets.alerts[errorKey] || t.assets.alerts.editError}</p>}
           {errors.save && !partial && <p className="lv-form-error" role="alert">{t.assets.alerts.editError}</p>}
+          {errors.passwordSetupCancelled && <p role="status">{passwordSetupCancelledMessage(lang)}</p>}
           {partial && <div className="lv-form-error" role="alert" data-testid="edit-partial"><p>{t.assets.alerts.editPartial}</p>{!!partial.savedNames.length && <p>{t.assets.alerts.editSavedLabel}: {partial.savedNames.join(', ')}</p>}{!!partial.failedNames.length && <p>{t.assets.alerts.editFailedLabel}: {partial.failedNames.join(', ')}</p>}<p>{t.assets.alerts.editRetryHint}</p></div>}
           {errors.rateLimited && <p className="lv-form-error" role="alert">{t.assets.alerts.TOO_MANY_ATTEMPTS}</p>}
           {errors.noChanges && <p className="lv-form-error" role="alert">{t.assets.editModal.noChangesError}</p>}
@@ -214,9 +217,6 @@ export function AssetEditModal({
               <TypeIcon size={16} style={{ color: 'var(--lv-brand-forest)' }} />
               <span style={{ fontWeight: 600 }}>{typeLabel}</span>
             </div>
-            <span className="lv-form-hint">
-              {t.assets.editModal.typeImmutableHint}
-            </span>
           </div>
 
           {/* Asset Name (Editable, prefilled) */}
@@ -263,10 +263,6 @@ export function AssetEditModal({
               disabled={busy}
             />
             )}
-            <span className="lv-form-hint">
-              <Lock size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-              {t.assets.editModal.payloadHint}
-            </span>
           </div>
 
           <AssetImagePicker files={images} onChange={setImages} existingCount={existingImageCount} disabled={busy} lang={lang} />
@@ -300,6 +296,7 @@ export function AssetEditModal({
 
           <div className="lv-form-group">
             <label htmlFor="edit-confirm-password" className="lv-form-label">{t.assets.editModal.confirmPasswordLabel}</label>
+            <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
             <input id="edit-confirm-password" className="lv-form-input" type="password" autoComplete="current-password" maxLength={72}
               disabled={busy} value={password} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'edit-password-error' : undefined}
               onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: undefined })) }} />

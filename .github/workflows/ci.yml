@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+  schedule:
+    # Hằng đêm 18:00 UTC (01:00 giờ VN) cho job SQL Server. Lịch chỉ chạy từ workflow trên nhánh mặc định.
+    - cron: '0 18 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend lint, test and build
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  backend:
+    name: Backend unit tests and package
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      # No database credentials: SQL integration and full-context tests run separately.
+      - name: Run unit tests and package
+        run: bash ./mvnw -B --no-transfer-progress '-Dtest=*,!**/*SqlServer*,!**/LegacyvaultBackendApplicationTests' package
+
+  # Chỉ chạy khi bấm tay hoặc theo lịch đêm: bộ *SqlServer* khởi động nhiều Spring context + Flyway nên chậm,
+  # không gắn vào mọi PR. Không nằm trong required checks.
+  backend-sqlserver:
+    name: Backend SQL Server integration tests
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Lịch chạy trên nhánh mặc định (main); kiểm thử nhánh tích hợp develop.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      # Dùng docker run thay vì services: vì mật khẩu SA phải sinh ngẫu nhiên trong job;
+      # khối services được tính trước khi bước nào chạy nên không nhận được giá trị đó.
+      # Container tạm, chỉ nghe trên localhost của runner, không phải DB demo.
+      - name: Start disposable SQL Server
+        run: |
+          pw="Ci1$(openssl rand -hex 16)"
+          echo "::add-mask::$pw"
+          {
+            echo "MSSQL_PW=$pw"
+            echo "LEGAL_SQLSERVER_MASTER_URL=jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=true;trustServerCertificate=true;user=sa;password=$pw;"
+            echo "STAFF_SQLSERVER_MASTER_URL=jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=true;trustServerCertificate=true;user=sa;password=$pw;"
+          } >> "$GITHUB_ENV"
+          docker run -d --name mssql -p 127.0.0.1:1433:1433             -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$pw"             --health-cmd '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b'             --health-interval 5s --health-timeout 5s --health-retries 30 --health-start-period 15s             mcr.microsoft.com/mssql/server:2022-latest
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' mssql)
+            [ "$status" = healthy ] && exit 0
+            sleep 5
+          done
+          docker logs mssql | tail -n 50
+          echo "SQL Server did not become healthy" >&2
+          exit 1
+      # PS77_* (Subscription/LifetimeImages) và DMS_SQLSERVER_TEST_URL (DmsSqlServerConcurrencyTest) cần DB dựng sẵn
+      # hoặc integratedSecurity cứng trong test, nên không bật ở đây; các lớp đó sẽ báo skipped.
+      - name: Run SqlServer test classes
+        run: bash ./mvnw -B --no-transfer-progress '-Dtest=*SqlServer*' -Dsurefire.failIfNoSpecifiedTests=false test
+      # Tránh "xanh giả": nếu biến môi trường không khớp, JUnit chỉ skip chứ không fail.
+      - name: Verify payment tests actually ran
+        run: |
+          f=target/surefire-reports/TEST-com.legacyvault.subscription.PaymentSqlServerTest.xml
+          test -f "$f"
+          grep -o '<testsuite [^>]*' "$f" | head -n 1
+          grep -q 'tests="0"' "$f" && { echo "No tests ran" >&2; exit 1; }
+          grep -q 'skipped="0"' "$f" || { echo "Payment tests were skipped" >&2; exit 1; }
+      - name: Stop SQL Server
+        if: always()
+        run: docker rm -f mssql

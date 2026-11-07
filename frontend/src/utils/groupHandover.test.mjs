@@ -13,10 +13,65 @@ const reactProps=el=>el[Object.keys(el).find(x=>x.startsWith('__reactProps$'))];
 test('missing one recipient suspends all; all present does not self-unlock; request waits for Legal and current approval restores delivery',async()=>{
  let current=view(),posts=[];globalThis.fetch=async(url,init={})=>{if(init.method==='POST'){const body=JSON.parse(init.body);posts.push(body);current=url.endsWith('/attendance')?view(body.presentRecipientIds.length===2&&current.state.status==='UNCONFIRMED'?'READY':'SUSPENDED',current.state.revision+1,body.presentRecipientIds.length===2):view('AWAITING_LEGAL',current.state.revision+1,true);return json({caseId:a,sessionId:s,eventId:q,state:current.state,notification:null});}return url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'Recipient An'},{beneficiaryId:q,fullName:'Recipient Binh'}]);};
  const v=await mount();try{assert.equal(v.host.querySelector('[data-delivery]'),null);await act(async()=>v.host.querySelector('input').click());await fill(v.host,'Binh is absent');await click(v.host,'Record absence and suspend all delivery');assert.match(v.host.textContent,/whole handover is suspended/);assert.deepEqual(posts[0].presentRecipientIds,[r]);assert.equal(v.host.querySelector('[data-delivery]'),null);
- await act(async()=>v.host.querySelectorAll('input').forEach(input=>input.click()));await fill(v.host,'Both attended now');await click(v.host,'Record everyone present');assert.equal(v.host.querySelector('[data-delivery]'),null);await fill(v.host,'Please review current attendance');await click(v.host,'Request Legal reopening');assert.match(v.host.textContent,/Awaiting Legal/);assert.equal(v.host.querySelector('[data-delivery]'),null);
- current=view('READY',4,true);await click(v.host,'Refresh attendance status');assert.ok(v.host.querySelector('[data-delivery]'));assert.ok(!v.host.textContent.includes(r));}finally{await v.close();}
+ assert.equal(v.host.querySelectorAll('input:checked').length,1);
+ await act(async()=>v.host.querySelectorAll('input:not(:checked)').forEach(input=>input.click()));await fill(v.host,'Both attended now');await click(v.host,'Record everyone present');assert.equal(v.host.querySelectorAll('input:checked').length,2);assert.match(v.host.textContent,/Everyone present — request reopening/);assert.equal(v.host.querySelector('[data-delivery]'),null);await fill(v.host,'Please review current attendance');await click(v.host,'Request Legal reopening');assert.match(v.host.textContent,/awaiting Legal/i);assert.equal(v.host.querySelectorAll('input:checked').length,2);assert.equal(v.host.querySelector('textarea'),null);assert.equal(v.host.querySelector('[data-delivery]'),null);
+ current=view('READY',4,true);await click(v.host,'Reload attendance');assert.ok(v.host.querySelector('[data-delivery]'));assert.ok(!v.host.textContent.includes(r));}finally{await v.close();}
+});
+
+test('saved server attendance survives reopening the page; waiting and unsent reopening have distinct Vietnamese labels',async()=>{
+ let current={...view('SUSPENDED',2,true),attendance:{presentRecipientIds:[r,q]}},posts=0;
+ globalThis.fetch=async (url,init={})=>{if(init.method==='POST')posts++;return url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Bình'}]);};
+ const v=await mount({lang:'vi'});
+ try{
+  assert.match(v.host.querySelector('h2').textContent,/Đã đủ người — cần gửi yêu cầu mở lại/);
+  assert.equal(v.host.querySelectorAll('input:checked').length,2);
+  await act(async()=>v.host.querySelectorAll('input')[1].click());await fill(v.host,'Một người vừa rời quầy');
+  const reopen=[...v.host.querySelectorAll('button')].find(x=>x.textContent==='Gửi Ban Pháp lý yêu cầu mở lại');
+  assert.equal(reopen.disabled,true);await act(async()=>reactProps(reopen).onClick());assert.equal(posts,0);
+  await act(async()=>v.host.querySelectorAll('input')[1].click());
+  current={...view('AWAITING_LEGAL',3,true),attendance:{presentRecipientIds:[r,q]}};
+  await click(v.host,'Tải lại danh sách có mặt');
+  assert.match(v.host.querySelector('h2').textContent,/Đã đủ người — đang chờ Ban Pháp lý cho mở lại/);
+  assert.equal(v.host.querySelectorAll('input:checked').length,2);
+  assert.ok(v.host.querySelector('fieldset').disabled);
+  await click(v.host,'Thay đổi tình hình có mặt');
+  await act(async()=>v.host.querySelectorAll('input')[1].click());
+  assert.equal(v.host.querySelectorAll('input:checked').length,1);
+  await click(v.host,'Hủy chỉnh sửa có mặt');
+  assert.equal(v.host.querySelectorAll('input:checked').length,2);
+  assert.equal(v.host.querySelector('[data-delivery]'),null);
+ }finally{await v.close();}
+});
+
+test('a new session snapshot never inherits the previous attendance selections',async()=>{
+ globalThis.fetch=async url=>url.endsWith('/group-handover')?json({...view('SUSPENDED',2,true),snapshot:'new-session-snapshot',attendance:{presentRecipientIds:[r,q]}}):json([{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Bình'}]);
+ const v=await mount();try{assert.equal(v.host.querySelectorAll('input:checked').length,0);assert.equal(v.host.querySelector('[data-delivery]'),null);}finally{await v.close();}
+});
+
+test('a changed approval snapshot clears old attendance even when the group revision is unchanged',async()=>{
+ let current={...view('SUSPENDED',2,true),attendance:{presentRecipientIds:[r,q]}};
+ globalThis.fetch=async url=>url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Binh'}]);
+ const v=await mount();try{assert.equal(v.host.querySelectorAll('input:checked').length,2);current={...current,snapshot:'updated-approval'};await click(v.host,'Reload attendance');assert.equal(v.host.querySelectorAll('input:checked').length,0);assert.equal(v.host.querySelector('[data-delivery]'),null);}finally{await v.close();}
 });
 test('scope change aborts previous read and never renders its late permission; unavailable API cannot enable delivery',async()=>{let finish,signal;globalThis.fetch=async(url,init)=>{if(url.endsWith('/group-handover')){signal=init.signal;return new Promise(resolve=>{finish=resolve;});}return json([]);};const v=await mount();try{globalThis.fetch=async()=>json({code:'RESOURCE_NOT_FOUND'},404);await v.render({caseId:q});assert.equal(signal.aborted,true);await act(async()=>finish(json(view('READY',1,true))));assert.equal(v.host.querySelector('[data-delivery]'),null);assert.ok(v.host.querySelector('[role=alert]'));}finally{await v.close();}});
 test('editing a READY attendance record hides delivery until the changed attendance is recorded',async()=>{
  let current=view('READY',1,true);globalThis.fetch=async(url,init={})=>{if(init.method==='POST'){current=view('SUSPENDED',2,false);return json({caseId:a,sessionId:s,eventId:q,state:current.state});}return url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'Recipient An'},{beneficiaryId:q,fullName:'Recipient Binh'}]);};const v=await mount();try{assert.ok(v.host.querySelector('[data-delivery]'));assert.equal(v.host.querySelector('textarea'),null);await click(v.host,'Update who is present');assert.equal(v.host.querySelector('[data-delivery]'),null);await act(async()=>v.host.querySelector('input').click());await fill(v.host,'One recipient left');await click(v.host,'Record absence and suspend all delivery');assert.match(v.host.textContent,/whole handover is suspended/);assert.equal(v.host.querySelector('[data-delivery]'),null);}finally{await v.close();}
+});
+
+test('the asset screen skips the attendance block once delivery is allowed, and still shows it when blocked',async()=>{
+ let current=view('READY',1,true);globalThis.fetch=async url=>url.endsWith('/group-handover')?json(current):json([{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Binh'}]);
+ const allowed=await mount({hideWhenAllowed:true});
+ try{assert.ok(allowed.host.querySelector('[data-delivery]'));assert.equal(allowed.host.querySelector('.lv-group-handover'),null);}finally{await allowed.close();}
+ current=view('SUSPENDED',2,false);
+ const blocked=await mount({hideWhenAllowed:true});
+ try{assert.equal(blocked.host.querySelector('[data-delivery]'),null);assert.ok(blocked.host.querySelector('.lv-group-handover'));}finally{await blocked.close();}
+});
+
+test('layout places other content between the attendance block and delivery',async()=>{
+ globalThis.fetch=async url=>url.endsWith('/group-handover')?json(view('READY',1,true)):json([{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Binh'}]);
+ const v=await mount({layout:(attendance,delivery)=>React.createElement(React.Fragment,null,attendance,React.createElement('aside',{'data-check':true}),delivery)});
+ try{
+  const order=[...v.host.children].map(item=>item.tagName);
+  assert.deepEqual(order,['SECTION','ASIDE','BUTTON']);
+ }finally{await v.close();}
 });

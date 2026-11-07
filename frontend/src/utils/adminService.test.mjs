@@ -1,14 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { normalizeAdminRole, normalizeAdminRoles, validateAdminOverview, validateAdminUser, validateAdminAuditLog,
   fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, lockAdminUser } from './adminService.js';
 const id = '11111111-1111-4111-8111-111111111111';
 const event = { id, occurredAt: '2026-10-20T12:00:00Z', actor: { kind: 'UNKNOWN', userId: null },
   action: 'LEGACY_EVENT', entityType: 'OTHER', vaultId: null };
+test('all audit actions emitted by the current backend remain readable without relaxing the DTO whitelist', () => {
+  const source = readFileSync(new URL('../../../backend/src/main/java/com/legacyvault/audit/AuditAction.java', import.meta.url), 'utf8');
+  const actions = [...source.matchAll(/^\s+([A-Z][A-Z0-9_]+),?\s*$/gm)].map(match => match[1]);
+  assert.ok(actions.includes('HANDOVER_GROUP_CHANGED'));
+  for (const action of actions) assert.equal(validateAdminAuditLog({ ...event, action }).action, action);
+  assert.throws(() => validateAdminAuditLog({ ...event, action: 'UNREVIEWED_ACTION' }));
+});
 const overview = { totalAccounts: 100, activeVaults: 40, processingCases: 2,
   roleAssignments: { ROLE_ADMIN: 2, ROLE_VAULT_OWNER: 90, ROLE_BENEFICIARY: 30, ROLE_STAFF_EXECUTOR: 5, ROLE_LEGAL_VERIFIER: 3 },
   startedAt: '2026-10-20T12:00:00Z', completedAt: '2026-10-20T12:00:01Z', consistency: 'READ_COMMITTED_COLLECTION_WINDOW' };
 const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+test('the first-password audit from Google signup does not invalidate the Admin log', async () => {
+  await withFetch(async () => json({ content: [{ ...event, action: 'AUTH_PASSWORD_SET' }], page: 0, size: 20, totalElements: 1, totalPages: 1 }), async () => {
+    const result = await fetchAdminAuditLogs('T');
+    assert.equal(result.items[0].action, 'AUTH_PASSWORD_SET');
+  });
+});
 async function withFetch(fn, work) { const previous = globalThis.fetch; globalThis.fetch = fn; try { await work(); } finally { globalThis.fetch = previous; } }
 
 test('roles and user validation preserve multi-role and unknown status', () => {

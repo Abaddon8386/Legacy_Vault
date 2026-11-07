@@ -18,7 +18,7 @@ import { request, ApiError } from '../api/http.js';
  */
 
 import { SUBSCRIPTION_PLANS } from './subscriptionPlans.js';
-export { SUBSCRIPTION_PLANS } from './subscriptionPlans.js';
+export { SUBSCRIPTION_PLANS, COMMON_FEATURES_VI, COMMON_FEATURES_EN } from './subscriptionPlans.js';
 
 export const SUBSCRIPTION_SCENARIOS = [
   { id: 'active_basic', labelVi: 'Gói Cơ bản (Hoạt động bình thường)', labelEn: 'Basic Plan (Active Normal)' },

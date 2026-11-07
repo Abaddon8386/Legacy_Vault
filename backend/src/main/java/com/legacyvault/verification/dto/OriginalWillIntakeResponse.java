@@ -14,7 +14,14 @@ public record OriginalWillIntakeResponse(UUID id,
         UUID receivedBy,
         Instant receivedAt,
         String evidenceReference,
-        String conditionNotes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+        String conditionNotes, com.legacyvault.notification.WorkflowNotificationService.Receipt notification,
+        Comparison comparison) {
+    public record Comparison(String result, String reason, Instant comparedAt, int digitalVersion) { }
+    public OriginalWillIntakeResponse(UUID id, UUID caseId, String deliveredByName, String deliveredByRelationship,
+            UUID receivedBy, Instant receivedAt, String evidenceReference, String conditionNotes,
+            com.legacyvault.notification.WorkflowNotificationService.Receipt notification) {
+        this(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, notification, null);
+    }
     public OriginalWillIntakeResponse(UUID id,
         UUID caseId,
         String deliveredByName,
@@ -23,7 +30,10 @@ public record OriginalWillIntakeResponse(UUID id,
         Instant receivedAt,
         String evidenceReference,
         String conditionNotes) { this(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, null); }
-    public OriginalWillIntakeResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new OriginalWillIntakeResponse(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, receipt); }
+    public OriginalWillIntakeResponse withNotification(com.legacyvault.notification.WorkflowNotificationService.Receipt receipt) { return new OriginalWillIntakeResponse(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, receipt, comparison); }
+    public OriginalWillIntakeResponse withComparison(Comparison outcome) {
+        return new OriginalWillIntakeResponse(id, caseId, deliveredByName, deliveredByRelationship, receivedBy, receivedAt, evidenceReference, conditionNotes, notification, outcome);
+    }
 
     public static OriginalWillIntakeResponse from(
             OriginalWillIntake intake,

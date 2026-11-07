@@ -363,6 +363,8 @@ public class LegalBasisReviewService {
         String previousVaultStatus = vault.getStatus();
         String previousReviewStatus = dossier.getReviewStatus();
 
+        var sourceVersion = versions.findRows(dossier.getLegalBasisDossierId()).stream().findFirst().orElse(null);
+        String sourceAllocationHash = sourceVersion == null ? null : allocationHash(dossier.getLegalBasisDossierId(), sourceVersion.versionNo());
         dossier.requireReview("LEGAL_REQUESTED_SUPPLEMENTATION");
         dossier.markSupplementationRequired();
         dossiers.save(dossier);
@@ -372,10 +374,10 @@ public class LegalBasisReviewService {
         var savedReview = history.saveAndFlush(new LegalBasisReviewHistory(
                 dossier.getLegalBasisDossierId(),
                 null,
-                null,
-                null,
+                sourceVersion == null ? null : sourceVersion.versionNo(),
+                sourceVersion == null ? null : sourceVersion.sha256Hash(),
                 dossier.getDisputeStatus(),
-                null,
+                sourceAllocationHash,
                 LegalBasisReviewStatus.REVIEW_REQUIRED.name(),
                 "LEGAL_REQUESTED_SUPPLEMENTATION",
                 reason.trim(),

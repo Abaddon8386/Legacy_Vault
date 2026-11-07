@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import WorkflowGuide from '../../components/common/WorkflowGuide.jsx';
-import { beneficiaryGuidance } from '../../utils/workflowGuidance.js';
 import { Button } from '../../components/common/Button.jsx';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { isPersonalRecipient, readLinkRequest, readLinkRequests, requestStatusLabel, caseLinkError } from '../../utils/caseLinkModel.js';
@@ -129,7 +127,7 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
     };
   }, [ready, caseLinkActions, session?.accessToken, lang, refreshKey, revision, runPoll]);
 
-  // Auto-refresh when any request is PENDING so Beneficiary sees Staff decision without manual reload.
+  // Auto-refresh when any request is PENDING so Beneficiary sees staff decision without manual reload.
   // Wait for in-flight request and mutations to settle before scheduling the next poll; never abort an active poll on timer/focus.
   const hasPendingRequests = requests.some(r => r.status === 'PENDING');
   useEffect(() => {
@@ -196,22 +194,25 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   }
   const hasDeliveredAssets = ['PARTIAL', 'RECEIVED'].includes(receivedStage);
 
+  const emptyAssets = !canRead ? (
+    <section className="lv-shared-card lv-owner-card lv-shared-empty" aria-labelledby="delivered-empty-title">
+      <span className="lv-shared-card__icon-wrap" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" /></svg></span>
+      <div>
+        <h2 id="delivered-empty-title">{en ? 'Delivered assets' : 'Tài sản được giao'}</h2>
+        <p>{en ? 'No assets yet. Once staff confirm, delivered assets appear here.' : 'Chưa có tài sản nào. Nhân viên xác nhận xong, tài sản được giao sẽ hiện ở đây.'}</p>
+      </div>
+    </section>
+  ) : null;
+
   const assetsSection = canRead ? (
     <><BeneficiaryHandoverStatus userId={session?.user?.id || user?.id || 'preview'} accessToken={session?.accessToken} lang={lang} loadStatus={caseLinkActions?.loadHandoverStatus} preview={preview} />
     <ReceivedAssets actions={receivedAssetActions} userId={session?.user?.id || user?.id} accessToken={session?.accessToken} lang={lang}
       isDevPreview={preview} scenario={previewScenario} onUnauthorized={onUnauthorized} refreshKey={`${refreshKey}:${readRevision}`} onStageChange={recordStage} /></>
-  ) : (
-    <section className="lv-shared-card lv-owner-card" role="note">
-      <h2>{en ? 'Received assets' : 'Tài sản đã nhận'}</h2>
-      <p>{en
-        ? 'Assets appear here after Staff confirms your account link and hands them over. You can only view the items delivered to you.'
-        : 'Tài sản xuất hiện tại đây sau khi Staff xác nhận liên kết tài khoản và bàn giao. Bạn chỉ xem được phần đã giao cho mình.'}</p>
-    </section>
-  );
+  ) : emptyAssets;
 
   const linkCard = (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="link-section-title">
-      <h2 id="link-section-title">{hasDeliveredAssets ? (en ? 'Link another case' : 'Yêu cầu liên kết hồ sơ khác') : (en ? 'Request a record link' : 'Yêu cầu liên kết hồ sơ')}</h2>
+      <h2 id="link-section-title">{hasDeliveredAssets ? (en ? 'Link another case' : 'Liên kết hồ sơ khác') : (en ? 'Link a case' : 'Liên kết hồ sơ')}</h2>
       <form onSubmit={e => { e.preventDefault(); if (code.trim()) mutate('submit'); }} noValidate>
         <label htmlFor="case-link-number">{en ? 'Case number' : 'Mã hồ sơ'}</label>
         <div className="lv-shared-input-row"><input id="case-link-number" className="lv-shared-input" value={code} onChange={e => setCode(e.target.value)}
@@ -221,29 +222,31 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
       {!eligible ? <FeedbackNotice tone="warning">{en ? 'Use a personal recipient account to request a link.' : 'Hãy dùng tài khoản cá nhân của người nhận để gửi yêu cầu.'}</FeedbackNotice>
         : !ready && <FeedbackNotice id="case-link-availability">{en ? 'Requests are not available yet.' : 'Chưa hỗ trợ gửi yêu cầu.'}</FeedbackNotice>}
       {notice && <FeedbackNotice tone="success">{notice === 'submit'
-        ? (en ? 'Request sent. Wait for Staff to verify and confirm the link at the counter.' : 'Đã gửi yêu cầu. Vui lòng chờ Staff đối chiếu và xác nhận liên kết tại quầy.')
+        ? (en ? 'Request sent. Wait for staff to verify and confirm the link at the counter.' : 'Đã gửi yêu cầu. Vui lòng chờ nhân viên đối chiếu và xác nhận liên kết tại quầy.')
         : (en ? 'Request cancelled.' : 'Đã hủy yêu cầu.')}</FeedbackNotice>}
       {error && <FeedbackNotice tone="error">{caseLinkError(error, lang)}</FeedbackNotice>}
     </section>
   );
 
-  const requestsCard = ready && (
+  // A linked request needs nothing more once the account can read: the delivered assets above are the outcome.
+  const visibleRequests = requests.filter(item => !(item.status === 'APPROVED' && canRead));
+  const requestsCard = ready && (visibleRequests.length > 0 || error) && (
     <section className="lv-shared-card lv-owner-card" aria-labelledby="my-requests-title" aria-busy={loading}>
       <div className="lv-link-heading"><h2 id="my-requests-title">{en ? 'My requests' : 'Yêu cầu của tôi'}</h2>
-        <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button></div>
-      {loading ? <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p> : !error && !requests.length && <p>{en ? 'No requests yet.' : 'Chưa có yêu cầu nào.'}</p>}
-      <ul className="lv-link-requests">{requests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
+        {(error || uncertain) && <Button variant="secondary" disabled={pending || loading} onClick={() => setRevision(v => v + 1)}>{en ? 'Refresh status' : 'Tải lại trạng thái'}</Button>}</div>
+      {loading && <p role="status">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
+      <ul className="lv-link-requests">{visibleRequests.map(item => <li key={item.id} className={`lv-link-item ${item.status === 'REJECTED' ? 'is-rejected' : ''}`}>
         <div>
-          <strong>{item.caseNumber || `${en ? 'Request' : 'Yêu cầu'} #${item.id.slice(0, 8)}`}</strong>
+          <strong>{item.caseNumber || (en ? 'Link request' : 'Yêu cầu liên kết')}</strong>
           <p>{requestStatusLabel(item.status, lang)}</p>
           {item.status === 'REJECTED' && (
-            <div className="lv-link-rejected-guidance" style={{ fontSize: '13px', color: '#b91c1c', marginTop: '6px', lineHeight: 1.4 }}>
+            <div className="lv-link-rejected-guidance" style={{ fontSize: '14px', color: '#b91c1c', marginTop: '6px', lineHeight: 1.4 }}>
               {typeof item.reason === 'string' && item.reason.trim() ? (
                 <p style={{ margin: 0 }}><strong>{en ? 'Reason:' : 'Lý do từ chối:'}</strong> {item.reason.trim()}</p>
               ) : (
                 <p style={{ margin: 0 }}>
                   {en
-                    ? 'Your request was declined. Please verify your case information or contact Staff at the counter for assistance.'
+                    ? 'Your request was declined. Please verify your case information or contact staff at the counter for assistance.'
                     : 'Yêu cầu liên kết đã bị từ chối. Vui lòng kiểm tra lại thông tin hồ sơ hoặc liên hệ nhân viên tại quầy để được hỗ trợ giải quyết.'}
                 </p>
               )}
@@ -257,13 +260,14 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
   );
 
   return <div className="lv-shared-view" aria-labelledby="shared-heading">
-    <div className="lv-shared-header"><h1 id="shared-heading" className="lv-shared-title">{en ? 'Shared with me' : 'Được chia sẻ với tôi'}</h1></div>
-    <WorkflowGuide lang={lang} model={beneficiaryGuidance({ requests, stage: receivedStage, ready, loading, error, eligible, lang })} />
+    <div className="lv-shared-header"><h1 id="shared-heading" className="lv-shared-title">{en ? 'Shared with me' : 'Tài sản thụ hưởng'}</h1></div>
     {preview && <FeedbackNotice tone="warning">{en ? 'UI preview — sample data, no server changes.' : 'Xem trước giao diện — dữ liệu minh họa, chưa lưu lên máy chủ.'}</FeedbackNotice>}
 
-    <div key="assets-wrapper" style={{ order: hasDeliveredAssets ? 1 : 3 }}>
-      {assetsSection}
-    </div>
+    {assetsSection && (
+      <div key="assets-wrapper" style={{ order: hasDeliveredAssets ? 1 : 3 }}>
+        {assetsSection}
+      </div>
+    )}
     <div key="link-wrapper" style={{ order: hasDeliveredAssets ? 2 : 1 }}>
       {linkCard}
     </div>

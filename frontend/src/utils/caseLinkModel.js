@@ -50,15 +50,15 @@ export function readLinkRequests(raw, options) {
 }
 
 export function requestStatusLabel(status, lang = 'vi') {
-  const vi = { PENDING: 'Chờ Staff đối chiếu', APPROVED: 'Đã liên kết', REJECTED: 'Yêu cầu bị từ chối', CANCELLED: 'Đã hủy yêu cầu', EXPIRED: 'Yêu cầu hết hạn' };
-  const en = { PENDING: 'Awaiting Staff verification', APPROVED: 'Linked', REJECTED: 'Request declined', CANCELLED: 'Request cancelled', EXPIRED: 'Request expired' };
+  const vi = { PENDING: 'Chờ nhân viên đối chiếu', APPROVED: 'Đã liên kết', REJECTED: 'Yêu cầu bị từ chối', CANCELLED: 'Đã hủy yêu cầu', EXPIRED: 'Yêu cầu hết hạn' };
+  const en = { PENDING: 'Awaiting staff verification', APPROVED: 'Linked', REJECTED: 'Request declined', CANCELLED: 'Request cancelled', EXPIRED: 'Request expired' };
   return (lang === 'en' ? en : vi)[status];
 }
 
 export function caseLinkError(error, lang = 'vi') {
   const en = lang === 'en';
   const messages = {
-    BENEFICIARY_LINK_REQUEST_INVALID: en ? 'Case number unavailable. Ask Staff to check it.' : 'Mã hồ sơ không khả dụng. Nhờ Staff kiểm tra lại.',
+    BENEFICIARY_LINK_REQUEST_INVALID: en ? 'Case number unavailable. Ask staff to check it.' : 'Mã hồ sơ không khả dụng. Nhờ nhân viên kiểm tra lại.',
     BENEFICIARY_LINK_REQUEST_ALREADY_PENDING: en ? 'You already have a pending request for this case.' : 'Bạn đã có yêu cầu đang chờ cho hồ sơ này.',
     BENEFICIARY_LINK_REQUEST_LIMIT: en ? 'You have 5 active pending requests. Cancel one or wait for a decision.' : 'Bạn có 5 yêu cầu đang chờ còn hạn. Hãy hủy một yêu cầu hoặc chờ xử lý.',
     BENEFICIARY_LINK_REQUEST_NOT_PENDING: en ? 'This request is no longer pending. Refresh its status.' : 'Yêu cầu không còn chờ xử lý. Hãy tải lại trạng thái.',

@@ -35,6 +35,24 @@ test('Invalid case/receipt never becomes success or mock',async()=>{
  await assert.rejects(staffDocuments(id,'death-documents',{}, {fetchFn:async()=>json({...record,caseId:'other'},201)}),{code:'INVALID_RESPONSE'});
  await assert.rejects(loadStaffCase(id,{fetchFn:async()=>json({caseId:'other',status:'OPEN'})}),{code:'INVALID_RESPONSE'});
 });
+
+test('Staff death decisions stay scoped to their paper and invalid outcomes fail closed', async () => {
+ const decision={result:'REJECTED',reason:'Thiếu trang 2',decidedAt:'2026-11-02T03:22:00Z'};
+ const list=await staffDocuments(id,'death-documents',undefined,{fetchFn:async()=>json([{...record,legalDecision:decision},{...record,id:'22222222-2222-4222-8222-222222222222',legalDecision:null}])});
+ assert.deepEqual(list[0].legalDecision,decision);
+ assert.equal(list[1].legalDecision,null);
+ for(const invalid of [{...decision,result:'UNKNOWN'},{...decision,reason:''},{...decision,decidedAt:'bad'}]) {
+  await assert.rejects(staffDocuments(id,'death-documents',undefined,{fetchFn:async()=>json([{...record,legalDecision:invalid}])}),{code:'INVALID_RESPONSE'});
+ }
+});
+
+test('Will comparison includes its referenced digital version; malformed results are not shown as pending', async () => {
+ const comparison={result:'MISMATCH',reason:'Trang 2 không khớp',comparedAt:'2026-11-02T03:22:00Z',digitalVersion:2};
+ const list=await staffDocuments(id,'original-will-intakes',undefined,{fetchFn:async()=>json([{...record,comparison},{...record,id:'22222222-2222-4222-8222-222222222222',comparison:null}])});
+ assert.deepEqual(list[0].comparison,comparison);assert.equal(list[1].comparison,null);
+ for(const invalid of [{...comparison,result:'APPROVED'},{...comparison,digitalVersion:0},{...comparison,reason:null}])
+  await assert.rejects(staffDocuments(id,'original-will-intakes',undefined,{fetchFn:async()=>json([{...record,comparison:invalid}])}),{code:'INVALID_RESPONSE'});
+});
 for(const status of [401,403,404,409])test('Live staff propagates API error '+status,async()=>{
  await assert.rejects(claimStaffCase(id,{fetchFn:async()=>json({code:'SERVER_REJECTED'},status)}),{code:'SERVER_REJECTED',status});
 });

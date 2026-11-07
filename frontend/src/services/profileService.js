@@ -1,4 +1,5 @@
-import { request, ApiError } from '../api/http.js';
+import { ApiError } from '../api/http.js';
+import { passwordRequest } from '../api/passwordRequest.js';
 import { readUser } from '../api/contracts.js';
 import { isSessionActive } from '../utils/session.js';
 import { canEditProfileEmail, isValidEmail } from '../utils/accountEditValidation.js';
@@ -20,8 +21,8 @@ export async function updateProfile(session, changes, { signal, lang = 'vi' } = 
     }
   }
   if ((!Object.hasOwn(body, 'email') && Object.hasOwn(changes, 'currentPassword')) || !Object.keys(body).length) throw new ApiError('INVALID_PROFILE_PATCH');
-  const raw = await request('/auth/me', { method: 'PATCH', body,
-    accessToken: session.accessToken, signal, lang, expectedStatus: 200 });
+  const raw = await passwordRequest('/auth/me', { method: 'PATCH', body,
+    accessToken: session.accessToken, signal, lang, expectedStatus: 200 }, 'currentPassword');
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   if (!isSessionActive(session)) throw new ApiError('UNAUTHENTICATED', 401);
   const user = readUser(raw);

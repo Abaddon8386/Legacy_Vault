@@ -39,13 +39,13 @@ export default function RelatedPersonEditDialog({ person, kind, vaultId, accessT
   finally{pending.current=false;if(!controller.signal.aborted)setBusy(false);}
  }
  const title=en?(isTrustee?'Edit trustee':'Edit beneficiary'):(isTrustee?'Chỉnh sửa người thi hành bên ngoài':'Chỉnh sửa người thụ hưởng');
- return <div className="lv-tb-edit-backdrop" onClick={onClose}>
+ return <div className="lv-tb-edit-backdrop" onClick={onClose} role="presentation">
   <div ref={dialog} className="lv-tb-dialog" role="dialog" aria-modal="true" aria-labelledby="related-edit-title" tabIndex={-1} onClick={event=>event.stopPropagation()}>
    <div className="lv-tb-dialog-header"><h3 id="related-edit-title">{title}</h3><button type="button" className="lv-tb-btn-secondary" onClick={onClose}>{en?'Close':'Đóng'}</button></div>
    <form className="lv-tb-form" onSubmit={submit} noValidate>
     {error&&<p role="alert">{en?'Unable to update. Your changes have been kept; please try again.':'Không thể cập nhật. Nội dung đã nhập được giữ lại; vui lòng thử lại.'}</p>}
     <div className="lv-tb-form-grid">{fields.map(([key,label,type,maxLength])=><div className="lv-tb-field-group" key={key}>
-     <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'?' *':''}</label>
+     <label className="lv-tb-label" htmlFor={'related-edit-'+key}>{label}{key==='fullName'&&<span className="lv-required-mark" aria-hidden="true">*</span>}</label>
      {type === 'date' ? (
        <DatePicker
          id={'related-edit-' + key}

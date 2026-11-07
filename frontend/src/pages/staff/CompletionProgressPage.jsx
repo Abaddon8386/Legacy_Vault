@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   HelpCircle,
   Award,
-  ArrowLeft,
   AlertCircle,
   RotateCw,
   ExternalLink,
@@ -25,7 +24,6 @@ import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx'
 import './CompletionProgressPage.css';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
 import { formatStaffSession } from '../../utils/caseReference.js';
-import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 
 export default function CompletionProgressPage(props) {
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
@@ -374,50 +372,6 @@ function CompletionProgressContext({
 
   return (
     <div className="lv-completion-progress-view">
-      <StaffWorkflowGuide current="confirmation" caseId={activeTrimmed} sessionId={selectedSessionId} lang={lang}
-        caseStatus={currentCaseItem?.status} vaultStatus={currentCaseItem?.vaultStatus} preview={effectiveIsDevPreview && !effectiveAccessToken}
-        assets={effectiveAssetData} beneficiaries={effectiveBeneficiaryData} loading={loading || loadingSessions} error={loadError} />
-      {/* Context navigation back */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        {activeTrimmed && selectedSessionId && (
-          <a
-            href={`/staff/handover?caseId=${encodeURIComponent(activeTrimmed)}&sessionId=${encodeURIComponent(selectedSessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#164639',
-              textDecoration: 'none',
-            }}
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
-          </a>
-        )}
-        {onNavigateCases && (
-          <button
-            type="button"
-            onClick={onNavigateCases}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#6b7280',
-              padding: 0,
-            }}
-          >
-            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
-          </button>
-        )}
-      </div>
-
       {/* Warning when context is missing in real mode */}
       {!activeTrimmed && !effectiveIsDevPreview && (
         <section className="lv-progress-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>
@@ -425,9 +379,9 @@ function CompletionProgressContext({
             <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} aria-hidden="true" />
             <div>
               <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
-                {lang === 'en' ? 'No Handover Case Selected' : 'Chưa chọn ca bàn giao'}
+                {lang === 'en' ? 'No Handover Case Selected' : 'Chưa chọn hồ sơ'}
               </h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#78350f' }}>
                 {lang === 'en'
                   ? 'Please select a verification case and open a counter handover session to track completion progress.'
                   : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy để theo dõi tiến độ hai cổng hoàn tất.'}
@@ -437,9 +391,9 @@ function CompletionProgressContext({
                   type="button"
                   className="lv-progress-btn-primary"
                   onClick={onNavigateCases}
-                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '14px' }}
                 >
-                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                  {lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}
                 </button>
               )}
             </div>
@@ -448,21 +402,10 @@ function CompletionProgressContext({
       )}
 
       {/* Header */}
-      <div className="lv-progress-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="lv-progress-header">
         <div>
           <h1 className="lv-progress-title">{t.pageTitle}</h1>
         </div>
-        {activeTrimmed && selectedSessionId && !isClosedCaseError && (
-          <button
-            type="button"
-            className="lv-progress-btn-reload"
-            onClick={handleReload}
-            disabled={loading}
-          >
-            <RotateCw size={14} className={loading ? 'lv-spin' : ''} aria-hidden="true" />
-            <span>{loading ? t.reloadingBtn : t.reloadBtn}</span>
-          </button>
-        )}
       </div>
 
       {/* Staff Case Context Bar */}
@@ -493,7 +436,7 @@ function CompletionProgressContext({
       {/* Session Switcher Bar (when multiple sessions exist) */}
       {activeTrimmed && selectedSessionId && sessions.length > 1 && (
         <div className="lv-progress-session-bar">
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
             {t.sessionLabel}:
           </span>
           <select
@@ -530,12 +473,12 @@ function CompletionProgressContext({
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
                 {t.noSessionPrompt}
               </h3>
-              <p style={{ margin: 0, fontSize: '13.5px', color: '#78350f' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#78350f' }}>
                 {t.noSessionDesc}
               </p>
               {sessions.length > 0 ? (
                 <div style={{ marginTop: '8px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <label htmlFor="session-picker-select" style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                  <label htmlFor="session-picker-select" style={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                     {t.sessionLabel}:
                   </label>
                   <select
@@ -554,7 +497,7 @@ function CompletionProgressContext({
                 </div>
               ) : (
                 <div style={{ marginTop: '8px' }}>
-                  <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#64748b' }}>
+                  <p style={{ margin: '0 0 10px', fontSize: '14px', color: '#64748b' }}>
                     {loadingSessions ? (lang === 'en' ? 'Loading sessions…' : 'Đang tải danh sách phiên…') : sessionLoadError ? t.sessionLoadFailed : t.noSessionsFound}
                   </p>
                   <a

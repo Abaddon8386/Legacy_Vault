@@ -6,7 +6,7 @@ Repo nhóm: https://github.com/Abaddon8386/Legacy_Vault. Nhánh tích hợp: `de
 
 Theo quyết định mới của người dùng: BASIC miễn phí, STANDARD 499.000đ, EXTENDED 999.000đ, mua một lần dùng trọn đời. Nâng cấp trả đủ giá gói đích, không tính chênh lệch. Mỗi tài sản thêm tối đa 5 ảnh JPEG/PNG, 5 MiB/ảnh; ảnh mã hóa và tính vào dung lượng kho. Xem [contract và giới hạn triển khai](docs/api-contracts/lifetime-plans-and-asset-images.md).
 
-Khởi động lại backend theo cấu hình hiện có để Flyway chạy V31–V33; không chạy SQL thủ công, reset DB hoặc repair checksum. V32 giữ lịch sử giá cũ, không cấp gói trả phí cho tài khoản hiện hữu. API báo giá không phải thanh toán: payment vẫn chưa tích hợp, không có nút mua thành công giả. Quota enforcement vẫn tắt mặc định.
+Khởi động lại backend theo cấu hình hiện có để Flyway chạy V31–V33; không chạy SQL thủ công, reset DB hoặc repair checksum. V32 giữ lịch sử giá cũ, không cấp gói trả phí cho tài khoản hiện hữu. API báo giá không phải thanh toán; thanh toán đã tích hợp VNPay sandbox, xem [contract VNPay](docs/api-contracts/payments-vnpay.md), không có nút mua thành công giả. Quota enforcement bật mặc định (`QUOTA_ENFORCEMENT_ENABLED`, mặc định `true`).
 
 ## Bộ khung
 
@@ -108,5 +108,24 @@ Mở URL Vite, đăng nhập bằng tài khoản **chỉ dành cho fixture**: `d
 Fixture chỉ phục vụ kiểm thử FE, không phải backend nghiệp vụ và không kết nối SQL Server.
 
 ## Bằng chứng
+
+### Kiểm tra tự động trên PR
+
+Workflow [CI](.github/workflows/ci.yml) chạy khi mở/cập nhật PR vào `develop`, khi có push vào `develop`,
+và có thể chạy thủ công sau khi workflow có trên nhánh mặc định. Hai job độc lập:
+
+- **Frontend:** Node 24, `npm ci`, lint, toàn bộ test FE và build.
+- **Backend:** Java 25, biên dịch, unit test và đóng gói bằng Maven Wrapper. Lệnh tương đương trên PowerShell:
+  `cd backend; .\mvnw.cmd -B --no-transfer-progress '-Dtest=*,!**/*SqlServer*,!**/LegacyvaultBackendApplicationTests' package`.
+
+CI gọn không cấp cấu hình DB hoặc secret của môi trường thật; loại các lớp có `SqlServer` trong tên và
+`LegacyvaultBackendApplicationTests` cần khởi động toàn bộ Spring với DB. Các test tích hợp khác có điều kiện
+môi trường vẫn có thể được báo skipped. Kết quả xanh không chứng minh migration/SQL Server, Google Login,
+VNPay, email hoặc UI desktop/mobile đã được kiểm chứng thực tế; nhóm vẫn chạy và ghi bằng chứng riêng.
+
+Job thứ ba **Backend SQL Server integration tests** chỉ chạy thủ công (`workflow_dispatch`) hoặc theo lịch đêm trên `develop`, không chạy trên mỗi PR. Job dựng container SQL Server tạm với mật khẩu SA sinh ngẫu nhiên và chạy `-Dtest=*SqlServer*` qua `LEGAL_SQLSERVER_MASTER_URL`/`STAFF_SQLSERVER_MASTER_URL`; các lớp cần `PS77_SQLSERVER_TEST_DATABASE` hoặc `DMS_SQLSERVER_TEST_URL` vẫn skipped.
+
+CI bổ sung cho review chéo của thành viên. Workflow không tự approve, merge, deploy hoặc thay đổi branch
+protection/required checks; các quyết định review và merge vẫn theo quy trình nhóm.
 
 Kết quả kiểm tra và giới hạn được ghi tại [docs/VERIFICATION.md](docs/VERIFICATION.md). Không đánh dấu ticket Jira Done chỉ vì đã dựng lại bộ khung.

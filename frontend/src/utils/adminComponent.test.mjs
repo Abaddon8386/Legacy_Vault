@@ -58,6 +58,72 @@ async function mount(Component, props) {
   };
 }
 
+const connectivityPage = {content:[],page:0,size:10,totalElements:0,totalPages:0};
+const connectivityJson = body => new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
+for (const status of [502,503,504]) test(`Admin HTTP ${status} offers retry rather than claiming the API is unimplemented`,async()=>{
+ const previous=globalThis.fetch;let reads=0,expired=0;
+ globalThis.fetch=async()=>++reads===1?(status===503
+  ?new Response(JSON.stringify({code:'BACKEND_NOT_READY'}),{status,headers:{'Content-Type':'application/json'}})
+  :new Response('Temporary gateway failure',{status})):connectivityJson(connectivityPage);
+ const view=await mount(AdminLogsPage,{accessToken:'synthetic',fetchOnMount:true,lang:'vi',onUnauthorized(){expired++;}});
+ try{
+  assert.ok(view.host.querySelector('[role=alert]'));
+  const retry=[...view.host.querySelectorAll('button')].find(button=>button.textContent==='Thử lại');assert.ok(retry);
+  await act(async()=>retry.click());
+  assert.equal(reads,2);assert.equal(expired,0);assert.equal(view.host.querySelector('[role=alert]'),null);
+ }finally{await view.close();globalThis.fetch=previous;}
+});
+
+test('Admin timeout stops loading, aborts its read and ignores late success before manual retry',async t=>{
+ const previous=globalThis.fetch;let reads=0,expired=0,release,signal;
+ globalThis.fetch=async(_url,options)=>{reads++;if(reads===1){signal=options.signal;return new Promise(resolve=>{release=resolve;});}return connectivityJson(connectivityPage);};
+ t.mock.timers.enable({apis:['setTimeout']});
+ const view=await mount(AdminLogsPage,{accessToken:'synthetic',fetchOnMount:true,lang:'vi',onUnauthorized(){expired++;}});
+ try{
+  await act(async()=>t.mock.timers.tick(19999));assert.equal(signal.aborted,false);
+  await act(async()=>t.mock.timers.tick(1));assert.equal(signal.aborted,true);
+  assert.match(view.host.querySelector('[role=alert]').textContent,/phản hồi quá lâu/);
+  await act(async()=>release(connectivityJson(connectivityPage)));
+  assert.match(view.host.querySelector('[role=alert]').textContent,/phản hồi quá lâu/);
+  assert.equal(reads,1);assert.equal(expired,0);
+  const retry=[...view.host.querySelectorAll('button')].find(button=>button.textContent==='Thử lại');
+  await act(async()=>retry.click());assert.equal(reads,2);assert.equal(view.host.querySelector('[role=alert]'),null);
+  await act(async()=>t.mock.timers.tick(20000));assert.equal(view.host.querySelector('[role=alert]'),null);
+ }finally{await view.close();t.mock.timers.reset();globalThis.fetch=previous;}
+});
+
+test('Admin detail timeout has its own retry and late unauthorized response cannot log out the current session',async t=>{
+ const previous=globalThis.fetch;let details=0,expired=0,signal,release;
+ const event={id:userId,occurredAt:'2026-11-02T08:00:00Z',actor:{kind:'SYSTEM',userId:null},action:'VAULT_CREATED',entityType:'VAULT',vaultId:null};
+ globalThis.fetch=async(url,options)=>{
+  if(url.includes('?'))return connectivityJson({...connectivityPage,content:[event],totalElements:1,totalPages:1});
+  details++;if(details===1){signal=options.signal;return new Promise(resolve=>{release=resolve;});}
+  return connectivityJson({event,traceId:null});
+ };
+ t.mock.timers.enable({apis:['setTimeout']});
+ const view=await mount(AdminLogsPage,{accessToken:'synthetic',fetchOnMount:true,lang:'vi',onUnauthorized(){expired++;}});
+ try{
+  await act(async()=>[...view.host.querySelectorAll('button')].find(button=>button.textContent.includes('Xem chi tiết')).click());
+  await act(async()=>t.mock.timers.tick(20000));assert.equal(signal.aborted,true);
+  const dialog=view.host.querySelector('[role=dialog]');assert.match(dialog.querySelector('[role=alert]').textContent,/phản hồi quá lâu/);
+  await act(async()=>release(new Response('',{status:401})));
+  assert.equal(expired,0);assert.equal(details,1);
+  await act(async()=>[...dialog.querySelectorAll('button')].find(button=>button.textContent==='Thử lại').click());
+  assert.equal(details,2);assert.equal(dialog.querySelector('[role=alert]'),null);
+ }finally{await view.close();t.mock.timers.reset();globalThis.fetch=previous;}
+});
+
+test('leaving Admin cancels the pending read and its timeout without notifying logout',async t=>{
+ const previous=globalThis.fetch;let signal,expired=0,reads=0;
+ globalThis.fetch=async(_url,options)=>{signal=options.signal;reads++;return new Promise(()=>{});};
+ t.mock.timers.enable({apis:['setTimeout']});
+ const view=await mount(AdminLogsPage,{accessToken:'synthetic',fetchOnMount:true,lang:'vi',onUnauthorized(){expired++;}});
+ try{
+  await view.close();assert.equal(signal.aborted,true);
+  await act(async()=>t.mock.timers.tick(20000));assert.equal(expired,0);assert.equal(reads,1);
+ }finally{t.mock.timers.reset();globalThis.fetch=previous;}
+});
+
 // ==========================================
 // 1. AdminHome (Overview) Component Tests
 // ==========================================

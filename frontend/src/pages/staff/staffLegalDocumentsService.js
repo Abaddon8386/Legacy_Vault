@@ -1,4 +1,5 @@
 import { ApiError } from '../../api/http.js';
+import { validBasisLegalHistory } from '../../utils/staffDecisionContracts.js';
 /**
  * staffLegalDocumentsService.js
  * Kết nối API quản lý hồ sơ và văn bản căn cứ pháp lý của Staff (PS-96).
@@ -139,6 +140,7 @@ export async function fetchBasisDossier(caseId, options = {}) {
   // Chế độ gọi API thật
   const res = await fetch(`/api/v1/staff/verification-cases/${caseId}/basis-dossier`, {
     method: 'GET',
+    cache: 'no-store',
     headers: {
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       'Accept-Language': lang,
@@ -165,6 +167,10 @@ export async function fetchBasisDossier(caseId, options = {}) {
   }
 
   const dossier = await res.json();
+  if (dossier?.caseId !== caseId || !Array.isArray(dossier.versions)
+      || dossier.versions.some(version => version.legalHistory !== undefined && !validBasisLegalHistory(version.legalHistory))) {
+    throw new ApiError('INVALID_RESPONSE');
+  }
   return { dossier, notFound: false, isSimulation: false };
 }
 
@@ -525,4 +531,18 @@ export async function receiveAndForwardBasisVersion(caseId, payload, options = {
     if(options.signal?.aborted || error.name==='AbortError')throw error;
     return {dossier:received,error};
   }
+}
+
+export function mapCurrentBasisDecision(currentDecision, caseId) {
+  if (!currentDecision || typeof currentDecision !== 'object') return null;
+  if (!currentDecision.id || typeof currentDecision.status !== 'string' || !currentDecision.reason) return null;
+  return {
+    id: currentDecision.id,
+    caseId,
+    documentVersion: currentDecision.documentVersion,
+    decision: currentDecision.status,
+    reason: currentDecision.reason,
+    documentSha256: currentDecision.documentSha256,
+    allocationSha256: currentDecision.allocationSha256,
+  };
 }

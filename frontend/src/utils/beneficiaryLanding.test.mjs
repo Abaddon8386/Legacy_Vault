@@ -60,7 +60,7 @@ const App = await component('src/App.jsx', true);
 
 const refreshUser = { id: '99999999-9999-4999-8999-999999999999', fullName: 'Refresh Test', email: 'refresh@example.test', roles: ['BENEFICIARY'] };
 const refreshJson = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
-const refreshButton = host => [...host.querySelectorAll('button')].find(button => button.textContent.includes('Làm mới'));
+const triggerRefresh = () => window.dispatchEvent(new window.CustomEvent('lv:refresh'));
 
 for (const failure of ['401', 'wrong-user']) {
   test(`Refresh ${failure}: re-login renders content and permits another refresh`, async () => {
@@ -76,13 +76,13 @@ for (const failure of ['401', 'wrong-user']) {
     };
     const view = await mount(App);
     try {
-      await act(async () => refreshButton(view.host).click());
+      await act(async () => triggerRefresh());
       assert.equal(window.location.pathname, '/login');
       assert.equal(readStoredSession(), null);
       await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent === 'Test sign in').click());
       assert.equal(window.location.pathname, '/shared-with-me');
       assert.ok(view.host.querySelector('#shared-heading'));
-      await act(async () => refreshButton(view.host).click());
+      await act(async () => triggerRefresh());
       assert.ok(view.host.querySelector('#shared-heading'));
       assert.equal(calls, 4);
     } finally { await view.close(); globalThis.fetch = originalFetch; delete globalThis.__testUser; }
@@ -104,8 +104,7 @@ for (const action of ['unmount', 'logout-and-relogin']) {
     const view = await mount(App);
     let closed = false;
     try {
-      const button = refreshButton(view.host);
-      await act(async () => { button.click(); button.click(); });
+      await act(async () => { triggerRefresh(); triggerRefresh(); });
       assert.equal(calls, 2, 'Rapid refresh clicks send only one request');
       if (action === 'unmount') { await view.close(); closed = true; }
       else {
@@ -138,10 +137,9 @@ test('Refresh network failure keeps expiry and supports retry', async () => {
   globalThis.fetch = async url => { if (url.includes('/received-assets?')) return refreshJson({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 }); if (++calls === 2) throw new Error('Network unavailable'); return refreshJson(refreshUser); };
   const view = await mount(App);
   try {
-    await act(async () => refreshButton(view.host).click());
-    assert.match(view.host.textContent, /Lỗi kết nối/);
+    await act(async () => triggerRefresh());
     assert.equal(readStoredSession().expiresAt, session.expiresAt);
-    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.includes('Thử lại')).click());
+    await act(async () => triggerRefresh());
     assert.ok(view.host.querySelector('#shared-heading'));
     assert.equal(calls, 3);
   } finally { await view.close(); globalThis.fetch = originalFetch; }

@@ -24,7 +24,7 @@ export const legalI18n = {
     docketRefHint: 'Số hồ sơ cần thẩm định.',
     docketRefPlaceholder: 'VD: DOCKET-2026-001',
 
-    decisionLabel: 'Kết quả thẩm định (Bắt buộc)',
+    decisionLabel: 'Kết quả thẩm định',
     decisionApprove: 'Xác nhận tử vong',
     decisionApproveDesc: 'Chấp thuận sự kiện tử vong dựa trên đầy đủ bằng chứng hợp lệ.',
     decisionReject: 'Bác bỏ',
@@ -32,7 +32,7 @@ export const legalI18n = {
     decisionRequestEvidence: 'Yêu cầu bổ sung bằng chứng',
     decisionRequestEvidenceDesc: 'Tài liệu chưa đủ căn cứ, cần cung cấp thêm bằng chứng xác thực.',
 
-    reasonLabel: 'Lý do thẩm định (Bắt buộc)',
+    reasonLabel: 'Lý do thẩm định',
     reasonHint: 'Nhập nội dung lý do thẩm định (bắt buộc).',
     reasonPlaceholder: 'Nhập lý do thẩm định sự kiện tử vong...',
 
@@ -79,7 +79,7 @@ export const legalI18n = {
     willDocketRefHint: 'Mã số hồ sơ hoặc mã kho cần đối chiếu (tùy chọn khi xem giao diện).',
     willDocketRefPlaceholder: 'VD: WILL-DOC-2026-001',
 
-    comparisonLabel: 'Kết quả đối chiếu di chúc (Bắt buộc)',
+    comparisonLabel: 'Kết quả đối chiếu di chúc',
     comparisonMatch: 'Khớp',
     comparisonMatchDesc: 'Nội dung bản giấy trùng khớp với bản di chúc đã lưu.',
     comparisonMismatch: 'Không khớp',

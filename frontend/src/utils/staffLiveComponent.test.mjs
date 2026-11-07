@@ -29,7 +29,7 @@ test('Assigned case hides claim action; claim conflict uses customer language wi
  globalThis.fetch=async(url,init)=>init.method==='POST'?json({code:'VERIFICATION_CASE_NOT_CLAIMABLE'},409):json(url.endsWith('death-documents')?[]:{...detail,assignmentStatus:'UNASSIGNED_CLAIMABLE'});
  const available=await mount();
  await act(async()=>button(available.host,'Nhận hồ sơ').click());
- assert.match(available.host.querySelector('[role=alert]').textContent,/Hồ sơ đã có người phụ trách/);
+ assert.ok([...available.host.querySelectorAll('[role=alert]')].some(node => /Hồ sơ đã có người phụ trách/.test(node.textContent)));
  assert.equal(available.host.textContent.includes('VERIFICATION_CASE_NOT_CLAIMABLE'),false);
  await available.close();
 });
@@ -39,28 +39,55 @@ test('Closed case keeps document browsing while removing the disabled intake for
  const v=await mount();
  assert.equal(v.host.querySelector('form'),null);
  assert.equal(v.host.querySelector('input[type=file]'),null);
- assert.ok(button(v.host,'Làm mới danh sách giấy tờ'));
- assert.match(v.host.textContent,/Chỉ đọc/);
+ assert.ok(button(v.host,'Làm mới'));
+ assert.match(v.host.textContent,/Đã đóng/);
  await v.close();
 });
 test('Auto-loads documents, retains VI/EN draft, saves intake and displays server receipt',async()=>{
  let release,writes=0;globalThis.fetch=async(url,init)=>{if(init.method==='POST'){writes++;return new Promise(r=>{release=r;});}return json(url.endsWith('death-documents')?[]:detail);};
  const v=await mount();
- assert.ok(button(v.host,'Làm mới danh sách giấy tờ'));
+ assert.ok(button(v.host,'Làm mới'));
  assert.equal(v.host.querySelector('fieldset').disabled,false);
  await act(async()=>props(v.host.querySelector('fieldset input')).onChange({target:{value:'Draft authority'}}));
  await act(async()=>v.root.render(React.createElement(Screen,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('fieldset input').value,'Draft authority');
- assert.ok(button(v.host,'Refresh document list'));
+ assert.ok(button(v.host,'Refresh'));
  const submit=()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}});
- await act(async()=>submit());await act(async()=>submit());assert.equal(writes,1);assert.ok(v.host.querySelector('progress'));
+ await act(async()=>submit());await act(async()=>submit());assert.equal(writes,1);assert.ok(v.host.querySelector('progress[aria-label="Processing"]'));
  await act(async()=>release(json({id,caseId:id,receivedBy:id,receivedAt:'2026-10-20T05:00:00Z'},201)));
- assert.equal(v.host.querySelector('progress'),null);assert.match(v.host.textContent,/Document saved successfully/);await v.close();
+ assert.equal(v.host.querySelector('progress[aria-label="Processing"]'),null);assert.match(v.host.textContent,/Document saved successfully/);await v.close();
+});
+
+for (const kind of ['death-documents', 'original-will-intakes']) test(`a pre-save ${kind} read cannot erase a successful intake`, async () => {
+ let releaseRead, readSignal, reads = 0;
+ const saved = {id, caseId:id, receivedBy:id, receivedAt:'2026-11-02T05:00:00Z', documentNumber:'NEW-RECORD', deliveredByName:'New will'};
+ globalThis.fetch = async (url, init) => {
+  if (init.method === 'POST') return json(saved, 201);
+  if (url.endsWith(kind)) {
+   reads++;
+   if (reads === 2) { readSignal = init.signal; return new Promise(resolve => { releaseRead = resolve; }); }
+   return json([]);
+  }
+  return json(url.endsWith('death-documents') ? [] : detail);
+ };
+ const v = await mount();
+ try {
+  if (kind !== 'death-documents') await act(async () => button(v.host,'Di chúc gốc').click());
+  await act(async () => button(v.host,'Làm mới').click());
+  assert.ok(releaseRead);
+  await act(async () => props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));
+  assert.match(v.host.textContent,/Đã tiếp nhận giấy tờ thành công/);
+  // A transport may still complete after cancellation; it must not update the screen.
+  await act(async () => releaseRead(json([])));
+  assert.equal(v.host.querySelectorAll('.lv-staff-record-item').length,1);
+  assert.equal(readSignal.aborted,true);
+  assert.equal(v.host.querySelector('progress[aria-label="Đang tải giấy tờ"]'),null);
+ } finally { await v.close(); }
 });
 test('Error keeps draft; unmount aborts pending writes; refresh button retries document list',async()=>{
  let signal,release;globalThis.fetch=async(url,init)=>init.method==='POST'?json({code:'CASE_CONFLICT'},409):json(url.endsWith('death-documents')?[]:detail);
  const v=await mount();
  assert.equal(v.host.querySelector('fieldset').disabled,false);
- await act(async()=>button(v.host,'Làm mới danh sách giấy tờ').click());
+ await act(async()=>button(v.host,'Làm mới').click());
  await act(async()=>props(v.host.querySelector('fieldset input')).onChange({target:{value:'Keep'}}));
  await act(async()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));assert.equal(v.host.querySelector('fieldset input').value,'Keep');assert.match(v.host.textContent,/Hồ sơ vừa được cập nhật/);assert.equal(v.host.textContent.includes('CASE_CONFLICT'),false);
  globalThis.fetch=async(url,init)=>{signal=init.signal;return new Promise(r=>{release=r;});};await act(async()=>button(v.host,'Nhận hồ sơ').click());await v.close();assert.equal(signal.aborted,true);await act(async()=>release(json(detail)));
@@ -125,7 +152,7 @@ test('PS-98/PS-103: Attachments pane expands, lists files, and handles preview m
   await act(async () => {});
 
   // Find toggle attachments button
-  const toggleBtn = button(v.host, 'Tệp đính kèm') || button(v.host, 'Attachments');
+  const toggleBtn = button(v.host, 'Xem chi tiết') || button(v.host, 'View details');
   assert.ok(toggleBtn, 'Toggle attachments button must exist');
 
   // Click toggle to load attachments
@@ -173,7 +200,7 @@ test('Attachment read aborts on account switch and late bytes never open a previ
     return json(url.endsWith('death-documents') ? [{id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'}] : detail);
   };
   const v=await mount();
-  await act(async()=>button(v.host,'Tệp đính kèm').click());
+  await act(async()=>button(v.host,'Xem chi tiết').click());
   assert.match(v.host.textContent,/2\.0 KB/);
   await act(async()=>button(v.host,'Xem tệp').click());
   await act(async()=>v.root.render(React.createElement(Screen,{...v.options,accessToken:'changed'})));
@@ -190,7 +217,7 @@ test('Switching document category clears staged evidence before creating another
   const file=new File(['pdf'],'death.pdf',{type:'application/pdf'});
   await act(async()=>props(v.host.querySelector('fieldset input[type=file]')).onChange({target:{files:[file]}}));
   assert.match(v.host.textContent,/death.pdf/);
-  await act(async()=>props(v.host.querySelector('select')).onChange({target:{value:'original-will-intakes'}}));
+  await act(async()=>button(v.host,'Di chúc gốc').click());
   assert.doesNotMatch(v.host.textContent,/death.pdf/);
   await v.close();
 });
@@ -221,8 +248,8 @@ test('Attachment unauthorized response invokes session handler and locks upload'
   globalThis.fetch=async(url)=>url.endsWith('/attachments')?json({code:'UNAUTHENTICATED'},401):json(url.endsWith('death-documents')?[{id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'}]:detail);
   const v=await mount();
   await act(async()=>v.root.render(React.createElement(Screen,{...v.options,onUnauthorized(){unauthorized++;}})));
-  await act(async()=>button(v.host,'Tệp đính kèm').click());
-  assert.equal(unauthorized,1);assert.equal(v.host.querySelector('.lv-staff-attachment-upload-box input').disabled,true);
+  await act(async()=>button(v.host,'Xem chi tiết').click());
+  assert.equal(unauthorized,1);assert.equal(v.host.querySelector('.lv-staff-attachment-upload-box'),null);
   await v.close();
 });
 
@@ -265,12 +292,48 @@ test('Pending attachment upload rejects double submit and aborts on category cha
     url.endsWith('death-documents')?[{id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'}]:detail);
   const v=await mount();
   try {
-    await act(async()=>button(v.host,'Tệp đính kèm').click());
+    await act(async()=>button(v.host,'Xem chi tiết').click());
     await act(async()=>props(v.host.querySelector('.lv-staff-attachment-upload-box input')).onChange({target:{files:[new File(['pdf'],'x.pdf',{type:'application/pdf'})]}}));
     const send=props(button(v.host,'Tải lên đính kèm')).onClick;
     await act(async()=>{send();send();});
     assert.equal(sends,1);
-    await act(async()=>props(v.host.querySelector('select')).onChange({target:{value:'original-will-intakes'}}));
+    await act(async()=>button(v.host,'Di chúc gốc').click());
     assert.equal(aborted,1);assert.doesNotMatch(v.host.textContent,/Đính kèm tệp chứng cứ thành công/);
   } finally {await v.close();globalThis.XMLHttpRequest=prior;}
+});
+
+test('Details show the received information; attaching is only offered before a document reaches Legal', async () => {
+  const uid=n=>`${n}2345678-1234-4234-8234-123456789012`;
+  const record=(n,extra)=>({id:uid(n),caseId:id,receivedBy:id,receivedAt:`2026-10-2${n}T00:00:00Z`,documentType:'DEATH_CERTIFICATE',issuingAuthority:'UBND Phường 1',documentNumber:`SO-${n}`,issuedDate:'2026-10-10',evidenceReference:null,notes:null,legalDecision:null,...extra});
+  const records=[record(1),record(2),record(3,{legalDecision:{result:'NEEDS_CORRECTION',reason:'Thiếu bản scan',decidedAt:'2026-10-25T00:00:00Z'}})];
+  const attachment={id:uid(9),caseId:id,subjectType:'DEATH_DOCUMENT',subjectId:uid(2),uploadedBy:id,fileName:'da-gui.pdf',contentType:'application/pdf',sizeBytes:2048,sha256:'a'.repeat(64),uploadedAt:'2026-10-22T00:00:00Z'};
+  globalThis.fetch=async url=>json(url.endsWith(`${uid(2)}/attachments`)?[attachment]:url.endsWith('/attachments')?[]:url.endsWith('death-documents')?records:{...detail,assignmentStatus:'ASSIGNED_TO_CURRENT_STAFF'});
+  const v=await mount();
+  const open=async number=>{const row=[...v.host.querySelectorAll('.lv-staff-record-item')].find(item=>item.textContent.includes(`SO-${number}`));await act(async()=>row.querySelector('.lv-staff-btn-toggle-att').click());await act(async()=>{await new Promise(r=>setTimeout(r,10));});return row;};
+  try {
+    const empty=await open(1);
+    assert.ok(empty.querySelector('.lv-staff-attachment-upload-box'),'No file and no result: Staff can still attach');
+    assert.match(empty.querySelector('.lv-staff-detail-table').textContent,/Giấy chứng tử.*UBND Phường 1.*SO-1.*10\/10\/2026.*Tham chiếu bằng chứng—/);
+    assert.doesNotMatch(empty.querySelector('.lv-staff-attachments-pane').textContent,/Chờ Ban Pháp lý/,'The waiting status is only on the row');
+    const sent=await open(2);
+    assert.equal(sent.querySelector('.lv-staff-attachment-upload-box'),null,'A file already sent: no new attachment');
+    assert.match(sent.querySelector('.lv-staff-attachments-table').textContent,/da-gui\.pdf.*2\.0 KB.*Xem tệp/);
+    const decided=await open(3);
+    assert.equal(decided.querySelector('.lv-staff-attachment-upload-box'),null,'A Legal result: no new attachment');
+    assert.match(decided.querySelector('.lv-staff-attachments-pane').textContent,/Thiếu bản scan/);
+  } finally {await v.close();}
+});
+
+test('Intake result appears as a floating notice for both success and failure', async () => {
+  let fail=true;
+  globalThis.fetch=async(url,init)=>init?.method==='POST'?(fail?json({code:'VALIDATION_FAILED'},400):json({id,caseId:id,receivedBy:id,receivedAt:'2026-10-21T00:00:00Z'},201)):json(url.endsWith('death-documents')?[]:{...detail,assignmentStatus:'ASSIGNED_TO_CURRENT_STAFF'});
+  const v=await mount();
+  try {
+    const submit=async()=>{await act(async()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));await act(async()=>{await new Promise(r=>setTimeout(r,10));});};
+    await submit();
+    assert.equal(v.host.querySelector('.lv-feedback--floating.lv-feedback--error [class*=title]').textContent,'Chưa thể hoàn tất');
+    fail=false;await submit();
+    assert.equal(v.host.querySelector('.lv-feedback--error'),null);
+    assert.match(v.host.querySelector('.lv-feedback--floating.lv-feedback--success').textContent,/Đã tiếp nhận giấy tờ thành công/);
+  } finally {await v.close();}
 });

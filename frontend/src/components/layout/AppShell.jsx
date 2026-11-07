@@ -3,6 +3,7 @@ import { isPersonalRecipient } from '../../utils/caseLinkModel.js';
 import { trackOwnerSurface } from './ownerSurfaceMotion.js';
 import './OwnerSurfaces.css';
 import LanguageToggle from '../common/LanguageToggle.jsx';
+import ErrorBoundary from '../common/ErrorBoundary.jsx';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   resolveAppShellAuthState,
@@ -27,42 +28,42 @@ const NAVIGATION_REGISTRY = [
   {
     id: 'vault',
     jiraTicket: 'PS-3',
-    labelVi: 'Kho di sản số',
+    labelVi: 'Kho di sản',
     labelEn: 'Heritage Vault',
     status: 'ACTIVE',
   },
   {
     id: 'dms',
     jiraTicket: 'PS-4',
-    labelVi: 'Giám sát hoạt động',
+    labelVi: 'Giám sát',
     labelEn: "Dead Man's Switch (DMS)",
     status: 'ACTIVE',
   },
   {
     id: 'assets',
     jiraTicket: 'PS-5',
-    labelVi: 'Danh mục tài sản',
+    labelVi: 'Tài sản',
     labelEn: 'Heritage Assets',
     status: 'ACTIVE',
   },
   {
     id: 'wills',
     jiraTicket: 'PS-7',
-    labelVi: 'Hồ sơ di chúc số',
+    labelVi: 'Di chúc số',
     labelEn: 'Digital Will Documents',
     status: 'ACTIVE',
   },
   {
     id: 'beneficiaries',
     jiraTicket: 'PS-8',
-    labelVi: 'Người thụ hưởng & Người thi hành bên ngoài',
+    labelVi: 'Người thụ hưởng & thi hành',
     labelEn: 'Beneficiaries & Trustees',
     status: 'ACTIVE',
   },
   {
     id: 'shared-with-me',
     jiraTicket: 'PS-105',
-    labelVi: 'Được chia sẻ với tôi',
+    labelVi: 'Tài sản thụ hưởng',
     labelEn: 'Shared with me',
     status: 'ACTIVE',
   },
@@ -80,8 +81,8 @@ const STAFF_NAVIGATION_REGISTRY = [
   {
     id: 'legal-documents',
     jiraTicket: 'PS-31',
-    labelVi: 'Hồ sơ căn cứ pháp lý',
-    labelEn: 'Legal Basis Documents',
+    labelVi: 'Giấy tờ và phân bổ',
+    labelEn: 'Documents & allocations',
     status: 'ACTIVE',
   },
   {
@@ -202,17 +203,17 @@ export default function AppShell({
   const content = {
     vi: {
       brandTag: isStaff
-        ? 'Cổng Nhân viên Thực thi'
+        ? 'Nhân viên'
         : isLegal
           ? 'Cổng Thẩm định Pháp lý'
-          : 'Hệ thống Quản lý Di sản Số',
+          : 'Quản lý di sản số',
       navSectionTitle: isStaff
-        ? 'QUẢN TRỊ NGHIỆP VỤ'
+        ? ''
         : isLegal
           ? 'THẨM ĐỊNH PHÁP LÝ'
           : 'QUẢN LÝ DI SẢN',
       breadcrumbHome: isStaff
-        ? 'Cổng Nhân viên'
+        ? 'Nhân viên'
         : isLegal
           ? 'Cổng Pháp lý'
           : 'Bảng điều khiển',
@@ -237,17 +238,17 @@ export default function AppShell({
     },
     en: {
       brandTag: isStaff
-        ? 'Staff Executor Portal'
+        ? 'Staff'
         : isLegal
           ? 'Legal Verification Portal'
           : 'Digital Heritage Sanctuary',
       navSectionTitle: isStaff
-        ? 'STAFF OPERATIONS'
+        ? ''
         : isLegal
           ? 'LEGAL VERIFICATION'
           : 'HERITAGE PORTAL',
       breadcrumbHome: isStaff
-        ? 'Staff Portal'
+        ? 'Staff'
         : isLegal
           ? 'Legal Portal'
           : 'Dashboard',
@@ -290,7 +291,7 @@ export default function AppShell({
     t.brandTag = lang === 'en' ? 'Beneficiary account' : 'Tài khoản người thụ hưởng';
     t.navSectionTitle = lang === 'en' ? 'BENEFICIARY' : 'NGƯỜI THỤ HƯỞNG';
     t.breadcrumbHome = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
-    t.breadcrumbCurrent = currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : (lang === 'en' ? 'Account information' : 'Thông tin tài khoản');
+    t.breadcrumbCurrent = currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Tài sản thụ hưởng') : (lang === 'en' ? 'Account information' : 'Thông tin tài khoản');
     t.roleBadge = lang === 'en' ? 'Beneficiary' : 'Người thụ hưởng';
   }
   const navList = isAdmin
@@ -302,7 +303,7 @@ export default function AppShell({
       ]
     : isBeneficiary
       ? [
-          { id: 'shared-with-me', labelVi: 'Được chia sẻ với tôi', labelEn: 'Shared with me', status: 'ACTIVE' },
+          { id: 'shared-with-me', labelVi: 'Tài sản thụ hưởng', labelEn: 'Shared with me', status: 'ACTIVE' },
         ]
     : isStaff
     ? STAFF_NAVIGATION_REGISTRY
@@ -375,7 +376,7 @@ export default function AppShell({
 
         {/* Navigation Items — Extensible modular rendering strictly for ACTIVE routes */}
         <nav className="lv-sidebar-nav" aria-label="Menu chức năng">
-          <span className="lv-nav-heading">{t.navSectionTitle}</span>
+          {t.navSectionTitle && <span className="lv-nav-heading">{t.navSectionTitle}</span>}
           <ul className="lv-nav-list">
             {navList.filter((item) => item.status === 'ACTIVE' && (item.id !== 'shared-with-me' || isBeneficiary || resolvedUser?.roles?.includes('BENEFICIARY') || isPersonalRecipient(resolvedUser?.roles || []))).map((item) => (
               <li key={item.id}>
@@ -466,6 +467,33 @@ export default function AppShell({
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
+                    ) : item.id === 'assets' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                        <polyline points="2 17 12 22 22 17" />
+                        <polyline points="2 12 12 17 22 12" />
+                      </svg>
+                    ) : item.id === 'wills' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
+                        <line x1="16" y1="8" x2="2" y2="22" />
+                        <line x1="17.5" y1="15" x2="9" y2="15" />
+                      </svg>
+                    ) : item.id === 'beneficiaries' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    ) : item.id === 'shared-with-me' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 12 20 22 4 22 4 12" />
+                        <rect x="2" y="7" width="20" height="5" />
+                        <line x1="12" y1="22" x2="12" y2="7" />
+                        <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                        <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                      </svg>
                     ) : item.id === 'cases' ? (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
@@ -490,9 +518,6 @@ export default function AppShell({
                   <span className="lv-nav-label">
                     {lang === 'vi' ? item.labelVi : item.labelEn}
                   </span>
-                  {currentTab === item.id && (
-                    <span className="lv-nav-active-pip" aria-hidden="true" />
-                  )}
                 </button>
               </li>
             ))}
@@ -642,14 +667,10 @@ export default function AppShell({
                   </li>
                 )}
 
-                {hasSession && <li role="none"><a role="menuitem" className="lv-account-menu-item"
-                  href={`/invitations?lang=${lang}`} style={{ textDecoration: 'none' }}>
-                  {lang === 'en' ? 'Accept an invitation' : 'Nhận lời mời'}
-                </a></li>}
                 {hasSession && (isStaff || isLegal || isAdmin) && resolvedUser?.roles?.includes('BENEFICIARY') && (
                   <li role="none">
                     <a role="menuitem" className="lv-account-menu-item" href={`/shared-with-me?lang=${lang}`} style={{ textDecoration: 'none' }}>
-                      {lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi'}
+                      {lang === 'en' ? 'Shared with me' : 'Tài sản thụ hưởng'}
                     </a>
                   </li>
                 )}
@@ -800,7 +821,7 @@ export default function AppShell({
           ==================================================================== */}
       <div className="lv-shell-main-wrap">
         {/* Top Header Bar */}
-        <header className="lv-shell-header">
+        <header className={`lv-shell-header${isStaff ? ' lv-shell-header--solid' : ''}`}>
           <div className="lv-header-left">
             <button
               type="button"
@@ -827,11 +848,11 @@ export default function AppShell({
                   ? (lang === 'en' ? 'Edit Profile' : 'Chỉnh sửa hồ sơ')
                   : isStaff
                   ? currentTab === 'legal-documents'
-                    ? (lang === 'en' ? 'Legal Basis Documents' : 'Hồ sơ căn cứ pháp lý')
+                    ? (lang === 'en' ? 'Documents & allocations' : 'Giấy tờ và phân bổ')
                     : t.breadcrumbCurrent
                   : isLegal
                     ? LEGAL_NAVIGATION_REGISTRY.find(item => item.id === currentTab)?.[lang === 'en' ? 'labelEn' : 'labelVi'] || t.breadcrumbCurrent
-                  : currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Được chia sẻ với tôi') : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
+                  : currentTab === 'shared-with-me' ? (lang === 'en' ? 'Shared with me' : 'Tài sản thụ hưởng') : currentTab === 'subscription' ? (lang === 'en' ? 'Subscription Plans' : 'Gói sử dụng') : currentTab === 'beneficiaries'
                     ? (lang === 'en' ? 'Beneficiaries & Trustees' : 'Người thụ hưởng & Người thi hành bên ngoài')
                     : currentTab === 'wills'
                       ? (lang === 'en' ? 'Digital Will Documents' : 'Hồ sơ di chúc số')
@@ -880,7 +901,7 @@ export default function AppShell({
 
         {/* Scrollable Content Container */}
         <main id="main-content" className={`lv-shell-content ${isStaff ? 'lv-staff-surfaces' : isLegal ? 'lv-legal-surfaces' : isAdmin ? 'lv-admin-surfaces' : ['vault', 'assets', 'dms', 'wills', 'beneficiaries', 'subscription', 'shared-with-me'].includes(currentTab) ? 'lv-owner-surfaces' : ''}`} onPointerMove={trackOwnerSurface}>
-          {children}
+          <ErrorBoundary lang={lang} resetKey={`${currentTab}|${typeof window === 'undefined' ? '' : window.location.pathname}`}>{children}</ErrorBoundary>
         </main>
       </div>
     </div>

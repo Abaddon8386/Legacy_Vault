@@ -27,7 +27,7 @@ spring:
     fallback-to-system-locale: false
 logging:
   level:
-    org.flywaydb: DEBUG
+    org.flywaydb: INFO
     # Debug/TRACE logs may include the signed VNPay callback query string.
     org.springframework.security: INFO
   pattern:
@@ -35,6 +35,9 @@ logging:
 
 # Không để Spring tự đưa stack trace / message / chi tiết binding vào response lỗi.
 server:
+  # Chỉ đặt FORWARD_HEADERS_STRATEGY=native khi backend nằm sau reverse proxy tin cậy (nginx/Vite dev proxy);
+  # mặc định none để client không giả được IP bằng X-Forwarded-For khi backend mở thẳng ra ngoài.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
   error:
     include-message: never
     include-stacktrace: never

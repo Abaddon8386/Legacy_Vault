@@ -48,8 +48,10 @@ class BasisDossierViewServiceTest {
     private final LegalBasisVersionAllocationRepository allocations = mock(LegalBasisVersionAllocationRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository history = mock(com.legacyvault.verification.repository.LegalBasisReviewHistoryRepository.class);
+    private final com.legacyvault.verification.repository.DistributionWorkflowEventRepository workflowEvents = mock(com.legacyvault.verification.repository.DistributionWorkflowEventRepository.class);
+    private final com.legacyvault.verification.repository.CourtDecisionRepository courtDecisions = mock(com.legacyvault.verification.repository.CourtDecisionRepository.class);
     private final BasisDossierViewService service = new BasisDossierViewService(caseLookup, staffCases, dossiers,
-            versions, allocations, users, new ObjectMapper(), history);
+            versions, allocations, users, new ObjectMapper(), history, workflowEvents, courtDecisions);
 
     private final UUID legalPublicId = UUID.randomUUID();
     private final UUID staffPublicId = UUID.randomUUID();
@@ -127,12 +129,48 @@ class BasisDossierViewServiceTest {
         when(staffCases.findOwnedByStaff(CASE_ID, STAFF_ID)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.forStaff(CASE_ID, staff))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
-        verifyNoInteractions(dossiers);
+        verifyNoInteractions(dossiers, history, workflowEvents, courtDecisions);
 
         when(caseLookup.findByPublicId(CASE_ID)).thenReturn(Optional.of(theCase()));
         when(dossiers.findByVerificationCaseId(CASE_DB_ID)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.forLegal(CASE_ID))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    void versionHistoryNeverLeaksOldDecisionOrChangedAllocationIntoNewScope() {
+        data();
+        when(staffCases.findOwnedByStaff(CASE_ID, STAFF_ID)).thenReturn(Optional.of(theCase()));
+        var old = new com.legacyvault.verification.entity.LegalBasisReviewHistory(900L, 1L, 1,
+                "a".repeat(64), "NONE", "x".repeat(64), "LEGAL_REJECTED", "REJECT", "Bản 1 thiếu dấu", LEGAL_ID);
+        var changed = new com.legacyvault.verification.entity.LegalBasisReviewHistory(900L, 2L, 2,
+                "b".repeat(64), "NONE", "x".repeat(64), "LEGAL_REJECTED", "REJECT", "Phân bổ trước chưa phù hợp", LEGAL_ID);
+        var wrongHash = new com.legacyvault.verification.entity.LegalBasisReviewHistory(900L, 2L, 2,
+                "a".repeat(64), "NONE", "x".repeat(64), "LEGAL_REJECTED", "REJECT", "Không thuộc bản 2", LEGAL_ID);
+        var automatic = new com.legacyvault.verification.entity.LegalBasisReviewHistory(900L, 2L, 2,
+                "b".repeat(64), "NONE", "x".repeat(64), "REVIEW_REQUIRED", "DOSSIER_VERSION_CHANGED", "System marker, not Legal decision", null);
+        for (var entry : List.of(old, changed, wrongHash, automatic)) {
+            ReflectionTestUtils.setField(entry, "publicId", UUID.randomUUID());
+            ReflectionTestUtils.setField(entry, "reviewedAt", LocalDateTime.of(2026, 11, 2, 9, 0));
+        }
+        when(history.findByDossierIdOrderByReviewedAtDesc(900L)).thenReturn(List.of(changed, old, wrongHash, automatic));
+        var event = new com.legacyvault.verification.entity.DistributionWorkflowEvent(CASE_DB_ID, 1,
+                "REQUEST_DOCUMENT_SUPPLEMENTATION", LEGAL_ID, "Bổ sung bản 1", 1, "a".repeat(64), null, null);
+        ReflectionTestUtils.setField(event, "createdAt", LocalDateTime.of(2026, 11, 2, 9, 1));
+        when(workflowEvents.findByVerificationCaseIdOrderByEventNoAsc(CASE_DB_ID)).thenReturn(List.of(event));
+        var court = new com.legacyvault.verification.repository.CourtDecisionRow(UUID.randomUUID(), CASE_ID, 2,
+                "b".repeat(64), "INVALID", "Bản 2 thiếu trang", legalPublicId, LocalDateTime.of(2026, 11, 2, 9, 2));
+        when(courtDecisions.findRows(CASE_DB_ID)).thenReturn(List.of(court));
+        var viewed = service.forStaff(CASE_ID, staff);
+        var newer = viewed.versions().get(0).legalHistory();
+        assertThat(newer).extracting(e -> e.reason()).containsExactly("Bản 2 thiếu trang", "Phân bổ trước chưa phù hợp");
+        assertThat(newer.get(0).currentScope()).isTrue();
+        assertThat(newer.get(1).currentScope()).isFalse();
+        assertThat(viewed.versions().get(1).legalHistory()).extracting(e -> e.reason()).containsExactly("Bổ sung bản 1", "Bản 1 thiếu dấu");
+        assertThat(viewed.versions().get(1).legalHistory()).allMatch(e -> !e.currentScope());
+        var held = dossiers.findByVerificationCaseId(CASE_DB_ID).orElseThrow();
+        held.placeOnHold("Thiếu chứng cứ", "UNDETERMINED", LEGAL_ID, 3);
+        assertThat(service.forStaff(CASE_ID, staff).versions().get(0).legalHistory()).allMatch(e -> !e.currentScope());
     }
 
     @Test

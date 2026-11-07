@@ -1360,9 +1360,10 @@ test('Legal Banners: Supplementation required by real BE (requiredVersion > late
     });
 
     const banners = host.querySelectorAll('.lv-dossier-hold-banner');
-    const suppBanner = [...banners].find(b => b.textContent.includes('yêu cầu bổ sung') || b.textContent.includes('CHANGES_REQUESTED'));
+    const suppBanner = [...banners].find(b => b.classList.contains('lv-dossier-supplement-banner'));
     assert.ok(suppBanner, 'Supplementation banner must be rendered when requiredVersion > latestVersion');
     assert.match(suppBanner.textContent, /phiên bản hồ sơ số 2/i);
+    assert.doesNotMatch(suppBanner.textContent, /CHANGES_REQUESTED/);
   } finally {
     await unmount();
     globalThis.fetch = originalFetch;
@@ -1668,7 +1669,7 @@ test('New flow: Staff uploads requested documents without an allocation editor o
     assert.equal(calls.some(call => /\/assets\?|\/beneficiaries$/.test(call.url)), false, 'Document intake must not depend on asset/recipient catalogues');
     await act(async () => host.querySelector('#tab-btn-allocations').click());
     assert.equal(host.querySelector('#panel-allocations form'), null, 'Allocations remain locked before document approval');
-    assert.match(host.querySelector('#panel-allocations').textContent, /Legal đã duyệt/);
+    assert.match(host.querySelector('#panel-allocations').textContent, /Ban Pháp lý đã duyệt/);
   } finally { await unmount(); globalThis.fetch = originalFetch; }
 });
 
@@ -1697,11 +1698,12 @@ test('New flow: accepted documents unlock a separate JSON allocation submission 
     await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent.includes('Thêm phân bổ')).click());
     const selects = panel.querySelectorAll('select'); assert.equal(selects.length, 2);
     await change(selects[0], caseA); await change(selects[1], caseB); await change(panel.querySelector('textarea'), 'Toàn bộ kho ảnh');
-    await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent.includes('Thêm người nhận cho tài sản này')).click());
+    await act(async () => [...panel.querySelectorAll('button')].find(button => button.textContent.includes('Thêm phân bổ')).click());
     const rows = panel.querySelectorAll('.lv-court-editor__row');
     assert.equal(rows.length, 2, 'A second recipient can be added after completing the first row');
     assert.equal(rows[0].querySelector('textarea').value, 'Toàn bộ kho ảnh', 'Adding a recipient preserves the first draft');
-    assert.equal(rows[1].querySelector('select').value, caseA, 'The new row keeps the same asset');
+    assert.equal([...panel.querySelectorAll('button')].filter(button => button.textContent.includes('Thêm phân bổ')).length, 1, 'Only one add button');
+    await change(rows[1].querySelector('select'), caseA);
     await change(rows[1].querySelectorAll('select')[1], caseA);
     await change(rows[0].querySelector('textarea'), 'Một nửa kho ảnh');
     await change(rows[1].querySelector('textarea'), 'Một nửa còn lại');

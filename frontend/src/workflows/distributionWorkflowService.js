@@ -7,13 +7,13 @@ export const distributionActions = {
   uploadDocuments: ['STAFF', null, ['AWAITING_DOCUMENTS']],
   forwardDocuments: ['STAFF', null, ['AWAITING_DOCUMENTS']],
   approveDocuments: ['LEGAL', 'approve-documents', ['DOCUMENTS_UNDER_REVIEW']],
-  requestDocumentSupplementation: ['LEGAL', 'request-document-supplementation', ['DOCUMENTS_UNDER_REVIEW']],
+  requestDocumentSupplementation: ['LEGAL', 'request-document-supplementation', ['DOCUMENTS_UNDER_REVIEW', 'REJECTED']],
   submitAllocations: ['STAFF', 'submit-allocations', ['AWAITING_ALLOCATIONS']],
   approveAllocations: ['LEGAL', 'approve-allocations', ['ALLOCATIONS_UNDER_REVIEW']],
   requestAllocationChanges: ['LEGAL', 'request-allocation-changes', ['ALLOCATIONS_UNDER_REVIEW']],
 };
 export const distributionPhases = ['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED', 'AWAITING_DOCUMENTS',
-  'DOCUMENTS_UNDER_REVIEW', 'AWAITING_ALLOCATIONS', 'ALLOCATIONS_UNDER_REVIEW', 'FINAL_APPROVAL', 'APPROVED', 'UNLOCKED', 'CLOSED'];
+  'DOCUMENTS_UNDER_REVIEW', 'AWAITING_ALLOCATIONS', 'ALLOCATIONS_UNDER_REVIEW', 'FINAL_APPROVAL', 'REJECTED', 'APPROVED', 'UNLOCKED', 'CLOSED'];
 const positive = value => Number.isSafeInteger(value) && value > 0;
 const hash = value => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
 const reason = value => typeof value === 'string' && !!value.trim() && value.trim().length <= 1000;

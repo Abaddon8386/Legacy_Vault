@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { build } from 'vite';
+import { distributionFixture } from './testFixtures/distribution.js';
 
 const dom = new JSDOM('<body></body>', { url: 'http://localhost/legal/basis-route-selection' });
 globalThis.window = dom.window; globalThis.document = dom.window.document; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -29,6 +30,8 @@ function context(route = 'COURT') {
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const props = element => element[Object.keys(element).find(key => key.startsWith('__reactProps'))];
 const change = (element, value) => act(async () => props(element).onChange({ target: { value } }));
+const choose = (host, value) => act(async () => props(host.querySelector(`input[type=radio][value="${value}"]`)).onChange());
+const chosen = host => host.querySelector('input[type=radio]:checked')?.value || '';
 const click = (host, text) => act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === text).click());
 const submit = host => act(async () => { props(host.querySelector('form')).onSubmit({ preventDefault() {} }); });
 async function mount(contextLoader, extra = {}) {
@@ -53,7 +56,7 @@ for (const route of ['COURT', 'NOTARIAL']) test(`${route}: hold remains reachabl
   try {
     await click(view.host, 'Place case on hold');
     assert.equal(view.host.querySelector('[type=submit]').disabled, true);
-    await change(view.host.querySelector('form select'), 'NEW_DISPUTE'); await change(view.host.querySelector('textarea'), ' New dispute ');
+    await choose(view.host, 'NEW_DISPUTE'); await change(view.host.querySelector('textarea'), ' New dispute ');
     await submit(view.host);
     assert.equal(writes, 1); assert.deepEqual(body, { cause: 'NEW_DISPUTE', reason: 'New dispute' });
     assert.match(view.host.textContent, /Case placed on hold/); assert.match(view.host.textContent, /Resume case processing/);
@@ -77,7 +80,7 @@ for (const route of ['COURT', 'NOTARIAL']) test(`ON_HOLD resumes through the exi
   const view = await mount(async () => current);
   try {
     assert.match(view.host.textContent, /Disputed entitlement/);
-    await change(view.host.querySelector('form select'), route); await change(view.host.querySelector('textarea'), 'Documents checked');
+    await choose(view.host, route); await change(view.host.querySelector('textarea'), 'Documents checked');
     await submit(view.host);
     assert.equal(writes, 1); assert.deepEqual(body, { route, routeReason: 'Documents checked' });
     assert.match(view.host.textContent, /Case processing resumed/);
@@ -94,10 +97,83 @@ test('Changed context blocks hold POST, keeps the reason, and requires a reload'
   };
   const view = await mount(async () => current);
   try {
-    await click(view.host, 'Place case on hold'); await change(view.host.querySelector('form select'), 'INSUFFICIENT_EVIDENCE');
+    await click(view.host, 'Place case on hold'); await choose(view.host, 'INSUFFICIENT_EVIDENCE');
     await change(view.host.querySelector('textarea'), 'Keep this reason'); await submit(view.host);
     assert.equal(writes, 0); assert.match(view.host.textContent, /case changed/i);
     assert.equal(view.host.querySelector('textarea').value, 'Keep this reason'); assert.equal(view.host.querySelector('[type=submit]').disabled, true);
+    await click(view.host, 'Reload case');
+    assert.equal(view.host.querySelector('textarea').value, 'Keep this reason', 'Reload must preserve the input, including its selected cause');
+    assert.equal(chosen(view.host), 'INSUFFICIENT_EVIDENCE');
+  } finally { await view.close(); }
+});
+
+test('a background response cannot interrupt an in-flight Legal hold or discard its confirmation', async () => {
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  let current = context(), finishPoll, finishWrite, writeSignal, workflowReads = 0, contextReads = 0;
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/context')) return json(current);
+    if (url.endsWith('/distribution-workflow')) {
+      workflowReads++;
+      if (workflowReads === 1) return json(distributionFixture(current));
+      return new Promise(resolve => { finishPoll = resolve; });
+    }
+    writeSignal = init.signal;
+    return new Promise(resolve => { finishWrite = resolve; });
+  };
+  const view = await mount(async () => { contextReads++; return current; });
+  try {
+    await act(async () => window.dispatchEvent(new window.Event('focus')));
+    await click(view.host, 'Place case on hold');
+    await choose(view.host, 'NEW_DISPUTE');
+    await change(view.host.querySelector('textarea'), 'Counter evidence needs review');
+    await submit(view.host);
+    assert.equal(view.host.querySelector('.lv-legal-context-actions button').disabled, true);
+    const before = contextReads;
+    await act(async () => finishPoll(json({ ...distributionFixture(current), revision: 2 })));
+    assert.equal(contextReads, before, 'Do not reload and unmount an operation that is still saving');
+    assert.equal(writeSignal.aborted, false);
+    await act(async () => window.dispatchEvent(new window.Event('focus')));
+    assert.equal(workflowReads, 2, 'No additional background read while the hold is pending');
+    current = context('ON_HOLD');
+    await act(async () => finishWrite(json(current.basisDossier)));
+    assert.match(view.host.textContent, /Case placed on hold/);
+    assert.match(view.host.textContent, /notification to Staff has not been confirmed/);
+  } finally { await view.close(); }
+});
+
+for (const response of ['changed', 'denied']) test(`manual refresh ${response} response cannot cancel a Legal hold started while workflow is loading`, async () => {
+  let current = context(), finishRead, finishWrite, writeSignal, workflowReads = 0, contextReads = 0;
+  globalThis.fetch = async (url, init) => {
+    if (url.endsWith('/context')) return json(current);
+    if (url.endsWith('/distribution-workflow')) {
+      workflowReads++;
+      if (workflowReads === 1) return json(distributionFixture(current));
+      return new Promise(resolve => { finishRead = resolve; });
+    }
+    assert.ok(url.endsWith('/basis-dossier/hold'));
+    writeSignal = init.signal;
+    return new Promise(resolve => { finishWrite = resolve; });
+  };
+  const view = await mount(async () => { contextReads++; return current; });
+  try {
+    await click(view.host, 'Refresh documents and case');
+    assert.equal(workflowReads, 2, 'The manually refreshed workflow read is still pending');
+    await click(view.host, 'Place case on hold');
+    await choose(view.host, 'NEW_DISPUTE');
+    await change(view.host.querySelector('textarea'), 'Keep the pending hold');
+    await submit(view.host);
+    assert.ok(writeSignal, 'A real hold POST must be pending before the read resolves');
+    const before = contextReads;
+    await act(async () => finishRead(response === 'changed'
+      ? json({ ...distributionFixture(current), revision: 2 })
+      : json({ code: 'ACCESS_DENIED' }, 403)));
+    assert.equal(writeSignal.aborted, false, 'A late manual GET must not unmount and abort the hold POST');
+    assert.equal(contextReads, before);
+    assert.equal(view.host.querySelector('textarea').value, 'Keep the pending hold');
+    current = context('ON_HOLD');
+    await act(async () => finishWrite(json(current.basisDossier)));
+    assert.match(view.host.textContent, /Case placed on hold/);
+    assert.match(view.host.textContent, /Resume case processing/);
   } finally { await view.close(); }
 });
 
@@ -109,7 +185,7 @@ test('Duplicate resume sends once; token change aborts it and ignores late succe
   };
   const view = await mount(async () => current);
   try {
-    await change(view.host.querySelector('form select'), 'COURT'); await change(view.host.querySelector('textarea'), 'Resume reason');
+    await choose(view.host, 'COURT'); await change(view.host.querySelector('textarea'), 'Resume reason');
     await submit(view.host); await submit(view.host); assert.equal(writes, 1);
     await view.render({ session: { ...session, accessToken: 'new-fixture-token' } }); assert.equal(signal.aborted, true);
     await act(async () => finish(json({ ...current.basisDossier, route: 'COURT' })));
@@ -122,7 +198,7 @@ for (const status of [401, 403, 409, 500]) test(`Resume HTTP ${status} cannot pr
   globalThis.fetch = async (url) => url.endsWith('/context') ? json(current) : json({ code: 'FAILED' }, status);
   const view = await mount(async () => current, { onUnauthorized: () => { unauthorized++; } });
   try {
-    await change(view.host.querySelector('form select'), 'COURT'); await change(view.host.querySelector('textarea'), 'Retained reason'); await submit(view.host);
+    await choose(view.host, 'COURT'); await change(view.host.querySelector('textarea'), 'Retained reason'); await submit(view.host);
     assert.doesNotMatch(view.host.textContent, /Case processing resumed/); assert.ok(view.host.querySelector('[role=alert]'));
     if (status !== 403) { assert.equal(view.host.querySelector('textarea').value, 'Retained reason'); assert.equal(view.host.querySelector('[type=submit]').disabled, true); }
     assert.equal(unauthorized, status === 401 ? 1 : 0);

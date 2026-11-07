@@ -108,6 +108,7 @@ Lỗi validation:
 | `HANDOVER_RECEIPT_REISSUE_INVALID` | 409 | Receipt thay thế không cùng session/recipient hoặc đã có bản thay thế (PS-61) |
 | `LEGAL_VERIFICATION_INVALID_STATE` | 409 | Legal quyết định khi ca không còn `OPEN` hoặc Vault không ở `AWAITING_VERIFICATION` (PS-36) |
 | `LEGAL_VERIFICATION_ALREADY_DECIDED` | 409 | Giấy tờ khai tử đã có quyết định thẩm định (PS-36) |
+| `WILL_COMPARISON_ALREADY_RECORDED` | 409 | Bản giấy này đã có kết luận đối chiếu; không ghi lại hay sửa (PS-139). FE tải lại overview |
 | `WILL_NOT_VERIFIED` | 409 | Phân loại căn cứ khi chưa có kết quả đối chiếu di chúc khớp (PS-41) |
 | `BASIS_DOSSIER_ALREADY_EXISTS` | 409 | Ca đã có hồ sơ căn cứ (PS-41) |
 | `BASIS_DOSSIER_INVALID_STATE` | 409 | Ca, Vault hoặc hồ sơ căn cứ không ở trạng thái cho phép thao tác (PS-41, PS-42, PS-43) |

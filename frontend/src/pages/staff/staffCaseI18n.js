@@ -7,7 +7,7 @@ export const STAFF_CASE_I18N = {
     portalTitle: 'Cổng Xác Minh Hồ Sơ',
     roleBadge: 'Nhân viên xử lý (STAFF_EXECUTOR)',
     eyebrow: 'QUẢN LÝ XÁC MINH DI SẢN',
-    title: 'Hồ sơ cần xác minh',
+    title: 'Hồ sơ xác minh',
     subtitle: 'Danh sách các trường hợp hết thời gian ân hạn cần kiểm tra thông tin theo quy trình nghiệp vụ.',
     refreshBtn: 'Làm mới',
     refreshingBtn: 'Đang tải…',
@@ -24,9 +24,9 @@ export const STAFF_CASE_I18N = {
 
     table: {
       colCaseRef: 'Mã hồ sơ',
-      colVaultOwner: 'Kho di sản & Chủ sở hữu',
+      colVaultOwner: 'Kho di sản',
       colGraceEnd: 'Hết hạn ân hạn',
-      colStatus: 'Trạng thái quy trình',
+      colStatus: 'Trạng thái',
       colActions: 'Thao tác',
       viewAction: 'Xem hồ sơ',
       intakeAction: 'Tiếp nhận hồ sơ',
@@ -179,7 +179,7 @@ export const STAFF_CASE_I18N = {
     detailModal: {
       title: 'Thông tin tham chiếu hồ sơ',
       caseRef: 'Mã tham chiếu hồ sơ',
-      vaultId: 'Mã kho di sản (Vault ID)',
+      vaultId: 'Kho di sản',
       vaultName: 'Tên kho di sản',
       ownerName: 'Chủ sở hữu kho',
       graceEndedAt: 'Thời điểm hết hạn ân hạn',
@@ -323,7 +323,7 @@ export const STAFF_CASE_I18N = {
     portalTitle: 'Staff Verification Portal',
     roleBadge: 'Staff Executor (STAFF_EXECUTOR)',
     eyebrow: 'HERITAGE VERIFICATION MANAGEMENT',
-    title: 'Verification Cases Queue',
+    title: 'Verification Cases',
     subtitle: 'List of cases where the grace period has expired, requiring review according to business procedures.',
     refreshBtn: 'Refresh',
     refreshingBtn: 'Loading…',
@@ -340,9 +340,9 @@ export const STAFF_CASE_I18N = {
 
     table: {
       colCaseRef: 'Case Reference',
-      colVaultOwner: 'Heritage Vault & Owner',
+      colVaultOwner: 'Heritage Vault',
       colGraceEnd: 'Grace Period Ended',
-      colStatus: 'Process Status',
+      colStatus: 'Status',
       colActions: 'Action',
       viewAction: 'View Case',
       intakeAction: 'Intake Case',
@@ -495,7 +495,7 @@ export const STAFF_CASE_I18N = {
     detailModal: {
       title: 'Case Reference Details',
       caseRef: 'Case Reference ID',
-      vaultId: 'Heritage Vault ID',
+      vaultId: 'Heritage vault',
       vaultName: 'Heritage Vault Name',
       ownerName: 'Vault Owner Name',
       graceEndedAt: 'Grace Period Expiration',

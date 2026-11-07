@@ -1,20 +1,36 @@
 .lv-asset-page .lv-asset-modal {
   max-width: 580px;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lv-asset-page .lv-asset-modal .lv-modal__header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #ffffff;
+  padding: 20px 24px;
 }
 
 .lv-asset-page .lv-asset-modal .lv-asset-form {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 0;
   overflow: hidden;
 }
-.lv-asset-form__scroll { overflow-y: auto; min-height: 0; padding: 24px; }
-.lv-asset-page .lv-asset-form > .lv-form-actions { flex-shrink: 0; padding: 16px 24px; background: #fff; }
+.lv-asset-form__scroll { overflow-y: auto; min-height: 0; flex: 1 1 auto; padding: 24px; }
+.lv-asset-page .lv-asset-form > .lv-form-actions { flex-shrink: 0; padding: 16px 24px; background: #fff; border-top: 1px solid var(--lv-border-subtle); }
 @media (max-width: 640px) {
+  .lv-asset-page .lv-asset-modal .lv-modal__header { padding: 16px 20px; }
   .lv-asset-form__scroll { padding: 16px; }
   .lv-asset-page .lv-asset-form > .lv-form-actions { padding: 12px 16px; flex-wrap: wrap; }
-  .lv-asset-form > .lv-form-actions > button { flex: 1; }
+  .lv-asset-form > .lv-form-actions > button { flex: 1; min-height: 44px; }
 }
 
 .lv-asset-page .lv-form-group {
@@ -24,14 +40,14 @@
 }
 
 .lv-asset-page .lv-form-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-ink);
   margin-bottom: 6px;
 }
 
 .lv-asset-page .lv-required {
-  color: var(--lv-danger);
+  color: var(--lv-required);
 }
 
 .lv-asset-page .lv-form-input,
@@ -67,16 +83,24 @@
 
 .lv-asset-page .lv-form-error {
   margin-top: 5px;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-danger);
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
+.lv-asset-page .lv-asset-form > .lv-asset-legal-note { display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; margin: 12px 24px 0; padding: 10px 14px; font-size: 14px; line-height: 1.5; color: #5f4310; background: #fff8e8; border: 1px solid #e8d4a7; border-radius: 10px; }
+.lv-asset-page .lv-asset-legal-note svg { flex-shrink: 0; margin-top: 2px; color: #8a6016; }
+.lv-asset-page .lv-asset-legal-note p { margin: 0; }
+.lv-asset-page .lv-asset-legal-note a { color: #5f4310; font-weight: 600; text-decoration: underline; }
+@media (max-width: 640px) {
+  .lv-asset-page .lv-asset-form > .lv-asset-legal-note { margin: 8px 16px 0; padding: 10px 12px; }
+}
+
 .lv-asset-page .lv-form-hint {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--lv-text-muted);
 }
 

@@ -1,0 +1,271 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Staff version-scoped Legal outcomes (additive)",
+    "version": "2026-11-02"
+  },
+  "paths": {
+    "/api/v1/staff/verification-cases/{caseId}/original-will-intakes": {
+      "get": {
+        "description": "Assigned Staff only, existing metadata preserved; no business write.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-scoped result; unspecified metadata remains unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OriginalWill"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role"
+          },
+          "404": {
+            "description": "Unknown or outside assigned Staff scope"
+          }
+        }
+      }
+    },
+    "/api/v1/staff/verification-cases/{caseId}/original-will-intakes/{recordId}": {
+      "get": {
+        "description": "Assigned Staff only, existing metadata preserved; no business write.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recordId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-scoped result; unspecified metadata remains unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OriginalWill"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role"
+          },
+          "404": {
+            "description": "Unknown or outside assigned Staff scope"
+          }
+        }
+      }
+    },
+    "/api/v1/staff/verification-cases/{caseId}/basis-dossier": {
+      "get": {
+        "description": "Assigned Staff only, existing metadata preserved; no business write.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version-scoped result; unspecified metadata remains unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasisDossier"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Wrong role"
+          },
+          "404": {
+            "description": "Unknown or outside assigned Staff scope"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WillComparison": {
+        "type": "object",
+        "nullable": true,
+        "required": [
+          "result",
+          "reason",
+          "comparedAt",
+          "digitalVersion"
+        ],
+        "properties": {
+          "result": {
+            "type": "string",
+            "enum": [
+              "MATCH",
+              "MISMATCH",
+              "INCONCLUSIVE"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "comparedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "digitalVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "OriginalWill": {
+        "type": "object",
+        "required": [
+          "id",
+          "caseId",
+          "comparison"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/WillComparison"
+          }
+        }
+      },
+      "BasisLegalHistory": {
+        "type": "object",
+        "required": [
+          "id",
+          "result",
+          "reason",
+          "decidedAt",
+          "currentScope"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "LEGAL_APPROVED",
+              "LEGAL_REJECTED",
+              "APPROVE_DOCUMENTS",
+              "REQUEST_DOCUMENT_SUPPLEMENTATION",
+              "APPROVE_ALLOCATIONS",
+              "REQUEST_ALLOCATION_CHANGES",
+              "FRESH",
+              "REVIEW_REQUIRED",
+              "COURT_VALID",
+              "COURT_INVALID",
+              "COURT_INCONCLUSIVE"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currentScope": {
+            "type": "boolean",
+            "description": "Snapshot compatibility only; does not imply current approval or grant any capability."
+          }
+        }
+      },
+      "BasisVersion": {
+        "type": "object",
+        "required": [
+          "version",
+          "legalHistory"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "legalHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BasisLegalHistory"
+            }
+          }
+        }
+      },
+      "BasisDossier": {
+        "type": "object",
+        "required": [
+          "caseId",
+          "versions"
+        ],
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BasisVersion"
+            }
+          }
+        }
+      }
+    }
+  }
+}

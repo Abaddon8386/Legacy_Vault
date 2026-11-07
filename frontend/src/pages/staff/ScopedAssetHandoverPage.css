@@ -70,7 +70,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-notice-banner__body p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-body, #2b302c);
   line-height: 1.5;
   margin: 0;
@@ -121,7 +121,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-body, #2b302c);
 }
@@ -173,7 +173,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-scope-empty p {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   max-width: 480px;
   margin: 0;
@@ -199,7 +199,7 @@
   background-color: #f6f3ed;
   color: var(--lv-brand-forest, #164639);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--lv-border-subtle, #eae5dc);
   white-space: nowrap;
@@ -227,14 +227,14 @@
   gap: 5px;
   padding: 4px 10px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .lv-asset-handover-view .lv-scope-badge--approved {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 .lv-asset-handover-view .lv-scope-badge--unapproved {
@@ -249,20 +249,20 @@
   gap: 5px;
   padding: 4px 10px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .lv-asset-handover-view .lv-status-pill--pending {
-  background-color: var(--lv-status-pending-bg, #f7f9fc);
-  color: var(--lv-status-pending-text, #2b5788);
-  border: 1px solid var(--lv-status-pending-border, #d4e0ee);
+  background-color: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
+  border: 1px solid var(--lv-status-await-border);
 }
 
 .lv-asset-handover-view .lv-status-pill--delivered {
-  background-color: var(--lv-status-success-bg, #f4fbf7);
-  color: var(--lv-status-success-text, #1d724f);
-  border: 1px solid var(--lv-status-success-border, #c9ecdb);
+  background-color: var(--lv-status-done-bg);
+  color: var(--lv-status-done-text);
+  border: 1px solid var(--lv-status-done-border);
 }
 
 /* Action Buttons in Table */
@@ -275,7 +275,7 @@
   color: #ffffff;
   border: none;
   border-radius: var(--lv-radius-sm, 6px);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s ease;
@@ -296,7 +296,7 @@
   background-color: #f7f6f2;
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: var(--lv-radius-md, 10px);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
 }
 
@@ -321,14 +321,14 @@
   border-radius: 50%;
   background-color: var(--lv-brand-forest, #164639);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .lv-asset-handover-view .lv-handover-card__desc {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 4px 0 0;
   line-height: 1.45;
@@ -385,7 +385,7 @@
 }
 
 .lv-asset-handover-view .lv-asset-item-desc {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   line-height: 1.4;
 }
@@ -401,7 +401,7 @@
 }
 
 .lv-asset-handover-view .lv-selected-count-text {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--lv-text-muted, #6b726b);
 }
@@ -527,7 +527,7 @@
 }
 
 .lv-asset-handover-view .lv-review-meta-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--lv-text-muted, #6b726b);
   text-transform: uppercase;
@@ -535,7 +535,7 @@
 }
 
 .lv-asset-handover-view .lv-review-meta-value {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--lv-brand-forest, #164639);
 }
 
@@ -565,7 +565,7 @@
   background-color: #fcfbf9;
   border: 1px solid var(--lv-border-subtle, #eae5dc);
   border-radius: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .lv-asset-handover-view .lv-review-check-icon {
@@ -575,7 +575,7 @@
 }
 
 .lv-asset-handover-view .lv-review-item-desc {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
   margin: 2px 0 0;
 }
@@ -597,7 +597,7 @@
 }
 
 .lv-asset-handover-view .lv-review-warning-box p {
-  font-size: 12.5px;
+  font-size: 14px;
   color: #7a5010;
   margin: 0;
   line-height: 1.45;
@@ -618,7 +618,7 @@
   background-color: transparent;
   border: 1px solid var(--lv-border-medium, #ded9ce);
   border-radius: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--lv-text-body, #2b302c);
   cursor: pointer;
@@ -637,7 +637,7 @@
   background-color: var(--lv-brand-forest, #164639);
   border: none;
   border-radius: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #ffffff;
   cursor: pointer;

@@ -6,8 +6,8 @@ import {
   AlertTriangle,
   FolderOpen,
   RefreshCw,
-  CheckCircle2,
 } from 'lucide-react'
+import FeedbackNotice from '../../components/common/FeedbackNotice.jsx'
 import { assetService } from '../../services/assetService'
 import { assetImageService } from '../../services/assetImageService.js'
 import { assetDocumentService } from '../../services/assetDocumentService.js'
@@ -251,7 +251,7 @@ export function AssetManagementPage({
       closeSelection(); loadAssets(); showToast('editSuccess')
     } catch (error) {
       if (controller.signal.aborted || !aliveRef.current) return
-      if (['REAUTH_FAILED', 'TOO_MANY_ATTEMPTS'].includes(error.code)) throw error
+      if (['REAUTH_FAILED', 'TOO_MANY_ATTEMPTS', 'PASSWORD_SETUP_CANCELLED'].includes(error.code)) throw error
       if (error.status === 401) { closeSelection(); onNavigateToLogin?.(); return }
       if ([403,404].includes(error.status)) { closeSelection(); setAssets([]); setTotalElements(0); setError(error.code) }
       else setEditErrorKey(error.code || 'editError')
@@ -281,21 +281,9 @@ export function AssetManagementPage({
 
   return (
     <div className="lv-asset-page">
-      {readOnly && <p role="status">{lang === 'en' ? 'This vault is read-only. Assets cannot be added or edited in its current state.' : 'Kho hiện chỉ được xem. Không thể thêm hoặc sửa tài sản ở trạng thái này.'}</p>}
       {/* Toast Notification */}
       {toastMessage && (
-        <div
-          className={`lv-toast lv-toast--${toastMessage.type}`}
-          role="status"
-          aria-live="polite"
-        >
-          {toastMessage.type === 'success' ? (
-            <CheckCircle2 size={16} />
-          ) : (
-            <AlertTriangle size={16} />
-          )}
-          <span>{t.assets.alerts[toastMessage.key] || t.assets.alerts.saveError}</span>
-        </div>
+        <FeedbackNotice className="lv-feedback--floating" tone={toastMessage.type}>{t.assets.alerts[toastMessage.key] || t.assets.alerts.saveError}</FeedbackNotice>
       )}
 
       {/* Page Header */}
@@ -317,6 +305,8 @@ export function AssetManagementPage({
           <span className="lv-add-btn__text">{t.assets.addNewBtn}</span>
         </Button>
       </div>
+
+      {readOnly && <div className="lv-asset-quota-notice" role="status"><p>{lang === 'en' ? "This vault is read-only, so assets can't be added or edited." : 'Kho hiện chỉ được xem nên chưa thể thêm hoặc sửa tài sản.'}</p></div>}
 
       {enforceQuota && (quotaFull || quotaError || quotaLoading) && (
         <div className="lv-asset-quota-notice" role="status">

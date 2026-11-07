@@ -9,7 +9,7 @@ export const closeAndArchiveI18n = {
     loadFailed: 'Chưa tải được thông tin phiên. Vui lòng thử lại.', contextRequired: 'Vui lòng chọn hồ sơ và phiên bàn giao.',
     saved: 'Đã ghi nhận. Đang tải lại dữ liệu.', cancelled: 'Đã hủy',
     recipientLabel: 'Người nhận biên bản', selectRecipient: 'Chọn người nhận', receiptScope: 'Tài sản đã giao trong phiên',
-    pageTitle: 'Hoàn tất hồ sơ',
+    pageTitle: 'Đóng và lưu trữ hồ sơ',
     pageSubtitle: 'Tóm tắt biên nhận, thẩm định điều kiện hoàn tất và lưu trữ hồ sơ di sản.',
 
     // Server status section
@@ -91,9 +91,9 @@ export const closeAndArchiveI18n = {
     step1Btn: 'Đóng phiên bàn giao',
     step1BtnDone: 'Phiên đã đóng',
     receiptBtnText: 'Lập biên bản xác nhận',
-    step2Title: 'Bước 2: Lưu trữ kho di sản & Đóng ca',
+    step2Title: 'Bước 2: Lưu trữ kho di sản và đóng hồ sơ',
     step2Desc: 'Kết thúc xử lý sau khi đủ ký nhận và biên nhận Staff; giữ hồ sơ để tra cứu.',
-    step2Btn: 'Lưu trữ kho di sản & Đóng ca',
+    step2Btn: 'Lưu trữ kho di sản và đóng hồ sơ',
   },
   en: {
     demo: 'Illustrative data', loading: 'Loading…', retry: 'Retry',

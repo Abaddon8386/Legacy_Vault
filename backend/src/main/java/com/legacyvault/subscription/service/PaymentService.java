@@ -70,6 +70,21 @@ public class PaymentService {
         if(verified.isEmpty()) return result("97");
         return applyVerified(verified.get(), "VERIFIED_IPN_ONLY");
     }
+    /**
+     * Browser return of a signed, explicitly failed or cancelled checkout. The VNPay signature makes it trustworthy
+     * enough to close the order, but the browser can never grant a plan: success must come from IPN or QueryDR.
+     */
+    @Transactional
+    public IpnResult recordReturnFailure(long owner, UUID paymentId, MultiValueMap<String,String> query) {
+        payments.find(paymentId).filter(p -> p.owner()==owner)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        var verified = gateway.verified(query);
+        if (verified.isEmpty()) return result("97");
+        var fields = verified.get();
+        if (!paymentId.toString().replace("-", "").equals(fields.get("vnp_TxnRef"))) return result("01");
+        if ("00".equals(fields.get("vnp_ResponseCode")) || !"02".equals(fields.get("vnp_TransactionStatus"))) return result("99");
+        return applyVerified(fields, "VERIFIED_RETURN_FAILURE");
+    }
     /** Server-to-server QueryDR only. Browser return parameters cannot call this completion path. */
     @Transactional
     public IpnResult reconcile(long owner, UUID paymentId, Map<?,?> response) {
@@ -103,8 +118,11 @@ public class PaymentService {
             || (f.containsKey("vnp_CurrCode") && !"VND".equals(f.get("vnp_CurrCode")))) return result("04");
         String code=f.getOrDefault("vnp_ResponseCode",""), state=f.getOrDefault("vnp_TransactionStatus","");
         if(!code.matches("[0-9]{2}") || !state.matches("[0-9]{2}")) return result("99");
-        if(!p.status().equals("PENDING")) return result("02");
         boolean success=code.equals("00") && state.equals("00");
+        // A closed (FAILED) order is reopened only by a verified gateway success (IPN or QueryDR): the customer may have
+        // paid in another tab after cancelling. SUCCEEDED stays final; a failure never changes a closed order.
+        boolean paidAfterClose=success && p.status().equals("FAILED");
+        if(!p.status().equals("PENDING") && !paidAfterClose) return result("02");
         // Intermediate/inconsistent statuses must not turn a processing payment into a terminal failure.
         if(!success && !(state.equals("02") && !code.equals("00"))) return result("99");
         String number=f.getOrDefault("vnp_TransactionNo","");

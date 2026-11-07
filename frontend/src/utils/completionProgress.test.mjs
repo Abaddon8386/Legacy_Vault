@@ -587,10 +587,11 @@ test('PS-55 Error Handling: 409 Closed Case and API Errors are NOT swallowed int
     }
   });
 
-  await t.test('reload progress button is present and triggers re-fetching', async () => {
+  await t.test('loaded progress has no reload button; a failed load can be retried', async () => {
     let callCount = 0;
     const trackingFetcher = () => {
       callCount++;
+      if (callCount === 1) return Promise.reject(Object.assign(new Error('offline'), { status: 500 }));
       return Promise.resolve({
         assetData: { delivered: 2, total: 4 },
         beneficiaryData: { confirmed: 1, total: 2 },
@@ -606,14 +607,15 @@ test('PS-55 Error Handling: 409 Closed Case and API Errors are NOT swallowed int
 
     try {
       assert.equal(callCount, 1, 'Initial fetch should occur once');
-      const reloadBtn = wrapper.host.querySelector('.lv-progress-btn-reload');
-      assert.ok(reloadBtn, 'Reload button must exist');
+      const retryBtn = wrapper.host.querySelector('.lv-progress-btn-reload');
+      assert.ok(retryBtn, 'Retry button must exist after a failed load');
 
       await act(async () => {
-        reloadBtn.click();
+        retryBtn.click();
       });
 
-      assert.equal(callCount, 2, 'Clicking reload must trigger refetch');
+      assert.equal(callCount, 2, 'Clicking retry must trigger refetch');
+      assert.equal(wrapper.host.querySelector('.lv-progress-btn-reload'), null);
     } finally {
       await wrapper.close();
     }
@@ -644,7 +646,6 @@ test('changing an external session discards old counts and fetches the new sessi
     await act(async () => release(json({assets: {completed: 3, total: 3}, beneficiaries: {completed: 2, total: 2}})));
     assert.ok(wrapper.host.textContent.includes('3 / 3'));
     assert.ok(wrapper.host.textContent.includes('Đủ điều kiện hoàn tất hồ sơ'));
-    assert.equal(wrapper.host.querySelector('.lv-progress-btn-reload').disabled, false);
   } finally { await wrapper.close(); globalThis.fetch = originalFetch; }
 });
 

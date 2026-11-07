@@ -98,59 +98,87 @@ async function mount(props = base, Component = Files) {
   await render(props);
   return { host, render, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
-async function open(view, waitForContent = true) {
-  const button = [...view.host.querySelectorAll('button')].find(item => item.textContent === 'Preview file');
-  button.focus(); await act(async () => button.click());
-  // WebCrypto digest finishes outside React's synchronous event queue.
-  for (let i = 0; waitForContent && i < 100 && view.host.querySelector('[role=dialog] [role=status], .lv-legal-evidence-inline [role=status]'); i++)
+// WebCrypto digest finishes outside React's synchronous event queue.
+async function settle(view) {
+  await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+  for (let i = 0; i < 100 && view.host.querySelector('.lv-legal-evidence-inline [role=status]'); i++)
     await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
-  return button;
 }
 
-test('preview uses a temporary Blob URL in a sandboxed dialog; Escape revokes it and restores focus', async () => {
-  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
+test('an image opens by itself with no view or download button', async () => {
+  const png = new Uint8Array([137, 80, 78, 71]);
+  const sha256 = createHash('sha256').update(png).digest('hex');
+  globalThis.fetch = async url => url.endsWith('/content') ? binary('image/png', png) : json([{ ...meta(), fileName: 'scan.png', contentType: 'image/png', sizeBytes: png.length, sha256 }]);
   const view = await mount();
   try {
-    assert.equal(view.host.querySelector('a'), null);
-    const trigger = await open(view); assert.equal(view.host.querySelector('iframe').src, 'blob:test-0');
-    assert.equal(view.host.querySelector('iframe').getAttribute('sandbox'), '');
-    assert.equal(view.host.querySelector('a[download]').getAttribute('href'), 'blob:test-0');
-    await act(async () => window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })));
-    assert.deepEqual(revoked, ['blob:test-0']); assert.equal(view.host.querySelector('[role=dialog]'), null); assert.equal(document.activeElement, trigger);
+    await settle(view);
+    assert.equal(view.host.querySelector('.lv-legal-evidence__preview img').src, 'blob:test-0');
+    assert.equal(view.host.querySelector('a[download]'), null);
+    assert.equal([...view.host.querySelectorAll('button')].some(item => item.textContent === 'Preview file'), false);
   } finally { await view.close(); }
 });
 
-test('changing token or subject closes/revokes the old file and reloads metadata with current credentials', async () => {
+test('a PDF opens by itself in a frame the browser viewer can run in, from a temporary Blob URL, with no download link', async () => {
+  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
+  const view = await mount();
+  try {
+    await settle(view);
+    assert.equal(view.host.querySelector('iframe').src, 'blob:test-0');
+    assert.equal(view.host.querySelector('iframe').hasAttribute('sandbox'), false);
+    assert.equal(view.host.querySelector('a[download]'), null);
+    assert.equal(view.host.querySelector('[role=dialog]'), null);
+    assert.equal(document.activeElement, document.body, 'Opening by itself must not move keyboard focus');
+  } finally { await view.close(); }
+  assert.deepEqual(revoked, ['blob:test-0']);
+});
+
+test('a browser without a PDF viewer gets a download link instead of an empty frame', async () => {
+  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
+  Object.defineProperty(globalThis.navigator, 'pdfViewerEnabled', { configurable: true, value: false });
+  const view = await mount();
+  try {
+    await settle(view);
+    assert.equal(view.host.querySelector('a[download]').getAttribute('href'), 'blob:test-0');
+  } finally { await view.close(); delete globalThis.navigator.pdfViewerEnabled; }
+});
+
+test('changing token or subject revokes the old file and reloads it with current credentials', async () => {
   const calls = [];
   globalThis.fetch = async (url, init) => { calls.push(init.headers.Authorization); return url.endsWith('/content') ? binary() : json([meta()]); };
   const view = await mount();
-  try { await open(view); await view.render({ ...base, accessToken: 'next-token' });
-    assert.deepEqual(revoked, ['blob:test-0']); assert.equal(view.host.querySelector('iframe'), null); assert.equal(calls.at(-1), 'Bearer next-token');
-    await open(view); await view.render({ ...base, subjectId: fileId }); assert.ok(revoked.includes('blob:test-1')); assert.equal(view.host.querySelector('iframe'), null);
+  try { await settle(view); await view.render({ ...base, accessToken: 'next-token' });
+    assert.deepEqual(revoked, ['blob:test-0']); assert.equal(calls.at(-1), 'Bearer next-token');
+    await settle(view); await view.render({ ...base, subjectId: fileId }); assert.ok(revoked.includes('blob:test-1'));
   } finally { await view.close(); }
 });
 
-test('closing a pending preview aborts it; a late response creates no Blob URL', async () => {
+test('leaving while a file loads aborts it; a late response creates no Blob URL', async () => {
   let finish, signal;
   globalThis.fetch = async (url, init) => url.endsWith('/content') ? new Promise(resolve => { finish = resolve; signal = init.signal; }) : json([meta()]);
   const view = await mount();
-  try { const trigger = await open(view, false); await act(async () => view.host.querySelector('[aria-label=Close]').click()); assert.equal(signal.aborted, true);
-    assert.equal(document.activeElement, trigger);
-    await act(async () => finish(binary())); assert.deepEqual(created, []); assert.equal(view.host.querySelector('[role=dialog]'), null);
-  } finally { await view.close(); }
+  await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+  await view.close(); assert.equal(signal.aborted, true);
+  await act(async () => finish(binary())); assert.deepEqual(created, []);
 });
 
-test('preview restores its explicit trigger when opening did not leave focus on the button', async () => {
-  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
+test('an older version waits for a click; other files of a document stay available', async () => {
+  const calls = [];
+  globalThis.fetch = async url => { calls.push(url); return binary(); };
+  const old = await mount({ kind: 'basis', caseId, versionNo: 2, file: meta(), ...options, lang: 'en', autoOpen: false });
+  try { assert.deepEqual(calls, []); assert.equal(old.host.querySelector('iframe'), null);
+    await act(async () => [...old.host.querySelectorAll('button')].find(item => item.textContent === 'Preview file').click());
+    await settle(old); assert.ok(old.host.querySelector('iframe'));
+  } finally { await old.close(); }
+  const second = { ...meta(), id: fileId.replace(/.$/, 'a'), fileName: 'second.pdf' };
+  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta(), second]);
   const view = await mount();
-  try {
-    const trigger = [...view.host.querySelectorAll('button')].find(item => item.textContent === 'Preview file');
-    assert.equal(document.activeElement, document.body);
-    await act(async () => trigger.click());
-    assert.equal(trigger.disabled, true);
-    await act(async () => window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })));
-    assert.equal(trigger.disabled, false);
-    assert.equal(document.activeElement, trigger);
+  try { await settle(view);
+    const before = created.length;
+    const buttons = [...view.host.querySelectorAll('button')].filter(item => item.textContent === 'Preview file');
+    assert.equal(buttons.length, 1, 'Only the file that is not shown needs a button');
+    await act(async () => buttons[0].click()); await settle(view);
+    assert.ok(revoked.includes(created[before - 1]), 'Switching releases the previous file');
+    assert.match(view.host.querySelector('.lv-legal-evidence-inline h4').textContent, /second\.pdf/);
   } finally { await view.close(); }
 });
 
@@ -159,7 +187,7 @@ test('401/403 notify authorization handlers, 404 remains an error, and malformed
     const received = [];
     globalThis.fetch = async url => url.endsWith('/content') ? json({ code: 'DENIED' }, status) : json([meta()]);
     const view = await mount({ ...base, onUnauthorized: () => received.push(401), onDenied: () => received.push(403) });
-    try { await open(view); assert.ok(view.host.querySelector('[role=alert]')); assert.deepEqual(created, []);
+    try { await settle(view); assert.ok(view.host.querySelector('[role=alert]')); assert.deepEqual(created, []);
       assert.deepEqual(received, status === 404 ? [] : [status]);
     } finally { await view.close(); }
   }
@@ -172,35 +200,14 @@ test('basis preview uses version content directly without a fabricated attachmen
   const calls = [];
   globalThis.fetch = async url => { calls.push(url); return binary(); };
   const view = await mount({ kind: 'basis', caseId, versionNo: 3, file: meta(), ...options, lang: 'en' });
-  try { assert.deepEqual(calls, []); await open(view);
+  try { await settle(view);
     assert.equal(calls.length, 1); assert.ok(calls[0].endsWith('/basis-dossier/versions/3/content'));
-    assert.equal(view.host.querySelector('a[download]').getAttribute('download'), 'Legal document, copy 3.pdf');
+    assert.equal(view.host.querySelector('iframe').title, 'Legal document, copy 3.pdf');
   } finally { await view.close(); }
   assert.deepEqual(revoked, ['blob:test-0']);
 });
 
 const Workflow = await component('src/pages/legal/LegalLiveWorkflow.jsx');
-test('desktop preview stays beside the workflow, switches to a mobile dialog and restores keyboard focus', async () => {
-  const previous = window.matchMedia;
-  let wide = true;
-  const listeners = new Set();
-  window.matchMedia = () => ({ matches: wide, addEventListener: (_name, callback) => listeners.add(callback), removeEventListener: (_name, callback) => listeners.delete(callback) });
-  globalThis.fetch = async url => url.endsWith('/content') ? binary() : json([meta()]);
-  const view = await mount({ ...base, inlineOnDesktop: true });
-  try {
-    const trigger = await open(view);
-    assert.equal(view.host.querySelector('[role=dialog]'), null);
-    assert.ok(view.host.querySelector('.lv-legal-evidence-inline iframe'));
-    assert.equal(document.activeElement, view.host.querySelector('.lv-legal-evidence-inline h4'));
-    await act(async () => { wide = false; for (const callback of listeners) callback(); });
-    assert.ok(view.host.querySelector('[role=dialog] iframe'));
-    assert.equal(created.length, 1, 'Resizing must reuse the authenticated file instead of fetching it again');
-    await act(async () => { wide = true; for (const callback of listeners) callback(); });
-    assert.equal(view.host.querySelector('[role=dialog]'), null);
-    await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent === 'Close preview').click());
-    assert.deepEqual(revoked, ['blob:test-0']); assert.equal(document.activeElement, trigger);
-  } finally { await view.close(); window.matchMedia = previous; }
-});
 for (const [kind, step] of [['death', 'death-verification'], ['original-will', 'will-document-verification'], ['basis', 'dossier-review'], ['basis', 'approval-review'], ['basis', 'controlled-unlock']]) {
   test(`real Legal ${step} reads its files from PS-103; internal evidence references stay hidden`, async () => {
     const reference = 'https://not-a-file.example/evidence-reference';
@@ -239,8 +246,7 @@ for (const [kind, step] of [['death', 'death-verification'], ['original-will', '
       }
       assert.doesNotMatch(view.host.textContent, /https:\/\/not-a-file.example\/evidence-reference/);
       assert.equal([...view.host.querySelectorAll('a')].some(link => link.getAttribute('href') === reference), false);
-      assert.equal(calls.some(url => url.endsWith('/content')), false, 'Reading metadata must not prefetch audited content');
-      await open(view); assert.ok(view.host.querySelector('iframe'));
+      await settle(view); assert.ok(view.host.querySelector('iframe'));
       assert.equal(calls.filter(url => url.endsWith('/content')).length, 1);
       assert.equal(calls.includes(reference), false);
     } finally { await view.close(); }

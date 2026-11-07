@@ -1,50 +1,52 @@
 /* Resource counts and operational status, grouped without nested decoration. */
 .lv-vault-page .lv-overview-summary{width:100%;min-width:0;box-sizing:border-box}
-.lv-vault-page .lv-summary-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
-.lv-summary-header__title{font-family:var(--lv-font-serif,'Playfair Display',Georgia,serif);font-size:23px;font-weight:600;color:#164639;line-height:1.3;margin:0}
-.lv-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.lv-summary-card{display:flex;flex-direction:column;gap:14px;padding:22px 24px;background:white;border:1px solid #dedfd6;border-radius:12px;min-width:0}
+.lv-vault-page .lv-summary-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.lv-summary-grid{display:flex;flex-wrap:wrap;gap:16px}
+.lv-summary-card{flex:1 1 220px;display:flex;flex-direction:column;gap:12px;padding:20px 22px;background:white;border:1px solid #d3d5c9;border-radius:12px;box-shadow:0 8px 22px rgb(22 70 57 / 7%);min-width:0}
 .lv-summary-card__header{display:flex;align-items:center;gap:9px}
-.lv-summary-card__icon{display:flex;align-items:center;color:#637c63;flex-shrink:0}
-.lv-summary-card__label{font-size:13px;color:#637068;line-height:1.5}
+.lv-summary-card__icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;flex-shrink:0}
+.lv-summary-card__icon--forest{color:#215443;background:#e6efe9}
+.lv-summary-card__icon--gold{color:#7d6228;background:#f5eddc}
+.lv-summary-card__label{font-size:14px;font-weight:600;color:#364d3e;line-height:1.5}
 .lv-summary-card__body{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1}
 .lv-summary-stat-row{display:flex;align-items:baseline;gap:9px}
-.lv-summary-stat-val{font-size:30px;line-height:1.2;font-weight:600;letter-spacing:-.5px;color:#164639}
-.lv-summary-stat-unit{font-size:13px;color:#637068}
+.lv-summary-stat-val{font-size:36px;line-height:1.2;font-weight:600;letter-spacing:-.5px;color:#164639}
+.lv-summary-stat-unit{font-size:14px;color:#637068}
 .lv-tabular-num{font-variant-numeric:tabular-nums}
-.lv-summary-loading,.lv-summary-unavailable{font-size:13px;color:#637068;line-height:1.6}
-.lv-summary-card__desc{margin:0;font-size:12px;color:#637068;line-height:1.65}
-.lv-summary-pill{display:inline-flex;align-items:flex-start;gap:6px;padding:5px 8px;border-radius:5px;font-size:12px;line-height:1.6;width:fit-content;max-width:100%;box-sizing:border-box}
+.lv-summary-loading,.lv-summary-unavailable{font-size:14px;color:#637068;line-height:1.6}
+.lv-summary-card__desc{margin:0;font-size:14px;color:#637068;line-height:1.65}
+.lv-summary-pill{display:inline-flex;align-items:flex-start;gap:6px;padding:5px 8px;border-radius:5px;font-size:14px;line-height:1.6;width:fit-content;max-width:100%;box-sizing:border-box}
 .lv-summary-pill svg{flex-shrink:0;margin-top:3px}
 .lv-summary-pill--success{color:#315c3d;background:#edf4ed}
 .lv-summary-pill--warning,.lv-summary-pill--urgent{color:#875b20;background:#faf2e3}
-.lv-summary-pill--danger{color:#a43e30;background:#fcf0eb}
 .lv-summary-pill--neutral{color:#637068;background:#f0f2ed}
 .lv-summary-date-line{display:flex;flex-wrap:wrap;gap:4px 8px}
 .lv-summary-date-val{font-weight:500;color:#364d3e;font-variant-numeric:tabular-nums}
 .lv-summary-card__footer{margin-top:auto;display:flex;align-items:center;min-width:0}
 .lv-summary-card__footer:empty{display:none}
-.lv-summary-link-btn,.lv-summary-cta-btn{display:inline-flex;align-items:center;justify-content:flex-start;gap:7px;min-height:44px;max-width:100%;padding:0;background:none;border:0;color:#315c3d;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;line-height:1.6}
+.lv-summary-link-btn,.lv-summary-cta-btn{display:inline-flex;align-items:center;justify-content:flex-start;gap:7px;min-height:44px;max-width:100%;padding:0;background:none;border:0;color:#315c3d;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;line-height:1.6}
 .lv-summary-link-btn:hover,.lv-summary-cta-btn:hover{color:#164639;text-decoration:underline;text-underline-offset:4px}
 .lv-summary-link-btn:focus-visible,.lv-summary-cta-btn:focus-visible{outline:2px solid #315d43;outline-offset:3px;border-radius:3px}
-.lv-summary-sub-widget{margin-top:20px;padding:20px 0 0;border-top:1px solid #dedfd6;display:flex;align-items:center;justify-content:space-between;gap:24px;min-width:0}
+.lv-summary-sub-widget{margin-top:16px;padding:14px 22px;background:white;border:1px solid #d3d5c9;border-radius:12px;box-shadow:0 8px 22px rgb(22 70 57 / 7%);display:flex;align-items:center;justify-content:space-between;gap:24px;min-width:0}
 .lv-summary-sub-left{flex:1;min-width:0;display:flex;align-items:center;gap:28px}
-.lv-summary-sub-left>p{font-size:13px;line-height:1.6;color:#637068;margin:0}
+.lv-summary-sub-left>p{font-size:14px;line-height:1.6;color:#637068;margin:0}
 .lv-summary-sub-badge-row{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:75px}
-.lv-summary-sub-plan-badge{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#315c3d}
-.lv-summary-sub-trial-badge{font-size:11px;color:#79683e}
+.lv-summary-sub-plan-badge{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:#315c3d}
+.lv-summary-sub-trial-badge{font-size:14px;color:#79683e}
 .lv-summary-sub-meters{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-width:0}
 .lv-sub-meter-item{min-width:0;display:flex;flex-direction:column;gap:8px}
-.lv-sub-meter-header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;font-size:12px;line-height:1.5}
+.lv-sub-meter-header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 10px;font-size:14px;line-height:1.5}
 .lv-sub-meter-label{color:#637068}
 .lv-sub-meter-val{color:#315c3d;font-weight:500;font-variant-numeric:tabular-nums}
 .lv-sub-meter-track{height:4px;background:#e4e8dd;border-radius:3px;overflow:hidden}
 .lv-sub-meter-bar{height:100%;background:#5d7c60;border-radius:3px}
 .lv-summary-sub-right{display:flex;flex-shrink:0}
 @media(max-width:800px){.lv-summary-sub-left{align-items:flex-start;flex-direction:column;gap:14px}.lv-summary-sub-meters{width:100%}.lv-summary-sub-widget{align-items:flex-start}.lv-summary-sub-badge-row{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px}}
-@media(max-width:540px){.lv-summary-grid{grid-template-columns:1fr;gap:14px}.lv-summary-card{padding:20px 18px;gap:12px}.lv-summary-header__title{font-size:21px}.lv-summary-sub-widget{flex-direction:column;gap:8px}.lv-summary-sub-left{width:100%}.lv-summary-sub-meters{grid-template-columns:1fr;gap:14px}.lv-vault-page .lv-summary-header{flex-wrap:wrap;gap:8px}}
-.lv-summary-attention { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px 22px; margin-bottom:18px; border:1px solid #e8c4ad; border-radius:12px; background:#fcf2eb; color:#88472e; }
-.lv-summary-attention p { margin:5px 0 0; font-size:13px; line-height:1.6; }
+@media(max-width:540px){.lv-summary-grid{gap:14px}.lv-summary-card{padding:20px 18px;gap:12px}.lv-summary-sub-widget{flex-direction:column;gap:8px}.lv-summary-sub-left{width:100%}.lv-summary-sub-meters{grid-template-columns:1fr;gap:14px}.lv-vault-page .lv-summary-header{flex-wrap:wrap;gap:8px}}
+.lv-summary-attention { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px 20px; margin-bottom:12px; border:1px solid #e8d4a8; border-radius:12px; background:#faf2e3; color:#6f4a18; }
+.lv-summary-attention p { margin:5px 0 0; font-size:14px; line-height:1.6; }
 .lv-summary-attention .lv-summary-cta-btn { flex-shrink:0; }
 @media(max-width:600px) { .lv-summary-attention { align-items:flex-start; flex-direction:column; gap:8px; } }
-@media(min-width:1500px) { .lv-summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.lv-summary-cta-btn--action,.lv-summary-cta-btn--action:hover{padding:0 16px;border-radius:8px;background:#164639;color:#fff;text-decoration:none}
+.lv-summary-cta-btn--action:hover{background:#0f3329}
+@media(min-width:801px) and (max-height:719px){.lv-summary-card{gap:8px;padding:14px 20px}.lv-summary-card__icon{width:30px;height:30px}.lv-summary-stat-val{font-size:30px}.lv-summary-sub-widget{margin-top:12px;padding:10px 22px}}

@@ -5,6 +5,8 @@ import com.legacyvault.auth.dto.LoginRequest;
 import com.legacyvault.auth.dto.LoginResponse;
 import com.legacyvault.auth.dto.GoogleLoginRequest;
 import com.legacyvault.auth.dto.GoogleIdentityLinkResponse;
+import com.legacyvault.auth.dto.PasswordSetupRequest;
+import com.legacyvault.auth.dto.PasswordSetupResponse;
 import com.legacyvault.auth.dto.RegisterRequest;
 import com.legacyvault.auth.dto.RegisterResponse;
 import com.legacyvault.auth.dto.ProfileResponse;
@@ -37,15 +39,22 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
 
-        LoginResponse response = authService.login(request);
+        LoginResponse response = authService.login(request, servletRequest.getRemoteAddr());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/google")
     public ResponseEntity<LoginResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        return ResponseEntity.ok(googleAuthService.login(request));
+        try {
+            return ResponseEntity.ok(googleAuthService.login(request));
+        } catch (GoogleSignupRaceException race) {
+            // The parallel request that won created the account and this transaction rolled back (token not used).
+            // One retry signs the same Google user in, or returns the real GOOGLE_EMAIL_ALREADY_REGISTERED.
+            return ResponseEntity.ok(googleAuthService.login(request));
+        }
     }
 
     @PostMapping("/google/link")
@@ -55,6 +64,14 @@ public class AuthController {
             @AuthenticationPrincipal CustomUserPrincipal principal) {
         return ResponseEntity.ok(googleAuthService.linkIdentity(
                 request, CustomUserPrincipal.requireUserId(principal)));
+    }
+
+    @PostMapping("/password/setup")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PasswordSetupResponse> setupPassword(
+            @Valid @RequestBody PasswordSetupRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        return ResponseEntity.ok(googleAuthService.setupPassword(CustomUserPrincipal.requireUserId(principal), request));
     }
 
     @GetMapping("/me")

@@ -37,6 +37,48 @@ test('document transport separates multipart from password download and rejects 
  await assert.rejects(assetDocumentService.list(id,id,{fetchFn:async()=>json([{}])}),{code:'INVALID_RESPONSE'});
  await assert.rejects(assetDocumentService.download(id,id,doc,'pwd',{fetchFn:async()=>json({code:'ACCESS_DENIED'},403)}),{code:'ACCESS_DENIED',status:403});
 });
+test('adult beneficiary gets no add-guardian interface but keeps an existing guardian revocable',async()=>{
+ const previous=globalThis.fetch;const guardian={id:other,fullName:'Synthetic Guardian',relationship:'Parent',email:'g@example.test'};
+ const render=async(value,extra)=>{const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+  globalThis.fetch=async()=>json(value);
+  await act(async()=>root.render(React.createElement(Guardian,{vaultId:id,beneficiaryId:id,accessToken:'synthetic',lang:'vi',...extra})));
+  await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  return {host,close:async()=>{await act(async()=>root.unmount());host.remove();}};};
+ const open=async v=>{await act(async()=>button(v.host,'Người giám hộ').click());await act(async()=>{await new Promise(r=>setTimeout(r,0));});};
+ try {
+  const none=await render({...ctx,ageStatus:'ADULT',guardianRecommended:false,warningCode:null},{isAdultHint:true});
+  assert.equal(none.host.textContent,'');await none.close();
+  const kept=await render({...ctx,ageStatus:'ADULT',guardianRecommended:false,warningCode:null,guardian},{isAdultHint:true});
+  await open(kept);assert.match(kept.host.textContent,/Synthetic Guardian/);
+  assert.ok(button(kept.host,'Thu hồi người giám hộ'));assert.equal(button(kept.host,'Thêm / thay thế người giám hộ'),undefined);await kept.close();
+  const minor=await render({...ctx},{isMinorHint:true});
+  await open(minor);assert.ok(button(minor.host,'Thêm / thay thế người giám hộ'));await minor.close();
+ } finally { globalThis.fetch=previous; }
+});
+test('adult beneficiary keeps the guardian panel when the first read fails, so it can be loaded again',async()=>{
+ const previous=globalThis.fetch;const guardian={id:other,fullName:'Synthetic Guardian',relationship:'Parent',email:'g@example.test'};
+ let healthy=false;globalThis.fetch=async()=>healthy?json({...ctx,ageStatus:'ADULT',guardianRecommended:false,warningCode:null,guardian}):json({code:'UNAVAILABLE'},503);
+ const view=await mount(Guardian,{vaultId:id,beneficiaryId:id,accessToken:'synthetic',lang:'vi',isAdultHint:true});
+ try{
+  await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  assert.ok(button(view.host,'Người giám hộ'),'a failed read must not hide a possibly existing guardian');
+  healthy=true;
+  await act(async()=>button(view.host,'Người giám hộ').click());await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  assert.match(view.host.textContent,/Synthetic Guardian/);assert.ok(button(view.host,'Thu hồi người giám hộ'));
+ } finally { globalThis.fetch=previous;await view.close(); }
+});
+test('adult beneficiary with no guardian hides the panel again once a retry confirms it',async()=>{
+ const previous=globalThis.fetch;let healthy=false;
+ globalThis.fetch=async()=>healthy?json({...ctx,ageStatus:'ADULT',guardianRecommended:false,warningCode:null}):json({code:'UNAVAILABLE'},503);
+ const view=await mount(Guardian,{vaultId:id,beneficiaryId:id,accessToken:'synthetic',lang:'vi',isAdultHint:true});
+ try{
+  await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  assert.ok(button(view.host,'Người giám hộ'));
+  healthy=true;
+  await act(async()=>button(view.host,'Người giám hộ').click());await act(async()=>{await new Promise(r=>setTimeout(r,0));});
+  assert.equal(view.host.textContent,'','an adult confirmed to have no guardian must not leave an empty panel');
+ } finally { globalThis.fetch=previous;await view.close(); }
+});
 test('guardian panel loads on demand and aborts pending writes when principal changes',async()=>{
  const old=globalThis.fetch;let release,signal,writes=0;
  globalThis.fetch=async(url,init)=>{if(init.method==='PUT'){writes++;signal=init.signal;return new Promise(resolve=>{release=resolve;});}return json(ctx);};
@@ -93,12 +135,12 @@ test('guardian panel UI states: empty, minor warning, inline field validation + 
  };
  const v=await mount(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyễn Minh Châu',beneficiaryRelationship:'Con gái',isMinorHint:true,accessToken:'token-1',lang:'vi'});
  try{
-  assert.match(v.host.textContent,/Cho người thụ hưởng: Nguyễn Minh Châu \(Con gái\)/);
+  assert.doesNotMatch(v.host.textContent,/Cho người thụ hưởng/);
   assert.match(v.host.textContent,/Dưới 18 tuổi \(Chưa thành niên\)/);
   await act(async()=>button(v.host,'Người giám hộ').click());
   assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
   assert.match(v.host.textContent,/Nên bổ sung người giám hộ cho người thụ hưởng chưa thành niên\./);
-  assert.match(v.host.textContent,/không phải Người thi hành bên ngoài \(Trustee\)/);
+  assert.match(v.host.textContent,/Chỉ lưu thông tin liên hệ, không cấp quyền xem hay nhận tài sản\./);
   await act(async()=>button(v.host,'Thêm / thay thế người giám hộ').click());
   const form=v.host.querySelector('form');
   const inputs=v.host.querySelectorAll('input');
@@ -136,7 +178,7 @@ test('guardian panel UI states: empty, minor warning, inline field validation + 
   assert.match(v.host.textContent,/Đã thu hồi thông tin người giám hộ hiện hành\./);
   assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
   await act(async()=>v.root.render(React.createElement(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyen Minh Chau',isMinorHint:true,accessToken:'token-1',lang:'en'})));
-  assert.match(v.host.textContent,/For beneficiary: Nguyen Minh Chau/);
+  assert.doesNotMatch(v.host.textContent,/For beneficiary/);
   assert.match(v.host.textContent,/Under 18 \(Minor\)/);
  }finally{await v.close();globalThis.fetch=old;}
 });

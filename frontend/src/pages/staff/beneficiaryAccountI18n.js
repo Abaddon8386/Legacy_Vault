@@ -87,7 +87,7 @@ export const COUNTER_HANDOVER_TRANSLATIONS = {
       statusCompleted: 'ĐÃ HOÀN TẤT',
       statusCancelled: 'ĐÃ HỦY',
       statusLockedNotice:
-        'CẢNH BÁO: Kho di sản chưa được xác nhận ĐÃ MỞ KHÓA. Theo quy tắc PS-59, chỉ Legal approval hợp lệ mới mở khóa; DMS timeout hoặc chứng từ tử vong riêng lẻ không đủ mở khóa.',
+        'CẢNH BÁO: Kho di sản chưa được xác nhận ĐÃ MỞ KHÓA. Theo quy tắc PS-59, chỉ phê duyệt hợp lệ của Ban Pháp lý mới mở khóa; DMS timeout hoặc chứng từ tử vong riêng lẻ không đủ mở khóa.',
       openSessionBtn: 'Mở phiên bàn giao mới',
       activeNotice: 'Phiên đang hoạt động. Nhân viên có thể tiến hành liên kết tài khoản và bàn giao tài sản.',
     },

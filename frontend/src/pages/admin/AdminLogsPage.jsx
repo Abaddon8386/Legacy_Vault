@@ -277,7 +277,7 @@ export default function AdminLogsPage({
                   </td>
                   <td>
                     {log.entityType ? (
-                      <span style={{ fontSize: 12 }}>
+                      <span style={{ fontSize: 14 }}>
                         <strong>{log.entityType}</strong>
                         {log.vaultId && <div className="lv-admin-code">{t.logVaultId} {log.vaultId}</div>}
                       </span>
@@ -286,7 +286,7 @@ export default function AdminLogsPage({
                     )}
                   </td>
                   {logs.some((l) => l.ipAddress) && (
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{log.ipAddress || '—'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 14 }}>{log.ipAddress || '—'}</td>
                   )}
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button
@@ -354,7 +354,7 @@ function CopyButton({ text, lang }) {
       style={{
         marginLeft: '8px',
         padding: '2px 8px',
-        fontSize: '11px',
+        fontSize: '14px',
         borderRadius: '4px',
         border: '1px solid #dce4dc',
         background: '#fff',
@@ -371,7 +371,7 @@ function CopyButton({ text, lang }) {
 function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDenied }) {
   const t = adminI18n[lang] || adminI18n.vi;
   const onFailure = (error) => { if (error.status === 403) onDenied(); };
-  const { data, loading, error, apiPending } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
+  const { data, loading, error, apiPending, reload } = useAdminQuery(loadDetail, accessToken, { id: event.id, lang }, true, onUnauthorized, t.accessDenied, onFailure);
 
   const formatFullTimestamp = (occurredAt) => {
     if (!occurredAt) return t.notAvailable;
@@ -385,7 +385,8 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
   };
 
   return <Modal isOpen onClose={onClose} title={t.logDetailTitle} closeLabel={t.closeModal}>
-    {loading ? <p role="status">{t.loading}</p> : error ? <p role="alert">{error}</p> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data && (
+    {loading ? <p role="status">{t.loading}</p> : error ? <><p role="alert">{error}</p>
+      <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={reload}>{t.retryBtn}</button></> : apiPending ? <p role="status">{t.logsPendingNotice}</p> : data && (
       <div>
         {/* Primary Event Overview: Meaning, Actor, Time */}
         <section aria-label={lang === 'en' ? 'Event overview' : 'Thông tin sự kiện'} style={{ marginBottom: '18px' }}>
@@ -416,7 +417,7 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
 
         {/* Technical Reference Identifiers (Secondary & Copyable) */}
         <details open style={{ padding: '12px 14px', background: '#f8faf7', border: '1px solid #e2e8e2', borderRadius: '8px' }}>
-          <summary style={{ fontWeight: 600, fontSize: '13px', color: '#164639', cursor: 'pointer' }}>
+          <summary style={{ fontWeight: 600, fontSize: '14px', color: '#164639', cursor: 'pointer' }}>
             {lang === 'en' ? 'Technical identifiers & trace' : 'Định danh kỹ thuật & nhật ký vết'}
           </summary>
           <dl className="lv-admin-detail-list" style={{ marginTop: '12px', marginBottom: 0 }}>

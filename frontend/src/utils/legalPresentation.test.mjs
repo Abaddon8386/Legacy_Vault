@@ -25,7 +25,8 @@ test('Closed records and unlocked vaults stay read-only', () => {
 
 test('Semantic status colors distinguish waiting, closed, success and errors', () => {
   assert.equal(legalStatusTone('ON_HOLD'), 'warning');
-  assert.equal(legalStatusTone('CANCELLED'), 'neutral');
+  assert.equal(legalStatusTone('CANCELLED'), 'error');
+  assert.equal(legalStatusTone('CLOSED'), 'neutral');
   assert.equal(legalStatusTone('UNLOCKED'), 'success');
   assert.equal(legalStatusTone('INVALID'), 'error');
   assert.equal(legalStatusTone('FUTURE_STATUS'), 'info');

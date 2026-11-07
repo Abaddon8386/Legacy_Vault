@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import {
   fetchVault,
   createVault,
@@ -16,6 +17,7 @@ export default function VaultOverviewPage({
   lang = 'vi',
   accessToken,
   ownerId,
+  ownerName,
   onUnauthorized,
   showDevToolbar = false,
   onNavigateToLogin,
@@ -101,7 +103,6 @@ export default function VaultOverviewPage({
       overviewEyebrow: 'KHO DI SẢN SỐ',
       createdLabel: 'Khởi tạo:',
       ownerRoleLabel: 'Chủ sở hữu:',
-      ownerRoleVal: 'Chủ sở hữu cá nhân',
       overviewHeading: 'Tổng quan Kho di sản',
       statusHeading: 'Trạng thái vận hành:',
       createAnotherNotice:
@@ -114,7 +115,6 @@ export default function VaultOverviewPage({
       overviewEyebrow: 'HERITAGE VAULT',
       createdLabel: 'Initialized:',
       ownerRoleLabel: 'Ownership:',
-      ownerRoleVal: 'Personal Vault Owner',
       overviewHeading: 'Heritage Sanctuary Overview',
       statusHeading: 'Operational Status:',
       createAnotherNotice:
@@ -131,10 +131,7 @@ export default function VaultOverviewPage({
     <div className="lv-vault-page">
       {/* Notification Toast */}
       {notification && (
-        <div className="lv-toast-alert" role="status" aria-live="polite">
-          <span className="lv-toast-check" aria-hidden="true">✓</span>
-          <span>{notification}</span>
-        </div>
+        <FeedbackNotice className="lv-feedback--floating" tone="success">{notification}</FeedbackNotice>
       )}
 
       {/* Dynamic View States */}
@@ -200,10 +197,10 @@ export default function VaultOverviewPage({
                       : (lang === 'en' ? 'Not recorded' : 'Chưa ghi nhận')}
                   </span>
                 </div>
-                <div className="lv-meta-item">
+                {ownerName && <div className="lv-meta-item">
                   <span className="lv-meta-label">{t.ownerRoleLabel}</span>
-                  <span className="lv-meta-value">{t.ownerRoleVal}</span>
-                </div>
+                  <span className="lv-meta-value">{ownerName}</span>
+                </div>}
 
               </div>
             </div>

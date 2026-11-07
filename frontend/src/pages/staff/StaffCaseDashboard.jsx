@@ -10,13 +10,9 @@ import {
   ShieldAlert,
   ChevronLeft,
   ChevronRight,
-  Eye,
-  Clock,
-  User,
   AlertCircle,
   Sparkles,
   ShieldCheck,
-  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '../../components/common/Button.jsx';
 import {
@@ -57,7 +53,7 @@ export default function StaffCaseDashboard({
 }) {
   const t = getStaffCaseTranslations(lang);
   const simulation = isStaffSimulationPermitted({ accessToken, isDevPreview });
-  const dateLabel = simulation ? t.table.colGraceEnd : (lang === 'en' ? 'Case triggered at' : 'Thời điểm tạo hồ sơ');
+  const dateLabel = simulation ? t.table.colGraceEnd : (lang === 'en' ? 'Created' : 'Ngày tạo');
   const notifySessionExpiry = useStaffSessionExpiry({ accessToken, isDevPreview, onUnauthorized });
 
   // States
@@ -217,7 +213,8 @@ export default function StaffCaseDashboard({
     if (!isoString) return '—';
     try {
       const date = new Date(isoString);
-      return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'vi-VN', {
+      // en-GB gives "26/10/2026, 08:18"; vi-VN would put the time first.
+      return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'en-GB', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -232,13 +229,13 @@ export default function StaffCaseDashboard({
   const renderStatusBadge = (status) => {
     const label = status === 'OPEN' ? (lang === 'en' ? 'Open' : 'Đang mở') : status === 'CLOSED' ? (lang === 'en' ? 'Closed' : 'Đã đóng') : status === 'CANCELLED' ? (lang === 'en' ? 'Cancelled' : 'Đã hủy') : t.statusLabels[status] || status;
     let badgeClass = 'lv-staff-status-badge--awaiting';
-    if (status === 'IN_PROGRESS') badgeClass = 'lv-staff-status-badge--progress';
+    if (status === 'OPEN' || status === 'IN_PROGRESS') badgeClass = 'lv-staff-status-badge--progress';
     if (status === 'VERIFIED') badgeClass = 'lv-staff-status-badge--verified';
-    if (status === 'CLOSED' || status === 'CANCELLED') badgeClass = 'lv-staff-status-badge--closed';
+    if (status === 'CLOSED') badgeClass = 'lv-staff-status-badge--closed';
+    if (status === 'CANCELLED') badgeClass = 'lv-staff-status-badge--cancelled';
 
     return (
       <span className={`lv-staff-status-badge ${badgeClass}`}>
-        <span className="lv-staff-status-dot" aria-hidden="true" />
         <span>{label}</span>
       </span>
     );
@@ -318,7 +315,7 @@ export default function StaffCaseDashboard({
         <div className="lv-staff-dashboard__header-content">
           <h1 className="lv-staff-dashboard__title">{t.title}</h1>
         </div>
-        {!simulation && <a className="lv-staff-counter-link" href="/staff/handover">{lang === 'en' ? 'Counter handover' : 'Bàn giao tại quầy'}<ArrowUpRight size={18} aria-hidden="true" /></a>}
+        {!simulation && <a className="lv-staff-counter-link" href="/staff/handover">{lang === 'en' ? 'Counter handover' : 'Bàn giao tại quầy'}</a>}
       </div>
 
       {/* DEV Preview Notice Banner */}
@@ -348,7 +345,7 @@ export default function StaffCaseDashboard({
               <option value="ALL">{t.filters.all}</option>
               {simulation ? <><option value="AWAITING_VERIFICATION">{t.filters.awaiting}</option>
               <option value="IN_PROGRESS">{t.filters.inProgress}</option>
-              <option value="VERIFIED">{t.filters.verified}</option></> : <><option value="OPEN">{lang === 'en' ? 'Open' : 'Đang mở'}</option><option value="CANCELLED">{lang === 'en' ? 'Cancelled' : 'Đã hủy'}</option></>}
+              <option value="VERIFIED">{t.filters.verified}</option></> : <><option value="OPEN">{lang === 'en' ? 'Open' : 'Đang mở'}</option><option value="CLOSED">{lang === 'en' ? 'Closed' : 'Đã đóng'}</option><option value="CANCELLED">{lang === 'en' ? 'Cancelled' : 'Đã hủy'}</option></>}
             </select>
           </div>
 
@@ -463,7 +460,7 @@ export default function StaffCaseDashboard({
                   <th scope="col">{t.table.colVaultOwner}</th>
                   <th scope="col">{dateLabel}</th>
                   <th scope="col">{t.table.colStatus}</th>
-                  <th scope="col" className="lv-staff-th-actions">{t.table.colActions}</th>
+                  <th scope="col" className="lv-staff-th-actions"><span className="lv-sr-only">{t.table.colActions}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -483,7 +480,6 @@ export default function StaffCaseDashboard({
                           {c.vaultName}
                         </span>
                         <div className="lv-staff-owner-sub">
-                          <User size={12} aria-hidden="true" />
                           <span>{c.ownerName}</span>
                         </div>
                       </div>
@@ -492,7 +488,6 @@ export default function StaffCaseDashboard({
                     {/* Grace Period Ended */}
                     <td className="lv-staff-td-date">
                       <div className="lv-staff-date-info">
-                        <Clock size={13} className="lv-staff-date-icon" aria-hidden="true" />
                         <span>{formatDate(c.gracePeriodEndedAt)}</span>
                       </div>
                     </td>
@@ -512,7 +507,6 @@ export default function StaffCaseDashboard({
                           onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id, c)}
                           aria-label={`${t.table.viewAction} ${c.caseNumber}`}
                         >
-                          <Eye size={14} aria-hidden="true" />
                           <span>{t.table.viewAction}</span>
                         </Button>
                         {simulation && IntakePage && (<Button
@@ -586,7 +580,6 @@ export default function StaffCaseDashboard({
                   <div className="lv-staff-card__field">
                     <span className="lv-staff-card__label">{t.detailModal.ownerName}</span>
                     <span className="lv-staff-card__val">
-                      <User size={13} aria-hidden="true" />
                       <span>{c.ownerName}</span>
                     </span>
                   </div>
@@ -594,7 +587,6 @@ export default function StaffCaseDashboard({
                   <div className="lv-staff-card__field">
                     <span className="lv-staff-card__label">{dateLabel}</span>
                     <span className="lv-staff-card__val">
-                      <Clock size={13} aria-hidden="true" />
                       <span>{formatDate(c.gracePeriodEndedAt)}</span>
                     </span>
                   </div>
@@ -609,7 +601,6 @@ export default function StaffCaseDashboard({
                       onClick={() => simulation ? setSelectedCase({ item: c, scopeKey }) : openLiveCase(c.id, c)}
                       aria-label={`${t.table.viewAction} ${c.caseNumber}`}
                     >
-                      <Eye size={15} aria-hidden="true" />
                       <span>{t.table.viewAction}</span>
                     </Button>
                     {simulation && IntakePage && (<Button
@@ -678,8 +669,8 @@ export default function StaffCaseDashboard({
             </div>
 
             <div className="lv-staff-pagination-controls">
-              {/* Rows per page selector */}
-              <div className="lv-staff-page-size-selector">
+              {/* Rows per page selector: pointless while every case fits the smallest page */}
+              {totalElements > 5 && <div className="lv-staff-page-size-selector">
                 <label htmlFor="staff-page-size-select">{t.pagination.rowsPerPage}</label>
                 <select
                   id="staff-page-size-select"
@@ -690,10 +681,10 @@ export default function StaffCaseDashboard({
                   <option value={10}>10</option>
                   <option value={20}>20</option>
                 </select>
-              </div>
+              </div>}
 
               {/* Navigation buttons */}
-              <div className="lv-staff-page-nav-btns">
+              {totalPages > 1 && <div className="lv-staff-page-nav-btns">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -721,7 +712,7 @@ export default function StaffCaseDashboard({
                   <span>{t.pagination.next}</span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </Button>
-              </div>
+              </div>}
             </div>
           </div>
         </div>

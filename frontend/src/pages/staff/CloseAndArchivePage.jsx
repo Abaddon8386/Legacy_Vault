@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Archive, CheckCircle2, Clock, AlertTriangle, FileText, Lock, RefreshCw, FileCheck, ArrowLeft } from 'lucide-react';
+import { Archive, CheckCircle2, Clock, AlertTriangle, Lock, RefreshCw, FileCheck } from 'lucide-react';
 import { evaluateCloseArchivePreconditions, isCaseArchived } from '../../utils/closeAndArchiveValidation.js';
 import { fetchHandoverReceipts, fetchCompletionProgress, fetchHandoverSession, fetchHandoverDeliveries, createHandoverReceipt, closeHandoverSession, archiveHandoverCase, isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import { loadStaffCase } from './staffLiveService.js';
@@ -9,7 +9,6 @@ import { workflowFailure } from '../../utils/workflowFeedback.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './CloseAndArchivePage.css';
-import StaffWorkflowGuide from '../../components/staff/StaffWorkflowGuide.jsx';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 
 const isUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -168,28 +167,8 @@ function CloseArchiveContext({
   if (loading) return <section className="lv-staff-context-state" role="status"><h1>{lang === 'en' ? 'Loading case completion…' : 'Đang tải thông tin hoàn tất hồ sơ…'}</h1></section>;
   return (
     <div className="lv-close-archive-view">
-      <StaffWorkflowGuide current="archive" caseId={caseId} sessionId={sessionId} lang={lang} preview={effectiveIsDevPreview && !effectiveAccessToken}
-        caseStatus={caseStatus} vaultStatus={vaultStatus} sessionStatus={sessionStatus} loading={loading} error={loadError}
-        assets={server?.progress?.assets} beneficiaries={server?.progress?.beneficiaries} hasReceipts={hasReceipts} canArchive={canArchive} />
       {/* Context navigation back */}
       <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        {caseId && sessionId && (
-          <a
-            href={`/staff/handover?caseId=${encodeURIComponent(caseId)}&sessionId=${encodeURIComponent(sessionId)}${effectiveIsDevPreview ? '&preview=true' : ''}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#164639',
-              textDecoration: 'none',
-            }}
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>{lang === 'en' ? 'Back to Handover Session' : 'Quay lại Phiên bàn giao tại quầy'}</span>
-          </a>
-        )}
         {onNavigateCases && (
           <button
             type="button"
@@ -201,13 +180,14 @@ function CloseArchiveContext({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '13px',
+              fontSize: '14px',
+              minHeight: '44px',
               fontWeight: 600,
-              color: '#6b7280',
+              color: '#164639',
               padding: 0,
             }}
           >
-            <span>{lang === 'en' ? 'Staff Cases' : 'Danh sách ca xác minh'}</span>
+            <span>{lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
           </button>
         )}
       </div>
@@ -221,7 +201,7 @@ function CloseArchiveContext({
               <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 600, color: '#92400e' }}>
                 {lang === 'en' ? 'No Handover Session Context' : 'Chưa có thông tin phiên bàn giao'}
               </h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#78350f' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#78350f' }}>
                 {lang === 'en'
                   ? 'Please select a verification case and open a counter handover session from the Staff Dashboard to proceed.'
                   : 'Vui lòng chọn hồ sơ xác minh và mở phiên bàn giao tại quầy từ Bàn làm việc Nhân viên để thực hiện đóng và lưu trữ kho di sản.'}
@@ -231,9 +211,9 @@ function CloseArchiveContext({
                   type="button"
                   className="lv-btn lv-btn-primary"
                   onClick={onNavigateCases}
-                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '13px' }}
+                  style={{ marginTop: '12px', padding: '6px 14px', fontSize: '14px' }}
                 >
-                  {lang === 'en' ? 'Go to Verification Cases' : 'Về danh sách ca xác minh'}
+                  {lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}
                 </button>
               )}
             </div>
@@ -410,7 +390,7 @@ function CloseArchiveContext({
                 gap: '6px',
                 padding: '8px 16px',
                 borderRadius: '8px',
-                fontSize: '13px',
+                fontSize: '14px',
                 fontWeight: 600,
                 backgroundColor: canCreateReceipt ? '#164639' : '#e2e8f0',
                 color: canCreateReceipt ? '#ffffff' : '#94a3b8',
@@ -435,7 +415,6 @@ function CloseArchiveContext({
 
         {!hasReceipts ? (
           <div className="lv-ca-empty-box" role="status">
-            <FileText size={32} aria-hidden="true" style={{ margin: '0 auto 12px', opacity: 0.4 }} />
             <h3>{t.receiptEmptyTitle}</h3>
           </div>
         ) : (
@@ -495,7 +474,7 @@ function CloseArchiveContext({
                 <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
                   {lang === 'en' ? 'Step 1: Close Handover Session' : 'Bước 1: Đóng phiên bàn giao'}
                 </strong>
-                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b' }}>
                   {sessionStatus === 'COMPLETED'
                     ? (lang === 'en' ? 'Session successfully closed with audit proof.' : 'Phiên đã được đóng thành công với bằng chứng kiểm toán.')
                     : t.step1DescPending}
@@ -504,7 +483,7 @@ function CloseArchiveContext({
 
               <WorkflowActionHint id="close-action-blocked" reason={closeBlock} />
               {sessionStatus === 'COMPLETED' ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 600, color: '#059669', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: 600, color: '#059669', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px' }}>
                   <CheckCircle2 size={14} aria-hidden="true" />
                   <span>{lang === 'en' ? 'Session Completed' : 'Phiên đã đóng'}</span>
                 </span>
@@ -521,7 +500,7 @@ function CloseArchiveContext({
                     gap: '8px',
                     padding: '10px 18px',
                     borderRadius: '8px',
-                    fontSize: '13.5px',
+                    fontSize: '14px',
                     fontWeight: 600,
                     backgroundColor: canCloseSession ? '#2563eb' : '#e2e8f0',
                     color: canCloseSession ? '#ffffff' : '#94a3b8',
@@ -550,7 +529,7 @@ function CloseArchiveContext({
                 <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
                   {lang === 'en' ? 'Complete case' : 'Hoàn tất hồ sơ'}
                 </strong>
-                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b' }}>
                   {t.step2Desc}
                 </p>
               </div>
@@ -568,7 +547,7 @@ function CloseArchiveContext({
                   gap: '8px',
                   padding: '10px 18px',
                   borderRadius: '8px',
-                  fontSize: '13.5px',
+                  fontSize: '14px',
                   fontWeight: 600,
                   backgroundColor: canArchive ? '#164639' : '#e2e8f0',
                   color: canArchive ? '#ffffff' : '#94a3b8',

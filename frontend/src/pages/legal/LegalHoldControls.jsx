@@ -1,3 +1,4 @@
+import ChoiceButtons from '../../components/common/ChoiceButtons.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { classifyLegalDossier, holdLegalDossier, loadLegalContext } from './legalLiveService.js';
 import { legalReadOnly } from './legalPresentation.js';
@@ -9,21 +10,29 @@ function scope(context) {
     dossier?.versions.map(item => [item.version, item.sha256, item.forwardStatus]), context.snapshot]);
 }
 
-export default function LegalHoldControls({ context, session, lang = 'vi', disabled, claimOperation, releaseOperation,
-  onComplete, onUnauthorized, onDenied }) {
+export default function LegalHoldControls({ toolbar, context, session, lang = 'vi', disabled, claimOperation, releaseOperation,
+  onComplete, onUnauthorized, onDenied, draft, onDraftChange, onPendingChange }) {
   const en = lang === 'en', dossier = context.basisDossier;
   const resume = dossier?.route === 'ON_HOLD' && dossier.status === 'DRAFT' && context.vaultStatus === 'ON_HOLD';
   const hold = ['COURT', 'NOTARIAL'].includes(dossier?.route) && ['AWAITING_LEGAL_BASIS', 'LEGAL_BASIS_VERIFICATION'].includes(context.vaultStatus);
   const eligible = context.caseStatus === 'OPEN' && !legalReadOnly(context) && (resume || hold);
-  const [expanded, setExpanded] = useState(false), [reason, setReason] = useState(''), [choice, setChoice] = useState('');
+  const [localDraft, setLocalDraft] = useState({ expanded: false, reason: '', choice: '' });
+  const mode = resume ? 'resume' : 'hold';
+  const storedDraft = draft || localDraft;
+  const { expanded = false, reason = '', choice = '' } = storedDraft.mode === mode ? storedDraft : {};
+  const updateDraft = onDraftChange || setLocalDraft;
+  const setDraft = update => updateDraft(previous => ({ ...update(previous.mode === mode ? previous : {}), mode }));
+  const setExpanded = value => setDraft(previous => ({ ...previous, expanded: value }));
+  const setReason = value => setDraft(previous => ({ ...previous, reason: value }));
+  const setChoice = value => setDraft(previous => ({ ...previous, choice: value }));
   const [pending, setPending] = useState(false), [error, setError] = useState(null);
   const request = useRef(null), lock = useRef(false);
-  useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => () => { request.current?.abort(); onPendingChange?.(false); }, [onPendingChange]);
   async function submit(event) {
     event.preventDefault();
     if (!eligible || disabled || pending || error || lock.current || !choice || !reason.trim() || reason.trim().length > 1000) return;
     if (!claimOperation()) return;
-    lock.current = true; setPending(true);
+    lock.current = true; setPending(true); onPendingChange?.(true);
     const controller = new AbortController(); request.current = controller;
     const options = { accessToken: session.accessToken, roles: session.user.roles, userId: session.user.id, lang, signal: controller.signal };
     try {
@@ -40,25 +49,22 @@ export default function LegalHoldControls({ context, session, lang = 'vi', disab
       if (failure.status === 401) onUnauthorized?.();
       if (failure.status === 403) onDenied?.(failure);
     } finally {
-      if (!controller.signal.aborted) { lock.current = false; setPending(false); releaseOperation(); }
+      if (!controller.signal.aborted) { lock.current = false; setPending(false); releaseOperation(); onPendingChange?.(false); }
     }
   }
-  if (!eligible) return null;
-  return <section className="lv-legal-step-data lv-surface-card" aria-label={en ? 'Pause or resume case processing' : 'Tạm dừng hoặc tiếp tục xử lý hồ sơ'}>
+  if (!eligible) return toolbar ? <div className="lv-legal-action-row">{toolbar}</div> : null;
+  return <section className="lv-legal-step-data lv-legal-hold-controls" aria-label={en ? 'Pause or resume case processing' : 'Tạm dừng hoặc tiếp tục xử lý hồ sơ'}>
     {resume ? <><h2>{en ? 'Resume case processing' : 'Tiếp tục xử lý hồ sơ'}</h2>
       <p>{en ? 'The case is on hold. Review the reason and the available documents before resuming.' : 'Hồ sơ đang tạm dừng. Kiểm tra lý do và giấy tờ hiện có trước khi tiếp tục xử lý.'}</p>
       {dossier.routeReason && <p>{en ? 'Hold reason: ' : 'Lý do tạm dừng: '}{dossier.routeReason}</p>}</>
-      : <button type="button" disabled={disabled || pending} onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>
-        {en ? 'Place case on hold' : 'Tạm dừng xử lý'}</button>}
+      : <div className="lv-legal-action-row">{toolbar}<button type="button" className="lv-decision--hold" disabled={disabled || pending} onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
+        {en ? 'Place case on hold' : 'Tạm dừng xử lý'}</button></div>}
     {(resume || expanded) && <form className="lv-distribution-form" onSubmit={submit}>
-      <label>{resume ? (en ? 'Resume with these documents' : 'Tiếp tục xử lý theo giấy tờ') : (en ? 'Cause' : 'Nguyên nhân')}
-        <select required value={choice} disabled={disabled || pending || !!error} onChange={event => setChoice(event.target.value)}>
-          <option value="">{en ? 'Select' : 'Chọn'}</option>
-          {resume ? <><option value="NOTARIAL">{en ? 'Notarial documents' : 'Hồ sơ công chứng'}</option><option value="COURT">{en ? 'Court documents' : 'Giấy tờ Tòa án'}</option></>
-            : <><option value="NEW_DISPUTE">{en ? 'New dispute' : 'Tranh chấp mới'}</option><option value="INSUFFICIENT_EVIDENCE">{en ? 'Insufficient evidence' : 'Thiếu chứng cứ'}</option></>}
-        </select>
-      </label>
-      <label>{en ? 'Reason (required)' : 'Lý do (bắt buộc)'}<textarea required maxLength={1000} value={reason}
+      <ChoiceButtons title={resume ? (en ? 'Resume with these documents' : 'Tiếp tục xử lý theo giấy tờ') : (en ? 'Cause' : 'Nguyên nhân')} value={choice}
+        disabled={disabled || pending || !!error} onChange={setChoice} options={resume
+          ? [['NOTARIAL', en ? 'Notarial documents' : 'Hồ sơ công chứng'], ['COURT', en ? 'Court documents' : 'Giấy tờ Tòa án']]
+          : [['NEW_DISPUTE', en ? 'New dispute' : 'Tranh chấp mới'], ['INSUFFICIENT_EVIDENCE', en ? 'Insufficient evidence' : 'Thiếu chứng cứ']]} />
+      <label><span>{en ? 'Reason' : 'Lý do'}<span className="lv-required-mark" aria-hidden="true">*</span></span><textarea required maxLength={1000} value={reason}
         disabled={disabled || pending || !!error} onChange={event => setReason(event.target.value)} /></label>
       <button type="submit" className={resume ? 'lv-decision--positive' : undefined} disabled={disabled || pending || !!error || !choice || !reason.trim()}>
         {resume ? (en ? 'Resume processing' : 'Tiếp tục xử lý') : (en ? 'Confirm hold' : 'Xác nhận tạm dừng')}</button>

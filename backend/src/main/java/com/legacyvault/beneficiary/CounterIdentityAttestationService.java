@@ -62,7 +62,9 @@ public class CounterIdentityAttestationService {
         entities.refresh(beneficiary);
         if (!lockedCase.getVaultId().equals(beneficiary.getVault().getVaultId())) throw notFound();
 
-        String reference = request.evidenceReference().trim();
+        // PS-140: no reference is a valid attestation; the evidence is the assigned Staff actor, UTC time, case and
+        // Beneficiary of this append-only row. Nothing is generated to fill the gap.
+        String reference = request.normalizedEvidenceReference();
         BeneficiaryCounterAttestation saved = attestations.saveAndFlush(
                 new BeneficiaryCounterAttestation(lockedCase, beneficiary, actor.getUserId(), reference,
                         request.normalizedConfirmedEmail()));
@@ -73,7 +75,7 @@ public class CounterIdentityAttestationService {
         audit.record(actor.getUserId(), lockedCase.getVaultId(), "BENEFICIARY_COUNTER_ATTESTED",
                 "BENEFICIARY_COUNTER_ATTESTATION", saved.getId(), "USER",
                 Map.of("caseId", caseId.toString(), "beneficiaryId", beneficiaryId.toString(),
-                        "evidenceReferenceRecorded", true, "confirmedEmailRecorded",
+                        "evidenceReferenceRecorded", reference != null, "confirmedEmailRecorded",
                         saved.getConfirmedEmail() != null));
         return CounterIdentityAttestationDtos.Response.from(saved, actor);
     }

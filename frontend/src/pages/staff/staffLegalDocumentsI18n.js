@@ -1,7 +1,7 @@
 export const staffLegalDocumentsI18n = {
   vi: {
-    pageTitle: 'Hồ sơ căn cứ pháp lý',
-    formSubtitle: 'Nhận giấy tờ Legal yêu cầu, chuyển thẩm định, rồi lập phân bổ sau khi căn cứ được duyệt.',
+    pageTitle: 'Giấy tờ và phân bổ',
+    formSubtitle: 'Nhận giấy tờ Ban Pháp lý yêu cầu, chuyển thẩm định, rồi lập phân bổ sau khi căn cứ được duyệt.',
 
     // Cảnh báo quy tắc nghiệp vụ
     staffNoticeTitle: 'Lưu ý hồ sơ căn cứ pháp lý',
@@ -25,7 +25,7 @@ export const staffLegalDocumentsI18n = {
     routeLabel: 'Nguồn giấy tờ đã nộp:',
     dossierVersionLabel: 'Phiên bản hồ sơ lưu trữ:',
     dossierHashLabel: 'Mã băm SHA-256 lưu trữ:',
-    forwardStatusLabel: 'Trạng thái chuyển pháp chế:',
+    forwardStatusLabel: 'Trạng thái chuyển Ban Pháp lý:',
     forwardedAtLabel: 'Thời điểm chuyển:',
     selectedDossierLabel: 'Hồ sơ chỉ định chuyển:',
     selectedDossierUnloaded: 'Chưa có hồ sơ được chỉ định',
@@ -37,46 +37,46 @@ export const staffLegalDocumentsI18n = {
     routeCourt: 'Tòa án',
     routeOnHold: 'Tạm dừng',
     statusDraft: 'Bản thảo (Chờ tiếp nhận văn bản)',
-    statusProvided: 'Đã tiếp nhận văn bản (Chờ chuyển Pháp chế)',
-    statusForwarded: 'Đã chuyển Pháp chế thẩm định',
+    statusProvided: 'Đã tiếp nhận văn bản (Chờ chuyển Ban Pháp lý)',
+    statusForwarded: 'Đã chuyển Ban Pháp lý thẩm định',
     statusOnHold: 'Đang tạm giữ / Chờ xử lý tranh chấp',
-    forwardStatusNotForwarded: 'Chưa chuyển Pháp chế',
-    forwardStatusForwarded: 'Đã chuyển Pháp chế',
+    forwardStatusNotForwarded: 'Chưa chuyển Ban Pháp lý',
+    forwardStatusForwarded: 'Đã chuyển Ban Pháp lý',
 
     // Cảnh báo trạng thái đặc biệt
     awaitingLegalDossierTitle: 'Chưa có hồ sơ căn cứ pháp lý',
-    awaitingLegalDossierDesc: 'Chuyên viên Pháp lý chưa tạo hồ sơ và phân loại nhánh căn cứ pháp lý cho ca xác minh này. Nhân viên quầy chưa thể tiếp nhận văn bản số hóa.',
+    awaitingLegalDossierDesc: 'Chuyên viên Ban Pháp lý chưa tạo hồ sơ và phân loại nhánh căn cứ pháp lý cho ca xác minh này. Nhân viên quầy chưa thể tiếp nhận văn bản số hóa.',
     dossierOnHoldTitle: 'Hồ sơ đang ở trạng thái TẠM DỪNG (ON_HOLD)',
-    dossierOnHoldDesc: 'Hồ sơ đang được giữ để xác minh bổ sung hoặc phân loại lại. Chưa thể tiếp nhận văn bản mới cho đến khi có quyết định tiếp tục từ Pháp lý.',
+    dossierOnHoldDesc: 'Hồ sơ đang được giữ để xác minh bổ sung hoặc phân loại lại. Chưa thể tiếp nhận văn bản mới cho đến khi có quyết định tiếp tục từ Ban Pháp lý.',
     dossierRejectedTitle: 'Hồ sơ căn cứ bị Ban Pháp lý từ chối (REJECTED)',
     dossierRejectedDesc: 'Ban Pháp lý đã từ chối hồ sơ căn cứ pháp lý hiện tại. Nhân viên vui lòng kiểm tra lý do từ chối, hướng dẫn người nộp chuẩn bị lại hồ sơ hoặc chuyển cơ quan có thẩm quyền.',
-    dossierSupplementationTitle: 'Ban Pháp lý yêu cầu bổ sung hồ sơ (CHANGES_REQUESTED)',
-    dossierSupplementationDesc: 'Ban Pháp lý yêu cầu chỉnh sửa hoặc bổ sung văn bản phân chia/thông tin tài sản. Nhân viên vui lòng tiếp nhận phiên bản văn bản sửa đổi bên dưới và chuyển lại cho Pháp lý thẩm định.',
+    dossierSupplementationTitle: 'Cần tiếp nhận phiên bản giấy tờ mới',
+    dossierSupplementationDesc: 'Mở tab Tiếp nhận văn bản, nhập thông tin và tải giấy tờ mới, sau đó chuyển lại Ban Pháp lý thẩm định. Phiên bản cũ được giữ trong lịch sử.',
     dossierNeutralVersionTitle: 'Yêu cầu phiên bản hồ sơ',
     dossierNeutralVersionDesc: 'Hồ sơ yêu cầu tiếp nhận phiên bản cụ thể theo quy trình nghiệp vụ.',
     dossierAlreadyForwardedNotice: 'Phiên bản mới nhất đã được chuyển cho Ban Pháp lý thẩm định. Không cần chuyển lại.',
 
     // Biểu mẫu thông tin văn bản căn cứ
     formTitle: 'Tiếp nhận văn bản',
-    formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Legal duyệt căn cứ.',
-    legalBasisTypeLabel: 'Loại văn bản căn cứ (Bắt buộc)',
+    formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Ban Pháp lý duyệt căn cứ.',
+    legalBasisTypeLabel: 'Loại văn bản căn cứ',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
     typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',
     typeCourtDecision: 'Quyết định công nhận thỏa thuận của Tòa án',
 
     // Cơ quan ban hành
-    issuerLabel: 'Cơ quan ban hành (Bắt buộc)',
+    issuerLabel: 'Cơ quan ban hành',
     issuerPlaceholder: 'VD: Tòa án nhân dân TP. Hà Nội',
-    issuerHint: 'Ghi đúng tên cơ quan trên văn bản.',
+    issuerHint: 'Ghi đúng tên cơ quan trên văn bản',
 
     // Số hiệu văn bản
-    documentNumberLabel: 'Số hiệu văn bản (Bắt buộc)',
+    documentNumberLabel: 'Số hiệu văn bản',
     documentNumberPlaceholder: 'VD: 118/2026/VB-CC, 45/2026/QĐ-TA...',
-    documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ.',
+    documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ',
 
     // Ngày ban hành
-    issuanceDateLabel: 'Ngày ban hành (Bắt buộc)',
-    issuanceDateHint: 'Ngày ban hành văn bản (không được ở tương lai)',
+    issuanceDateLabel: 'Ngày ban hành',
+    issuanceDateHint: 'Ngày ban hành văn bản, không ở tương lai',
 
     // Thông tin công chứng bổ sung (bắt buộc với NOTARIAL)
     notarySectionTitle: 'Thông tin công chứng xác thực',
@@ -87,20 +87,19 @@ export const staffLegalDocumentsI18n = {
     notarizedAtLabel: 'Ngày công chứng',
 
     // Tham chiếu chứng từ & ghi chú
-    evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy (Tùy chọn)',
+    evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy (không bắt buộc)',
     evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09, Ngăn lưu trữ B-12...',
-    evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng.',
-    notesLabel: 'Ghi chú bổ sung (Tùy chọn)',
+    evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng',
+    notesLabel: 'Ghi chú bổ sung (không bắt buộc)',
     notesPlaceholder: 'Nội dung ghi chú hoặc lưu ý đặc biệt về văn bản...',
 
     // Tệp số hóa chứng cứ
-    fileUploadLabel: 'Tệp số hóa văn bản căn cứ (Bắt buộc)',
-    fileUploadHint: 'Định dạng PDF, JPEG hoặc PNG (tối đa 10 MB)',
+    fileUploadLabel: 'Tệp số hóa văn bản căn cứ',
 
     // Nút hành động
-    btnSubmitVersion: 'Tiếp nhận & Lưu phiên bản',
+    btnSubmitVersion: 'Lưu và chuyển giấy tờ cho Ban Pháp lý',
     submittingVersion: 'Đang tiếp nhận và tải tệp lên...',
-    btnForwardToLegal: 'Chuyển Ban Pháp lý thẩm định',
+    btnForwardToLegal: 'Chuyển Ban Pháp lý',
     forwardingToLegal: 'Đang chuyển cho Ban Pháp lý...',
     btnForwardHelper: 'Chỉ khả dụng khi hồ sơ đã có phiên bản mới nhất chưa chuyển',
 
@@ -159,7 +158,7 @@ export const staffLegalDocumentsI18n = {
   },
 
   en: {
-    pageTitle: 'Legal Basis Documents',
+    pageTitle: 'Documents & allocations',
     formSubtitle: 'Manage legal basis document metadata and prepare dossiers for Legal Department verification.',
 
     // Business regulatory notice
@@ -209,7 +208,7 @@ export const staffLegalDocumentsI18n = {
     dossierOnHoldDesc: 'The dossier is currently on hold for supplementary verification or re-review. Document intake is suspended until resumed by the Legal Department.',
     dossierRejectedTitle: 'Legal Basis Dossier Rejected (REJECTED)',
     dossierRejectedDesc: 'The Legal Department has rejected the current legal basis dossier. Please inspect the rejection reason, guide the applicant to prepare new documentation, or escalate as appropriate.',
-    dossierSupplementationTitle: 'Legal Department Requested Supplementation (CHANGES_REQUESTED)',
+    dossierSupplementationTitle: 'New document version required',
     dossierSupplementationDesc: 'The Legal Department has requested document revisions or supplementary asset details. Please intake the revised version below and forward it back to Legal for evaluation.',
     dossierNeutralVersionTitle: 'Dossier Version Requirement',
     dossierNeutralVersionDesc: 'The dossier requires a specific version per workflow rules.',
@@ -217,25 +216,25 @@ export const staffLegalDocumentsI18n = {
 
     // Document metadata form
     formTitle: 'Receive a document',
-    formDesc: 'Enter the document details, attach a digitized copy and allocate assets to recipients.',
-    legalBasisTypeLabel: 'Document Basis Type (Required)',
+    formDesc: 'Upload documents requested by the Legal Department.',
+    legalBasisTypeLabel: 'Document Basis Type',
     typeNotarialPartition: 'Notarized Estate Partition Agreement',
     typeCourtJudgment: 'Legally Effective Court Judgment',
     typeCourtDecision: 'Court Settlement Decision',
 
     // Issuing authority
-    issuerLabel: 'Issuing Authority (Required)',
+    issuerLabel: 'Issuing Authority',
     issuerPlaceholder: "e.g. People's Court of Hanoi",
-    issuerHint: 'Authorized organization or agency issuing or notarizing the document.',
+    issuerHint: 'Authorized organization or agency issuing or notarizing the document',
 
     // Document number
-    documentNumberLabel: 'Document Number (Required)',
+    documentNumberLabel: 'Document Number',
     documentNumberPlaceholder: 'e.g. 118/2026/VB-CC, 45/2026/QD-TA...',
-    documentNumberHint: 'Official reference number printed on the legal document.',
+    documentNumberHint: 'Official reference number printed on the legal document',
 
     // Issuance date
-    issuanceDateLabel: 'Issuance Date (Required)',
-    issuanceDateHint: 'Date of issuance (cannot be in the future)',
+    issuanceDateLabel: 'Issuance Date',
+    issuanceDateHint: 'Date of issuance, cannot be in the future',
 
     // Notary fields
     notarySectionTitle: 'Notarial Certification Details',
@@ -246,18 +245,17 @@ export const staffLegalDocumentsI18n = {
     notarizedAtLabel: 'Notarization Date',
 
     // References & notes
-    evidenceReferenceLabel: 'Physical Record Reference (Optional)',
+    evidenceReferenceLabel: 'Physical Record Reference (optional)',
     evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09, Storage Locker B-12...',
-    evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents.',
-    notesLabel: 'Additional Notes (Optional)',
+    evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents',
+    notesLabel: 'Additional Notes (optional)',
     notesPlaceholder: 'Enter any additional remarks or observations...',
 
     // File upload
-    fileUploadLabel: 'Digitized Document File (Required)',
-    fileUploadHint: 'PDF, JPEG, or PNG format (up to 10 MB)',
+    fileUploadLabel: 'Digitized Document File',
 
     // Action buttons
-    btnSubmitVersion: 'Intake & Save Version',
+    btnSubmitVersion: 'Save and send documents to Legal Department',
     submittingVersion: 'Intaking and uploading file...',
     btnForwardToLegal: 'Send to Legal Department',
     forwardingToLegal: 'Forwarding to Legal Department...',

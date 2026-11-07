@@ -53,7 +53,7 @@ test('pending request does not grant asset reads, and double submit makes one re
     await act(async () => { v.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); v.host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); });
     assert.equal(writes, 1);
     await act(async () => finish(req));
-    assert.match(v.host.textContent, /Chờ Staff đối chiếu/); assert.equal(reads, 0);
+    assert.match(v.host.textContent, /Chờ nhân viên đối chiếu/); assert.equal(reads, 0);
     assert.doesNotMatch(v.host.textContent, /c@example.test/);
   } finally { await v.close(); }
 });
@@ -163,7 +163,7 @@ test('Grace zero is valid data; UI respects supplied range and preserves minute 
 for (const status of ['TRIGGERED', 'GRACE_PERIOD_EXCEEDED']) test(`Grace is read-only in ${status}`, async () => {
   let writes = 0;
   const v = await mount(Grace, { data: readDms({ ...rawDms, status }), actions: { policy: { min: 0, max: 30 }, save: async () => { writes++; } } });
-  try { assert.equal(v.host.querySelector('input').disabled, true); await submit(v.host); assert.equal(writes, 0); } finally { await v.close(); }
+  try { assert.equal(v.host.querySelector('input'), null); assert.equal(v.host.querySelector('form'), null); assert.match(v.host.textContent, /1 ngày/); assert.equal(writes, 0); } finally { await v.close(); }
 });
 test('Grace network error preserves draft and prevents another mutation until reload', async () => {
   let writes = 0;
@@ -191,6 +191,19 @@ test('live cancel does not expose cancellation during grace or for a non-owner',
   globalThis.fetch = async () => { reads++; throw new Error('must not read'); };
   const v = await mount(CancelAlert, { accessToken: 'owner', isOwner: true, dmsStatus: 'TRIGGERED' });
   try { assert.equal(v.host.textContent, ''); await v.render({ accessToken: 'staff', isOwner: false, dmsStatus: 'GRACE_PERIOD_EXCEEDED' }); assert.equal(reads, 0); } finally { await v.close(); globalThis.fetch = original; }
+});
+test('Grace presets fill the fields, respect the policy limit and only mark the matching one', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => rawDms, clone() { return this; }, text: async () => JSON.stringify(rawDms) });
+  const v = await mount(DmsPage, { ownerId: rawDms.ownerId, accessToken: 'owner', graceActions: { policy: { min: 0, max: 7 }, save: async () => rawDms } });
+  try {
+    const pills = () => [...v.host.querySelectorAll('.lv-grace-settings .lv-dms-preset-pill:not(.is-custom)')];
+    assert.deepEqual(pills().map(p => p.textContent), ['1 ngày', '3 ngày', '7 ngày']);
+    await act(async () => pills()[1].click());
+    assert.equal(v.host.querySelector('#grace-days').value, '3');
+    assert.equal(v.host.querySelector('#grace-hours').value, '0');
+    assert.deepEqual(pills().map(p => p.getAttribute('aria-pressed')), ['false', 'true', 'false']);
+  } finally { await v.close(); globalThis.fetch = original; }
 });
 test('actual DMS page coordinates Grace, interval and check-in writes', async () => {
   const original = globalThis.fetch; let writes = 0, finish;
@@ -304,7 +317,7 @@ test('Task 4: REJECTED request without reason (real BE contract) renders neutral
   });
   try {
     assert.match(vEn.host.textContent, /Your request was declined/);
-    assert.match(vEn.host.textContent, /contact Staff at the counter/);
+    assert.match(vEn.host.textContent, /contact staff at the counter/);
   } finally {
     await vEn.close();
   }
@@ -452,7 +465,7 @@ test('CaseLinkWorkspace polling: slow response (> 4s) is not aborted by poll tim
     await act(async () => {
       resolvers[0]([pendingItem]);
     });
-    assert.match(v.host.textContent, /Chờ Staff đối chiếu/);
+    assert.match(v.host.textContent, /Chờ nhân viên đối chiếu/);
     assert.equal(calls, 1, 'Poll #2 waits for 4000ms timeout after read #1 settles');
 
     // Advance 4000ms -> poll #2 starts
@@ -487,7 +500,7 @@ test('CaseLinkWorkspace polling: slow response (> 4s) is not aborted by poll tim
 
     // Now test account/token change while a poll is in-flight:
     // First manual reload returns PENDING again
-    await click(v.host, 'Tải lại trạng thái');
+    await v.render({ ...base, caseLinkActions: actions, lang: 'vi', refreshKey: 1 }); // the button only shows after an error or uncertain write
     assert.equal(calls, 3);
     await act(async () => {
       resolvers[2]([pendingItem]);
@@ -611,7 +624,7 @@ test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling con
       return reqCCancelled;
     };
 
-    await click(v.host, 'Tải lại trạng thái');
+    await v.render({ ...base, caseLinkActions: actions, lang: 'vi', refreshKey: 1 }); // the button only shows after an error or uncertain write
     assert.equal(listCalls, 3);
     await act(async () => {
       resolvers[2]([reqC, reqD]);
@@ -667,4 +680,37 @@ test('CaseLinkWorkspace polling: 2 PENDING requests -> cancel one -> polling con
     await v.close();
     t.mock.timers.reset();
   }
+});
+
+test('a linked request is hidden once the account can read, and a request without a case number never shows a raw id', async () => {
+  const approved = { id: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa', caseNumber: null, status: 'APPROVED' };
+  const beneficiary = { session: { user: { id: 'b1', roles: ['BENEFICIARY'] }, accessToken: 'fixture' } };
+  let v = await mount(Shared, { ...beneficiary, caseLinkActions: { listOwn: async () => [approved], submit: async () => {} } });
+  try {
+    assert.doesNotMatch(v.host.textContent, /Yêu cầu của tôi|Đã liên kết|aaaaaaaa/);
+    assert.equal([...v.host.querySelectorAll('button')].some(b => /Tải lại|Cập nhật tình hình/.test(b.textContent)), false, 'no refresh buttons in the normal state');
+  } finally { await v.close(); }
+  v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [{ ...req, caseNumber: null }], submit: async () => {} } });
+  try {
+    assert.match(v.host.textContent, /Yêu cầu liên kết/);
+    assert.doesNotMatch(v.host.textContent, /Yêu cầu #|#r1/);
+  } finally { await v.close(); }
+});
+
+test('empty state shows one link card; the requests card appears only for requests that still need attention, without a reload button', async () => {
+  let v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [], submit: async () => {} } });
+  try {
+    assert.doesNotMatch(v.host.textContent, /Yêu cầu của tôi|Chưa có yêu cầu nào/);
+    assert.doesNotMatch(v.host.textContent, /Tài sản đã nhận/);
+    assert.match(v.host.textContent, /Nhân viên xác nhận xong, tài sản được giao sẽ hiện ở đây\./);
+    const reloadBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Tải lại trạng thái'));
+    assert.equal(reloadBtn, undefined, 'Reload button must be hidden when requests list is empty');
+  } finally { await v.close(); }
+
+  v = await mount(Shared, { ...base, caseLinkActions: { listOwn: async () => [req], submit: async () => {} } });
+  try {
+    const reloadBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Tải lại trạng thái'));
+    assert.equal(reloadBtn, undefined, 'Reload button stays hidden while the list loads normally');
+    assert.match(v.host.textContent, /Yêu cầu của tôi/);
+  } finally { await v.close(); }
 });

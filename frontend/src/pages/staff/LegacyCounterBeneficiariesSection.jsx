@@ -15,8 +15,8 @@ function errorText(error, en, caseItem) {
     HANDOVER_SESSION_INVALID_STATE: ['Hồ sơ/kho chưa đủ điều kiện hoặc phiên đã thay đổi. Tải lại trước khi thao tác.', 'Case/vault is not eligible or the session has changed. Reload before continuing.'],
     RESOURCE_NOT_FOUND: ['Không tìm thấy hoặc hồ sơ/phiên không được giao cho bạn. Hãy nhận hồ sơ ở danh sách nếu phù hợp.', 'Case/session not found or not assigned to you. Claim an eligible case in the case queue.'],
     INVALID_RESPONSE: ['Dữ liệu máy chủ không hợp lệ. Chưa xác nhận thao tác thành công.', 'Invalid server response. The action has not been confirmed.'],
-    LEGAL_APPROVAL_REQUIRED: ['Cần phê duyệt Legal còn hiệu lực trước khi mở phiên.', 'A current Legal approval is required before opening a session.'],
-    LEGAL_WORKFLOW_ON_HOLD: ['Hồ sơ pháp lý đang tạm giữ; chưa thể mở phiên bàn giao.', 'The legal workflow is on hold; a handover session cannot be opened.'],
+    LEGAL_APPROVAL_REQUIRED: ['Cần có phê duyệt Ban Pháp lý còn hiệu lực trước khi mở phiên.', 'A current Legal approval is required before opening a session.'],
+    LEGAL_WORKFLOW_ON_HOLD: ['Hồ sơ đang tạm dừng tại Ban Pháp lý; chưa thể mở phiên bàn giao.', 'The legal workflow is on hold; a handover session cannot be opened.'],
   };
   return texts[error?.code]?.[en ? 1 : 0] || (en ? 'Unable to complete the request. Reload to check the latest state before retrying.' : 'Chưa thực hiện được yêu cầu. Tải lại để kiểm tra trạng thái mới nhất trước khi thử lại.');
 }
@@ -240,7 +240,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
           }
         }}>
           <h4>{en ? 'Link existing account: ' : 'Liên kết tài khoản có sẵn: '}{linkTarget.fullName}</h4>
-          <label>{en ? 'Account email' : 'Email tài khoản'}
+          <label><span>{en ? 'Account email' : 'Email tài khoản'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
             <input type="email" required maxLength={254} value={accountEmail} disabled={linking}
               onChange={event => setAccountEmail(event.target.value)} autoComplete="off" />
           </label>
@@ -253,7 +253,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
           <h4>{en ? `Record in-person attestation: ${attestTarget.fullName}` : `Ghi nhận đối chiếu tại quầy: ${attestTarget.fullName}`}</h4>
           <div>
             <label>
-              {en ? 'Counter document reference: ' : 'Số tham chiếu chứng từ tại quầy: '}
+              <span>{en ? 'Counter document reference: ' : 'Số tham chiếu chứng từ tại quầy: '}<span className="lv-required-mark" aria-hidden="true">*</span></span>
               <input
                 type="text"
                 required

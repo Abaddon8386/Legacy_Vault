@@ -49,6 +49,15 @@ class GroupHandoverControllerTest {
     .andExpect(status().isOk());
   verify(service).mutate(any(),any(),any(),any(),eq("APPROVE"),any(),any(),eq(true));
  }
+ /** A missing or malformed Idempotency-Key is a 400 client error on every group POST, never a 500. */
+ @Test void missingOrMalformedIdempotencyKeyIsABadRequestNotAServerError()throws Exception{
+  String body="{\"expectedRevision\":0,\"presentRecipientIds\":[],\"reason\":\"Missing\"}";
+  mvc.perform(post(staff).with(as("STAFF_EXECUTOR")).contentType("application/json").content(body)).andExpect(status().isBadRequest());
+  mvc.perform(post(staff).with(as("STAFF_EXECUTOR")).header("Idempotency-Key","not-a-uuid").contentType("application/json").content(body)).andExpect(status().isBadRequest());
+  mvc.perform(post(legal).with(as("LEGAL_VERIFIER")).contentType("application/json")
+    .content("{\"expectedRevision\":1,\"decision\":\"APPROVE\",\"reason\":\"No key\"}")).andExpect(status().isBadRequest());
+  verifyNoInteractions(service);
+ }
  @Test void outOfScopeCaseReturns404()throws Exception{
   when(service.mutate(any(),any(),any(),any(),any(),any(),any(),anyBoolean()))
     .thenThrow(new com.legacyvault.common.error.BusinessException(com.legacyvault.common.error.ErrorCode.RESOURCE_NOT_FOUND));

@@ -271,6 +271,8 @@ class LegalBasisReviewServiceTest {
         assertThat(historyCaptor.getValue().getReason())
                 .isEqualTo("Bổ sung giấy tờ còn thiếu");
         assertThat(historyCaptor.getValue().getReviewedByUserId()).isEqualTo(REVIEWER_ID);
+        assertThat(historyCaptor.getValue().getVersionNo()).isEqualTo(1);
+        assertThat(historyCaptor.getValue().getSha256Hash()).isEqualTo(HASH);
         verify(f.notifications).record(f.verificationCase,
                 com.legacyvault.notification.WorkflowNotificationService.Workspace.STAFF,
                 "LEGAL_BASIS_REVIEW_REQUIRED", "basis-review:" + historyCaptor.getValue().getPublicId(), "Bổ sung giấy tờ còn thiếu");

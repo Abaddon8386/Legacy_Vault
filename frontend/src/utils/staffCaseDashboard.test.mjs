@@ -174,8 +174,8 @@ test('PS-25 Component: StaffCaseDashboard renders desktop table and mobile cards
     });
 
     // Check title and preview banner
-    assert.match(view.host.textContent, /Hồ sơ cần xác minh/);
-    assert.match(view.host.querySelector('h1').textContent, /Hồ sơ cần xác minh/);
+    assert.match(view.host.textContent, /Hồ sơ xác minh/);
+    assert.match(view.host.querySelector('h1').textContent, /Hồ sơ xác minh/);
     assert.match(view.host.textContent, /DEV Preview/);
 
     // Desktop table rows
@@ -395,7 +395,7 @@ test('PS-25 Shell: StaffShell renders header, role badge, language toggle, and l
   try {
     // Role badge
     assert.match(view.host.textContent, /Staff User/);
-    assert.match(view.host.textContent, /Cổng Nhân viên/);
+    assert.match(view.host.textContent, /Nhân viên/);
     assert.ok(view.host.querySelector('#test-child'));
 
     // Language toggle
@@ -428,8 +428,8 @@ test('PS-25 i18n: Complete bilingual translations for VI and EN', () => {
   assert.equal(vi.portalTitle, 'Cổng Xác Minh Hồ Sơ');
   assert.equal(en.portalTitle, 'Staff Verification Portal');
 
-  assert.equal(vi.title, 'Hồ sơ cần xác minh');
-  assert.equal(en.title, 'Verification Cases Queue');
+  assert.equal(vi.title, 'Hồ sơ xác minh');
+  assert.equal(en.title, 'Verification Cases');
 
   assert.equal(vi.table.colCaseRef, 'Mã hồ sơ');
   assert.equal(en.table.colCaseRef, 'Case Reference');
@@ -491,7 +491,7 @@ test('PS-25: failed requests can retry and late responses cannot overwrite curre
     await act(async () => requests[2].resolve(await fetchStaffCases({ isTest: true })));
     await act(async () => requests[1].resolve({ content: [], totalElements: 0, totalPages: 1, page: 0, size: 5 }));
     assert.equal(view.host.querySelectorAll('.lv-staff-table-row').length, 5);
-    assert.match(view.host.textContent, /Verification Cases Queue/);
+    assert.match(view.host.textContent, /Verification Cases/);
   } finally { await view.close(); }
 });
 
@@ -592,7 +592,7 @@ test('Integrated Staff routes preserve PS-25 dashboard and PS-31 navigation in b
   await setRoute('/staff/cases?preview=true');
   const view = await mount(App, {});
   try {
-    const legalButton = [...view.host.querySelectorAll('button')].find(button => button.textContent.includes('Hồ sơ căn cứ pháp lý'));
+    const legalButton = [...view.host.querySelectorAll('button')].find(button => button.textContent.includes('Giấy tờ và phân bổ'));
     assert.ok(legalButton);
     await act(async () => legalButton.click());
     assert.equal(window.location.pathname, '/staff/legal-documents');
@@ -688,7 +688,7 @@ test('Live dashboard renders OPEN queue and opens scoped live case instead of pr
   await act(async () => { await new Promise(resolve => setTimeout(resolve,20)); });
   assert.match(view.host.textContent,/Synthetic live vault/);
   assert.match(view.host.textContent,/Đang mở/);
-  assert.deepEqual([...view.host.querySelectorAll('.lv-staff-filter-select option')].map(option => option.value),['ALL','OPEN','CANCELLED']);
+  assert.deepEqual([...view.host.querySelectorAll('.lv-staff-filter-select option')].map(option => option.value),['ALL','OPEN','CLOSED','CANCELLED']);
   assert.equal(view.host.textContent.includes('CASE-2026-0001'),false);
   assert.equal(view.host.querySelector('.lv-staff-preview-banner'),null);
   await act(async () => view.host.querySelector('.lv-staff-view-btn').click());

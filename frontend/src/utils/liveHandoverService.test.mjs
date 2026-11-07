@@ -30,8 +30,15 @@ test('Beneficiary counter and invitation contract PS-95/88/106',async()=>{
  assert.equal(calls[2].init.method,'POST');
  assert.deepEqual(JSON.parse(calls[2].init.body),{expectedGeneration:2});
 
- await assert.rejects(recordCounterAttestation(id,bid,{evidenceReference:''},options),{code:'VALIDATION_FAILED'});
- await assert.rejects(recordCounterAttestation('bad',bid,{evidenceReference:'ok'},options),{code:'VALIDATION_FAILED'});
+ const emptyRef = await recordCounterAttestation(id, bid, { evidenceReference: '' }, options);
+ assert.equal(emptyRef.attestationId, id);
+ assert.equal(calls[3].url, `/api/v1/staff/verification-cases/${id}/beneficiaries/${bid}/identity-attestations`);
+ assert.equal(calls[3].init.method, 'POST');
+ assert.deepEqual(JSON.parse(calls[3].init.body), {});
+
+ await assert.rejects(recordCounterAttestation('bad', bid, { evidenceReference: 'ok' }, options), { code: 'VALIDATION_FAILED' });
+ await assert.rejects(recordCounterAttestation(id, 'bad', { evidenceReference: 'ok' }, options), { code: 'VALIDATION_FAILED' });
+ await assert.rejects(recordCounterAttestation(id, bid, {}, { ...options, fetchFn: async () => json({ code: 'FORBIDDEN' }, 403) }), { status: 403 });
 });
 test('Invalid IDs cannot trigger requests; completion cannot be forged through cancel endpoint',async()=>{
 

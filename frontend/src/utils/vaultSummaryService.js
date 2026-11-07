@@ -21,6 +21,14 @@ export async function fetchVaultSummary(vaultId, options = {}) {
   return Object.fromEntries(['assets', 'configuration', 'dms'].map((key, index) => [key,
     results[index].status === 'fulfilled' ? { available: true, value: results[index].value } : { available: false }]));
 }
+/** Whether the date has passed, and whether the owner can still confirm right now (same rule as the DMS page). */
+export function confirmationState(dms, now = Date.now()) {
+  const past = Date.parse(dms.nextCheckAt || '') <= now;
+  const canConfirm = dms.status === 'MONITORING' ? past
+    : dms.status === 'TRIGGERED' && Date.parse(dms.graceDeadline || '') > now;
+  return { past, canConfirm };
+}
+
 export function describeNextCheck(dms, lang = 'vi', now = Date.now()) {
   const en = lang === 'en';
   if (dms.status !== 'MONITORING') return en ? 'Confirmation overdue' : 'Đã quá hạn xác nhận';

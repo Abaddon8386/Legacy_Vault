@@ -7,4 +7,6 @@
 .lv-group-handover .is-primary {background:#164639;color:white;}.lv-group-handover .is-negative {background:#a3372d;color:white;border-color:#a3372d;}
 .lv-group-handover button:disabled {background:#edf0eb;color:#748077;border-color:#d8dfd8;cursor:default;}.lv-group-handover [role=alert] {color:#9b3329;}
 .lv-group-handover__actions {display:flex;gap:12px;flex-wrap:wrap;}.lv-group-handover :focus-visible {outline:3px solid #b69b62;outline-offset:3px;}
+.lv-group-handover .lv-group-handover__state-note {padding:14px 16px;border:1px solid #d5b46e;border-left:4px solid #b17c1d;border-radius:10px;background:#fff7e5;color:#674b1e;}
+.lv-group-handover .lv-group-handover__state-note.is-ready {border:0;}
 @media(max-width:640px){.lv-group-handover{padding:16px;}.lv-group-handover__actions{flex-direction:column;}}

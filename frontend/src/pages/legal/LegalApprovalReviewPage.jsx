@@ -16,6 +16,7 @@ import {
   assessApprovalFreshness,
 } from './legalApprovalService.js';
 import './LegalApprovalReviewPage.css';
+import { isUuid } from '../../api/contracts.js';
 
 /**
  * LegalApprovalReviewPage — Màn hình Phê duyệt Pháp lý Hồ sơ Di sản (PS-49)
@@ -411,7 +412,7 @@ function ApprovalReviewContent({
                   border: '1px solid #cbd5e1',
                   background: '#ffffff',
                   color: '#334155',
-                  fontSize: '13px',
+                  fontSize: '14px',
                   fontWeight: 500,
                   cursor: 'pointer',
                 }}
@@ -420,10 +421,10 @@ function ApprovalReviewContent({
                 <span>{t.scenarioBar.resetBtn}</span>
               </button>
               <div className="lv-legal-approval-state-pills" style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
-                <span className="lv-state-pill lv-state-pill--initial" style={{ fontSize: '11px', background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', color: '#475569' }}>
+                <span className="lv-state-pill lv-state-pill--initial" style={{ fontSize: '14px', background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', color: '#475569' }}>
                   {lang === 'en' ? 'Initial:' : 'Khởi đầu:'} <strong>{dossier?.status || selectedScenario}</strong>
                 </span>
-                <span className="lv-state-pill lv-state-pill--current" style={{ fontSize: '11px', background: successReceipt ? '#ecfdf5' : '#eff6ff', color: successReceipt ? '#065f46' : '#1e40af', padding: '3px 8px', borderRadius: '4px' }}>
+                <span className="lv-state-pill lv-state-pill--current" style={{ fontSize: '14px', background: successReceipt ? '#ecfdf5' : '#eff6ff', color: successReceipt ? '#065f46' : '#1e40af', padding: '3px 8px', borderRadius: '4px' }}>
                   {lang === 'en' ? 'Current:' : 'Hiện tại:'} <strong>{successReceipt ? (successReceipt.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED') : (dossier?.status || 'READY')}</strong>
                 </span>
               </div>
@@ -435,7 +436,7 @@ function ApprovalReviewContent({
             <summary style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', listStyle: 'none' }}>
               <Scale size={18} className="lv-legal-approval-boundary__icon" aria-hidden="true" />
               <span style={{ fontWeight: 600, fontSize: '14px', color: '#164639' }}>{t.boundary.title}</span>
-              <span style={{ fontSize: '12px', color: '#6b726b', marginLeft: 'auto' }}>
+              <span style={{ fontSize: '14px', color: '#6b726b', marginLeft: 'auto' }}>
                 {lang === 'en' ? '(Click to view guidance)' : '(Bấm để mở trợ giúp)'}
               </span>
             </summary>
@@ -505,10 +506,10 @@ function ApprovalReviewContent({
                   </div>
 
                   <div className="lv-legal-approval-receipt__grid">
-                    <div className="lv-legal-approval-meta-item">
+                    {!isUuid(successReceipt.id) && <div className="lv-legal-approval-meta-item">
                       <span className="lv-legal-approval-meta-item__label">{t.receiptCard.receiptId}</span>
                       <span className="lv-legal-approval-meta-item__val">{successReceipt.id}</span>
-                    </div>
+                    </div>}
                     <div className="lv-legal-approval-meta-item">
                       <span className="lv-legal-approval-meta-item__label">{t.receiptCard.decisionLabel}</span>
                       <span className="lv-legal-approval-meta-item__val">
@@ -529,7 +530,7 @@ function ApprovalReviewContent({
 
                   <div className="lv-legal-approval-meta-item">
                     <span className="lv-legal-approval-meta-item__label">{t.confirmModal.reasonLabel}</span>
-                    <p style={{ margin: 0, fontSize: '13.5px', color: '#1f2421' }}>{successReceipt.reason}</p>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#1f2421' }}>{successReceipt.reason}</p>
                   </div>
                 </section>
               )}
@@ -635,14 +636,14 @@ function ApprovalReviewContent({
                               <div>
                                 <span style={{ fontWeight: 600 }}>{alloc.beneficiaryName}</span>
                                 {alloc.relationship && (
-                                  <span style={{ display: 'block', fontSize: '12px', color: '#6b726b' }}>
+                                  <span style={{ display: 'block', fontSize: '14px', color: '#6b726b' }}>
                                     ({alloc.relationship})
                                   </span>
                                 )}
                               </div>
                             </td>
                             <td style={{ fontWeight: 700, color: '#164639' }}>{alloc.share}</td>
-                            <td style={{ fontSize: '12.5px', color: alloc.conditions ? '#1f2421' : '#6b726b' }}>
+                            <td style={{ fontSize: '14px', color: alloc.conditions ? '#1f2421' : '#6b726b' }}>
                               {alloc.conditions || t.scopeSection.noConditions}
                             </td>
                           </tr>
@@ -657,7 +658,7 @@ function ApprovalReviewContent({
                       <h3 style={{ margin: '0 0 4px', fontSize: '14.5px', fontWeight: 700 }}>
                         {t.scopeSection.emptyScopeTitle}
                       </h3>
-                      <p style={{ margin: 0, fontSize: '13px' }}>{t.scopeSection.emptyScopeDesc}</p>
+                      <p style={{ margin: 0, fontSize: '14px' }}>{t.scopeSection.emptyScopeDesc}</p>
                     </div>
                   </div>
                 )}
@@ -697,9 +698,9 @@ function ApprovalReviewContent({
                       <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 700 }}>
                         {t.approvalStatusSection.disputedTitle}
                       </h3>
-                      <p style={{ margin: '0 0 8px', fontSize: '13.5px' }}>{t.approvalStatusSection.disputedDesc}</p>
+                      <p style={{ margin: '0 0 8px', fontSize: '14px' }}>{t.approvalStatusSection.disputedDesc}</p>
                       {freshness.disputeDetails && (
-                        <div style={{ backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', border: '1px solid #fecaca' }}>
+                        <div style={{ backgroundColor: '#ffffff', padding: '10px 14px', borderRadius: '6px', fontSize: '14px', border: '1px solid #fecaca' }}>
                           <strong>{t.approvalStatusSection.disputeDetails}</strong> {freshness.disputeDetails}
                         </div>
                       )}
@@ -712,9 +713,9 @@ function ApprovalReviewContent({
                       <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 700 }}>
                         {t.approvalStatusSection.staleTitle}
                       </h3>
-                      <p style={{ margin: '0 0 8px', fontSize: '13.5px' }}>{t.approvalStatusSection.staleDesc}</p>
+                      <p style={{ margin: '0 0 8px', fontSize: '14px' }}>{t.approvalStatusSection.staleDesc}</p>
                       {freshness.previousApproval && (
-                        <p style={{ margin: 0, fontSize: '12.5px', color: '#78350f' }}>
+                        <p style={{ margin: 0, fontSize: '14px', color: '#78350f' }}>
                           {lang === 'en' ? 'Previous approval: Version' : 'Lần duyệt trước: Phiên bản'} v{freshness.previousApproval.approvedVersion} {lang === 'en' ? 'by' : 'bởi'} {freshness.previousApproval.approvedBy} ({formatDateTime(freshness.previousApproval.approvedAt)}).
                         </p>
                       )}
@@ -727,7 +728,7 @@ function ApprovalReviewContent({
                       <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 700 }}>
                         {t.approvalStatusSection.freshTitle}
                       </h3>
-                      <p style={{ margin: 0, fontSize: '13.5px' }}>{t.approvalStatusSection.freshDesc}</p>
+                      <p style={{ margin: 0, fontSize: '14px' }}>{t.approvalStatusSection.freshDesc}</p>
                     </div>
                   </div>
                 )}
@@ -846,12 +847,12 @@ function ApprovalReviewContent({
 
                   {/* Disabled Notes if conditions violated */}
                   {freshness?.status === 'DISPUTED' && (
-                    <p style={{ color: '#a83232', fontSize: '13px', fontWeight: 600 }}>
+                    <p style={{ color: '#a83232', fontSize: '14px', fontWeight: 600 }}>
                       ⚠️ {t.decisionSection.disabledDisputeNote}
                     </p>
                   )}
                   {freshness?.status === 'MISSING_SCOPE' && (
-                    <p style={{ color: '#8c6820', fontSize: '13px', fontWeight: 600 }}>
+                    <p style={{ color: '#8c6820', fontSize: '14px', fontWeight: 600 }}>
                       ⚠️ {t.decisionSection.disabledMissingScopeNote}
                     </p>
                   )}
@@ -924,7 +925,7 @@ function ApprovalReviewContent({
 
                   <div className="lv-legal-approval-callout lv-legal-approval-callout--warning" style={{ margin: 0, padding: '10px 14px' }}>
                     <Info size={16} aria-hidden="true" style={{ flexShrink: 0, color: '#8c6820' }} />
-                    <span style={{ fontSize: '12px', color: '#594511' }}>{t.confirmModal.warningAudit}</span>
+                    <span style={{ fontSize: '14px', color: '#594511' }}>{t.confirmModal.warningAudit}</span>
                   </div>
                 </div>
 
