@@ -1,7 +1,6 @@
 package com.legacyvault.dms;
 
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,7 +65,7 @@ public class DmsService {
 		if (beneficiaries.countByVault_VaultId(vault.getVaultId()) < 1) {
 			throw new BusinessException(ErrorCode.BENEFICIARY_REQUIRED);
 		}
-		LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+		LocalDateTime now = DmsConfig.utcNow();
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId()).orElse(null);
 		String stateBefore = config == null ? null : config.getStatus();
 		if (config == null) {
@@ -111,7 +110,7 @@ public class DmsService {
 		vaultService.requireNotArchivedVaultForUpdate(vault.getPublicId(), owner.getUserId());
 		DmsConfig config = configs.findByOwnerUserIdForUpdate(owner.getUserId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-		LocalDateTime now = requestedAt == null ? LocalDateTime.now(ZoneOffset.UTC) : requestedAt;
+		LocalDateTime now = requestedAt == null ? DmsConfig.utcNow() : requestedAt;
 		boolean monitoring = DmsConfig.STATUS_MONITORING.equals(config.getStatus());
 		boolean withinGrace = DmsConfig.STATUS_TRIGGERED.equals(config.getStatus())
 				&& config.getGraceDeadline() != null
