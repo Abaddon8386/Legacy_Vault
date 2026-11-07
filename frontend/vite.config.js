@@ -13,10 +13,14 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
-        // Gửi X-Forwarded-For để backend (FORWARD_HEADERS_STRATEGY=native) giới hạn theo IP thật.
-        xfwd: true,
         configure(proxy) {
           proxy.on('proxyReq', (proxyReq, req) => {
+            // Forward only the client IP so the backend's per-IP limits see real clients when it runs with
+            // FORWARD_HEADERS_STRATEGY=native. Do not use `xfwd`: it also sends X-Forwarded-Host/Proto/Port, so the
+            // backend would see host localhost:5196 while the rewritten Origin below is the API origin, and Spring
+            // would reject every browser request with 403 "Invalid CORS request".
+            const clientIp = req.socket?.remoteAddress
+            if (clientIp) proxyReq.setHeader('X-Forwarded-For', clientIp)
             // Same-origin browser requests become same-origin at the upstream hop too.
             // Preserve foreign origins so the backend can still reject them.
             if (req.headers.origin === `http://${req.headers.host}`) {

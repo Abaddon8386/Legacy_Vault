@@ -27,4 +27,5 @@ PS-112 now uses a single V41 migration after develop's V40 (PS-103), including e
 Login, password-recovery, email-verification and payment limits key on `request.getRemoteAddr()`.
 Behind a proxy every user shares the proxy IP, so set `FORWARD_HEADERS_STRATEGY=native` (default `none`)
 so Tomcat reads `X-Forwarded-For`. Enable it only when the backend is reachable solely through a trusted
-proxy (Vite dev proxy sends `xfwd`; nginx must set `X-Forwarded-For`); otherwise clients can spoof their IP.
+proxy (the Vite dev proxy sends only `X-Forwarded-For`; nginx must set `X-Forwarded-For`); otherwise clients can spoof their IP.
+If a proxy also sends `X-Forwarded-Host`, the browser `Origin` must equal that public host; otherwise Spring answers 403 `Invalid CORS request` (the Vite proxy therefore must not use `xfwd`).
