@@ -141,6 +141,14 @@
 .lv-public-info__questions summary svg { flex: none; }
 .lv-public-info__questions details[open] summary svg { rotate: 180deg; }
 .lv-public-info__questions details p { padding-block: 0 14px; }
+.lv-public-info__refs { margin-block-start: 20px; }
+.lv-public-info__content .lv-public-info__refs h3 { margin: 0 0 6px; color: var(--info-ink); font: 700 18px/1.4 var(--lv-font-sans, Arial, sans-serif); }
+.lv-public-info__content .lv-public-info__refs-note { margin-block-end: 12px; font-size: 14px; }
+.lv-public-info__refs ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--info-rule); border-radius: 12px; background: #fffefa; }
+.lv-public-info__refs li { display: grid; gap: 2px; padding: 12px clamp(12px, 3vw, 20px); }
+.lv-public-info__refs li + li { border-block-start: 1px solid var(--info-rule); }
+.lv-public-info__refs li a { display: inline-flex; align-items: center; gap: 6px; color: var(--info-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.lv-public-info__refs li span { color: var(--info-muted); font-size: 14px; line-height: 1.5; }
 .lv-public-info__action { margin-block-start: 8px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
 .lv-public-info__related {
   display: flex;

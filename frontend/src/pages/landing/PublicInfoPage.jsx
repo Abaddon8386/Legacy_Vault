@@ -57,10 +57,24 @@ export default function PublicInfoPage({ page, lang }) {
           </nav>
           <div className="lv-public-info__content">
             {info.notice && <p className="lv-public-info__notice">{info.notice}</p>}
-            {info.sections.map(({ id, title, paragraphs, items, action }) => (
+            {info.sections.map(({ id, title, paragraphs, items, action, references }) => (
               <section key={id} id={id} aria-labelledby={`${id}-title`} tabIndex={-1}>
                 <h2 id={`${id}-title`}>{title}</h2>
                 {paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+                {references && (
+                  <div className="lv-public-info__refs">
+                    <h3>{references.title}</h3>
+                    <p className="lv-public-info__refs-note">{references.note}</p>
+                    <ul>
+                      {references.items.map(({ name, note, href }) => (
+                        <li key={href}>
+                          <a href={href} target="_blank" rel="noopener noreferrer">{name} <ArrowUpRight size={15} aria-hidden="true" /></a>
+                          <span>{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {items && (
                   <div className="lv-public-info__questions">
                     {items.map(([question, answer]) => (
