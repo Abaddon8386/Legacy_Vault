@@ -111,3 +111,24 @@ test('View mode lists existing attachments without exposing edit, delete, or upl
   assert.match(view.host.textContent,/record\.pdf/);assert.equal(view.host.querySelector('input[type=file]'),null);assert.doesNotMatch(view.host.textContent,/Delete|Upload documents/);
  }finally{await view.close();globalThis.fetch=original;}
 });
+
+const { publicInfoContent } = await import('../pages/landing/publicInfoContent.js');
+for (const lang of ['vi','en']) test(`add-asset dialog ${lang}: one short legal notice links to the legal section of the About page`, async () => {
+ const view=await mount(AssetFormModal,{isOpen:true,lang,onClose(){},onSubmit(){}});
+ try {
+  const notes=view.host.querySelectorAll('.lv-asset-legal-note');
+  assert.equal(notes.length,1,'exactly one notice');
+  assert.ok(notes[0].textContent.length<=120,'the notice stays short');
+  const link=notes[0].querySelector('a');
+  assert.equal(link.getAttribute('href'),`/about?lang=${lang}#legal`);
+  assert.equal(link.getAttribute('target'),'_blank');
+  assert.match(link.getAttribute('rel'),/noopener/);
+  assert.equal(link.textContent,ASSET_I18N[lang].assets.addModal.legalNoteLink);
+ } finally { await view.close(); }
+});
+for (const lang of ['vi','en']) test(`About page ${lang}: has the legal section the notice links to, without naming specific laws`, () => {
+ const section=publicInfoContent[lang].about.sections.find(item=>item.id==='legal');
+ assert.ok(section,'section #legal exists');
+ assert.ok(section.title&&section.paragraphs.length>=2);
+ assert.doesNotMatch(section.paragraphs.join(' '),/\d{1,4}\/\d{4}\/|Điều \d+|Article \d+/,'no unverified law citations in the first version');
+});
