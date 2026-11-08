@@ -34,6 +34,23 @@ test('Assigned case hides claim action; claim conflict uses customer language wi
  await available.close();
 });
 
+test('Claiming a case reloads the document list so the stale not-assigned error disappears without F5',async()=>{
+ let claimed=false;
+ globalThis.fetch=async(url,init)=>{
+  if(init.method==='POST'){claimed=true;return json({...detail,assignmentStatus:'ASSIGNED_TO_CURRENT_STAFF'});}
+  if(url.endsWith('death-documents'))return claimed?json([]):json({code:'RESOURCE_NOT_FOUND'},404);
+  return json({...detail,assignmentStatus:claimed?'ASSIGNED_TO_CURRENT_STAFF':'UNASSIGNED_CLAIMABLE'});
+ };
+ const v=await mount();
+ assert.match(v.host.textContent,/chưa được phân công/);
+ await act(async()=>button(v.host,'Nhận hồ sơ').click());
+ await act(async()=>{await new Promise(resolve=>setTimeout(resolve,50));});
+ assert.doesNotMatch(v.host.textContent,/chưa được phân công/);
+ assert.match(v.host.textContent,/Chưa có giấy tờ nào được tiếp nhận/);
+ assert.equal(button(v.host,'Nhận hồ sơ'),undefined);
+ await v.close();
+});
+
 test('Closed case keeps document browsing while removing the disabled intake form',async()=>{
  globalThis.fetch=async url=>json(url.endsWith('death-documents')?[]:{...detail,status:'CLOSED',assignmentStatus:'ASSIGNED_TO_CURRENT_STAFF'});
  const v=await mount();
