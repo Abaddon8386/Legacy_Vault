@@ -72,6 +72,24 @@ test('real completed session reload permits archive only when every delivered it
  globalThis.fetch=staffFixture({status:'COMPLETED',deliveries:[deliveredItem],receipts:[{receiptId:otherCaseId,recipientId:recipient,assetIds:[assetId]}]});
  const v=await mount(Close);try{assert.equal([...v.host.querySelectorAll('.lv-ca-btn-primary')].at(-1).disabled,false);assert.ok(v.host.textContent.includes('Session Completed'));}finally{await v.close();}
 });
+test('close and archive steps are ordered tabs that open on the next step and track progress',async()=>{
+ globalThis.fetch=staffFixture({status:'OPEN'});
+ const open=await mount(Close);
+ try{
+  const tabs=()=>[...open.host.querySelectorAll('[role="tab"]')];
+  assert.deepEqual(tabs().map(t=>t.textContent),['Overview','1. Close session','2. Receipt','3. Complete']);
+  assert.equal(tabs().find(t=>t.getAttribute('aria-selected')==='true').textContent,'1. Close session','opens on the first unfinished step');
+  const panel=name=>open.host.querySelector('#'+tabs().find(t=>t.textContent===name).getAttribute('aria-controls'));
+  assert.equal(panel('1. Close session').hidden,false);assert.equal(panel('3. Complete').hidden,true);
+  await act(async()=>tabs().find(t=>t.textContent==='3. Complete').click());
+  assert.equal(panel('3. Complete').hidden,false);assert.equal(panel('1. Close session').hidden,true);
+  assert.ok(find(open.host,'Close Handover Session'),'hidden panels stay mounted');
+ }finally{await open.close();}
+ globalThis.fetch=staffFixture({status:'COMPLETED'});
+ const done=await mount(Close);
+ try{assert.equal([...done.host.querySelectorAll('[role="tab"]')].find(t=>t.getAttribute('aria-selected')==='true').textContent,'2. Receipt','session closed: next step is the receipt');
+  assert.ok([...done.host.querySelectorAll('[role="tab"]')].find(t=>t.textContent==='1. Close session').classList.contains('is-done'));}finally{await done.close();}
+});
 test('close gate data must be invalidated immediately when changing case',async()=>{
  globalThis.fetch=async url=>url.includes(otherCaseId)?new Promise(()=>{}):staffFixture()(url);
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
