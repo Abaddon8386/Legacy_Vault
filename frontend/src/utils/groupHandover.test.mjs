@@ -43,6 +43,22 @@ test('saved server attendance survives reopening the page; waiting and unsent re
  }finally{await v.close();}
 });
 
+test('Staff sees the latest Legal reopening decision with its reason, and a refusal explains the next step',async()=>{
+ const people=[{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Bình'}];
+ const decided=(result,reason)=>({...view('SUSPENDED',3,true),attendance:{presentRecipientIds:[r,q]},lastDecision:{eventId:a,result,decidedAt:'2026-11-08T17:56:00Z',decidedBy:{userId:a,fullName:'Linh Legal'},reason}});
+ let current=decided('REJECT','Người nhận chưa đúng');
+ globalThis.fetch=async (url)=>url.endsWith('/group-handover')?json(current):json(people);
+ const v=await mount({lang:'vi'});
+ try{
+  const card=v.host.querySelector('.lv-group-handover__decision.is-rejected');assert.ok(card,'a refusal is visible to Staff');
+  assert.match(card.textContent,/Quyết định gần nhất của Ban Pháp lý: Từ chối mở lại/);assert.match(card.textContent,/Linh Legal/);assert.match(card.textContent,/Người nhận chưa đúng/);
+  assert.match(card.textContent,/gửi yêu cầu mới/,'a refusal tells Staff what to do next');
+  assert.match(card.textContent,/00:56/,'time is shown in Vietnam time (UTC+7)');assert.match(card.textContent,/09\/11\/2026/);
+  current=decided('APPROVE','Đủ người, cho tiếp tục');await v.render({lang:'vi'});
+  await act(async()=>{window.dispatchEvent(new window.Event('focus'));});
+  assert.ok(v.host.querySelector('.lv-group-handover__decision.is-approved'),'an approval is visible too');
+ }finally{await v.close();}
+});
 test('a new session snapshot never inherits the previous attendance selections',async()=>{
  globalThis.fetch=async url=>url.endsWith('/group-handover')?json({...view('SUSPENDED',2,true),snapshot:'new-session-snapshot',attendance:{presentRecipientIds:[r,q]}}):json([{beneficiaryId:r,fullName:'An'},{beneficiaryId:q,fullName:'Bình'}]);
  const v=await mount();try{assert.equal(v.host.querySelectorAll('input:checked').length,0);assert.equal(v.host.querySelector('[data-delivery]'),null);}finally{await v.close();}

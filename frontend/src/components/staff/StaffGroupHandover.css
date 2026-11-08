@@ -9,4 +9,9 @@
 .lv-group-handover__actions {display:flex;gap:12px;flex-wrap:wrap;}.lv-group-handover :focus-visible {outline:3px solid #b69b62;outline-offset:3px;}
 .lv-group-handover .lv-group-handover__state-note {padding:14px 16px;border:1px solid #d5b46e;border-left:4px solid #b17c1d;border-radius:10px;background:#fff7e5;color:#674b1e;}
 .lv-group-handover .lv-group-handover__state-note.is-ready {border:0;}
+.lv-group-handover .lv-group-handover__decision {display:grid;gap:4px;padding:14px 16px;border:1px solid #dce4dc;border-left:4px solid #6b7c72;border-radius:10px;background:#f6f8f5;}
+.lv-group-handover .lv-group-handover__decision strong {font-size:16px;color:#164639;}.lv-group-handover .lv-group-handover__decision span {font-size:14px;color:#52675b;}
+.lv-group-handover .lv-group-handover__decision.is-approved {border-left-color:#1f8a5b;background:#eef8f2;}
+.lv-group-handover .lv-group-handover__decision.is-rejected {border-left-color:#a3372d;background:#fdf1ef;}.lv-group-handover .lv-group-handover__decision.is-rejected strong {color:#8a2c23;}
+.lv-group-handover .lv-group-handover__decision.is-pending {border-left-color:#b17c1d;background:#fff7e6;}
 @media(max-width:640px){.lv-group-handover{padding:16px;}.lv-group-handover__actions{flex-direction:column;}}
