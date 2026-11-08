@@ -600,3 +600,44 @@
   }
 }
 
+
+/* Handover steps as tabs (same look as the Staff documents tabs) */
+.lv-live-handover .lv-handover-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 16px;
+  border-bottom: 1px solid #e2e5dc;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.lv-live-handover .lv-handover-tab {
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 -1px;
+  padding: 0 18px;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #52675b;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.lv-live-handover .lv-handover-tab:hover:not(:disabled) { color: #204f40; background: transparent; }
+.lv-live-handover .lv-handover-tab:focus-visible { outline: 3px solid #b7d9ca; outline-offset: 2px; }
+.lv-live-handover .lv-handover-tab.is-active,
+.lv-live-handover .lv-handover-tab[aria-selected="true"] {
+  border-bottom-color: #204f40;
+  color: #164639;
+  font-weight: 600;
+  background: transparent;
+}
+.lv-live-handover .lv-handover-tab:disabled { color: #8a948d; cursor: not-allowed; opacity: 0.75; }

@@ -60,6 +60,19 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
  await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Record attendance/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
 });
+test('Handover steps are tabs: later steps stay locked until the server allows them and hidden panels stay mounted',async()=>{
+ globalThis.fetch=async(url,init)=>{if(init.method==='POST')return json(receipt,201);if(url.endsWith('/group-handover'))return json(unconfirmedGroup);if(url.endsWith('/beneficiaries'))return json([{beneficiaryId:cid,fullName:'Counter recipient'}]);return json([]);};
+ const v=await mount();const tab=name=>[...v.host.querySelectorAll('[role="tab"]')].find(t=>t.textContent===name);
+ assert.deepEqual([...v.host.querySelectorAll('[role="tab"]')].map(t=>t.textContent),['Phiên bàn giao','Người có mặt','Đối chiếu và liên kết','Bàn giao tài sản']);
+ assert.equal(tab('Người có mặt').disabled,true,'attendance needs an open session');assert.equal(tab('Bàn giao tài sản').disabled,true);
+ await act(async()=>btn(v.host,'Mở phiên bàn giao').click());
+ assert.equal(tab('Người có mặt').disabled,false);assert.equal(tab('Bàn giao tài sản').disabled,true,'delivery stays locked until the server permits it');
+ const panel=name=>v.host.querySelector('#'+tab(name).getAttribute('aria-controls'));
+ assert.equal(panel('Phiên bàn giao').hidden,false);assert.equal(panel('Người có mặt').hidden,true);
+ await act(async()=>tab('Người có mặt').click());
+ assert.equal(tab('Người có mặt').getAttribute('aria-selected'),'true');assert.equal(panel('Người có mặt').hidden,false);assert.equal(panel('Phiên bàn giao').hidden,true);
+ assert.ok(panel('Phiên bàn giao').textContent.includes('Phiên 01'),'hidden panel stays mounted');await v.close();
+});
 test('Existing OPEN restored via list/detail; cancellation only after confirmation and server response',async()=>{
  const calls=[];globalThis.fetch=async(url,init)=>{calls.push({url,init});return json(init.method==='PATCH'?{...receipt,status:'CANCELLED',closedAt:'2026-10-20T07:00:00'}:url.endsWith(sid)?receipt:[receipt]);};
  const v=await mount();assert.equal(btn(v.host,'Mở phiên bàn giao').disabled,true);assert.equal(calls.filter(c=>c.init.method==='POST').length,0);

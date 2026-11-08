@@ -108,6 +108,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [tab, setTab] = useState('sessions');
   const controller = useRef(null);
   const lock = useRef(false);
   const callbacks = useRef({ onSession, onError });
@@ -227,11 +228,34 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
       onError={onError}
     /> : <LegacyCounterBeneficiariesSection caseId={caseId} caseItem={caseItem} selectedSessionId={selected?.sessionId} accessToken={accessToken} lang={lang} mode={mode} onError={onError} />;
   // Order of the work: open the session and record attendance, check identities, then hand over assets.
-  const layout = (attendance, delivery) => <>
-    <div className="lv-session-panel lv-staff-glow">{sessionList}{sessionDetail}{attendance}</div>
-    {counterCheck}
-    {delivery}
-  </>;
+  // One tab per step; every panel stays mounted (hidden) so typed values and selections survive a tab change.
+  const layout = (attendance, delivery) => {
+    const tabs = [
+      { id: 'sessions', label: en ? 'Sessions' : 'Phiên bàn giao', node: <div className="lv-session-panel lv-staff-glow">{sessionList}{sessionDetail}</div> },
+      { id: 'attendance', label: en ? 'Attendance' : 'Người có mặt', node: attendance, locked: en ? 'Open a session first.' : 'Mở phiên bàn giao trước.' },
+      { id: 'link', label: en ? 'Verify and link' : 'Đối chiếu và liên kết', node: counterCheck },
+      { id: 'delivery', label: en ? 'Hand over assets' : 'Bàn giao tài sản', node: delivery, locked: en ? 'Record full attendance first.' : 'Ghi nhận đủ người có mặt trước.' },
+    ];
+    const usable = tabs.filter(item => item.node);
+    const active = usable.some(item => item.id === tab) ? tab : 'sessions';
+    const onKeyDown = event => {
+      const index = usable.findIndex(item => item.id === active);
+      const next = event.key === 'ArrowRight' ? (index + 1) % usable.length
+        : event.key === 'ArrowLeft' ? (index - 1 + usable.length) % usable.length
+          : event.key === 'Home' ? 0 : event.key === 'End' ? usable.length - 1 : -1;
+      if (next < 0) return;
+      event.preventDefault(); setTab(usable[next].id);
+      document.getElementById(`handover-tab-${usable[next].id}`)?.focus();
+    };
+    return <>
+      <nav className="lv-handover-tabs" role="tablist" aria-label={en ? 'Handover steps' : 'Các bước bàn giao'} onKeyDown={onKeyDown}>
+        {tabs.map(item => <button key={item.id} type="button" role="tab" id={`handover-tab-${item.id}`} aria-selected={active === item.id}
+          aria-controls={`handover-panel-${item.id}`} tabIndex={active === item.id ? 0 : -1} disabled={!item.node} title={item.node ? undefined : item.locked}
+          className={`lv-handover-tab${active === item.id ? ' is-active' : ''}`} onClick={() => setTab(item.id)}>{item.label}</button>)}
+      </nav>
+      {tabs.map(item => item.node ? <div key={item.id} role="tabpanel" id={`handover-panel-${item.id}`} aria-labelledby={`handover-tab-${item.id}`} hidden={active !== item.id}>{item.node}</div> : null)}
+    </>;
+  };
   return <section className="lv-session-stack" aria-busy={loading || pending}>
     {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}><div className="lv-handover-next-step">
         <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
