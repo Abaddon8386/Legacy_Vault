@@ -340,10 +340,16 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const value = await loadStaffCase(caseId, options);
       if (!signal.aborted) setData(value);
     })}>{en ? 'Retry loading case' : 'Thử tải lại hồ sơ'}</button>}
-    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={() => run(async (options, signal) => {
-      const value = await claimStaffCase(caseId, options);
-      if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); }
-    })}>{en ? 'Claim case' : 'Nhận hồ sơ'}</button>}
+    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={async () => {
+      let claimed = false;
+      await run(async (options, signal) => {
+        const value = await claimStaffCase(caseId, options);
+        if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); claimed = true; }
+      });
+      // The list was read before the case was assigned (not-assigned error); reload it now.
+      // Must run after `run` finishes: documentsWritePending blocks reads while it is active.
+      if (claimed) loadDocuments(kind);
+    }}>{en ? 'Claim case' : 'Nhận hồ sơ'}</button>}
     <div className="lv-intake-tabs" role="group" aria-label={en ? 'Record category' : 'Nhóm giấy tờ'}>
       {documentKinds.map(([nextKind, vi, english]) => <button key={nextKind} type="button" aria-pressed={kind === nextKind} disabled={busy || recordsLoading} onClick={() => {
         if (kind === nextKind) return;
