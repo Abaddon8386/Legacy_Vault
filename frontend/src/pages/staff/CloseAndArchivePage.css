@@ -420,3 +420,44 @@
 .lv-close-archive-view .lv-ca-card { min-width: 0; }
 .lv-close-archive-view .lv-ca-table-wrapper { overflow-x: auto; }
 @media(max-width:760px) { .lv-close-archive-view .lv-ca-preconditions-grid { grid-template-columns: 1fr; } }
+
+/* Close and archive steps as tabs (same look as the other Staff tabs) */
+.lv-close-archive-view .lv-ca-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 16px;
+  border-bottom: 1px solid #e2e5dc;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.lv-close-archive-view .lv-ca-tab {
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 -1px;
+  padding: 0 18px;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #52675b;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.lv-close-archive-view .lv-ca-tab:hover { color: #204f40; background: transparent; }
+.lv-close-archive-view .lv-ca-tab:focus-visible { outline: 3px solid #b7d9ca; outline-offset: 2px; }
+.lv-close-archive-view .lv-ca-tab.is-active,
+.lv-close-archive-view .lv-ca-tab[aria-selected="true"] {
+  border-bottom-color: #204f40;
+  color: #164639;
+  font-weight: 600;
+}
+.lv-close-archive-view .lv-ca-tab.is-done svg { color: #1f8a5b; flex: none; }

@@ -43,6 +43,7 @@ function CloseArchiveContext({
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [selectedRecipient, setSelectedRecipient] = useState(propRecipientId);
+  const [stepTab, setStepTab] = useState(null);
   const alive = useRef(false);
   const mutation = useRef(null);
   const options = {accessToken: effectiveAccessToken, isDevPreview: effectiveIsDevPreview, lang};
@@ -165,6 +166,309 @@ function CloseArchiveContext({
     return <section className="lv-staff-context-state" role={feedback.kind === 'waiting' || feedback.kind === 'changed' ? 'status' : 'alert'}><h1>{feedback.title}</h1><p>{feedback.description}</p><div className="lv-staff-context-state__actions"><button type="button" onClick={() => setRevision(value => value + 1)}>{t.retry}</button><a href="/staff/cases">{lang === 'en' ? 'Choose case' : 'Chọn lại hồ sơ'}</a></div></section>;
   }
   if (loading) return <section className="lv-staff-context-state" role="status"><h1>{lang === 'en' ? 'Loading case completion…' : 'Đang tải thông tin hoàn tất hồ sơ…'}</h1></section>;
+  // Ordered steps as tabs: overview, close the session, issue the receipt, complete the case.
+  // Every panel stays mounted (hidden) so the chosen recipient and pending states survive a tab change.
+  const overviewPanel = <>
+          {/* 1. Server Status Dashboard */}
+          <section className="lv-ca-card lv-staff-glow" aria-labelledby="server-status-heading">
+            <h2 id="server-status-heading" className="lv-ca-card__title">
+              {t.serverStatusHeading}
+            </h2>
+            <div className="lv-ca-server-grid">
+              <div className="lv-ca-status-box">
+                <span className="lv-ca-status-box__label">{t.labelSessionStatus}</span>
+                <span className="lv-ca-status-box__val">
+                  {resolveSessionLabel(sessionStatus)}
+                </span>
+              </div>
+
+              <div className="lv-ca-status-box">
+                <span className="lv-ca-status-box__label">{t.labelVaultStatus}</span>
+                <span className="lv-ca-status-box__val">
+                  {resolveVaultLabel(vaultStatus)}
+                </span>
+              </div>
+
+              <div className="lv-ca-status-box">
+                <span className="lv-ca-status-box__label">{t.labelCaseStatus}</span>
+                <span className="lv-ca-status-box__val">
+                  {resolveCaseLabel(caseStatus)}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* 2. Pre-Conditions & Dual Gate Evaluation */}
+          {!isArchived && <section className="lv-ca-card lv-staff-glow" aria-labelledby="preconditions-heading">
+            <h2 id="preconditions-heading" className="lv-ca-card__title">
+              {t.preconditionsHeading}
+            </h2>
+
+            <div className="lv-ca-preconditions-grid">
+              <div className={`lv-ca-check-item ${isAssetComplete ? 'is-met' : 'is-unmet'}`}>
+                <span className="lv-ca-check-item__icon">
+                  {isAssetComplete ? (
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                  ) : (
+                    <Clock size={16} aria-hidden="true" />
+                  )}
+                </span>
+                <div className="lv-ca-check-item__text">
+                  <strong>{t.condAssetGateTitle}</strong>
+                  <p>
+                    {isAssetComplete
+                      ? t.condAssetGateMet
+                      : t.condAssetGateUnmet}
+                  </p>
+                </div>
+              </div>
+
+              <div className={`lv-ca-check-item ${isBeneficiaryComplete ? 'is-met' : 'is-unmet'}`}>
+                <span className="lv-ca-check-item__icon">
+                  {isBeneficiaryComplete ? (
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                  ) : (
+                    <Clock size={16} aria-hidden="true" />
+                  )}
+                </span>
+                <div className="lv-ca-check-item__text">
+                  <strong>{t.condBeneficiaryGateTitle}</strong>
+                  <p>
+                    {isBeneficiaryComplete
+                      ? t.condBeneficiaryGateMet
+                      : t.condBeneficiaryGateUnmet}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>}
+  </>;
+  const closePanel = isArchived ? null : <section className="lv-ca-card" aria-labelledby="action-heading">
+        <h2 id="action-heading" className="lv-ca-card__title">
+          {t.actionHeading}
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+            {/* Action Step 1: Close Handover Session */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
+                  {lang === 'en' ? 'Step 1: Close Handover Session' : 'Bước 1: Đóng phiên bàn giao'}
+                </strong>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b' }}>
+                  {sessionStatus === 'COMPLETED'
+                    ? (lang === 'en' ? 'Session successfully closed with audit proof.' : 'Phiên đã được đóng thành công với bằng chứng kiểm toán.')
+                    : t.step1DescPending}
+                </p>
+              </div>
+
+              <WorkflowActionHint id="close-action-blocked" reason={closeBlock} />
+              {sessionStatus === 'COMPLETED' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: 600, color: '#059669', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px' }}>
+                  <CheckCircle2 size={14} aria-hidden="true" />
+                  <span>{lang === 'en' ? 'Session Completed' : 'Phiên đã đóng'}</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="lv-ca-btn-primary"
+                  onClick={handleCloseSession}
+                  aria-describedby={closeBlock ? 'close-action-blocked' : undefined}
+                  disabled={!canCloseSession || isClosingSession}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    backgroundColor: canCloseSession ? '#2563eb' : '#e2e8f0',
+                    color: canCloseSession ? '#ffffff' : '#94a3b8',
+                    border: 'none',
+                    cursor: canCloseSession ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {isClosingSession ? (
+                    <>
+                      <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
+                      <span>{lang === 'en' ? 'Closing...' : 'Đang đóng phiên...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} aria-hidden="true" />
+                      <span>{lang === 'en' ? 'Close Handover Session' : 'Đóng phiên bàn giao'}</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+        </div>
+      </section>;
+  const receiptPanel = <>
+          {/* 3. Receipt Summary Section */}
+          <section className="lv-ca-card lv-staff-glow" aria-labelledby="receipt-summary-heading">
+            {!isArchived && <div className="lv-ca-recipient-field">
+              <label htmlFor="staff-receipt-recipient">{t.recipientLabel}</label>
+              <select id="staff-receipt-recipient" value={selectedRecipient} onChange={event => setSelectedRecipient(event.target.value)} disabled={loading || !!busy}>
+                <option value="">{t.selectRecipient}</option>
+                {[...groups.keys()].map(id => <option key={id} value={id}>{recipientName(id)}</option>)}
+              </select>
+              {selectedRecipient && <p>{t.receiptScope}: {targetAssetIds.length}</p>}
+            </div>}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <h2 id="receipt-summary-heading" className="lv-ca-card__title" style={{ margin: 0 }}>
+                  {t.receiptSummaryHeading}
+                </h2>
+              </div>
+              <WorkflowActionHint id="receipt-action-blocked" reason={receiptBlock} />
+              {!isArchived && (
+                <button
+                  type="button"
+                  className="lv-ca-btn-receipt"
+                  onClick={handleCreateReceipt}
+                  aria-describedby={receiptBlock ? 'receipt-action-blocked' : undefined}
+                  disabled={isCreatingReceipt || !canCreateReceipt}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    backgroundColor: canCreateReceipt ? '#164639' : '#e2e8f0',
+                    color: canCreateReceipt ? '#ffffff' : '#94a3b8',
+                    border: 'none',
+                    cursor: canCreateReceipt ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {isCreatingReceipt ? (
+                    <>
+                      <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
+                      <span>{lang === 'en' ? 'Creating...' : 'Đang lập...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileCheck size={14} aria-hidden="true" />
+                        <span>{t.receiptBtnText}</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {!hasReceipts ? (
+              <div className="lv-ca-empty-box" role="status">
+                <h3>{t.receiptEmptyTitle}</h3>
+              </div>
+            ) : (
+              <div className="lv-ca-table-wrapper">
+                <table className="lv-ca-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{t.thReceiptCode}</th>
+                      <th scope="col">{t.thType}</th>
+                      <th scope="col">{t.thRecipient}</th>
+                      <th scope="col">{t.thIssuedDate}</th>
+                      <th scope="col">{t.thStatus}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receipts.map((rc, idx) => (
+                      <tr key={rc.receiptId || rc.id || rc.code || idx}>
+                        <td>
+                          <span className="lv-ca-code-badge">{rc.code || `${lang === 'en' ? 'Receipt' : 'Biên nhận'} ${String(idx + 1).padStart(2, '0')}`}</span>
+                        </td>
+                        <td>
+                          {rc.attestationType === 'STAFF_ATTESTATION' || !rc.attestationType ? (lang === 'en' ? 'Counter confirmation' : 'Xác nhận tại quầy') : (lang === 'en' ? 'Handover receipt' : 'Biên nhận bàn giao')}
+                        </td>
+                        <td>{rc.recipientName?.trim() || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
+                        <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
+                        <td>
+                          <span className="lv-ca-tag">
+                            {t.receiptIssued}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+  </>;
+  const archivePanel = isArchived ? null : <section className="lv-ca-card" aria-labelledby="archive-step-heading">
+        <h2 id="archive-step-heading" className="lv-ca-card__title">
+          {t.actionHeading}
+        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
+            {/* Action Step 2: Atomic Archive & Case Close */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
+                  {lang === 'en' ? 'Complete case' : 'Hoàn tất hồ sơ'}
+                </strong>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b' }}>
+                  {t.step2Desc}
+                </p>
+              </div>
+
+              <WorkflowActionHint id="archive-action-blocked" reason={archiveBlock} />
+              <button
+                type="button"
+                className="lv-ca-btn-primary"
+                onClick={handleArchiveCase}
+                aria-describedby={archiveBlock ? 'archive-action-blocked' : undefined}
+                disabled={!canArchive || isArchiving}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  backgroundColor: canArchive ? '#164639' : '#e2e8f0',
+                  color: canArchive ? '#ffffff' : '#94a3b8',
+                  border: 'none',
+                  cursor: canArchive ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {isArchiving ? (
+                  <>
+                    <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
+                    <span>{lang === 'en' ? 'Archiving...' : 'Đang lưu trữ...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Archive size={14} aria-hidden="true" />
+                    <span>{t.btnExecuteCloseArchive}</span>
+                  </>
+                )}
+              </button>
+            </div>
+        </div>
+      </section>;
+  const en = lang === 'en';
+  const steps = [
+    { id: 'overview', label: en ? 'Overview' : 'Tổng quan', node: overviewPanel },
+    { id: 'close', label: en ? '1. Close session' : '1. Đóng phiên', node: closePanel, done: sessionStatus === 'COMPLETED' },
+    { id: 'receipt', label: en ? '2. Receipt' : '2. Biên bản', node: receiptPanel, done: hasReceipts },
+    { id: 'archive', label: en ? '3. Complete' : '3. Hoàn tất', node: archivePanel, done: isArchived },
+  ];
+  const usableSteps = steps.filter(item => item.node);
+  const nextStep = isArchived ? 'overview' : sessionStatus !== 'COMPLETED' ? 'close' : !hasReceipts ? 'receipt' : 'archive';
+  const activeStep = usableSteps.some(item => item.id === stepTab) ? stepTab : nextStep;
+  const onStepKeyDown = event => {
+    const index = usableSteps.findIndex(item => item.id === activeStep);
+    const next = event.key === 'ArrowRight' ? (index + 1) % usableSteps.length
+      : event.key === 'ArrowLeft' ? (index - 1 + usableSteps.length) % usableSteps.length
+        : event.key === 'Home' ? 0 : event.key === 'End' ? usableSteps.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault(); setStepTab(usableSteps[next].id);
+    document.getElementById(`ca-tab-${usableSteps[next].id}`)?.focus();
+  };
   return (
     <div className="lv-close-archive-view">
       {/* Context navigation back */}
@@ -286,291 +590,14 @@ function CloseArchiveContext({
         </div>
       )}
 
-      {/* 1. Server Status Dashboard */}
-      <section className="lv-ca-card lv-staff-glow" aria-labelledby="server-status-heading">
-        <h2 id="server-status-heading" className="lv-ca-card__title">
-          {t.serverStatusHeading}
-        </h2>
-        <div className="lv-ca-server-grid">
-          <div className="lv-ca-status-box">
-            <span className="lv-ca-status-box__label">{t.labelSessionStatus}</span>
-            <span className="lv-ca-status-box__val">
-              {resolveSessionLabel(sessionStatus)}
-            </span>
-          </div>
-
-          <div className="lv-ca-status-box">
-            <span className="lv-ca-status-box__label">{t.labelVaultStatus}</span>
-            <span className="lv-ca-status-box__val">
-              {resolveVaultLabel(vaultStatus)}
-            </span>
-          </div>
-
-          <div className="lv-ca-status-box">
-            <span className="lv-ca-status-box__label">{t.labelCaseStatus}</span>
-            <span className="lv-ca-status-box__val">
-              {resolveCaseLabel(caseStatus)}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Pre-Conditions & Dual Gate Evaluation */}
-      {!isArchived && <section className="lv-ca-card lv-staff-glow" aria-labelledby="preconditions-heading">
-        <h2 id="preconditions-heading" className="lv-ca-card__title">
-          {t.preconditionsHeading}
-        </h2>
-
-        <div className="lv-ca-preconditions-grid">
-          <div className={`lv-ca-check-item ${isAssetComplete ? 'is-met' : 'is-unmet'}`}>
-            <span className="lv-ca-check-item__icon">
-              {isAssetComplete ? (
-                <CheckCircle2 size={16} aria-hidden="true" />
-              ) : (
-                <Clock size={16} aria-hidden="true" />
-              )}
-            </span>
-            <div className="lv-ca-check-item__text">
-              <strong>{t.condAssetGateTitle}</strong>
-              <p>
-                {isAssetComplete
-                  ? t.condAssetGateMet
-                  : t.condAssetGateUnmet}
-              </p>
-            </div>
-          </div>
-
-          <div className={`lv-ca-check-item ${isBeneficiaryComplete ? 'is-met' : 'is-unmet'}`}>
-            <span className="lv-ca-check-item__icon">
-              {isBeneficiaryComplete ? (
-                <CheckCircle2 size={16} aria-hidden="true" />
-              ) : (
-                <Clock size={16} aria-hidden="true" />
-              )}
-            </span>
-            <div className="lv-ca-check-item__text">
-              <strong>{t.condBeneficiaryGateTitle}</strong>
-              <p>
-                {isBeneficiaryComplete
-                  ? t.condBeneficiaryGateMet
-                  : t.condBeneficiaryGateUnmet}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>}
-
-      {/* 3. Receipt Summary Section */}
-      <section className="lv-ca-card lv-staff-glow" aria-labelledby="receipt-summary-heading">
-        {!isArchived && <div className="lv-ca-recipient-field">
-          <label htmlFor="staff-receipt-recipient">{t.recipientLabel}</label>
-          <select id="staff-receipt-recipient" value={selectedRecipient} onChange={event => setSelectedRecipient(event.target.value)} disabled={loading || !!busy}>
-            <option value="">{t.selectRecipient}</option>
-            {[...groups.keys()].map(id => <option key={id} value={id}>{recipientName(id)}</option>)}
-          </select>
-          {selectedRecipient && <p>{t.receiptScope}: {targetAssetIds.length}</p>}
-        </div>}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-          <div>
-            <h2 id="receipt-summary-heading" className="lv-ca-card__title" style={{ margin: 0 }}>
-              {t.receiptSummaryHeading}
-            </h2>
-          </div>
-          <WorkflowActionHint id="receipt-action-blocked" reason={receiptBlock} />
-          {!isArchived && (
-            <button
-              type="button"
-              className="lv-ca-btn-receipt"
-              onClick={handleCreateReceipt}
-              aria-describedby={receiptBlock ? 'receipt-action-blocked' : undefined}
-              disabled={isCreatingReceipt || !canCreateReceipt}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                backgroundColor: canCreateReceipt ? '#164639' : '#e2e8f0',
-                color: canCreateReceipt ? '#ffffff' : '#94a3b8',
-                border: 'none',
-                cursor: canCreateReceipt ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {isCreatingReceipt ? (
-                <>
-                  <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
-                  <span>{lang === 'en' ? 'Creating...' : 'Đang lập...'}</span>
-                </>
-              ) : (
-                <>
-                  <FileCheck size={14} aria-hidden="true" />
-                    <span>{t.receiptBtnText}</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
-        {!hasReceipts ? (
-          <div className="lv-ca-empty-box" role="status">
-            <h3>{t.receiptEmptyTitle}</h3>
-          </div>
-        ) : (
-          <div className="lv-ca-table-wrapper">
-            <table className="lv-ca-table">
-              <thead>
-                <tr>
-                  <th scope="col">{t.thReceiptCode}</th>
-                  <th scope="col">{t.thType}</th>
-                  <th scope="col">{t.thRecipient}</th>
-                  <th scope="col">{t.thIssuedDate}</th>
-                  <th scope="col">{t.thStatus}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receipts.map((rc, idx) => (
-                  <tr key={rc.receiptId || rc.id || rc.code || idx}>
-                    <td>
-                      <span className="lv-ca-code-badge">{rc.code || `${lang === 'en' ? 'Receipt' : 'Biên nhận'} ${String(idx + 1).padStart(2, '0')}`}</span>
-                    </td>
-                    <td>
-                      {rc.attestationType === 'STAFF_ATTESTATION' || !rc.attestationType ? (lang === 'en' ? 'Counter confirmation' : 'Xác nhận tại quầy') : (lang === 'en' ? 'Handover receipt' : 'Biên nhận bàn giao')}
-                    </td>
-                    <td>{rc.recipientName?.trim() || server?.people?.find(person => person.beneficiaryId === rc.recipientId)?.fullName || (lang === 'en' ? 'Name unavailable' : 'Chưa có tên người nhận')}</td>
-                    <td>{rc.confirmedAt ? new Date(rc.confirmedAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'vi-VN') : t.statusUnavailable}</td>
-                    <td>
-                      <span className="lv-ca-tag">
-                        {t.receiptIssued}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* 4. Sequential Business Completion Actions */}
-      {!isArchived && <section className="lv-ca-card" aria-labelledby="action-heading">
-        <h2 id="action-heading" className="lv-ca-card__title">
-          {t.actionHeading}
-        </h2>
-
-        {isArchived ? (
-          <div className="lv-ca-action-box">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#065f46', fontWeight: 600 }}>
-              <CheckCircle2 size={18} aria-hidden="true" />
-              <span>{lang === 'en' ? 'Case and Vault are fully closed and archived. Read-only view.' : 'Ca xác minh và Kho di sản đã được đóng và lưu trữ hoàn tất. Chế độ chỉ đọc.'}</span>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
-            {/* Action Step 1: Close Handover Session */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
-                  {lang === 'en' ? 'Step 1: Close Handover Session' : 'Bước 1: Đóng phiên bàn giao'}
-                </strong>
-                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b' }}>
-                  {sessionStatus === 'COMPLETED'
-                    ? (lang === 'en' ? 'Session successfully closed with audit proof.' : 'Phiên đã được đóng thành công với bằng chứng kiểm toán.')
-                    : t.step1DescPending}
-                </p>
-              </div>
-
-              <WorkflowActionHint id="close-action-blocked" reason={closeBlock} />
-              {sessionStatus === 'COMPLETED' ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '14px', fontWeight: 600, color: '#059669', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px' }}>
-                  <CheckCircle2 size={14} aria-hidden="true" />
-                  <span>{lang === 'en' ? 'Session Completed' : 'Phiên đã đóng'}</span>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="lv-ca-btn-primary"
-                  onClick={handleCloseSession}
-                  aria-describedby={closeBlock ? 'close-action-blocked' : undefined}
-                  disabled={!canCloseSession || isClosingSession}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 18px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    backgroundColor: canCloseSession ? '#2563eb' : '#e2e8f0',
-                    color: canCloseSession ? '#ffffff' : '#94a3b8',
-                    border: 'none',
-                    cursor: canCloseSession ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  {isClosingSession ? (
-                    <>
-                      <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
-                      <span>{lang === 'en' ? 'Closing...' : 'Đang đóng phiên...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 size={14} aria-hidden="true" />
-                      <span>{lang === 'en' ? 'Close Handover Session' : 'Đóng phiên bàn giao'}</span>
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* Action Step 2: Atomic Archive & Case Close */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <strong style={{ fontSize: '14.5px', color: '#1e293b' }}>
-                  {lang === 'en' ? 'Complete case' : 'Hoàn tất hồ sơ'}
-                </strong>
-                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#64748b' }}>
-                  {t.step2Desc}
-                </p>
-              </div>
-
-              <WorkflowActionHint id="archive-action-blocked" reason={archiveBlock} />
-              <button
-                type="button"
-                className="lv-ca-btn-primary"
-                onClick={handleArchiveCase}
-                aria-describedby={archiveBlock ? 'archive-action-blocked' : undefined}
-                disabled={!canArchive || isArchiving}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  backgroundColor: canArchive ? '#164639' : '#e2e8f0',
-                  color: canArchive ? '#ffffff' : '#94a3b8',
-                  border: 'none',
-                  cursor: canArchive ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {isArchiving ? (
-                  <>
-                    <RefreshCw size={14} className="lv-spin" aria-hidden="true" />
-                    <span>{lang === 'en' ? 'Archiving...' : 'Đang lưu trữ...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Archive size={14} aria-hidden="true" />
-                    <span>{t.btnExecuteCloseArchive}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>}
+      <nav className="lv-ca-tabs" role="tablist" aria-label={en ? 'Close and archive steps' : 'Các bước đóng và lưu trữ'} onKeyDown={onStepKeyDown}>
+        {usableSteps.map(item => <button key={item.id} type="button" role="tab" id={`ca-tab-${item.id}`} aria-selected={activeStep === item.id}
+          aria-controls={`ca-panel-${item.id}`} tabIndex={activeStep === item.id ? 0 : -1} title={item.done ? (en ? 'Done' : 'Đã xong') : undefined}
+          className={`lv-ca-tab${activeStep === item.id ? ' is-active' : ''}${item.done ? ' is-done' : ''}`} onClick={() => setStepTab(item.id)}>
+          {item.done && <CheckCircle2 size={16} aria-hidden="true" />}<span>{item.label}</span>
+        </button>)}
+      </nav>
+      {usableSteps.map(item => <div key={item.id} role="tabpanel" id={`ca-panel-${item.id}`} aria-labelledby={`ca-tab-${item.id}`} hidden={activeStep !== item.id}>{item.node}</div>)}
     </div>
   );
 }
