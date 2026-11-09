@@ -62,8 +62,6 @@ export const adminI18n = {
     thStatus: 'Trạng thái',
     thActions: 'Thao tác',
     viewDetails: 'Xem chi tiết',
-    lockAction: 'Khóa tài khoản',
-    unlockAction: 'Mở khóa',
     noUsersFound: 'Không tìm thấy người dùng phù hợp với điều kiện lọc.',
     paginationPage: 'Trang',
     paginationOf: 'trên',
@@ -81,15 +79,6 @@ export const adminI18n = {
     userLastLogin: 'Đăng nhập lần cuối:',
     closeModal: 'Đóng',
 
-    // Lock Confirmation Dialog
-    lockDialogTitle: 'Xác nhận thay đổi trạng thái tài khoản',
-    lockDialogWarning: 'Thao tác này sẽ tác động trực tiếp đến quyền truy cập của tài khoản đích.',
-    lockTargetAccount: 'Tài khoản bị tác động:',
-    lockReasonLabel: 'Lý do thực hiện (nếu có yêu cầu từ contract):',
-    lockReasonPlaceholder: 'Nhập lý do thay đổi trạng thái...',
-    lockPolicyPendingNotice: 'Chức năng khóa và mở khóa tài khoản hiện chưa khả dụng.',
-    confirmLockBtn: 'Xác nhận khóa tài khoản',
-    confirmUnlockBtn: 'Xác nhận mở khóa tài khoản',
     cancelBtn: 'Hủy bỏ',
 
     // Logs (Audit)
@@ -194,8 +183,6 @@ export const adminI18n = {
     thStatus: 'Status',
     thActions: 'Actions',
     viewDetails: 'View details',
-    lockAction: 'Lock account',
-    unlockAction: 'Unlock account',
     noUsersFound: 'No users match the specified criteria.',
     paginationPage: 'Page',
     paginationOf: 'of',
@@ -213,15 +200,6 @@ export const adminI18n = {
     userLastLogin: 'Last Login:',
     closeModal: 'Close',
 
-    // Lock Confirmation Dialog
-    lockDialogTitle: 'Confirm Account Status Change',
-    lockDialogWarning: 'This action directly affects the target account’s access rights.',
-    lockTargetAccount: 'Target Account:',
-    lockReasonLabel: 'Reason (if mandated by contract):',
-    lockReasonPlaceholder: 'Enter reason for status change...',
-    lockPolicyPendingNotice: 'Account locking and unlocking are currently unavailable.',
-    confirmLockBtn: 'Confirm Lock Account',
-    confirmUnlockBtn: 'Confirm Unlock Account',
     cancelBtn: 'Cancel',
 
     // Logs (Audit)
