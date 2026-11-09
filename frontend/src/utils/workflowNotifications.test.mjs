@@ -20,7 +20,7 @@ const refresh = () => act(async () => window.dispatchEvent(new window.Event('lv-
 const toastSelector = '.lv-workflow-notifications__toast';
 const ringingSelector = '.lv-workflow-notifications__bell--ringing';
 
-test('caps the badge at 9+ and briefly previews only newly received unread notifications', async (t) => {
+test('shows 9 at nine unread notices and 9+ above nine, with previews only for new unread notices', async (t) => {
   const notice = number => ({ ...item, id: `11111111-1111-4111-8111-${String(number).padStart(12, '0')}` });
   let items = Array.from({ length: 8 }, (_, index) => notice(index));
   globalThis.fetch = async () => json(items);
@@ -37,7 +37,7 @@ test('caps the badge at 9+ and briefly previews only newly received unread notif
     t.mock.timers.enable({ apis: ['setTimeout'] });
     items = [notice(8), ...items];
     await refresh();
-    assert.equal(badge().textContent, '9+');
+    assert.equal(badge().textContent, '9');
     assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), '9 thông báo chưa đọc');
     assert.match(toast().textContent, /1 thông báo mới.*Hồ sơ cần bổ sung.*HS-2026-000001/);
     assert.ok(view.host.querySelector(ringingSelector));

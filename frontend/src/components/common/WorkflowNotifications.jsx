@@ -118,7 +118,7 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
     aria-hidden="true"
    />
    <span className="lv-workflow-notifications__label">{notificationLabel}</span>
-   {unreadCount > 0 && <span className="lv-workflow-notifications__badge" aria-hidden="true">{unreadCount >= 9 ? '9+' : unreadCount}</span>}
+   {unreadCount > 0 && <span className="lv-workflow-notifications__badge" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}
   </summary>
   {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}><h2>{en?'Recent notifications':'Thông báo gần đây'}</h2>
    {!visible?<p role="status">{en?'Loading…':'Đang tải…'}</p>:visible.error?<div role="alert"><p>{visible.unavailable?(en?'Notifications are not available yet.':'Thông báo hiện chưa khả dụng.'):(en?'Notifications could not be loaded.':'Chưa tải được thông báo.')}</p><button type="button" onClick={()=>setAttempt(x=>x+1)}>{en?'Try again':'Thử lại'}</button></div>:!visible.items.length?<p>{en?'No notifications yet.':'Chưa có thông báo.'}</p>:<ul>{visible.items.map(item=><li key={item.id}><button type="button" disabled={!!opening} className={item.read?'':'is-unread'} onClick={()=>open(item)}><strong>{notificationTitle(item.action, en)}</strong><span>{item.caseNumber}{!item.read&&(en?' · Unread':' · Chưa đọc')}</span>{item.reason && <span>{item.reason}</span>}<time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString(en?'en-GB':'vi-VN')}</time></button></li>)}</ul>}
