@@ -166,7 +166,6 @@ export default function AdminUsersPage({
       </form>
 
       {/* Users Data Table */}
-      <p id="admin-lock-policy-notice">{t.lockPolicyPendingNotice}</p>
       <div className="lv-admin-list-meta">
         <p>{lang === 'en' ? 'User directory' : 'Danh sách người dùng'}{total !== null && !loading && <> <strong>({total})</strong></>}</p>
         <span className="lv-admin-scroll-hint">{lang === 'en' ? 'Scroll horizontally to see all columns' : 'Cuộn ngang để xem đầy đủ các cột'}</span>
@@ -248,15 +247,6 @@ export default function AdminUsersPage({
                       onClick={() => setDetailUser(user)}
                     >
                       {t.viewDetails}
-                    </button>
-                    <button
-                      type="button"
-                      className={`lv-admin-btn lv-admin-btn-lock ${user.status === 'LOCKED' ? 'lv-admin-btn-secondary' : 'lv-admin-btn-danger'}`}
-                      disabled
-                      aria-describedby="admin-lock-policy-notice"
-                      title={t.lockPolicyPendingNotice}
-                    >
-                      {user.status === 'LOCKED' ? t.unlockAction : t.lockAction}
                     </button>
                     </div>
                   </td>

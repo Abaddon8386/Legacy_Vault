@@ -341,7 +341,7 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
   }
 });
 
-for (const lang of ['vi', 'en']) test(`AdminUsersPage shows unavailable lock/unlock actions before interaction (${lang})`, async () => {
+for (const lang of ['vi', 'en']) test(`AdminUsersPage hides lock and unlock controls but displays account status (${lang})`, async () => {
   const prevFetch = globalThis.fetch;
   const mockUsers = [
     { fullName: 'Active account', email: 'active@example.com', roles: ['VAULT_OWNER'], status: 'ACTIVE' },
@@ -360,23 +360,13 @@ for (const lang of ['vi', 'en']) test(`AdminUsersPage shows unavailable lock/unl
   try {
     const view = await mount(AdminUsersPage, { lang, accessToken: 'test-token', fetchOnMount: true });
     try {
-      const notice = view.host.querySelector('#admin-lock-policy-notice');
-      assert.match(notice.textContent, lang === 'en' ? /currently unavailable/ : /hiện chưa khả dụng/);
-      const labels = lang === 'en' ? ['Lock account', 'Unlock account'] : ['Khóa tài khoản', 'Mở khóa'];
-      for (const label of labels) {
-        const button = [...view.host.querySelectorAll('button')].find(candidate => candidate.textContent.trim() === label);
-        assert.ok(button);
-        assert.equal(button.disabled, true);
-        assert.equal(button.getAttribute('aria-describedby'), notice.id);
-        assert.equal(button.title, notice.textContent);
-        await act(async () => button.click());
-      }
-      assert.equal(view.host.querySelector('[role="dialog"]'), null);
-      assert.equal(requests, 1, 'Unavailable actions must not make requests');
-      const details = [...view.host.querySelectorAll('button')].filter(button =>
-        button.textContent.trim() === (lang === 'en' ? 'View details' : 'Xem chi tiết'));
+      assert.equal(view.host.querySelector('#admin-lock-policy-notice'), null);
+      const details = [...view.host.querySelectorAll('tbody button')];
       assert.equal(details.length, 2);
+      assert.ok(details.every(button => button.textContent.trim() === (lang === 'en' ? 'View details' : 'Xem chi tiết')));
       assert.ok(details.every(button => !button.disabled), 'Read-only details remain available');
+      assert.equal(view.host.querySelector('.lv-admin-status-locked')?.textContent.trim(), lang === 'en' ? 'Locked' : 'Đã khóa');
+      assert.equal(requests, 1);
     } finally {
       await view.close();
     }

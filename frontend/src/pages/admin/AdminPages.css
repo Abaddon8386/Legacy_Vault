@@ -760,9 +760,6 @@
     align-items: flex-start;
     max-width: 105px;
   }
-  .lv-admin-btn-lock {
-    display: none !important;
-  }
   .lv-admin-table th:last-child,
   .lv-admin-table td.lv-admin-cell-actions {
     position: sticky;
