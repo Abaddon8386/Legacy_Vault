@@ -99,3 +99,6 @@
   .lv-legal-reopen__people > li { flex-direction: column; align-items: flex-start; gap: 6px; }
   .lv-legal-reopen__status-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
+
+.lv-legal-reopen__fold-note { margin-left: auto; font-size: 14px; color: #52675b; }
+.lv-legal-reopen__history-summary { display: flex; align-items: center; gap: 12px; }
