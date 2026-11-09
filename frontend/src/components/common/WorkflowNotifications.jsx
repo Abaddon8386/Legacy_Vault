@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Bell } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Bell, X } from 'lucide-react';
 import { request } from '../../api/http.js';
 import './WorkflowNotifications.css';
 const labels={
@@ -37,8 +37,11 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
  const [expanded,setExpanded]=useState(false);
  const [toast, setToast] = useState(null);
  useEffect(() => {
-  if (!toast) return;
-  const timeout = setTimeout(() => setToast(null), TOAST_VISIBLE_MS + TOAST_MOTION_MS);
+  if (!toast || toast.hovered || toast.focused) return;
+  const timeout = setTimeout(() => {
+   const next = toast.closing ? null : { ...toast, closing: true };
+   setToast(current => current === toast ? next : current);
+  }, toast.closing ? TOAST_MOTION_MS : TOAST_VISIBLE_MS);
   return () => clearTimeout(timeout);
  }, [toast]);
  useEffect(()=>{if(!expanded)return;const close=event=>{if(event.type==='keydown'&&event.key!=='Escape')return;if(event.type==='pointerdown'&&details.current?.contains(event.target))return;details.current?.removeAttribute('open');if(event.type==='keydown')details.current?.querySelector('summary').focus();};document.addEventListener('pointerdown',close);document.addEventListener('keydown',close);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',close);};},[expanded]);
@@ -53,7 +56,8 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
     if (previousIds) {
      const arrivals = items.filter(item => !item.read && !previousIds.has(item.id));
      if (arrivals.length && !details.current?.open) {
-      setToast({ token, role, item: arrivals[0], count: arrivals.length });
+      setToast(previous => previous?.token === token && previous.role === role && (previous.hovered || previous.focused)
+       ? previous : { token, role, item: arrivals[0], count: arrivals.length });
      }
     }
     previousIds = new Set(items.map(item => item.id));
@@ -70,13 +74,21 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    : `${unreadCount} thông báo chưa đọc`;
  const activeToast = !expanded && toast && toast.token === token && toast.role === role
    && visible?.items?.some(item => item.id === toast.item.id && !item.read) ? toast : null;
- function anchorToast(card) {
+ const anchorToast = useCallback(card => {
   if (!card || !bell.current) return;
   const icon = bell.current.getBoundingClientRect();
   const slot = card.parentElement.getBoundingClientRect();
   const x = icon.left + icon.width / 2 - slot.left;
   const y = icon.top + icon.height / 2 - slot.top;
   card.style.transformOrigin = `${x}px ${y}px`;
+ }, []);
+ function setToastInteraction(field, value) {
+  setToast(current => current && current.item.id === activeToast?.item.id && current[field] !== value
+   ? { ...current, [field]: value, closing: false } : current);
+ }
+ function dismissToast(event) {
+  if (document.activeElement === event.currentTarget) details.current?.querySelector('summary')?.focus();
+  setToast(null);
  }
  if(!token)return null;
  async function open(item){if(opening)return;setOpening(item.id);const c=current.current;
@@ -116,8 +128,10 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   {activeToast && <div
    key={activeToast.item.id}
    ref={anchorToast}
-   className="lv-workflow-notifications__toast"
-   style={{ '--lv-toast-visible': `${TOAST_VISIBLE_MS}ms`, '--lv-toast-motion': `${TOAST_MOTION_MS}ms` }}
+   className={`lv-workflow-notifications__toast${activeToast.closing ? ' is-closing' : ''}`}
+   style={{ '--lv-toast-motion': `${TOAST_MOTION_MS}ms` }}
+   onPointerEnter={event => { if (event.pointerType !== 'touch') setToastInteraction('hovered', true); }}
+   onPointerLeave={() => setToastInteraction('hovered', false)}
   >
    <Bell size={18} aria-hidden="true" />
    <div>
@@ -125,6 +139,12 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
     <strong>{notificationTitle(activeToast.item.action, en)}</strong>
     <p>{activeToast.item.caseNumber}</p>
    </div>
+   <button type="button" className="lv-workflow-notifications__toast-close"
+    aria-label={en ? 'Dismiss notification' : 'Đóng thông báo'}
+    onFocus={() => setToastInteraction('focused', true)} onBlur={() => setToastInteraction('focused', false)}
+    onClick={dismissToast}>
+    <X size={18} aria-hidden="true" />
+   </button>
   </div>}
  </div>
  </div>;

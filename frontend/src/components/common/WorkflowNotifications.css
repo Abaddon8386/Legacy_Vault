@@ -8,8 +8,9 @@
   min-height: 26px;
   padding-inline: 5px;
   border-radius: 999px;
-  background: #a53026;
-  color: #fff;
+  border: 1px solid var(--lv-status-await-border);
+  background: var(--lv-status-await-bg);
+  color: var(--lv-status-await-text);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -57,17 +58,38 @@
   color: #203e33;
   line-height: 1.4;
   overflow-wrap: anywhere;
+  pointer-events: auto;
 }
 
 .lv-workflow-notifications__toast > svg { flex-shrink: 0; }
 .lv-workflow-notifications__toast p { margin: 0; font-size: 14px; color: #4c6256; }
-.lv-workflow-notifications__toast strong { display: block; margin-block: 3px; font-size: 14px; }
+.lv-workflow-notifications__toast strong { display: block; margin-block: 3px; font-size: 16px; }
+
+.lv-workflow-notifications__toast-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-inline-size: var(--lv-control-min-size);
+  min-block-size: var(--lv-control-min-size);
+  margin-inline-start: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lv-radius-control);
+  background: transparent;
+  color: var(--lv-text-heading);
+  cursor: pointer;
+}
+
+.lv-workflow-notifications__toast-close:hover { background: var(--lv-bg-muted); }
+.lv-workflow-notifications__toast-close:focus-visible { outline: 2px solid var(--lv-action-focus); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: no-preference) {
   .lv-workflow-notifications__toast {
-    animation:
-      lv-workflow-toast-enter var(--lv-toast-motion) ease-out both,
-      lv-workflow-toast-exit var(--lv-toast-motion) ease-in var(--lv-toast-visible) forwards;
+    animation: lv-workflow-toast-enter var(--lv-toast-motion) ease-out both;
+  }
+
+  .lv-workflow-notifications__toast.is-closing {
+    animation: lv-workflow-toast-exit var(--lv-toast-motion) ease-in forwards;
   }
 }
 

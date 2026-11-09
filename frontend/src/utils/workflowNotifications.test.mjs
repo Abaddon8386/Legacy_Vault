@@ -44,7 +44,7 @@ test('caps the badge at 9+ and briefly previews only newly received unread notif
     await act(async () => t.mock.timers.tick(2000));
     await refresh();
     await act(async () => t.mock.timers.tick(1000));
-    assert.ok(toast(), 'keeps the popup mounted during the exit animation');
+    assert.ok(toast()?.classList.contains('is-closing'));
     await act(async () => t.mock.timers.tick(240));
     assert.equal(toast(), null);
     assert.equal(view.host.querySelector(ringingSelector), null);
@@ -96,12 +96,45 @@ test('unmounting while the popup is visible clears its expiry timer', async (t) 
     items = [item];
     await refresh();
     assert.ok(view.host.querySelector(toastSelector));
-    timeout = schedule.mock.calls.find(call => call.arguments[1] === 3240)?.result;
+    timeout = schedule.mock.calls.find(call => call.arguments[1] === 3000)?.result;
     assert.ok(timeout);
   } finally {
     await view.close();
   }
   assert.ok(cancel.mock.calls.some(call => call.arguments[0] === timeout));
+});
+
+test('hover and keyboard focus keep the popup readable and dismissal returns focus to the bell', async (t) => {
+  let items = [];
+  globalThis.fetch = async () => json(items);
+  const view = await mount();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    items = [item];
+    await refresh();
+    const card = view.host.querySelector(toastSelector);
+    const close = card.querySelector('button[aria-label="Đóng thông báo"]');
+    await act(async () => card.dispatchEvent(new window.MouseEvent('pointerover', { bubbles: true })));
+    await act(async () => t.mock.timers.tick(4000));
+    assert.equal(view.host.querySelector(toastSelector), card);
+    assert.equal(card.classList.contains('is-closing'), false);
+
+    await act(async () => close.focus());
+    await act(async () => card.dispatchEvent(new window.MouseEvent('pointerout', { bubbles: true })));
+    await act(async () => t.mock.timers.tick(4000));
+    assert.equal(view.host.querySelector(toastSelector), card);
+    await act(async () => close.blur());
+    await act(async () => t.mock.timers.tick(3000));
+    assert.ok(card.classList.contains('is-closing'));
+
+    await act(async () => close.focus());
+    await act(async () => close.click());
+    assert.equal(view.host.querySelector(toastSelector), null);
+    assert.equal(document.activeElement, view.host.querySelector('summary'));
+    assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '1');
+  } finally {
+    await view.close();
+  }
 });
 
 test('popup and bell animation rules only apply when reduced motion is disabled', () => {
@@ -110,7 +143,7 @@ test('popup and bell animation rules only apply when reduced motion is disabled'
   style.textContent = css;
   document.head.append(style);
   try {
-    for (const selector of [toastSelector, ringingSelector]) {
+    for (const selector of [toastSelector, `${toastSelector}.is-closing`, ringingSelector]) {
       const rules = Array.from(style.sheet.cssRules);
       assert.ok(rules.some(rule => rule.conditionText === '(prefers-reduced-motion: no-preference)'
         && Array.from(rule.cssRules).some(child => child.selectorText === selector && child.style.animation)));
