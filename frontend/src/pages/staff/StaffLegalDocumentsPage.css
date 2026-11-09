@@ -1430,8 +1430,11 @@
 .lv-staff-documents-view .lv-staff-tab-dot.is-rejected { border-color: var(--lv-required); background: var(--lv-required); }
 .lv-staff-documents-view .lv-form-note { margin: 0 0 6px; color: #53665a; font-size: 14px; font-style: italic; line-height: 1.5; }
 
-@media (max-width: 700px) {
-  .lv-staff-documents-view .lv-staff-tabs-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Tab labels stay on one line; when four tabs do not fit, the row scrolls sideways. */
+.lv-staff-documents-view .lv-staff-tab-btn { white-space: nowrap; }
+@media (max-width: 900px) {
+  .lv-staff-documents-view .lv-staff-tabs-nav { display: flex; }
+  .lv-staff-documents-view .lv-staff-tab-btn { flex: 0 0 auto; }
 }
 
 

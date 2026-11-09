@@ -15,7 +15,7 @@
   border-radius: 16px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   width: 100%;
-  max-width: 640px;
+  max-width: 760px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -51,6 +51,8 @@
   cursor: pointer;
   color: #94a3b8;
   padding: 4px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -70,6 +72,7 @@
 }
 
 .lv-case-modal-select {
+  min-height: 44px;
   padding: 8px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -84,6 +87,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
+  min-height: 44px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background-color: #f8fafc;
@@ -189,9 +193,12 @@
   color: #164639;
   font-family: var(--lv-font-mono, ui-monospace, 'JetBrains Mono', Consolas, monospace);
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .lv-case-modal-badge {
+  display: inline-block;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 600;
   padding: 2px 8px;
@@ -232,6 +239,7 @@
 
 .lv-case-modal-select-btn {
   padding: 8px 16px;
+  min-height: 44px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
@@ -266,6 +274,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
+  min-height: 44px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   background-color: #fff;
@@ -301,6 +310,7 @@
   padding: 10px 12px;
   font-weight: 600;
   color: #475569;
+  white-space: nowrap;
   border-bottom: 2px solid #e2e8f0;
   background-color: #f8fafc;
 }
