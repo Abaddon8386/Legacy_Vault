@@ -1,13 +1,84 @@
 .lv-workflow-notifications{position:relative;color:var(--lv-text-primary,#203e33)}
-.lv-workflow-notifications>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;padding:10px;border-radius:10px;cursor:pointer;font:600 14px var(--lv-font-sans)}
-.lv-workflow-notifications>summary::-webkit-details-marker{display:none}
-.lv-workflow-notifications__dot{width:8px;height:8px;border-radius:50%;background:#996a12}
+.lv-workflow-notifications summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:44px;padding:10px;border-radius:10px;cursor:pointer;font:600 14px var(--lv-font-sans)}
+.lv-workflow-notifications summary::-webkit-details-marker{display:none}
+.lv-workflow-notifications__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  min-height: 22px;
+  padding-inline: 5px;
+  border-radius: 999px;
+  background: #a53026;
+  color: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lv-workflow-notifications__bell--unread {
+    transform-origin: 50% 20%;
+    animation: lv-workflow-notification-ring 1.25s ease-in-out 3;
+  }
+}
+
+@keyframes lv-workflow-notification-ring {
+  0%, 55%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(15deg); }
+  20%, 40% { transform: rotate(-15deg); }
+}
 .lv-workflow-notifications__panel{position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:min(380px,calc(100vw - 32px));max-height:65dvh;overflow:auto;background:white;border:1px solid #dfe5de;border-radius:14px;box-shadow:0 12px 40px #102e3326;padding:16px;z-index:150}
 .lv-workflow-notifications__panel h2{font-size:17px;margin:0 0 12px}
 .lv-workflow-notifications__panel ul{list-style:none;margin:0;padding:0}
 .lv-workflow-notifications__panel li+li{border-top:1px solid #e4e8e1}
 .lv-workflow-notifications__panel button{display:grid;gap:6px;text-align:start;width:100%;min-height:44px;padding:12px;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
 .lv-workflow-notifications__panel button.is-unread{background:#faf6eb}
-.lv-workflow-notifications__panel button:focus-visible,.lv-workflow-notifications>summary:focus-visible{outline:3px solid #b38d45;outline-offset:2px}
+.lv-workflow-notifications__panel button:focus-visible,.lv-workflow-notifications summary:focus-visible{outline:3px solid #b38d45;outline-offset:2px}
 .lv-workflow-notifications__panel time{font-size:14px;color:#596b60}
-@media(max-width:520px){.lv-workflow-notifications>summary>span:not(.lv-workflow-notifications__dot){display:none}.lv-workflow-notifications__panel{position:fixed;top:126px;inset-inline:16px;width:auto}}
+
+.lv-workflow-notifications__toast-slot {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-end: 0;
+  width: min(340px, calc(100vw - 32px));
+  pointer-events: none;
+  z-index: 150;
+}
+
+.lv-workflow-notifications__toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #dfe5de;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 28px #102e3326;
+  color: #203e33;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.lv-workflow-notifications__toast > svg { flex-shrink: 0; }
+.lv-workflow-notifications__toast p { margin: 0; font-size: 13px; color: #4c6256; }
+.lv-workflow-notifications__toast strong { display: block; margin-block: 3px; font-size: 14px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .lv-workflow-notifications__toast {
+    animation:
+      lv-workflow-toast-enter var(--lv-toast-motion) ease-out both,
+      lv-workflow-toast-exit var(--lv-toast-motion) ease-in var(--lv-toast-visible) forwards;
+  }
+}
+
+@keyframes lv-workflow-toast-enter {
+  from { opacity: 0; transform: scale(0.12); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes lv-workflow-toast-exit {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.12); }
+}
+
+@media(max-width:520px){.lv-workflow-notifications__label{display:none}.lv-workflow-notifications__panel,.lv-workflow-notifications__toast-slot{position:fixed;top:126px;inset-inline:16px;width:auto}}

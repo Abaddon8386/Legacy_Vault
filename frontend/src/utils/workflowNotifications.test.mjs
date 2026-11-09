@@ -16,6 +16,40 @@ const json=x=>new Response(JSON.stringify(x),{status:200,headers:{'Content-Type'
 async function mount(props={session:{accessToken:'test-only'},role:'STAFF',lang:'vi'}){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const render=async props=>act(async()=>root.render(React.createElement(Component,props)));await render(props);const expand=async()=>act(async()=>{host.querySelector('details').open=true;host.querySelector('details').dispatchEvent(new window.Event('toggle',{bubbles:true}));});return{host,render,expand,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 const originalFetch=globalThis.fetch;test.afterEach(()=>{globalThis.fetch=originalFetch;});
 
+test('caps the badge at 9+ and briefly previews only newly received unread notifications', async (t) => {
+  const notice = number => ({ ...item, id: `11111111-1111-4111-8111-${String(number).padStart(12, '0')}` });
+  let items = Array.from({ length: 8 }, (_, index) => notice(index));
+  globalThis.fetch = async () => json(items);
+  const view = await mount();
+  const badge = () => view.host.querySelector('.lv-workflow-notifications__badge');
+  const toast = () => view.host.querySelector('.lv-workflow-notifications__toast');
+  const refresh = () => act(async () => window.dispatchEvent(new window.Event('lv-workflow-notifications-changed')));
+
+  try {
+    assert.equal(badge().textContent, '8');
+    assert.equal(toast(), null);
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    items = [notice(8), ...items];
+    await refresh();
+    assert.equal(badge().textContent, '9+');
+    assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), '9 thông báo chưa đọc');
+    assert.match(toast().textContent, /1 thông báo mới.*Hồ sơ cần bổ sung.*HS-2026-000001/);
+    await act(async () => t.mock.timers.tick(2000));
+    await refresh();
+    await act(async () => t.mock.timers.tick(1000));
+    assert.ok(toast(), 'keeps the popup mounted during the exit animation');
+    await act(async () => t.mock.timers.tick(240));
+    assert.equal(toast(), null);
+    items = [notice(9), { ...notice(10), read: true }, ...items];
+    await refresh();
+    assert.equal(badge().textContent, '9+');
+    assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), '10 thông báo chưa đọc');
+    assert.match(toast().textContent, /1 thông báo mới/);
+  } finally {
+    await view.close();
+  }
+});
+
 test('group handover events coexist with other notices and open the correct workspace case in both languages', async () => {
   const events = [
     ['HANDOVER_GROUP_ATTENDANCE', 'LEGAL', 'Đã ghi nhận người có mặt tại bàn giao', 'Handover attendance recorded'],
@@ -34,7 +68,11 @@ test('group handover events coexist with other notices and open the correct work
       await view.expand();
       assert.equal(view.host.querySelectorAll('li').length, 2);
       assert.equal(view.host.querySelector('li strong').textContent, lang === 'en' ? en : vi);
+      assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '2');
+      assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), lang === 'en' ? '2 unread notifications' : '2 thông báo chưa đọc');
+      assert.ok(view.host.querySelector('.lv-workflow-notifications__bell--unread'));
       await act(async()=>view.host.querySelector('li button').click());
+      assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '1');
       assert.deepEqual(destinations, [`${role === 'STAFF' ? '/staff/handover' : '/legal/controlled-unlock'}?caseId=${caseId}&lang=${lang}`]);
       assert.deepEqual(calls.map(x=>x.method), ['GET', 'PUT']);
       assert.ok(calls[1].url.endsWith(`${id}/read?workspace=${role}`));
@@ -56,7 +94,7 @@ test('failed mark-read cannot navigate or claim local read success',async()=>{
 test('shows real unread notice and supplementation reason; acknowledges then opens exactly its case',async()=>{
  const calls=[],destinations=[];globalThis.fetch=async(url,init)=>{calls.push({url,init});return init.method==='PUT'?json({id,read:true}):json([item]);};
  const view=await mount({session:{accessToken:'staff-token'},role:'STAFF',lang:'vi',onNavigate:url=>destinations.push(url)});
- try{await view.expand();assert.match(view.host.textContent,/Bổ sung trang cuối/);assert.ok(view.host.querySelector('.lv-workflow-notifications__dot'));await act(async()=>view.host.querySelector('li button').click());assert.ok(calls[1].url.includes(id+'/read?workspace=STAFF'));assert.equal(calls[1].init.headers.Authorization,'Bearer staff-token');assert.deepEqual(destinations,['/staff/legal-documents?caseId='+caseId+'&lang=vi']);}finally{await view.close();}
+ try{await view.expand();assert.match(view.host.textContent,/Bổ sung trang cuối/);assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent,'1');await act(async()=>view.host.querySelector('li button').click());assert.ok(calls[1].url.includes(id+'/read?workspace=STAFF'));assert.equal(calls[1].init.headers.Authorization,'Bearer staff-token');assert.deepEqual(destinations,['/staff/legal-documents?caseId='+caseId+'&lang=vi']);}finally{await view.close();}
 });
 test('token change aborts the old request and prevents a late response from restoring its private notices',async()=>{
  let finish,signal;globalThis.fetch=async(_url,init)=>init.headers.Authorization==='Bearer first'?new Promise(resolve=>{finish=resolve;signal=init.signal;}):json([]);
@@ -118,7 +156,8 @@ test('unknown actions coexist with known notices, acknowledge locally and never 
    assert.deepEqual(calls.map(call=>call.method),['GET','PUT']);
    assert.ok(calls[1].url.endsWith(`${id}/read?workspace=${role}`));
    assert.equal(view.host.querySelector('li button.is-unread'),null);
-   assert.equal(view.host.querySelector('.lv-workflow-notifications__dot'),null);
+   assert.equal(view.host.querySelector('.lv-workflow-notifications__badge'),null);
+   assert.equal(view.host.querySelector('.lv-workflow-notifications__bell--unread'),null);
    assert.equal(view.host.querySelector('li button').disabled,false);
    await act(async()=>view.host.querySelectorAll('li button')[1].click());
    assert.equal(destinations.length,1,'known notices remain usable');
