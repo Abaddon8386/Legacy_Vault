@@ -4,21 +4,21 @@
 .lv-workflow-notifications__badge {
   display: inline-grid;
   place-items: center;
-  min-width: 22px;
-  min-height: 22px;
+  min-width: 26px;
+  min-height: 26px;
   padding-inline: 5px;
   border-radius: 999px;
   background: #a53026;
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .lv-workflow-notifications__bell--unread {
+  .lv-workflow-notifications__bell--ringing {
     transform-origin: 50% 20%;
-    animation: lv-workflow-notification-ring 1.25s ease-in-out 3;
+    animation: lv-workflow-notification-ring 1s ease-in-out 3;
   }
 }
 
@@ -60,7 +60,7 @@
 }
 
 .lv-workflow-notifications__toast > svg { flex-shrink: 0; }
-.lv-workflow-notifications__toast p { margin: 0; font-size: 13px; color: #4c6256; }
+.lv-workflow-notifications__toast p { margin: 0; font-size: 14px; color: #4c6256; }
 .lv-workflow-notifications__toast strong { display: block; margin-block: 3px; font-size: 14px; }
 
 @media (prefers-reduced-motion: no-preference) {

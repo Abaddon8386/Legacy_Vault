@@ -52,7 +52,9 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
     if (c.signal.aborted) return;
     if (previousIds) {
      const arrivals = items.filter(item => !item.read && !previousIds.has(item.id));
-     if (arrivals.length) setToast({ token, role, item: arrivals[0], count: arrivals.length });
+     if (arrivals.length && !details.current?.open) {
+      setToast({ token, role, item: arrivals[0], count: arrivals.length });
+     }
     }
     previousIds = new Set(items.map(item => item.id));
     setResult({token,role,items});
@@ -90,12 +92,16 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    onNavigate(destination+'?'+params);
   }catch{if(!c?.signal.aborted)setResult({token,role,error:true});}finally{if(!c?.signal.aborted)setOpening(null);}}
  return <div className="lv-workflow-notifications">
- <details ref={details} onToggle={event=>setExpanded(event.currentTarget.open)}>
+ <details ref={details} onToggle={event => {
+  const isOpen = event.currentTarget.open;
+  setExpanded(isOpen);
+  if (isOpen) setToast(null);
+ }}>
   <summary aria-label={unreadCount ? unreadLabel : notificationLabel}>
    <Bell
-    key={visible?.items?.[0]?.id}
+    key={activeToast?.item.id}
     ref={bell}
-    className={unreadCount ? 'lv-workflow-notifications__bell--unread' : undefined}
+    className={activeToast ? 'lv-workflow-notifications__bell--ringing' : undefined}
     size={20}
     aria-hidden="true"
    />

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import React,{act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {JSDOM} from 'jsdom';
@@ -15,6 +16,9 @@ const item={id,caseId,caseNumber:'HS-2026-000001',action:'LEGAL_BASIS_REVIEW_REQ
 const json=x=>new Response(JSON.stringify(x),{status:200,headers:{'Content-Type':'application/json'}});
 async function mount(props={session:{accessToken:'test-only'},role:'STAFF',lang:'vi'}){const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const render=async props=>act(async()=>root.render(React.createElement(Component,props)));await render(props);const expand=async()=>act(async()=>{host.querySelector('details').open=true;host.querySelector('details').dispatchEvent(new window.Event('toggle',{bubbles:true}));});return{host,render,expand,close:async()=>{await act(async()=>root.unmount());host.remove();}};}
 const originalFetch=globalThis.fetch;test.afterEach(()=>{globalThis.fetch=originalFetch;});
+const refresh = () => act(async () => window.dispatchEvent(new window.Event('lv-workflow-notifications-changed')));
+const toastSelector = '.lv-workflow-notifications__toast';
+const ringingSelector = '.lv-workflow-notifications__bell--ringing';
 
 test('caps the badge at 9+ and briefly previews only newly received unread notifications', async (t) => {
   const notice = number => ({ ...item, id: `11111111-1111-4111-8111-${String(number).padStart(12, '0')}` });
@@ -22,24 +26,28 @@ test('caps the badge at 9+ and briefly previews only newly received unread notif
   globalThis.fetch = async () => json(items);
   const view = await mount();
   const badge = () => view.host.querySelector('.lv-workflow-notifications__badge');
-  const toast = () => view.host.querySelector('.lv-workflow-notifications__toast');
-  const refresh = () => act(async () => window.dispatchEvent(new window.Event('lv-workflow-notifications-changed')));
+  const toast = () => view.host.querySelector(toastSelector);
 
   try {
     assert.equal(badge().textContent, '8');
     assert.equal(toast(), null);
+    assert.equal(view.host.querySelector(ringingSelector), null);
+    await refresh();
+    assert.equal(view.host.querySelector(ringingSelector), null);
     t.mock.timers.enable({ apis: ['setTimeout'] });
     items = [notice(8), ...items];
     await refresh();
     assert.equal(badge().textContent, '9+');
     assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), '9 thông báo chưa đọc');
     assert.match(toast().textContent, /1 thông báo mới.*Hồ sơ cần bổ sung.*HS-2026-000001/);
+    assert.ok(view.host.querySelector(ringingSelector));
     await act(async () => t.mock.timers.tick(2000));
     await refresh();
     await act(async () => t.mock.timers.tick(1000));
     assert.ok(toast(), 'keeps the popup mounted during the exit animation');
     await act(async () => t.mock.timers.tick(240));
     assert.equal(toast(), null);
+    assert.equal(view.host.querySelector(ringingSelector), null);
     items = [notice(9), { ...notice(10), read: true }, ...items];
     await refresh();
     assert.equal(badge().textContent, '9+');
@@ -47,6 +55,69 @@ test('caps the badge at 9+ and briefly previews only newly received unread notif
     assert.match(toast().textContent, /1 thông báo mới/);
   } finally {
     await view.close();
+  }
+});
+
+test('opening the notification panel dismisses the popup and prevents replay when closing it', async () => {
+  let items = [];
+  globalThis.fetch = async () => json(items);
+  const view = await mount();
+  try {
+    items = [item];
+    await refresh();
+    assert.ok(view.host.querySelector(toastSelector));
+    await view.expand();
+    assert.equal(view.host.querySelector(toastSelector), null);
+    items = [{ ...item, id: caseId }, ...items];
+    await refresh();
+    assert.equal(view.host.querySelectorAll('li').length, 2);
+    assert.equal(view.host.querySelector(toastSelector), null);
+    await act(async () => {
+      const details = view.host.querySelector('details');
+      details.open = false;
+      details.dispatchEvent(new window.Event('toggle'));
+    });
+    assert.equal(view.host.querySelector(toastSelector), null);
+    assert.equal(view.host.querySelector(ringingSelector), null);
+  } finally {
+    await view.close();
+  }
+});
+
+test('unmounting while the popup is visible clears its expiry timer', async (t) => {
+  let items = [];
+  globalThis.fetch = async () => json(items);
+  const view = await mount();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const schedule = t.mock.method(globalThis, 'setTimeout');
+  const cancel = t.mock.method(globalThis, 'clearTimeout');
+  let timeout;
+  try {
+    items = [item];
+    await refresh();
+    assert.ok(view.host.querySelector(toastSelector));
+    timeout = schedule.mock.calls.find(call => call.arguments[1] === 3240)?.result;
+    assert.ok(timeout);
+  } finally {
+    await view.close();
+  }
+  assert.ok(cancel.mock.calls.some(call => call.arguments[0] === timeout));
+});
+
+test('popup and bell animation rules only apply when reduced motion is disabled', () => {
+  const css = readFileSync(new URL('../components/common/WorkflowNotifications.css', import.meta.url), 'utf8');
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.append(style);
+  try {
+    for (const selector of [toastSelector, ringingSelector]) {
+      const rules = Array.from(style.sheet.cssRules);
+      assert.ok(rules.some(rule => rule.conditionText === '(prefers-reduced-motion: no-preference)'
+        && Array.from(rule.cssRules).some(child => child.selectorText === selector && child.style.animation)));
+      assert.ok(rules.every(rule => rule.selectorText !== selector || !rule.style.animation));
+    }
+  } finally {
+    style.remove();
   }
 });
 
@@ -70,7 +141,7 @@ test('group handover events coexist with other notices and open the correct work
       assert.equal(view.host.querySelector('li strong').textContent, lang === 'en' ? en : vi);
       assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '2');
       assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), lang === 'en' ? '2 unread notifications' : '2 thông báo chưa đọc');
-      assert.ok(view.host.querySelector('.lv-workflow-notifications__bell--unread'));
+      assert.equal(view.host.querySelector(ringingSelector), null);
       await act(async()=>view.host.querySelector('li button').click());
       assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '1');
       assert.deepEqual(destinations, [`${role === 'STAFF' ? '/staff/handover' : '/legal/controlled-unlock'}?caseId=${caseId}&lang=${lang}`]);
@@ -157,7 +228,7 @@ test('unknown actions coexist with known notices, acknowledge locally and never 
    assert.ok(calls[1].url.endsWith(`${id}/read?workspace=${role}`));
    assert.equal(view.host.querySelector('li button.is-unread'),null);
    assert.equal(view.host.querySelector('.lv-workflow-notifications__badge'),null);
-   assert.equal(view.host.querySelector('.lv-workflow-notifications__bell--unread'),null);
+   assert.equal(view.host.querySelector(ringingSelector),null);
    assert.equal(view.host.querySelector('li button').disabled,false);
    await act(async()=>view.host.querySelectorAll('li button')[1].click());
    assert.equal(destinations.length,1,'known notices remain usable');
