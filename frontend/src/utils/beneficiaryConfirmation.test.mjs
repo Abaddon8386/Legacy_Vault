@@ -17,6 +17,7 @@ import {
   canAccessBeneficiaryConfirmation,
   validateBeneficiaryConfirmationForm,
   computeBeneficiaryConfirmationStatus,
+  isSystemReceiptReference,
   BENEFICIARY_CONFIRMATION_ERROR_KEYS,
   BENEFICIARY_CONFIRM_STATUS,
 } from './beneficiaryConfirmationValidation.js';
@@ -748,4 +749,13 @@ test('partial delivery of one out of two allocations never reports the recipient
     view = await mount(BeneficiaryConfirmationPage, {caseId,sessionId,accessToken:'partial-fixture',lang:'vi'});
     assert.match(view.host.querySelector('tbody tr').textContent, /Đã giao tài sản/);
   } finally {if(view) await view.close(); globalThis.fetch=originalFetch;}
+});
+
+test('server-generated BN-uuid receipt references are hidden, Staff-typed references are shown', () => {
+  assert.equal(isSystemReceiptReference('BN-917a7599-1f0b-350d-a231-37ddb8fd27fe'), true);
+  assert.equal(isSystemReceiptReference('  bn-917A7599-1F0B-350D-A231-37DDB8FD27FE  '), true);
+  for (const typed of ['DEMO-RECEIVED-01', 'BN-2026-0891', 'REC-2026-0091', 'BN-917a7599', '', null, undefined, 42]) {
+    assert.equal(isSystemReceiptReference(typed), false, String(typed));
+  }
+  for (const lang of ['vi', 'en']) assert.ok(beneficiaryConfirmationI18n[lang].receiptOnFile, lang);
 });

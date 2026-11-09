@@ -40,12 +40,12 @@ function reopenFailure(error, lang) {
   return workflowFailure(error, lang).description;
 }
 
-export default function LegalHandoverReopen({ session, lang = 'vi', caseId = '', onNavigate, onUnauthorized }) {
+export default function LegalHandoverReopen({ session, lang = 'vi', caseId = '', onNavigate, onUnauthorized, onAvailability }) {
   return <ReopenScope key={`${session.accessToken}:${lang}`} session={session} lang={lang} caseId={caseId}
-    onNavigate={onNavigate} onUnauthorized={onUnauthorized} />;
+    onNavigate={onNavigate} onUnauthorized={onUnauthorized} onAvailability={onAvailability} />;
 }
 
-function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
+function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvailability }) {
   const en = lang === 'en';
   const [page, setPage] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -92,6 +92,8 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
   // A newer request of the same case replaces the opened one; the opened one is kept only once it was decided and left the list.
   const target = found ?? (opened?.caseId === caseId ? opened : null);
   const hasRequests = Boolean(items?.length || target);
+  // Lets the page open on this tab only when a request is waiting (null until the first read finishes).
+  useEffect(() => { onAvailability?.(list ? hasRequests : null); }, [list, hasRequests, onAvailability]);
   const open = item => {
     setOpened(item); setOutcome(null);
     onNavigate?.(`${unlockPath}?${new URLSearchParams({ lang, caseId: item.caseId })}`);
@@ -115,7 +117,7 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized }) {
       <p className="lv-legal-reopen__meta">{en ? 'Requested by ' : 'Staff yêu cầu: '}{item.requestedBy.fullName} · {legalDate(item.requestedAt)}</p>
       <p className="lv-legal-reopen__summary">{en ? `Present ${item.presentRecipients}/${item.requiredRecipients} recipients · delivered ${item.deliveredAssets}/${item.totalAssets} assets`
         : `Đã có mặt ${item.presentRecipients}/${item.requiredRecipients} người nhận · đã giao ${item.deliveredAssets}/${item.totalAssets} tài sản`}</p>
-      <button type="button" className="lv-legal-primary" onClick={() => open(item)}>{en ? 'Review request' : 'Xem và xét yêu cầu'}</button>
+      <button type="button" className="lv-legal-primary" onClick={() => (item.caseId === caseId ? document.getElementById('lv-reopen-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : open(item))}>{item.caseId === caseId ? (en ? 'Viewing below ↓' : 'Đang xem bên dưới ↓') : (en ? 'Review request' : 'Xem và xét yêu cầu')}</button>
     </li>)}</ul>}
     {list?.data?.totalPages > 1 && <div role="group" aria-label={en ? 'Request pages' : 'Trang yêu cầu'} className="lv-legal-reopen__pages">
       <button type="button" disabled={!current || page === 0} onClick={() => setPage(value => value - 1)}>{en ? 'Previous' : 'Trước'}</button>
@@ -210,7 +212,7 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
     }
   }
 
-  return <div className="lv-legal-reopen__detail" aria-busy={busy || !current}>
+  return <div className="lv-legal-reopen__detail" id="lv-reopen-detail" aria-busy={busy || !current}>
     <div className="lv-legal-reopen__detail-head">
       <h3>{item.caseNumber} · {item.vaultName}</h3>
     </div>
@@ -225,23 +227,31 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
         </p>
         <p className="lv-legal-reopen__progress-pill">{en ? `Delivered ${view.progress.deliveredAssets}/${view.progress.totalAssets} assets` : `Đã giao ${view.progress.deliveredAssets}/${view.progress.totalAssets} tài sản`}</p>
       </div>
-      {!namesReady ? <div role="alert" className="lv-legal-reopen__alert"><p>{en ? 'The current recipient list could not be confirmed. Refresh before deciding.' : 'Chưa xác nhận được danh sách người nhận hiện hành. Hãy cập nhật trước khi quyết định.'}</p></div>
-        : <ul className="lv-legal-reopen__people" aria-label={en ? 'Recipients and attendance' : 'Người nhận và tình hình có mặt'}>
-          {view.requiredRecipientIds.map(id => <li key={id}><span>{names.get(id)}</span>
-            <span className={present.has(id) ? 'is-present' : 'is-absent'}>{present.has(id) ? (en ? 'Present' : 'Có mặt') : (en ? 'Not present' : 'Chưa có mặt')}</span></li>)}
-        </ul>}
-      {view.attendance && <div className="lv-legal-reopen__request lv-legal-reopen__card--attendance"><h4>{en ? 'Latest attendance record' : 'Ghi nhận có mặt gần nhất của Staff'}</h4>
-        <p className="lv-legal-reopen__meta">{view.attendance.recordedBy.fullName} · {legalDate(view.attendance.recordedAt)}</p><p className="lv-legal-reopen__reason">{view.attendance.reason}</p></div>}
       {request && <div className="lv-legal-reopen__request lv-legal-reopen__card--request"><h4>{en ? 'Staff request' : 'Yêu cầu của Staff'}</h4>
         <p className="lv-legal-reopen__meta">{request.requestedBy.fullName} · {legalDate(request.requestedAt)}</p><p className="lv-legal-reopen__reason">{request.reason}</p></div>}
-      {view.lastDecision && <div className="lv-legal-reopen__request lv-legal-reopen__card--last-decision"><h4>{en ? 'Latest Legal decision' : 'Quyết định gần nhất của Legal'}</h4>
-        <p className="lv-legal-reopen__meta">{view.lastDecision.result === 'APPROVE' ? (en ? 'Reopening allowed' : 'Cho phép mở lại') : (en ? 'Reopening refused' : 'Từ chối mở lại')} · {view.lastDecision.decidedBy.fullName} · {legalDate(view.lastDecision.decidedAt)}</p>
-        <p className="lv-legal-reopen__reason">{view.lastDecision.reason}</p></div>}
+      <details className="lv-legal-reopen__history" open={!namesReady}>
+        <summary className="lv-legal-reopen__history-summary">
+          <h4>{en ? 'Recipients and attendance record' : 'Người nhận và ghi nhận có mặt'}</h4>
+          <span className="lv-legal-reopen__fold-note">{present.size}/{view.requiredRecipientIds.length} {en ? 'present' : 'có mặt'}</span>
+        </summary>
+        <div className="lv-legal-reopen__history-content">
+        {!namesReady ? <div role="alert" className="lv-legal-reopen__alert"><p>{en ? 'The current recipient list could not be confirmed. Refresh before deciding.' : 'Chưa xác nhận được danh sách người nhận hiện hành. Hãy cập nhật trước khi quyết định.'}</p></div>
+          : <ul className="lv-legal-reopen__people" aria-label={en ? 'Recipients and attendance' : 'Người nhận và tình hình có mặt'}>
+            {view.requiredRecipientIds.map(id => <li key={id}><span>{names.get(id)}</span>
+              <span className={present.has(id) ? 'is-present' : 'is-absent'}>{present.has(id) ? (en ? 'Present' : 'Có mặt') : (en ? 'Not present' : 'Chưa có mặt')}</span></li>)}
+          </ul>}
+        {view.attendance && <div className="lv-legal-reopen__request lv-legal-reopen__card--attendance"><h4>{en ? 'Latest attendance record' : 'Ghi nhận có mặt gần nhất của Staff'}</h4>
+          <p className="lv-legal-reopen__meta">{view.attendance.recordedBy.fullName} · {legalDate(view.attendance.recordedAt)}</p><p className="lv-legal-reopen__reason">{view.attendance.reason}</p></div>}
+        </div>
+      </details>
       <details className="lv-legal-reopen__history">
         <summary className="lv-legal-reopen__history-summary">
           <h4>{en ? 'History of locks, requests and decisions' : 'Lịch sử khóa, yêu cầu và quyết định'}</h4>
         </summary>
         <div className="lv-legal-reopen__history-content">
+        {view.lastDecision && <div className="lv-legal-reopen__request lv-legal-reopen__card--last-decision"><h4>{en ? 'Latest Legal decision' : 'Quyết định gần nhất của Legal'}</h4>
+          <p className="lv-legal-reopen__meta">{view.lastDecision.result === 'APPROVE' ? (en ? 'Reopening allowed' : 'Cho phép mở lại') : (en ? 'Reopening refused' : 'Từ chối mở lại')} · {view.lastDecision.decidedBy.fullName} · {legalDate(view.lastDecision.decidedAt)}</p>
+          <p className="lv-legal-reopen__reason">{view.lastDecision.reason}</p></div>}
           {!current.history ? <p>{en ? 'The history could not be loaded.' : 'Chưa tải được lịch sử.'}</p>
             : !current.history.content.length ? <p>{en ? 'No events yet.' : 'Chưa có sự kiện nào.'}</p>
             : <ol>{current.history.content.map(event => <li key={event.eventId}>

@@ -40,7 +40,7 @@
   .lv-intake-page .lv-intake-form > .lv-intake-section:last-child { grid-column: 1 / -1; }
   .lv-staff-live .lv-intake-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .lv-beneficiary-confirmation-view .lv-confirm-card form { grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); align-items: start; }
-  .lv-beneficiary-confirmation-view .lv-confirm-card form > :is(.lv-workflow-action-hint, .lv-confirm-form-actions) { grid-column: 1 / -1; }
+  .lv-beneficiary-confirmation-view .lv-confirm-card form > :is(.lv-workflow-action-hint, .lv-confirm-form-actions, .lv-confirm-form-row, .lv-confirm-input-group) { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   .lv-intake-page .lv-intake-section, .lv-staff-documents-view .lv-staff-form-card { padding: 16px; }

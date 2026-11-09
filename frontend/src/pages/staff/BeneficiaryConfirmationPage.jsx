@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import {
   BENEFICIARY_CONFIRM_STATUS,
+  isSystemReceiptReference,
 } from '../../utils/beneficiaryConfirmationValidation.js';
 import {
   fetchBeneficiaryConfirmations,
@@ -937,7 +938,9 @@ function BeneficiaryConfirmationPageContext({
                       </td>
                       <td>
                         {b.receiptReference ? (
-                          <><code className="lv-confirm-receipt-code">{b.receiptReference}</code>
+                          <>{isSystemReceiptReference(b.receiptReference)
+                            ? <span className="lv-confirm-receipt-label">{t.receiptOnFile}</span>
+                            : <code className="lv-confirm-receipt-code">{b.receiptReference}</code>}
                           {b.hasSignedFile && b.confirmationId ? <SignedReceiptViewer key={`${caseReference}:${sessionId}:${effectiveAccessToken}:${b.confirmationId}`} caseId={caseReference} sessionId={sessionId} confirmationId={b.confirmationId} accessToken={effectiveAccessToken} lang={lang} onUnauthorized={onUnauthorized} onViewReceipt={setActiveReceiptPreview} />
                             : <small>{lang === 'en' ? 'Legacy record: no signed attachment' : 'Bản ghi cũ: chưa có tệp ký nhận'}</small>}</>
                         ) : '—'}

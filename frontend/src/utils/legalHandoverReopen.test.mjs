@@ -244,6 +244,21 @@ test('the attendance record, its reason and the history of locks, requests and d
   } finally { await v.close(); }
 });
 
+test('the long detail is folded away: only the Staff request and the decision form stay visible, and the review button for the open case scrolls instead of doing nothing', async () => {
+  backend(); const v = await mount();
+  try {
+    await settle();
+    const folds = [...v.host.querySelectorAll('details.lv-legal-reopen__history')];
+    assert.equal(folds.length, 2, 'recipients/attendance and decision/history are collapsible');
+    assert.ok(folds.every(item => item.open === false), 'folds start closed when every recipient name is known');
+    assert.ok(folds[0].textContent.includes('Nguyễn An') && folds[0].textContent.includes('Latest attendance record'));
+    assert.match(v.host.querySelector('.lv-legal-reopen__card--request').textContent, /Đã đủ người, xin mở lại/);
+    assert.ok(!v.host.querySelector('.lv-legal-reopen__decision')?.closest('details'), 'the decision form is never hidden in a fold');
+    let scrolled = 0; const detail = v.host.querySelector('#lv-reopen-detail'); detail.scrollIntoView = () => { scrolled++; };
+    const review = [...v.host.querySelectorAll('.lv-legal-reopen__list button')][0];
+    assert.match(review.textContent, /Viewing below/); await act(async () => review.click()); assert.equal(scrolled, 1);
+  } finally { await v.close(); }
+});
 test('an unreadable history never blocks the decision', async () => {
   backend({ events: () => json({ code: 'INTERNAL_ERROR' }, 500) }); const v = await mount();
   try {

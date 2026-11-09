@@ -49,6 +49,9 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
   const [discoveryResult, setDiscoveryResult] = useState(null);
   const [attempt, setAttempt] = useState(0);
   const [page, setPage] = useState(0);
+  // Controlled unlock page: reopening requests and the unlock itself are two tabs instead of one long page.
+  const [unlockTab, setUnlockTab] = useState(null);
+  const [reopenWaiting, setReopenWaiting] = useState(null);
   const auth = useRef(onUnauthorized);
   const locale = useRef(lang);
   useEffect(() => { locale.current = lang; }, [lang]);
@@ -109,14 +112,43 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       </div>}
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
     </section>
-    {step === 'controlled-unlock' && <LegalHandoverReopen session={session} lang={lang} caseId={caseId}
-      onNavigate={onNavigate} onUnauthorized={onUnauthorized} />}
-    {selected && <>
-      <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
-        lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
-        onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
-    </>}
-    {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
+    {(() => {
+      const caseContent = <>
+        {selected && <>
+          <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
+            lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
+            onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
+        </>}
+        {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
+      </>;
+      if (step !== 'controlled-unlock') return caseContent;
+      const tabs = [
+        { id: 'reopen', label: en ? 'Reopening requests' : 'Yêu cầu mở lại', badge: reopenWaiting === true },
+        { id: 'unlock', label: en ? 'Unlock vault' : 'Mở khóa kho' },
+      ];
+      const active = unlockTab || (reopenWaiting ? 'reopen' : 'unlock');
+      const onKeyDown = event => {
+        const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? (tabs.findIndex(item => item.id === active) + 1) % 2
+          : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : -1;
+        if (next < 0) return;
+        event.preventDefault(); setUnlockTab(tabs[next].id);
+        document.getElementById(`legal-unlock-tab-${tabs[next].id}`)?.focus();
+      };
+      return <>
+        <div className="lv-legal-tabs" role="tablist" aria-label={en ? 'Unlock steps' : 'Các mục mở khóa'} onKeyDown={onKeyDown}>
+          {tabs.map(item => <button key={item.id} type="button" role="tab" id={`legal-unlock-tab-${item.id}`} aria-selected={active === item.id}
+            aria-controls={`legal-unlock-panel-${item.id}`} tabIndex={active === item.id ? 0 : -1}
+            className={`lv-legal-tab${active === item.id ? ' is-active' : ''}`} onClick={() => setUnlockTab(item.id)}>
+            <span>{item.label}</span>{item.badge && <span className="lv-legal-tab__dot" role="img" aria-label={en ? 'Waiting for Legal' : 'Đang chờ Legal'} />}
+          </button>)}
+        </div>
+        <div role="tabpanel" id="legal-unlock-panel-reopen" aria-labelledby="legal-unlock-tab-reopen" hidden={active !== 'reopen'}>
+          <LegalHandoverReopen session={session} lang={lang} caseId={caseId} onAvailability={setReopenWaiting}
+            onNavigate={onNavigate} onUnauthorized={onUnauthorized} />
+        </div>
+        <div role="tabpanel" id="legal-unlock-panel-unlock" aria-labelledby="legal-unlock-tab-unlock" hidden={active !== 'unlock'}>{caseContent}</div>
+      </>;
+    })()}
   </section>;
 }
 
