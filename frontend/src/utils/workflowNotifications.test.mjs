@@ -41,7 +41,7 @@ test('shows 9 at nine unread notices and 9+ above nine, with previews only for n
     assert.equal(view.host.querySelector('summary').getAttribute('aria-label'), '9 thông báo chưa đọc');
     assert.match(toast().textContent, /1 thông báo mới.*Hồ sơ cần bổ sung.*HS-2026-000001/);
     assert.ok(view.host.querySelector(ringingSelector));
-    await act(async () => t.mock.timers.tick(2000));
+    await act(async () => t.mock.timers.tick(5000));
     await refresh();
     await act(async () => t.mock.timers.tick(1000));
     assert.ok(toast()?.classList.contains('is-closing'));
@@ -68,6 +68,7 @@ test('opening the notification panel dismisses the popup and prevents replay whe
     assert.ok(view.host.querySelector(toastSelector));
     await view.expand();
     assert.equal(view.host.querySelector(toastSelector), null);
+    assert.match(view.host.querySelector('li').textContent, /Hồ sơ cần bổ sung hoặc thẩm định lại.*HS-2026-000001/);
     items = [{ ...item, id: caseId }, ...items];
     await refresh();
     assert.equal(view.host.querySelectorAll('li').length, 2);
@@ -79,6 +80,34 @@ test('opening the notification panel dismisses the popup and prevents replay whe
     });
     assert.equal(view.host.querySelector(toastSelector), null);
     assert.equal(view.host.querySelector(ringingSelector), null);
+  } finally {
+    await view.close();
+  }
+});
+
+test('a new notification arriving during exit gets its own six-second popup', async (t) => {
+  let items = [];
+  globalThis.fetch = async () => json(items);
+  const view = await mount();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const toast = () => view.host.querySelector(toastSelector);
+  const advance = milliseconds => act(async () => t.mock.timers.tick(milliseconds));
+  try {
+    items = [item];
+    await refresh();
+    await advance(6000);
+    assert.ok(toast()?.classList.contains('is-closing'));
+    await advance(100);
+
+    items = [{ ...item, id: caseId, caseNumber: 'HS-2026-000002' }, ...items];
+    await refresh();
+    assert.match(toast().textContent, /HS-2026-000002/);
+    await advance(5999);
+    assert.equal(toast()?.classList.contains('is-closing'), false);
+    await advance(1);
+    assert.ok(toast()?.classList.contains('is-closing'));
+    await advance(240);
+    assert.equal(toast(), null);
   } finally {
     await view.close();
   }
@@ -96,7 +125,7 @@ test('unmounting while the popup is visible clears its expiry timer', async (t) 
     items = [item];
     await refresh();
     assert.ok(view.host.querySelector(toastSelector));
-    timeout = schedule.mock.calls.find(call => call.arguments[1] === 3000)?.result;
+    timeout = schedule.mock.calls.find(call => call.arguments[1] === 6000)?.result;
     assert.ok(timeout);
   } finally {
     await view.close();
@@ -115,16 +144,16 @@ test('hover and keyboard focus keep the popup readable and dismissal returns foc
     const card = view.host.querySelector(toastSelector);
     const close = card.querySelector('button[aria-label="Đóng thông báo"]');
     await act(async () => card.dispatchEvent(new window.MouseEvent('pointerover', { bubbles: true })));
-    await act(async () => t.mock.timers.tick(4000));
+    await act(async () => t.mock.timers.tick(7000));
     assert.equal(view.host.querySelector(toastSelector), card);
     assert.equal(card.classList.contains('is-closing'), false);
 
     await act(async () => close.focus());
     await act(async () => card.dispatchEvent(new window.MouseEvent('pointerout', { bubbles: true })));
-    await act(async () => t.mock.timers.tick(4000));
+    await act(async () => t.mock.timers.tick(7000));
     assert.equal(view.host.querySelector(toastSelector), card);
     await act(async () => close.blur());
-    await act(async () => t.mock.timers.tick(3000));
+    await act(async () => t.mock.timers.tick(6000));
     assert.ok(card.classList.contains('is-closing'));
 
     await act(async () => close.focus());

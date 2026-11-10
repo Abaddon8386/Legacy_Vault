@@ -103,4 +103,25 @@
   to { opacity: 0; transform: scale(0.12); }
 }
 
-@media(max-width:520px){.lv-workflow-notifications__label{display:none}.lv-workflow-notifications__panel,.lv-workflow-notifications__toast-slot{position:fixed;top:126px;inset-inline:16px;width:auto}}
+@media (max-width: 960px) {
+  /* Let both overlays follow the sticky header, including when it wraps. */
+  .lv-shell-header .lv-workflow-notifications { position: static; }
+  .lv-shell-header .lv-workflow-notifications__panel,
+  .lv-shell-header .lv-workflow-notifications__toast-slot {
+    inset-inline-end: 16px;
+  }
+
+  .lv-shell-header .lv-workflow-notifications__panel {
+    max-height: min(65dvh, calc(100dvh - 100% - 24px));
+  }
+}
+
+@media (max-width: 520px) {
+  .lv-workflow-notifications__label { display: none; }
+
+  .lv-shell-header .lv-workflow-notifications__panel,
+  .lv-shell-header .lv-workflow-notifications__toast-slot {
+    inset-inline-start: 16px;
+    width: auto;
+  }
+}

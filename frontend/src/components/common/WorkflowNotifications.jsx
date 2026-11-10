@@ -22,7 +22,7 @@ const labels={
  LEGAL_BASIS_HELD:['Hồ sơ cần tạm dừng xử lý','Case processing paused'],LEGAL_BASIS_REVIEW_REQUIRED:['Hồ sơ cần bổ sung hoặc thẩm định lại','Supplementation or reassessment needed'],
  LEGAL_BASIS_REVIEW_RECORDED:['Đã ghi nhận thẩm định giấy tờ phân chia','Distribution assessment recorded'],LEGAL_BASIS_DECIDED:['Đã có quyết định phê duyệt hồ sơ','Final decision recorded'],LEGAL_VAULT_UNLOCKED:['Kho đã được mở khóa để bàn giao','Vault unlocked for handover']};
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value);
-const TOAST_VISIBLE_MS = 3000;
+const TOAST_VISIBLE_MS = 6000;
 const TOAST_MOTION_MS = 240;
 
 function notificationTitle(action, en) {
