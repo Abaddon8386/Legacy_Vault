@@ -61,6 +61,6 @@ function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthori
       {suspended&&view.state.status==='SUSPENDED'&&everyoneRecorded&&<button type="button" className="is-primary" onClick={()=>save('reopen-requests')} disabled={busy||!namesReady||!reason.trim()||!allSelected}>{en?'Request Legal reopening':'Gửi Ban Pháp lý yêu cầu mở lại'}</button>}</div></>}</>}</>}
   </section>;
   const delivery=isValidElement(content)?cloneElement(content,{key:'group-workflow'}):content;
-  if(layout)return layout(attendance,delivery);
+  if(layout)return layout(attendance,delivery,view);
   return <>{hideWhenAllowed&&content?null:attendance}{delivery}</>;
 }
