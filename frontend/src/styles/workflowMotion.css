@@ -64,4 +64,59 @@
     transform: scale(0.98);
     transition: transform 80ms var(--lv-motion-ease-standard);
   }
+  /* Click feedback instead of a hover tint. pressFeedback.js puts two effects at the clicked point: a ring (.lv-click-ring) on the page that
+     spreads freely, and a fill (.lv-ripple, in the control's text colour) clipped to the button. Tabs, cards and rows also dip a little. */
+  @keyframes lv-click-ring {
+    from { transform: translate(-50%, -50%) scale(0.2); opacity: 0.7; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  }
+  @keyframes lv-ripple {
+    from { transform: scale(0); opacity: 0.3; }
+    to { transform: scale(1); opacity: 0; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-rippling { overflow: hidden; }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    pointer-events: none;
+    transform: scale(0);
+    animation: lv-ripple 900ms var(--lv-motion-ease-smooth) forwards;
+  }
+  @keyframes lv-tab-press {
+    0% { transform: scale(0.96); }
+    100% { transform: none; }
+  }
+  @keyframes lv-card-press {
+    from { transform: scale(0.99); }
+    to { transform: none; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) [role="tab"].lv-press {
+    animation: lv-tab-press 240ms var(--lv-motion-ease-smooth);
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-staff-card, .lv-staff-table-row).lv-press {
+    animation: lv-card-press 260ms var(--lv-motion-ease-smooth);
+  }
+
+  /* A status note (for example "Legal rejected this case") eases in instead of appearing at once. */
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-context[role="status"], .lv-distribution-workflow > p[role="status"]) {
+    animation: lv-outcome-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lv-click-ring {
+    position: fixed;
+    z-index: 2147483000;
+    width: 96px;
+    height: 96px;
+    box-sizing: border-box;
+    border: 3px solid #1f8a5b;
+    border-radius: 50%;
+    background: rgba(31, 138, 91, 0.14);
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.2);
+    animation: lv-click-ring 900ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  }
 }
