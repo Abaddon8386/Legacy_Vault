@@ -36,3 +36,9 @@
 .lv-distribution-workflow.lv-surface-card { border: 1px solid #dce4dc; border-radius: 14px; background: #fff; color: #234237; }
 .lv-distribution-workflow.lv-surface-card > h2 { font-size: 21px; line-height: 1.4; margin: 0 0 12px; }
 .lv-distribution-workflow.lv-surface-card > p { font-size: 16px; line-height: 1.6; }
+/* Submitted allocations: one row per asset with three aligned columns. */
+.lv-distribution-review-list { gap: 12px; }
+.lv-distribution-review-list li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 8px 24px; align-items: start; padding: 16px 20px; border-color: #dcd8cc; background: #fbfaf7; }
+.lv-distribution-review-list small { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 500; color: #52655a; }
+.lv-distribution-review-list strong, .lv-distribution-review-list span { font-size: 16px; line-height: 1.5; color: #1f2421; }
+@media (max-width: 700px) { .lv-distribution-review-list li { grid-template-columns: minmax(0, 1fr); gap: 10px; } }

@@ -1425,13 +1425,64 @@
 .lv-staff-documents-view .lv-staff-tabs-nav { align-items: stretch; }
 .lv-staff-documents-view .lv-staff-tab-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8a948d; }
 .lv-staff-documents-view .lv-staff-tab-dot.is-waiting { border-color: #d9a21b; background: #d9a21b; }
-.lv-staff-documents-view .lv-staff-tab-dot.is-active { border-color: #1f8a5b; background: #1f8a5b; }
-.lv-staff-documents-view .lv-staff-tab-dot.is-done { background: #8a948d; }
+.lv-staff-documents-view .lv-staff-tab-dot.is-active { border-color: var(--lv-status-progress-dot); background: var(--lv-status-progress-dot); }
+.lv-staff-documents-view .lv-staff-tab-dot.is-done { border-color: var(--lv-status-approved-dot); background: var(--lv-status-approved-dot); }
 .lv-staff-documents-view .lv-staff-tab-dot.is-rejected { border-color: var(--lv-required); background: var(--lv-required); }
 .lv-staff-documents-view .lv-form-note { margin: 0 0 6px; color: #53665a; font-size: 14px; font-style: italic; line-height: 1.5; }
 
+/* Tab labels stay on one line. Tabs share spare width evenly but never shrink below their text,
+   so when four tabs do not fit the row scrolls sideways instead of the labels overlapping. */
+.lv-staff-documents-view .lv-staff-tabs-nav { display: flex; }
+.lv-staff-documents-view .lv-staff-tab-btn { flex: 1 0 auto; white-space: nowrap; }
+
+/* Colour roles: neutral chips for plain facts, a clear green only for success, amber for waiting. */
+.lv-staff-documents-view .lv-dossier-value-badge,
+.lv-staff-documents-view .lv-version-pill,
+.lv-staff-documents-view .lv-alloc-count-badge { background: #efede7; color: #2b302c; border: 1px solid #d9d5c9; border-radius: 8px; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-forward-badge--forwarded,
+.lv-staff-documents-view .lv-history-table .lv-forward-badge--forwarded { background: #dcf3e4; color: #0f5f35; border: 1px solid #86cfa4; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-forward-badge--not-forwarded,
+.lv-staff-documents-view .lv-history-table .lv-forward-badge--not-forwarded { background: #fff3d8; color: #76541b; border: 1px solid #e6cf94; }
+
+/* Overview facts: equal cells, equal chip height. */
+.lv-staff-documents-view .lv-dossier-specs-grid { grid-auto-rows: minmax(72px, auto); align-content: start; background: #fbfaf7; border-color: #e3dfd3; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-dossier-row { justify-content: flex-start; }
+.lv-staff-documents-view .lv-dossier-specs-grid :is(.lv-dossier-value-badge, .lv-forward-badge) { min-height: 36px; padding: 4px 12px; border-radius: 8px; align-items: center; }
+.lv-staff-documents-view .lv-dossier-specs-grid .lv-dossier-value-text { color: #1f2421; font-weight: 500; }
+
+/* Intake form: fields in a row end on one line even when a label wraps; the date field matches the text inputs. */
+.lv-staff-documents-view .lv-form-row--2cols { align-items: end; }
+.lv-staff-documents-view .lv-intake-form .lv-datepicker-input { min-height: 46px; border-radius: 9px; border-color: #d8e0d7; }
+
+/* History: one card per version instead of an eight-column table. */
+.lv-staff-documents-view .lv-history-table-wrap { overflow: visible; border: 0; }
+.lv-staff-documents-view .lv-history-table,
+.lv-staff-documents-view .lv-history-table tbody { display: block; width: 100%; }
+.lv-staff-documents-view .lv-history-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.lv-staff-documents-view .lv-history-table tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; align-items: start; margin: 0 0 16px; padding: 20px; border: 1px solid #dcd8cc; border-radius: 12px; background: #fff; }
+.lv-staff-documents-view .lv-history-table td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+.lv-staff-documents-view .lv-history-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
+.lv-staff-documents-view .lv-history-table td:nth-child(5) { grid-column: 2 / 4; grid-row: 1; }
+.lv-staff-documents-view .lv-history-table td:nth-child(8) { grid-column: 4; grid-row: 1; justify-self: end; }
+.lv-staff-documents-view .lv-history-table td:nth-child(2) { grid-column: 1; grid-row: 2; }
+.lv-staff-documents-view .lv-history-table td:nth-child(3) { grid-column: 2; grid-row: 2; }
+.lv-staff-documents-view .lv-history-table td:nth-child(4) { grid-column: 3; grid-row: 2; }
+.lv-staff-documents-view .lv-history-table td:nth-child(7) { grid-column: 4; grid-row: 2; }
+.lv-staff-documents-view .lv-history-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 3; }
+.lv-staff-documents-view .lv-history-table td::before { display: none; }
+.lv-staff-documents-view .lv-history-table td:is(:nth-child(2), :nth-child(3), :nth-child(4), :nth-child(7))::before { display: block; content: attr(data-label); margin-bottom: 4px; font-size: 14px; font-weight: 500; color: #52655a; }
+.lv-staff-documents-view .lv-history-table .lv-staff-version-outcomes { min-width: 0; max-width: none; }
 @media (max-width: 700px) {
-  .lv-staff-documents-view .lv-staff-tabs-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lv-staff-documents-view .lv-history-table tr { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(n) { grid-column: auto; grid-row: auto; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(1) { order: 1; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(8) { order: 2; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(5) { order: 3; grid-column: 1 / -1; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(2) { order: 4; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(3) { order: 5; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(4) { order: 6; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(7) { order: 7; }
+  .lv-staff-documents-view .lv-history-table td:nth-child(6) { order: 8; grid-column: 1 / -1; }
 }
 
 

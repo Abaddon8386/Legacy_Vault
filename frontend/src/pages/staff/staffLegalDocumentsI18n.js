@@ -87,10 +87,10 @@ export const staffLegalDocumentsI18n = {
     notarizedAtLabel: 'Ngày công chứng',
 
     // Tham chiếu chứng từ & ghi chú
-    evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy (không bắt buộc)',
+    evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy',
     evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09, Ngăn lưu trữ B-12...',
     evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng',
-    notesLabel: 'Ghi chú bổ sung (không bắt buộc)',
+    notesLabel: 'Ghi chú bổ sung',
     notesPlaceholder: 'Nội dung ghi chú hoặc lưu ý đặc biệt về văn bản...',
 
     // Tệp số hóa chứng cứ
@@ -245,10 +245,10 @@ export const staffLegalDocumentsI18n = {
     notarizedAtLabel: 'Notarization Date',
 
     // References & notes
-    evidenceReferenceLabel: 'Physical Record Reference (optional)',
+    evidenceReferenceLabel: 'Physical Record Reference',
     evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09, Storage Locker B-12...',
     evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents',
-    notesLabel: 'Additional Notes (optional)',
+    notesLabel: 'Additional Notes',
     notesPlaceholder: 'Enter any additional remarks or observations...',
 
     // File upload

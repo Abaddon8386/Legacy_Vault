@@ -52,10 +52,16 @@
 .lv-staff-surfaces :is(.lv-staff-live, .lv-staff-documents-view, .lv-beneficiary-confirmation-view, .lv-intake-page, .lv-distribution-form) button[type=submit]:not(:disabled):hover { background: #0c2b22; border-color: #0c2b22; }
 .lv-legal-live button.lv-decision--neutral:not(:disabled), .lv-legal-live button.lv-decision--neutral:not(:disabled):hover { background: #fff; border: 1px solid #a9bcb0; color: #294e3e; }
 .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form .lv-evidence-dropzone { padding: 18px; min-height: 120px; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-aside__file { display: flex; flex-direction: column; }
+.lv-staff-surfaces .lv-staff-documents-view .lv-intake-aside .lv-form-textarea { min-height: 88px; }
 @media (min-width: 1280px) {
   .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px 24px; align-items: start; }
   .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > :is(.lv-form-group, .lv-form-row, .lv-workflow-optional) { grid-column: 1; }
-  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > .lv-form-group:has(.lv-evidence-uploader) { grid-column: 2; grid-row: 1 / span 3; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > .lv-intake-aside { grid-column: 2; grid-row: 1 / span 3; align-self: start; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-aside__file { flex: 1 1 auto; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-aside__file .lv-evidence-uploader { flex: 1 1 auto; }
+  .lv-staff-surfaces .lv-staff-documents-view .lv-intake-aside__file .lv-evidence-dropzone { flex: 1 1 auto; }
   .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > p { grid-column: 2; grid-row: 4; margin: 0; font-size: 14px; }
   .lv-staff-surfaces .lv-staff-documents-view .lv-intake-form > :is(.lv-upload-progress-card, .lv-intake-form-actions) { grid-column: 1 / -1; }
 }
