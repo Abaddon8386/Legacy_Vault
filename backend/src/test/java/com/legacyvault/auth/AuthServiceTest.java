@@ -101,6 +101,25 @@ class AuthServiceTest {
     }
 
     @Test
+    void loginCountsFullWidthAndMixedCaseEmailsUnderTheSameLockoutKey() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
+        when(passwords.encode(any())).thenReturn("dummy-bcrypt-hash");
+        AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
+                passwords, mock(JwtService.class), mock(AuditService.class),
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                limiter);
+        when(users.findByEmail("nobody@example.test")).thenReturn(Optional.empty());
+
+        // "NOBODY@Example.TEST" with a full-width first letter.
+        assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("Ｎobody@Example.TEST", "WhateverPass1"), "203.0.113.9"));
+
+        verify(limiter).reserveAttempt("nobody@example.test", "203.0.113.9");
+    }
+
+    @Test
     void loginIsBlockedBeforeAnyPasswordCheckWhenOverTheLimit() {
         UserRepository users = mock(UserRepository.class);
         PasswordEncoder passwords = mock(PasswordEncoder.class);
