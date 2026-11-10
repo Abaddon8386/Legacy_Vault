@@ -113,6 +113,73 @@ test('a new notification arriving during exit gets its own six-second popup', as
   }
 });
 
+test('marking one and then all reduces the badge and persists across reopening for Staff and Legal', async () => {
+  for (const role of ['STAFF', 'LEGAL']) {
+    const items = Array.from({ length: 10 }, (_, index) => ({
+      ...item, id: `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`,
+    }));
+    const calls = [];
+    globalThis.fetch = async (url, init) => {
+      if (init.method === 'GET') return json(items);
+      assert.ok(url.endsWith(`/read?workspace=${role}`));
+      const row = items.find(candidate => url.includes(candidate.id));
+      row.read = true;
+      calls.push(row.id);
+      return json({ id: row.id, read: true });
+    };
+    const destinations = [];
+    const props = { session: { accessToken: 'test-only' }, role, onNavigate: url => destinations.push(url) };
+    const view = await mount(props);
+    try {
+      await view.expand();
+      assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '9+');
+      await act(async () => view.host.querySelector('.lv-workflow-notifications__mark-one').click());
+      assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '9');
+      assert.match(view.host.querySelector('li').textContent, /Đã đọc/);
+      await act(async () => view.host.querySelector('.lv-workflow-notifications__mark-all').click());
+      assert.equal(view.host.querySelector('.lv-workflow-notifications__badge'), null);
+      assert.equal(view.host.querySelector('.lv-workflow-notifications__mark-one'), null);
+      assert.equal(calls.length, 10);
+      assert.equal(new Set(calls).size, 10);
+      assert.deepEqual(destinations, []);
+    } finally { await view.close(); }
+    const reopened = await mount(props);
+    try {
+      await reopened.expand();
+      assert.equal(reopened.host.querySelector('.lv-workflow-notifications__badge'), null);
+      assert.equal(reopened.host.querySelector('.lv-workflow-notifications__mark-all').getAttribute('aria-disabled'), 'true');
+      await act(async () => reopened.host.querySelector('li button').click());
+      assert.equal(destinations.length, 1);
+      assert.equal(calls.length, 10);
+    } finally { await reopened.close(); }
+  }
+});
+
+test('partial failure and a late polling response preserve confirmed reads and new unread notices', async () => {
+  const newId = '33333333-3333-4333-8333-333333333333';
+  const second = { ...item, id: caseId };
+  let resolvePoll;
+  let reads = 0;
+  globalThis.fetch = async (url, init) => {
+    if (init.method === 'GET') {
+      if (reads++ === 0) return json([item, second]);
+      return new Promise(resolve => { resolvePoll = resolve; });
+    }
+    return url.includes(item.id) ? json({ id, read: true }) : json({ id: caseId, read: false });
+  };
+  const view = await mount();
+  try {
+    await view.expand();
+    await refresh();
+    await act(async () => view.host.querySelector('.lv-workflow-notifications__mark-all').click());
+    assert.equal(view.host.querySelectorAll('li.is-unread').length, 1);
+    assert.match(view.host.querySelector('[role="alert"]').textContent, /Vui lòng thử lại/);
+    await act(async () => resolvePoll(json([{ ...item, id: newId }, item, second])));
+    assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '2');
+    assert.match(view.host.querySelectorAll('li')[1].textContent, /Đã đọc/);
+  } finally { await view.close(); }
+});
+
 test('unmounting while the popup is visible clears its expiry timer', async (t) => {
   let items = [];
   globalThis.fetch = async () => json(items);
@@ -305,7 +372,7 @@ test('unknown actions still require a confirmed read receipt and valid notificat
   const view=await mount({session:{accessToken:'staff-token'},role:'STAFF',onNavigate:url=>destinations.push(url)});
   try {
    await view.expand();await act(async()=>view.host.querySelector('li button').click());
-   assert.deepEqual(destinations,[]);assert.match(view.host.textContent,/Chưa tải được thông báo/);
+   assert.deepEqual(destinations,[]);assert.match(view.host.textContent,/Có thông báo chưa được đánh dấu đã đọc/);
   } finally {await view.close();}
  }
  for (const invalid of [{action:null},{action:{}},{action:''},{action:'  '},{caseId:'invalid'},{read:'false'},{occurredAt:'invalid'}]) {

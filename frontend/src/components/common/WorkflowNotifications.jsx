@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, X } from 'lucide-react';
+import { Bell, Check, X } from 'lucide-react';
 import { request } from '../../api/http.js';
 import './WorkflowNotifications.css';
 const labels={
@@ -24,6 +24,8 @@ const labels={
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value);
 const TOAST_VISIBLE_MS = 6000;
 const TOAST_MOTION_MS = 240;
+const RECENT_LIMIT = 50;
+const READ_BATCH_SIZE = 4;
 
 function notificationTitle(action, en) {
  return Object.hasOwn(labels, action) ? labels[action][en ? 1 : 0]
@@ -32,8 +34,10 @@ function notificationTitle(action, en) {
 
 export default function WorkflowNotifications({ session, role, lang='vi', onNavigate = url => window.location.assign(url) }) {
  const token=session?.accessToken,en=lang==='en';
- const [result,setResult]=useState(null),[attempt,setAttempt]=useState(0),[opening,setOpening]=useState(null);
+ const [result,setResult]=useState(null),[attempt,setAttempt]=useState(0);
+ const [readState, setReadState] = useState(null);
  const current=useRef(null), details=useRef(null), bell=useRef(null);
+ const readOperation = useRef(null);
  const [expanded,setExpanded]=useState(false);
  const [toast, setToast] = useState(null);
  useEffect(() => {
@@ -49,7 +53,7 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   if(!token)return;
   const c=new AbortController();current.current=c;let timer,busy=false,unavailable=false;
   let previousIds = null;
-  async function load(){if(busy||unavailable||document.hidden)return;busy=true;
+  async function load(){if(busy||unavailable||document.hidden||c.signal.aborted)return;busy=true;
    try{const items=await request('/workflow-notifications?workspace='+role,{accessToken:token,signal:c.signal,expectedStatus:200,cache:'no-store'});
     if(!Array.isArray(items)||!items.every(x=>uuid(x.id)&&uuid(x.caseId)&&typeof x.caseNumber==='string'&&typeof x.action==='string'&&x.action.trim().length>0&&(x.reason==null||(typeof x.reason==='string'&&x.reason.length<=1000))&&typeof x.read==='boolean'&&Number.isFinite(Date.parse(x.occurredAt))))throw Error('Invalid notifications');
     if (c.signal.aborted) return;
@@ -61,13 +65,20 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
      }
     }
     previousIds = new Set(items.map(item => item.id));
-    setResult({token,role,items});
+    setResult(previous => {
+     // A GET started before a read receipt may still contain the older unread state.
+     const confirmed = previous?.token === token && previous.role === role
+      ? new Set(previous.items?.filter(item => item.read).map(item => item.id)) : new Set();
+     return { token, role, items: items.map(item => confirmed.has(item.id) ? { ...item, read: true } : item) };
+    });
    }catch(error){if(!c.signal.aborted){unavailable=[404,501].includes(error.status);setResult({token,role,error:true,unavailable});}}finally{busy=false;}}
   load();timer=setInterval(load,15000);document.addEventListener('visibilitychange',load);window.addEventListener('lv-workflow-notifications-changed',load);
   return()=>{c.abort();clearInterval(timer);document.removeEventListener('visibilitychange',load);window.removeEventListener('lv-workflow-notifications-changed',load);};
  },[token,role,attempt]);
  const visible=token&&result?.token===token&&result?.role===role?result:null;
- const unreadCount = visible?.items?.filter(item => !item.read).length ?? 0;
+ const unreadItems = visible?.items?.filter(item => !item.read) ?? [];
+ const unreadCount = unreadItems.length;
+ const activeRead = readState?.token === token && readState?.role === role ? readState : null;
  const notificationLabel = en ? 'Notifications' : 'Thông báo';
  const unreadLabel = en
    ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
@@ -91,18 +102,57 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   setToast(null);
  }
  if(!token)return null;
- async function open(item){if(opening)return;setOpening(item.id);const c=current.current;
-  try{const receipt=await request('/workflow-notifications/'+item.id+'/read?workspace='+role,{method:'PUT',accessToken:token,signal:c?.signal,expectedStatus:200});if(receipt?.id!==item.id||receipt.read!==true)throw Error('Read not confirmed');
-   if(c?.signal.aborted)return;
-   setResult(previous=>previous?.token===token&&previous?.role===role&&previous.items?{...previous,items:previous.items.map(row=>row.id===item.id?{...row,read:true}:row)}:previous);
-   if(!Object.hasOwn(labels,item.action))return;
+ async function markRead(items, onConfirmed) {
+  const controller = current.current;
+  if (!items.length || !controller || controller.signal.aborted || readOperation.current === controller) return;
+  readOperation.current = controller;
+  setReadState({ token, role, pending: true });
+  let failed = false;
+  try {
+   for (let start = 0; start < items.length; start += READ_BATCH_SIZE) {
+    const batch = items.slice(start, start + READ_BATCH_SIZE);
+    const receipts = await Promise.allSettled(batch.map(async ({ id }) => {
+     const receipt = await request(`/workflow-notifications/${id}/read?workspace=${role}`, {
+      method: 'PUT', accessToken: token, lang, signal: controller.signal, expectedStatus: 200,
+     });
+     if (receipt?.id !== id || receipt.read !== true) throw Error('Read not confirmed');
+     return id;
+    }));
+    if (controller.signal.aborted) return;
+    if (receipts.some(receipt => receipt.status === 'rejected' && [401, 403, 404].includes(receipt.reason?.status))) {
+     controller.abort();
+     setReadState(null);
+     setResult({ token, role, error: true });
+     return;
+    }
+    const confirmed = new Set(receipts.filter(receipt => receipt.status === 'fulfilled').map(receipt => receipt.value));
+    failed ||= confirmed.size !== batch.length;
+    setResult(previous => previous?.token === token && previous.role === role && previous.items
+     ? { ...previous, items: previous.items.map(item => confirmed.has(item.id) ? { ...item, read: true } : item) }
+     : previous);
+   }
+   if (!failed) onConfirmed?.();
+  } finally {
+   if (readOperation.current === controller) readOperation.current = null;
+   if (!controller.signal.aborted) setReadState({ token, role, failed });
+  }
+ }
+
+ function open(item) {
+  if (activeRead?.pending) return;
+  if (item.read) navigateToNotice(item);
+  else void markRead([item], () => navigateToNotice(item));
+ }
+
+ function navigateToNotice(item) {
+   if (!Object.hasOwn(labels,item.action)) return;
    const intakeEvent=['VERIFICATION_CASE_CLAIMED','DEATH_DOCUMENT_RECORDED','ORIGINAL_WILL_RECEIVED','INTAKE_ATTACHMENT_UPLOADED','LEGAL_DEATH_DOCUMENT_DECIDED','WILL_COMPARISON_RECORDED'].includes(item.action);
    const tab=role==='STAFF'?(intakeEvent?'/staff/cases':'/staff/legal-documents'):item.action==='LEGAL_VAULT_UNLOCKED'?'/legal/controlled-unlock':item.action==='LEGAL_BASIS_DECIDED'?'/legal/approval-review':item.action==='VERIFICATION_CASE_CLAIMED'||item.action==='DEATH_DOCUMENT_RECORDED'||item.action==='INTAKE_ATTACHMENT_UPLOADED'?'/legal/death-verification':item.action==='ORIGINAL_WILL_RECEIVED'||item.action==='WILL_COMPARISON_RECORDED'?'/legal/will-document-verification':'/legal/basis-route-selection';
    const params=new URLSearchParams({caseId:item.caseId,lang});
    if(role==='STAFF'&&['DISTRIBUTION_DOCUMENTS_APPROVED','DISTRIBUTION_ALLOCATIONS_SUBMITTED','DISTRIBUTION_ALLOCATIONS_APPROVED','DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED','LEGAL_BASIS_REVIEW_RECORDED'].includes(item.action))params.set('tab','allocations');
    const destination=item.action.startsWith('HANDOVER_GROUP_')?(role==='STAFF'?'/staff/handover':'/legal/controlled-unlock'):tab;
    onNavigate(destination+'?'+params);
-  }catch{if(!c?.signal.aborted)setResult({token,role,error:true});}finally{if(!c?.signal.aborted)setOpening(null);}}
+ }
  return <div className="lv-workflow-notifications">
  <details ref={details} onToggle={event => {
   const isOpen = event.currentTarget.open;
@@ -120,8 +170,44 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    <span className="lv-workflow-notifications__label">{notificationLabel}</span>
    {unreadCount > 0 && <span className="lv-workflow-notifications__badge" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}
   </summary>
-  {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}><h2>{en?'Recent notifications':'Thông báo gần đây'}</h2>
-   {!visible?<p role="status">{en?'Loading…':'Đang tải…'}</p>:visible.error?<div role="alert"><p>{visible.unavailable?(en?'Notifications are not available yet.':'Thông báo hiện chưa khả dụng.'):(en?'Notifications could not be loaded.':'Chưa tải được thông báo.')}</p><button type="button" onClick={()=>setAttempt(x=>x+1)}>{en?'Try again':'Thử lại'}</button></div>:!visible.items.length?<p>{en?'No notifications yet.':'Chưa có thông báo.'}</p>:<ul>{visible.items.map(item=><li key={item.id}><button type="button" disabled={!!opening} className={item.read?'':'is-unread'} onClick={()=>open(item)}><strong>{notificationTitle(item.action, en)}</strong><span>{item.caseNumber}{!item.read&&(en?' · Unread':' · Chưa đọc')}</span>{item.reason && <span>{item.reason}</span>}<time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString(en?'en-GB':'vi-VN')}</time></button></li>)}</ul>}
+  {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}>
+   <div className="lv-workflow-notifications__panel-header">
+    <h2>{en ? 'Recent notifications' : 'Thông báo gần đây'}</h2>
+    {!!visible?.items?.length && <button type="button" className="lv-workflow-notifications__mark-all"
+     aria-disabled={!unreadCount || !!activeRead?.pending}
+     onClick={() => void markRead(unreadItems)}>
+     {en ? 'Mark all as read' : 'Đánh dấu tất cả là đã đọc'}
+    </button>}
+   </div>
+   {!visible?<p role="status">{en?'Loading…':'Đang tải…'}</p>:visible.error?<div role="alert"><p>{visible.unavailable?(en?'Notifications are not available yet.':'Thông báo hiện chưa khả dụng.'):(en?'Notifications could not be loaded.':'Chưa tải được thông báo.')}</p><button type="button" onClick={()=>{setReadState(null);setAttempt(x=>x+1);}}>{en?'Try again':'Thử lại'}</button></div>:!visible.items.length?<p>{en?'No notifications yet.':'Chưa có thông báo.'}</p>:<>
+    <p role="status" className="lv-workflow-notifications__count">
+     {activeRead?.pending ? (en ? 'Saving read status…' : 'Đang lưu trạng thái đã đọc…') : unreadLabel}
+    </p>
+    {activeRead?.failed && <p role="alert">{en ? 'Some notifications could not be marked as read. Try again.' : 'Có thông báo chưa được đánh dấu đã đọc. Vui lòng thử lại.'}</p>}
+    {visible.items.length >= RECENT_LIMIT && <p className="lv-workflow-notifications__count">
+     {en ? 'Showing the 50 most recent notifications.' : 'Đang hiển thị 50 thông báo gần nhất.'}
+    </p>}
+    <ul>{visible.items.map(item => {
+     const title = notificationTitle(item.action, en);
+     const markLabel = en ? 'Mark as read' : 'Đánh dấu đã đọc';
+     return <li key={item.id} tabIndex={-1} className={item.read ? undefined : 'is-unread'}>
+      <button type="button" className={`lv-workflow-notifications__item${item.read ? '' : ' is-unread'}`}
+       disabled={!!activeRead?.pending} onClick={() => open(item)}>
+       <strong>{title}</strong>
+       <span>{item.caseNumber} · {item.read ? (en ? 'Read' : 'Đã đọc') : (en ? 'Unread' : 'Chưa đọc')}</span>
+       {item.reason && <span>{item.reason}</span>}
+       <time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString(en?'en-GB':'vi-VN')}</time>
+      </button>
+      {!item.read && <button type="button" className="lv-workflow-notifications__mark-one"
+       aria-label={`${markLabel}: ${title} (${item.caseNumber})`} title={markLabel}
+       disabled={!!activeRead?.pending}
+       onClick={event => {
+        if (document.activeElement === event.currentTarget) event.currentTarget.parentElement.focus();
+        void markRead([item]);
+       }}><Check size={18} aria-hidden="true" /></button>}
+     </li>;
+    })}</ul>
+   </>}
   </section>}
  </details>
  <div role="status" className="lv-workflow-notifications__toast-slot">
