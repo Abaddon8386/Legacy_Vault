@@ -111,6 +111,12 @@
   --lv-status-done-text: #5e6b62;
   --lv-status-done-border: #d5d9d1;
   --lv-required: #b42318;
+  /* Approved / completed (happy path) is a clear green; in-progress is blue; grey is only for closed or archived. */
+  --lv-status-approved-bg: #dcf3e4;
+  --lv-status-approved-text: #0f5f35;
+  --lv-status-approved-border: #86cfa4;
+  --lv-status-approved-dot: #1f8a5b;
+  --lv-status-progress-dot: #2f6db5;
 
   /* ------------------------------------------------------------------------
      6. RADII & GEOMETRY

@@ -126,12 +126,17 @@
   width: fit-content;
 }
 
-.lv-close-archive-view .lv-ca-status-box__value--completed,
 .lv-close-archive-view .lv-ca-status-box__value--archived,
 .lv-close-archive-view .lv-ca-status-box__value--closed {
   background: var(--lv-status-done-bg);
   color: var(--lv-status-done-text);
   border: 1px solid var(--lv-status-done-border);
+}
+
+.lv-close-archive-view .lv-ca-status-box__value--completed {
+  background: var(--lv-status-approved-bg);
+  color: var(--lv-status-approved-text);
+  border: 1px solid var(--lv-status-approved-border);
 }
 
 .lv-close-archive-view .lv-ca-status-box__value--active,

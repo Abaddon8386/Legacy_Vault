@@ -1296,9 +1296,6 @@ export default function StaffLegalDocumentsPage({
                 <label htmlFor={typeId} className="lv-form-label lv-form-label--required">
                   {t.legalBasisTypeLabel}
                 </label>
-                {(isRouteNotarial || isRouteCourt) && <p className="lv-form-note">({isRouteNotarial
-                  ? (en ? 'Current document source: notarial office' : 'Nguồn giấy tờ đang tiếp nhận: Công chứng')
-                  : (en ? 'Current document source: court' : 'Nguồn giấy tờ đang tiếp nhận: Tòa án')})</p>}
                 <select
                   id={typeId}
                   className="lv-form-select"
@@ -1321,7 +1318,6 @@ export default function StaffLegalDocumentsPage({
                   <label htmlFor={issuerId} className="lv-form-label lv-form-label--required">
                     {legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notary office' : 'Tổ chức công chứng') : t.issuerLabel}
                   </label>
-                  <p className="lv-form-note">({t.issuerHint})</p>
                   <input
                     id={issuerId}
                     type="text"
@@ -1343,7 +1339,6 @@ export default function StaffLegalDocumentsPage({
                   <label htmlFor={docNumId} className="lv-form-label lv-form-label--required">
                     {t.documentNumberLabel}
                   </label>
-                  <p className="lv-form-note">({t.documentNumberHint})</p>
                   <input
                     id={docNumId}
                     type="text"
@@ -1368,7 +1363,6 @@ export default function StaffLegalDocumentsPage({
                   <label htmlFor={dateId} className="lv-form-label lv-form-label--required">
                     {t.issuanceDateLabel}
                   </label>
-                  <p className="lv-form-note">({t.issuanceDateHint})</p>
                   <DatePicker
                     id={dateId}
                     className={errors.issuanceDate ? 'lv-datepicker--error' : ''}
@@ -1393,7 +1387,6 @@ export default function StaffLegalDocumentsPage({
                   <label htmlFor={evidenceRefId} className="lv-form-label">
                     {t.evidenceReferenceLabel}
                   </label>
-                  <p className="lv-form-note">({t.evidenceReferenceHint})</p>
                   <input
                     id={evidenceRefId}
                     type="text"
@@ -1407,37 +1400,38 @@ export default function StaffLegalDocumentsPage({
                 </div>
               </div>
 
-              {/* Ghi chú */}
-              <div className="lv-form-group">
-                <label htmlFor={notesId} className="lv-form-label">
-                  {t.notesLabel}
-                </label>
-                <textarea
-                  id={notesId}
-                  className="lv-form-textarea"
-                  placeholder={t.notesPlaceholder}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  disabled={isSubmitting || !canReceiveBasis}
-                  rows={2}
-                  maxLength={1000}
-                />
-              </div>
+              {/* Right column on wide screens: file first, short note under it */}
+              <div className="lv-intake-aside">
+                <div className="lv-form-group lv-intake-aside__file">
+                  <label className="lv-form-label lv-form-label--required">{t.fileUploadLabel}</label>
+                  <EvidenceFileUploader
+                    file={evidenceFile}
+                    error={errors.file}
+                    onFileChange={(file) => {
+                      setEvidenceFile(file);
+                      setErrors((previous) => ({ ...previous, file: undefined }));
+                    }}
+                    disabled={isSubmitting || !canReceiveBasis}
+                    lang={lang}
+                    required={false}
+                  />
+                </div>
 
-              {/* Tệp số hóa */}
-              <div className="lv-form-group">
-                <label className="lv-form-label lv-form-label--required">{t.fileUploadLabel}</label>
-                <EvidenceFileUploader
-                  file={evidenceFile}
-                  error={errors.file}
-                  onFileChange={(file) => {
-                    setEvidenceFile(file);
-                    setErrors((previous) => ({ ...previous, file: undefined }));
-                  }}
-                  disabled={isSubmitting || !canReceiveBasis}
-                  lang={lang}
-                  required={false}
-                />
+                <div className="lv-form-group">
+                  <label htmlFor={notesId} className="lv-form-label">
+                    {t.notesLabel}
+                  </label>
+                  <textarea
+                    id={notesId}
+                    className="lv-form-textarea"
+                    placeholder={t.notesPlaceholder}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    disabled={isSubmitting || !canReceiveBasis}
+                    rows={3}
+                    maxLength={1000}
+                  />
+                </div>
               </div>
 
               {/* Thanh tiến trình upload */}

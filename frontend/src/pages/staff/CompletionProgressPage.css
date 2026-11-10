@@ -255,9 +255,9 @@
 }
 
 .lv-completion-progress-view .lv-metric-badge--complete {
-  background-color: var(--lv-status-done-bg);
-  color: var(--lv-status-done-text);
-  border: 1px solid var(--lv-status-done-border);
+  background-color: var(--lv-status-approved-bg);
+  color: var(--lv-status-approved-text);
+  border: 1px solid var(--lv-status-approved-border);
 }
 
 .lv-completion-progress-view .lv-metric-badge--incomplete {
