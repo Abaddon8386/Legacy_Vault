@@ -3,8 +3,13 @@ package com.legacyvault.auth;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -30,19 +35,38 @@ public class LoginAttemptLimiter {
     private static final int WINDOW_MINUTES = 15;
 
     private final JdbcTemplate jdbc;
+    /** Normalized emails that are never locked. Empty (the default) means nobody is exempt. */
+    private final Set<String> exemptEmails;
 
     public LoginAttemptLimiter(JdbcTemplate jdbc) {
+        this(jdbc, "");
+    }
+
+    /**
+     * @param exemptEmails comma-separated emails that skip the lockout, for shared demo accounts only. Leave empty in any
+     *                     real environment. Set with LOGIN_LOCKOUT_EXEMPT_EMAILS or legacyvault.auth.login-lockout.exempt-emails.
+     */
+    @Autowired
+    public LoginAttemptLimiter(JdbcTemplate jdbc,
+            @Value("${legacyvault.auth.login-lockout.exempt-emails:${LOGIN_LOCKOUT_EXEMPT_EMAILS:}}") String exemptEmails) {
         this.jdbc = jdbc;
+        this.exemptEmails = Arrays.stream(exemptEmails == null ? new String[0] : exemptEmails.split(","))
+                .map(EmailNormalizer::normalize)
+                .filter(email -> email != null && !email.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /**
      * Atomically checks the limits and reserves one attempt.
      *
-     * @return the id of the recorded attempt
+     * @return the id of the recorded attempt, or 0 when the email is exempt and nothing was recorded
      * @throws BusinessException {@code TOO_MANY_ATTEMPTS} (429) when the email is already at the limit
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
     public long reserveAttempt(String normalizedEmail, String clientIp) {
+        if (exemptEmails.contains(normalizedEmail)) {
+            return 0L;
+        }
         String emailHash = hash(normalizedEmail);
         lock("login-email:" + emailHash);
         jdbc.update("DELETE dbo.login_failures WHERE failed_at < DATEADD(minute, -?, SYSUTCDATETIME())",
@@ -69,6 +93,9 @@ public class LoginAttemptLimiter {
     /** A successful login clears every failure still counted for that email, so earlier typos do not linger. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void clearFailures(String normalizedEmail) {
+        if (exemptEmails.contains(normalizedEmail)) {
+            return;
+        }
         jdbc.update("DELETE dbo.login_failures WHERE email_hash = ?", hash(normalizedEmail));
     }
 

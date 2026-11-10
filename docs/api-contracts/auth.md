@@ -54,6 +54,9 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   lần sai cũ nhất quá 15 phút; lần bị chặn không ghi thêm nên không kéo dài khóa. Áp dụng cả với email không tồn tại (cùng
   mã, không lộ email nào có tài khoản). Đăng nhập đúng **xóa** các lần sai còn hiệu lực của email đó. Mã `429` được trả
   cả khi nhập đúng mật khẩu trong lúc đang bị khóa.
+  **Miễn trừ cho tài khoản demo dùng chung:** đặt biến môi trường `LOGIN_LOCKOUT_EXEMPT_EMAILS` (hoặc
+  `legacyvault.auth.login-lockout.exempt-emails`) là danh sách email phân cách bằng dấu phẩy; các email này không bị đếm
+  và không bị khóa. Mặc định để trống (không ai được miễn trừ). Chỉ dùng cho môi trường demo, không đặt ở môi trường thật.
 - **Nghiệp vụ:** chỉ user active được xác thực; `deleted_at != null` bị từ chối.
 - **Audit:** `AUTH_LOGIN_SUCCEEDED` / `AUTH_LOGIN_FAILED` (ghi email đã che hoặc userId nếu có; không ghi mật khẩu).
 

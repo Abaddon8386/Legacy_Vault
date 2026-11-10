@@ -82,4 +82,27 @@ class LoginAttemptLimiterTest {
 
         verify(jdbc).update(eq("DELETE dbo.login_failures WHERE email_hash = ?"), anyString());
     }
+
+    @Test
+    void nobodyIsExemptByDefault() {
+        lockGranted();
+        emailCount(5L);
+
+        assertThrows(BusinessException.class, () -> limiter.reserveAttempt("demo@example.test", IP));
+    }
+
+    @Test
+    void exemptEmailsAreNeverCountedOrBlockedAndOthersStillAre() {
+        LoginAttemptLimiter exempt = new LoginAttemptLimiter(jdbc, " Demo@Example.test , staff@example.test ");
+
+        assertEquals(0L, exempt.reserveAttempt("demo@example.test", IP));
+        assertEquals(0L, exempt.reserveAttempt("staff@example.test", IP));
+        exempt.clearFailures("demo@example.test");
+        verify(jdbc, never()).queryForObject(contains("sp_getapplock"), eq(Integer.class), anyString());
+        verify(jdbc, never()).update(anyString(), anyString());
+
+        lockGranted();
+        emailCount(5L);
+        assertThrows(BusinessException.class, () -> exempt.reserveAttempt("someone@example.test", IP));
+    }
 }
