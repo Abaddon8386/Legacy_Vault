@@ -147,7 +147,8 @@ test('marking one and then all reduces the badge and persists across reopening f
     try {
       await reopened.expand();
       assert.equal(reopened.host.querySelector('.lv-workflow-notifications__badge'), null);
-      assert.equal(reopened.host.querySelector('.lv-workflow-notifications__mark-all').getAttribute('aria-disabled'), 'true');
+      assert.equal(reopened.host.querySelector('.lv-workflow-notifications__mark-all'), null);
+      assert.match(reopened.host.querySelector('.lv-workflow-notifications__count').textContent, /Đã đọc hết/);
       await act(async () => reopened.host.querySelector('li button').click());
       assert.equal(destinations.length, 1);
       assert.equal(calls.length, 10);

@@ -28,24 +28,158 @@
   10%, 30% { transform: rotate(15deg); }
   20%, 40% { transform: rotate(-15deg); }
 }
-.lv-workflow-notifications__panel{position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:min(380px,calc(100vw - 32px));max-height:65dvh;overflow:auto;background:white;border:1px solid #dfe5de;border-radius:14px;box-shadow:0 12px 40px #102e3326;padding:16px;z-index:150}
-.lv-workflow-notifications__panel-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--lv-space-2);margin-block-end:var(--lv-space-2)}
-.lv-workflow-notifications__panel h2{font-size:17px;margin:0}
-.lv-workflow-notifications__count{margin:0 0 var(--lv-space-2);font-size:14px;color:var(--lv-control-text)}
-.lv-workflow-notifications__panel ul{list-style:none;margin:0;padding:0}
-.lv-workflow-notifications__panel li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;border-radius:var(--lv-radius-control)}
-.lv-workflow-notifications__panel li+li{margin-block-start:var(--lv-space-2)}
-.lv-workflow-notifications__panel li.is-unread{background:var(--lv-status-await-bg)}
-.lv-workflow-notifications__panel button{min-block-size:var(--lv-control-min-size);border-radius:var(--lv-radius-control);color:var(--lv-text-heading);font:inherit;font-size:14px;cursor:pointer}
-.lv-workflow-notifications__item{display:grid;gap:6px;text-align:start;min-width:0;padding:var(--lv-space-3);border:0;background:transparent;overflow-wrap:anywhere}
-.lv-workflow-notifications__mark-all,.lv-workflow-notifications__mark-one{border:1px solid var(--lv-control-border);background:var(--lv-bg-surface)}
-.lv-workflow-notifications__mark-all{padding:var(--lv-space-2) var(--lv-space-3);max-inline-size:100%}
-.lv-workflow-notifications__mark-one{display:grid;place-items:center;min-inline-size:var(--lv-control-min-size);padding:0;margin:var(--lv-space-2)}
-.lv-workflow-notifications__panel button:disabled,.lv-workflow-notifications__panel button[aria-disabled="true"]{cursor:default;color:var(--lv-action-disabled-text)}
-.lv-workflow-notifications__panel button:hover:not(:disabled):not([aria-disabled="true"]){background:var(--lv-bg-muted)}
-.lv-workflow-notifications__panel button:focus-visible,.lv-workflow-notifications summary:focus-visible{outline:3px solid #b38d45;outline-offset:2px}
-.lv-workflow-notifications__panel li:focus-visible{outline:2px solid var(--lv-action-focus);outline-offset:2px}
-.lv-workflow-notifications__panel time{font-size:14px;color:#596b60}
+.lv-workflow-notifications__panel {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + var(--lv-space-2));
+  display: flex;
+  flex-direction: column;
+  width: min(416px, calc(100vw - 32px));
+  max-height: min(65dvh, 520px);
+  overflow: hidden;
+  background: var(--lv-bg-surface);
+  border: 1px solid var(--lv-border-medium);
+  border-radius: var(--lv-radius-xl);
+  box-shadow: var(--lv-shadow-elevated);
+  z-index: 150;
+}
+
+.lv-workflow-notifications__panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--lv-space-2);
+  padding: var(--lv-space-3) var(--lv-space-4);
+  border-block-end: 1px solid var(--lv-border-subtle);
+  background: var(--lv-bg-surface-subtle);
+}
+
+.lv-workflow-notifications__panel h2 {
+  margin: 0;
+  color: var(--lv-text-heading);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.lv-workflow-notifications__count {
+  margin: var(--lv-space-1) 0 0;
+  font-size: 14px;
+  color: var(--lv-control-text);
+}
+
+.lv-workflow-notifications__panel-body {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--lv-control-border) transparent;
+  scrollbar-width: thin;
+}
+
+.lv-workflow-notifications__panel ul { list-style: none; margin: 0; padding: 0; }
+
+.lv-workflow-notifications__panel li {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.lv-workflow-notifications__panel li + li { border-block-start: 1px solid var(--lv-border-subtle); }
+.lv-workflow-notifications__panel li.is-unread { background: var(--lv-status-await-bg); }
+.lv-workflow-notifications__panel li.is-unread::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 12px;
+  inset-block-start: 19px;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--lv-status-await-text);
+  pointer-events: none;
+}
+
+.lv-workflow-notifications__panel button {
+  min-block-size: var(--lv-control-min-size);
+  color: var(--lv-text-heading);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.lv-workflow-notifications__item {
+  display: grid;
+  gap: var(--lv-space-1);
+  min-width: 0;
+  padding: var(--lv-space-3) var(--lv-space-3) var(--lv-space-3) var(--lv-space-6);
+  border: 0;
+  background: transparent;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.lv-workflow-notifications__item strong { font-size: 15px; line-height: 1.4; }
+.lv-workflow-notifications__reason { color: var(--lv-text-body); line-height: 1.4; }
+
+.lv-workflow-notifications__item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--lv-space-1) var(--lv-space-2);
+  color: var(--lv-control-text);
+  line-height: 1.4;
+}
+
+.lv-workflow-notifications__item-meta time { font-variant-numeric: tabular-nums; }
+.lv-workflow-notifications__item-status { font-weight: 600; }
+.lv-workflow-notifications__item.is-unread .lv-workflow-notifications__item-status { color: var(--lv-status-await-text); }
+
+.lv-workflow-notifications__panel :is(.lv-workflow-notifications__mark-all, .lv-workflow-notifications__mark-one, .lv-workflow-notifications__retry) {
+  border: 1px solid var(--lv-border-medium);
+  border-radius: var(--lv-radius-control);
+  background: var(--lv-bg-surface);
+  font-weight: 600;
+}
+
+.lv-workflow-notifications__mark-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lv-space-2);
+  max-inline-size: 100%;
+  padding-inline: var(--lv-space-3);
+}
+.lv-workflow-notifications__mark-all svg { flex-shrink: 0; }
+
+.lv-workflow-notifications__mark-one {
+  display: grid;
+  place-items: center;
+  min-inline-size: var(--lv-control-min-size);
+  margin-inline-end: var(--lv-space-2);
+  padding: 0;
+}
+
+.lv-workflow-notifications__retry { padding-inline: var(--lv-space-3); }
+.lv-workflow-notifications__panel button:disabled,
+.lv-workflow-notifications__panel button[aria-disabled="true"] { cursor: default; }
+.lv-workflow-notifications__mark-all[aria-disabled="true"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--lv-action-disabled-text);
+}
+.lv-workflow-notifications__panel button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--lv-bg-muted); }
+.lv-workflow-notifications__panel button:focus-visible,
+.lv-workflow-notifications__panel li:focus-visible { outline: 2px solid var(--lv-action-focus); outline-offset: -3px; }
+.lv-workflow-notifications summary:focus-visible { outline: 3px solid var(--lv-border-focus); outline-offset: 2px; }
+
+.lv-workflow-notifications__panel-state,
+.lv-workflow-notifications__read-error,
+.lv-workflow-notifications__panel-footer { margin: 0; padding: var(--lv-space-3) var(--lv-space-4); font-size: 14px; }
+.lv-workflow-notifications__panel-state p { margin-block: 0 var(--lv-space-2); }
+.lv-workflow-notifications__read-error { color: var(--lv-status-error-text); background: var(--lv-status-error-bg); }
+.lv-workflow-notifications__panel-footer {
+  border-block-start: 1px solid var(--lv-border-subtle);
+  background: var(--lv-bg-surface-subtle);
+  color: var(--lv-control-text);
+}
 
 .lv-workflow-notifications__toast-slot {
   position: absolute;

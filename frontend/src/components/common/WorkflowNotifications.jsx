@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, Check, X } from 'lucide-react';
+import { Bell, Check, CheckCheck, X } from 'lucide-react';
 import { request } from '../../api/http.js';
 import './WorkflowNotifications.css';
 const labels={
@@ -26,6 +26,10 @@ const TOAST_VISIBLE_MS = 6000;
 const TOAST_MOTION_MS = 240;
 const RECENT_LIMIT = 50;
 const READ_BATCH_SIZE = 4;
+const dateFormatters = Object.fromEntries(['vi-VN', 'en-GB'].map(locale => [locale, {
+ date: new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+ time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
+}]));
 
 function notificationTitle(action, en) {
  return Object.hasOwn(labels, action) ? labels[action][en ? 1 : 0]
@@ -79,6 +83,7 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
  const unreadItems = visible?.items?.filter(item => !item.read) ?? [];
  const unreadCount = unreadItems.length;
  const activeRead = readState?.token === token && readState?.role === role ? readState : null;
+ const dateFormat = dateFormatters[en ? 'en-GB' : 'vi-VN'];
  const notificationLabel = en ? 'Notifications' : 'Thông báo';
  const unreadLabel = en
    ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
@@ -172,31 +177,51 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
   </summary>
   {expanded && <section className="lv-workflow-notifications__panel" aria-label={en?'Recent notifications':'Thông báo gần đây'}>
    <div className="lv-workflow-notifications__panel-header">
-    <h2>{en ? 'Recent notifications' : 'Thông báo gần đây'}</h2>
-    {!!visible?.items?.length && <button type="button" className="lv-workflow-notifications__mark-all"
-     aria-disabled={!unreadCount || !!activeRead?.pending}
-     onClick={() => void markRead(unreadItems)}>
-     {en ? 'Mark all as read' : 'Đánh dấu tất cả là đã đọc'}
+    <div>
+     <h2 tabIndex={-1}>{notificationLabel}</h2>
+     {!!visible?.items?.length && <p role="status" className="lv-workflow-notifications__count">
+      {activeRead?.pending ? (en ? 'Saving…' : 'Đang lưu…')
+       : unreadCount ? (en ? `${unreadCount} unread` : `${unreadCount} chưa đọc`) : (en ? 'All caught up' : 'Đã đọc hết')}
+     </p>}
+    </div>
+    {(unreadCount > 0 || activeRead?.pending) && <button type="button" className="lv-workflow-notifications__mark-all"
+     aria-disabled={!!activeRead?.pending}
+     aria-label={en ? 'Read all notifications' : 'Đọc tất cả thông báo'}
+     onClick={event => {
+      const action = event.currentTarget;
+      void markRead(unreadItems, () => {
+       if (document.activeElement === action) action.closest('section').querySelector('h2').focus();
+      });
+     }}>
+     <CheckCheck size={17} aria-hidden="true" />
+     {en ? 'Read all' : 'Đọc tất cả'}
     </button>}
    </div>
-   {!visible?<p role="status">{en?'Loading…':'Đang tải…'}</p>:visible.error?<div role="alert"><p>{visible.unavailable?(en?'Notifications are not available yet.':'Thông báo hiện chưa khả dụng.'):(en?'Notifications could not be loaded.':'Chưa tải được thông báo.')}</p><button type="button" onClick={()=>{setReadState(null);setAttempt(x=>x+1);}}>{en?'Try again':'Thử lại'}</button></div>:!visible.items.length?<p>{en?'No notifications yet.':'Chưa có thông báo.'}</p>:<>
-    <p role="status" className="lv-workflow-notifications__count">
-     {activeRead?.pending ? (en ? 'Saving read status…' : 'Đang lưu trạng thái đã đọc…') : unreadLabel}
-    </p>
-    {activeRead?.failed && <p role="alert">{en ? 'Some notifications could not be marked as read. Try again.' : 'Có thông báo chưa được đánh dấu đã đọc. Vui lòng thử lại.'}</p>}
-    {visible.items.length >= RECENT_LIMIT && <p className="lv-workflow-notifications__count">
-     {en ? 'Showing the 50 most recent notifications.' : 'Đang hiển thị 50 thông báo gần nhất.'}
-    </p>}
+   {activeRead?.failed && !!visible?.items?.length && <p role="alert" className="lv-workflow-notifications__read-error">
+    {en ? 'Some notifications could not be marked as read. Try again.' : 'Có thông báo chưa được đánh dấu đã đọc. Vui lòng thử lại.'}
+   </p>}
+   <div className="lv-workflow-notifications__panel-body">
+   {!visible ? <p role="status" className="lv-workflow-notifications__panel-state">{en ? 'Loading…' : 'Đang tải…'}</p>
+    : visible.error ? <div role="alert" className="lv-workflow-notifications__panel-state">
+     <p>{visible.unavailable ? (en ? 'Notifications are not available yet.' : 'Thông báo hiện chưa khả dụng.') : (en ? 'Notifications could not be loaded.' : 'Chưa tải được thông báo.')}</p>
+     <button type="button" className="lv-workflow-notifications__retry" onClick={() => { setReadState(null); setAttempt(x => x + 1); }}>{en ? 'Try again' : 'Thử lại'}</button>
+    </div>
+    : !visible.items.length ? <p className="lv-workflow-notifications__panel-state">{en ? 'No notifications yet.' : 'Chưa có thông báo.'}</p>
+    :
     <ul>{visible.items.map(item => {
      const title = notificationTitle(item.action, en);
      const markLabel = en ? 'Mark as read' : 'Đánh dấu đã đọc';
+     const occurredAt = new Date(item.occurredAt);
      return <li key={item.id} tabIndex={-1} className={item.read ? undefined : 'is-unread'}>
       <button type="button" className={`lv-workflow-notifications__item${item.read ? '' : ' is-unread'}`}
        disabled={!!activeRead?.pending} onClick={() => open(item)}>
        <strong>{title}</strong>
-       <span>{item.caseNumber} · {item.read ? (en ? 'Read' : 'Đã đọc') : (en ? 'Unread' : 'Chưa đọc')}</span>
-       {item.reason && <span>{item.reason}</span>}
-       <time dateTime={item.occurredAt}>{new Date(item.occurredAt).toLocaleString(en?'en-GB':'vi-VN')}</time>
+       {item.reason && <span className="lv-workflow-notifications__reason">{item.reason}</span>}
+       <span className="lv-workflow-notifications__item-meta">
+        <span>{item.caseNumber}</span>
+        <span className="lv-workflow-notifications__item-status">{item.read ? (en ? 'Read' : 'Đã đọc') : (en ? 'Unread' : 'Chưa đọc')}</span>
+        <time dateTime={item.occurredAt}>{dateFormat.time.format(occurredAt)}, {dateFormat.date.format(occurredAt)}</time>
+       </span>
       </button>
       {!item.read && <button type="button" className="lv-workflow-notifications__mark-one"
        aria-label={`${markLabel}: ${title} (${item.caseNumber})`} title={markLabel}
@@ -206,8 +231,11 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
         void markRead([item]);
        }}><Check size={18} aria-hidden="true" /></button>}
      </li>;
-    })}</ul>
-   </>}
+    })}</ul>}
+   </div>
+   {visible?.items?.length >= RECENT_LIMIT && <p className="lv-workflow-notifications__panel-footer">
+    {en ? '50 most recent notifications' : '50 thông báo gần nhất'}
+   </p>}
   </section>}
  </details>
  <div role="status" className="lv-workflow-notifications__toast-slot">
