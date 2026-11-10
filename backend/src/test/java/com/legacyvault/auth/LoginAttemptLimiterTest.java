@@ -27,9 +27,8 @@ class LoginAttemptLimiterTest {
         when(jdbc.queryForObject(contains("sp_getapplock"), eq(Integer.class), anyString())).thenReturn(0);
     }
 
-    /** Counts returned in call order: first by email hash, then by IP. */
-    private void counts(Long byEmail, Long byIp) {
-        when(jdbc.queryForObject(anyString(), eq(Long.class), anyString(), anyInt())).thenReturn(byEmail, byIp);
+    private void emailCount(Long byEmail) {
+        when(jdbc.queryForObject(anyString(), eq(Long.class), anyString(), anyInt())).thenReturn(byEmail);
     }
 
     private void reservationId(long id) {
@@ -40,7 +39,7 @@ class LoginAttemptLimiterTest {
     @Test
     void reservesAnAttemptBelowTheLimit() {
         lockGranted();
-        counts(4L, 4L);
+        emailCount(4L);
         reservationId(77L);
 
         assertEquals(77L, limiter.reserveAttempt("user@example.test", IP));
@@ -49,26 +48,25 @@ class LoginAttemptLimiterTest {
     @Test
     void blocksAtFiveAttemptsForTheSameEmailAndReservesNothing() {
         lockGranted();
-        counts(5L, 0L);
+        emailCount(5L);
 
         BusinessException error = assertThrows(BusinessException.class,
                 () -> limiter.reserveAttempt("user@example.test", IP));
 
-        assertEquals(ErrorCode.RATE_LIMITED, error.getErrorCode());
+        assertEquals(ErrorCode.TOO_MANY_ATTEMPTS, error.getErrorCode());
         assertEquals(429, error.getErrorCode().status());
         verify(jdbc, never()).queryForObject(contains("INSERT dbo.login_failures"), eq(Long.class), anyString(),
                 anyString());
     }
 
     @Test
-    void blocksAtFiveAttemptsForTheSameIpEvenWithDifferentEmails() {
+    void otherEmailsOnTheSameIpAreNotBlockedByAnotherAccountsFailures() {
         lockGranted();
-        counts(0L, 5L);
+        emailCount(0L);
+        reservationId(78L);
 
-        BusinessException error = assertThrows(BusinessException.class,
-                () -> limiter.reserveAttempt("other@example.test", IP));
-
-        assertEquals(ErrorCode.RATE_LIMITED, error.getErrorCode());
+        assertEquals(78L, limiter.reserveAttempt("other@example.test", IP));
+        verify(jdbc, never()).queryForObject(contains("client_ip = ?"), eq(Long.class), anyString(), anyInt());
     }
 
     @Test

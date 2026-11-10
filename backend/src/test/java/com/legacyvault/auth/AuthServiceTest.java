@@ -106,7 +106,7 @@ class AuthServiceTest {
         PasswordEncoder passwords = mock(PasswordEncoder.class);
         LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
         when(limiter.reserveAttempt("user@example.test", "203.0.113.9"))
-                .thenThrow(new BusinessException(ErrorCode.RATE_LIMITED));
+                .thenThrow(new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS));
         AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
                 passwords, mock(JwtService.class), mock(AuditService.class),
                 mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
@@ -115,7 +115,7 @@ class AuthServiceTest {
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.login(new LoginRequest("user@example.test", "StrongPass123"), "203.0.113.9"));
 
-        assertEquals(ErrorCode.RATE_LIMITED, exception.getErrorCode());
+        assertEquals(ErrorCode.TOO_MANY_ATTEMPTS, exception.getErrorCode());
         verify(users, never()).findByEmail(any());
         verify(passwords, never()).matches(any(), any());
     }

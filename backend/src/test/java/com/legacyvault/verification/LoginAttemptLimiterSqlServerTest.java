@@ -32,7 +32,7 @@ class LoginAttemptLimiterSqlServerTest extends LegalBasisSqlServerSupport {
 
         long admitted = outcomes.stream().filter(o -> o instanceof Long).count();
         long blocked = outcomes.stream()
-                .filter(o -> o instanceof BusinessException e && e.getErrorCode() == ErrorCode.RATE_LIMITED).count();
+                .filter(o -> o instanceof BusinessException e && e.getErrorCode() == ErrorCode.TOO_MANY_ATTEMPTS).count();
         assertThat(admitted).as("attempts admitted").isEqualTo(5);
         assertThat(blocked).as("attempts rejected with 429").isEqualTo(PARALLEL - 5);
     }

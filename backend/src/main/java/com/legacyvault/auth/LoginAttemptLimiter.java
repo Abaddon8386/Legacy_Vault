@@ -15,10 +15,12 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 
 /**
- * Limits password logins: at most 5 unconfirmed attempts within 15 minutes per email, and the same per client IP.
+ * Limits password logins: at most 5 unconfirmed attempts within 15 minutes per email. Only the email is limited, so one
+ * account being guessed never blocks other accounts that happen to share the same client IP (shared network, localhost).
+ * The client IP is still stored with each failure for investigation, but it is not counted.
  *
- * <p>Checking and counting happen in one step, {@link #reserveAttempt}, under an exclusive application lock per email
- * and per IP, so concurrent requests cannot all see "below the limit". Every attempt is reserved before the password is
+ * <p>Checking and counting happen in one step, {@link #reserveAttempt}, under an exclusive application lock per email,
+ * so concurrent requests cannot all see "below the limit". Every attempt is reserved before the password is
  * verified; a successful login releases its reservation, so only failures stay counted. It runs in REQUIRES_NEW so the
  * rollback of the login transaction cannot erase a failure.
  */
@@ -37,16 +39,12 @@ public class LoginAttemptLimiter {
      * Atomically checks the limits and reserves one attempt.
      *
      * @return the reservation id to pass to {@link #releaseAttempt} when the login succeeds
-     * @throws BusinessException {@code RATE_LIMITED} (429) when the email or the IP is already at the limit
+     * @throws BusinessException {@code TOO_MANY_ATTEMPTS} (429) when the email is already at the limit
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
     public long reserveAttempt(String normalizedEmail, String clientIp) {
         String emailHash = hash(normalizedEmail);
-        // Fixed order (email, then IP) so two requests cannot deadlock on each other's locks.
         lock("login-email:" + emailHash);
-        if (clientIp != null) {
-            lock("login-ip:" + clientIp);
-        }
         jdbc.update("DELETE dbo.login_failures WHERE failed_at < DATEADD(minute, -?, SYSUTCDATETIME())",
                 WINDOW_MINUTES);
 
@@ -55,16 +53,7 @@ public class LoginAttemptLimiter {
                 WHERE email_hash = ? AND failed_at >= DATEADD(minute, -?, SYSUTCDATETIME())
                 """, Long.class, emailHash, WINDOW_MINUTES);
         if (byEmail != null && byEmail >= LIMIT) {
-            throw new BusinessException(ErrorCode.RATE_LIMITED);
-        }
-        if (clientIp != null) {
-            Long byIp = jdbc.queryForObject("""
-                    SELECT COUNT_BIG(*) FROM dbo.login_failures
-                    WHERE client_ip = ? AND failed_at >= DATEADD(minute, -?, SYSUTCDATETIME())
-                    """, Long.class, clientIp, WINDOW_MINUTES);
-            if (byIp != null && byIp >= LIMIT) {
-                throw new BusinessException(ErrorCode.RATE_LIMITED);
-            }
+            throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
         }
         Long id = jdbc.queryForObject("""
                 INSERT dbo.login_failures(email_hash, client_ip, failed_at)
