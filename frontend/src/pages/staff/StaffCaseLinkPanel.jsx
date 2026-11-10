@@ -10,7 +10,7 @@ import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 export default function StaffCaseLinkPanel(props) {
   return <CounterContent key={`${props.caseId}:${props.accessToken || ''}:${props.caseItem?.status || ''}`} {...props} />;
 }
-function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, onError }) {
+function CounterContent({ caseId, caseItem, requiredRecipientIds = null, accessToken, lang = 'vi', actions, onError }) {
   const en = lang === 'en';
   const [snapshot, setSnapshot] = useState(null);
   const [revision, setRevision] = useState(0);
@@ -74,19 +74,22 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
   }, [caseId, caseItem?.caseNumber, open, accessToken, lang, actions, ready, revision]);
   const selected = snapshot?.requests.find(r => r.id === requestId);
   const recipient = snapshot?.recipients.find(r => r.beneficiaryId === recipientId);
+  const hasScopeFilter = Array.isArray(requiredRecipientIds) && requiredRecipientIds.length > 0;
+  const isOutOfScope = (r) => Boolean(r && hasScopeFilter && !requiredRecipientIds.includes(r.beneficiaryId));
   const locked = !open || loading || pending || uncertain || !snapshot;
   // Adapter opt-in only after BE publishes its replacement attestation contract.
   const evidenceRequired = actions?.counterEvidenceMode !== 'OPTIONAL';
-  const canApprove = !locked && ready && typeof actions?.approve === 'function' && selected && recipient && !recipient.accountLinked && checked && (!evidenceRequired || evidence.trim());
+  const canApprove = !locked && ready && typeof actions?.approve === 'function' && selected && recipient && !recipient.accountLinked && !isOutOfScope(recipient) && checked && (!evidenceRequired || evidence.trim());
   const matchBlocked = !open ? (en ? 'Select an open case.' : 'Chọn hồ sơ đang mở.')
     : loading || pending ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
       : uncertain ? (en ? 'Reload to check the latest status.' : 'Tải lại để kiểm tra trạng thái mới nhất.')
         : !ready || typeof actions?.approve !== 'function' ? (en ? 'Account linking is not available yet.' : 'Chưa hỗ trợ xác nhận liên kết tài khoản.')
           : !selected ? (en ? 'Select a pending account request.' : 'Chọn yêu cầu tài khoản đang chờ.')
             : !recipient ? (en ? 'Select the recipient in this case.' : 'Chọn người nhận trong hồ sơ.')
-              : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
-                : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
-                  : !checked ? (en ? 'Confirm the account and recipient match.' : 'Xác nhận đã đối chiếu đúng người nhận và tài khoản.') : '';
+              : isOutOfScope(recipient) ? (en ? 'This recipient is outside the approved allocation scope.' : 'Người nhận này không nằm trong phạm vi phân chia đã phê duyệt.')
+                : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
+                  : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
+                    : !checked ? (en ? 'Confirm the account and recipient match.' : 'Xác nhận đã đối chiếu đúng người nhận và tài khoản.') : '';
   async function perform(kind, payload) {
     if (mutation.current || locked) return;
     const c = new AbortController(); mutation.current = c; read.current?.abort();
@@ -148,7 +151,7 @@ function CounterContent({ caseId, caseItem, accessToken, lang = 'vi', actions, o
       {snapshot && <div className="lv-counter-link__match">
         <div className={`lv-counter-link__columns${evidenceRequired?'':' is-reference-free'}`}>
           <label>{en ? 'Requesting account' : 'Tài khoản gửi yêu cầu'}<select value={requestId} disabled={locked || !ready} onChange={e => { setRequestId(e.target.value); clearMatch(); }}><option value="">{en ? 'Select a pending request' : 'Chọn yêu cầu chờ đối chiếu'}</option>{snapshot.requests.map(r => <option key={r.id} value={r.id}>{r.accountName} — {r.accountEmail}</option>)}</select></label>
-          <label>{en ? 'Recipient in this case' : 'Người nhận trong hồ sơ'}<select value={recipientId} disabled={locked} onChange={e => { setRecipientId(e.target.value); setChecked(false); setEvidence(''); }}><option value="">{en ? 'Select a recipient' : 'Chọn người nhận để đối chiếu'}</option>{snapshot.recipients.map(r => <option key={r.beneficiaryId} value={r.beneficiaryId} disabled={r.accountLinked}>{r.fullName}{r.accountLinked ? (en ? ' — Linked' : ' — Đã liên kết') : ''}</option>)}</select></label>
+          <label>{en ? 'Recipient in this case' : 'Người nhận trong hồ sơ'}<select value={recipientId} disabled={locked} onChange={e => { setRecipientId(e.target.value); setChecked(false); setEvidence(''); }}><option value="">{en ? 'Select a recipient' : 'Chọn người nhận để đối chiếu'}</option>{snapshot.recipients.map(r => { const outOfScope = isOutOfScope(r); return <option key={r.beneficiaryId} value={r.beneficiaryId} disabled={r.accountLinked || outOfScope}>{r.fullName}{r.accountLinked ? (en ? ' — Linked' : ' — Đã liên kết') : outOfScope ? (en ? ' — Outside approved scope' : ' — Ngoài phạm vi phê duyệt') : ''}</option>; })}</select></label>
           {evidenceRequired && <label>{en ? 'Counter record reference' : 'Mã chứng từ đối chiếu'}<input placeholder={en ? 'Reference on the counter record' : 'Số trên chứng từ đối chiếu tại quầy'} aria-describedby="counter-evidence-help" value={evidence} maxLength={200} disabled={locked || !recipient} onChange={e => setEvidence(e.target.value)} /></label>}
         </div>
         {evidenceRequired && <p id="counter-evidence-help" className="lv-counter-link__empty">{en ? 'Use the reference on the counter identity-check record. This is separate from the signed asset receipt uploaded after handover.' : 'Nhập số trên chứng từ ghi nhận đối chiếu tại quầy. Đây là bước liên kết tài khoản, khác với biên nhận có chữ ký tải lên sau bàn giao.'}</p>}

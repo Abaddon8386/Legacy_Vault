@@ -175,9 +175,36 @@
 .lv-asset-handover-view .lv-handover-scope-empty p {
   font-size: 14px;
   color: var(--lv-text-muted, #6b726b);
-  max-width: 480px;
+  max-width: 520px;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.lv-asset-handover-view .lv-btn-navigate-cases {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 11px 24px;
+  background-color: var(--lv-brand-forest, #164639);
+  color: #ffffff;
+  border: 1px solid var(--lv-brand-forest, #164639);
+  border-radius: var(--lv-radius-md, 8px);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(22, 70, 57, 0.16);
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.lv-asset-handover-view .lv-btn-navigate-cases:hover {
+  background-color: #11382d;
+  border-color: #11382d;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 70, 57, 0.24);
 }
 
 /* Table Design */
@@ -339,7 +366,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 600px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .lv-asset-handover-view .lv-handover-recipient-select {

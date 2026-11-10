@@ -226,3 +226,31 @@ for (const [name, receipt] of [
     });
   });
 }
+
+test('review: when 1st recipient is delivered and 2nd approved recipient is pending counter link, keeps 2nd recipient selectable with link to counter verification',()=>run(async(host)=>{
+  const select=host.querySelector('select.lv-handover-recipient-select');
+  assert.ok(select,'Recipient select must be rendered');
+  const optionValues=[...select.querySelectorAll('option')].map(o=>o.value).filter(Boolean);
+  assert.deepEqual(optionValues,[r,r2],'Both verified and pending-verification approved recipients must be listed');
+  assert.equal(select.value,r2,'Must auto-select the 2nd pending recipient when 1st recipient is already delivered');
+  const verifyLinks=[...host.querySelectorAll('a[href*="/staff/beneficiary-accounts"]')];
+  assert.equal(verifyLinks.length,1,'Must provide exactly one prominent navigation CTA in Step 2 without duplicating in Step 1');
+},async(url)=>{
+  const u=String(url);
+  if(u.includes('/eligible-assets')){
+    return json([{assetId:asset,recipientId:r,recipientName:'Recipient 1',description:'Asset 1',deliveryStatus:'DELIVERED',accountLinked:true,deliverable:false,blockedReason:null}]);
+  }
+  if(u.includes('/beneficiary-confirmations')){
+    return json([
+      {beneficiaryId:r,fullName:'Recipient 1',deliveryStatus:'DELIVERED',confirmedReceipt:true},
+      {beneficiaryId:r2,fullName:'Recipient 2',deliveryStatus:'PENDING',confirmedReceipt:false},
+    ]);
+  }
+  if(u.includes('/beneficiaries')){
+    return json([
+      {beneficiaryId:r,fullName:'Recipient 1',accountLinked:true,identityVerificationStatus:'VERIFIED_AT_COUNTER'},
+      {beneficiaryId:r2,fullName:'Recipient 2',accountLinked:false,identityVerificationStatus:'NOT_VERIFIED'},
+    ]);
+  }
+  return json([]);
+}));
