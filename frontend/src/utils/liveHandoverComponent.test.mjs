@@ -178,3 +178,76 @@ test('LiveHandoverPage activates attendance tab when tab=attendance is present i
     await v.close();
   }
 });
+
+test('LiveHandoverPage in accounts mode with counterLinkActions enforces approved recipient scope (fails closed while loading and blocks out-of-scope recipients)', async () => {
+  const inScopeId = '33333333-3333-4333-8333-333333333333';
+  const outScopeId = '44444444-4444-4444-8444-444444444444';
+  const pendingReq = { id: 'req-1', caseNumber: 'HS-2026-000001', status: 'PENDING', accountId: 'acc-1', accountName: 'Người B', accountEmail: 'b@example.test' };
+  let resolveGroup;
+  let approved = 0;
+
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('/staff/verification-cases?')) {
+      return json({
+        content: [{
+          caseId: cid,
+          vaultId: cid,
+          ownerId: cid,
+          vaultName: 'Kho A',
+          ownerName: 'Chủ kho A',
+          caseNumber: 'HS-2026-000001',
+          status: 'OPEN',
+          triggeredAt: '2026-10-20T05:00:00Z',
+          closedAt: null,
+        }],
+        page: 0,
+        size: 50,
+        totalElements: 1,
+        totalPages: 1,
+      });
+    }
+    if (u.endsWith('/group-handover')) {
+      return new Promise(r => { resolveGroup = r; });
+    }
+    return json(u.endsWith(sid) ? receipt : [receipt]);
+  };
+
+  const counterLinkActions = {
+    counterEvidenceMode: 'OPTIONAL',
+    listRecipients: async () => [
+      { beneficiaryId: inScopeId, fullName: 'Người trong phạm vi', accountLinked: false },
+      { beneficiaryId: outScopeId, fullName: 'Người ngoài phạm vi', accountLinked: false },
+    ],
+    listPending: async () => [pendingReq],
+    approve: async () => { approved++; return { ...pendingReq, status: 'APPROVED' }; },
+  };
+
+  const v = await mount({ mode: 'accounts', counterLinkActions }, '/staff/beneficiary-accounts?caseId=' + cid + '&sessionId=' + sid);
+  try {
+    const selects = () => [...v.host.querySelectorAll('select')];
+    assert.equal(selects().length, 2);
+    assert.equal(selects()[0].disabled, true, 'Must fail closed while group-handover scope has not resolved');
+    assert.equal(selects()[1].disabled, true, 'Recipient select must stay locked while group-handover scope has not resolved');
+    assert.match(v.host.textContent, /Chưa tải được phạm vi người nhận đã phê duyệt/);
+
+    await act(async () => resolveGroup(json({ ...unconfirmedGroup, requiredRecipientIds: [inScopeId] })));
+
+    assert.equal(selects()[0].disabled, false, 'Unlocks once group-handover scope resolves');
+    assert.equal(selects()[1].disabled, false);
+    const recipientOptions = [...selects()[1].querySelectorAll('option')].filter(o => o.value);
+    assert.equal(recipientOptions.find(o => o.value === inScopeId).disabled, false, 'In-scope recipient is selectable');
+    assert.equal(recipientOptions.find(o => o.value === outScopeId).disabled, true, 'Out-of-scope recipient is disabled');
+    assert.match(recipientOptions.find(o => o.value === outScopeId).textContent, /Ngoài phạm vi phê duyệt/);
+
+    await act(async () => props(selects()[0]).onChange({ target: { value: pendingReq.id } }));
+    await act(async () => props(selects()[1]).onChange({ target: { value: outScopeId } }));
+    const checkbox = v.host.querySelector('input[type="checkbox"]');
+    if (checkbox) await act(async () => props(checkbox).onChange({ target: { checked: true } }));
+    const approveBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Xác nhận liên kết'));
+    assert.equal(approveBtn.disabled, true, 'Cannot approve out-of-scope recipient in accounts mode');
+    assert.equal(approved, 0);
+  } finally {
+    await v.close();
+  }
+});

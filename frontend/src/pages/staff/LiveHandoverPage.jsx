@@ -8,6 +8,7 @@ import '../../components/layout/OwnerSurfaces.css';
 import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 import StaffCaseLinkPanel from './StaffCaseLinkPanel.jsx';
 import StaffGroupHandover from '../../components/staff/StaffGroupHandover.jsx';
+import { loadGroupHandover } from '../../services/groupHandoverService.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
 import { ArrowLeft } from 'lucide-react';
@@ -217,7 +218,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
           </p>
         </div>
       )}
-      <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
+      <a href={handoverUrl(mode === 'accounts' ? '/staff/handover' : '/staff/beneficiary-accounts', caseId, selected.sessionId, lang)}>{mode === 'accounts' ? (en ? 'Back to session' : 'Về phiên bàn giao') : (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy')}</a>
       <div><button disabled={pending || loading || Boolean(error) || selected.status !== 'OPEN' || mode === 'accounts'} onClick={() => setConfirmCancel(true)}>{en ? 'Cancel session…' : 'Hủy phiên…'}</button></div>
       {confirmCancel && <div role="group" aria-label={en ? 'Confirm cancellation' : 'Xác nhận hủy phiên'}>
         <p>{en ? 'Cancel this open session?' : 'Hủy phiên đang mở này?'}</p>
@@ -265,7 +266,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
   };
   return <section className="lv-session-stack" aria-busy={loading || pending}>
     {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}><div className="lv-handover-next-step">
-        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
+        <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId, lang)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
       </div></StaffGroupHandover> : layout()}
   </section>;
 }
@@ -282,7 +283,14 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
   const [caseItem, setCaseItem] = useState(null);
   const [requested, setRequested] = useState(() => isHandoverId(query.get('caseId')) && isHandoverId(query.get('sessionId')) ? query.get('sessionId') : null);
   const [revision, setRevision] = useState(0);
+  const [accountScope, setAccountScope] = useState({ key: null, ids: null });
   const notify = useStaffSessionExpiry({ accessToken, onUnauthorized: onLogout });
+  const notifyRef = useRef(notify);
+  const langRef = useRef(lang);
+  useEffect(() => { notifyRef.current = notify; langRef.current = lang; }, [notify, lang]);
+  const isCaseClosed = caseItem?.status === 'CLOSED';
+  const accountScopeKey = `${caseId || ''}:${requested || ''}:${accessToken || ''}:${revision}`;
+  const accountScopeIds = accountScope.key === accountScopeKey ? accountScope.ids : null;
 
   useEffect(() => {
     if (!caseId || caseItem) return;
@@ -295,6 +303,27 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
       .catch(() => {});
     return () => c.abort();
   }, [caseId, accessToken, lang, caseItem]);
+
+  useEffect(() => {
+    if (mode !== 'accounts' || counterLinkActions === undefined || !caseId || isCaseClosed) return undefined;
+    const c = new AbortController();
+    Promise.resolve().then(async () => {
+      let targetSessionId = isHandoverId(requested) ? requested : null;
+      if (!targetSessionId) {
+        const sessions = await listLiveSessions(caseId, { accessToken, signal: c.signal });
+        if (c.signal.aborted) return;
+        targetSessionId = sessions.find(item => item.status === 'OPEN')?.sessionId || null;
+      }
+      if (!targetSessionId) return;
+      const view = await loadGroupHandover(caseId, targetSessionId, { accessToken, lang: langRef.current, signal: c.signal });
+      if (!c.signal.aborted && Array.isArray(view?.requiredRecipientIds)) {
+        setAccountScope({ key: accountScopeKey, ids: view.requiredRecipientIds });
+      }
+    }).catch(err => {
+      if (!c.signal.aborted) notifyRef.current(err);
+    });
+    return () => c.abort();
+  }, [mode, counterLinkActions, caseId, isCaseClosed, requested, accessToken, revision, accountScopeKey]);
 
   const keepContext = sessionId => {
     const url = new URL(window.location.href);
@@ -313,7 +342,7 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
     <h1 className="lv-staff-handover-title">{mode === 'accounts' ? (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy') : (en ? 'Counter handover sessions' : 'Bàn giao tài sản tại quầy')}</h1>
     {!caseId ? <CasePicker accessToken={accessToken} lang={lang} onError={notify} onChoose={(id, item) => {
       setCaseId(id); setCaseItem(item || null); setRequested(null);
-      window.history.replaceState(window.history.state, '', handoverUrl(window.location.pathname, id));
+      window.history.replaceState(window.history.state, '', handoverUrl(window.location.pathname, id, null, lang));
     }} /> : <>
       <div className="lv-live-case-summary lv-staff-glow">
         <div className="lv-live-case-description">
@@ -339,7 +368,7 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
           {en ? 'Choose another case' : 'Chọn hồ sơ khác'}
         </button>
       </div>
-      <div>{mode === 'accounts' && counterLinkActions !== undefined ? <StaffCaseLinkPanel caseId={caseId} caseItem={caseItem} accessToken={accessToken} lang={lang} actions={counterLinkActions} onError={notify} /> : <Sessions counterLinkActions={counterLinkActions} key={`${caseId}:${revision}`} caseId={caseId} caseItem={caseItem} requestedSessionId={requested} accessToken={accessToken} lang={lang} mode={mode} onError={notify} onSession={keepContext}
+      <div>{mode === 'accounts' && counterLinkActions !== undefined ? <StaffCaseLinkPanel caseId={caseId} caseItem={caseItem} requiredRecipientIds={accountScopeIds} accessToken={accessToken} lang={lang} actions={counterLinkActions} onError={notify} onReload={() => setRevision(v => v + 1)} /> : <Sessions counterLinkActions={counterLinkActions} key={`${caseId}:${revision}`} caseId={caseId} caseItem={caseItem} requestedSessionId={requested} accessToken={accessToken} lang={lang} mode={mode} onError={notify} onSession={keepContext}
         reload={() => { setRequested(new URLSearchParams(window.location.search).get('sessionId')); setRevision(v => v + 1); }} />}</div>
     </>}
   </section>;

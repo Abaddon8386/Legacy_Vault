@@ -17,7 +17,7 @@ const a='11111111-1111-4111-8111-111111111111',s='22222222-2222-4222-8222-222222
 const r2='77777777-7777-4777-8777-777777777777',asset2='88888888-8888-4888-8888-888888888888';
 const json=x=>new Response(JSON.stringify(x),{status:200,headers:{'Content-Type':'application/json'}});
 
-async function run(check, customFetch){
+async function run(check, customFetch, extraProps={}){
   let posts=0;
   const postBodies=[];
   const prior=globalThis.fetch;
@@ -35,7 +35,7 @@ async function run(check, customFetch){
   document.body.append(host);
   const root=createRoot(host);
   try{
-    await act(async()=>root.render(React.createElement(Page,{caseId:a,sessionId:s,accessToken:'real-token'})));
+    await act(async()=>root.render(React.createElement(Page,{caseId:a,sessionId:s,accessToken:'real-token',...extraProps})));
     await check(host,()=>posts,postBodies);
   }finally{
     await act(async()=>root.unmount());
@@ -267,3 +267,15 @@ test('review: beneficiary-confirmations failure is not swallowed and shows load 
   }
   return json([{assetId:asset,recipientId:r,description:'Asset 1',deliveryStatus:'DELIVERED',accountLinked:true,deliverable:false,blockedReason:null}]);
 }));
+
+test('review: English mode preserves lang=en in counter verification navigation link',()=>run(async(host)=>{
+  const verifyLinks=[...host.querySelectorAll('a[href*="/staff/beneficiary-accounts"]')];
+  assert.equal(verifyLinks.length,1);
+  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/beneficiary-accounts?caseId=${a}&sessionId=${s}&lang=en`);
+},async(url)=>{
+  const u=String(url);
+  if(u.includes('/eligible-assets')) return json([]);
+  if(u.includes('/beneficiary-confirmations')) return json([{confirmationId:asset2,sessionId:s,beneficiaryId:r2,status:'PENDING',confirmedBy:null,confirmedAt:null,receiptReference:null,hasSignedFile:false}]);
+  if(u.includes('/beneficiaries')) return json([{beneficiaryId:r2,fullName:'Recipient 2',accountLinked:false,identityVerificationStatus:'NOT_VERIFIED'}]);
+  return json([]);
+},{lang:'en'}));

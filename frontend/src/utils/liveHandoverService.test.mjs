@@ -55,7 +55,9 @@ test('Duplicate open sessions and malformed list are rejected',async()=>{
 for(const status of [401,403,404,409])test('API error preserved without mock '+status,async()=>{
  await assert.rejects(openLiveSession(id,{fetchFn:async()=>json({code:'HANDOVER_SESSION_INVALID_STATE'},status)}),{code:'HANDOVER_SESSION_INVALID_STATE',status});
 });
-test('Navigation carries only validated case/session IDs',()=>{
+test('Navigation carries only validated case/session IDs and optional lang=en',()=>{
  assert.equal(handoverUrl('/staff/beneficiary-accounts',id,sid),`/staff/beneficiary-accounts?caseId=${id}&sessionId=${sid}`);
+ assert.equal(handoverUrl('/staff/beneficiary-accounts',id,sid,'vi'),`/staff/beneficiary-accounts?caseId=${id}&sessionId=${sid}`);
+ assert.equal(handoverUrl('/staff/beneficiary-accounts',id,sid,'en'),`/staff/beneficiary-accounts?caseId=${id}&sessionId=${sid}&lang=en`);
  assert.equal(handoverUrl('/staff/handover','bad',sid),'/staff/handover');
 });

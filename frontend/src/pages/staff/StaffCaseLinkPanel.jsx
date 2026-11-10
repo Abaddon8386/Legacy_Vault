@@ -10,7 +10,7 @@ import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 export default function StaffCaseLinkPanel(props) {
   return <CounterContent key={`${props.caseId}:${props.accessToken || ''}:${props.caseItem?.status || ''}`} {...props} />;
 }
-function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, lang = 'vi', actions, onError }) {
+function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, lang = 'vi', actions, onError, onReload }) {
   const en = lang === 'en';
   const [snapshot, setSnapshot] = useState(null);
   const [revision, setRevision] = useState(0);
@@ -126,7 +126,7 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   function clearMatch() { setRecipientId(''); setEvidence(''); setChecked(false); setRejectOpen(false); }
   return <section className="lv-counter-link lv-staff-glow" aria-labelledby="counter-link-title" aria-busy={loading && open}>
     <div className="lv-counter-link__heading"><h2 id="counter-link-title">{en ? 'Match account at the counter' : 'Đối chiếu và liên kết tại quầy'}</h2>
-      <Button variant="secondary" disabled={!open || pending || loading} onClick={() => { clearMatch(); setRequestId(''); setRevision(v => v + 1); }}>{en ? 'Reload' : 'Tải lại trạng thái'}</Button></div>
+      <Button variant="secondary" disabled={!open || pending || loading} onClick={() => { clearMatch(); setRequestId(''); setRevision(v => v + 1); onReload?.(); }}>{en ? 'Reload' : 'Tải lại trạng thái'}</Button></div>
     <div className="lv-counter-link__case-bar">
       <div className="lv-counter-link__case-number">
         <span>{en ? 'Case number for the recipient' : 'Mã hồ sơ gửi người nhận'}</span>

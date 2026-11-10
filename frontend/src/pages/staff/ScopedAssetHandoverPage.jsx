@@ -565,7 +565,7 @@ function ScopedAssetHandoverPageContext({
             <h3>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'No recipients ready for handover yet' : 'Chưa có người nhận đủ điều kiện bàn giao') : t.scopeMissingTitle}</h3>
             <p>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'Ask the recipient to submit the case number from Shared with me, then verify their account at the counter. Reload this page after verification.' : 'Người nhận cần nhập mã hồ sơ trong Tài sản thụ hưởng. Staff đối chiếu và xác nhận tài khoản tại quầy, rồi tải lại danh sách tài sản.') : t.scopeMissingDesc}</p>
             {caseReference && sessionId ? (
-              <a className="lv-btn-navigate-cases" href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId)}>
+              <a className="lv-btn-navigate-cases" href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId, lang)}>
                 {en ? 'Verify recipient accounts' : 'Đối chiếu tài khoản người nhận'}
               </a>
             ) : onNavigateCases && (
@@ -651,7 +651,7 @@ function ScopedAssetHandoverPageContext({
                 {caseReference && sessionId && (
                   <a
                     className="lv-btn-navigate-cases"
-                    href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId)}
+                    href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId, lang)}
                   >
                     {en ? 'Verify & link recipient account →' : 'Đối chiếu và liên kết tài khoản →'}
                   </a>
