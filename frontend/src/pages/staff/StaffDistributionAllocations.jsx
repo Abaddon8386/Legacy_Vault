@@ -18,6 +18,7 @@ export default function StaffDistributionAllocations({ workflow, dossier, assets
   }
   return <section className="lv-distribution-workflow lv-surface-card lv-staff-glow" aria-label={en ? 'Prepare asset allocations' : 'Lập phân bổ tài sản'}>
     <h2>{en ? 'Prepare allocations from accepted documents' : 'Lập phân bổ theo căn cứ đã duyệt'}</h2>
+    {workflow.data?.phase === 'REJECTED' && <p role="status">{en ? 'Legal rejected this case, so allocations cannot be edited now. Staff can prepare the corrections; the allocation form reopens only after Legal asks for additional documents.' : 'Ban Pháp lý đã từ chối hồ sơ nên chưa thể sửa phân bổ. Staff chuẩn bị nội dung cần sửa; form phân bổ chỉ mở lại khi Ban Pháp lý yêu cầu bổ sung giấy tờ.'}</p>}
     {!ready && !existing && <p role="status">{en ? 'Allocations can be prepared after Legal accepts the current documents and returns the case to Staff.' : 'Chỉ lập hoặc sửa phân bổ khi Ban Pháp lý đã duyệt giấy tờ và chuyển hồ sơ về Staff.'}</p>}
     {existing && <><h3>{en ? 'Submitted allocations' : 'Phân bổ đã gửi'}</h3><ul className="lv-distribution-review-list">{existing.items.map((item, index) => <li key={`${item.assetId}:${item.beneficiaryId}:${index}`}>
       <div><small>{en ? 'Asset' : 'Tài sản'}</small><strong>{item.assetName}</strong></div>
