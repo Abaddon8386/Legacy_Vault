@@ -10,7 +10,7 @@ import { WorkflowActionHint } from '../../components/common/WorkflowGuide.jsx';
 export default function StaffCaseLinkPanel(props) {
   return <CounterContent key={`${props.caseId}:${props.accessToken || ''}:${props.caseItem?.status || ''}`} {...props} />;
 }
-function CounterContent({ caseId, caseItem, requiredRecipientIds = null, accessToken, lang = 'vi', actions, onError }) {
+function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, lang = 'vi', actions, onError }) {
   const en = lang === 'en';
   const [snapshot, setSnapshot] = useState(null);
   const [revision, setRevision] = useState(0);
@@ -74,22 +74,24 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds = null, accessT
   }, [caseId, caseItem?.caseNumber, open, accessToken, lang, actions, ready, revision]);
   const selected = snapshot?.requests.find(r => r.id === requestId);
   const recipient = snapshot?.recipients.find(r => r.beneficiaryId === recipientId);
-  const hasScopeFilter = Array.isArray(requiredRecipientIds) && requiredRecipientIds.length > 0;
-  const isOutOfScope = (r) => Boolean(r && hasScopeFilter && !requiredRecipientIds.includes(r.beneficiaryId));
-  const locked = !open || loading || pending || uncertain || !snapshot;
+  const scopeEnforced = requiredRecipientIds !== undefined;
+  const scopeLoaded = !scopeEnforced || Array.isArray(requiredRecipientIds);
+  const isOutOfScope = (r) => Boolean(r && scopeEnforced && (!scopeLoaded || !requiredRecipientIds.includes(r.beneficiaryId)));
+  const locked = !open || loading || pending || uncertain || !snapshot || !scopeLoaded;
   // Adapter opt-in only after BE publishes its replacement attestation contract.
   const evidenceRequired = actions?.counterEvidenceMode !== 'OPTIONAL';
   const canApprove = !locked && ready && typeof actions?.approve === 'function' && selected && recipient && !recipient.accountLinked && !isOutOfScope(recipient) && checked && (!evidenceRequired || evidence.trim());
   const matchBlocked = !open ? (en ? 'Select an open case.' : 'Chọn hồ sơ đang mở.')
     : loading || pending ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
       : uncertain ? (en ? 'Reload to check the latest status.' : 'Tải lại để kiểm tra trạng thái mới nhất.')
-        : !ready || typeof actions?.approve !== 'function' ? (en ? 'Account linking is not available yet.' : 'Chưa hỗ trợ xác nhận liên kết tài khoản.')
-          : !selected ? (en ? 'Select a pending account request.' : 'Chọn yêu cầu tài khoản đang chờ.')
-            : !recipient ? (en ? 'Select the recipient in this case.' : 'Chọn người nhận trong hồ sơ.')
-              : isOutOfScope(recipient) ? (en ? 'This recipient is outside the approved allocation scope.' : 'Người nhận này không nằm trong phạm vi phân chia đã phê duyệt.')
-                : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
-                  : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
-                    : !checked ? (en ? 'Confirm the account and recipient match.' : 'Xác nhận đã đối chiếu đúng người nhận và tài khoản.') : '';
+        : !scopeLoaded ? (en ? 'Approved recipient scope is not loaded yet. Open or reload the active handover session first.' : 'Chưa tải được phạm vi người nhận đã phê duyệt. Hãy mở hoặc tải lại phiên bàn giao trước.')
+          : !ready || typeof actions?.approve !== 'function' ? (en ? 'Account linking is not available yet.' : 'Chưa hỗ trợ xác nhận liên kết tài khoản.')
+            : !selected ? (en ? 'Select a pending account request.' : 'Chọn yêu cầu tài khoản đang chờ.')
+              : !recipient ? (en ? 'Select the recipient in this case.' : 'Chọn người nhận trong hồ sơ.')
+                : isOutOfScope(recipient) ? (en ? 'This recipient is outside the approved allocation scope.' : 'Người nhận này không nằm trong phạm vi phân chia đã phê duyệt.')
+                  : recipient.accountLinked ? (en ? 'This recipient is already linked.' : 'Người nhận này đã liên kết.')
+                    : evidenceRequired && !evidence.trim() ? (en ? 'Enter the counter record reference.' : 'Nhập mã biên bản đối chiếu.')
+                      : !checked ? (en ? 'Confirm the account and recipient match.' : 'Xác nhận đã đối chiếu đúng người nhận và tài khoản.') : '';
   async function perform(kind, payload) {
     if (mutation.current || locked) return;
     const c = new AbortController(); mutation.current = c; read.current?.abort();

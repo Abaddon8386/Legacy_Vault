@@ -26,7 +26,7 @@ import {
 } from './handoverSessionService.js';
 import { scopedAssetHandoverI18n } from './scopedAssetHandoverI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
-import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
+import { fetchStaffCaseBeneficiaries, handoverUrl } from './liveHandoverService.js';
 import { fetchStaffAssetCatalog } from './staffLegalDocumentsService.js';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
@@ -160,7 +160,7 @@ function ScopedAssetHandoverPageContext({
           fetchEligibleAssets(caseReference, sessionId, options),
           effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchStaffCaseBeneficiaries(caseReference, options).catch(() => []),
           effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchStaffAssetCatalog(caseReference, options).catch(() => []),
-          effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchBeneficiaryConfirmations(caseReference, sessionId, options).catch(() => []),
+          effectiveIsDevPreview && !effectiveAccessToken ? Promise.resolve([]) : fetchBeneficiaryConfirmations(caseReference, sessionId, options),
         ]);
         if (!Array.isArray(assets)) throw new Error(en ? 'Invalid handover data.' : 'Dữ liệu bàn giao không hợp lệ.');
 
@@ -181,19 +181,18 @@ function ScopedAssetHandoverPageContext({
             };
           });
 
+          // Đọc theo DTO BeneficiaryConfirmationResponse của BE:
+          // { confirmationId, sessionId, beneficiaryId, status, confirmedBy, confirmedAt, receiptReference, hasSignedFile }
           const validConfirmations = (Array.isArray(confirmations) ? confirmations : []).filter(
             (item) => item && item.beneficiaryId && !item.assetId
           );
           const normalizedSessionRecipients = validConfirmations.map((item) => {
             const person = (Array.isArray(people) ? people : []).find((p) => p && p.beneficiaryId === item.beneficiaryId);
-            const hasEligibleRows = formattedCandidates.some((c) => c.beneficiaryId === item.beneficiaryId);
+            const confirmationStatus = String(item.status || item.confirmationStatus || 'PENDING').toUpperCase();
             return {
               id: item.beneficiaryId,
-              name: person?.fullName || item.fullName || null,
-              deliveryStatus: item.deliveryStatus || 'PENDING',
-              confirmedReceipt: Boolean(item.confirmedReceipt),
-              accountLinked: typeof person?.accountLinked === 'boolean' ? person.accountLinked : hasEligibleRows,
-              needsCounterLink: !hasEligibleRows || person?.accountLinked === false,
+              name: person?.fullName || item.beneficiaryName || null,
+              status: confirmationStatus,
             };
           });
 
@@ -227,7 +226,7 @@ function ScopedAssetHandoverPageContext({
               (c) => c.beneficiaryId === recIds[0] && c.handoverStatus !== HANDOVER_STATUS.DELIVERED
             );
             const nextPendingRecipient = normalizedSessionRecipients.find(
-              (r) => r.id !== recIds[0] && r.deliveryStatus !== 'DELIVERED'
+              (r) => !recIds.includes(r.id) && r.status !== 'CONFIRMED'
             );
             if (!soleEligibleHasUndelivered && nextPendingRecipient) {
               setSelectedRecipientId(nextPendingRecipient.id);
@@ -266,7 +265,6 @@ function ScopedAssetHandoverPageContext({
         id: c.beneficiaryId,
         name: c.beneficiaryName || null,
         hasEligibleAssets: true,
-        needsCounterLink: c.accountLinked === false,
       });
     });
   if (hasCurrentScope) {
@@ -277,15 +275,12 @@ function ScopedAssetHandoverPageContext({
         recipientMap.set(r.id, {
           ...existing,
           name: existing.name || r.name || null,
-          needsCounterLink: existing.needsCounterLink || r.accountLinked === false,
         });
-      } else {
+      } else if (r.status !== 'CONFIRMED') {
         recipientMap.set(r.id, {
           id: r.id,
           name: r.name || null,
           hasEligibleAssets: false,
-          needsCounterLink: true,
-          deliveryStatus: r.deliveryStatus,
         });
       }
     });
@@ -570,7 +565,7 @@ function ScopedAssetHandoverPageContext({
             <h3>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'No recipients ready for handover yet' : 'Chưa có người nhận đủ điều kiện bàn giao') : t.scopeMissingTitle}</h3>
             <p>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'Ask the recipient to submit the case number from Shared with me, then verify their account at the counter. Reload this page after verification.' : 'Người nhận cần nhập mã hồ sơ trong Tài sản thụ hưởng. Staff đối chiếu và xác nhận tài khoản tại quầy, rồi tải lại danh sách tài sản.') : t.scopeMissingDesc}</p>
             {caseReference && sessionId ? (
-              <a className="lv-btn-navigate-cases" href={`/staff/beneficiary-accounts?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}&lang=${lang}`}>
+              <a className="lv-btn-navigate-cases" href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId)}>
                 {en ? 'Verify recipient accounts' : 'Đối chiếu tài khoản người nhận'}
               </a>
             ) : onNavigateCases && (
@@ -656,7 +651,7 @@ function ScopedAssetHandoverPageContext({
                 {caseReference && sessionId && (
                   <a
                     className="lv-btn-navigate-cases"
-                    href={`/staff/beneficiary-accounts?caseId=${encodeURIComponent(caseReference)}&sessionId=${encodeURIComponent(sessionId)}&lang=${lang}`}
+                    href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId)}
                   >
                     {en ? 'Verify & link recipient account →' : 'Đối chiếu và liên kết tài khoản →'}
                   </a>

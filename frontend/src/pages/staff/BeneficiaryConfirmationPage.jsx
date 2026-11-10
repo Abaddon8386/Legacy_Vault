@@ -437,8 +437,6 @@ function BeneficiaryConfirmationPageContext({
             return normalizeBeneficiaryItem({ ...b,
               fullName: person?.fullName || b.fullName || b.beneficiaryName,
               relationship: person?.relationship || b.relationship,
-              accountLinked: typeof person?.accountLinked === 'boolean' ? person.accountLinked : undefined,
-              needsCounterLink: openSession ? (allocated.length === 0 || person?.accountLinked === false) : false,
               // Delivery history contains only delivered items, not the full allocation scope.
               deliveryStatus: openSession
                 ? (allocated.length > 0 && allocated.every(item => item.deliveryStatus === 'DELIVERED') ? 'DELIVERED' : 'PENDING')
@@ -584,9 +582,7 @@ function BeneficiaryConfirmationPageContext({
     : !hasValidData ? (lang === 'en' ? 'Select a session and load the recipient data first.' : 'Chọn phiên và tải thông tin người nhận trước.')
       : !selectedBeneficiaryId ? (lang === 'en' ? 'Select the recipient who signed the receipt.' : 'Chọn người nhận đã ký nhận.')
         : isSelectedAlreadyConfirmed ? (lang === 'en' ? 'This recipient is already confirmed.' : 'Người nhận này đã được xác nhận.')
-          : isSelectedDeliveryPending ? (selectedBenObj?.needsCounterLink
-            ? (lang === 'en' ? 'Verify identity & link this recipient’s account, then deliver their approved assets before confirming receipt.' : 'Người nhận này chưa đối chiếu & liên kết tài khoản và chưa được bàn giao tài sản. Hãy đối chiếu tài khoản và bàn giao tài sản trước khi xác nhận ký nhận.')
-            : (lang === 'en' ? 'Deliver all approved assets to this recipient before confirming their signed receipt.' : 'Cần bàn giao đầy đủ tài sản được duyệt cho người thụ hưởng này trước khi xác nhận ký nhận.'))
+          : isSelectedDeliveryPending ? (lang === 'en' ? 'Deliver all approved assets to this recipient before confirming their signed receipt.' : 'Cần bàn giao đầy đủ tài sản được duyệt cho người thụ hưởng này trước khi xác nhận ký nhận.')
             : !signedFile ? (lang === 'en' ? 'Attach the signed receipt.' : 'Đính kèm biên nhận đã ký.') : !attested ? (lang === 'en' ? 'Confirm the signed receipt check.' : 'Xác nhận đã đối chiếu biên nhận có chữ ký.')
               : isSubmitting ? (lang === 'en' ? 'Wait for confirmation to finish.' : 'Chờ ghi nhận hoàn tất.') : '';
 

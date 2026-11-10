@@ -228,7 +228,7 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
   const renderCounterCheck = (groupView) => counterLinkActions !== undefined ? <StaffCaseLinkPanel
       caseId={caseId}
       caseItem={caseItem}
-      requiredRecipientIds={groupView?.requiredRecipientIds || null}
+      requiredRecipientIds={groupView?.requiredRecipientIds ?? null}
       accessToken={accessToken}
       lang={lang}
       actions={counterLinkActions}
@@ -275,13 +275,12 @@ export default function LiveHandoverPage(props) {
   // Replacing the authenticated token discards every state/request from the old session.
   return <LiveHandoverContent key={props.accessToken} {...props} />;
 }
-function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSession, mode = 'sessions', counterLinkActions, caseId: propCaseId = null, caseItem: propCaseItem = null, sessionId: propSessionId = null }) {
+function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSession, mode = 'sessions', counterLinkActions }) {
   const en = lang === 'en';
   const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
-  const initialCaseId = isHandoverId(query.get('caseId')) ? query.get('caseId') : (isHandoverId(propCaseId) ? propCaseId : null);
-  const [caseId, setCaseId] = useState(() => initialCaseId);
-  const [caseItem, setCaseItem] = useState(() => (propCaseItem && propCaseItem.caseId === initialCaseId ? propCaseItem : null));
-  const [requested, setRequested] = useState(() => initialCaseId && isHandoverId(query.get('sessionId') || propSessionId) ? (query.get('sessionId') || propSessionId) : null);
+  const [caseId, setCaseId] = useState(() => isHandoverId(query.get('caseId')) ? query.get('caseId') : null);
+  const [caseItem, setCaseItem] = useState(null);
+  const [requested, setRequested] = useState(() => isHandoverId(query.get('caseId')) && isHandoverId(query.get('sessionId')) ? query.get('sessionId') : null);
   const [revision, setRevision] = useState(0);
   const notify = useStaffSessionExpiry({ accessToken, onUnauthorized: onLogout });
 

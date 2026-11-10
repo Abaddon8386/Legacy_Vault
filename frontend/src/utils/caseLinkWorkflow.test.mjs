@@ -714,3 +714,37 @@ test('empty state shows one link card; the requests card appears only for reques
     assert.match(v.host.textContent, /Yêu cầu của tôi/);
   } finally { await v.close(); }
 });
+
+test('StaffCaseLinkPanel fails closed when requiredRecipientIds is null or empty and blocks out-of-scope recipients', async () => {
+  const inScope = { beneficiaryId: 'in-scope', fullName: 'Người trong phạm vi', accountLinked: false };
+  const outScope = { beneficiaryId: 'out-scope', fullName: 'Người ngoài phạm vi', accountLinked: false };
+  let approved = 0;
+  const actions = {
+    counterEvidenceMode: 'OPTIONAL',
+    listRecipients: async () => [inScope, outScope],
+    listPending: async () => [req],
+    approve: async () => { approved++; return { ...req, status: 'APPROVED' }; },
+  };
+  const v = await mount(Counter, { caseId: 'case-a', caseItem, requiredRecipientIds: null, accessToken: 'staff', actions });
+  try {
+    const selects = () => [...v.host.querySelectorAll('select')];
+    assert.equal(selects()[0].disabled, true, 'Must stay locked when requiredRecipientIds is null (not loaded yet)');
+    assert.equal(selects()[1].disabled, true, 'Recipient select must stay locked when requiredRecipientIds is null');
+    assert.match(v.host.textContent, /Chưa tải được phạm vi người nhận đã phê duyệt/);
+
+    await v.render({ caseId: 'case-a', caseItem, requiredRecipientIds: [], accessToken: 'staff', actions });
+    const emptyOpts = [...selects()[1].querySelectorAll('option')].filter(o => o.value);
+    assert.equal(emptyOpts.every(o => o.disabled), true, 'Empty scope array must fail closed and disable all recipients');
+
+    await v.render({ caseId: 'case-a', caseItem, requiredRecipientIds: ['in-scope'], accessToken: 'staff', actions });
+    const scopedOpts = [...selects()[1].querySelectorAll('option')].filter(o => o.value);
+    assert.equal(scopedOpts.find(o => o.value === 'in-scope').disabled, false);
+    assert.equal(scopedOpts.find(o => o.value === 'out-scope').disabled, true);
+    await act(async () => propsOf(selects()[0]).onChange({ target: { value: req.id } }));
+    await act(async () => propsOf(selects()[1]).onChange({ target: { value: 'out-scope' } }));
+    await change(v.host, 'input[type="checkbox"]', true);
+    const approveBtn = [...v.host.querySelectorAll('button')].find(b => b.textContent.includes('Xác nhận liên kết'));
+    assert.equal(approveBtn.disabled, true);
+    assert.equal(approved, 0);
+  } finally { await v.close(); }
+});

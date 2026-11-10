@@ -230,11 +230,13 @@ for (const [name, receipt] of [
 test('review: when 1st recipient is delivered and 2nd approved recipient is pending counter link, keeps 2nd recipient selectable with link to counter verification',()=>run(async(host)=>{
   const select=host.querySelector('select.lv-handover-recipient-select');
   assert.ok(select,'Recipient select must be rendered');
-  const optionValues=[...select.querySelectorAll('option')].map(o=>o.value).filter(Boolean);
-  assert.deepEqual(optionValues,[r,r2],'Both verified and pending-verification approved recipients must be listed');
+  const options=[...select.querySelectorAll('option')].filter(o=>o.value);
+  assert.deepEqual(options.map(o=>o.value),[r,r2],'Both verified and pending-verification approved recipients must be listed');
+  assert.match(options[1].textContent,/Recipient 2 — Chưa đối chiếu & liên kết tài khoản/,'Name must come from beneficiaries API and show pending counter verification');
   assert.equal(select.value,r2,'Must auto-select the 2nd pending recipient when 1st recipient is already delivered');
   const verifyLinks=[...host.querySelectorAll('a[href*="/staff/beneficiary-accounts"]')];
   assert.equal(verifyLinks.length,1,'Must provide exactly one prominent navigation CTA in Step 2 without duplicating in Step 1');
+  assert.equal(verifyLinks[0].getAttribute('href'),`/staff/beneficiary-accounts?caseId=${a}&sessionId=${s}`);
 },async(url)=>{
   const u=String(url);
   if(u.includes('/eligible-assets')){
@@ -242,8 +244,8 @@ test('review: when 1st recipient is delivered and 2nd approved recipient is pend
   }
   if(u.includes('/beneficiary-confirmations')){
     return json([
-      {beneficiaryId:r,fullName:'Recipient 1',deliveryStatus:'DELIVERED',confirmedReceipt:true},
-      {beneficiaryId:r2,fullName:'Recipient 2',deliveryStatus:'PENDING',confirmedReceipt:false},
+      {confirmationId:a,sessionId:s,beneficiaryId:r,status:'CONFIRMED',confirmedBy:a,confirmedAt:'2026-10-20T08:05:00Z',receiptReference:'BN-001',hasSignedFile:true},
+      {confirmationId:asset2,sessionId:s,beneficiaryId:r2,status:'PENDING',confirmedBy:null,confirmedAt:null,receiptReference:null,hasSignedFile:false},
     ]);
   }
   if(u.includes('/beneficiaries')){
@@ -253,4 +255,15 @@ test('review: when 1st recipient is delivered and 2nd approved recipient is pend
     ]);
   }
   return json([]);
+}));
+
+test('review: beneficiary-confirmations failure is not swallowed and shows load error banner',()=>run(async(host)=>{
+  assert.ok(host.querySelector('.lv-api-status-banner--error'),'Load error banner must be displayed when beneficiary-confirmations fails');
+  assert.equal(host.querySelector('select.lv-handover-recipient-select'),null,'Must not render incomplete recipient list on confirmation load failure');
+},async(url)=>{
+  const u=String(url);
+  if(u.includes('/beneficiary-confirmations')){
+    return new Response(JSON.stringify({code:'INTERNAL_ERROR',message:'Failed to load confirmations'}),{status:500,headers:{'Content-Type':'application/json'}});
+  }
+  return json([{assetId:asset,recipientId:r,description:'Asset 1',deliveryStatus:'DELIVERED',accountLinked:true,deliverable:false,blockedReason:null}]);
 }));
