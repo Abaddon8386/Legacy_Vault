@@ -1,0 +1,67 @@
+/* Motion for the Staff and Legal workspaces.
+   Uses the shared motion tokens from tokens.css. Only opacity and transform move.
+   Everything sits behind prefers-reduced-motion, so people who opt out get none of it. */
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) {
+    --lv-list-stagger: 45ms;
+  }
+
+  /* Switching tab: the new panel fades in and rises a little. */
+  @keyframes lv-panel-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) [role="tabpanel"] {
+    animation: lv-panel-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+
+  /* A decision that was approved: the box drops in, the tick is drawn, the tab dot pops. */
+  @keyframes lv-outcome-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes lv-check-draw {
+    from { stroke-dasharray: 12; stroke-dashoffset: 12; }
+    to { stroke-dasharray: 12; stroke-dashoffset: 0; }
+  }
+  @keyframes lv-dot-pop {
+    0% { transform: scale(0.6); }
+    60% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-staff-legal-outcome.is-positive, .lv-staff-outcome.is-positive) {
+    animation: lv-outcome-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-staff-legal-outcome.is-positive .lv-staff-legal-outcome__icon path {
+    animation: lv-check-draw 420ms var(--lv-motion-ease-smooth) 120ms backwards;
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-staff-tab-dot.is-done {
+    animation: lv-dot-pop 360ms var(--lv-motion-ease-spring) backwards;
+  }
+  /* When a status changes while the page is open, its colour eases across instead of jumping. */
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-staff-tab-dot {
+    transition: background-color var(--lv-motion-duration-standard) var(--lv-motion-ease-standard), border-color var(--lv-motion-duration-standard) var(--lv-motion-ease-standard);
+  }
+
+  /* Lists: the first six rows come in one after another. */
+  @keyframes lv-item-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card) {
+    animation: lv-item-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(2) { animation-delay: var(--lv-list-stagger); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(3) { animation-delay: calc(var(--lv-list-stagger) * 2); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(4) { animation-delay: calc(var(--lv-list-stagger) * 3); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(5) { animation-delay: calc(var(--lv-list-stagger) * 4); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(6) { animation-delay: calc(var(--lv-list-stagger) * 5); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(n + 7) { animation: none; }
+
+  /* Press feedback on buttons (tabs and disabled buttons are left alone). */
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) button:not(:disabled):not([role="tab"]):active {
+    transform: scale(0.98);
+    transition: transform 80ms var(--lv-motion-ease-standard);
+  }
+}
