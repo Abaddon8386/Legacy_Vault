@@ -4322,7 +4322,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
     TooManyRequests:
-      description: TOO_MANY_ATTEMPTS — nhập sai mật khẩu quá số lần cho phép (xác nhận mật khẩu D-API-32, hoặc đăng nhập: sai 5 lần thì email bị khóa 15 phút kể từ lần sai thứ 5; một IP vượt 30 lần sai/15 phút thì trả `RATE_LIMITED`)
+      description: "TOO_MANY_ATTEMPTS — nhập sai mật khẩu quá số lần cho phép (xác nhận mật khẩu D-API-32, hoặc đăng nhập: sai 5 lần thì email bị khóa 15 phút kể từ lần sai thứ 5; một IP vượt 30 lần sai/15 phút thì trả `RATE_LIMITED`)"
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
