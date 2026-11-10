@@ -23,7 +23,8 @@ import com.legacyvault.common.error.ErrorCode;
  * Limits password logins: after 5 unconfirmed failures within 15 minutes an email is locked for 15 minutes, counted
  * from its 5th failure. Only the email is limited, so one
  * account being guessed never blocks other accounts that happen to share the same client IP (shared network, localhost).
- * The client IP is still stored with each failure for investigation, but it is not counted.
+ * A separate, much looser per-IP cap (default 30 failures per 15 minutes, LOGIN_IP_LIMIT) only stops one address from
+ * guessing across many emails.
  *
  * <p>Checking and counting happen in one step, {@link #reserveAttempt}, under an exclusive application lock per email,
  * so concurrent requests cannot all see "below the limit". Every attempt is reserved before the password is
@@ -33,24 +34,33 @@ import com.legacyvault.common.error.ErrorCode;
 @Service
 public class LoginAttemptLimiter {
     static final int LIMIT = 5;
+    static final int DEFAULT_IP_LIMIT = 30;
     private static final int WINDOW_MINUTES = 15;
 
     private final JdbcTemplate jdbc;
     /** Normalized emails that are never locked. Empty (the default) means nobody is exempt. */
     private final Set<String> exemptEmails;
+    private final int ipLimit;
 
     public LoginAttemptLimiter(JdbcTemplate jdbc) {
         this(jdbc, "");
     }
 
+    public LoginAttemptLimiter(JdbcTemplate jdbc, String exemptEmails) {
+        this(jdbc, exemptEmails, DEFAULT_IP_LIMIT);
+    }
+
     /**
+     * @param ipLimit failures one client IP may cause within 15 minutes across all emails (default 30)
      * @param exemptEmails comma-separated emails that skip the lockout, for shared demo accounts only. Leave empty in any
      *                     real environment. Set with LOGIN_LOCKOUT_EXEMPT_EMAILS or legacyvault.auth.login-lockout.exempt-emails.
      */
     @Autowired
     public LoginAttemptLimiter(JdbcTemplate jdbc,
-            @Value("${legacyvault.auth.login-lockout.exempt-emails:${LOGIN_LOCKOUT_EXEMPT_EMAILS:}}") String exemptEmails) {
+            @Value("${legacyvault.auth.login-lockout.exempt-emails:${LOGIN_LOCKOUT_EXEMPT_EMAILS:}}") String exemptEmails,
+            @Value("${legacyvault.auth.login-lockout.ip-limit:${LOGIN_IP_LIMIT:30}}") int ipLimit) {
         this.jdbc = jdbc;
+        this.ipLimit = ipLimit;
         this.exemptEmails = Arrays.stream(exemptEmails == null ? new String[0] : exemptEmails.split(","))
                 .map(EmailNormalizer::normalize)
                 .filter(email -> email != null && !email.isEmpty())
@@ -69,7 +79,11 @@ public class LoginAttemptLimiter {
             return 0L;
         }
         String emailHash = hash(normalizedEmail);
+        // Fixed order (email, then IP) so two requests cannot deadlock on each other's locks.
         lock("login-email:" + emailHash);
+        if (clientIp != null) {
+            lock("login-ip:" + clientIp);
+        }
         // Rows are kept for two windows so the lock can be measured from the latest failure; older ones are junk.
         jdbc.update("DELETE dbo.login_failures WHERE failed_at < DATEADD(minute, -?, SYSUTCDATETIME())",
                 2 * WINDOW_MINUTES);
@@ -86,6 +100,15 @@ public class LoginAttemptLimiter {
                 """, Long.class, emailHash, WINDOW_MINUTES, emailHash, emailHash, WINDOW_MINUTES);
         if (byEmail != null && byEmail >= LIMIT) {
             throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
+        }
+        if (clientIp != null) {
+            Long byIp = jdbc.queryForObject("""
+                    SELECT COUNT_BIG(*) FROM dbo.login_failures
+                    WHERE client_ip = ? AND failed_at >= DATEADD(minute, -?, SYSUTCDATETIME())
+                    """, Long.class, clientIp, WINDOW_MINUTES);
+            if (byIp != null && byIp >= ipLimit) {
+                throw new BusinessException(ErrorCode.RATE_LIMITED);
+            }
         }
         Long id = jdbc.queryForObject("""
                 INSERT dbo.login_failures(email_hash, client_ip, failed_at)

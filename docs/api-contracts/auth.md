@@ -54,6 +54,9 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   `429 TOO_MANY_ATTEMPTS`, kể cả khi nhập đúng mật khẩu. Lần bị chặn không ghi thêm nên không kéo dài khóa. Hết 15 phút
   thì được thử lại với bộ đếm mới. Áp dụng cả với email không tồn tại (cùng mã, không lộ email nào có tài khoản). Đăng
   nhập đúng **xóa** các lần sai còn hiệu lực của email đó.
+  **Giới hạn theo IP (nới lỏng):** ngoài ra một địa chỉ IP gây tối đa **30 lần sai trong 15 phút** (tính trên mọi email);
+  vượt thì trả `429 RATE_LIMITED`. Con số 30 chỉnh được bằng biến môi trường `LOGIN_IP_LIMIT`. Khóa theo email không ảnh
+  hưởng email khác dùng chung IP.
   **Miễn trừ cho tài khoản demo dùng chung:** đặt biến môi trường `LOGIN_LOCKOUT_EXEMPT_EMAILS` (hoặc
   `legacyvault.auth.login-lockout.exempt-emails`) là danh sách email phân cách bằng dấu phẩy; các email này không bị đếm
   và không bị khóa. Mặc định để trống (không ai được miễn trừ). Chỉ dùng cho môi trường demo, không đặt ở môi trường thật.

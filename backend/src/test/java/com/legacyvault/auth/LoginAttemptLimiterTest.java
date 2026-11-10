@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -104,5 +105,56 @@ class LoginAttemptLimiterTest {
         lockGranted();
         emailCount(5L);
         assertThrows(BusinessException.class, () -> exempt.reserveAttempt("someone@example.test", IP));
+    }
+
+    private void ipCount(Long byIp) {
+        when(jdbc.queryForObject(contains("client_ip = ?"), eq(Long.class), anyString(), anyInt())).thenReturn(byIp);
+    }
+
+    @Test
+    void anIpIsAllowedBelowTheLooseLimitEvenWithManyFailuresFromOtherEmails() {
+        lockGranted();
+        emailCount(0L);
+        ipCount(29L);
+        reservationId(80L);
+
+        assertEquals(80L, limiter.reserveAttempt("other@example.test", IP));
+    }
+
+    @Test
+    void anIpIsBlockedAtThirtyFailuresAcrossEmailsAndReservesNothing() {
+        lockGranted();
+        emailCount(0L);
+        ipCount(30L);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> limiter.reserveAttempt("other@example.test", IP));
+
+        assertEquals(ErrorCode.RATE_LIMITED, error.getErrorCode());
+        assertEquals(429, error.getErrorCode().status());
+        verify(jdbc, never()).queryForObject(contains("INSERT dbo.login_failures"), eq(Long.class), anyString(),
+                anyString());
+    }
+
+    @Test
+    void theIpLimitIsConfigurable() {
+        LoginAttemptLimiter strict = new LoginAttemptLimiter(jdbc, "", 10);
+        lockGranted();
+        emailCount(0L);
+        ipCount(10L);
+
+        assertThrows(BusinessException.class, () -> strict.reserveAttempt("other@example.test", IP));
+    }
+
+    @Test
+    void withoutAClientIpOnlyTheEmailIsChecked() {
+        lockGranted();
+        emailCount(0L);
+        reservationId(81L);
+        when(jdbc.queryForObject(contains("INSERT dbo.login_failures"), eq(Long.class), anyString(), isNull()))
+                .thenReturn(81L);
+
+        assertEquals(81L, limiter.reserveAttempt("other@example.test", null));
+        verify(jdbc, never()).queryForObject(contains("client_ip = ?"), eq(Long.class), anyString(), anyInt());
     }
 }
