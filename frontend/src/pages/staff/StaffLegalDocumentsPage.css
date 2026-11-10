@@ -864,8 +864,9 @@
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn:focus-visible {
-  outline: 3px solid #b7d9ca;
-  outline-offset: 2px;
+  outline: none;
+  color: #204f40;
+  border-bottom-color: #b7d9ca;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn--active,
@@ -1423,11 +1424,18 @@
 .lv-staff-documents-view .lv-dossier-card__header h2 { margin: 0; }
 
 .lv-staff-documents-view .lv-staff-tabs-nav { align-items: stretch; }
-.lv-staff-documents-view .lv-staff-tab-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #8a948d; }
+/* Step marks carry their meaning in shape as well as colour:
+   hollow ring = not started, filled amber = waiting, half filled blue = in progress,
+   green with a tick = done, red with a cross = rejected. */
+.lv-staff-documents-view .lv-staff-tab-dot { position: relative; box-sizing: border-box; flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #8a948d; background: transparent; }
 .lv-staff-documents-view .lv-staff-tab-dot.is-waiting { border-color: #d9a21b; background: #d9a21b; }
-.lv-staff-documents-view .lv-staff-tab-dot.is-active { border-color: var(--lv-status-progress-dot); background: var(--lv-status-progress-dot); }
+.lv-staff-documents-view .lv-staff-tab-dot.is-active { border-color: var(--lv-status-progress-dot); background: linear-gradient(90deg, var(--lv-status-progress-dot) 50%, transparent 50%); }
 .lv-staff-documents-view .lv-staff-tab-dot.is-done { border-color: var(--lv-status-approved-dot); background: var(--lv-status-approved-dot); }
+.lv-staff-documents-view .lv-staff-tab-dot.is-done::after { content: ''; position: absolute; left: 50%; top: 50%; box-sizing: content-box; width: 3px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: translate(-50%, -62%) rotate(45deg); }
 .lv-staff-documents-view .lv-staff-tab-dot.is-rejected { border-color: var(--lv-required); background: var(--lv-required); }
+.lv-staff-documents-view .lv-staff-tab-dot.is-rejected::before,
+.lv-staff-documents-view .lv-staff-tab-dot.is-rejected::after { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 2px; background: #fff; transform: translate(-50%, -50%) rotate(45deg); }
+.lv-staff-documents-view .lv-staff-tab-dot.is-rejected::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .lv-staff-documents-view .lv-form-note { margin: 0 0 6px; color: #53665a; font-size: 14px; font-style: italic; line-height: 1.5; }
 
 /* Tab labels stay on one line. Tabs share spare width evenly but never shrink below their text,
