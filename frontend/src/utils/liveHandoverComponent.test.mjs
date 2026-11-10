@@ -163,3 +163,18 @@ test('Counter writes reject duplicate clicks, abort on case switch and ignore la
     assert.doesNotMatch(v.host.textContent, /Old recipient|Đã xếp hàng/);
   } finally { await v.close(); }
 });
+
+test('LiveHandoverPage activates attendance tab when tab=attendance is present in URL', async () => {
+  globalThis.fetch = async (url) => url.includes('/beneficiaries') ? json([]) : json(url.endsWith(sid) ? receipt : [receipt]);
+  const v = await mount({}, '/staff/handover?caseId=' + cid + '&sessionId=' + sid + '&tab=attendance');
+  try {
+    const attendanceTab = [...v.host.querySelectorAll('[role="tab"]')].find(t => t.textContent.includes('Người có mặt'));
+    assert.ok(attendanceTab);
+    assert.equal(attendanceTab.getAttribute('aria-selected'), 'true');
+    const panel = v.host.querySelector('#handover-panel-attendance');
+    assert.ok(panel);
+    assert.equal(panel.hidden, false);
+  } finally {
+    await v.close();
+  }
+});

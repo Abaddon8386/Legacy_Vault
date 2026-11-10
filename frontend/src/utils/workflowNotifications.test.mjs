@@ -274,7 +274,7 @@ test('group handover events coexist with other notices and open the correct work
       assert.equal(view.host.querySelector(ringingSelector), null);
       await act(async()=>view.host.querySelector('li button').click());
       assert.equal(view.host.querySelector('.lv-workflow-notifications__badge').textContent, '1');
-      assert.deepEqual(destinations, [`${role === 'STAFF' ? '/staff/handover' : '/legal/controlled-unlock'}?caseId=${caseId}&lang=${lang}`]);
+      assert.deepEqual(destinations, [`${role === 'STAFF' ? '/staff/handover' : '/legal/controlled-unlock'}?caseId=${caseId}&lang=${lang}${role === 'STAFF' ? '&tab=attendance' : ''}`]);
       assert.deepEqual(calls.map(x=>x.method), ['GET', 'PUT']);
       assert.ok(calls[1].url.endsWith(`${id}/read?workspace=${role}`));
     } finally { await view.close(); }
@@ -285,7 +285,7 @@ test('Staff deep links preserve exact case, language and allocation step without
  for(const [action,path] of [['LEGAL_DEATH_DOCUMENT_DECIDED','/staff/cases'],['WILL_COMPARISON_RECORDED','/staff/cases'],['DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED','/staff/legal-documents'],['LEGAL_BASIS_DECIDED','/staff/legal-documents'],['DISTRIBUTION_ALLOCATIONS_APPROVED','/staff/legal-documents']]){
   const destinations=[],methods=[];globalThis.fetch=async(_url,init)=>{methods.push(init.method||'GET');return init.method==='PUT'?json({id,read:true}):json([{...item,action,reason:'Scoped Legal feedback'}]);};
   const v=await mount({session:{accessToken:'staff-token'},role:'STAFF',lang:'en',onNavigate:url=>destinations.push(url)});
-  try{await v.expand();assert.match(v.host.textContent,/Scoped Legal feedback/);await act(async()=>v.host.querySelector('li button').click());assert.ok(destinations[0].startsWith(path+'?caseId='+caseId));assert.match(destinations[0],/lang=en/);assert.equal(destinations[0].includes('tab=allocations'),action==='DISTRIBUTION_ALLOCATIONS_APPROVED');assert.deepEqual(methods,['GET','PUT']);}finally{await v.close();}
+  try{await v.expand();assert.match(v.host.textContent,/Scoped Legal feedback/);await act(async()=>v.host.querySelector('li button').click());assert.ok(destinations[0].startsWith(path+'?caseId='+caseId));assert.match(destinations[0],/lang=en/);assert.equal(destinations[0].includes('tab=allocations'),action==='DISTRIBUTION_ALLOCATIONS_APPROVED');assert.equal(destinations[0].includes('tab=original-will-intakes'),action==='WILL_COMPARISON_RECORDED');assert.deepEqual(methods,['GET','PUT']);}finally{await v.close();}
  }
 });
 test('failed mark-read cannot navigate or claim local read success',async()=>{

@@ -23,8 +23,10 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
   const request = data?.phase === 'DOCUMENT_REQUEST_NEEDED';
   const documents = data?.phase === 'DOCUMENTS_UNDER_REVIEW';
   const allocations = data?.phase === 'ALLOCATIONS_UNDER_REVIEW';
+  const rejected = data?.phase === 'REJECTED';
   const actions = documents ? [['approveDocuments', en ? 'Accept documents' : 'Duyệt căn cứ'], ['requestDocumentSupplementation', en ? 'Request more documents' : 'Yêu cầu bổ sung giấy tờ']]
-      : allocations ? [['approveAllocations', en ? 'Accept allocations' : 'Chấp thuận phân bổ'], ['requestAllocationChanges', en ? 'Request allocation corrections' : 'Yêu cầu sửa phân bổ']] : [];
+      : allocations ? [['approveAllocations', en ? 'Accept allocations' : 'Chấp thuận phân bổ'], ['requestAllocationChanges', en ? 'Request allocation corrections' : 'Yêu cầu sửa phân bổ']]
+      : rejected ? [['requestDocumentSupplementation', en ? 'Request document supplementation' : 'Mở bước bổ sung giấy tờ']] : [];
   async function save(action, value) {
     if (operation.current || !can(action) || !value.trim() || value.trim().length > 1000) return;
     operation.current = true;
@@ -71,7 +73,7 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
     </section>}
     </div>
     {!!actions.length && <section className="lv-legal-step-data lv-legal-live__card lv-legal-basis-decision">
-      <h2>{documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ')}</h2>
+      <h2>{documents ? (en ? 'Document assessment' : 'Kết quả thẩm định căn cứ') : allocations ? (en ? 'Allocation review' : 'Kết quả kiểm tra phân bổ') : (en ? 'Document supplementation' : 'Yêu cầu bổ sung giấy tờ')}</h2>
       <form id={decisionForm} className="lv-distribution-form" onSubmit={submit}>
         <label><span>{en ? 'Assessment or correction reason' : 'Nội dung đánh giá hoặc lý do cần bổ sung/sửa'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
           <textarea required maxLength={1000} rows={4} value={reason} disabled={workflow.pending}
@@ -86,9 +88,67 @@ export default function LegalDistributionWorkspace({ workflow, context, session,
 }
 
 export function LegalDistributionFinalWorkspace({ workflow, context, step, lang, ...props }) {
+  const en = lang === 'en';
   const ready = distributionFinalReady(workflow.data, context, step);
+  const [suppReason, setSuppReason] = useState('');
+  const [suppSubmitting, setSuppSubmitting] = useState(false);
+  const [suppError, setSuppError] = useState(null);
+  const canSupplement = step === 'approval-review' && workflow.data?.phase === 'REJECTED'
+    && canUseDistributionAction(workflow.data, 'requestDocumentSupplementation', 'LEGAL');
+
+  async function handleSupplement(event) {
+    event.preventDefault();
+    if (!suppReason.trim() || suppSubmitting) return;
+    setSuppSubmitting(true);
+    setSuppError(null);
+    try {
+      const receipt = await workflow.run('requestDocumentSupplementation', { reason: suppReason.trim() });
+      if (receipt) {
+        setSuppReason('');
+        props.onSaved?.(receipt);
+        props.onReload?.();
+      }
+    } catch (err) {
+      setSuppError(err);
+    } finally {
+      setSuppSubmitting(false);
+    }
+  }
+
   return <>
     <DistributionWorkflowOverview workflow={workflow} workspace="LEGAL" lang={lang} showRefresh={false} />
+    {canSupplement && (
+      <section className="lv-legal-step-data lv-legal-live__card lv-legal-basis-decision lv-surface-card" style={{ marginBlock: '16px' }}>
+        <header className="lv-legal-card-heading">
+          <h2>{en ? 'Open document supplementation' : 'Mở bước bổ sung giấy tờ'}</h2>
+        </header>
+        <p>{en ? 'This version was rejected. Enter instructions and open the supplementation step for Staff.' : 'Hồ sơ đã bị từ chối. Nhập nội dung hướng dẫn và mở bước bổ sung để Staff tiếp nhận tài liệu mới.'}</p>
+        <form onSubmit={handleSupplement} className="lv-distribution-form">
+          <label>
+            <span>{en ? 'Supplementation instructions' : 'Nội dung yêu cầu bổ sung'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
+            <textarea
+              required
+              rows={3}
+              maxLength={1000}
+              value={suppReason}
+              disabled={suppSubmitting || workflow.pending}
+              placeholder={en ? 'Specify what documents or corrections are required…' : 'Nêu rõ giấy tờ hoặc nội dung cần bổ sung…'}
+              onChange={e => setSuppReason(e.target.value)}
+            />
+          </label>
+          {suppError && <p role="alert">{en ? 'Unable to request supplementation. Please reload and try again.' : 'Không thể gửi yêu cầu bổ sung. Vui lòng tải lại và thử lại.'}</p>}
+          <div className="lv-legal-basis-hold-footer">
+            <button
+              type="submit"
+              className="lv-decision--warning"
+              disabled={suppSubmitting || workflow.pending || !suppReason.trim()}
+            >
+              {suppSubmitting ? (en ? 'Sending…' : 'Đang gửi…') : (en ? 'Open supplementation step' : 'Mở bước bổ sung')}
+            </button>
+          </div>
+        </form>
+      </section>
+    )}
     <LegalFinalDecision {...props} context={context} step={step} lang={lang} workflowReadOnly={!ready}
       beforeCommit={(fresh, options) => preflightDistributionFinal(context.caseId, workflow.data, fresh, step, options)} />
   </>;

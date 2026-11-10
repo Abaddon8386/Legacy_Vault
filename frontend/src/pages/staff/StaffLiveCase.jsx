@@ -91,7 +91,13 @@ export default function StaffLiveCase(props) {
 function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
-  const [kind, setKind] = useState('death-documents');
+  const [kind, setKind] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const param = new URLSearchParams(window.location.search).get('tab') || new URLSearchParams(window.location.search).get('kind');
+      if (param === 'original-will-intakes' || param === 'original-will') return 'original-will-intakes';
+    }
+    return 'death-documents';
+  });
   const [drafts, setDrafts] = useState({});
   const [records, setRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
