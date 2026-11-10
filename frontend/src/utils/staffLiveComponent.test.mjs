@@ -354,3 +354,21 @@ test('Intake result appears as a floating notice for both success and failure', 
     assert.match(v.host.querySelector('.lv-feedback--floating.lv-feedback--success').textContent,/Đã tiếp nhận giấy tờ thành công/);
   } finally {await v.close();}
 });
+
+test('StaffLiveCase initializes Di chúc gốc tab when tab=original-will-intakes is present in URL', async () => {
+  const previousSearch = window.location.search;
+  window.history.replaceState({}, '', '/staff/cases?caseId=' + id + '&tab=original-will-intakes');
+  try {
+    globalThis.fetch = async (url) => json(url.endsWith('original-will-intakes') ? [] : detail);
+    const v = await mount();
+    try {
+      const willTab = button(v.host, 'Di chúc gốc');
+      assert.ok(willTab);
+      assert.equal(willTab.getAttribute('aria-pressed'), 'true');
+    } finally {
+      await v.close();
+    }
+  } finally {
+    window.history.replaceState({}, '', '/staff/cases' + previousSearch);
+  }
+});

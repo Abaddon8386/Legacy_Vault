@@ -37,6 +37,9 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const controller = useRef(null), lock = useRef(false);
   useEffect(() => () => { controller.current?.abort(); onPendingChange?.(false); }, [onPendingChange]);
   const capability = context.capabilities[unlocking ? 'unlock' : 'approval'];
+  const currentDecision = context.basisDossier?.currentDecision;
+  const isRejected = currentDecision?.status === 'LEGAL_REJECTED' || context.snapshot?.latestDecision?.result === 'LEGAL_REJECTED';
+  const rejectionReason = currentDecision?.reason || (isRejected ? (context.snapshot?.latestDecision?.reason || '') : '');
   const readOnly = legalReadOnly(context) || workflowReadOnly;
   const allowed = capability.allowed && !needsReload && !pending && !readOnly;
   const complete = unlocking ? confirmed : ['APPROVE', 'REJECT'].includes(decision) && Boolean(reason.trim());
@@ -94,12 +97,30 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       <LegalRecordDetails rows={[[en ? 'Case' : 'Hồ sơ', context.caseNumber], [en ? 'Status' : 'Trạng thái', legalStatus(context.caseStatus === 'CANCELLED' ? 'CANCELLED' : context.vaultStatus, en)],
         ...(context.snapshot ? [[en ? 'Document version' : 'Phiên bản hồ sơ', context.snapshot.currentVersion],
           ...(context.basisDossier?.route === 'COURT' ? [[en ? 'Court assessment' : 'Kết luận thẩm định quyết định tòa án', legalStatus(context.snapshot.courtResult, en)]] : []),
-          [en ? 'Current approval' : 'Phê duyệt còn hiệu lực', context.snapshot.approvalCurrent ? (en ? 'Yes' : 'Có') : (en ? 'No' : 'Không')]] : [])]} />
+          [en ? 'Current approval' : 'Phê duyệt còn hiệu lực', context.snapshot.approvalCurrent ? (en ? 'Yes' : 'Có') : (en ? 'No' : 'Không')],
+          ...(isRejected ? [
+            [en ? 'Latest decision' : 'Quyết định gần nhất', en ? 'Rejected' : 'Từ chối'],
+            ...(rejectionReason ? [[en ? 'Rejection reason' : 'Lý do từ chối', rejectionReason]] : []),
+          ] : [])] : [])]} />
+      {isRejected && rejectionReason && (
+        <div className="lv-legal-live__notice lv-legal-rejection-notice" role="status">
+          <div>
+            <strong>{en ? 'Latest rejection reason: ' : 'Lý do từ chối gần nhất: '}</strong>
+            <p>{rejectionReason}</p>
+          </div>
+        </div>
+      )}
       {documentVersion && <LegalAllocations version={documentVersion} lang={lang} />}
       {documentVersion?.forwardStatus === 'FORWARDED' && <LegalEvidenceFiles kind="basis" caseId={context.caseId} versionNo={documentVersion.version}
         file={{ contentType: documentVersion.contentType, sizeBytes: documentVersion.sizeBytes, sha256: documentVersion.sha256 }}
         accessToken={session.accessToken} lang={lang} onUnauthorized={onUnauthorized} onDenied={failure => { setError(failure); setNeedsReload(true); onDenied?.(failure); }} />}
-      {readOnly && <p className="lv-legal-live__notice" role="status">{workflowReadOnly && !legalReadOnly(context) ? (en ? 'This step is not ready. You can review the documents while awaiting the preceding decisions.' : 'Hồ sơ chưa đến bước này. Bạn có thể xem giấy tờ trong khi chờ các bước trước hoàn tất.') : (en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.')}</p>}
+      {readOnly && <p className="lv-legal-live__notice" role="status">
+        {isRejected
+          ? (en ? 'This document version was rejected. Legal can open the supplementation step above.' : 'Phiên bản hồ sơ này đã bị từ chối. Ban Pháp lý có thể mở bước bổ sung ở trên.')
+          : workflowReadOnly && !legalReadOnly(context)
+            ? (en ? 'This step is not ready. You can review the documents while awaiting the preceding decisions.' : 'Hồ sơ chưa đến bước này. Bạn có thể xem giấy tờ trong khi chờ các bước trước hoàn tất.')
+            : (en ? 'This stage has ended. Information is available for reference only.' : 'Giai đoạn xử lý đã kết thúc. Thông tin được giữ lại để tra cứu, không thể chỉnh sửa.')}
+      </p>}
       {context.basisDossier?.route === 'NOTARIAL' && <p>{en ? 'Distribution based on notarized documents.' : 'Phân chia theo hồ sơ công chứng.'}</p>}
       </section>
       {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">

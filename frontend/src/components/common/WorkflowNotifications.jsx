@@ -154,7 +154,11 @@ export default function WorkflowNotifications({ session, role, lang='vi', onNavi
    const intakeEvent=['VERIFICATION_CASE_CLAIMED','DEATH_DOCUMENT_RECORDED','ORIGINAL_WILL_RECEIVED','INTAKE_ATTACHMENT_UPLOADED','LEGAL_DEATH_DOCUMENT_DECIDED','WILL_COMPARISON_RECORDED'].includes(item.action);
    const tab=role==='STAFF'?(intakeEvent?'/staff/cases':'/staff/legal-documents'):item.action==='LEGAL_VAULT_UNLOCKED'?'/legal/controlled-unlock':item.action==='LEGAL_BASIS_DECIDED'?'/legal/approval-review':item.action==='VERIFICATION_CASE_CLAIMED'||item.action==='DEATH_DOCUMENT_RECORDED'||item.action==='INTAKE_ATTACHMENT_UPLOADED'?'/legal/death-verification':item.action==='ORIGINAL_WILL_RECEIVED'||item.action==='WILL_COMPARISON_RECORDED'?'/legal/will-document-verification':'/legal/basis-route-selection';
    const params=new URLSearchParams({caseId:item.caseId,lang});
-   if(role==='STAFF'&&['DISTRIBUTION_DOCUMENTS_APPROVED','DISTRIBUTION_ALLOCATIONS_SUBMITTED','DISTRIBUTION_ALLOCATIONS_APPROVED','DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED','LEGAL_BASIS_REVIEW_RECORDED'].includes(item.action))params.set('tab','allocations');
+   if(role==='STAFF'){
+    if(['DISTRIBUTION_DOCUMENTS_APPROVED','DISTRIBUTION_ALLOCATIONS_SUBMITTED','DISTRIBUTION_ALLOCATIONS_APPROVED','DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED','LEGAL_BASIS_REVIEW_RECORDED'].includes(item.action))params.set('tab','allocations');
+    if(['ORIGINAL_WILL_RECEIVED','WILL_COMPARISON_RECORDED'].includes(item.action))params.set('tab','original-will-intakes');
+    if(item.action.startsWith('HANDOVER_GROUP_'))params.set('tab','attendance');
+   }
    const destination=item.action.startsWith('HANDOVER_GROUP_')?(role==='STAFF'?'/staff/handover':'/legal/controlled-unlock'):tab;
    onNavigate(destination+'?'+params);
  }
