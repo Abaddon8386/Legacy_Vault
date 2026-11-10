@@ -1,0 +1,122 @@
+/* Motion for the Staff and Legal workspaces.
+   Uses the shared motion tokens from tokens.css. Only opacity and transform move.
+   Everything sits behind prefers-reduced-motion, so people who opt out get none of it. */
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) {
+    --lv-list-stagger: 45ms;
+  }
+
+  /* Switching tab: the new panel fades in and rises a little. */
+  @keyframes lv-panel-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) [role="tabpanel"] {
+    animation: lv-panel-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+
+  /* A decision that was approved: the box drops in, the tick is drawn, the tab dot pops. */
+  @keyframes lv-outcome-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes lv-check-draw {
+    from { stroke-dasharray: 12; stroke-dashoffset: 12; }
+    to { stroke-dasharray: 12; stroke-dashoffset: 0; }
+  }
+  @keyframes lv-dot-pop {
+    0% { transform: scale(0.6); }
+    60% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-staff-legal-outcome.is-positive, .lv-staff-outcome.is-positive) {
+    animation: lv-outcome-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-staff-legal-outcome.is-positive .lv-staff-legal-outcome__icon path {
+    animation: lv-check-draw 420ms var(--lv-motion-ease-smooth) 120ms backwards;
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-staff-tab-dot.is-done {
+    animation: lv-dot-pop 360ms var(--lv-motion-ease-spring) backwards;
+  }
+  /* When a status changes while the page is open, its colour eases across instead of jumping. */
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-staff-tab-dot {
+    transition: background-color var(--lv-motion-duration-standard) var(--lv-motion-ease-standard), border-color var(--lv-motion-duration-standard) var(--lv-motion-ease-standard);
+  }
+
+  /* Lists: the first six rows come in one after another. */
+  @keyframes lv-item-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card) {
+    animation: lv-item-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(2) { animation-delay: var(--lv-list-stagger); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(3) { animation-delay: calc(var(--lv-list-stagger) * 2); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(4) { animation-delay: calc(var(--lv-list-stagger) * 3); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(5) { animation-delay: calc(var(--lv-list-stagger) * 4); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(6) { animation-delay: calc(var(--lv-list-stagger) * 5); }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-review-list > li, .lv-history-table tbody > tr, .lv-staff-table-row, .lv-staff-cards-wrap > .lv-staff-card):nth-child(n + 7) { animation: none; }
+
+  /* Press feedback on buttons (tabs and disabled buttons are left alone). */
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) button:not(:disabled):not([role="tab"]):active {
+    transform: scale(0.98);
+    transition: transform 80ms var(--lv-motion-ease-standard);
+  }
+  /* Click feedback instead of a hover tint. pressFeedback.js puts two effects at the clicked point: a ring (.lv-click-ring) on the page that
+     spreads freely, and a fill (.lv-ripple, in the control's text colour) clipped to the button. Tabs, cards and rows also dip a little. */
+  @keyframes lv-click-ring {
+    from { transform: translate(-50%, -50%) scale(0.2); opacity: 0.7; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  }
+  @keyframes lv-ripple {
+    from { transform: scale(0); opacity: 0.3; }
+    to { transform: scale(1); opacity: 0; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-rippling { overflow: hidden; }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) .lv-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    pointer-events: none;
+    transform: scale(0);
+    animation: lv-ripple 900ms var(--lv-motion-ease-smooth) forwards;
+  }
+  @keyframes lv-tab-press {
+    0% { transform: scale(0.96); }
+    100% { transform: none; }
+  }
+  @keyframes lv-card-press {
+    from { transform: scale(0.99); }
+    to { transform: none; }
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) [role="tab"].lv-press {
+    animation: lv-tab-press 240ms var(--lv-motion-ease-smooth);
+  }
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-staff-card, .lv-staff-table-row).lv-press {
+    animation: lv-card-press 260ms var(--lv-motion-ease-smooth);
+  }
+
+  /* A status note (for example "Legal rejected this case") eases in instead of appearing at once. */
+  :is(.lv-staff-surfaces, .lv-legal-surfaces) :is(.lv-distribution-context[role="status"], .lv-distribution-workflow > p[role="status"]) {
+    animation: lv-outcome-in var(--lv-motion-duration-standard) var(--lv-motion-ease-smooth) backwards;
+  }
+
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lv-click-ring {
+    position: fixed;
+    z-index: 2147483000;
+    width: 96px;
+    height: 96px;
+    box-sizing: border-box;
+    border: 3px solid #1f8a5b;
+    border-radius: 50%;
+    background: rgba(31, 138, 91, 0.14);
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.2);
+    animation: lv-click-ring 900ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  }
+}
