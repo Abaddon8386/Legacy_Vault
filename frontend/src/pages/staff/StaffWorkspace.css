@@ -116,7 +116,7 @@
 
 .lv-staff-surfaces .lv-staff-live .lv-intake-context > span.lv-intake-owner:not(.lv-intake-status) { color: rgba(255,255,255,.78); }
 
-.lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-positive { background: var(--lv-status-done-bg); color: #3f4a42; }
+.lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-positive { background: var(--lv-status-approved-bg); color: var(--lv-status-approved-text); }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-warning { background: #fbefcf; color: #6d4a0f; }
 .lv-staff-surfaces .lv-staff-context-bar--active .lv-staff-context-badge--outcome-negative { background: #f9dcd8; color: #7a2a22; }
 

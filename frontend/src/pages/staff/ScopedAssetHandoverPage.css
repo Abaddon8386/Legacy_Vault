@@ -261,9 +261,9 @@
 }
 
 .lv-asset-handover-view .lv-scope-badge--approved {
-  background-color: var(--lv-status-done-bg);
-  color: var(--lv-status-done-text);
-  border: 1px solid var(--lv-status-done-border);
+  background-color: var(--lv-status-approved-bg);
+  color: var(--lv-status-approved-text);
+  border: 1px solid var(--lv-status-approved-border);
 }
 
 .lv-asset-handover-view .lv-scope-badge--unapproved {
@@ -289,9 +289,9 @@
 }
 
 .lv-asset-handover-view .lv-status-pill--delivered {
-  background-color: var(--lv-status-done-bg);
-  color: var(--lv-status-done-text);
-  border: 1px solid var(--lv-status-done-border);
+  background-color: var(--lv-status-approved-bg);
+  color: var(--lv-status-approved-text);
+  border: 1px solid var(--lv-status-approved-border);
 }
 
 /* Action Buttons in Table */

@@ -201,7 +201,7 @@
 .lv-staff-live .lv-staff-record-reason { margin: 0; color: #52675b; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lv-staff-live .lv-staff-record-status { padding: 4px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; background: #eef0eb; color: #52675b; }
 .lv-staff-live .lv-staff-record-status.is-pending { background: var(--lv-status-await-bg); color: var(--lv-status-await-text); border: 1px solid var(--lv-status-await-border); }
-.lv-staff-live .lv-staff-record-status.is-positive { background: var(--lv-status-done-bg); color: var(--lv-status-done-text); }
+.lv-staff-live .lv-staff-record-status.is-positive { background: var(--lv-status-approved-bg); color: var(--lv-status-approved-text); }
 .lv-staff-live .lv-staff-record-status.is-negative { background: #fbeae8; color: #9b2c26; }
 .lv-staff-live .lv-staff-record-status.is-warning { background: #fff3d6; color: #6b4200; }
 .lv-staff-live .lv-staff-btn-toggle-att { min-width: 136px; }
