@@ -1430,12 +1430,10 @@
 .lv-staff-documents-view .lv-staff-tab-dot.is-rejected { border-color: var(--lv-required); background: var(--lv-required); }
 .lv-staff-documents-view .lv-form-note { margin: 0 0 6px; color: #53665a; font-size: 14px; font-style: italic; line-height: 1.5; }
 
-/* Tab labels stay on one line; when four tabs do not fit, the row scrolls sideways. */
-.lv-staff-documents-view .lv-staff-tab-btn { white-space: nowrap; }
-@media (max-width: 900px) {
-  .lv-staff-documents-view .lv-staff-tabs-nav { display: flex; }
-  .lv-staff-documents-view .lv-staff-tab-btn { flex: 0 0 auto; }
-}
+/* Tab labels stay on one line. Tabs share spare width evenly but never shrink below their text,
+   so when four tabs do not fit the row scrolls sideways instead of the labels overlapping. */
+.lv-staff-documents-view .lv-staff-tabs-nav { display: flex; }
+.lv-staff-documents-view .lv-staff-tab-btn { flex: 1 0 auto; white-space: nowrap; }
 
 /* Colour roles: neutral chips for plain facts, a clear green only for success, amber for waiting. */
 .lv-staff-documents-view .lv-dossier-value-badge,
