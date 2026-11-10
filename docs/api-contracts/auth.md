@@ -49,11 +49,11 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   (`expiresInSeconds` lấy từ cấu hình — mặc định 3600, D-API-21. Không có `refreshToken` ở Sprint 1 — D-API-05.)
 - **Lỗi:** `400 VALIDATION_FAILED` · `401 INVALID_CREDENTIALS` — **cùng một mã** cho: sai mật khẩu, email không tồn tại,
   tài khoản đã xóa (`deleted_at != null`). Không lộ lỗi nội bộ.
-- **Giới hạn đăng nhập sai:** mỗi email (sau chuẩn hóa NFKC, bỏ khoảng trắng đầu/cuối, chữ thường) được sai tối đa
-  **5 lần** trong cửa sổ trượt **15 phút**. Sau lần sai thứ 5, các lần thử tiếp theo trả `429 TOO_MANY_ATTEMPTS` cho đến khi
-  lần sai cũ nhất quá 15 phút; lần bị chặn không ghi thêm nên không kéo dài khóa. Áp dụng cả với email không tồn tại (cùng
-  mã, không lộ email nào có tài khoản). Đăng nhập đúng **xóa** các lần sai còn hiệu lực của email đó. Mã `429` được trả
-  cả khi nhập đúng mật khẩu trong lúc đang bị khóa.
+- **Giới hạn đăng nhập sai:** khi một email (sau chuẩn hóa NFKC, bỏ khoảng trắng đầu/cuối, chữ thường) sai mật khẩu
+  **5 lần trong 15 phút**, email đó bị khóa **15 phút tính từ lần sai thứ 5**; trong lúc khóa mọi lần thử trả
+  `429 TOO_MANY_ATTEMPTS`, kể cả khi nhập đúng mật khẩu. Lần bị chặn không ghi thêm nên không kéo dài khóa. Hết 15 phút
+  thì được thử lại với bộ đếm mới. Áp dụng cả với email không tồn tại (cùng mã, không lộ email nào có tài khoản). Đăng
+  nhập đúng **xóa** các lần sai còn hiệu lực của email đó.
   **Miễn trừ cho tài khoản demo dùng chung:** đặt biến môi trường `LOGIN_LOCKOUT_EXEMPT_EMAILS` (hoặc
   `legacyvault.auth.login-lockout.exempt-emails`) là danh sách email phân cách bằng dấu phẩy; các email này không bị đếm
   và không bị khóa. Mặc định để trống (không ai được miễn trừ). Chỉ dùng cho môi trường demo, không đặt ở môi trường thật.

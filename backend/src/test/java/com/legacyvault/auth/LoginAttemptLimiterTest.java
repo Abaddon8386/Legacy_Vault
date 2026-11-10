@@ -28,7 +28,8 @@ class LoginAttemptLimiterTest {
     }
 
     private void emailCount(Long byEmail) {
-        when(jdbc.queryForObject(anyString(), eq(Long.class), anyString(), anyInt())).thenReturn(byEmail);
+        when(jdbc.queryForObject(contains("COUNT_BIG"), eq(Long.class), anyString(), anyInt(), anyString(), anyString(),
+                anyInt())).thenReturn(byEmail);
     }
 
     private void reservationId(long id) {
@@ -66,7 +67,6 @@ class LoginAttemptLimiterTest {
         reservationId(78L);
 
         assertEquals(78L, limiter.reserveAttempt("other@example.test", IP));
-        verify(jdbc, never()).queryForObject(contains("client_ip = ?"), eq(Long.class), anyString(), anyInt());
     }
 
     @Test

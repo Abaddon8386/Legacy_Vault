@@ -38,6 +38,48 @@ class LoginAttemptLimiterSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
+    void theLockLastsFifteenMinutesFromTheFifthFailureNotFromTheFirst() {
+        LoginAttemptLimiter limiter = context.getBean(LoginAttemptLimiter.class);
+        org.springframework.jdbc.core.JdbcTemplate jdbc = context.getBean(org.springframework.jdbc.core.JdbcTemplate.class);
+        String email = UUID.randomUUID() + "@example.test";
+        String hash = java.util.HexFormat.of().formatHex(sha256(email));
+        // Failures 16, 14, 13, 12 and 11 minutes ago. A sliding window would already have dropped the first one (older
+        // than 15 minutes) and let the email in, but the 5th failure was only 11 minutes ago, so it must still be locked.
+        for (int minutesAgo : new int[] { 16, 14, 13, 12, 11 }) {
+            jdbc.update("INSERT dbo.login_failures(email_hash, client_ip, failed_at) "
+                    + "VALUES (?, NULL, DATEADD(minute, -?, SYSUTCDATETIME()))", hash, minutesAgo);
+        }
+
+        BusinessException blocked = org.junit.jupiter.api.Assertions.assertThrows(BusinessException.class,
+                () -> limiter.reserveAttempt(email, null));
+        assertThat(blocked.getErrorCode()).isEqualTo(ErrorCode.TOO_MANY_ATTEMPTS);
+    }
+
+    @Test
+    void theEmailCanTryAgainOnceFifteenMinutesPassedSinceTheFifthFailure() {
+        LoginAttemptLimiter limiter = context.getBean(LoginAttemptLimiter.class);
+        org.springframework.jdbc.core.JdbcTemplate jdbc = context.getBean(org.springframework.jdbc.core.JdbcTemplate.class);
+        String email = UUID.randomUUID() + "@example.test";
+        String hash = java.util.HexFormat.of().formatHex(sha256(email));
+        for (int minutesAgo : new int[] { 20, 19, 18, 17, 16 }) {
+            jdbc.update("INSERT dbo.login_failures(email_hash, client_ip, failed_at) "
+                    + "VALUES (?, NULL, DATEADD(minute, -?, SYSUTCDATETIME()))", hash, minutesAgo);
+        }
+
+        // The 5th failure was 16 minutes ago, so the lock is over and a new attempt is admitted.
+        assertThat(limiter.reserveAttempt(email, null)).isPositive();
+    }
+
+    private static byte[] sha256(String value) {
+        try {
+            return java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
     void aSuccessfulLoginClearsEarlierFailuresOfThatEmail() {
         LoginAttemptLimiter limiter = context.getBean(LoginAttemptLimiter.class);
         String email = UUID.randomUUID() + "@example.test";

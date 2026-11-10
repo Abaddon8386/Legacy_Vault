@@ -20,7 +20,8 @@ import com.legacyvault.common.error.BusinessException;
 import com.legacyvault.common.error.ErrorCode;
 
 /**
- * Limits password logins: at most 5 unconfirmed attempts within 15 minutes per email. Only the email is limited, so one
+ * Limits password logins: after 5 unconfirmed failures within 15 minutes an email is locked for 15 minutes, counted
+ * from its 5th failure. Only the email is limited, so one
  * account being guessed never blocks other accounts that happen to share the same client IP (shared network, localhost).
  * The client IP is still stored with each failure for investigation, but it is not counted.
  *
@@ -69,13 +70,20 @@ public class LoginAttemptLimiter {
         }
         String emailHash = hash(normalizedEmail);
         lock("login-email:" + emailHash);
+        // Rows are kept for two windows so the lock can be measured from the latest failure; older ones are junk.
         jdbc.update("DELETE dbo.login_failures WHERE failed_at < DATEADD(minute, -?, SYSUTCDATETIME())",
-                WINDOW_MINUTES);
+                2 * WINDOW_MINUTES);
 
+        // Locked = the latest failure is still inside the window AND the 15 minutes ending at that latest failure hold
+        // at least LIMIT failures. Blocked attempts are not recorded, so the latest failure stays the 5th one and the
+        // lock ends exactly WINDOW_MINUTES after it (a fixed lock, not a sliding one).
         Long byEmail = jdbc.queryForObject("""
                 SELECT COUNT_BIG(*) FROM dbo.login_failures
-                WHERE email_hash = ? AND failed_at >= DATEADD(minute, -?, SYSUTCDATETIME())
-                """, Long.class, emailHash, WINDOW_MINUTES);
+                WHERE email_hash = ?
+                  AND failed_at >= DATEADD(minute, -?, (SELECT MAX(failed_at) FROM dbo.login_failures WHERE email_hash = ?))
+                  AND (SELECT MAX(failed_at) FROM dbo.login_failures WHERE email_hash = ?)
+                      > DATEADD(minute, -?, SYSUTCDATETIME())
+                """, Long.class, emailHash, WINDOW_MINUTES, emailHash, emailHash, WINDOW_MINUTES);
         if (byEmail != null && byEmail >= LIMIT) {
             throw new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS);
         }
