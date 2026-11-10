@@ -76,7 +76,7 @@ export function staffGuidance({ current = 'intake', caseId, sessionId, caseStatu
       AWAITING_ALLOCATIONS: ['Căn cứ đã duyệt. Mở tab Phân bổ tài sản rồi gửi Legal kiểm tra.', 'Documents accepted. Open Asset allocations and send them for review.'],
       ALLOCATIONS_UNDER_REVIEW: ['Chờ Legal kiểm tra từng tài sản và người nhận.', 'Await Legal’s check of each asset and recipient.'],
       FINAL_APPROVAL: ['Phân bổ đã chấp thuận. Chờ phê duyệt hồ sơ rồi mở kho riêng.', 'Allocations accepted. Await final approval and separate unlocking.'],
-      REJECTED: ['Hồ sơ đã bị Legal từ chối; chờ Legal mở yêu cầu bổ sung hoặc sửa phân bổ.', 'Case rejected by Legal; await Legal reopening supplementation or allocation corrections.'],
+      REJECTED: ['Hồ sơ đã bị Legal từ chối; chờ Legal yêu cầu bổ sung giấy tờ.', 'Case rejected by Legal; await Legal requesting document supplementation.'],
       APPROVED: ['Hồ sơ đã duyệt; chờ Legal xác nhận mở kho.', 'Case approved; await separate vault unlocking.'],
     };
     if (messages[phase]) {
