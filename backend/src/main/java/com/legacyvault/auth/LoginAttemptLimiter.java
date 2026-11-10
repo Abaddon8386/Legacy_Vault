@@ -21,7 +21,7 @@ import com.legacyvault.common.error.ErrorCode;
  *
  * <p>Checking and counting happen in one step, {@link #reserveAttempt}, under an exclusive application lock per email,
  * so concurrent requests cannot all see "below the limit". Every attempt is reserved before the password is
- * verified; a successful login releases its reservation, so only failures stay counted. It runs in REQUIRES_NEW so the
+ * verified; a successful login clears the email's failures (clearFailures), so only unconfirmed attempts stay counted. It runs in REQUIRES_NEW so the
  * rollback of the login transaction cannot erase a failure.
  */
 @Service
@@ -38,7 +38,7 @@ public class LoginAttemptLimiter {
     /**
      * Atomically checks the limits and reserves one attempt.
      *
-     * @return the reservation id to pass to {@link #releaseAttempt} when the login succeeds
+     * @return the id of the recorded attempt
      * @throws BusinessException {@code TOO_MANY_ATTEMPTS} (429) when the email is already at the limit
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
@@ -66,10 +66,10 @@ public class LoginAttemptLimiter {
         return id;
     }
 
-    /** Removes the reservation of a successful login so it does not count as a failure. */
+    /** A successful login clears every failure still counted for that email, so earlier typos do not linger. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void releaseAttempt(long attemptId) {
-        jdbc.update("DELETE dbo.login_failures WHERE failure_id = ?", attemptId);
+    public void clearFailures(String normalizedEmail) {
+        jdbc.update("DELETE dbo.login_failures WHERE email_hash = ?", hash(normalizedEmail));
     }
 
     /** Hibernate may defer the first physical BEGIN until DML; sp_getapplock needs the transaction now. */

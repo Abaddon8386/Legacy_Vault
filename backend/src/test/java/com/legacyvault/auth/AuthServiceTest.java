@@ -97,7 +97,7 @@ class AuthServiceTest {
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
         verify(passwords).matches("WhateverPass1", "dummy-bcrypt-hash");
         verify(limiter).reserveAttempt("nobody@example.test", "203.0.113.9");
-        verify(limiter, never()).releaseAttempt(anyLong());
+        verify(limiter, never()).clearFailures(anyString());
     }
 
     @Test
@@ -159,7 +159,7 @@ class AuthServiceTest {
                 () -> service.login(new LoginRequest("user@example.test", "WrongPass123"), "203.0.113.9"));
 
         verify(limiter).reserveAttempt("user@example.test", "203.0.113.9");
-        verify(limiter, never()).releaseAttempt(anyLong());
+        verify(limiter, never()).clearFailures(anyString());
     }
 
     @Test
@@ -191,6 +191,6 @@ class AuthServiceTest {
 
         service.login(new LoginRequest("user@example.test", "StrongPass123"), "203.0.113.9");
 
-        verify(limiter).releaseAttempt(41L);
+        verify(limiter).clearFailures("user@example.test");
     }
 }

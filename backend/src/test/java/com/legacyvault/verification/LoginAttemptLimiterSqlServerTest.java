@@ -38,17 +38,19 @@ class LoginAttemptLimiterSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     @Test
-    void aSuccessfulLoginReleasesItsReservation() {
+    void aSuccessfulLoginClearsEarlierFailuresOfThatEmail() {
         LoginAttemptLimiter limiter = context.getBean(LoginAttemptLimiter.class);
         String email = UUID.randomUUID() + "@example.test";
 
-        for (int i = 0; i < 20; i++) {
-            long id = limiter.reserveAttempt(email, null);
-            limiter.releaseAttempt(id);
+        for (int i = 0; i < 4; i++) {
+            limiter.reserveAttempt(email, null);
         }
+        limiter.clearFailures(email);
 
-        // 20 successful logins in a row never reach the limit of 5.
-        limiter.reserveAttempt(email, null);
+        // Without the clear, a fifth and sixth reservation would reach the limit of 5.
+        for (int i = 0; i < 5; i++) {
+            limiter.reserveAttempt(email, null);
+        }
     }
 
     private static List<Object> runInParallel(Callable<Object> task) throws Exception {

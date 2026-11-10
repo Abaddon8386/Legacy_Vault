@@ -121,7 +121,7 @@ Lỗi validation:
 | `ASSET_DOCUMENT_LIMIT_EXCEEDED` | 409 | Tải lên làm vượt số tài liệu đính kèm tối đa của một tài sản (`legacyvault.asset-documents.max-per-asset`, PS-114, D-API-43) |
 | `ASSET_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng số tài sản vượt giới hạn gói |
 | `STORAGE_QUOTA_EXCEEDED` | 409 | Thao tác sẽ tăng dung lượng vượt giới hạn gói |
-| `TOO_MANY_ATTEMPTS` | 429 | Quá số lần sai cho phép: mật khẩu xác nhận (D-API-32), hoặc PS-87 redeem theo bucket account và account+invitation trong 15 phút |
+| `TOO_MANY_ATTEMPTS` | 429 | Quá số lần sai cho phép: mật khẩu xác nhận (D-API-32), đăng nhập mật khẩu (5 lần sai theo email trong cửa sổ trượt 15 phút, `POST /auth/login`), hoặc PS-87 redeem theo bucket account và account+invitation trong 15 phút |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Định dạng nội dung/file không hỗ trợ |
 | `INTERNAL_ERROR` | 500 | Mọi lỗi không lường trước. Luôn trả thông điệp chung |
 

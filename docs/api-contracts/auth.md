@@ -49,6 +49,11 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   (`expiresInSeconds` lấy từ cấu hình — mặc định 3600, D-API-21. Không có `refreshToken` ở Sprint 1 — D-API-05.)
 - **Lỗi:** `400 VALIDATION_FAILED` · `401 INVALID_CREDENTIALS` — **cùng một mã** cho: sai mật khẩu, email không tồn tại,
   tài khoản đã xóa (`deleted_at != null`). Không lộ lỗi nội bộ.
+- **Giới hạn đăng nhập sai:** mỗi email (sau chuẩn hóa NFKC, bỏ khoảng trắng đầu/cuối, chữ thường) được sai tối đa
+  **5 lần** trong cửa sổ trượt **15 phút**. Sau lần sai thứ 5, các lần thử tiếp theo trả `429 TOO_MANY_ATTEMPTS` cho đến khi
+  lần sai cũ nhất quá 15 phút; lần bị chặn không ghi thêm nên không kéo dài khóa. Áp dụng cả với email không tồn tại (cùng
+  mã, không lộ email nào có tài khoản). Đăng nhập đúng **xóa** các lần sai còn hiệu lực của email đó. Mã `429` được trả
+  cả khi nhập đúng mật khẩu trong lúc đang bị khóa.
 - **Nghiệp vụ:** chỉ user active được xác thực; `deleted_at != null` bị từ chối.
 - **Audit:** `AUTH_LOGIN_SUCCEEDED` / `AUTH_LOGIN_FAILED` (ghi email đã che hoặc userId nếu có; không ghi mật khẩu).
 

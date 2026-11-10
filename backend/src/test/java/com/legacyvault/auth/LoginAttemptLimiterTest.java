@@ -77,9 +77,9 @@ class LoginAttemptLimiterTest {
     }
 
     @Test
-    void releaseDeletesOnlyThatReservation() {
-        limiter.releaseAttempt(77L);
+    void clearFailuresDeletesEveryFailureOfThatEmailOnly() {
+        limiter.clearFailures("user@example.test");
 
-        verify(jdbc).update("DELETE dbo.login_failures WHERE failure_id = ?", 77L);
+        verify(jdbc).update(eq("DELETE dbo.login_failures WHERE email_hash = ?"), anyString());
     }
 }
