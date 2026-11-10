@@ -108,7 +108,13 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [tab, setTab] = useState('sessions');
+  const [tab, setTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const param = new URLSearchParams(window.location.search).get('tab');
+      if (['sessions', 'attendance', 'link', 'delivery'].includes(param)) return param;
+    }
+    return 'sessions';
+  });
   const controller = useRef(null);
   const lock = useRef(false);
   const callbacks = useRef({ onSession, onError });
