@@ -195,3 +195,10 @@
 
 .lv-legal-reopen__others { margin-top: 16px; border-top: 1px solid #e6e9e0; padding-top: 12px; }
 .lv-legal-reopen__others > h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #204f40; }
+
+/* The refresh sits inside the case bar next to "Đổi hồ sơ", in the same outlined style, instead of as a separate box beside it. */
+.lv-legal-surfaces .lv-staff-context-bar__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.lv-legal-surfaces .lv-legal-context-row .lv-staff-context-bar .lv-legal-context-actions { margin: 0; }
+.lv-legal-surfaces .lv-legal-context-row .lv-staff-context-bar .lv-legal-context-actions button { min-height: 44px; padding: 8px 16px; border: 1px solid rgba(255,255,255,.55); border-radius: 8px; background: transparent; color: #fff; font-size: 16px; font-weight: 600; box-shadow: none; }
+.lv-legal-surfaces .lv-legal-context-row .lv-staff-context-bar .lv-legal-context-actions button:not(:disabled):hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.55); color: #fff; }
+.lv-legal-surfaces .lv-legal-context-row .lv-staff-context-bar .lv-legal-context-actions button:disabled { opacity: .55; }
