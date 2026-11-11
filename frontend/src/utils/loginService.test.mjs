@@ -327,3 +327,28 @@ test('Login Service - Normal mode: 500 error does not expose raw exception or st
     }
   );
 });
+test('Login Service - an Admin-locked account gets its own message, distinct from the failed-attempts lock', async () => {
+  const mockFetch = async () => ({
+    ok: false,
+    status: 403,
+    headers: { get: () => 'application/json' },
+    json: async () => ({ status: 403, code: 'ACCOUNT_LOCKED_BY_ADMIN', message: 'locked', traceId: 'trace-locked' }),
+  });
+
+  for (const [lang, expected] of [
+    ['vi', 'Tài khoản này đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.'],
+    ['en', 'This account has been locked. Please contact an administrator for help.'],
+  ]) {
+    await assert.rejects(
+      () => authenticateUser({ email: 'locked@example.test', password: 'Password123!' }, { isDevPreview: false, lang, fetchFn: mockFetch }),
+      (err) => {
+        assert.equal(err.status, 403);
+        assert.equal(err.code, 'ACCOUNT_LOCKED_BY_ADMIN');
+        assert.equal(err.message, expected);
+        return true;
+      }
+    );
+  }
+  assert.notEqual(getAuthMessage('ACCOUNT_LOCKED_BY_ADMIN', 'vi'), getAuthMessage('ACCOUNT_LOCKED', 'vi'));
+  assert.notEqual(getAuthMessage('ACCOUNT_LOCKED_BY_ADMIN', 'vi'), getAuthMessage('INTERNAL_ERROR', 'vi'));
+});
