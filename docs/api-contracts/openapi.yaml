@@ -4452,7 +4452,7 @@ components:
     AdminLockUserRequest:
       type: object
       properties:
-        reason: { type: string, maxLength: 255, description: Lý do khóa (tùy chọn), ghi vào audit }
+        reason: { type: string, maxLength: 255, description: 'Lý do khóa (tùy chọn), ghi vào audit' }
     AdminCreateUserRequest:
       type: object
       required: [fullName, email, password, role]

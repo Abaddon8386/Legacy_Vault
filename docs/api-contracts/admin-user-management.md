@@ -71,7 +71,7 @@ Các response chỉ chứa public ID, tên, email, role codes, thời điểm t�
 
 - `POST /api/v1/admin/users/{publicId}/lock` với body tùy chọn `{ "reason": "…" }` (tối đa 255 ký tự) → `200` + user có `status: "LOCKED"`.
 - `POST /api/v1/admin/users/{publicId}/unlock` (không body) → `200` + user có `status: "ACTIVE"`.
-- Khóa chuyển `ACTIVE` sang `LOCKED` và **tăng `authVersion`**: mọi token đã phát hành bị vô hiệu ngay, kể cả sau khi mở khóa (phải đăng nhập lại). Tài khoản khóa không đăng nhập được (cùng lỗi chung `INVALID_CREDENTIALS`).
+- Khóa chuyển `ACTIVE` sang `LOCKED` và **tăng `authVersion`**: mọi token đã phát hành bị vô hiệu ngay, kể cả sau khi mở khóa (phải đăng nhập lại). Tài khoản khóa không đăng nhập được: nhập **đúng** mật khẩu (hoặc credential Google hợp lệ) trả `403 ACCOUNT_LOCKED_BY_ADMIN`; sai mật khẩu hoặc email không tồn tại vẫn là `401 INVALID_CREDENTIALS` để không dò được email nào đang bị khóa.
 - `409 ADMIN_ACCOUNT_PROTECTED`: đích là Admin hoặc chính người gọi (nên không thể khóa Admin cuối cùng).
 - `409 ADMIN_ACCOUNT_STATE_INVALID`: khóa tài khoản không `ACTIVE` (ví dụ `PENDING`) hoặc mở khóa tài khoản không `LOCKED`... ngoại trừ lặp lại đúng trạng thái yêu cầu, là no-op `200` và không ghi audit.
 - `404 RESOURCE_NOT_FOUND`: không tồn tại hoặc đã xóa mềm.

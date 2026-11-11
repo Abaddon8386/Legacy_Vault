@@ -275,3 +275,30 @@ test('a rejected lock keeps the dialog open with the reason, and admin accounts 
     assert.match(view.host.querySelector('.lv-admin-form-error').textContent, /cannot have its role changed or be locked/);
   } finally { await view.close(); globalThis.fetch = previous; }
 });
+
+test('password check mirrors the backend policy: blank, NUL and unpaired surrogates are refused', () => {
+  for (const password of ['        ', 'abc\u0000defgh', 'abcdefg\ud800', 'abcdefg\udc00x', 'a'.repeat(73)]) {
+    assert.equal(validateCreateAdminUserForm({ ...form, password }).password, 'invalid', JSON.stringify(password));
+  }
+  assert.equal(validateCreateAdminUserForm({ ...form, password: 'ok pass 😀' }).password, undefined, 'valid pairs and spaces are fine');
+});
+
+test('a server-side password rejection is explained next to the password field, not as a generic error', async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => options.method === 'POST'
+    ? json({ code: 'VALIDATION_FAILED', errors: [{ field: 'password', code: 'VALID_PASSWORD' }] }, 400)
+    : json(usersPage([]));
+  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'vi' });
+  try {
+    await act(async () => button(view.host, 'Tạo tài khoản').click());
+    const dialog = view.host.querySelector('[role=dialog]');
+    await type(inputOf(dialog, 'fullName'), 'Weak Pass');
+    await type(inputOf(dialog, 'email'), 'weak@example.test');
+    await type(inputOf(dialog, 'password'), 'Str0ng-Pass!');
+    await type(inputOf(dialog, 'confirmPassword'), 'Str0ng-Pass!');
+    await type(dialog.querySelector('select'), 'STAFF_EXECUTOR');
+    await act(async () => button(dialog, 'Tạo tài khoản').click());
+    assert.equal(dialog.querySelector('[id$="-password-error"]').textContent, 'Mật khẩu phải từ 8 đến 72 ký tự.');
+    assert.equal(dialog.querySelector('.lv-admin-form-error'), null, 'no generic banner when the field is known');
+  } finally { await view.close(); globalThis.fetch = previous; }
+});

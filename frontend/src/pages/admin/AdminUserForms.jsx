@@ -26,6 +26,21 @@ const FIELD_ERROR = {
   role: { required: 'errRoleRequired' },
 };
 
+/** Field-level problems reported by the server (HTTP 400), mapped onto this form's own error keys. */
+function serverFieldErrors(error) {
+  const mapped = {};
+  if (error?.code !== 'VALIDATION_FAILED') return mapped;
+  for (const item of error.fieldErrors || []) {
+    const blank = item?.code === 'NOT_BLANK';
+    if (item?.field === 'fullName') mapped.fullName = blank ? 'required' : 'tooLong';
+    else if (item?.field === 'email') mapped.email = blank ? 'required' : 'invalid';
+    else if (item?.field === 'phone') mapped.phone = 'invalid';
+    else if (item?.field === 'password') mapped.password = blank ? 'required' : 'invalid';
+    else if (item?.field === 'role') mapped.role = 'required';
+  }
+  return mapped;
+}
+
 /** Maps an API failure to a message; 401/403 are escalated to the page so the session/permission UI reacts. */
 function failureMessage(t, error, { onUnauthorized, onDenied }) {
   if (error?.status === 401) onUnauthorized?.();
@@ -110,7 +125,9 @@ export function CreateUserModal({ lang = 'vi', accessToken, onClose, onCreated, 
       const { fullName, email, phone, password, role } = form;
       onCreated(await createAdminUser(accessToken, { fullName, email, phone, password, role, lang }));
     } catch (error) {
-      setSubmitError(failureMessage(t, error, { onUnauthorized, onDenied }));
+      const mapped = serverFieldErrors(error);
+      if (Object.keys(mapped).length) setFieldErrors(mapped);
+      else setSubmitError(failureMessage(t, error, { onUnauthorized, onDenied }));
       setBusy(false);
     }
   };

@@ -194,6 +194,26 @@ export async function fetchAdminUserDetail(accessToken, id, options = {}) {
 export const ASSIGNABLE_ADMIN_ROLES = ['STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'VAULT_OWNER'];
 
 /**
+ * Mirrors the backend PasswordPolicy: 8-72 characters, at most 72 UTF-8 bytes, not blank, no NUL and no unpaired
+ * surrogates. Kept here so a password the server would refuse is explained next to the field.
+ */
+function isAcceptablePassword(password) {
+  if (!password.trim() || password.length < 8 || password.length > 72 || password.includes('\0')) return false;
+  if (new TextEncoder().encode(password).length > 72) return false;
+  for (let i = 0; i < password.length; i++) {
+    const unit = password.charCodeAt(i);
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      const next = password.charCodeAt(i + 1);
+      if (!(next >= 0xDC00 && next <= 0xDFFF)) return false;
+      i++;
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Client-side check of the create-account form. Returns { field: reasonCode }; empty means valid.
  * Mirrors the backend rules (the server stays authoritative).
  */
@@ -205,7 +225,7 @@ export function validateCreateAdminUserForm({ fullName = '', email = '', phone =
   else if (email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'invalid';
   if (phone.trim() && !/^\+?[0-9]{8,15}$/.test(phone.trim())) errors.phone = 'invalid';
   if (!password) errors.password = 'required';
-  else if (password.length < 8 || new TextEncoder().encode(password).length > 72) errors.password = 'invalid';
+  else if (!isAcceptablePassword(password)) errors.password = 'invalid';
   // Only the form passes confirmPassword; the API helper validates the rest.
   if (confirmPassword !== undefined) {
     if (!confirmPassword) errors.confirmPassword = 'required';
