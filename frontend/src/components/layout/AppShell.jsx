@@ -208,7 +208,7 @@ export default function AppShell({
           ? 'Cổng Thẩm định Pháp lý'
           : 'Quản lý di sản số',
       navSectionTitle: isStaff
-        ? ''
+        ? 'THỰC THI HỒ SƠ'
         : isLegal
           ? 'THẨM ĐỊNH PHÁP LÝ'
           : 'QUẢN LÝ DI SẢN',
@@ -243,7 +243,7 @@ export default function AppShell({
           ? 'Legal Verification Portal'
           : 'Digital Heritage Sanctuary',
       navSectionTitle: isStaff
-        ? ''
+        ? 'CASE EXECUTION'
         : isLegal
           ? 'LEGAL VERIFICATION'
           : 'HERITAGE PORTAL',
