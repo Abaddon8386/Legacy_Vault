@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchVault } from '../../utils/vaultService.js';
+import VaultRequiredState from '../../components/common/VaultRequiredState.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import TrusteeBeneficiaryPage from './TrusteeBeneficiaryPage.jsx';
@@ -50,18 +51,7 @@ export default function TrusteeBeneficiaryRoute({
       />
     );
   }
-  if (!state.vault) {
-    return (
-      <section>
-        <p>
-          {lang === 'en'
-            ? 'Create your heritage vault before adding trustees or beneficiaries.'
-            : 'Hãy tạo kho di sản trước khi khai báo người thi hành bên ngoài và người thụ hưởng.'}
-        </p>
-        <button onClick={onNavigateToVault}>{lang === 'en' ? 'Go to Vault' : 'Đến kho di sản'}</button>
-      </section>
-    );
-  }
+  if (!state.vault) return <VaultRequiredState kind="beneficiaries" lang={lang} onNavigateToVault={onNavigateToVault} />;
   return (
     <TrusteeBeneficiaryPage
       key={state.vault.id}

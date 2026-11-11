@@ -42,6 +42,8 @@ export function AssetDetailModal({
   const [isRevealing, setIsRevealing] = useState(false)
   const [revealedPayload, setRevealedPayload] = useState(null)
   const [revealErrorKey, setRevealErrorKey] = useState(null)
+  // Password verified once for this modal session; reused to unlock payload, photos and documents.
+  const [sessionPassword, setSessionPassword] = useState('')
 
   const abortRef = useRef(null)
   const pendingRef = useRef(false)
@@ -57,6 +59,7 @@ export function AssetDetailModal({
     setIsRevealing(false)
     setRevealedPayload(null)
     setRevealErrorKey(null)
+    setSessionPassword('')
   }, [])
 
   useEffect(() => {
@@ -71,10 +74,13 @@ export function AssetDetailModal({
     onClose()
   }
 
-  const handleRevealSubmit = async (e) => {
+  const handleRevealSubmit = (e) => {
     e?.preventDefault()
+    return revealWith(password)
+  }
+
+  const revealWith = async (submittedPassword) => {
     if (pendingRef.current || isRevealing) return
-    const submittedPassword = password
     if (!submittedPassword) {
       setRevealErrorKey('passwordRequired')
       return
@@ -101,6 +107,7 @@ export function AssetDetailModal({
 
       if (isCurrent) {
         setRevealedPayload(res.payload)
+        setSessionPassword(submittedPassword)
         setIsReauthOpen(false)
         setPassword('')
       }
@@ -113,6 +120,7 @@ export function AssetDetailModal({
 
       if (!isCurrent) return
       setPassword('')
+      setSessionPassword('')
       if (err.status === 401) {
         resetRevealState()
         onNavigateToLogin?.()
@@ -138,6 +146,13 @@ export function AssetDetailModal({
     }
   }
 
+  // Called by photos/documents once the user has entered the password there: unlock everything else.
+  const handleUnlocked = (verifiedPassword) => {
+    if (!verifiedPassword) return
+    setSessionPassword(verifiedPassword)
+    if (asset?.hasPayload && revealedPayload === null) revealWith(verifiedPassword)
+  }
+
   if (!isOpen || !asset) return null
 
   function formatDate(isoString) {
@@ -151,6 +166,9 @@ export function AssetDetailModal({
     })
   }
 
+  // Photos, documents and secret content stay hidden until the owner unlocks them with their password.
+  // Assets without a secret payload have nothing to unlock with, so they keep per-item password prompts.
+  const contentUnlocked = !asset.hasPayload || revealedPayload !== null
   const isCredential = asset.assetType === 'CREDENTIAL'
   const credential = isCredential ? readCredentialPayload(revealedPayload) : null
   const typeLabel = isCredential ? t.assets.types.CREDENTIAL : t.assets.types.TEXT
@@ -227,9 +245,6 @@ export function AssetDetailModal({
           </div>
         ) : null}
 
-        <AssetImageGallery key={[vaultId, asset.id, accessToken, lang].join(':')} vaultId={vaultId} assetId={asset.id}
-          accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly />
-
         {/* Reveal / Secret Payload Section */}
         {asset.hasPayload && (
           <div
@@ -260,7 +275,7 @@ export function AssetDetailModal({
                   </strong>
                   <button
                     type="button"
-                    onClick={() => setRevealedPayload(null)}
+                    onClick={() => { setRevealedPayload(null); setSessionPassword('') }}
                     style={{
                       background: 'none',
                       border: '1px solid var(--lv-border-subtle, #eae5dc)',
@@ -410,7 +425,7 @@ export function AssetDetailModal({
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setIsReauthOpen(true)}
+                  onClick={() => (sessionPassword ? revealWith(sessionPassword) : setIsReauthOpen(true))}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -428,8 +443,12 @@ export function AssetDetailModal({
           </div>
         )}
 
+        {contentUnlocked && <AssetImageGallery key={[vaultId, asset.id, accessToken, lang].join(':')} vaultId={vaultId} assetId={asset.id}
+          accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly
+          sessionPassword={sessionPassword} onUnlocked={handleUnlocked} />}
+
         {/* Actions */}
-        {asset && <AssetDocuments vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly />}
+        {asset && contentUnlocked && <AssetDocuments vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang} onUnauthorized={onNavigateToLogin} readOnly sessionPassword={sessionPassword} onUnlocked={handleUnlocked} />}
         <div className="lv-modal-actions-right">
           <Button variant="primary" onClick={handleClose}>
             {t.assets.closeBtn}

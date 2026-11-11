@@ -16,6 +16,8 @@ public interface VaultRepository extends JpaRepository<Vault, Long> {
 
     boolean existsByOwnerUserId(Long ownerUserId);
 
+    java.util.List<Vault> findByOwnerUserIdIn(java.util.Collection<Long> ownerUserIds);
+
     Optional<Vault> findByPublicId(UUID publicId);
 
     /**
