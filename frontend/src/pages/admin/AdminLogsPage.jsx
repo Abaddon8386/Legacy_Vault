@@ -38,11 +38,13 @@ export default function AdminLogsPage({
   const [actionFilter, setActionFilter] = useState('');
   const [actorTypeFilter, setActorTypeFilter] = useState('');
   const [actorIdFilter, setActorIdFilter] = useState('');
+  const [vaultIdFilter, setVaultIdFilter] = useState('');
+  const [caseNumberFilter, setCaseNumberFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const t = adminI18n[lang] || adminI18n.vi;
   const { data, loading, apiPending, error, deny, reload: handleReload } = useAdminQuery(
-    fetchAdminAuditLogs, accessToken, { lang, action: actionFilter, actorType: actorTypeFilter, actorId: actorIdFilter.trim(), fromDate, toDate, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
+    fetchAdminAuditLogs, accessToken, { lang, action: actionFilter, actorType: actorTypeFilter, actorId: actorIdFilter.trim(), vaultId: vaultIdFilter.trim(), caseNumber: caseNumberFilter.trim(), fromDate, toDate, page, pageSize }, fetchOnMount, onUnauthorized, t.accessDenied
   );
   const logs = data?.items || [];
   const total = data?.total ?? null;
@@ -60,6 +62,8 @@ export default function AdminLogsPage({
     setActionFilter('');
     setActorTypeFilter('');
     setActorIdFilter('');
+    setVaultIdFilter('');
+    setCaseNumberFilter('');
     setFromDate('');
     setToDate('');
     setPage(1);
@@ -85,7 +89,7 @@ export default function AdminLogsPage({
     if (log.actorType === 'UNKNOWN') return <span>{t.actorUnknown}</span>;
     return (
       <div>
-        <div style={{ fontWeight: 600 }}>{log.actorName || t.actorUser}</div>
+        <div style={{ fontWeight: 600 }}>{log.actorName || t.actorUser}{log.actorRole && <> · {t.auditRoles[log.actorRole]}</>}</div>
         {log.actorId && (
           <div className="lv-admin-code">
             ID: {log.actorId}
@@ -186,6 +190,16 @@ export default function AdminLogsPage({
               onChange={event => { setActorIdFilter(event.target.value); setPage(1); }} />
           </div>
           <div className="lv-admin-field">
+            <label htmlFor="log-vault-id">{t.logVaultFilter}</label>
+            <input id="log-vault-id" type="text" className="lv-admin-input" value={vaultIdFilter}
+              onChange={event => { setVaultIdFilter(event.target.value); setPage(1); }} />
+          </div>
+          <div className="lv-admin-field">
+            <label htmlFor="log-case-number">{t.logCaseFilter}</label>
+            <input id="log-case-number" type="text" className="lv-admin-input" value={caseNumberFilter} placeholder="HS-2026-000001"
+              onChange={event => { setCaseNumberFilter(event.target.value); setPage(1); }} />
+          </div>
+          <div className="lv-admin-field">
             <label htmlFor="log-from-date">{t.fromDate}</label>
             <DatePicker
               id="log-from-date"
@@ -210,7 +224,7 @@ export default function AdminLogsPage({
             {lang === 'vi' ? 'Lọc nhật ký' : 'Filter Logs'}
           </button>
 
-          {(actionFilter || actorTypeFilter || actorIdFilter || fromDate || toDate) && (
+          {(actionFilter || actorTypeFilter || actorIdFilter || vaultIdFilter || caseNumberFilter || fromDate || toDate) && (
             <button
               type="button"
               className="lv-admin-btn lv-admin-btn-secondary"
@@ -279,7 +293,10 @@ export default function AdminLogsPage({
                     {log.entityType ? (
                       <span style={{ fontSize: 14 }}>
                         <strong>{log.entityType}</strong>
+                        {log.caseNumber && <div className="lv-admin-code">{t.logCase} {log.caseNumber}</div>}
                         {log.vaultId && <div className="lv-admin-code">{t.logVaultId} {log.vaultId}</div>}
+                        {log.ownerId && <div className="lv-admin-code">{t.logOwner} {log.ownerId}</div>}
+                        {log.staffId && <div className="lv-admin-code">{t.logStaff} {log.staffId}</div>}
                       </span>
                     ) : (
                       '—'
@@ -440,6 +457,31 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
               <dd>
                 <code>{data.actorId ?? t.notAvailable}</code>
                 {data.actorId && <CopyButton text={data.actorId} lang={lang} />}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logActorRole}</dt>
+              <dd>{data.actorRole ? t.auditRoles[data.actorRole] : t.notAvailable}</dd>
+            </div>
+            <div>
+              <dt>{t.logCase}</dt>
+              <dd>
+                <code>{data.caseNumber ?? t.notAvailable}</code>
+                {data.caseNumber && <CopyButton text={data.caseNumber} lang={lang} />}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logOwner}</dt>
+              <dd>
+                <code>{data.ownerId ?? t.notAvailable}</code>
+                {data.ownerId && <CopyButton text={data.ownerId} lang={lang} />}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.logStaff}</dt>
+              <dd>
+                <code>{data.staffId ?? t.notAvailable}</code>
+                {data.staffId && <CopyButton text={data.staffId} lang={lang} />}
               </dd>
             </div>
             <div>

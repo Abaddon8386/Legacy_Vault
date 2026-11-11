@@ -155,3 +155,14 @@ test('PS-103 attachment audit actions do not invalidate the Admin log after an e
 test('PS-79 profile updates remain readable in the Admin audit log', () => {
   assert.equal(validateAdminAuditLog({ ...event, action: 'AUTH_PROFILE_UPDATED' }).action, 'AUTH_PROFILE_UPDATED');
 });
+
+test('audit events keep the actor role, owner, case and assigned Staff, and reject malformed context', () => {
+  const full = { ...event, actor: { kind: 'USER', userId: id, role: 'LEGAL_VERIFIER' }, ownerId: id, caseId: id,
+    caseNumber: 'HS-2026-000001', staffId: id };
+  const data = validateAdminAuditLog(full);
+  assert.deepEqual([data.actorRole, data.ownerId, data.caseId, data.caseNumber, data.staffId], ['LEGAL_VERIFIER', id, id, 'HS-2026-000001', id]);
+  assert.equal(validateAdminAuditLog(event).caseNumber, null); // older backend without the new fields
+  assert.throws(() => validateAdminAuditLog({ ...full, actor: { ...full.actor, role: 'ROOT' } }));
+  assert.throws(() => validateAdminAuditLog({ ...full, caseNumber: 'HS-1' }));
+  assert.throws(() => validateAdminAuditLog({ ...full, staffId: 'x' }));
+});
