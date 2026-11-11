@@ -2,7 +2,9 @@ import { useState, useLayoutEffect, useRef, useEffect } from 'react'
 import FirstPasswordButton from '../auth/FirstPasswordButton.jsx'
 import { AssetCredentialFields } from './AssetCredentialFields.jsx'
 import { AssetImagePicker } from './AssetImagePicker.jsx'
-import { DocumentPicker } from './AssetDocuments.jsx'
+import { AssetImageGallery } from './AssetImageGallery.jsx'
+import AssetDocuments, { DocumentPicker } from './AssetDocuments.jsx'
+import { assetService } from '../../services/assetService.js'
 import { assetImageService } from '../../services/assetImageService.js'
 import { assetDocumentService } from '../../services/assetDocumentService.js'
 import { credentialPayload } from '../../utils/credentialPayload.js'
@@ -12,16 +14,17 @@ import { Button } from '../common/Button'
 import { AlertCircle, KeyRound, FileText } from 'lucide-react'
 import './AssetFormModal.css'
 
+const EMPTY_PAYLOAD = { text: '', username: '', password: '' }
+
 /**
  * AssetEditModal — PS-6: Edit Asset (Contract Aligned).
  *
- * Editable: name, description, payload (write-only).
- * Read-only: id, vaultId, assetType, hasPayload, createdAt, updatedAt.
- *
- * Payload rules:
- * - Starts empty. Never prefill previous value.
- * - If left blank: omitted from patchData (preserves existing secret).
- * - If filled: included in patchData (overwrites secret).
+ * Flow:
+ * - The form starts locked: the owner confirms their password once, which also reveals the current secret content.
+ * - After unlocking, the order matches the view screen: name, description, secure content (prefilled and editable),
+ *   photos and documents (existing files can be deleted, new ones added).
+ * - Saving reuses the verified password, so it is not requested a second time.
+ * - The payload is only sent when the owner actually changed it.
  */
 export function AssetEditModal({
   isOpen,
@@ -39,6 +42,10 @@ export function AssetEditModal({
   const [name, setName] = useState(asset?.name || '')
   const [description, setDescription] = useState(asset?.description || '')
   const [payload, setPayload] = useState('')
+  const [unlocked, setUnlocked] = useState(false)
+  const [sessionPassword, setSessionPassword] = useState('')
+  const [initialPayload, setInitialPayload] = useState(EMPTY_PAYLOAD)
+  const [listVersion, setListVersion] = useState(0)
   const [credentials, setCredentials] = useState({ username: '', password: '' })
   const [images, setImages] = useState([])
   const [documents, setDocuments] = useState([])
@@ -73,7 +80,7 @@ export function AssetEditModal({
       setName(asset?.name || ''); setDescription(asset?.description || ''); setPayload(''); setCredentials({ username: '', password: '' })
       setImages([]); setDocuments([])
     }
-    setPrevious({ id: asset?.id, isOpen, authContext }); setPassword(''); setSaving(false); setErrors({}); setPartial(null)
+    setPrevious({ id: asset?.id, isOpen, authContext }); setPassword(''); setUnlocked(false); setSessionPassword(''); setSaving(false); setErrors({}); setPartial(null)
   }
   const busy = isSubmitting || saving
   const canSubmit = typeof onSubmit === 'function'
@@ -98,12 +105,19 @@ export function AssetEditModal({
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!unlocked) { handleUnlock(); return }
     if (busy || pending.current || !validate()) return
+
+    const isCredentialAsset = asset.assetType === 'CREDENTIAL'
+    const payloadChanged = isCredentialAsset
+      ? credentials.username !== initialPayload.username || credentials.password !== initialPayload.password
+      : payload !== initialPayload.text
+    if (payloadChanged && !replacementPayload.trim().length) { setErrors({ payload: 'payloadRequired' }); return }
 
     const patchData = {}
     if (name.trim() !== asset.name) patchData.name = name.trim()
     if (description.trim() !== (asset.description || '')) patchData.description = description.trim()
-    if (replacementPayload.length) patchData.payload = replacementPayload
+    if (payloadChanged) patchData.payload = replacementPayload
     if (images.length) patchData.images = images
     if (documents.length) patchData.documents = documents
     if (!Object.keys(patchData).length) {
@@ -112,13 +126,10 @@ export function AssetEditModal({
     }
 
     if (!canSubmit) return
-    if (!password.trim()) { setErrors({ password: 'required' }); return }
     pending.current = true; setSaving(true); setPartial(null)
     const controller = new AbortController(); submission.current = controller
-    const submittedPassword = password
-    setPassword('')
     try {
-      await onSubmit(asset.id, { ...patchData, password: submittedPassword }, { signal: controller.signal })
+      await onSubmit(asset.id, { ...patchData, password: sessionPassword }, { signal: controller.signal })
     } catch (error) {
       if (!controller.signal.aborted && submission.current === controller) {
         const done = error.partial
@@ -128,10 +139,63 @@ export function AssetEditModal({
           setDocuments(current => current.filter(f => !done.savedDocuments.includes(f)))
           setExistingImageCount(n => n + done.savedImages.length)
           setExistingDocumentCount(n => n + done.savedDocuments.length)
+          if (done.savedImages.length || done.savedDocuments.length) setListVersion(v => v + 1)
           setPartial({ savedNames: [...(done.savedFields ? [name.trim()] : []), ...done.savedImages.map(f => f.name), ...done.savedDocuments.map(f => f.name)], failedNames: [...(done.failedFields ? [name.trim()] : []), ...done.failedImages.map(f => f.name), ...done.failedDocuments.map(f => f.name)] })
         }
         if (error.code === 'PASSWORD_SETUP_CANCELLED') setErrors({ passwordSetupCancelled: true })
-        else setErrors(error.code === 'REAUTH_FAILED' ? { password: 'failed' } : error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
+        else if (error.code === 'REAUTH_FAILED') { setUnlocked(false); setSessionPassword(''); setErrors({ password: 'failed' }) }
+        else setErrors(error.code === 'TOO_MANY_ATTEMPTS' ? { rateLimited: true } : { save: true })
+      }
+    } finally {
+      if (submission.current === controller) {
+        submission.current = null; pending.current = false
+        if (!controller.signal.aborted) setSaving(false)
+      }
+    }
+  }
+
+  // Step 1: confirm the password once. It also reveals the current secret content for editing.
+  async function handleUnlock() {
+    if (busy || pending.current) return
+    if (!password.trim()) { setErrors({ password: 'required' }); return }
+    pending.current = true; setSaving(true); setErrors({})
+    const controller = new AbortController(); submission.current = controller
+    const submittedPassword = password
+    setPassword('')
+    const options = { lang, accessToken, signal: controller.signal }
+    const finishUnlock = (revealed) => {
+      let snapshot = EMPTY_PAYLOAD
+      if (revealed !== null) {
+        if (asset.assetType === 'CREDENTIAL') {
+          try {
+            const parsed = JSON.parse(revealed)
+            if (parsed && typeof parsed.username === 'string' && typeof parsed.password === 'string') snapshot = { text: '', username: parsed.username, password: parsed.password }
+          } catch { /* keep the credential fields empty */ }
+        } else {
+          snapshot = { text: revealed, username: '', password: '' }
+        }
+      }
+      setInitialPayload(snapshot)
+      setPayload(snapshot.text)
+      setCredentials({ username: snapshot.username, password: snapshot.password })
+      setSessionPassword(submittedPassword)
+      setUnlocked(true)
+    }
+    try {
+      let revealed = null
+      try {
+        revealed = (await assetService.revealAsset(vaultId, asset.id, submittedPassword, options)).payload
+      } catch (error) {
+        // The server checks the password before reporting that there is no secret content, so 404 means "verified, nothing to show".
+        if (asset.hasPayload || (error.code !== 'RESOURCE_NOT_FOUND' && error.status !== 404)) throw error
+      }
+      if (!controller.signal.aborted) finishUnlock(revealed)
+    } catch (error) {
+      if (!controller.signal.aborted && submission.current === controller) {
+        if (error.code === 'PASSWORD_SETUP_CANCELLED') setErrors({ passwordSetupCancelled: true })
+        else if (error.code === 'REAUTH_FAILED') setErrors({ password: 'failed' })
+        else if (error.code === 'TOO_MANY_ATTEMPTS' || error.status === 429) setErrors({ rateLimited: true })
+        else setErrors({ save: true })
       }
     } finally {
       if (submission.current === controller) {
@@ -145,6 +209,8 @@ export function AssetEditModal({
     if (busy) return
     setPayload('')
     setPassword('')
+    setSessionPassword('')
+    setUnlocked(false)
     setCredentials({ username: '', password: '' })
     setImages([]); setDocuments([])
     setErrors({})
@@ -196,113 +262,128 @@ export function AssetEditModal({
           {partial && <div className="lv-form-error" role="alert" data-testid="edit-partial"><p>{t.assets.alerts.editPartial}</p>{!!partial.savedNames.length && <p>{t.assets.alerts.editSavedLabel}: {partial.savedNames.join(', ')}</p>}{!!partial.failedNames.length && <p>{t.assets.alerts.editFailedLabel}: {partial.failedNames.join(', ')}</p>}<p>{t.assets.alerts.editRetryHint}</p></div>}
           {errors.rateLimited && <p className="lv-form-error" role="alert">{t.assets.alerts.TOO_MANY_ATTEMPTS}</p>}
           {errors.noChanges && <p className="lv-form-error" role="alert">{t.assets.editModal.noChangesError}</p>}
-          {/* Read-only Asset Type */}
-          <div className="lv-form-group">
-            <label className="lv-form-label">
-              {t.assets.editModal.typeLabel}
-            </label>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                backgroundColor: '#f5f3ee',
-                borderRadius: 'var(--lv-radius-control)',
-                border: '1px solid var(--lv-border-subtle)',
-                color: 'var(--lv-text-ink)',
-                fontSize: '14px',
-              }}
-            >
-              <TypeIcon size={16} style={{ color: 'var(--lv-brand-forest)' }} />
-              <span style={{ fontWeight: 600 }}>{typeLabel}</span>
+
+          {!unlocked ? (
+            <div className="lv-form-group">
+              <p style={{ fontSize: '14px', margin: '0 0 12px' }}>{t.assets.editModal.unlockHint}</p>
+              <label htmlFor="edit-confirm-password" className="lv-form-label">{t.assets.editModal.confirmPasswordLabel}</label>
+              <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
+              <input id="edit-confirm-password" className="lv-form-input" type="password" autoComplete="current-password" maxLength={72}
+                disabled={busy} value={password} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'edit-password-error' : undefined}
+                onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: undefined })) }} />
+              {errors.password && <p id="edit-password-error" className="lv-form-error" role="alert">{errors.password === 'required' ? t.assets.editModal.passwordRequired : t.assets.editModal.passwordFailed}</p>}
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Read-only Asset Type */}
+              <div className="lv-form-group">
+                <label className="lv-form-label">
+                  {t.assets.editModal.typeLabel}
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 14px',
+                    backgroundColor: '#f5f3ee',
+                    borderRadius: 'var(--lv-radius-control)',
+                    border: '1px solid var(--lv-border-subtle)',
+                    color: 'var(--lv-text-ink)',
+                    fontSize: '14px',
+                  }}
+                >
+                  <TypeIcon size={16} style={{ color: 'var(--lv-brand-forest)' }} />
+                  <span style={{ fontWeight: 600 }}>{typeLabel}</span>
+                </div>
+              </div>
 
-          {/* Asset Name (Editable, prefilled) */}
-          <div className="lv-form-group">
-            <label htmlFor="edit-asset-name" className="lv-form-label">
-              {t.assets.editModal.nameLabel} <span className="lv-required">*</span>
-            </label>
-            <input
-              id="edit-asset-name"
-              type="text"
-              maxLength={150}
-              className={`lv-form-input ${errors.name ? 'lv-form-input--error' : ''}`}
-              placeholder={t.assets.addModal.namePlaceholder}
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (errors.name || errors.noChanges) setErrors((prev) => ({ ...prev, name: undefined, noChanges: false }))
-              }}
-              disabled={busy}
-            />
-            {errors.name && (
-              <p className="lv-form-error" role="alert">
-                <AlertCircle size={14} /> {t.assets.validation[errors.name]}
-              </p>
-            )}
-          </div>
+              {/* Asset Name (Editable, prefilled) */}
+              <div className="lv-form-group">
+                <label htmlFor="edit-asset-name" className="lv-form-label">
+                  {t.assets.editModal.nameLabel} <span className="lv-required">*</span>
+                </label>
+                <input
+                  id="edit-asset-name"
+                  type="text"
+                  maxLength={150}
+                  className={`lv-form-input ${errors.name ? 'lv-form-input--error' : ''}`}
+                  placeholder={t.assets.addModal.namePlaceholder}
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    if (errors.name || errors.noChanges) setErrors((prev) => ({ ...prev, name: undefined, noChanges: false }))
+                  }}
+                  disabled={busy}
+                />
+                {errors.name && (
+                  <p className="lv-form-error" role="alert">
+                    <AlertCircle size={14} /> {t.assets.validation[errors.name]}
+                  </p>
+                )}
+              </div>
 
-          {/* Confidential Payload (Write-Only, starts empty) */}
-          <div className="lv-form-group">
-            <label htmlFor={isCredential ? 'edit-credential-username' : 'edit-asset-payload'} className="lv-form-label">
-              {t.assets.editModal.payloadLabel}
-            </label>
-            {isCredential ? (
-              <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={busy}
-                onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, noChanges: false })); }} />
-            ) : (
-            <textarea
-              id="edit-asset-payload"
-              rows={3}
-              className="lv-form-textarea"
-              placeholder={t.assets.editModal.payloadPlaceholder}
-              value={payload}
-              onChange={(e) => { setPayload(e.target.value); if (errors.noChanges) setErrors(prev => ({ ...prev, noChanges: false })) }}
-              disabled={busy}
-            />
-            )}
-          </div>
+              {/* Description (Editable, prefilled, max 1000) */}
+              <div className="lv-form-group">
+                <label htmlFor="edit-asset-desc" className="lv-form-label">
+                  {t.assets.editModal.descriptionLabel}
+                </label>
+                <textarea
+                  id="edit-asset-desc"
+                  rows={3}
+                  maxLength={1000}
+                  className={`lv-form-textarea ${errors.description ? 'lv-form-input--error' : ''}`}
+                  placeholder={t.assets.editModal.descriptionPlaceholder}
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value)
+                    if (errors.description || errors.noChanges) setErrors((prev) => ({ ...prev, description: undefined, noChanges: false }))
+                  }}
+                  disabled={busy}
+                />
+                {errors.description && (
+                  <p className="lv-form-error" role="alert">
+                    <AlertCircle size={14} /> {t.assets.validation[errors.description]}
+                  </p>
+                )}
+              </div>
 
-          <AssetImagePicker files={images} onChange={setImages} existingCount={existingImageCount} disabled={busy} lang={lang} />
-          <DocumentPicker files={documents} onChange={setDocuments} existingCount={existingDocumentCount} disabled={busy} lang={lang} />
-          {attachmentError && <p className="lv-form-error" role="alert">{lang === 'en' ? 'Unable to check existing attachments. Please close and reopen this form.' : 'Không kiểm tra được tệp đính kèm hiện có. Vui lòng đóng và mở lại biểu mẫu.'}</p>}
+              {/* Secure content: current value, editable. Sits above photos and documents, like the view screen. */}
+              <div className="lv-form-group">
+                <label htmlFor={isCredential ? 'edit-credential-username' : 'edit-asset-payload'} className="lv-form-label">
+                  {t.assets.editModal.secureContentLabel}
+                </label>
+                {isCredential ? (
+                  <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={busy}
+                    onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, noChanges: false, payload: undefined })); }} />
+                ) : (
+                  <textarea
+                    id="edit-asset-payload"
+                    rows={3}
+                    className="lv-form-textarea"
+                    placeholder={t.assets.editModal.payloadPlaceholder}
+                    value={payload}
+                    onChange={(e) => { setPayload(e.target.value); if (errors.noChanges || errors.payload) setErrors(prev => ({ ...prev, noChanges: false, payload: undefined })) }}
+                    disabled={busy}
+                  />
+                )}
+                {errors.payload && <p className="lv-form-error" role="alert"><AlertCircle size={14} /> {t.assets.validation[errors.payload]}</p>}
+              </div>
 
-          {/* Description (Editable, prefilled, max 1000) */}
-          <div className="lv-form-group">
-            <label htmlFor="edit-asset-desc" className="lv-form-label">
-              {t.assets.editModal.descriptionLabel}
-            </label>
-            <textarea
-              id="edit-asset-desc"
-              rows={3}
-              maxLength={1000}
-              className={`lv-form-textarea ${errors.description ? 'lv-form-input--error' : ''}`}
-              placeholder={t.assets.editModal.descriptionPlaceholder}
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value)
-                if (errors.description || errors.noChanges) setErrors((prev) => ({ ...prev, description: undefined, noChanges: false }))
-              }}
-              disabled={busy}
-            />
-            {errors.description && (
-              <p className="lv-form-error" role="alert">
-                <AlertCircle size={14} /> {t.assets.validation[errors.description]}
-              </p>
-            )}
-          </div>
+              {/* Photos: existing files (view / delete), then new uploads */}
+              <AssetImageGallery key={'img-' + listVersion} vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang}
+                allowUpload={false} sessionPassword={sessionPassword} onCountChange={setExistingImageCount}>
+                <AssetImagePicker files={images} onChange={setImages} existingCount={existingImageCount} disabled={busy} lang={lang} />
+              </AssetImageGallery>
 
-          <div className="lv-form-group">
-            <label htmlFor="edit-confirm-password" className="lv-form-label">{t.assets.editModal.confirmPasswordLabel}</label>
-            <FirstPasswordButton lang={lang} onReady={setPassword} disabled={busy} />
-            <input id="edit-confirm-password" className="lv-form-input" type="password" autoComplete="current-password" maxLength={72}
-              disabled={busy} value={password} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'edit-password-error' : undefined}
-              onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: undefined })) }} />
-            {errors.password && <p id="edit-password-error" className="lv-form-error" role="alert">{errors.password === 'required' ? t.assets.editModal.passwordRequired : t.assets.editModal.passwordFailed}</p>}
-          </div>
-          {/* Actions */}
+              {/* Documents: existing files (download / delete), then new uploads */}
+              <AssetDocuments key={'doc-' + listVersion} vaultId={vaultId} assetId={asset.id} accessToken={accessToken} lang={lang}
+                allowUpload={false} sessionPassword={sessionPassword} onCountChange={setExistingDocumentCount}>
+                <DocumentPicker files={documents} onChange={setDocuments} existingCount={existingDocumentCount} disabled={busy} lang={lang} />
+              </AssetDocuments>
+              {attachmentError && <p className="lv-form-error" role="alert">{lang === 'en' ? 'Unable to check existing attachments. Please close and reopen this form.' : 'Không kiểm tra được tệp đính kèm hiện có. Vui lòng đóng và mở lại biểu mẫu.'}</p>}
+            </>
+          )}
           </div>
           <div className="lv-form-actions">
             <Button
@@ -313,8 +394,8 @@ export function AssetEditModal({
             >
               {t.assets.editModal.cancelBtn}
             </Button>
-            <Button variant="primary" type="submit" isLoading={busy} disabled={!canSubmit}>
-              {busy ? t.assets.editModal.submittingBtn : t.assets.editModal.submitBtn}
+            <Button variant="primary" type="submit" isLoading={busy} disabled={unlocked && !canSubmit}>
+              {unlocked ? (busy ? t.assets.editModal.submittingBtn : t.assets.editModal.submitBtn) : t.assets.editModal.unlockBtn}
             </Button>
           </div>
         </form>
