@@ -166,3 +166,16 @@ test('audit events keep the actor role, owner, case and assigned Staff, and reje
   assert.throws(() => validateAdminAuditLog({ ...full, caseNumber: 'HS-1' }));
   assert.throws(() => validateAdminAuditLog({ ...full, staffId: 'x' }));
 });
+
+test('every audit action has a Vietnamese and an English label with a capital first letter', async () => {
+  const { adminActionLabel } = await import('../pages/admin/adminPresentation.js');
+  const source = readFileSync(new URL('../../../backend/src/main/java/com/legacyvault/audit/AuditAction.java', import.meta.url), 'utf8');
+  const codes = [...source.matchAll(/^\s+([A-Z][A-Z0-9_]+),?\s*$/gm)].map(match => match[1]);
+  for (const code of [...codes, 'LEGACY_EVENT']) {
+    for (const lang of ['vi', 'en']) {
+      const label = adminActionLabel(code, lang);
+      assert.notEqual(label, code, `${code} has no ${lang} label`);
+      assert.equal(label[0], label[0].toLocaleUpperCase(lang), `${code}: first letter must be a capital`);
+    }
+  }
+});
