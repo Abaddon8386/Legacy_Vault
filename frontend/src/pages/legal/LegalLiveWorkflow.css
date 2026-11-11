@@ -189,3 +189,6 @@
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:hover { background: rgba(255,255,255,.12); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:focus-visible { outline: 2px solid #d9c48f; outline-offset: 2px; }
+
+.lv-legal-reopen__others { margin-top: 16px; border-top: 1px solid #e6e9e0; padding-top: 12px; }
+.lv-legal-reopen__others > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 16px; font-weight: 600; color: #204f40; }

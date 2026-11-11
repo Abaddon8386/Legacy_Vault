@@ -116,6 +116,20 @@ function backend(options = {}) {
   return log;
 }
 
+test('a selected case without a request says so and keeps other cases in a closed list', async () => {
+  backend({ listed: [pending({ requestId: req2, caseId: caseB, sessionId: sessionB, caseNumber: 'HS-2026-000019' })] });
+  const v = await mount({ caseId: caseA });
+  try {
+    await settle();
+    assert.match(v.host.textContent, /This case has no handover on hold/);
+    assert.equal(v.host.querySelector('textarea'), null, 'no decision form for a case without a request');
+    const others = v.host.querySelector('details.lv-legal-reopen__others');
+    assert.ok(others && others.open === false, 'other cases wait in a closed list');
+    assert.match(others.querySelector('summary').textContent, /Other cases waiting \(1\)/);
+    assert.match(others.textContent, /HS-2026-000019/);
+  } finally { await v.close(); }
+});
+
 test('Legal sees pending requests with business names only, opens one, and the decision form needs a reason', async () => {
   backend(); const navigation = [];
   const view_ = await mount({ caseId: '', onNavigate: path => navigation.push(path) });
@@ -244,7 +258,7 @@ test('the attendance record, its reason and the history of locks, requests and d
   } finally { await v.close(); }
 });
 
-test('the long detail is folded away: only the Staff request and the decision form stay visible, and the review button for the open case scrolls instead of doing nothing', async () => {
+test('the long detail is folded away: only the Staff request and the decision form stay visible, and the open case is not repeated in the queue list', async () => {
   backend(); const v = await mount();
   try {
     await settle();
@@ -254,9 +268,8 @@ test('the long detail is folded away: only the Staff request and the decision fo
     assert.ok(folds[0].textContent.includes('Nguyễn An') && folds[0].textContent.includes('Latest attendance record'));
     assert.match(v.host.querySelector('.lv-legal-reopen__card--request').textContent, /Đã đủ người, xin mở lại/);
     assert.ok(!v.host.querySelector('.lv-legal-reopen__decision')?.closest('details'), 'the decision form is never hidden in a fold');
-    let scrolled = 0; const detail = v.host.querySelector('#lv-reopen-detail'); detail.scrollIntoView = () => { scrolled++; };
-    const review = [...v.host.querySelectorAll('.lv-legal-reopen__list button')][0];
-    assert.match(review.textContent, /Viewing below/); await act(async () => review.click()); assert.equal(scrolled, 1);
+    // The selected case is shown once, as the detail; the queue list only holds the other cases.
+    assert.equal(v.host.querySelector('.lv-legal-reopen__list'), null);
   } finally { await v.close(); }
 });
 test('an unreadable history never blocks the decision', async () => {

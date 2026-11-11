@@ -268,7 +268,7 @@ test('controlled unlock is a separate confirmed request, never implicit after ap
   } finally { await view.close(); }
 });
 
-test('the unlock page opens on Unlock vault, with Reopen handover as the second tab', async () => {
+test('the unlock page opens on Unlock vault, with Handover on hold as the second tab', async () => {
   globalThis.fetch = transport(() => json(contextFixture(a, true)), () => json({}));
   const view = await mount({ ...base, step: 'controlled-unlock' });
   try {
@@ -276,7 +276,7 @@ test('the unlock page opens on Unlock vault, with Reopen handover as the second 
     assert.deepEqual(tabs.map(tab => tab.id), ['legal-unlock-tab-unlock', 'legal-unlock-tab-reopen']);
     assert.equal(tabs[0].getAttribute('aria-selected'), 'true');
     assert.equal(tabs[1].getAttribute('aria-selected'), 'false');
-    assert.match(tabs[1].textContent, /Resume handover/);
+    assert.match(tabs[1].textContent, /Handover on hold/);
   } finally { await view.close(); }
 });
 
