@@ -824,24 +824,33 @@
    Staff Tabs Navigation
    -------------------------------------------------------------------------- */
 .lv-staff-documents-view .lv-staff-tabs-nav {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  margin: 20px 0 16px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
   border: 0;
-  border-bottom: 1px solid #e2e5dc;
+  border-bottom: 1px solid var(--lv-border-subtle, #e2e5dc);
   border-radius: 0;
   background: transparent;
-  padding: 0;
+  padding: 0 2px;
   overflow-x: auto;
   overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.lv-staff-documents-view .lv-staff-tabs-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn {
+  flex: 0 0 auto;
+  width: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   margin: 0 0 -1px;
   padding: 0 16px;
   min-height: 44px;
@@ -849,31 +858,31 @@
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
-  color: #52675b;
+  color: var(--lv-control-text, #52675b);
   font-family: inherit;
   font-size: 16px;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.18s ease, border-color 0.18s ease;
   box-shadow: none;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn:hover {
-  color: #204f40;
+  color: var(--lv-action-primary-hover, #0c2b22);
   background: transparent;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn:focus-visible {
-  outline: none;
-  color: #204f40;
-  border-bottom-color: #b7d9ca;
+  outline: 2px solid var(--lv-action-focus, #164639);
+  outline-offset: 2px;
 }
 
 .lv-staff-documents-view .lv-staff-tab-btn--active,
 .lv-staff-documents-view .lv-staff-tab-btn--active:hover,
 .lv-staff-documents-view .lv-staff-tab-btn[aria-selected="true"] {
-  border-bottom: 2px solid #204f40;
-  color: #164639;
+  border-bottom: 2px solid var(--lv-action-primary, #164639);
+  color: var(--lv-action-primary, #164639);
   font-weight: 600;
   background: transparent;
   box-shadow: none;
@@ -1441,7 +1450,7 @@
 /* Tab labels stay on one line. Tabs share spare width evenly but never shrink below their text,
    so when four tabs do not fit the row scrolls sideways instead of the labels overlapping. */
 .lv-staff-documents-view .lv-staff-tabs-nav { display: flex; }
-.lv-staff-documents-view .lv-staff-tab-btn { flex: 1 0 auto; white-space: nowrap; }
+.lv-staff-documents-view .lv-staff-tab-btn { flex: 0 0 auto; white-space: nowrap; }
 
 /* Colour roles: neutral chips for plain facts, a clear green only for success, amber for waiting. */
 .lv-staff-documents-view .lv-dossier-value-badge,
