@@ -48,6 +48,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
   const en = lang === 'en';
   const [discoveryResult, setDiscoveryResult] = useState(null);
   const [attempt, setAttempt] = useState(0);
+  const [refreshAction, setRefreshAction] = useState(null);
   const [page, setPage] = useState(0);
   // Controlled unlock page: reopening requests and the unlock itself are two tabs instead of one long page.
   const [unlockTab, setUnlockTab] = useState(null);
@@ -100,11 +101,24 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       {busy && <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p>}
       {error && <p role="alert">{knownErrors[error.status]?.[en ? 1 : 0] || (en ? 'Unable to load cases.' : 'Không thể tải danh sách hồ sơ.')}</p>}
       {queue?.length === 0 && <p>{en ? 'No cases are available.' : 'Chưa có hồ sơ để xử lý.'}</p>}
-      <label><span><FolderOpen size={18} aria-hidden="true" />{en ? 'Case' : 'Hồ sơ'}</span><select value={selected?.caseId || ''} disabled={!queue?.length || busy} onChange={e => go(step, e.target.value)}>
-        <option value="">{en ? 'Select a case' : 'Chọn hồ sơ'}</option>
-        {selected && !listed && <option value={selected.caseId}>{en ? 'Selected case' : 'Hồ sơ đang chọn'}</option>}
-        {queue?.map(item => <option key={item.caseId} value={item.caseId}>{item.label}</option>)}
-      </select></label>
+      <div className="lv-legal-queue-row">
+        <label className="lv-legal-queue-picker"><span><FolderOpen size={18} aria-hidden="true" />{en ? 'Case' : 'Hồ sơ'}</span><select value={selected?.caseId || ''} disabled={!queue?.length || busy} onChange={e => go(step, e.target.value)}>
+          <option value="">{en ? 'Select a case' : 'Chọn hồ sơ'}</option>
+          {selected && !listed && <option value={selected.caseId}>{en ? 'Selected case' : 'Hồ sơ đang chọn'}</option>}
+          {queue?.map(item => <option key={item.caseId} value={item.caseId}>{item.label}</option>)}
+        </select></label>
+        {selected && (
+          <div className="lv-legal-context-actions">
+            <button type="button" disabled={refreshAction ? refreshAction.disabled : false}
+              onClick={() => {
+                if (refreshAction?.onClick) refreshAction.onClick();
+                else setAttempt(value => value + 1);
+              }}>
+              <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
+            </button>
+          </div>
+        )}
+      </div>
       {currentResult?.totalPages > 1 && <div role="group" aria-label={en ? 'Case pages' : 'Trang hồ sơ'}>
         <button type="button" disabled={busy || page === 0} onClick={() => { setPage(value => value - 1); go(step, ''); }}>{en ? 'Previous' : 'Trước'}</button>
         <span>{page + 1} / {currentResult.totalPages}</span>
@@ -116,7 +130,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       const caseContent = <>
         {selected && <>
           <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
-            lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
+            lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized} onRefreshStateChange={setRefreshAction}
             onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
         </>}
         {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
@@ -152,7 +166,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
   </section>;
 }
 
-function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied }) {
+function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied, onRefreshStateChange }) {
   const [result, setResult] = useState(null);
   const [guidanceStale, setGuidanceStale] = useState(false);
 
@@ -191,6 +205,14 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
     isMutationPending: () => mutation.current, onExternalChange:()=>setAttempt(value=>value+1) });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
+  useEffect(() => {
+    onRefreshStateChange?.({
+      disabled: mutationPending || distribution.pending,
+      onClick: () => { if (!mutation.current) setAttempt(value => value + 1); }
+    });
+    return () => onRefreshStateChange?.(null);
+  }, [mutationPending, distribution.pending, onRefreshStateChange]);
+
   const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
     : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case processing resumed.' : 'Đã tiếp tục xử lý hồ sơ.')
     : visibleReceipt?.decision === 'LEGAL_REJECTED'
@@ -230,17 +252,14 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
-    <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
-      onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
-      <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
-    </button></div>
     <div className="lv-legal-case-banner lv-surface-card">
-      <div className="lv-legal-case-banner__icon"><FolderOpen size={28} aria-hidden="true" /></div>
-      <div className="lv-legal-case-banner__content"><span>{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
+      <div className="lv-legal-case-banner__icon"><FolderOpen size={20} aria-hidden="true" /></div>
+      <div className="lv-legal-case-banner__content">
+        <span className="lv-legal-case-banner__tag">{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
         <strong>{context.caseNumber || selected.label}</strong>
-        {caseStatus && <span className={`lv-legal-case-status is-${statusTone}`}><StatusIcon size={16} aria-hidden="true" />{legalStatus(caseStatus, en)}</span>}
+        {caseStatus && <span className={`lv-legal-case-status is-${statusTone}`}><StatusIcon size={14} aria-hidden="true" />{legalStatus(caseStatus, en)}</span>}
       </div>
-      {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
+      {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={16} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
     </div>
     {step === 'basis-route-selection'
       ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
@@ -369,7 +388,8 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       if ([401, 403, 404, 409].includes(err.status) || ['INVALID_RESPONSE', 'NETWORK_ERROR'].includes(err.code)) setNeedsReload(true);
     } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); onPendingChange?.(false); } }
   }
-  return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}`} aria-busy={busy}>
+  const hasActionPanel = !readOnly && !(step==='will-document-verification'&&data?.comparisons.some(item=>item.originalWillIntakeId===draft.originalWillIntakeId));
+  return <div className={`lv-legal-workspace${readOnly || !hasActionPanel ? ' is-readonly is-single-column' : ''}`} aria-busy={busy}>
     <section className="lv-legal-live__card lv-legal-documents lv-surface-card">
     <header className="lv-legal-card-heading"><h2><FileText size={20} aria-hidden="true" />{en ? 'Documents and assessment' : 'Giấy tờ và kết luận thẩm định'}</h2>
       {(error || needsReload || receipt) && <button type="button" disabled={busy} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{receipt ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
