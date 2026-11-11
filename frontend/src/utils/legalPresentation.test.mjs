@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { legalBlocker, legalDate, legalReadOnly, legalStageStatus, legalStatus, legalStatusTone, legalStepBlocker } from '../pages/legal/legalPresentation.js';
+import { legalBlocker, legalDate, legalReadOnly, legalStageStatus, legalStatus, receiptOptionLabel, legalStatusTone, legalStepBlocker } from '../pages/legal/legalPresentation.js';
 
 test('Legal dates use Vietnam time for UTC and offset-less backend timestamps', () => {
   for (const value of ['2026-10-22T18:23:03.753702400Z', '2026-10-22T18:23:03.753702400']) {
@@ -52,4 +52,10 @@ test('the case chip names the next step once death documents are accepted but th
   assert.equal(legalStageStatus('DOCUMENT_VERIFICATION', { deathApproved: false, willMatched: false }), 'DOCUMENT_VERIFICATION');
   assert.equal(legalStageStatus('DOCUMENT_VERIFICATION', undefined), 'DOCUMENT_VERIFICATION');
   assert.equal(legalStageStatus('WILL_VERIFICATION', { deathApproved: true, willMatched: true }), 'WILL_VERIFICATION');
+});
+
+test('death documents and original wills share one receipt label with the newest marked', () => {
+  assert.equal(receiptOptionLabel(false, 2, '2026-11-11T05:21:00Z', true), 'Lần nhận 2 · 11/11/2026, 12:21 · Mới nhất');
+  assert.equal(receiptOptionLabel(false, 1, '2026-11-11T04:46:00Z', false), 'Lần nhận 1 · 11/11/2026, 11:46');
+  assert.equal(receiptOptionLabel(true, 3, null, true), 'Intake 3 · Latest');
 });

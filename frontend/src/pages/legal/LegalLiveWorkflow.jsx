@@ -2,7 +2,7 @@ import { workflowNotificationStatus } from '../../utils/workflowNotificationFeed
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
-import { legalDate, legalReadOnly, legalStageStatus, legalStatus, legalStepBlocker } from './legalPresentation.js';
+import { legalDate, legalReadOnly, legalStageStatus, legalStatus, legalStepBlocker, receiptOptionLabel } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { LegalRecordDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
@@ -244,7 +244,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       : ['approval-review', 'controlled-unlock'].includes(step)
       ? <LegalDistributionFinalWorkspace workflow={distribution} session={session} context={context} step={step} lang={lang}
         draft={draft} setDraft={setDraft} onPendingChange={onPendingChange} onReload={() => setAttempt(value => value + 1)} onSaved={saved} onContextChanged={() => setGuidanceStale(true)} onUnauthorized={onUnauthorized} onDenied={onDenied} />
-      : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id) }}
+      : <LegalCaseStep session={session} selected={{ ...selected, deathDocumentIds: context.deathDocuments.map(item => item.id), deathDocumentDates: context.deathDocuments.map(item => item.receivedAt) }}
         step={step === 'basis-route-selection' ? 'dossier-review' : step} lang={lang} readOnly={readOnly} onUnauthorized={onUnauthorized} onDenied={onDenied} onSaved={saved} onPendingChange={onPendingChange}
         draft={draft} setDraft={setDraft} documentId={context.deathDocuments.some(item => item.id === documentId) ? documentId : context.deathDocuments.length === 1 ? context.deathDocuments[0].id : ''}
         setDocumentId={setDocumentId} onReload={() => setAttempt(value => value + 1)} />}
@@ -380,7 +380,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       <LegalRecordDetails rows={[[en ? 'Reviewed by' : 'Người xử lý', session.user.fullName], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(receipt.decidedAt || receipt.comparedAt || receipt.reviewedAt || receipt.checkedAt || receipt.updatedAt || receipt.createdAt)]]} /></div>}
     {step === 'death-verification' && <>
       {selected.deathDocumentIds.length === 1 ? <p>{en ? 'The death document received by Staff is shown below.' : 'Giấy chứng tử do Nhân viên tiếp nhận được hiển thị bên dưới.'}</p> : <label>{en ? 'Death document' : 'Giấy tờ khai tử'}<select value={documentId} disabled={busy} onChange={e => { setDocumentId(e.target.value); setData(null); setDraft({}); setReceipt(null); setBusy(true); }}>
-        <option value="">{en ? 'Select a document' : 'Chọn giấy tờ'}</option>{selected.deathDocumentIds.map((id, i) => <option key={id} value={id}>{en ? 'Document' : 'Giấy tờ'} {selected.deathDocumentIds.length-i}</option>)}
+        <option value="">{en ? 'Select a document' : 'Chọn giấy tờ'}</option>{selected.deathDocumentIds.map((id, i) => <option key={id} value={id}>{receiptOptionLabel(en, selected.deathDocumentIds.length-i, selected.deathDocumentDates?.[i], i === 0)}</option>)}
       </select></label>}
       {data && <><LegalRecordDetails rows={[[en ? 'Issuing authority' : 'Cơ quan cấp', data.document.issuingAuthority], [en ? 'Document number' : 'Số giấy tờ', data.document.documentNumber], [en ? 'Issue date' : 'Ngày cấp', legalDate(data.document.issuedDate)]]} />
         {data.decisions.map((item, i) => <div key={i} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Decision' : 'Quyết định', label(({ APPROVED: 'APPROVE', REJECTED: 'REJECT', NEEDS_CORRECTION: 'REQUEST_MORE' })[item.result], en)], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(item.decidedAt)], [en ? 'Reason' : 'Lý do', item.reason]]} /></div>)}</>}
@@ -389,7 +389,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     {step === 'will-document-verification' && data && <>
       {data.originalWillIntakes.length > 0 ? <>
         <p>{en ? 'Review the received paper will and compare it with the saved digital version.' : 'Xem di chúc giấy đã tiếp nhận và đối chiếu với bản di chúc số đã lưu.'}</p>
-        {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, `${en ? 'Intake' : 'Lần nhận'} ${data.originalWillIntakes.length-i}${item.receivedAt?' · '+legalDate(item.receivedAt):''}`]))}
+        {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, receiptOptionLabel(en, data.originalWillIntakes.length-i, item.receivedAt, i === 0)]))}
       </> : <div className="lv-legal-live__notice" role="status"><Info size={20} aria-hidden="true" /><div>
         <strong>{en ? 'No original paper will has been received for this case.' : 'Hồ sơ này chưa có di chúc bản cứng được tiếp nhận.'}</strong>
         {!readOnly && <p>{en ? 'Staff must record the original paper will and attach its scan before Legal can compare it with the digitized version.' : 'Nhân viên cần ghi nhận tiếp nhận di chúc bản cứng và đính kèm bản scan trước khi Pháp lý đối chiếu với bản di chúc số.'}</p>}

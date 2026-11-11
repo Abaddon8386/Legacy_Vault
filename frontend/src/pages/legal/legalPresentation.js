@@ -11,6 +11,8 @@ const labels = {
 // Once they are accepted, show the real next step instead of "checking documents".
 export const legalStageStatus = (status, prerequisites) => status === 'DOCUMENT_VERIFICATION' && prerequisites?.deathApproved === true && prerequisites?.willMatched !== true
   ? 'AWAITING_WILL_COMPARISON' : status;
+// One label for every "which receipt" picker (death documents and original wills): number, received time, newest marked.
+export const receiptOptionLabel = (en, number, receivedAt, latest) => `${en ? 'Intake' : 'Lần nhận'} ${number}${receivedAt ? ' · ' + legalDate(receivedAt) : ''}${latest ? (en ? ' · Latest' : ' · Mới nhất') : ''}`;
 export const legalStatus = (value, en = false) => labels[value]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
 export function legalStatusTone(value) {
   if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS', 'AWAITING_WILL_COMPARISON', 'INCONCLUSIVE'].includes(value)) return 'warning';
