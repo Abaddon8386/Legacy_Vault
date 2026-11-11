@@ -29,20 +29,13 @@ export default function LegalDocumentRequestForm({ draft, onDraftChange, lang = 
     aria-busy={pending} onSubmit={event => { event.preventDefault(); if (!locked && complete) onSubmit(text); }}>
     <section className="lv-legal-live__card lv-legal-documents lv-surface-card">
       <header className="lv-legal-card-heading"><h2><FileText size={20} aria-hidden="true" />{en ? 'Documents to request' : 'Giấy tờ cần nộp'}</h2></header>
-      <p>{en ? 'Death verification and will comparison are complete. Select the documents Staff should ask the applicant to prepare.'
-        : 'Đã duyệt khai tử và đối chiếu di chúc. Chọn giấy tờ để Staff hướng dẫn người nộp chuẩn bị.'}</p>
-      <div className="lv-legal-request-why"><strong>{en ? 'Why are these documents needed?' : 'Vì sao cần giấy tờ này?'}</strong>
-        <p>{en ? 'Death verification and will comparison confirm the death and the will, but not how the assets are divided. Valid distribution documents are the basis for Staff to prepare allocations and for Legal to check them. If this case needs something else, select “Other documents” and name it.'
-          : 'Khai tử và đối chiếu di chúc mới xác nhận việc qua đời và di chúc, chưa cho biết tài sản được chia thế nào. Giấy tờ phân chia hợp lệ là căn cứ để Staff lập phân bổ và Ban Pháp lý kiểm tra. Nếu hồ sơ cần giấy tờ khác, chọn “Giấy tờ khác” và ghi rõ tên.'}</p></div>
       <label htmlFor={`${id}-kind`}><span>{en ? 'Document requirement' : 'Giấy tờ yêu cầu'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
-        <select id={`${id}-kind`} required value={documentKind} disabled={locked} aria-describedby={`${id}-help`}
+        <select id={`${id}-kind`} required value={documentKind} disabled={locked}
           onChange={event => update({ documentKind: event.target.value })}>
           <option value="">{en ? 'Select documents' : 'Chọn giấy tờ'}</option>
           {Object.entries(documentNames).map(([value, labels]) => <option key={value} value={value}>{labels[en ? 1 : 0]}</option>)}
         </select>
       </label>
-      <p id={`${id}-help`} className="lv-legal-request-help">{en ? 'The applicant chooses where to obtain the documents. Valid notarial or court documents can be submitted.'
-        : 'Người nộp tự chọn nơi làm giấy tờ. Có thể nộp hồ sơ công chứng hoặc giấy tờ Tòa án hợp lệ.'}</p>
       {documentKind === 'OTHER' && <label htmlFor={`${id}-name`}><span>{en ? 'Document name' : 'Tên giấy tờ'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
         <input id={`${id}-name`} type="text" required maxLength={200} value={documentName} disabled={locked}
           onChange={event => update({ documentName: event.target.value })} />

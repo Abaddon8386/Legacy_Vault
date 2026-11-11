@@ -16,6 +16,8 @@ import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.j
 import { DatePicker } from '../../components/common/DatePicker.jsx';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
+import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
+import { staffStage } from '../../utils/staffStage.js';
 import './StaffLiveCase.css';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 
@@ -26,7 +28,7 @@ const labels = {
   deliveredByName: ['Họ tên người nộp', 'Delivered by'], deliveredByRelationship: ['Mối quan hệ', 'Relationship'],
   conditionNotes: ['Tình trạng bản gốc', 'Original condition'],
 };
-const requiredFields = ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName'];
+const requiredFields = ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'deliveredByName', 'conditionNotes'];
 const fields = {
   'death-documents': ['documentType', 'issuingAuthority', 'documentNumber', 'issuedDate', 'evidenceReference', 'notes'],
   'original-will-intakes': ['deliveredByName', 'deliveredByRelationship', 'evidenceReference', 'conditionNotes'],
@@ -92,6 +94,7 @@ export default function StaffLiveCase(props) {
 function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
+  const distribution = useDistributionWorkflow({ caseId, workspace: 'STAFF', accessToken, lang, enabled: Boolean(data), onUnauthorized });
   const [kind, setKind] = useState(() => {
     if (typeof window !== 'undefined') {
       const param = new URLSearchParams(window.location.search).get('tab') || new URLSearchParams(window.location.search).get('kind');
@@ -335,6 +338,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     <StaffCaseContextBar
       caseId={caseId}
       caseItem={data}
+      stage={staffStage(distribution.data, en)}
       onChangeCase={onBack}
       lang={lang}
     />

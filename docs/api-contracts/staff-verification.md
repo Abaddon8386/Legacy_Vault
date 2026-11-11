@@ -207,7 +207,7 @@ ca**, ca chưa nhận hoặc của Staff khác → `404`.
 | `deliveredByName` | string | có | không rỗng, ≤ 150 (người giao) |
 | `deliveredByRelationship` | string | không | ≤ 100 (quan hệ với chủ kho) |
 | `evidenceReference` | string | không | ≤ 500; mã biên nhận/vị trí lưu, **không phải file** |
-| `conditionNotes` | string | không | ≤ 1000 (tình trạng bản gốc) |
+| `conditionNotes` | string | có | không rỗng, ≤ 1000 (tình trạng bản gốc) |
 
 `receivedBy` (Staff đăng nhập) và `receivedAt` (giờ máy chủ, UTC) do server đặt; gửi hai trường này bị bỏ qua.
 
