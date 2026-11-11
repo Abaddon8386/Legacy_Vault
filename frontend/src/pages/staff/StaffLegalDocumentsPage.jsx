@@ -1053,7 +1053,6 @@ export default function StaffLegalDocumentsPage({
             {dossierNotFound && !['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED'].includes(distribution.data?.phase) && (
               <div className="lv-dossier-unconnected-box lv-dossier-empty-state" role="status">
                 <h3>{en ? 'Next: submit the distribution documents' : 'Việc cần làm: nộp giấy tờ phân chia'}</h3>
-                <p>{en ? 'Enter the details and attach the file in “Receive document”, then send it to Legal.' : 'Nhập thông tin và đính kèm tệp ở tab “Tiếp nhận văn bản”, rồi chuyển Ban Pháp lý.'}</p>
                 {!['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) && <button type="button" className="lv-btn-go-intake" onClick={() => setActiveTab('intake')} disabled={isRouteOnHold}>
                   <Plus size={16} aria-hidden="true" /><span>{en ? 'Receive document' : 'Tiếp nhận văn bản'}</span>
                 </button>}
@@ -1093,7 +1092,6 @@ export default function StaffLegalDocumentsPage({
                 <AlertTriangle size={20} className="lv-dossier-hold-icon" style={{ color: '#ea580c' }} aria-hidden="true" />
                 <div>
                   <strong>{t.dossierSupplementationTitle}</strong>
-                  <p>{t.dossierSupplementationDesc}</p>
                   <p style={{ marginTop: 4, fontStyle: 'italic', color: '#7c2d12' }}>
                     {en
                       ? `Receive document version ${requiredIntakeVersion}.`
@@ -1236,7 +1234,6 @@ export default function StaffLegalDocumentsPage({
           <section className="lv-staff-form-card lv-form-card lv-staff-glow" aria-labelledby="form-heading">
             <div className="lv-staff-form-card__header lv-form-card__header">
               <h2 id="form-heading">{t.formTitle}</h2>
-              <p className="lv-staff-tab-desc">{en ? 'Upload only the requested documents here.' : 'Tại đây chỉ tải giấy tờ được yêu cầu.'}</p>
             </div>
 
 
@@ -1257,7 +1254,6 @@ export default function StaffLegalDocumentsPage({
                 <AlertTriangle size={20} className="lv-dossier-hold-icon" style={{ color: '#ea580c' }} aria-hidden="true" />
                 <div>
                   <strong>{t.dossierSupplementationTitle}</strong>
-                  <p>{t.dossierSupplementationDesc}</p>
                   <p style={{ marginTop: 4, fontStyle: 'italic', color: '#7c2d12' }}>
                     {en
                       ? `Receive document version ${requiredIntakeVersion}.`

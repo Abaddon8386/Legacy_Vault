@@ -1664,7 +1664,7 @@ test('New flow: Staff uploads requested documents without an allocation editor o
     const panel = host.querySelector('#panel-intake');
     assert.equal(panel.querySelector('.lv-court-editor'), null);
     assert.equal(panel.querySelector('button[type=submit]').disabled, false);
-    assert.match(panel.textContent, /chỉ tải giấy tờ|chỉ tải giấy/);
+    assert.doesNotMatch(panel.textContent, /chỉ tải giấy tờ/, 'No how-to line under the intake title');
     for (const type of ['NOTARIAL_PARTITION', 'COURT_JUDGMENT', 'COURT_DECISION']) assert.equal(panel.querySelector('option[value="' + type + '"]').disabled, false);
     assert.equal(calls.some(call => /\/assets\?|\/beneficiaries$/.test(call.url)), false, 'Document intake must not depend on asset/recipient catalogues');
     await act(async () => host.querySelector('#tab-btn-allocations').click());
