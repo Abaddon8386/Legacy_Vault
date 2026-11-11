@@ -127,7 +127,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       if (step !== 'controlled-unlock') return caseContent;
       const tabs = [
         { id: 'unlock', label: en ? 'Unlock vault' : 'Mở khóa kho' },
-        { id: 'reopen', label: en ? 'Reopen handover' : 'Mở lại bàn giao', badge: reopenWaiting === true },
+        { id: 'reopen', label: en ? 'Resume handover' : 'Tiếp tục bàn giao', count: reopenWaiting > 0 ? reopenWaiting : 0 },
       ];
       // Unlocking is the normal path; reopening is the exception, so it never takes the default tab (the dot still signals a request).
       const active = unlockTab || 'unlock';
@@ -143,7 +143,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
           {tabs.map(item => <button key={item.id} type="button" role="tab" id={`legal-unlock-tab-${item.id}`} aria-selected={active === item.id}
             aria-controls={`legal-unlock-panel-${item.id}`} tabIndex={active === item.id ? 0 : -1}
             className={`lv-legal-tab${active === item.id ? ' is-active' : ''}`} onClick={() => setUnlockTab(item.id)}>
-            <span>{item.label}</span>{item.badge && <span className="lv-legal-tab__dot" role="img" aria-label={en ? 'Waiting for Legal' : 'Đang chờ Legal'} />}
+            <span>{item.label}</span>{item.count > 0 && <span className="lv-legal-tab__count" title={en ? `${item.count} handover request(s) waiting for Legal, from any case` : `${item.count} yêu cầu đang chờ Legal, của mọi hồ sơ`} aria-label={en ? `${item.count} request(s) waiting for Legal` : `${item.count} yêu cầu đang chờ Legal`}>{item.count}</span>}
           </button>)}
         </div>
         <div role="tabpanel" id="legal-unlock-panel-reopen" aria-labelledby="legal-unlock-tab-reopen" hidden={active !== 'reopen'}>

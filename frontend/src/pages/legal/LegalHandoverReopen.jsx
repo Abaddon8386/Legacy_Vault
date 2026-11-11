@@ -93,7 +93,9 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
   const target = found ?? (opened?.caseId === caseId ? opened : null);
   const hasRequests = Boolean(items?.length || target);
   // Lets the page open on this tab only when a request is waiting (null until the first read finishes).
-  useEffect(() => { onAvailability?.(list ? hasRequests : null); }, [list, hasRequests, onAvailability]);
+  // Reports how many requests wait in Legal's queue (any case), so the tab can show a number; null until the first read.
+  const waitingCount = list ? Math.max(list.data?.totalElements ?? 0, items?.length ?? 0, target ? 1 : 0) : null;
+  useEffect(() => { onAvailability?.(waitingCount); }, [waitingCount, onAvailability]);
   const open = item => {
     setOpened(item); setOutcome(null);
     onNavigate?.(`${unlockPath}?${new URLSearchParams({ lang, caseId: item.caseId })}`);

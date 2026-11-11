@@ -276,7 +276,7 @@ test('the unlock page opens on Unlock vault, with Reopen handover as the second 
     assert.deepEqual(tabs.map(tab => tab.id), ['legal-unlock-tab-unlock', 'legal-unlock-tab-reopen']);
     assert.equal(tabs[0].getAttribute('aria-selected'), 'true');
     assert.equal(tabs[1].getAttribute('aria-selected'), 'false');
-    assert.match(tabs[1].textContent, /Reopen handover/);
+    assert.match(tabs[1].textContent, /Resume handover/);
   } finally { await view.close(); }
 });
 

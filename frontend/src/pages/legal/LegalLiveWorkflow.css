@@ -179,6 +179,7 @@
 .lv-legal-live .lv-legal-tab:focus-visible { outline: 3px solid #b7d9ca; outline-offset: 2px; }
 .lv-legal-live .lv-legal-tab.is-active, .lv-legal-live .lv-legal-tab[aria-selected="true"] { border-bottom-color: #204f40; color: #164639; font-weight: 600; }
 .lv-legal-live .lv-legal-tab__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #d9a21b; }
+.lv-legal-live .lv-legal-tab__count { flex: none; min-width: 24px; padding: 1px 8px; border-radius: 999px; background: #f3d98b; color: #4a3500; font-size: 14px; font-weight: 700; line-height: 1.5; text-align: center; }
 
 /* The case bar is the shared Staff component; give it the same deep-green look on Legal screens. */
 .lv-legal-surfaces .lv-staff-context-bar--active { margin-bottom: 20px; padding: 18px 24px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
