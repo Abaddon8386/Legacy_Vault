@@ -1,20 +1,21 @@
-# Admin — tra cứu tài khoản (PS-109)
+# Admin — quản lý tài khoản (PS-109 tra cứu; tạo tài khoản và đổi vai trò)
 
 ## Trạng thái
 
-PS-109 bổ sung hai thao tác chỉ đọc. Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Không có API ghi trạng thái tài khoản trong contract này.
+PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn có thể tạo tài khoản và đổi vai trò Staff/Legal/Vault Owner (mục cuối). Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Khóa/mở khóa tài khoản xem mục cuối.
 
 ## Danh sách
 
 `GET /api/v1/admin/users?page=0&size=20&query=alice&role=ROLE_ADMIN&status=ACTIVE`
 
 - `page` bắt đầu từ 0; `size` từ 1 đến 100; mặc định 0/20.
-- `query` tùy chọn, tìm chuỗi con không phân biệt hoa thường trong `fullName` hoặc `email`.
+- `query` tùy chọn, tìm chuỗi con không phân biệt hoa thường trong `fullName` hoặc `email`. Nếu chuỗi (sau khi cắt khoảng trắng) là một UUID **đầy đủ** 36 ký tự thì còn khớp chính xác `publicId` của tài khoản; chuỗi khác (UUID thiếu, thừa ký tự) chỉ tìm theo tên/email.
 - `role` tùy chọn, lọc theo `roleCode` (ví dụ `ROLE_ADMIN`). Một user có nhiều role vẫn xuất hiện một lần.
 - Khi lọc Owner, Beneficiary, Legal hoặc Staff, chỉ lấy tài khoản gốc `ACTIVE`/`LOCKED` chưa soft-delete. Điều kiện này nằm trong truy vấn DB trước phân trang. Tài khoản cũ `PENDING`/`DELETED` vẫn tra cứu được khi không lọc vai trò.
 - `status` tùy chọn: `PENDING`, `ACTIVE`, `LOCKED`, `IN_PROCESS` hoặc `DELETED`, lọc theo `accountStatus` hiển thị. `DELETED` được suy ra từ `deleted_at`; trạng thái khác chỉ khớp user chưa soft-delete.
 - `vaultStatus` tùy chọn: `NO_VAULT`, `ACTIVE`, `IN_PROCESS`, `ARCHIVED`; chỉ chấp nhận cùng `role=ROLE_VAULT_OWNER`, trường hợp khác trả `400 VALIDATION_FAILED`. Kết hợp độc lập với trạng thái tài khoản và lọc trong DB trước phân trang.
 - `IN_PROCESS` gồm `AWAITING_VERIFICATION`, `DOCUMENT_VERIFICATION`, `WILL_VERIFICATION`, `AWAITING_LEGAL_BASIS`, `LEGAL_BASIS_VERIFICATION`, `ON_HOLD`, `UNLOCKED`, `HANDOVER_IN_PROGRESS`.
+- `query`: nếu là UUID đầy đủ (36 ký tự) thì ngoài việc tìm chuỗi con theo tên/email còn tìm đúng tài khoản có `publicId` đó; UUID thiếu ký tự không khớp gì.
 - Kết quả dùng envelope chung `content/page/size/totalElements/totalPages`, sắp xếp `createdAt` giảm dần.
 
 Ví dụ `200`:
@@ -60,6 +61,40 @@ Với ba vai trò trên, cả danh sách, chi tiết theo vai trò và dropdown 
 
 `400` dùng ApiError chung cho tham số không hợp lệ; `401` cho request chưa xác thực; `403` cho người dùng đã xác thực nhưng không có `ROLE_ADMIN`. Ngôn ngữ message theo `Accept-Language` (VI mặc định, EN hỗ trợ).
 
-## Khóa/mở khóa — đang chờ policy
+## Tạo tài khoản
 
-Không triển khai mutation cho đến khi nhóm phê duyệt allowed transitions/account types, tài khoản nội bộ, self-lock, bảo vệ Admin cuối cùng, reason, token đã phát hành, concurrency/receipt, event audit và transaction. Filter JWT hiện tại đọc lại user từ DB và chặn user không `ACTIVE` hoặc đã soft-delete trên request bảo vệ; nhưng nếu tài khoản được chuyển lại `ACTIVE`, JWT chưa hết hạn có thể hoạt động lại. Chưa có token revocation/version để giải quyết chính sách đó.
+`POST /api/v1/admin/users` → `201` + đối tượng user (cùng shape với chi tiết).
+
+```json
+{ "fullName": "Nguyen Staff", "email": "staff@example.test", "phone": "", "password": "…", "role": "ROLE_STAFF_EXECUTOR" }
+```
+
+- `role` chỉ nhận `ROLE_STAFF_EXECUTOR`, `ROLE_LEGAL_VERIFIER`, `ROLE_VAULT_OWNER` (tiền tố `ROLE_` tùy chọn). `ROLE_ADMIN`, `ROLE_BENEFICIARY` hoặc giá trị lạ trả `400 ADMIN_ROLE_NOT_ASSIGNABLE`.
+- Email chuẩn hóa như đăng ký thường (trim + lower-case); trùng trả `409 EMAIL_ALREADY_EXISTS`.
+- Mật khẩu ban đầu 8–72 ký tự theo chính sách chung; Admin chuyển cho người dùng qua kênh an toàn. Mật khẩu chỉ được băm và lưu, không bao giờ xuất hiện trong response, audit hoặc log.
+- Tài khoản ở trạng thái `ACTIVE`; `emailVerifiedAt` để trống (chưa xác minh email).
+- Audit `ADMIN_USER_CREATED` (actor = Admin, entity `USER` = tài khoản mới).
+
+## Đổi vai trò
+
+`PUT /api/v1/admin/users/{publicId}/role` với `{ "role": "ROLE_LEGAL_VERIFIER" }` → `200` + user sau khi đổi.
+
+- Thay thế mọi role Staff/Legal/Vault Owner hiện có bằng role được gửi; role khác (ví dụ `ROLE_BENEFICIARY`) giữ nguyên. Gửi lại đúng role hiện tại là no-op, không ghi audit.
+- Có hiệu lực ngay (role đọc từ DB ở mỗi request); không cần đăng nhập lại.
+- `409 ADMIN_ACCOUNT_PROTECTED`: tài khoản đích là Admin hoặc chính người gọi.
+- `409 ADMIN_OWNER_HAS_VAULT`: đang là Vault Owner và đã có kho, không được đổi sang role khác.
+- `404 RESOURCE_NOT_FOUND`: không tồn tại, đã xóa mềm hoặc không `ACTIVE`.
+- Audit `ADMIN_USER_ROLE_CHANGED` với role trước/sau.
+- Chưa xử lý: Staff/Legal đang giữ hồ sơ (claimed case) khi bị đổi role — case giữ nguyên người được gán.
+
+## Khóa / mở khóa
+
+- `POST /api/v1/admin/users/{publicId}/lock` với body tùy chọn `{ "reason": "…" }` (tối đa 255 ký tự) → `200` + user có `status: "LOCKED"`.
+- `POST /api/v1/admin/users/{publicId}/unlock` (không body) → `200` + user có `status: "ACTIVE"`.
+- Khóa chuyển `ACTIVE` sang `LOCKED` và **tăng `authVersion`**: mọi token đã phát hành bị vô hiệu ngay, kể cả sau khi mở khóa (phải đăng nhập lại). Tài khoản khóa không đăng nhập được: nhập **đúng** mật khẩu (hoặc credential Google hợp lệ) trả `403 ACCOUNT_LOCKED_BY_ADMIN`; sai mật khẩu hoặc email không tồn tại vẫn là `401 INVALID_CREDENTIALS` để không dò được email nào đang bị khóa.
+- `409 ADMIN_ACCOUNT_PROTECTED`: đích là Admin hoặc chính người gọi (nên không thể khóa Admin cuối cùng).
+- `409 ADMIN_ACCOUNT_STATE_INVALID`: khóa tài khoản không `ACTIVE` (ví dụ `PENDING`) hoặc mở khóa tài khoản không `LOCKED`... ngoại trừ lặp lại đúng trạng thái yêu cầu, là no-op `200` và không ghi audit.
+- `409 ADMIN_ACCOUNT_IN_HANDOVER`: khóa tài khoản mà kho đang ở bước xác minh/bàn giao hoặc đã `ARCHIVED`. Mở khóa vẫn được phép qua API để tài khoản không bị kẹt.
+- `404 RESOURCE_NOT_FOUND`: không tồn tại hoặc đã xóa mềm.
+- Audit `ADMIN_USER_LOCKED` / `ADMIN_USER_UNLOCKED` (entity `USER`), lý do khóa nằm trong context.
+- Chưa xử lý: tác động lên giám sát DMS / hồ sơ đang xử lý của tài khoản bị khóa.

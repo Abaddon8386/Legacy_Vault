@@ -260,3 +260,20 @@ test('Google Auth Service - Backend 500 does not leak stack traces or internal S
     }
   );
 });
+
+test('Google Auth Service - an Admin-locked account is told it is locked rather than getting the generic Google failure', async () => {
+  const mockFetch = async () => new Response(
+    JSON.stringify({ code: 'ACCOUNT_LOCKED_BY_ADMIN', message: 'locked' }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } }
+  );
+
+  await assert.rejects(
+    () => authenticateWithGoogle({ credential: 'valid.google.id.token' }, { fetchFn: mockFetch, lang: 'vi' }),
+    (err) => {
+      assert.equal(err.status, 403);
+      assert.equal(err.code, 'ACCOUNT_LOCKED_BY_ADMIN');
+      assert.equal(err.message, 'Tài khoản này đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.');
+      return true;
+    }
+  );
+});

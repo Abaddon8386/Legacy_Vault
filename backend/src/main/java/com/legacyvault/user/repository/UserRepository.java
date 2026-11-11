@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,6 +57,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u where u.userId = :id and u.status = 'ACTIVE' and u.deletedAt is null")
     Optional<User> findActiveAccountForUpdate(@Param("id") Long id);
 
+    /** Row lock for admin state changes; unlike the ACTIVE-only variant it also finds LOCKED and PENDING accounts. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.userId = :id and u.deletedAt is null")
+    Optional<User> findLiveAccountForUpdate(@Param("id") Long id);
+
     boolean existsByEmail(String email);
 
     boolean existsByEmailAndUserIdNot(String email, Long userId);
@@ -67,7 +73,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
             select distinct u from User u
             where (:query is null or lower(u.fullName) like lower(concat('%', :query, '%'))
-                   or lower(u.email) like lower(concat('%', :query, '%')))
+                   or lower(u.email) like lower(concat('%', :query, '%'))
+                   or (:hasUuid = true and u.publicId = :queryUuid))
               and (:roleCode is null or exists (
                    select ur.id from UserRole ur join ur.role r
                    where ur.user.userId = u.userId and upper(r.roleCode) = :roleCode))
@@ -94,6 +101,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
                                 'UNLOCKED', 'HANDOVER_IN_PROGRESS')))))
             """)
     Page<User> searchForAdmin(@Param("query") String query,
+                              @Param("hasUuid") boolean hasUuid,
+                              @Param("queryUuid") UUID queryUuid,
                               @Param("roleCode") String roleCode,
                               @Param("status") String status,
                               @Param("vaultStatus") String vaultStatus,

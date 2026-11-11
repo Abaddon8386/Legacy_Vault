@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +28,10 @@ import java.util.stream.Collectors;
 public class AdminUserQueryService {
     private static final Set<String> BUSINESS_ROLES = Set.of("ROLE_VAULT_OWNER", "ROLE_BENEFICIARY", "ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR");
     private final UserRepository users;
+    private static final java.util.regex.Pattern FULL_UUID = java.util.regex.Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+    private static final UUID NO_UUID = new UUID(0L, 0L);
+
     private final UserRoleRepository userRoles;
     private final VaultRepository vaults;
 
@@ -51,7 +56,11 @@ public class AdminUserQueryService {
                 || !java.util.Set.of("NO_VAULT", "ACTIVE", "IN_PROCESS", "ARCHIVED").contains(normalizedVaultStatus))) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
         }
-        Page<User> result = users.searchForAdmin(normalizedQuery, normalizedRole, normalizedStatus, normalizedVaultStatus,
+        // A full UUID also finds the account with that public ID; any other text keeps searching name and email.
+        UUID exactId = normalizedQuery != null && FULL_UUID.matcher(normalizedQuery).matches()
+                ? UUID.fromString(normalizedQuery) : null;
+        Page<User> result = users.searchForAdmin(normalizedQuery, exactId != null, exactId == null ? NO_UUID : exactId,
+                normalizedRole, normalizedStatus, normalizedVaultStatus,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("publicId"))));
         Map<Long, java.util.List<String>> rolesByUserId = result.getContent().isEmpty() ? Map.of()
                 : userRoles.findByUserIdsWithRole(result.getContent().stream().map(User::getUserId).toList()).stream()
