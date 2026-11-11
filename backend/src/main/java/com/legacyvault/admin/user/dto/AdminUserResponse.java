@@ -11,5 +11,7 @@ public record AdminUserResponse(
         String email,
         List<String> roles,
         Instant createdAt,
-        String status) {
+        String status,
+        String accountStatus,
+        String vaultStatus) {
 }

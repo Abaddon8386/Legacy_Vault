@@ -1,0 +1,11 @@
+/* Keeps the "vault required" notice on one screen, matching the vault overview empty state. */
+.lv-vault-required .lv-empty-state{margin:0 auto;max-width:900px;min-height:calc(100svh - 120px);display:flex;align-items:stretch}
+.lv-vault-required .lv-empty-card{width:100%;min-height:calc(100svh - 120px);justify-content:center;padding:44px 40px 40px}
+.lv-vault-required .lv-empty-emblem{width:76px;height:76px;margin-bottom:18px}
+.lv-vault-required .lv-empty-badge{margin-bottom:10px}
+.lv-vault-required .lv-empty-heading{margin-bottom:12px;font-size:clamp(22px,2.6vw,28px)}
+.lv-vault-required .lv-empty-desc{margin-bottom:26px;line-height:1.5}
+@media(max-width:768px){.lv-vault-required .lv-empty-state{min-height:0;display:block}.lv-vault-required .lv-empty-card{min-height:0;padding:24px 18px}}
+
+/* Same shell margins as the vault overview so the card has identical height and position. */
+.lv-shell-content:has(.lv-vault-required){padding-block:16px}
