@@ -1285,6 +1285,7 @@ paths:
                 user: { id: 3f2b8c1e-0a4d-4c8e-9b1a-6a1d2f3e4b5c, fullName: Nguyen Van A, email: user@example.com, roles: [VAULT_OWNER] }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/InvalidCredentials' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /api/v1/auth/google:
     post:
@@ -4321,7 +4322,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
     TooManyRequests:
-      description: TOO_MANY_ATTEMPTS — nhập sai mật khẩu xác nhận quá số lần cho phép (D-API-32)
+      description: "TOO_MANY_ATTEMPTS — nhập sai mật khẩu quá số lần cho phép (xác nhận mật khẩu D-API-32, hoặc đăng nhập: sai 5 lần thì email bị khóa 15 phút kể từ lần sai thứ 5; một IP vượt 30 lần sai/15 phút thì trả `RATE_LIMITED`)"
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }
