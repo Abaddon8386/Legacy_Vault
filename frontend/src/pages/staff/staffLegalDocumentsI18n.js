@@ -69,7 +69,7 @@ export const staffLegalDocumentsI18n = {
 
     // Số hiệu văn bản
     documentNumberLabel: 'Số hiệu văn bản',
-    documentNumberPlaceholder: 'VD: 118/2026/VB-CC',
+    documentNumberPlaceholder: 'VD: 45/2026/QĐ-TA',
     documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ',
 
     // Ngày ban hành
@@ -225,7 +225,7 @@ export const staffLegalDocumentsI18n = {
 
     // Document number
     documentNumberLabel: 'Document Number',
-    documentNumberPlaceholder: 'e.g. 118/2026/VB-CC',
+    documentNumberPlaceholder: 'e.g. 45/2026/QD-TA',
     documentNumberHint: 'Official reference number printed on the legal document',
 
     // Issuance date

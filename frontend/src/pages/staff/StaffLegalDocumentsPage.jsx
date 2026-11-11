@@ -525,6 +525,7 @@ export default function StaffLegalDocumentsPage({
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
   // A notarized dossier names the notary and the notarization date; a court dossier names the court and the issue date.
+  const numberColumnLabel = dossier?.route === 'NOTARIAL' ? (en ? 'Notarization number' : 'Số công chứng') : t.documentNumberLabel;
   const issuerColumnLabel = dossier?.route === 'NOTARIAL' ? (en ? 'Notary office' : 'Tổ chức công chứng') : t.issuerLabel;
   const dateColumnLabel = dossier?.route === 'NOTARIAL' ? (en ? 'Notarization date' : 'Ngày công chứng') : t.issuanceDateLabel;
   const tabStatus = distributionTabStatus(distribution.data, dossier?.versions?.length > 0, en);
@@ -1153,7 +1154,7 @@ export default function StaffLegalDocumentsPage({
 
                 {latestVersion?.documentNumber && (
                   <div className="lv-dossier-row">
-                    <span className="lv-dossier-label">{en ? 'Document number' : 'Số hiệu văn bản'}</span>
+                    <span className="lv-dossier-label">{numberColumnLabel}</span>
                     <span className="lv-dossier-value-text">{latestVersion.documentNumber}</span>
                   </div>
                 )}
@@ -1331,7 +1332,7 @@ export default function StaffLegalDocumentsPage({
 
                 <div className="lv-form-group">
                   <label htmlFor={docNumId} className="lv-form-label lv-form-label--required">
-                    {t.documentNumberLabel}
+                    {legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notarization number' : 'Số công chứng') : t.documentNumberLabel}
                   </label>
                   <input
                     id={docNumId}
@@ -1339,7 +1340,7 @@ export default function StaffLegalDocumentsPage({
                     className={`lv-form-input ${errors.documentNumber ? 'lv-form-input--error' : ''}`}
                     aria-invalid={Boolean(errors.documentNumber)}
                     aria-describedby={errors.documentNumber ? `${docNumId}-error` : undefined}
-                    placeholder={t.documentNumberPlaceholder}
+                    placeholder={legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'e.g. 0456/2026/CC' : 'VD: 0456/2026/CC') : t.documentNumberPlaceholder}
                     value={documentNumber}
                     onChange={(e) => { setDocumentNumber(e.target.value); if (errors.documentNumber) setErrors(prev => ({ ...prev, documentNumber: '' })); }}
                     disabled={isSubmitting || !canReceiveBasis}
@@ -1500,7 +1501,7 @@ export default function StaffLegalDocumentsPage({
                   <thead>
                     <tr>
                       <th>{t.dossierVersionLabel}</th>
-                      <th>{t.documentNumberLabel}</th>
+                      <th>{numberColumnLabel}</th>
                       <th>{issuerColumnLabel}</th>
                       <th>{dateColumnLabel}</th>
                       <th>{t.forwardStatusLabel}</th>
@@ -1517,7 +1518,7 @@ export default function StaffLegalDocumentsPage({
                             {t.versionText} {v.version}
                           </span>
                         </td>
-                        <td data-label={t.documentNumberLabel}>{v.documentNumber || '—'}</td>
+                        <td data-label={numberColumnLabel}>{v.documentNumber || '—'}</td>
                         <td data-label={issuerColumnLabel}>{v.issuingAuthority || '—'}</td>
                         <td data-label={dateColumnLabel}>{v.issueDate || '—'}</td>
                         <td data-label={t.forwardStatusLabel}>
