@@ -68,21 +68,45 @@ for(const lang of ['vi','en']) test(`Bug 10: ${lang} credential form uses dedica
  }finally{await view.close();}
 });
 test('Bug 10: empty credential fields cannot create an empty secret',async()=>{let calls=0;const view=await mount(AssetFormModal,{isOpen:true,onClose(){},onSubmit:()=>calls++});try{await change(view.host,'asset-name','Account');await change(view.host,'asset-type','CREDENTIAL');await submit(view.host);assert.equal(calls,0);assert.ok(view.host.querySelector('[role=alert]'));}finally{await view.close();}});
+const EDIT_VAULT='22222222-2222-4222-8222-222222222222';
+async function withEditFetch(payload,run){
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url,options={})=>{const path=String(url);const ok=body=>new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
+  if(options.method==='POST'&&path.endsWith('/reveal'))return ok({id:'11111111-1111-4111-8111-111111111111',payload});
+  if(/\/(images|documents)$/.test(path))return ok([]);return ok({});};
+ try{await run();}finally{globalThis.fetch=original;}
+}
+const settleEdit=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,0)));
+async function unlockEdit(host){await change(host,'edit-confirm-password','fixture-password');await submit(host);await settleEdit();}
 test('Bug 10: metadata edits do not replace an existing credential payload; replacement is explicit',async()=>{
- const asset={id:'test-asset',name:'Old name',assetType:'CREDENTIAL',description:'',hasPayload:true};const calls=[];
- const view=await mount(AssetEditModal,{isOpen:true,asset,t:ASSET_I18N.en,onClose(){},onSubmit:(...args)=>calls.push(args)});
- try{assert.equal(view.host.querySelector('#edit-credential-password').value,'');await change(view.host,'edit-asset-name','New name');await change(view.host,'edit-confirm-password','fixture-password');await submit(view.host);assert.equal(calls[0][0],'test-asset');assert.deepEqual(calls[0][1],{name:'New name',password:'fixture-password'});await change(view.host,'edit-credential-username','new-user');await change(view.host,'edit-credential-password','new-secret');await change(view.host,'edit-confirm-password','fixture-password');await submit(view.host);assert.deepEqual(JSON.parse(calls[1][1].payload),{username:'new-user',password:'new-secret'});}finally{await view.close();}
+ const asset={id:'11111111-1111-4111-8111-111111111111',name:'Old name',assetType:'CREDENTIAL',description:'',hasPayload:true};const calls=[];
+ await withEditFetch(JSON.stringify({username:'old-user',password:'old-secret'}),async()=>{
+  const view=await mount(AssetEditModal,{isOpen:true,asset,vaultId:EDIT_VAULT,accessToken:'t',lang:'en',t:ASSET_I18N.en,onClose(){},onSubmit:(...args)=>calls.push(args)});
+  try{
+   await unlockEdit(view.host);
+   assert.equal(view.host.querySelector('#edit-credential-username').value,'old-user','current credential is shown');
+   assert.equal(view.host.querySelector('#edit-credential-password').value,'old-secret');
+   await change(view.host,'edit-asset-name','New name');await submit(view.host);
+   assert.equal(calls[0][0],asset.id);assert.deepEqual(calls[0][1],{name:'New name',password:'fixture-password'});
+   await change(view.host,'edit-credential-username','new-user');await change(view.host,'edit-credential-password','new-secret');await submit(view.host);
+   assert.deepEqual(JSON.parse(calls[1][1].payload),{username:'new-user',password:'new-secret'});assert.equal(calls[1][1].password,'fixture-password');
+  }finally{await view.close();}
+ });
 });
 test('editing an asset accepts new images and documents while submitting them separately from metadata',async()=>{
- const asset={id:'test-asset',name:'Asset',assetType:'TEXT',description:'',hasPayload:true};let saved;
- const view=await mount(AssetEditModal,{isOpen:true,asset,t:ASSET_I18N.en,onClose(){},onSubmit:(_id,patch)=>{saved=patch;}});
- try{
-  const image=new File(['image'],'new.png',{type:'image/png'}),doc=new File(['%PDF-1.7\n%%EOF'],'new.pdf',{type:'application/pdf'});
-  const inputs=view.host.querySelectorAll('input[type=file]');assert.equal(inputs.length,2);
-  for(const [input,file] of [[inputs[0],image],[inputs[1],doc]]){const key=Object.keys(input).find(k=>k.startsWith('__reactProps$'));await act(async()=>input[key].onChange({target:{files:[file],value:''}}));}
-  await change(view.host,'edit-confirm-password','current-password');await submit(view.host);
-  assert.deepEqual(saved.images,[image]);assert.deepEqual(saved.documents,[doc]);
- }finally{await view.close();}
+ const asset={id:'11111111-1111-4111-8111-111111111111',name:'Asset',assetType:'TEXT',description:'',hasPayload:true};let saved;
+ await withEditFetch('secret',async()=>{
+  const view=await mount(AssetEditModal,{isOpen:true,asset,vaultId:EDIT_VAULT,accessToken:'t',lang:'en',t:ASSET_I18N.en,onClose(){},onSubmit:(_id,patch)=>{saved=patch;}});
+  try{
+   assert.equal(view.host.querySelectorAll('input[type=file]').length,0,'upload controls stay hidden until the password is confirmed');
+   await unlockEdit(view.host);
+   const image=new File(['image'],'new.png',{type:'image/png'}),doc=new File(['%PDF-1.7\n%%EOF'],'new.pdf',{type:'application/pdf'});
+   const inputs=view.host.querySelectorAll('input[type=file]');assert.equal(inputs.length,2);
+   for(const [input,file] of [[inputs[0],image],[inputs[1],doc]]){assert.ok(input.closest('.lv-asset-images, .lv-asset-documents'),'picker sits in the same frame as its table');const key=Object.keys(input).find(k=>k.startsWith('__reactProps$'));await act(async()=>input[key].onChange({target:{files:[file],value:''}}));}
+   await submit(view.host);
+   assert.deepEqual(saved.images,[image]);assert.deepEqual(saved.documents,[doc]);assert.equal(saved.password,'fixture-password');
+  }finally{await view.close();}
+ });
 });
 
 test('revealed credential JSON is decrypted by API and displayed as labeled fields; legacy text remains readable',async()=>{
@@ -106,8 +130,8 @@ test('View mode lists existing attachments without exposing edit, delete, or upl
  try{
   await act(async()=>new Promise(resolve=>setTimeout(resolve,0)));
   assert.equal(view.host.querySelector('input[type=file]'),null);assert.doesNotMatch(view.host.textContent,/Delete|Upload photos/);assert.match(view.host.textContent,/photo\.png/);
-  const docs=[...view.host.querySelectorAll('button')].find(button=>button.textContent.includes('PDF / Word documents'));assert.ok(docs);await act(async()=>docs.click());
-  await act(async()=>new Promise(resolve=>setTimeout(resolve,0)));
+  assert.doesNotMatch(view.host.textContent,/Reload documents/);
+  assert.ok(view.host.querySelector('table.lv-asset-table th'),'attachments are listed in tables');
   assert.match(view.host.textContent,/record\.pdf/);assert.equal(view.host.querySelector('input[type=file]'),null);assert.doesNotMatch(view.host.textContent,/Delete|Upload documents/);
  }finally{await view.close();globalThis.fetch=original;}
 });

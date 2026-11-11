@@ -496,3 +496,109 @@ function wireUser(value, index = 0) {
     createdAt: value.createdAt || '2026-10-20T10:00:00Z' };
 }
 function userPage(users) { return { content: users.map(wireUser), page: 0, size: 10, totalElements: users.length, totalPages: users.length ? 1 : 0 }; }
+
+for (const lang of ['vi', 'en']) test(`account and owner vault columns filter independently and reset on role changes (${lang})`, async () => {
+  const previous = globalThis.fetch;
+  const requests = [];
+  const row = { publicId: userId, fullName: 'Owner fixture', email: 'owner@example.test', roles: ['ROLE_VAULT_OWNER', 'ROLE_BENEFICIARY'], status: 'LOCKED', vaultStatus: 'IN_PROCESS', createdAt: '2026-10-20T10:00:00Z' };
+  globalThis.fetch = async url => {
+    const params = new URL(url, 'http://local').searchParams;
+    if (!url.includes('/admin/users?')) return connectivityJson(row);
+    requests.push(params);
+    const page = Number(params.get('page'));
+    return connectivityJson({content: [row], page, size: 10, totalElements: 11, totalPages: 2});
+  };
+  const view = await mount(AdminUsersPage, {lang, accessToken: 'test', fetchOnMount: true});
+  const change = async (select, value) => act(async () => {
+    select.value = value;
+    select.dispatchEvent(new window.Event('change', {bubbles: true}));
+  });
+  const vaultLabel = lang === 'vi' ? 'Tình trạng kho' : 'Vault status';
+  const accountLabel = lang === 'vi' ? 'Trạng thái tài khoản' : 'Account status';
+  try {
+    assert.equal(view.host.querySelector(`select[aria-label="${vaultLabel}"]`), null);
+    assert.equal(view.host.querySelectorAll('thead th').length, 6);
+    assert.ok([...view.host.querySelectorAll('thead th')].some(th => th.textContent === accountLabel));
+    const role = view.host.querySelectorAll('select')[0];
+    const account = view.host.querySelectorAll('select')[1];
+    await change(account, 'PENDING');
+    await change(role, 'VAULT_OWNER');
+    assert.deepEqual([...account.options].map(option => option.value), ['', 'ACTIVE', 'LOCKED']);
+    assert.equal(account.value, '');
+    assert.equal(requests.at(-1).has('status'), false);
+    assert.equal(view.host.querySelectorAll('thead th').length, 7);
+    assert.equal(view.host.querySelectorAll('tbody tr')[0].children.length, 7);
+    const vault = view.host.querySelector(`select[aria-label="${vaultLabel}"]`);
+    assert.deepEqual([...vault.options].map(option => option.value), ['', 'NO_VAULT', 'ACTIVE', 'IN_PROCESS', 'ARCHIVED']);
+    assert.match(view.host.querySelector('.lv-admin-vault-in_process').textContent, lang === 'vi' ? /Đang xử lý/ : /In process/);
+    await change(account, 'LOCKED');
+    await change(vault, 'IN_PROCESS');
+    assert.equal(requests.at(-1).get('status'), 'LOCKED');
+    assert.equal(requests.at(-1).get('vaultStatus'), 'IN_PROCESS');
+    const next = [...view.host.querySelectorAll('button')].find(button => button.textContent === (lang === 'vi' ? 'Trang sau' : 'Next'));
+    await act(async () => next.click());
+    assert.equal(requests.at(-1).get('page'), '1');
+    await change(vault, 'ARCHIVED');
+    assert.equal(requests.at(-1).get('page'), '0');
+    assert.equal(requests.at(-1).get('vaultStatus'), 'ARCHIVED');
+    await act(async () => view.host.querySelector('tbody button').click());
+    const dialog = view.host.querySelector('[role=dialog]');
+    assert.ok(dialog.textContent.includes(vaultLabel));
+    assert.match(dialog.textContent, lang === 'vi' ? /Đã khóa/ : /Locked/);
+    await act(async () => dialog.querySelector('button').click());
+    await change(role, 'BENEFICIARY');
+    assert.equal(view.host.querySelectorAll('thead th').length, 6);
+    assert.equal(view.host.querySelector(`select[aria-label="${vaultLabel}"]`), null);
+    assert.equal(requests.at(-1).has('vaultStatus'), false);
+    assert.equal(requests.at(-1).get('status'), 'LOCKED');
+    await change(role, 'VAULT_OWNER');
+    assert.equal(view.host.querySelector(`select[aria-label="${vaultLabel}"]`).value, '');
+    assert.equal(requests.at(-1).has('vaultStatus'), false);
+    const reset = [...view.host.querySelectorAll('button')].find(button => button.textContent === (lang === 'vi' ? 'Xóa bộ lọc' : 'Clear filters'));
+    await act(async () => reset.click());
+    assert.equal(view.host.querySelectorAll('thead th').length, 6);
+    assert.equal(requests.at(-1).has('status'), false);
+    assert.equal(requests.at(-1).has('role'), false);
+    await change(account, 'DELETED');
+    await change(role, 'VAULT_OWNER');
+    assert.equal(account.value, '');
+    assert.equal(requests.at(-1).has('status'), false);
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+for (const role of ['BENEFICIARY', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
+  for (const lang of ['vi', 'en']) test(`processing account status is displayed and filtered for ${role} (${lang})`, async () => {
+    const previous = globalThis.fetch;
+    const requests = [];
+    const row = {publicId: userId, fullName: 'Actor', email: 'actor@example.test', roles: ['ROLE_' + role], status: 'ACTIVE', accountStatus: 'IN_PROCESS', createdAt: '2026-10-20T10:00:00Z'};
+    globalThis.fetch = async url => {
+      requests.push(new URL(url, 'http://local'));
+      const otherRole=new URL(url,'http://local').searchParams.get('role')==='ROLE_VAULT_OWNER';
+      return connectivityJson(url.includes('/admin/users?') ? {content:otherRole?[]:[row],page:0,size:10,totalElements:otherRole?0:1,totalPages:otherRole?0:1} : row);
+    };
+    const view = await mount(AdminUsersPage, {lang, accessToken:'test', fetchOnMount:true});
+    const change = async (select,value) => act(async () => {select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
+    try {
+      const roleSelect=view.host.querySelectorAll('select')[0];
+      const statusSelect=view.host.querySelectorAll('select')[1];
+      await change(roleSelect,role);
+      assert.deepEqual([...statusSelect.options].map(option=>option.value),['','ACTIVE','LOCKED','IN_PROCESS']);
+      assert.equal(view.host.querySelectorAll('thead th').length,6);
+      assert.equal(view.host.querySelector('.lv-admin-status-in_process').textContent.trim(),lang==='vi'?'Đang xử lý':'In process');
+      await change(statusSelect,'IN_PROCESS');
+      assert.equal(requests.at(-1).searchParams.get('role'),'ROLE_'+role);
+      assert.equal(requests.at(-1).searchParams.get('status'),'IN_PROCESS');
+      assert.equal(requests.at(-1).searchParams.has('vaultStatus'),false);
+      await act(async()=>view.host.querySelector('tbody button').click());
+      assert.equal(requests.at(-1).searchParams.get('role'),'ROLE_'+role);
+      const dialog=view.host.querySelector('[role=dialog]');
+      assert.match(dialog.textContent,lang==='vi'?/Đang xử lý/:/In process/);
+      await act(async()=>dialog.querySelector('button').click());
+      await change(roleSelect,'VAULT_OWNER');
+      assert.equal(statusSelect.value,'');
+      assert.equal(requests.at(-1).searchParams.has('status'),false);
+      assert.equal([...statusSelect.options].some(option=>option.value==='IN_PROCESS'),false);
+      assert.equal(view.host.querySelector('[role=alert]'),null);
+    } finally {await view.close();globalThis.fetch=previous;}
+  });
+}

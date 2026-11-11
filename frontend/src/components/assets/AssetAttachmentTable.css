@@ -1,0 +1,13 @@
+/* Shared table layout for asset photos (2 columns) and documents (3 columns). */
+.lv-asset-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; background: #ffffff; border: 1px solid var(--lv-border-subtle, #ded9ce); }
+.lv-asset-table th, .lv-asset-table td { padding: 10px 14px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--lv-border-subtle, #ece7dc); font-size: 14px; }
+.lv-asset-table th { background: #f5f3ee; color: var(--lv-text-ink, #243c32); font-weight: 600; }
+.lv-asset-table tbody tr:last-child td { border-bottom: 0; }
+.lv-asset-table td:first-child { overflow-wrap: anywhere; }
+.lv-asset-table th:last-child, .lv-asset-table td:last-child { text-align: right; white-space: nowrap; }
+.lv-asset-table th.lv-asset-table__size, .lv-asset-table td.lv-asset-table__size { text-align: left; white-space: nowrap; color: var(--lv-text-muted, #5f6b62); }
+.lv-asset-table td button { min-height: 40px; margin: 2px 0 2px 8px; }
+.lv-asset-table__preview td { text-align: center !important; --lv-zoom-height: min(60vh, 480px); }
+
+/* Upload picker nested in the same frame as the table: no second border. */
+.lv-asset-images .lv-asset-images, .lv-asset-documents .lv-asset-images { margin: 14px 0 0; padding: 14px 0 0; border: 0; border-top: 1px solid var(--lv-border-subtle, #ded9ce); border-radius: 0; background: transparent; }
