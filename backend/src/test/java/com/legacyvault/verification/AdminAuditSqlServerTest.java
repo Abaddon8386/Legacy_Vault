@@ -59,6 +59,34 @@ class AdminAuditSqlServerTest extends LegalBasisSqlServerSupport {
         assertNotNull(admin(()->service().detail(id)).traceId());
         assertTrue(admin(()->service().list(null,null,"LEGACY_EVENT",null,null,0,20)).content().stream().anyMatch(x->x.id().equals(id)));
     }
+    @Test void eventShowsActorRoleOwnerCaseAndStaffAndFiltersByVaultAndCase() {
+        var f=fixture(false);
+        String id=jdbc.queryForObject("""
+            INSERT dbo.audit_logs(actor_user_id,vault_id,actor_type,actor_roles,action,entity_type,occurred_at)
+            OUTPUT CONVERT(varchar(36),inserted.public_id)
+            VALUES(?,?,'USER',N'["ROLE_LEGAL_VERIFIER","ROLE_BENEFICIARY"]','LEGAL_BASIS_DECIDED','LEGAL_BASIS_DOSSIER',DATEADD(SECOND,5,SYSUTCDATETIME()))
+            """,String.class,f.userId(),f.vaultId());
+        UUID event=UUID.fromString(id);
+        int year=jdbc.queryForObject("SELECT YEAR(created_at) FROM dbo.verification_cases WHERE verification_case_id=?",Integer.class,f.caseId());
+        String number=String.format(Locale.ROOT,"HS-%04d-%06d",year,f.caseId());
+        var shown=admin(()->service().detail(event)).event();
+        assertEquals("LEGAL_VERIFIER",shown.actor().role());
+        assertEquals(f.legal().publicId(),shown.ownerId());   // the fixture user owns the vault and is the assigned Staff
+        assertEquals(f.legal().publicId(),shown.staffId());
+        assertEquals(f.publicCaseId(),shown.caseId());
+        assertEquals(number,shown.caseNumber());
+        var byCase=admin(()->service().list(null,null,null,null,null,null,number.toLowerCase(Locale.ROOT),0,20));
+        assertTrue(byCase.content().stream().allMatch(x->number.equals(x.caseNumber())));
+        assertTrue(byCase.content().stream().anyMatch(x->x.id().equals(event)));
+        var vault=shown.vaultId();
+        assertTrue(admin(()->service().list(null,null,null,null,null,vault,null,0,20)).content().stream().anyMatch(x->x.id().equals(event)));
+        assertTrue(admin(()->service().list(null,null,null,null,null,UUID.randomUUID(),null,0,20)).content().isEmpty());
+        assertThrows(BusinessException.class,()->admin(()->service().list(null,null,null,null,null,null,"HS-2026-12",0,20)));
+        // An event before any case, and a SYSTEM actor, carry no case and no role.
+        UUID early=event(null,"SYSTEM","VAULT_CREATED","2000-01-01T00:00:00");
+        var plain=admin(()->service().detail(early)).event();
+        assertNull(plain.caseNumber());assertNull(plain.actor().role());
+    }
     @Test void invalidFiltersAndUnknownPublicIdsFailClosed() {
         for(String bad:List.of("bad","2025-01-01","10000-01-01T00:00:00Z")) assertThrows(BusinessException.class,()->admin(()->service().list(bad,null,null,null,null,0,20)));
         assertThrows(BusinessException.class,()->admin(()->service().list("2025-01-02T00:00:00Z","2025-01-01T00:00:00Z",null,null,null,0,20)));

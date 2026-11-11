@@ -4,7 +4,7 @@ See [Admin permissions and policy boundaries](admin.md) (PS-107 PR #167). This A
 
 ## Implemented endpoints
 
-- GET `/api/v1/admin/audit-logs`: page (default 0), size (default 20, 1..100), optional from/to ISO-8601 instants, action, actorId (public user UUID), actorKind (USER/SYSTEM/DELETED_USER/UNKNOWN).
+- GET `/api/v1/admin/audit-logs`: page (default 0), size (default 20, 1..100), optional from/to ISO-8601 instants, action, actorId (public user UUID), actorKind (USER/SYSTEM/DELETED_USER/UNKNOWN), vaultId (public vault UUID), caseNumber (HS-yyyy-nnnnnn; 400 if malformed).
 - GET `/api/v1/admin/audit-logs/{id}`: public event UUID; returns event metadata and traceId (nullable).
 
 ROLE_ADMIN required at HTTP and service boundaries. DB-current roles/account status are checked by existing JWT auth. Cache-Control: no-store. Common page envelope content/page/size/totalElements/totalPages. Fixed occurredAt DESC then internal audit sequence DESC for deterministic ties; no client sort SQL. Internal tie-breaker is never returned. Offset pages are READ COMMITTED current observations: concurrent inserts can shift later pages; no historical snapshot promise. Count/list errors propagate, never synthetic zero.
@@ -21,7 +21,7 @@ Detail: `{"event":<same event object>,"traceId":"33333333-3333-4333-8333-3333333
 
 ## Response whitelist and redaction
 
-Only event UUID/time, actor kind/public user UUID, known action, allowlisted entity type/public vault UUID, and optional detail trace UUID leave the service. Raw details, state_before/state_after, actor_roles, IP, names, email, entity DB IDs, reason strings, paper/identity references, tokens/passwords and vault/file content are not selected or returned. Unknown action is LEGACY_EVENT and unknown entity type is OTHER; arbitrary stored labels/context cannot escape through a fallback. No raw-context expansion flag or export endpoint. New useful metadata must be explicitly reviewed and added to the contract whitelist, never passed through blindly.
+Only event UUID/time, actor kind/public user UUID/role code, known action, allowlisted entity type/public vault UUID, the vault owner's, the case's and the assigned Staff's public UUIDs, the case reference HS-yyyy-nnnnnn, and optional detail trace UUID leave the service. The role code (VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, BENEFICIARY, ADMIN) is derived from the stored roles; the raw roles are never returned. The case is the latest one opened for the event's vault at or before the event (null for events before any case); use the public UUIDs with the Admin user lookup to see names. Raw details, state_before/state_after, actor_roles, IP, names, email, entity DB IDs, reason strings, paper/identity references, tokens/passwords and vault/file content are not selected or returned. Unknown action is LEGACY_EVENT and unknown entity type is OTHER; arbitrary stored labels/context cannot escape through a fallback. No raw-context expansion flag or export endpoint. New useful metadata must be explicitly reviewed and added to the contract whitelist, never passed through blindly.
 
 No POST/PUT/PATCH/DELETE audit routes. Reads do not insert events or mutate business data; PS-13 SQL append-only triggers remain enabled. 400 invalid filters/UUID/size; 401 missing/invalid/locked/deleted account; 403 current role lacks ADMIN; 404 missing event UUID; 405 unsupported mutation methods. Shared error envelope/messages support VI/EN.
 

@@ -4134,6 +4134,8 @@ paths:
         - { name: action, in: query, description: AuditAction enum name or LEGACY_EVENT; unknown values rejected, schema: { type: string } }
         - { name: actorId, in: query, description: Public user UUID, schema: { type: string, format: uuid } }
         - { name: actorKind, in: query, schema: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] } }
+        - { name: vaultId, in: query, description: Public vault UUID, schema: { type: string, format: uuid } }
+        - { name: caseNumber, in: query, description: Case reference HS-yyyy-nnnnnn; matches events attributed to that case, schema: { type: string, pattern: '^HS-[0-9]{4}-[0-9]{6}$' } }
       responses:
         '200':
           description: Whitelisted metadata page; no-store
@@ -5936,6 +5938,7 @@ components:
       properties:
         kind: { type: string, enum: [USER, SYSTEM, DELETED_USER, UNKNOWN] }
         userId: { type: string, format: uuid, nullable: true, description: Public user UUID; never a DB key }
+        role: { type: string, nullable: true, enum: [VAULT_OWNER, STAFF_EXECUTOR, LEGAL_VERIFIER, BENEFICIARY, ADMIN], description: Role the actor held when the event was recorded; null for SYSTEM or an unknown role }
     AdminAuditEvent:
       type: object
       required: [id, occurredAt, actor, action, entityType, vaultId]
@@ -5946,6 +5949,10 @@ components:
         action: { type: string, description: Known AuditAction or LEGACY_EVENT }
         entityType: { type: string, description: Allowlisted label or OTHER }
         vaultId: { type: string, format: uuid, nullable: true, description: Public vault UUID }
+        ownerId: { type: string, format: uuid, nullable: true, description: Public user UUID of the vault owner }
+        caseId: { type: string, format: uuid, nullable: true, description: Public UUID of the case opened for this vault at or before the event; null before any case }
+        caseNumber: { type: string, nullable: true, description: 'Case reference HS-yyyy-nnnnnn' }
+        staffId: { type: string, format: uuid, nullable: true, description: Public user UUID of the Staff assigned to that case }
     AdminAuditPage:
       type: object
       required: [content, page, size, totalElements, totalPages]
