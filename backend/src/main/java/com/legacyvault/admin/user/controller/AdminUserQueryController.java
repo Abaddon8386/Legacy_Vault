@@ -31,14 +31,16 @@ public class AdminUserQueryController {
     public PageResponse<AdminUserResponse> listUsers(
             @RequestParam(required = false) @Size(max = 100) String query,
             @RequestParam(required = false) @Size(max = 50) String role,
-            @RequestParam(required = false) @Pattern(regexp = "(?i)PENDING|ACTIVE|DELETED") String status,
+            @RequestParam(required = false) @Pattern(regexp = "(?i)PENDING|ACTIVE|LOCKED|IN_PROCESS|DELETED") String status,
+            @RequestParam(required = false) @Pattern(regexp = "(?i)NO_VAULT|ACTIVE|IN_PROCESS|ARCHIVED") String vaultStatus,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return service.listUsers(query, role, status, page, size);
+        return service.listUsers(query, role, status, vaultStatus, page, size);
     }
 
     @GetMapping("/{publicId}")
-    public AdminUserResponse getUser(@PathVariable UUID publicId) {
-        return service.getUser(publicId);
+    public AdminUserResponse getUser(@PathVariable UUID publicId,
+            @RequestParam(required = false) @Size(max = 50) String role) {
+        return service.getUser(publicId, role);
     }
 }

@@ -11,7 +11,9 @@ PS-109 bổ sung hai thao tác chỉ đọc. Mọi route yêu cầu Bearer JWT v
 - `page` bắt đầu từ 0; `size` từ 1 đến 100; mặc định 0/20.
 - `query` tùy chọn, tìm chuỗi con không phân biệt hoa thường trong `fullName` hoặc `email`.
 - `role` tùy chọn, lọc theo `roleCode` (ví dụ `ROLE_ADMIN`). Một user có nhiều role vẫn xuất hiện một lần.
-- `status` tùy chọn: `PENDING`, `ACTIVE` hoặc `DELETED`. `DELETED` là trạng thái hiệu lực được suy ra từ `deleted_at`; trạng thái khác chỉ khớp user chưa soft-delete.
+- `status` tùy chọn: `PENDING`, `ACTIVE`, `LOCKED`, `IN_PROCESS` hoặc `DELETED`, lọc theo `accountStatus` hiển thị. `DELETED` được suy ra từ `deleted_at`; trạng thái khác chỉ khớp user chưa soft-delete.
+- `vaultStatus` tùy chọn: `NO_VAULT`, `ACTIVE`, `IN_PROCESS`, `ARCHIVED`; chỉ chấp nhận cùng `role=ROLE_VAULT_OWNER`, trường hợp khác trả `400 VALIDATION_FAILED`. Kết hợp độc lập với trạng thái tài khoản và lọc trong DB trước phân trang.
+- `IN_PROCESS` gồm `AWAITING_VERIFICATION`, `DOCUMENT_VERIFICATION`, `WILL_VERIFICATION`, `AWAITING_LEGAL_BASIS`, `LEGAL_BASIS_VERIFICATION`, `ON_HOLD`, `UNLOCKED`, `HANDOVER_IN_PROGRESS`.
 - Kết quả dùng envelope chung `content/page/size/totalElements/totalPages`, sắp xếp `createdAt` giảm dần.
 
 Ví dụ `200`:
@@ -24,7 +26,9 @@ Ví dụ `200`:
     "email": "alice@example.test",
     "roles": ["ROLE_BENEFICIARY"],
     "createdAt": "2026-10-20T11:30:00Z",
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "accountStatus": "ACTIVE",
+    "vaultStatus": null
   }],
   "page": 0,
   "size": 20,
@@ -35,9 +39,21 @@ Ví dụ `200`:
 
 ## Chi tiết
 
-`GET /api/v1/admin/users/{publicId}` trả cùng một đối tượng user trong `content` (không bao envelope phân trang). ID sai định dạng trả `400 MALFORMED_REQUEST`; ID hợp lệ nhưng không tồn tại trả `404 RESOURCE_NOT_FOUND`.
+`GET /api/v1/admin/users/{publicId}?role=ROLE_BENEFICIARY` (`role` tùy chọn) trả cùng một đối tượng user trong `content` (không bao envelope phân trang). Role truyền giống danh sách để tính trạng thái nhất quán cho tài khoản nhiều vai trò. ID sai định dạng trả `400 MALFORMED_REQUEST`; ID hợp lệ nhưng không tồn tại trả `404 RESOURCE_NOT_FOUND`.
 
-Các response chỉ chứa public ID, tên, email, role codes, thời điểm tạo UTC và trạng thái hiệu lực. Không trả khóa DB, password/hash, token, credential, dữ liệu vault hoặc `deletedAt`.
+Các response chỉ chứa public ID, tên, email, role codes, thời điểm tạo UTC, trạng thái xác thực gốc (`status`), trạng thái hiển thị (`accountStatus`), cùng `vaultStatus` cho Owner (`NO_VAULT` nếu chưa tạo kho, `null` với vai trò khác hoặc trạng thái chưa nhận diện). Frontend chỉ hiển thị cột và bộ lọc tình trạng kho khi lọc Chủ sở hữu kho; đổi vai trò sẽ xóa điều kiện lọc kho. Không trả khóa DB, password/hash, token, credential, nội dung kho hoặc `deletedAt`.
+
+## Trạng thái hiển thị theo vai trò
+
+Không ghi `IN_PROCESS` vào `users.status` hoặc thay đổi quyền đăng nhập. Tài khoản `LOCKED`, `PENDING` hoặc đã xóa giữ nguyên trạng thái. Chỉ tài khoản gốc `ACTIVE` mới có thể hiển thị `IN_PROCESS` nếu có ít nhất một kho liên quan ở một trong tám trạng thái xử lý nêu trên:
+
+- `BENEFICIARY`: bản ghi thụ hưởng `DESIGNATED` đã liên kết đúng `linked_user_id`; không suy ra từ email hoặc lời mời chưa được chấp nhận.
+- `STAFF_EXECUTOR`: được phân công trong verification case `OPEN` của kho.
+- `LEGAL_VERIFIER`: đã ghi nhận nghiệp vụ Legal trong case `OPEN` hiện tại, audit có `occurred_at >= created_at` của case. Chỉ xem tài liệu, đăng nhập hoặc audit của case cũ không được tính. `HANDOVER_GROUP_CHANGED` chỉ tính thao tác `APPROVE`/`REJECT`.
+
+Lọc một vai trò chỉ xét quan hệ của vai trò đó. Không lọc vai trò thì xét hợp ba vai trò trên; Owner/Admin không tự chuyển sang đang xử lý chỉ vì sở hữu kho hoặc có quyền quản trị. Có nhiều kho thì còn một kho liên quan đang xử lý vẫn là `IN_PROCESS`; không còn thì trở về `ACTIVE`. Cùng điều kiện được dùng cho bộ lọc trước phân trang và trạng thái hiển thị.
+
+Với ba vai trò trên, dropdown có `ACTIVE`, `LOCKED`, `IN_PROCESS`. Với Owner, dropdown trạng thái tài khoản chỉ có `ACTIVE`, `LOCKED`; tiến độ nằm riêng trong tình trạng kho. `PENDING`/`DELETED` vẫn được hiển thị đúng nếu dữ liệu cũ xuất hiện, có thể lọc riêng trong danh sách tất cả vai trò. Đổi vai trò sẽ xóa trạng thái lọc không được hỗ trợ bởi vai trò mới.
 
 `400` dùng ApiError chung cho tham số không hợp lệ; `401` cho request chưa xác thực; `403` cho người dùng đã xác thực nhưng không có `ROLE_ADMIN`. Ngôn ngữ message theo `Accept-Language` (VI mặc định, EN hỗ trợ).
 

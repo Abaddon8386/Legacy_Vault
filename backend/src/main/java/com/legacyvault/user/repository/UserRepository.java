@@ -15,6 +15,43 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    // One predicate keeps displayed status and filtering before pagination consistent.
+    String PROCESSING_RELATION = """
+            exists (select v.vaultId from Vault v where v.status in (
+                'AWAITING_VERIFICATION', 'DOCUMENT_VERIFICATION', 'WILL_VERIFICATION',
+                'AWAITING_LEGAL_BASIS', 'LEGAL_BASIS_VERIFICATION', 'ON_HOLD', 'UNLOCKED', 'HANDOVER_IN_PROGRESS')
+                and (
+                    ((:roleCode is null or :roleCode = 'ROLE_BENEFICIARY')
+                        and exists (select ur.id from UserRole ur join ur.role r
+                            where ur.user.userId = u.userId and r.roleCode = 'ROLE_BENEFICIARY')
+                        and exists (select b.id from Beneficiary b where b.vault.vaultId = v.vaultId
+                            and b.linkedUserId = u.userId and b.status = 'DESIGNATED'))
+                    or ((:roleCode is null or :roleCode = 'ROLE_STAFF_EXECUTOR')
+                        and exists (select ur.id from UserRole ur join ur.role r
+                            where ur.user.userId = u.userId and r.roleCode = 'ROLE_STAFF_EXECUTOR')
+                        and exists (select c.verificationCaseId from VerificationCase c
+                            where c.vaultId = v.vaultId and c.status = 'OPEN' and c.assignedStaffUserId = u.userId))
+                    or ((:roleCode is null or :roleCode = 'ROLE_LEGAL_VERIFIER')
+                        and exists (select ur.id from UserRole ur join ur.role r
+                            where ur.user.userId = u.userId and r.roleCode = 'ROLE_LEGAL_VERIFIER')
+                        and exists (select c.verificationCaseId from VerificationCase c where c.vaultId = v.vaultId
+                            and c.status = 'OPEN' and exists (select a.id from AuditLog a
+                                where a.vaultId = v.vaultId and a.actorUserId = u.userId and a.actorType = 'USER'
+                                and a.occurredAt >= c.createdAt and (a.action in (
+                                    'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED',
+                                    'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED',
+                                    'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED',
+                                    'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'DISTRIBUTION_DOCUMENTS_REQUESTED',
+                                    'DISTRIBUTION_DOCUMENTS_APPROVED', 'DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED',
+                                    'DISTRIBUTION_ALLOCATIONS_APPROVED', 'DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED')
+                                    or (a.action = 'HANDOVER_GROUP_CHANGED' and
+                                        (a.details like '%"operation":"APPROVE"%' or a.details like '%"operation":"REJECT"%'))))))
+                ))
+            """;
+
+    @Query("select u.userId from User u where u.userId in :userIds and u.status = 'ACTIVE' and u.deletedAt is null and " + PROCESSING_RELATION)
+    java.util.Set<Long> findProcessingUserIds(@Param("userIds") java.util.Collection<Long> userIds, @Param("roleCode") String roleCode);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.userId = :id and u.status = 'ACTIVE' and u.deletedAt is null")
     Optional<User> findActiveAccountForUpdate(@Param("id") Long id);
@@ -36,10 +73,26 @@ public interface UserRepository extends JpaRepository<User, Long> {
                    where ur.user.userId = u.userId and upper(r.roleCode) = :roleCode))
               and (:status is null
                    or (:status = 'DELETED' and u.deletedAt is not null)
-                   or (:status <> 'DELETED' and u.deletedAt is null and upper(u.status) = :status))
+                   or (:status not in ('ACTIVE', 'IN_PROCESS', 'DELETED') and u.deletedAt is null and upper(u.status) = :status)
+                   or (:status = 'IN_PROCESS' and u.deletedAt is null and u.status = 'ACTIVE' and
+            """ + PROCESSING_RELATION + """
+                   )
+                   or (:status = 'ACTIVE' and u.deletedAt is null and u.status = 'ACTIVE' and not
+            """ + PROCESSING_RELATION + """
+                   ))
+              and (:vaultStatus is null
+                   or (:vaultStatus = 'NO_VAULT' and not exists (
+                       select v.vaultId from Vault v where v.ownerUserId = u.userId))
+                   or exists (select v.vaultId from Vault v where v.ownerUserId = u.userId
+                       and (v.status = :vaultStatus
+                            or (:vaultStatus = 'IN_PROCESS' and v.status in (
+                                'AWAITING_VERIFICATION', 'DOCUMENT_VERIFICATION', 'WILL_VERIFICATION',
+                                'AWAITING_LEGAL_BASIS', 'LEGAL_BASIS_VERIFICATION', 'ON_HOLD',
+                                'UNLOCKED', 'HANDOVER_IN_PROGRESS')))))
             """)
     Page<User> searchForAdmin(@Param("query") String query,
                               @Param("roleCode") String roleCode,
                               @Param("status") String status,
+                              @Param("vaultStatus") String vaultStatus,
                               Pageable pageable);
 }
