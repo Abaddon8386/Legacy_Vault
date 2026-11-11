@@ -15,3 +15,13 @@
 .lv-duration-setting.is-locked p { grid-column: 1 / -1; }
 .lv-grace-feedback { margin-top: 4px; }
 @media (max-width: 600px) { .lv-duration-setting__actions { flex: 1 0 100%; order: 2; } .lv-duration-setting__actions > * { flex: 1; } }
+/* Presets read as one segmented control: a soft track with the chosen option raised on it. */
+.lv-duration-setting form > .lv-dms-presets-grid { flex: 0 1 auto; }
+.lv-duration-setting .lv-dms-presets-grid { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 12px; background: #eef1ea; }
+.lv-duration-setting .lv-dms-preset-pill { min-height: 44px; padding: 8px 18px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #526259; font-weight: 500; transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease; }
+.lv-duration-setting .lv-dms-preset-pill:hover:not(:disabled):not(.is-active) { background: rgba(255, 255, 255, .6); color: #264a38; border-color: transparent; }
+.lv-duration-setting .lv-dms-preset-pill.is-active { background: #fff; color: #1f3f31; font-weight: 700; border-color: transparent; box-shadow: 0 1px 3px rgba(31, 63, 49, .18), 0 0 0 1px rgba(31, 63, 49, .06); }
+.lv-duration-setting .lv-dms-preset-pill:focus-visible { outline: 2px solid #164639; outline-offset: 2px; }
+.lv-duration-setting__custom { padding-top: 4px; }
+@media (max-width: 560px) { .lv-duration-setting .lv-dms-presets-grid { display: flex; width: 100%; box-sizing: border-box; } .lv-duration-setting .lv-dms-preset-pill { flex: 1 1 28%; padding-inline: 8px; } }
+@media (prefers-reduced-motion: reduce) { .lv-duration-setting .lv-dms-preset-pill, .lv-duration-fields__field { transition: none; } }
