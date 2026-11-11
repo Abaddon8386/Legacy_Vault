@@ -1494,3 +1494,6 @@
 }
 
 
+
+/* Empty overview: one clear next action under the short instruction. */
+.lv-staff-documents-view .lv-dossier-empty-state .lv-btn-go-intake { margin-top: 14px; }

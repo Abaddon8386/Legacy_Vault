@@ -1052,8 +1052,11 @@ export default function StaffLegalDocumentsPage({
 
             {dossierNotFound && !['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED'].includes(distribution.data?.phase) && (
               <div className="lv-dossier-unconnected-box lv-dossier-empty-state" role="status">
-                <h3>{en ? 'Receive distribution documents' : 'Tiếp nhận giấy tờ phân chia tài sản'}</h3>
-                <p>{en ? 'Submit the documents requested by Legal. Allocations are prepared after Legal accepts the documents.' : 'Nộp giấy tờ Ban Pháp lý đã yêu cầu. Chỉ lập phân bổ sau khi Ban Pháp lý duyệt căn cứ.'}</p>
+                <h3>{en ? 'Next: submit the distribution documents' : 'Việc cần làm: nộp giấy tờ phân chia'}</h3>
+                <p>{en ? 'Enter the details and attach the file in “Receive document”, then send it to Legal.' : 'Nhập thông tin và đính kèm tệp ở tab “Tiếp nhận văn bản”, rồi chuyển Ban Pháp lý.'}</p>
+                {!['CLOSED', 'CANCELLED'].includes(displayCaseItem?.status) && <button type="button" className="lv-btn-go-intake" onClick={() => setActiveTab('intake')} disabled={isRouteOnHold}>
+                  <Plus size={16} aria-hidden="true" /><span>{en ? 'Receive document' : 'Tiếp nhận văn bản'}</span>
+                </button>}
               </div>
             )}
 
@@ -1189,7 +1192,7 @@ export default function StaffLegalDocumentsPage({
                   )}
                 </button>
               )}
-              {selectedCaseId && !isLatestForwarded && !['CLOSED','CANCELLED'].includes(displayCaseItem?.status) && (
+              {selectedCaseId && latestVersion && !isLatestForwarded && !['CLOSED','CANCELLED'].includes(displayCaseItem?.status) && (
                 <button
                   type="button"
                   className="lv-btn-forward-legal"
@@ -1210,7 +1213,7 @@ export default function StaffLegalDocumentsPage({
                 </button>
               )}
 
-              {!['CLOSED','CANCELLED'].includes(displayCaseItem?.status) && <button
+              {latestVersion && !['CLOSED','CANCELLED'].includes(displayCaseItem?.status) && <button
                 type="button"
                 className="lv-btn-go-intake"
                 onClick={() => setActiveTab('intake')}
@@ -1220,7 +1223,7 @@ export default function StaffLegalDocumentsPage({
                 <span>{t.btnGoToIntake}</span>
               </button>}
             </div>
-            <WorkflowActionHint id="forward-blocked-reason" reason={forwardBlocked} />
+            {latestVersion && <WorkflowActionHint id="forward-blocked-reason" reason={forwardBlocked} />}
           </section>
         </div>
       )}
