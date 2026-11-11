@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchVault } from '../../utils/vaultService.js';
+import VaultRequiredState from '../../components/common/VaultRequiredState.jsx';
 import LoadingState from '../../components/common/LoadingState.jsx';
 import ErrorState from '../../components/common/ErrorState.jsx';
 import { AssetManagementPage } from './AssetManagementPage.jsx';
@@ -18,7 +19,7 @@ export default function AssetsRoute({ accessToken, lang, onUnauthorized, onNavig
   }, [accessToken, lang, onUnauthorized, onRefreshTrigger]);
   if (state.loading) return <LoadingState lang={lang} />;
   if (state.error) return <ErrorState error={state.error} lang={lang} onRetry={onNavigateToVault} onNavigateToLogin={onUnauthorized} />;
-  if (!state.vault) return <section><p>{lang === 'en' ? 'Create your heritage vault before adding assets.' : 'Hãy tạo kho di sản trước khi thêm tài sản.'}</p><button onClick={onNavigateToVault}>{lang === 'en' ? 'Go to Vault' : 'Đến kho di sản'}</button></section>;
+  if (!state.vault) return <VaultRequiredState kind="assets" lang={lang} onNavigateToVault={onNavigateToVault} />;
   return <AssetManagementPage key={state.vault.id} vaultId={state.vault.id} readOnly={state.vault.status !== 'ACTIVE'} accessToken={accessToken} lang={lang}
     onNavigateToLogin={onUnauthorized} onRefreshTrigger={onRefreshTrigger} enforceQuota onNavigateToSubscription={onNavigateToSubscription} />;
 }
