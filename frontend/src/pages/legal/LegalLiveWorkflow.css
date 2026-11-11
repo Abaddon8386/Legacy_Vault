@@ -183,7 +183,7 @@
 .lv-legal-live .lv-legal-tab__count { flex: none; min-width: 24px; padding: 1px 8px; border-radius: 999px; background: #f3d98b; color: #4a3500; font-size: 14px; font-weight: 700; line-height: 1.5; text-align: center; }
 
 /* The case bar is the shared Staff component; give it the same deep-green look on Legal screens. */
-.lv-legal-context-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; min-width:0; }
+.lv-legal-context-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; min-width:0; margin-bottom:20px; }
 .lv-legal-surfaces .lv-legal-context-row > .lv-staff-context-bar { flex:1 1 360px; min-width:0; margin:0; }
 .lv-legal-surfaces .lv-staff-context-bar--active { min-height:72px; margin-bottom: 20px; padding: 12px 20px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__label { color: #d9c48f; }
