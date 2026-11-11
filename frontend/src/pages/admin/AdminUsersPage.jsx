@@ -4,6 +4,7 @@ import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import { formatAdminTimestamp } from './adminPresentation.js';
 import { fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
+import { ChangeRoleModal, CreateUserModal } from './AdminUserForms.jsx';
 import './AdminPages.css';
 
 export default function AdminUsersPage({
@@ -26,6 +27,24 @@ export default function AdminUsersPage({
   const [detailSelection, setDetailSelection] = useState(null);
   const detailUser = detailSelection?.data === data ? detailSelection.record : null;
   const setDetailUser = (record) => setDetailSelection(record ? { record, data } : null);
+  const [creating, setCreating] = useState(false);
+  const [roleTarget, setRoleTarget] = useState(null);
+  const [notice, setNotice] = useState('');
+
+  const handleCreated = () => {
+    setCreating(false);
+    setNotice(t.createdOk);
+    setQuery('');
+    setRoleFilter('');
+    setStatusFilter('');
+    setPage(1);
+    handleReload();
+  };
+  const handleRoleChanged = () => {
+    setRoleTarget(null);
+    setNotice(t.roleChangedOk);
+    handleReload();
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -56,12 +75,19 @@ export default function AdminUsersPage({
 
   return (
     <div className="lv-admin-container" aria-labelledby="admin-users-title">
-      <header className="lv-admin-header">
-        <h1 id="admin-users-title" className="lv-admin-header-title">
-          {t.usersTitle}
-        </h1>
-        <p className="lv-admin-header-subtitle">{t.usersSubtitle}</p>
+      <header className="lv-admin-header lv-admin-header--with-action">
+        <div>
+          <h1 id="admin-users-title" className="lv-admin-header-title">
+            {t.usersTitle}
+          </h1>
+          <p className="lv-admin-header-subtitle">{t.usersSubtitle}</p>
+        </div>
+        <button type="button" className="lv-admin-btn lv-admin-btn-primary" onClick={() => { setNotice(''); setCreating(true); }}>
+          {t.createUserBtn}
+        </button>
       </header>
+
+      {notice && <p className="lv-admin-form-notice" role="status">{notice}</p>}
 
       {/* Backend Integration Pending Notice */}
       {apiPending && (
@@ -248,6 +274,15 @@ export default function AdminUsersPage({
                     >
                       {t.viewDetails}
                     </button>
+                    {!user.roles.includes('ADMIN') && user.status === 'ACTIVE' && (
+                      <button
+                        type="button"
+                        className="lv-admin-btn lv-admin-btn-secondary"
+                        onClick={() => { setNotice(''); setRoleTarget(user); }}
+                      >
+                        {t.changeRoleBtn}
+                      </button>
+                    )}
                     </div>
                   </td>
                 </tr>
@@ -284,6 +319,11 @@ export default function AdminUsersPage({
           </div>
         </nav>
       )}
+
+      {creating && <CreateUserModal lang={lang} accessToken={accessToken} onClose={() => setCreating(false)}
+        onCreated={handleCreated} onUnauthorized={onUnauthorized} onDenied={deny} />}
+      {roleTarget && <ChangeRoleModal key={roleTarget.id} lang={lang} accessToken={accessToken} user={roleTarget}
+        onClose={() => setRoleTarget(null)} onChanged={handleRoleChanged} onUnauthorized={onUnauthorized} onDenied={deny} />}
 
       {detailUser && <UserDetail key={detailUser.id} id={detailUser.id} accessToken={accessToken} lang={lang}
         onClose={() => setDetailUser(null)} onUnauthorized={onUnauthorized} onDenied={deny} />}

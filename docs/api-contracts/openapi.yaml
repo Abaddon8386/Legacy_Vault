@@ -811,6 +811,60 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      summary: Admin tạo tài khoản Staff, Legal hoặc Vault Owner
+      description: |
+        Yêu cầu ROLE_ADMIN. Tài khoản được tạo ở trạng thái ACTIVE với đúng một role trong
+        ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER; không thể tạo ROLE_ADMIN hoặc ROLE_BENEFICIARY.
+        Email được chuẩn hóa như đăng ký thường. Mật khẩu ban đầu do Admin đặt, không bao giờ được trả lại.
+        Ghi audit ADMIN_USER_CREATED. Email trùng trả 409 EMAIL_ALREADY_EXISTS; role không hợp lệ trả 400 ADMIN_ROLE_NOT_ASSIGNABLE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCreateUserRequest' }
+      responses:
+        '201':
+          description: Tài khoản đã tạo; chỉ trả các trường allow-list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/role:
+    put:
+      tags: [Admin]
+      summary: Admin đổi vai trò Staff, Legal hoặc Vault Owner của tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Thay thế các role Staff/Legal/Vault Owner hiện có bằng đúng role được gửi; các role khác
+        (ví dụ ROLE_BENEFICIARY) được giữ nguyên. Có hiệu lực ngay vì role được đọc từ DB ở mỗi request.
+        Không đổi được role của tài khoản ROLE_ADMIN hoặc của chính mình (409 ADMIN_ACCOUNT_PROTECTED), và không đổi
+        khỏi Vault Owner khi tài khoản đã có kho (409 ADMIN_OWNER_HAS_VAULT). Gửi lại role hiện tại là no-op.
+        Ghi audit ADMIN_USER_ROLE_CHANGED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUpdateUserRoleRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi đổi role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/users/{publicId}:
     get:
       tags: [Admin]
@@ -4342,6 +4396,24 @@ components:
         roles: { type: array, items: { type: string } }
         createdAt: { type: string, format: date-time, description: UTC }
         status: { type: string, enum: [PENDING, ACTIVE, DELETED] }
+    AdminCreateUserRequest:
+      type: object
+      required: [fullName, email, password, role]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, pattern: '^$|^\+?[0-9]{8,15}$' }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+        role:
+          type: string
+          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
+    AdminUpdateUserRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
     AdminUserPage:
       type: object
       required: [content, page, size, totalElements, totalPages]
@@ -4804,6 +4876,9 @@ components:
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
             - EMAIL_ALREADY_EXISTS
+            - ADMIN_ROLE_NOT_ASSIGNABLE
+            - ADMIN_ACCOUNT_PROTECTED
+            - ADMIN_OWNER_HAS_VAULT
             - PAYLOAD_TOO_LARGE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR

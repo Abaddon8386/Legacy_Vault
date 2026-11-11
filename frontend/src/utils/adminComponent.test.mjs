@@ -361,9 +361,15 @@ for (const lang of ['vi', 'en']) test(`AdminUsersPage hides lock and unlock cont
     const view = await mount(AdminUsersPage, { lang, accessToken: 'test-token', fetchOnMount: true });
     try {
       assert.equal(view.host.querySelector('#admin-lock-policy-notice'), null);
-      const details = [...view.host.querySelectorAll('tbody button')];
+      const rowButtons = [...view.host.querySelectorAll('tbody button')];
+      const viewLabel = lang === 'en' ? 'View details' : 'Xem chi tiết';
+      const roleLabel = lang === 'en' ? 'Change role' : 'Đổi vai trò';
+      // Row actions are read-only details plus the Admin role change; there is never a lock/unlock control.
+      assert.ok(rowButtons.every(button => [viewLabel, roleLabel].includes(button.textContent.trim())));
+      const details = rowButtons.filter(button => button.textContent.trim() === viewLabel);
       assert.equal(details.length, 2);
-      assert.ok(details.every(button => button.textContent.trim() === (lang === 'en' ? 'View details' : 'Xem chi tiết')));
+      // Only the ACTIVE account can change role; the LOCKED one is not offered it.
+      assert.equal(rowButtons.length - details.length, 1);
       assert.ok(details.every(button => !button.disabled), 'Read-only details remain available');
       assert.equal(view.host.querySelector('.lv-admin-status-locked')?.textContent.trim(), lang === 'en' ? 'Locked' : 'Đã khóa');
       assert.equal(requests, 1);

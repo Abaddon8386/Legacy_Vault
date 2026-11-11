@@ -1,8 +1,8 @@
-# Admin — tra cứu tài khoản (PS-109)
+# Admin — quản lý tài khoản (PS-109 tra cứu; tạo tài khoản và đổi vai trò)
 
 ## Trạng thái
 
-PS-109 bổ sung hai thao tác chỉ đọc. Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Không có API ghi trạng thái tài khoản trong contract này.
+PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn có thể tạo tài khoản và đổi vai trò Staff/Legal/Vault Owner (mục cuối). Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Không có API khóa/mở khóa trạng thái tài khoản trong contract này.
 
 ## Danh sách
 
@@ -40,6 +40,32 @@ Ví dụ `200`:
 Các response chỉ chứa public ID, tên, email, role codes, thời điểm tạo UTC và trạng thái hiệu lực. Không trả khóa DB, password/hash, token, credential, dữ liệu vault hoặc `deletedAt`.
 
 `400` dùng ApiError chung cho tham số không hợp lệ; `401` cho request chưa xác thực; `403` cho người dùng đã xác thực nhưng không có `ROLE_ADMIN`. Ngôn ngữ message theo `Accept-Language` (VI mặc định, EN hỗ trợ).
+
+## Tạo tài khoản
+
+`POST /api/v1/admin/users` → `201` + đối tượng user (cùng shape với chi tiết).
+
+```json
+{ "fullName": "Nguyen Staff", "email": "staff@example.test", "phone": "", "password": "…", "role": "ROLE_STAFF_EXECUTOR" }
+```
+
+- `role` chỉ nhận `ROLE_STAFF_EXECUTOR`, `ROLE_LEGAL_VERIFIER`, `ROLE_VAULT_OWNER` (tiền tố `ROLE_` tùy chọn). `ROLE_ADMIN`, `ROLE_BENEFICIARY` hoặc giá trị lạ trả `400 ADMIN_ROLE_NOT_ASSIGNABLE`.
+- Email chuẩn hóa như đăng ký thường (trim + lower-case); trùng trả `409 EMAIL_ALREADY_EXISTS`.
+- Mật khẩu ban đầu 8–72 ký tự theo chính sách chung; Admin chuyển cho người dùng qua kênh an toàn. Mật khẩu chỉ được băm và lưu, không bao giờ xuất hiện trong response, audit hoặc log.
+- Tài khoản ở trạng thái `ACTIVE`; `emailVerifiedAt` để trống (chưa xác minh email).
+- Audit `ADMIN_USER_CREATED` (actor = Admin, entity `USER` = tài khoản mới).
+
+## Đổi vai trò
+
+`PUT /api/v1/admin/users/{publicId}/role` với `{ "role": "ROLE_LEGAL_VERIFIER" }` → `200` + user sau khi đổi.
+
+- Thay thế mọi role Staff/Legal/Vault Owner hiện có bằng role được gửi; role khác (ví dụ `ROLE_BENEFICIARY`) giữ nguyên. Gửi lại đúng role hiện tại là no-op, không ghi audit.
+- Có hiệu lực ngay (role đọc từ DB ở mỗi request); không cần đăng nhập lại.
+- `409 ADMIN_ACCOUNT_PROTECTED`: tài khoản đích là Admin hoặc chính người gọi.
+- `409 ADMIN_OWNER_HAS_VAULT`: đang là Vault Owner và đã có kho, không được đổi sang role khác.
+- `404 RESOURCE_NOT_FOUND`: không tồn tại, đã xóa mềm hoặc không `ACTIVE`.
+- Audit `ADMIN_USER_ROLE_CHANGED` với role trước/sau.
+- Chưa xử lý: Staff/Legal đang giữ hồ sơ (claimed case) khi bị đổi role — case giữ nguyên người được gán.
 
 ## Khóa/mở khóa — đang chờ policy
 
