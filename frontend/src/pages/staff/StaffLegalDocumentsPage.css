@@ -1503,3 +1503,9 @@
 }
 
 
+
+/* Empty overview: one clear next action under the short instruction. */
+.lv-staff-documents-view .lv-dossier-empty-state .lv-btn-go-intake { margin-top: 14px; }
+
+/* Example text in the intake form must not read as an entered value. */
+.lv-staff-documents-view .lv-intake-form input::placeholder { color: #9aa6a0; font-style: italic; }

@@ -182,3 +182,12 @@
 .lv-legal-live .lv-legal-tab:focus-visible { outline: 2px solid var(--lv-action-focus, #164639); outline-offset: 2px; }
 .lv-legal-live .lv-legal-tab.is-active, .lv-legal-live .lv-legal-tab[aria-selected="true"] { border-bottom: 2px solid var(--lv-action-primary, #164639); color: var(--lv-action-primary, #164639); font-weight: 600; }
 .lv-legal-live .lv-legal-tab__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #d9a21b; }
+
+/* The case bar is the shared Staff component; give it the same deep-green look on Legal screens. */
+.lv-legal-surfaces .lv-staff-context-bar--active { margin-bottom: 20px; padding: 18px 24px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__label { color: #d9c48f; }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__code { color: #fff; font-size: 24px; }
+.lv-legal-surfaces .lv-staff-context-bar--active :is(.lv-staff-context-badge, .lv-staff-context-session) { background: rgba(255,255,255,.14); color: #d6f0e2; }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:hover { background: rgba(255,255,255,.12); }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:focus-visible { outline: 2px solid #d9c48f; outline-offset: 2px; }
