@@ -1,7 +1,8 @@
 import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
-import { legalDate, legalReadOnly, legalStageStatus, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
+import { FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
+import { legalDate, legalReadOnly, legalStageStatus, legalStatus, legalStepBlocker } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { LegalRecordDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
@@ -20,7 +21,6 @@ import { legalGuidance } from '../../utils/workflowGuidance.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 
 const paths = Object.fromEntries(LEGAL_NAVIGATION_REGISTRY.map(item => [item.id, item.path]));
-const statusIcons = { neutral: Archive, warning: Clock3, success: CircleCheck, info: Info, error: CircleAlert };
 const choices = {
   APPROVE: ['Chấp thuận', 'Approve'], REJECT: ['Từ chối', 'Reject'], REQUEST_MORE: ['Yêu cầu bổ sung', 'Request more information'],
   MATCH: ['Khớp', 'Match'], MISMATCH: ['Không khớp', 'Mismatch'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
@@ -52,6 +52,9 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
   // Controlled unlock page: reopening requests and the unlock itself are two tabs instead of one long page.
   const [unlockTab, setUnlockTab] = useState(null);
   const [reopenWaiting, setReopenWaiting] = useState(null);
+  // The case picker stays hidden once a case is open; "Đổi hồ sơ" on the case bar reveals it (same as Staff).
+  const [changingCaseId, setChangingCaseId] = useState(null);
+  const changingCase = Boolean(caseId) && changingCaseId === caseId;
   const auth = useRef(onUnauthorized);
   const locale = useRef(lang);
   useEffect(() => { locale.current = lang; }, [lang]);
@@ -95,7 +98,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
     <header className="lv-legal-live__header"><div>
       <h1>{legalStepTitle(step, lang)}</h1>
     </div></header>
-    <section className="lv-legal-live__queue lv-surface-card" aria-label={en ? 'Verification cases' : 'Hồ sơ xác minh'}>
+    {(!selected || changingCase) && <section className="lv-legal-live__queue lv-surface-card" aria-label={en ? 'Verification cases' : 'Hồ sơ xác minh'}>
       {typeof discovery !== 'function' && <p role="status">{en ? 'The case list is not available yet. Actions will be available after an authorized case can be selected.' : 'Danh sách hồ sơ hiện chưa khả dụng. Bạn có thể thao tác sau khi chọn được hồ sơ thuộc quyền xử lý.'}</p>}
       {busy && <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p>}
       {error && <p role="alert">{knownErrors[error.status]?.[en ? 1 : 0] || (en ? 'Unable to load cases.' : 'Không thể tải danh sách hồ sơ.')}</p>}
@@ -111,12 +114,12 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
         <button type="button" disabled={busy || page + 1 >= currentResult.totalPages} onClick={() => { setPage(value => value + 1); go(step, ''); }}>{en ? 'Next' : 'Sau'}</button>
       </div>}
       {error && <button type="button" disabled={busy} onClick={() => setAttempt(value => value + 1)}>{en ? 'Retry' : 'Thử lại'}</button>}
-    </section>
+    </section>}
     {(() => {
       const caseContent = <>
         {selected && <>
           <LegalContextStep key={`${session.accessToken}:${selected.caseId}:${step}`} session={session} selected={selected} step={step}
-            lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized}
+            lang={lang} contextLoader={contextLoader} onUnauthorized={onUnauthorized} onChangeCase={() => setChangingCaseId(value => value === caseId ? null : caseId)}
             onDenied={error => setDiscoveryResult({ session, discovery, attempt, page, error, queue: null })} />
         </>}
         {!selected && queue?.length > 0 && !busy && !error && <div className="lv-legal-live__empty"><FileCheck2 size={36} aria-hidden="true" /><h2>{en ? 'Select a case to begin' : 'Chọn hồ sơ để bắt đầu'}</h2><p>{en ? 'Choose a case above to view documents and available actions.' : 'Chọn hồ sơ ở trên để xem giấy tờ và các thao tác được phép thực hiện.'}</p></div>}
@@ -152,7 +155,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
   </section>;
 }
 
-function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied }) {
+function LegalContextStep({ session, selected, step, lang, contextLoader, onUnauthorized, onDenied, onChangeCase }) {
   const [result, setResult] = useState(null);
   const [guidanceStale, setGuidanceStale] = useState(false);
 
@@ -223,8 +226,6 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   const context = current.data;
   const readOnly = legalReadOnly(context);
   const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : legalStageStatus(context.vaultStatus, distribution.data?.prerequisites);
-  const statusTone = legalStatusTone(caseStatus);
-  const StatusIcon = statusIcons[statusTone];
   return <>
     {confirmation}
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
@@ -234,14 +235,8 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
       <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
     </button></div>
-    <div className="lv-legal-case-banner lv-surface-card">
-      <div className="lv-legal-case-banner__icon"><FolderOpen size={28} aria-hidden="true" /></div>
-      <div className="lv-legal-case-banner__content"><span>{en ? 'Selected case' : 'Hồ sơ đang xem'}</span>
-        <strong>{context.caseNumber || selected.label}</strong>
-        {caseStatus && <span className={`lv-legal-case-status is-${statusTone}`}><StatusIcon size={16} aria-hidden="true" />{legalStatus(caseStatus, en)}</span>}
-      </div>
-      {readOnly && <span className="lv-legal-case-banner__readonly"><Archive size={18} aria-hidden="true" />{en ? 'Read only' : 'Chỉ đọc'}</span>}
-    </div>
+    <StaffCaseContextBar caseId={selected.caseId} caseItem={{ caseNumber: context.caseNumber || selected.label, status: caseStatus }}
+      statusLabel={caseStatus ? legalStatus(caseStatus, en) : ''} onChangeCase={onChangeCase} lang={lang} />
     {step === 'basis-route-selection'
       ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
           holdDraft={holdDraft} onHoldDraftChange={setHoldDraft} onPendingChange={onPendingChange}
