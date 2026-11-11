@@ -51,7 +51,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-notice-banner__icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -162,7 +162,7 @@
 }
 
 .lv-asset-handover-view .lv-handover-scope-empty__icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
 }
 
 .lv-asset-handover-view .lv-handover-scope-empty h3 {
@@ -330,7 +330,7 @@
 }
 
 .lv-asset-handover-view .lv-api-status-banner__icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
 }
 
@@ -621,7 +621,7 @@
 }
 
 .lv-asset-handover-view .lv-review-warning-icon {
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
   margin-top: 2px;
 }
