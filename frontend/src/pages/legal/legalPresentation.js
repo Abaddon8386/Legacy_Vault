@@ -2,14 +2,18 @@ const labels = {
   ACTIVE: ['Đang hoạt động', 'Active'], HANDOVER_IN_PROGRESS: ['Đang bàn giao tài sản', 'Asset handover in progress'],
   OPEN: ['Đang xử lý', 'In progress'], CLOSED: ['Đã đóng', 'Closed'], CANCELLED: ['Đã hủy xác minh', 'Verification cancelled'], ARCHIVED: ['Đã lưu trữ', 'Archived'],
   AWAITING_VERIFICATION: ['Chờ xác minh giấy tờ', 'Awaiting verification'], DOCUMENT_VERIFICATION: ['Đang kiểm tra giấy tờ', 'Document verification'],
-  WILL_VERIFICATION: ['Đang đối chiếu di chúc', 'Will comparison'], AWAITING_LEGAL_BASIS: ['Chờ hồ sơ pháp lý', 'Awaiting legal documents'],
+  WILL_VERIFICATION: ['Đang đối chiếu di chúc', 'Will comparison'], AWAITING_WILL_COMPARISON: ['Chờ đối chiếu di chúc', 'Awaiting will comparison'], AWAITING_LEGAL_BASIS: ['Chờ hồ sơ pháp lý', 'Awaiting legal documents'],
   LEGAL_BASIS_VERIFICATION: ['Đang thẩm định pháp lý', 'Legal review'], UNLOCKED: ['Đã mở khóa', 'Unlocked'],
   COMPLETED: ['Đã hoàn tất', 'Completed'], ON_HOLD: ['Tạm dừng xử lý', 'On hold'],
   VALID: ['Hợp lệ', 'Valid'], INVALID: ['Không hợp lệ', 'Invalid'], INCONCLUSIVE: ['Chưa đủ cơ sở', 'Inconclusive'],
 };
+// The vault stays in DOCUMENT_VERIFICATION until the first will match, even after Legal accepted the death documents.
+// Once they are accepted, show the real next step instead of "checking documents".
+export const legalStageStatus = (status, prerequisites) => status === 'DOCUMENT_VERIFICATION' && prerequisites?.deathApproved === true && prerequisites?.willMatched !== true
+  ? 'AWAITING_WILL_COMPARISON' : status;
 export const legalStatus = (value, en = false) => labels[value]?.[en ? 1 : 0] || (en ? 'Not yet determined' : 'Chưa xác định');
 export function legalStatusTone(value) {
-  if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS', 'INCONCLUSIVE'].includes(value)) return 'warning';
+  if (['ON_HOLD', 'AWAITING_VERIFICATION', 'AWAITING_LEGAL_BASIS', 'AWAITING_WILL_COMPARISON', 'INCONCLUSIVE'].includes(value)) return 'warning';
   if (['CLOSED', 'ARCHIVED'].includes(value)) return 'neutral';
   if (['COMPLETED', 'UNLOCKED', 'VALID'].includes(value)) return 'success';
   if (['CANCELLED', 'INVALID'].includes(value)) return 'error';

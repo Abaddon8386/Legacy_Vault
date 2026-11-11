@@ -1,7 +1,7 @@
 import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CircleAlert, CircleCheck, Clock3, FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
-import { legalDate, legalReadOnly, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
+import { legalDate, legalReadOnly, legalStageStatus, legalStatus, legalStatusTone, legalStepBlocker } from './legalPresentation.js';
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { LegalRecordDetails } from './LegalRecordDetails.jsx';
 import { isUuid } from '../../api/contracts.js';
@@ -188,7 +188,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   const current = result?.attempt === attempt && result.session === session && result.contextLoader === contextLoader ? result : null;
   const distribution = useDistributionWorkflow({ caseId: selected.caseId, workspace: 'LEGAL', accessToken: session.accessToken, lang,
     enabled: !!current?.data && current.data.basisDossier?.route !== 'ON_HOLD' && current.data.vaultStatus !== 'ON_HOLD'
-      && ['basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
+      && ['death-verification', 'will-document-verification', 'basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
     isMutationPending: () => mutation.current, onExternalChange:()=>setAttempt(value=>value+1) });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
   const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
@@ -222,7 +222,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   if (guidanceStale) guideModel.message = en ? 'Reload the record to check the next step.' : 'Tải lại hồ sơ để kiểm tra bước tiếp theo.';
   const context = current.data;
   const readOnly = legalReadOnly(context);
-  const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : context.vaultStatus;
+  const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : legalStageStatus(context.vaultStatus, distribution.data?.prerequisites);
   const statusTone = legalStatusTone(caseStatus);
   const StatusIcon = statusIcons[statusTone];
   return <>

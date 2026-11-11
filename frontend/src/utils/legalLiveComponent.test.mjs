@@ -154,6 +154,8 @@ test('Saving automatically refreshes parent context and document while preservin
         vaultStatus: 'DOCUMENT_VERIFICATION', ...decision });
     }
     if (url.endsWith('/attachments')) return json([]);
+    // The stage chip also reads the distribution workflow; it is not a document read.
+    if (url.includes('/distribution-workflow')) return new Response(JSON.stringify({ code: 'RESOURCE_NOT_FOUND' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     documentReads++;
     return json(detail(a, saved ? { vaultStatus: 'DOCUMENT_VERIFICATION', decisions: [decision] } : {}));
   };
