@@ -1,6 +1,7 @@
 import {staffWorkflowNotificationFeedback as workflowNotificationFeedback} from '../../utils/staffWorkflowNotification.js';
 import DistributionWorkflowOverview from '../../workflows/DistributionWorkflowOverview.jsx';
 import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
+import { staffStage } from '../../utils/staffStage.js';
 import { canUseDistributionAction, loadDistributionWorkflow, preflightDistributionAction } from '../../workflows/distributionWorkflowService.js';
 import StaffDistributionAllocations from './StaffDistributionAllocations.jsx';
 import { distributionTabStatus } from '../../utils/distributionTabStatus.js';
@@ -858,6 +859,7 @@ export default function StaffLegalDocumentsPage({
         caseItem={displayCaseItem}
         onOpenSelector={() => setIsSelectorOpen(true)}
         onChangeCase={() => setIsSelectorOpen(true)}
+        stage={staffStage(distribution.data, en)}
         outcomeChip={latestVersion ? versionOutcomeChip(latestVersion, en) : null}
         lang={lang}
       />
