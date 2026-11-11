@@ -1062,7 +1062,7 @@ export default function StaffLegalDocumentsPage({
               </div>
             )}
 
-            {dossierNotFound && (
+            {dossierNotFound && !['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED'].includes(distribution.data?.phase) && (
               <div className="lv-dossier-unconnected-box lv-dossier-empty-state" role="status">
                 <h3>{en ? 'Receive distribution documents' : 'Tiếp nhận giấy tờ phân chia tài sản'}</h3>
                 <p>{en ? 'Submit the documents requested by Legal. Allocations are prepared after Legal accepts the documents.' : 'Nộp giấy tờ Ban Pháp lý đã yêu cầu. Chỉ lập phân bổ sau khi Ban Pháp lý duyệt căn cứ.'}</p>
