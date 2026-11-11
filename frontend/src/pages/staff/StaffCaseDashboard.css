@@ -63,7 +63,7 @@
 .lv-staff-preview-banner__icon-wrap {
   flex-shrink: 0;
   margin-top: 2px;
-  color: #c5a059;
+  color: #8c6820;
 }
 
 .lv-staff-preview-banner__text {
@@ -232,7 +232,7 @@
   height: 60px;
   border-radius: 50%;
   background-color: #faf8f5;
-  color: var(--lv-accent-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   display: flex;
   align-items: center;
   justify-content: center;

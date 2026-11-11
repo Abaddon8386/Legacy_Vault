@@ -41,26 +41,6 @@
   line-height: 1.5;
 }
 
-.lv-account-profile-view .lv-profile-refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #ffffff;
-  color: var(--lv-color-primary, #164639);
-  border: 1px solid var(--lv-color-border, #e6ded1);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.lv-account-profile-view .lv-profile-refresh-btn:hover:not(:disabled) {
-  background: #faf8f5;
-  border-color: #c5a059;
-}
-
 .lv-account-profile-view .lv-profile-header-actions {
   display: flex;
   align-items: center;
@@ -73,10 +53,36 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--lv-color-primary, #164639);
+  background: var(--lv-action-primary, #164639);
   color: #ffffff;
-  border: 1px solid var(--lv-color-primary, #164639);
-  padding: 8px 16px;
+  border: 1px solid var(--lv-action-primary, #164639);
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(22, 70, 57, 0.15);
+  transition: all 0.15s ease;
+}
+
+.lv-account-profile-view .lv-profile-edit-btn:hover {
+  background: var(--lv-action-primary-hover, #0c2b22);
+  border-color: var(--lv-action-primary-hover, #0c2b22);
+}
+
+.lv-account-profile-view .lv-profile-edit-btn:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+  outline-offset: 2px;
+}
+
+.lv-account-profile-view .lv-profile-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--lv-control-text, #47564b);
+  border: 1px solid var(--lv-border-medium, #ded9ce);
+  padding: 8px 14px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
@@ -84,14 +90,21 @@
   transition: all 0.15s ease;
 }
 
-.lv-account-profile-view .lv-profile-edit-btn:hover {
-  background: #11382d;
-  border-color: #11382d;
+.lv-account-profile-view .lv-profile-refresh-btn:hover:not(:disabled) {
+  background: rgba(22, 70, 57, 0.05);
+  border-color: var(--lv-brand-forest, #164639);
+  color: var(--lv-brand-forest, #164639);
+}
+
+.lv-account-profile-view .lv-profile-refresh-btn:focus-visible {
+  outline: 2px solid var(--lv-accent-gold, #c5a059);
+  outline-offset: 2px;
 }
 
 .lv-account-profile-view .lv-profile-refresh-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  border-color: #e4ded4;
 }
 
 /* Cards */
@@ -194,7 +207,7 @@
 }
 
 .lv-account-profile-view .lv-profile-role-chip__icon {
-  color: #c5a059;
+  color: #8c6820;
 }
 
 .lv-account-profile-view .lv-profile-role-chip--empty {
@@ -377,7 +390,7 @@
 }
 
 .lv-account-profile-view .lv-profile-google-limitation__icon {
-  color: var(--lv-color-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
   margin-top: 2px;
 }

@@ -12,6 +12,8 @@ import { ApiError, request } from '../api/http.js';
 import { isUuid } from '../api/contracts.js';
 
 const AUDIT_ACTIONS = new Set(['BENEFICIARY_INVITATION_EMAIL_QUEUED', 'AUTH_RECOVERY_ISSUED', 'AUTH_PASSWORD_RESET', 'AUTH_EMAIL_VERIFICATION_ISSUED', 'AUTH_EMAIL_VERIFIED', 'AUTH_EMAIL_CHANGED', 'AUTH_PASSWORD_CHANGED', 'ASSET_DOCUMENT_ADDED', 'ASSET_DOCUMENT_OPENED', 'ASSET_DOCUMENT_REMOVED', 'RECEIVED_ASSET_OPENED', 'RECEIVED_ASSET_IMAGE_OPENED', 'BENEFICIARY_COUNTER_ATTESTED', 'DISTRIBUTION_DOCUMENTS_REQUESTED', 'DISTRIBUTION_DOCUMENTS_APPROVED', 'DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED', 'DISTRIBUTION_ALLOCATIONS_SUBMITTED', 'DISTRIBUTION_ALLOCATIONS_APPROVED', 'DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED', 'BENEFICIARY_ACCOUNT_CREATED_UNLINKED', 'BENEFICIARY_LINK_REQUESTED', 'BENEFICIARY_LINK_REQUEST_CANCELLED', 'BENEFICIARY_LINK_REQUEST_APPROVED', 'BENEFICIARY_LINK_REQUEST_REJECTED', 'BENEFICIARY_GUARDIAN_RECORDED', 'HANDOVER_GROUP_CHANGED', 'BENEFICIARY_GUARDIAN_REVOKED', 'AUTH_PROFILE_UPDATED', 'INTAKE_ATTACHMENT_UPLOADED', 'EVIDENCE_FILE_READ', 'BENEFICIARY_INVITATION_ISSUED', 'BENEFICIARY_INVITATION_REISSUED', 'BENEFICIARY_INVITATION_REVOKED', 'BENEFICIARY_INVITATION_CONSUMED', 'AUTH_GOOGLE_IDENTITY_LINKED', 'AUTH_PASSWORD_SET', 'SUBSCRIPTION_PAYMENT_CREATED', 'SUBSCRIPTION_PAYMENT_SUCCEEDED', 'SUBSCRIPTION_PAYMENT_FAILED', 'VAULT_HANDOVER_ARCHIVED', 'BENEFICIARY_HANDOVER_CONFIRMED', 'AUTH_REGISTERED', 'AUTH_LOGIN_SUCCEEDED', 'AUTH_LOGIN_FAILED', 'SUBSCRIPTION_UPGRADED', 'SUBSCRIPTION_PLAN_DRAFT_CREATED', 'SUBSCRIPTION_PLAN_DRAFT_UPDATED', 'SUBSCRIPTION_PLAN_PUBLISHED', 'SUBSCRIPTION_PLAN_DEPRECATED', 'VAULT_CREATED', 'VAULT_ALERT_CANCELLED', 'ASSET_IMAGE_ADDED', 'ASSET_IMAGE_OPENED', 'ASSET_IMAGE_REMOVED', 'ASSET_CREATED', 'ASSET_UPDATED', 'ASSET_REVEALED', 'WILL_UPLOADED', 'WILL_VERSION_ADDED', 'WILL_FILE_OPENED', 'REAUTH_FAILED', 'TRUSTEE_APPOINTED', 'TRUSTEE_UPDATED', 'TRUSTEE_REVOKED', 'TRUSTEE_CONTACT_RECORDED', 'BENEFICIARY_ADDED', 'BENEFICIARY_UPDATED', 'BENEFICIARY_IDENTITY_VERIFIED', 'DMS_CONFIGURED', 'DMS_CHECKED_IN', 'DMS_TRIGGERED', 'DMS_GRACE_PERIOD_EXCEEDED', 'VERIFICATION_CASE_CREATED', 'VERIFICATION_CASE_CLAIMED', 'DEATH_DOCUMENT_RECORDED', 'ORIGINAL_WILL_RECEIVED', 'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED', 'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECEIVED', 'LEGAL_BASIS_FORWARDED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED', 'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED', 'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'HANDOVER_SESSION_OPENED', 'HANDOVER_SESSION_COMPLETED', 'HANDOVER_SESSION_CANCELLED', 'HANDOVER_RECEIPT_STAFF_CONFIRMED', 'HANDOVER_ASSET_DELIVERED', 'BENEFICIARY_ACCOUNT_LINKED', 'BENEFICIARY_ACCOUNT_CREATED', 'LEGACY_EVENT']);
+const AUDIT_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'BENEFICIARY', 'ADMIN'];
+const CASE_NUMBER = /^HS-[0-9]{4}-[0-9]{6}$/;
 const AUDIT_ENTITIES = new Set(['USER', 'VAULT', 'ASSET', 'ASSET_VERSION', 'ASSET_IMAGE', 'WILL', 'TRUSTEE', 'BENEFICIARY', 'DMS_CONFIG', 'VERIFICATION_CASE', 'DEATH_DOCUMENT_RECORD', 'LEGAL_VERIFICATION', 'WILL_COMPARISON', 'ORIGINAL_WILL_INTAKE', 'LEGAL_BASIS_DOSSIER', 'LEGAL_BASIS_VERSION', 'COURT_DECISION', 'HANDOVER_SESSION', 'HANDOVER_ITEM', 'HANDOVER_RECEIPT', 'BENEFICIARY_INVITATION', 'SUBSCRIPTION', 'SUBSCRIPTION_PLAN', 'SUBSCRIPTION_PAYMENT', 'OTHER']);
 
 const VALID_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
@@ -130,9 +132,14 @@ export function validateAdminAuditLog(raw) {
       !AUDIT_ACTIONS.has(raw.action) ||
       !AUDIT_ENTITIES.has(raw.entityType) ||
       (raw.vaultId !== null && !isUuid(raw.vaultId))) throw new ApiError('INVALID_AUDIT_RECORD', 500);
+  // Context fields are optional so an older backend that does not send them still validates.
+  const role = raw.actor.role ?? null, ownerId = raw.ownerId ?? null, caseId = raw.caseId ?? null,
+    caseNumber = raw.caseNumber ?? null, staffId = raw.staffId ?? null, name = raw.actor.name ?? null;
+  if ((role !== null && !AUDIT_ROLES.includes(role)) || [ownerId, caseId, staffId].some(v => v !== null && !isUuid(v)) ||
+      (caseNumber !== null && !CASE_NUMBER.test(caseNumber)) || (name !== null && (typeof name !== 'string' || name.length > 150))) throw new ApiError('INVALID_AUDIT_RECORD', 500);
   // Explicit PS-108 whitelist. Never copy arbitrary raw properties or metadata.
   return { id: raw.id, occurredAt: raw.occurredAt, actorType: raw.actor.kind, actorId: raw.actor.userId,
-    action: raw.action, entityType: raw.entityType, vaultId: raw.vaultId };
+    action: raw.action, entityType: raw.entityType, vaultId: raw.vaultId, actorName: name, actorRole: role, ownerId, caseId, caseNumber, staffId };
 
 }
 
@@ -205,15 +212,24 @@ export async function fetchAdminUserDetail(accessToken, id, { role = '', ...opti
  * @returns {Promise<Object>}
  */
 export async function fetchAdminAuditLogs(accessToken,
-  { action = '', actorType = '', actorId = '', fromDate = '', toDate = '', page = 1, pageSize = 20, ...options } = {}) {
+  { action = '', actorType = '', actorId = '', vaultId = '', caseNumber = '', fromDate = '', toDate = '', page = 1, pageSize = 20, ...options } = {}) {
   if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100)
     throw new ApiError('VALIDATION_FAILED', 400);
   const params = new URLSearchParams({ page: String(page - 1), size: String(pageSize) });
   if (action) params.set('action', action);
-  if (actorType) params.set('actorKind', actorType);
+  // The actor filter lists SYSTEM, UNKNOWN or one role; a role is sent as actorRole, anything else as actorKind.
+  if (actorType) params.set(AUDIT_ROLES.includes(actorType) ? 'actorRole' : 'actorKind', actorType);
   if (actorId) {
     if (!isUuid(actorId)) throw new ApiError('VALIDATION_FAILED', 400);
     params.set('actorId', actorId);
+  }
+  if (vaultId) {
+    if (!isUuid(vaultId)) throw new ApiError('VALIDATION_FAILED', 400);
+    params.set('vaultId', vaultId);
+  }
+  if (caseNumber) {
+    if (!CASE_NUMBER.test(caseNumber.toUpperCase())) throw new ApiError('VALIDATION_FAILED', 400);
+    params.set('caseNumber', caseNumber.toUpperCase());
   }
   const dateBound = (value, end) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new ApiError('VALIDATION_FAILED', 400);
