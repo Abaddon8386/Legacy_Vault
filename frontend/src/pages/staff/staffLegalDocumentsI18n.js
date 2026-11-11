@@ -95,7 +95,7 @@ export const staffLegalDocumentsI18n = {
     fileUploadLabel: 'Tệp số hóa văn bản căn cứ',
 
     // Nút hành động
-    btnSubmitVersion: 'Lưu và chuyển giấy tờ cho Ban Pháp lý',
+    btnSubmitVersion: 'Lưu và chuyển',
     submittingVersion: 'Đang tiếp nhận và tải tệp lên...',
     btnForwardToLegal: 'Chuyển Ban Pháp lý',
     forwardingToLegal: 'Đang chuyển cho Ban Pháp lý...',
@@ -251,7 +251,7 @@ export const staffLegalDocumentsI18n = {
     fileUploadLabel: 'Digitized Document File',
 
     // Action buttons
-    btnSubmitVersion: 'Save and send documents to Legal Department',
+    btnSubmitVersion: 'Save and send',
     submittingVersion: 'Intaking and uploading file...',
     btnForwardToLegal: 'Send to Legal Department',
     forwardingToLegal: 'Forwarding to Legal Department...',
