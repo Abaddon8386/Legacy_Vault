@@ -23,8 +23,8 @@ function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthori
     try{const saved=await saveGroupHandover(caseId,sessionId,action,body,retry.current.key,{accessToken,lang,signal:c.signal});if(!c.signal.aborted){
       if(action==='attendance')savedAttendance.current={revision:saved.state.revision,ids:[...present]};
       retry.current=null;setEditing(false);setNotice(action==='reopen-requests'
-        ?(en?'Reopening requested. Await Legal’s decision.':'Đã gửi yêu cầu mở lại. Chờ Ban Pháp lý xét duyệt.')
-        :(en?'Attendance saved. The recorded selections are retained below.':'Đã lưu tình hình có mặt. Danh sách đã ghi nhận được giữ lại bên dưới.'));
+        ?(en?'Reopening requested, awaiting Legal':'Đã gửi yêu cầu mở lại, chờ Ban Pháp lý')
+        :(en?'Attendance saved':'Đã lưu danh sách có mặt'));
       setAttempt(x=>x+1);window.dispatchEvent(new window.Event('lv-workflow-notifications-changed'));}}
     catch(e){if(!c.signal.aborted){setError(e);if(e.status===401)auth.current?.();if(e.status===409){retry.current=null;setAttempt(x=>x+1);}}}finally{if(!c.signal.aborted){lock.current=false;setBusy(false);}}
   }

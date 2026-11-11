@@ -222,8 +222,8 @@ function SharedContent({ user, session, lang = 'vi', isDevPreview = false, previ
       {!eligible ? <FeedbackNotice tone="warning">{en ? 'Use a personal recipient account to request a link.' : 'Hãy dùng tài khoản cá nhân của người nhận để gửi yêu cầu.'}</FeedbackNotice>
         : !ready && <FeedbackNotice id="case-link-availability">{en ? 'Requests are not available yet.' : 'Chưa hỗ trợ gửi yêu cầu.'}</FeedbackNotice>}
       {notice && <FeedbackNotice tone="success">{notice === 'submit'
-        ? (en ? 'Request sent. Wait for staff to verify and confirm the link at the counter.' : 'Đã gửi yêu cầu. Vui lòng chờ nhân viên đối chiếu và xác nhận liên kết tại quầy.')
-        : (en ? 'Request cancelled.' : 'Đã hủy yêu cầu.')}</FeedbackNotice>}
+        ? (en ? 'Request sent, waiting for staff at the counter' : 'Đã gửi yêu cầu, chờ nhân viên xác nhận tại quầy')
+        : (en ? 'Request cancelled' : 'Đã hủy yêu cầu')}</FeedbackNotice>}
       {error && <FeedbackNotice tone="error">{caseLinkError(error, lang)}</FeedbackNotice>}
     </section>
   );

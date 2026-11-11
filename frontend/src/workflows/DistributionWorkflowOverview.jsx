@@ -26,7 +26,7 @@ export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
   const staleWhileWaiting = (workflow.failure?.status === 409 || workflow.failure?.code === 'CONFLICT')
     && workflow.data?.phase === 'AWAITING_DOCUMENTS';
   return <>
-    {notice && <FeedbackNotice tone="success" title={outcomes[notice.action]?.[en ? 1 : 0] || (en ? 'Saved successfully.' : 'Đã lưu thành công.')}>
+    {notice && <FeedbackNotice tone="success" title={outcomes[notice.action]?.[en ? 1 : 0] || (en ? 'Saved' : 'Đã lưu')}>
       {confirmation && <p>{confirmation.trim()}</p>}
       {workflow.loading && <p>{en ? 'Checking the next step…' : 'Đang kiểm tra bước tiếp theo…'}</p>}
     </FeedbackNotice>}

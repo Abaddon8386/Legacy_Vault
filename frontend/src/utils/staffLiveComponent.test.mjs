@@ -71,7 +71,7 @@ test('Auto-loads documents, retains VI/EN draft, saves intake and displays serve
  const submit=()=>props(v.host.querySelector('form')).onSubmit({preventDefault(){}});
  await act(async()=>submit());await act(async()=>submit());assert.equal(writes,1);assert.ok(v.host.querySelector('progress[aria-label="Processing"]'));
  await act(async()=>release(json({id,caseId:id,receivedBy:id,receivedAt:'2026-10-20T05:00:00Z'},201)));
- assert.equal(v.host.querySelector('progress[aria-label="Processing"]'),null);assert.match(v.host.textContent,/Document saved successfully/);await v.close();
+ assert.equal(v.host.querySelector('progress[aria-label="Processing"]'),null);assert.match(v.host.textContent,/Document saved/);await v.close();
 });
 
 for (const kind of ['death-documents', 'original-will-intakes']) test(`a pre-save ${kind} read cannot erase a successful intake`, async () => {
@@ -92,7 +92,7 @@ for (const kind of ['death-documents', 'original-will-intakes']) test(`a pre-sav
   await act(async () => button(v.host,'Làm mới').click());
   assert.ok(releaseRead);
   await act(async () => props(v.host.querySelector('form')).onSubmit({preventDefault(){}}));
-  assert.match(v.host.textContent,/Đã tiếp nhận giấy tờ thành công/);
+  assert.match(v.host.textContent,/Đã tiếp nhận giấy tờ/);
   // A transport may still complete after cancellation; it must not update the screen.
   await act(async () => releaseRead(json([])));
   assert.equal(v.host.querySelectorAll('.lv-staff-record-item').length,1);
@@ -351,7 +351,7 @@ test('Intake result appears as a floating notice for both success and failure', 
     assert.equal(v.host.querySelector('.lv-feedback--floating.lv-feedback--error [class*=title]').textContent,'Chưa thể hoàn tất');
     fail=false;await submit();
     assert.equal(v.host.querySelector('.lv-feedback--error'),null);
-    assert.match(v.host.querySelector('.lv-feedback--floating.lv-feedback--success').textContent,/Đã tiếp nhận giấy tờ thành công/);
+    assert.match(v.host.querySelector('.lv-feedback--floating.lv-feedback--success').textContent,/Đã tiếp nhận giấy tờ/);
   } finally {await v.close();}
 });
 

@@ -197,7 +197,7 @@ for (const status of [401, 403, 404, 500]) test(`post-save context HTTP ${status
     assert.equal(view.host.querySelector('form'), null); assert.equal(view.host.querySelector('table'), null);
     if (status !== 500) assert.doesNotMatch(view.host.textContent, /Decision saved|Recipient C/);
     else {
-      assert.match(view.host.textContent, /Saved successfully/);
+      assert.match(view.host.textContent, /Saved/);
       await click(view.host, 'Retry');
       assert.ok(view.host.querySelector('table')); assert.equal(writes, 1);
       assert.equal(view.host.querySelector('[type=submit]').disabled, true);

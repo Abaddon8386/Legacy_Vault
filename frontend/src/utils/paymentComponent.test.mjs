@@ -83,7 +83,7 @@ test('cancelled return never says cancelled when the server already confirmed th
     return response(path.endsWith('subscription-plans') ? [plan] : { paymentId: '12345678-1234-1234-1234-123456789abc', status: 'SUCCEEDED' });
   };
   const view = await mount(() => { paid++; });
-  try { assert.match(view.host.textContent, /Đã xác nhận thanh toán/); assert.doesNotMatch(view.host.textContent, /hủy/); assert.equal(paid, 1); }
+  try { assert.match(view.host.textContent, /Đã thanh toán/); assert.doesNotMatch(view.host.textContent, /hủy/); assert.equal(paid, 1); }
   finally { await view.close(); globalThis.fetch = previous; window.history.replaceState({}, '', '/subscription'); }
 });
 test('cancelled return keeps checking when the report call fails and the order is still pending', async () => {

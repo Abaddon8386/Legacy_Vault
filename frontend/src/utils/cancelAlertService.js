@@ -24,7 +24,7 @@ export const cancelAlertMessages = {
     confirmBtn: 'Xác nhận hủy cảnh báo',
     confirmingBtn: 'Đang xử lý hủy cảnh báo…',
     cancelBtn: 'Đóng / Giữ nguyên',
-    successNotice: 'Đã hủy cảnh báo thành công. Trạng thái theo dõi hoạt động đang được làm mới.',
+    successNotice: 'Đã hủy cảnh báo',
     unauthorized: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.',
     forbidden: 'Chỉ chủ sở hữu kho di sản mới có quyền thực hiện thao tác này.',
     invalidStatus:
@@ -45,7 +45,7 @@ export const cancelAlertMessages = {
     confirmBtn: 'Confirm Cancel Alert',
     confirmingBtn: 'Processing cancellation…',
     cancelBtn: 'Dismiss / Keep Alert',
-    successNotice: 'Activity alert cancelled successfully. Monitoring status is refreshing.',
+    successNotice: 'Alert cancelled',
     unauthorized: 'Your session has expired. Please sign in again.',
     forbidden: 'Only the heritage vault owner is authorized to perform this action.',
     invalidStatus:

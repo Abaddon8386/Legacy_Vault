@@ -547,7 +547,7 @@ function BeneficiaryConfirmationPageContext({
         })
       );
 
-      setActionSuccess(lang === 'en' ? 'Beneficiary confirmation successfully recorded.' : 'Đã ghi nhận xác nhận của Người thụ hưởng thành công.');
+      setActionSuccess(lang === 'en' ? 'Confirmation recorded' : 'Đã ghi nhận xác nhận');
       setSelectedBeneficiaryId('');
       setReceiptReference('');
       setErrors({});

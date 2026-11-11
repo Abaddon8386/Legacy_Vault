@@ -459,7 +459,7 @@ test('people business mutations: adding beneficiary updates list and readiness; 
     assert.equal(benDialog.open, false, 'Dialog must close on success');
 
     // Success alert in panel, list reloads with new beneficiary
-    assert.ok(host.textContent.includes('Đã thêm Người thụ hưởng thành công'));
+    assert.ok(host.textContent.includes('Đã thêm Người thụ hưởng'));
     assert.ok(benPanel.textContent.includes('Le Thi Mai'), 'New beneficiary must appear in list');
     assert.ok(host.textContent.includes('Đã sẵn sàng cấu hình'), 'Readiness updated from BE');
   } finally {
