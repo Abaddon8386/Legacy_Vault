@@ -239,3 +239,22 @@
   .lv-staff-live > .lv-staff-live__records-section { grid-column: 1; }
   .lv-staff-live > form { grid-column: 2; }
 }
+
+/* Legal's decision is the one thing Staff must act on: show it as a coloured callout (bar + tint) in the open row, and as a tinted reason line in the closed row. */
+.lv-staff-live .lv-staff-records-list .lv-staff-attachments-pane :is(.lv-intake-decision, .lv-staff-outcome):not(.is-pending) {
+  margin: 0 0 16px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--decision-bar, #7b8a80) 25%, transparent); border-inline-start: 5px solid var(--decision-bar, #7b8a80);
+  border-radius: 10px; background: var(--decision-bg, #f2f4f0); color: var(--decision-ink, #2f3f36);
+}
+.lv-staff-live .lv-staff-records-list :is(.is-rejected, .is-negative):is(.lv-intake-decision, .lv-staff-outcome) { --decision-bar: #b3382f; --decision-bg: #fcefed; --decision-ink: #7f1f19; }
+.lv-staff-live .lv-staff-records-list :is(.is-needs_correction, .is-warning):is(.lv-intake-decision, .lv-staff-outcome) { --decision-bar: #c98a12; --decision-bg: #fff6df; --decision-ink: #6b4200; }
+.lv-staff-live .lv-staff-records-list :is(.is-approved, .is-positive):is(.lv-intake-decision, .lv-staff-outcome) { --decision-bar: #247a52; --decision-bg: #eaf5ee; --decision-ink: #17503a; }
+.lv-staff-live .lv-staff-attachments-pane .lv-intake-decision p { font-size: 17px; font-weight: 600; line-height: 1.5; color: var(--decision-ink, inherit); }
+.lv-staff-live .lv-staff-attachments-pane .lv-intake-decision p > strong:first-child { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 700; }
+.lv-staff-live .lv-staff-attachments-pane .lv-intake-decision time { margin-top: 8px; color: var(--decision-ink, #52675b); opacity: .8; }
+.lv-staff-live .lv-staff-record-item:is(.is-negative, .is-warning, .is-positive) .lv-staff-record-reason {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: 8px; padding: 8px 12px; border-inline-start: 4px solid var(--decision-bar, #7b8a80);
+  border-radius: 8px; background: var(--decision-bg, #f2f4f0); color: var(--decision-ink, #2f3f36); font-weight: 600; white-space: normal;
+}
+.lv-staff-live .lv-staff-record-item.is-negative .lv-staff-record-reason { --decision-bar: #b3382f; --decision-bg: #fcefed; --decision-ink: #7f1f19; }
+.lv-staff-live .lv-staff-record-item.is-warning .lv-staff-record-reason { --decision-bar: #c98a12; --decision-bg: #fff6df; --decision-ink: #6b4200; }
+.lv-staff-live .lv-staff-record-item.is-positive .lv-staff-record-reason { --decision-bar: #247a52; --decision-bg: #eaf5ee; --decision-ink: #17503a; }

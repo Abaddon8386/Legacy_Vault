@@ -904,7 +904,7 @@ test('App NOTARIAL document intake follows server capability instead of a blanke
     assert.ok(!forward || forward.disabled, 'No forward permission before a document exists');
     await act(async()=>host.querySelector('#tab-btn-intake').click());
     assert.equal(host.querySelector('.lv-btn-submit-version').disabled, false, 'Server permits requested notarial document intake');
-    assert.equal(host.querySelector('option[value=NOTARIAL_PARTITION]').disabled, false);
+    assert.equal(host.querySelector('input[type=radio][value=NOTARIAL_PARTITION]').disabled, false);
     await act(async()=>host.querySelector('#tab-btn-allocations').click());
     assert.equal(host.querySelector('#panel-allocations form'), null, 'A notarial route does not bypass Legal approval');
     assert.equal(writes.length,0);
