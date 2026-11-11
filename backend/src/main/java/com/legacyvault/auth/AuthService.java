@@ -227,7 +227,7 @@ public class AuthService {
         String normalizedEmail = EmailNormalizer.normalize(request.email());
 
         // Atomic check + count before any password work, so parallel requests cannot all slip under the limit.
-        long attemptId = loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
+        loginAttemptLimiter.reserveAttempt(normalizedEmail, clientIp);
 
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
 
@@ -255,8 +255,8 @@ public class AuthService {
         }
 
         LoginResponse response = issueLoginResponseForActiveUser(user);
-        // Only failures stay counted: a successful login gives its reservation back.
-        loginAttemptLimiter.releaseAttempt(attemptId);
+        // A successful login proves the password, so the earlier failures of this email no longer count.
+        loginAttemptLimiter.clearFailures(normalizedEmail);
         return response;
     }
 

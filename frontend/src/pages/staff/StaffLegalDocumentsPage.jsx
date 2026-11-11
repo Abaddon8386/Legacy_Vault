@@ -14,7 +14,6 @@ import {
   Plus,
   FileText,
   Info,
-  ArrowLeft,
 } from 'lucide-react';
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
@@ -59,7 +58,6 @@ export default function StaffLegalDocumentsPage({
   initialDossier = null,
   legalDecision = null,
   onCaseChange,
-  onNavigateCases,
   onUnauthorized,
 }) {
   const t = staffLegalDocumentsI18n[lang] || staffLegalDocumentsI18n.vi;
@@ -850,16 +848,6 @@ export default function StaffLegalDocumentsPage({
       {/* Header Area */}
       <div className="lv-staff-title-area">
         <div className="lv-staff-title-left">
-          {onNavigateCases && (
-            <button
-              type="button"
-              className="lv-staff-back-link-btn"
-              onClick={onNavigateCases}
-            >
-              <ArrowLeft size={16} aria-hidden="true" />
-              <span>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
-            </button>
-          )}
           <h1 className="lv-staff-title">{t.pageTitle}</h1>
         </div>
       </div>
@@ -1062,7 +1050,7 @@ export default function StaffLegalDocumentsPage({
               </div>
             )}
 
-            {dossierNotFound && (
+            {dossierNotFound && !['PREREQUISITES_PENDING', 'DOCUMENT_REQUEST_NEEDED'].includes(distribution.data?.phase) && (
               <div className="lv-dossier-unconnected-box lv-dossier-empty-state" role="status">
                 <h3>{en ? 'Receive distribution documents' : 'Tiếp nhận giấy tờ phân chia tài sản'}</h3>
                 <p>{en ? 'Submit the documents requested by Legal. Allocations are prepared after Legal accepts the documents.' : 'Nộp giấy tờ Ban Pháp lý đã yêu cầu. Chỉ lập phân bổ sau khi Ban Pháp lý duyệt căn cứ.'}</p>

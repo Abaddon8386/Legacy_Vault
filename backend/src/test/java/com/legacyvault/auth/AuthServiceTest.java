@@ -106,7 +106,7 @@ class AuthServiceTest {
         assertEquals(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN, locked.getErrorCode());
         assertEquals(ErrorCode.INVALID_CREDENTIALS, wrong.getErrorCode());
         verify(audit, times(2)).recordLoginFailure(7L);
-        verify(limiter, never()).releaseAttempt(anyLong());
+        verify(limiter, never()).clearFailures(any());
     }
 
     @Test
@@ -127,7 +127,26 @@ class AuthServiceTest {
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
         verify(passwords).matches("WhateverPass1", "dummy-bcrypt-hash");
         verify(limiter).reserveAttempt("nobody@example.test", "203.0.113.9");
-        verify(limiter, never()).releaseAttempt(anyLong());
+        verify(limiter, never()).clearFailures(anyString());
+    }
+
+    @Test
+    void loginCountsFullWidthAndMixedCaseEmailsUnderTheSameLockoutKey() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
+        when(passwords.encode(any())).thenReturn("dummy-bcrypt-hash");
+        AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
+                passwords, mock(JwtService.class), mock(AuditService.class),
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                limiter);
+        when(users.findByEmail("nobody@example.test")).thenReturn(Optional.empty());
+
+        // "NOBODY@Example.TEST" with a full-width first letter.
+        assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("Ｎobody@Example.TEST", "WhateverPass1"), "203.0.113.9"));
+
+        verify(limiter).reserveAttempt("nobody@example.test", "203.0.113.9");
     }
 
     @Test
@@ -136,7 +155,7 @@ class AuthServiceTest {
         PasswordEncoder passwords = mock(PasswordEncoder.class);
         LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
         when(limiter.reserveAttempt("user@example.test", "203.0.113.9"))
-                .thenThrow(new BusinessException(ErrorCode.RATE_LIMITED));
+                .thenThrow(new BusinessException(ErrorCode.TOO_MANY_ATTEMPTS));
         AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
                 passwords, mock(JwtService.class), mock(AuditService.class),
                 mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
@@ -145,7 +164,7 @@ class AuthServiceTest {
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.login(new LoginRequest("user@example.test", "StrongPass123"), "203.0.113.9"));
 
-        assertEquals(ErrorCode.RATE_LIMITED, exception.getErrorCode());
+        assertEquals(ErrorCode.TOO_MANY_ATTEMPTS, exception.getErrorCode());
         verify(users, never()).findByEmail(any());
         verify(passwords, never()).matches(any(), any());
     }
@@ -170,7 +189,7 @@ class AuthServiceTest {
                 () -> service.login(new LoginRequest("user@example.test", "WrongPass123"), "203.0.113.9"));
 
         verify(limiter).reserveAttempt("user@example.test", "203.0.113.9");
-        verify(limiter, never()).releaseAttempt(anyLong());
+        verify(limiter, never()).clearFailures(anyString());
     }
 
     @Test
@@ -202,6 +221,6 @@ class AuthServiceTest {
 
         service.login(new LoginRequest("user@example.test", "StrongPass123"), "203.0.113.9");
 
-        verify(limiter).releaseAttempt(41L);
+        verify(limiter).clearFailures("user@example.test");
     }
 }
