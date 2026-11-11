@@ -18,6 +18,7 @@ public record RecordOriginalWillRequest(
         @Size(max = 500)
         String evidenceReference,
 
+        @NotBlank
         @Size(max = 1000)
         String conditionNotes
 ) {
