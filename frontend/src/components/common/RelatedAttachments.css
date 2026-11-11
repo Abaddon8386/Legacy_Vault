@@ -1,6 +1,6 @@
-.lv-asset-documents{margin-top:16px;padding:16px;border:1px solid #d5e2dc;border-radius:12px;background:#f7faf8;overflow-wrap:anywhere}
+.lv-asset-documents{margin:18px 0;padding:18px 20px;border:1px solid var(--lv-border-subtle,#ded9ce);border-radius:12px;background:#faf9f6;min-width:0;overflow-wrap:anywhere}
 .lv-asset-documents p{line-height:1.5;margin:10px 0}
-.lv-asset-documents button{padding:8px 12px;margin:4px;border:1px solid #bed0c5;border-radius:8px;background:white;color:#164639;cursor:pointer}
+.lv-asset-documents button{min-height:44px;padding:8px 16px;margin:6px 8px 6px 0;border:1px solid #ded9ce;border-radius:8px;background:white;color:#164639;font-size:14px;font-weight:500;cursor:pointer}
 .lv-asset-documents button:disabled{opacity:.55;cursor:default}
 .lv-asset-documents label{display:block;margin:10px 0}
 .lv-asset-documents input{display:block;box-sizing:border-box;width:100%;max-width:420px;padding:9px;margin-top:5px;border:1px solid #a9bdb1;border-radius:6px}
