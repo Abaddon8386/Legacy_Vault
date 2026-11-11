@@ -1,15 +1,17 @@
 .lv-duration-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
 /* The row title already names the setting; the legend stays for screen readers. */
 .lv-duration-fields legend { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.lv-duration-fields__row { display: grid; grid-template-columns: repeat(3, minmax(0, 120px)); gap: 12px; }
-.lv-duration-fields__field { min-width: 0; }
-.lv-duration-fields label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: #526259; }
+/* One grouped box like a time field: three cells (days, hours, minutes) with a big number each, split by hairlines. */
+.lv-duration-fields__row { display: inline-grid; grid-template-columns: repeat(3, minmax(0, auto)); max-width: 100%; border: 1px solid #d3d8cc; border-radius: 12px; background: #fff; overflow: hidden; }
+.lv-duration-fields__field { min-width: 0; padding: 10px 20px 12px; border-inline-start: 1px solid #e6e9e0; cursor: text; transition: background 150ms ease, box-shadow 150ms ease; }
+.lv-duration-fields__field:first-child { border-inline-start: 0; }
+.lv-duration-fields__field:focus-within { background: #f4f8f5; box-shadow: inset 0 -3px 0 #164639; }
+.lv-duration-fields__field:has(input[aria-invalid="true"]) { background: #fdf3f1; box-shadow: inset 0 -3px 0 #b74437; }
+.lv-duration-fields label { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 500; color: #526259; }
 .lv-duration-fields input {
-  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px;
-  border: 1px solid #d3d8cc; border-radius: 7px; background: #fff; color: #264a38; font: inherit; font-size: 16px;
-  font-variant-numeric: tabular-nums;
+  box-sizing: border-box; width: 84px; max-width: 100%; min-height: 36px; padding: 0; border: 0; border-radius: 0; background: transparent;
+  color: #1f3f31; font: inherit; font-size: 24px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums;
 }
-.lv-duration-fields input:focus-visible { outline: 2px solid #164639; outline-offset: 2px; }
-.lv-duration-fields input[aria-invalid="true"] { border-color: #b74437; }
-.lv-duration-fields input:disabled { background: #f3f4ee; color: #637068; }
-@media (max-width: 420px) { .lv-duration-fields__row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }
+.lv-duration-fields input:focus, .lv-duration-fields input:focus-visible { outline: none; }
+.lv-duration-fields input:disabled { color: #8a948d; }
+@media (max-width: 480px) { .lv-duration-fields__row { display: grid; width: 100%; } .lv-duration-fields__field { padding: 10px 12px 12px; } .lv-duration-fields input { width: 100%; font-size: 22px; } }

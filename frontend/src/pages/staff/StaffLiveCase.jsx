@@ -14,7 +14,8 @@ import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.j
 import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.jsx';
 import { DatePicker } from '../../components/common/DatePicker.jsx';
-import { ArrowLeft, ChevronDown, RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
+import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import './StaffLiveCase.css';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 
@@ -331,14 +332,12 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
   const currentPage = Math.min(documentPage, pageCount);
   const visibleRecords = numberedRecords.slice((currentPage-1)*5, currentPage*5);
   return <section className="lv-staff-live" aria-busy={busy || recordsLoading}>
-    <button type="button" className="lv-staff-live__back" onClick={onBack}><ArrowLeft size={16} aria-hidden="true" />{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</button>
-    <header className="lv-intake-heading lv-staff-glow">
-      <div className="lv-intake-hero-content">
-      <h1>{data?.caseNumber || (en ? 'Verification case' : 'Hồ sơ xác minh')}</h1>
-      <div className="lv-intake-context"><strong>{data?.vaultName}</strong>{data?.ownerName && <span className="lv-intake-owner">{en ? 'Owner: ' : 'Chủ sở hữu: '}{data.ownerName}</span>}</div>
-      </div>
-      {data?.status && <span className={`lv-intake-status ${closed ? 'is-closed' : ''}`}>{data.status === 'OPEN' ? (en ? 'Open' : 'Đang mở') : data.status === 'CLOSED' ? (en ? 'Closed' : 'Đã đóng') : (en ? 'Cancelled' : 'Đã hủy')}</span>}
-    </header>
+    <StaffCaseContextBar
+      caseId={caseId}
+      caseItem={data}
+      onChangeCase={onBack}
+      lang={lang}
+    />
     {busy &&<div role="status"><progress aria-label={en ? 'Processing' : 'Đang xử lý'} /> {en ? 'Processing…' : 'Đang xử lý…'}</div>}
     {error && <FeedbackNotice className="lv-feedback--floating" tone="error" title={en ? 'Action not completed' : 'Chưa thể hoàn tất'} action={<button type="button" onClick={() => setError('')}>{en ? 'Close' : 'Đóng'}</button>}>{intakeFeedback(error, en)}</FeedbackNotice>}
     {notice && <FeedbackNotice className="lv-feedback--floating" tone="success">{notice}</FeedbackNotice>}
@@ -346,7 +345,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const value = await loadStaffCase(caseId, options);
       if (!signal.aborted) setData(value);
     })}>{en ? 'Retry loading case' : 'Thử tải lại hồ sơ'}</button>}
-    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={async () => {
+    {data?.assignmentStatus !== 'ASSIGNED_TO_CURRENT_STAFF' && <button className="lv-staff-live__claim" disabled={busy || closed || (data?.assignmentStatus && data.assignmentStatus !== 'UNASSIGNED_CLAIMABLE')} onClick={async () => {
       let claimed = false;
       await run(async (options, signal) => {
         const value = await claimStaffCase(caseId, options);
@@ -393,10 +392,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
 
       {recordsError && (
         <p role="alert">
-          {intakeFeedback(recordsError, en)}{' '}
-          <button type="button" onClick={() => loadDocuments(kind)}>
-            {en ? 'Refresh' : 'Làm mới'}
-          </button>
+          {intakeFeedback(recordsError, en)}
         </p>
       )}
 
