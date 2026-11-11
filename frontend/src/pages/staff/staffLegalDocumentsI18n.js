@@ -61,8 +61,6 @@ export const staffLegalDocumentsI18n = {
     formDesc: 'Ghi loại giấy tờ thực tế được nộp và đính kèm bản số hóa. Phân bổ được lập ở bước riêng sau khi Ban Pháp lý duyệt căn cứ.',
     legalBasisTypeLabel: 'Loại văn bản căn cứ',
     typeNotarialPartition: 'Văn bản thỏa thuận phân chia di sản công chứng',
-    typeCourtJudgment: 'Bản án có hiệu lực pháp luật của Tòa án',
-    typeCourtDecision: 'Quyết định công nhận thỏa thuận của Tòa án',
 
     // Cơ quan ban hành
     issuerLabel: 'Cơ quan ban hành',
@@ -219,8 +217,6 @@ export const staffLegalDocumentsI18n = {
     formDesc: 'Upload documents requested by the Legal Department.',
     legalBasisTypeLabel: 'Document Basis Type',
     typeNotarialPartition: 'Notarized Estate Partition Agreement',
-    typeCourtJudgment: 'Legally Effective Court Judgment',
-    typeCourtDecision: 'Court Settlement Decision',
 
     // Issuing authority
     issuerLabel: 'Issuing Authority',

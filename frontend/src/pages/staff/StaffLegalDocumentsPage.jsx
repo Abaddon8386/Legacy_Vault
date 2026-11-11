@@ -42,6 +42,7 @@ import { formatStaffSession } from '../../utils/caseReference.js';
 import StaffLegalDecisionNotice from '../../components/staff/StaffLegalDecisionNotice.jsx';
 import { BasisVersionOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 import { basisTypeForRoute } from '../../utils/basisTypeForRoute.js';
+import ChoiceButtons from '../../components/common/ChoiceButtons.jsx';
 import { versionOutcomeChip } from '../../components/staff/documentOutcomeResults.js';
 import StaffLegalOutcomeCard from '../../components/staff/StaffLegalOutcomeCard.jsx';
 import { mapCurrentBasisDecision } from './staffLegalDocumentsService.js';
@@ -573,7 +574,7 @@ export default function StaffLegalDocumentsPage({
     if (basisTypeRouteError) {
       setErrors(previous => ({...previous,legalBasisType:basisTypeRouteError}));
       setActionError(basisTypeRouteError);
-      document.getElementById(typeId)?.focus();
+      document.getElementById(typeId)?.querySelector('input:not(:disabled)')?.focus();
       return;
     }
 
@@ -1285,26 +1286,22 @@ export default function StaffLegalDocumentsPage({
             <form onSubmit={handleSubmitVersion} noValidate className="lv-intake-form">
               {/* Record the actual document submitted; Legal does not preselect its source. */}
               <div className="lv-form-group">
-                <label htmlFor={typeId} className="lv-form-label lv-form-label--required">
-                  {t.legalBasisTypeLabel}
-                </label>
-                <select
-                  id={typeId}
-                  className="lv-form-select"
-                  value={legalBasisType}
-                  onChange={(e) => {setLegalBasisType(e.target.value);setErrors(previous=>({...previous,legalBasisType:''}));}}
-                  disabled={isSubmitting || !canReceiveBasis}
-                  aria-invalid={!basisTypeMatchesRoute || undefined}
-                >
-                  <option value="">{en ? 'Select the submitted document type' : 'Chọn loại giấy tờ thực tế được nộp'}</option>
-                  <optgroup label={en ? 'Notarized (no dispute)' : 'Công chứng (không tranh chấp)'}>
-                    <option value="NOTARIAL_PARTITION" disabled={isRouteCourt}>{en ? 'Notarized distribution document' : 'Văn bản phân chia được công chứng'}</option>
-                  </optgroup>
-                  <optgroup label={en ? 'Court (disputed)' : 'Tòa án (có tranh chấp)'}>
-                    <option value="COURT_JUDGMENT" disabled={isRouteNotarial}>{t.typeCourtJudgment}</option>
-                    <option value="COURT_DECISION" disabled={isRouteNotarial}>{t.typeCourtDecision}</option>
-                  </optgroup>
-                </select>
+                <div id={typeId} aria-invalid={!basisTypeMatchesRoute || undefined}>
+                  <ChoiceButtons
+                    title={t.legalBasisTypeLabel}
+                    options={[
+                      ['NOTARIAL_PARTITION', en ? 'Notarized document' : 'Văn bản công chứng', isRouteCourt],
+                      ['COURT', en ? 'Court document' : 'Văn bản của Tòa án', isRouteNotarial],
+                    ]}
+                    value={['COURT_JUDGMENT', 'COURT_DECISION'].includes(legalBasisType) ? 'COURT' : legalBasisType}
+                    onChange={(choice) => {
+                      // One court choice; an older judgment/decision value already loaded is kept, new ones are stored as COURT_JUDGMENT.
+                      setLegalBasisType(choice === 'COURT' ? (['COURT_JUDGMENT', 'COURT_DECISION'].includes(legalBasisType) ? legalBasisType : 'COURT_JUDGMENT') : choice);
+                      setErrors(previous => ({ ...previous, legalBasisType: '' }));
+                    }}
+                    disabled={isSubmitting || !canReceiveBasis}
+                  />
+                </div>
                 {basisTypeRouteError && <span className="lv-field-error" role="alert">{basisTypeRouteError}</span>}
               </div>
 
