@@ -51,11 +51,22 @@ test('the case chip names the next step once death documents are accepted but th
   assert.equal(legalStatusTone('AWAITING_WILL_COMPARISON'), 'warning');
   assert.equal(legalStageStatus('DOCUMENT_VERIFICATION', { deathApproved: false, willMatched: false }), 'DOCUMENT_VERIFICATION');
   assert.equal(legalStageStatus('DOCUMENT_VERIFICATION', undefined), 'DOCUMENT_VERIFICATION');
-  assert.equal(legalStageStatus('WILL_VERIFICATION', { deathApproved: true, willMatched: true }), 'WILL_VERIFICATION');
+  assert.equal(legalStageStatus('WILL_VERIFICATION', { deathApproved: false, willMatched: true }), 'WILL_VERIFICATION');
 });
 
 test('death documents and original wills share one receipt label with the newest marked', () => {
   assert.equal(receiptOptionLabel(false, 2, '2026-11-11T05:21:00Z', true), 'Lần nhận 2 · 11/11/2026, 12:21 · Mới nhất');
   assert.equal(receiptOptionLabel(false, 1, '2026-11-11T04:46:00Z', false), 'Lần nhận 1 · 11/11/2026, 11:46');
   assert.equal(receiptOptionLabel(true, 3, null, true), 'Intake 3 · Latest');
+});
+
+test('once the will matches, the chip moves on to the basis step instead of staying on will comparison', () => {
+  const ready = { deathApproved: true, willMatched: true };
+  assert.equal(legalStageStatus('WILL_VERIFICATION', ready, 'DOCUMENT_REQUEST_NEEDED'), 'AWAITING_DOCUMENT_REQUEST');
+  assert.equal(legalStatus('AWAITING_DOCUMENT_REQUEST'), 'Cần yêu cầu giấy tờ phân chia');
+  assert.equal(legalStageStatus('WILL_VERIFICATION', ready, 'AWAITING_DOCUMENTS'), 'AWAITING_LEGAL_BASIS');
+  assert.equal(legalStageStatus('WILL_VERIFICATION', ready, undefined), 'AWAITING_LEGAL_BASIS');
+  assert.equal(legalStageStatus('WILL_VERIFICATION', { deathApproved: true, willMatched: false }), 'AWAITING_WILL_COMPARISON');
+  assert.equal(legalStageStatus('LEGAL_BASIS_VERIFICATION', ready, 'AWAITING_DOCUMENTS'), 'LEGAL_BASIS_VERIFICATION');
+  assert.equal(legalStatusTone('AWAITING_DOCUMENT_REQUEST'), 'warning');
 });

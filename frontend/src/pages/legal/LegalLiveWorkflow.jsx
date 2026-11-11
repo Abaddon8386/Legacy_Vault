@@ -225,7 +225,7 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
   if (guidanceStale) guideModel.message = en ? 'Reload the record to check the next step.' : 'Tải lại hồ sơ để kiểm tra bước tiếp theo.';
   const context = current.data;
   const readOnly = legalReadOnly(context);
-  const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : legalStageStatus(context.vaultStatus, distribution.data?.prerequisites);
+  const caseStatus = ['CANCELLED', 'CLOSED', 'ARCHIVED', 'COMPLETED'].includes(context.caseStatus) ? context.caseStatus : legalStageStatus(context.vaultStatus, distribution.data?.prerequisites, distribution.data?.phase);
   return <>
     {confirmation}
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
