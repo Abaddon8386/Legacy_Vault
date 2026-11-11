@@ -66,3 +66,23 @@
 }
 .lv-counter-link .lv-counter-link__columns.is-reference-free { grid-template-columns:repeat(2,minmax(0,1fr)); }
 @media(max-width:640px) { .lv-counter-link .lv-counter-link__columns.is-reference-free { grid-template-columns:minmax(0,1fr); } }
+
+[role=tabpanel] > .lv-counter-link { margin-top: 0; }
+
+.lv-counter-link { border-top: 4px solid #164639; }
+.lv-counter-link__steps { display: flex; gap: 0; align-items: center; margin: 0 0 18px; padding: 0; list-style: none; }
+.lv-counter-link__steps li { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; font-size: 15px; font-weight: 600; color: #7a897f; }
+.lv-counter-link__steps li:not(:last-child)::after { content: ''; flex: 1 1 24px; height: 2px; margin: 0 12px; border-radius: 2px; background: #dce5de; transition: background-color 220ms ease; }
+.lv-counter-link__steps li.is-done:not(:last-child)::after { background: #1f8a5b; }
+.lv-counter-link__step-mark { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #cfd9d2; background: #fff; color: #7a897f; transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease; }
+.lv-counter-link__steps li.is-current { color: #164639; }
+.lv-counter-link__steps li.is-current .lv-counter-link__step-mark { border-color: #b17c1d; color: #8a5f12; background: #fff7e6; box-shadow: 0 0 0 4px rgba(177, 124, 29, 0.14); }
+.lv-counter-link__steps li.is-done { color: #166534; }
+.lv-counter-link__steps li.is-done .lv-counter-link__step-mark { border-color: #1f8a5b; background: #1f8a5b; color: #fff; }
+@media (max-width: 640px) { .lv-counter-link__steps li { font-size: 14px; } .lv-counter-link__steps li:not(:last-child)::after { margin: 0 6px; flex-basis: 8px; } }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lv-step-done { 0% { transform: scale(0.7); } 55% { transform: scale(1.2); } 100% { transform: scale(1); } }
+  @keyframes lv-step-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(177, 124, 29, 0.14); } 50% { box-shadow: 0 0 0 8px rgba(177, 124, 29, 0.05); } }
+  .lv-counter-link__steps li.is-done .lv-counter-link__step-mark { animation: lv-step-done 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .lv-counter-link__steps li.is-current .lv-counter-link__step-mark { animation: lv-step-pulse 2s ease-in-out infinite; }
+}

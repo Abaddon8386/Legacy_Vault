@@ -57,7 +57,7 @@ test('Open uses pending lock, server receipt, query context and VI/EN state; acc
  assert.equal(assetLinks.length,0,'A newly opened session must not bypass attendance');
  for(const link of assetLinks){assert.equal(link.pathname,'/staff/asset-handover');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);assert.match(link.textContent,/Chọn tài sản bàn giao/);}
  assert.equal(btn(v.host,'Tạo / liên kết tài khoản người thụ hưởng'),undefined);
- const link=[...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts');assert.equal(link.search,'?caseId='+cid+'&sessionId='+sid);
+ assert.equal([...v.host.querySelectorAll('a')].find(a=>a.pathname==='/staff/beneficiary-accounts'),undefined);
  await act(async()=>v.root.render(React.createElement(Page,{...v.options,lang:'en'})));assert.equal(v.host.querySelector('a.lv-handover-primary-action'),null);assert.match(v.host.textContent,/Record attendance/);assert.equal(v.host.textContent.includes(sid),false);assert.equal(btn(v.host,'Open handover session').disabled,true);await v.close();
 });
 test('Handover steps are tabs: later steps stay locked until the server allows them and hidden panels stay mounted',async()=>{

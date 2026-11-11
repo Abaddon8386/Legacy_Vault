@@ -404,6 +404,9 @@
   background: none;
 }
 .lv-live-handover .lv-session-stack > * { margin-top: 0; }
+/* The stack is a <section>, so the generic Staff section frame wraps it; keep it flat, and let the grid gap alone separate the tab bar from the panel. */
+.lv-live-handover.lv-staff-surfaces .lv-session-stack { border: 0; border-radius: 0; background: none; padding: 0; }
+.lv-live-handover .lv-session-stack > .lv-handover-tabs { margin: 0; }
 
 .lv-live-handover .lv-session-detail-grid {
   display: grid;

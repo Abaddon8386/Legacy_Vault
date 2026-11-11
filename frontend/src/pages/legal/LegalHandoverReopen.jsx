@@ -14,8 +14,8 @@ const unlockPath = LEGAL_NAVIGATION_REGISTRY.find(item => item.id === 'controlle
 const DECISION_TIMEOUT_MS = 20000;
 const statusText = {
   UNCONFIRMED: ['Staff chưa ghi nhận người có mặt', 'Staff has not recorded attendance'],
-  SUSPENDED: ['Toàn bộ bàn giao đang tạm khóa', 'The whole handover is suspended'],
-  AWAITING_LEGAL: ['Đang chờ Legal xét yêu cầu mở lại', 'Awaiting Legal reopening decision'],
+  SUSPENDED: ['Bàn giao đang tạm khóa', 'The whole handover is suspended'],
+  AWAITING_LEGAL: ['Chờ Legal quyết định', 'Waiting for Legal'],
   READY: ['Đã đủ điều kiện về người nhận; chưa đồng nghĩa đã bàn giao', 'Recipient requirement satisfied; this does not mean delivered'],
 };
 
@@ -103,16 +103,14 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
       <h2>{en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'}</h2>
       <button type="button" disabled={!current} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh' : 'Cập nhật'}</button>
     </div>
-    {hasRequests && <p className="lv-legal-reopen__note">{en ? 'Staff has recorded that everyone is present and asks to reopen. Only Legal decides; allowing it does not mean any asset has been delivered.'
-      : 'Staff đã ghi nhận đủ người nhận và đề nghị mở lại. Chỉ Legal quyết định; cho phép mở lại không đồng nghĩa đã bàn giao tài sản.'}</p>}
-    {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed.' : 'Đã cho phép mở lại bàn giao.') : (en ? 'Reopening refused.' : 'Đã từ chối mở lại bàn giao.')}>
+    {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed' : 'Đã cho phép mở lại') : (en ? 'Reopening refused' : 'Đã từ chối mở lại')}>
       <p>{workflowNotificationStatus(outcome, 'STAFF', lang).trim()}</p>
     </FeedbackNotice>}
     {!list && <p role="status" className="lv-legal-reopen__loading">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
     {current?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(current.error, lang).description}</p>
       <button type="button" className="lv-legal-reopen__btn-retry" onClick={() => setAttempt(value => value + 1)}>{en ? 'Try again' : 'Thử lại'}</button></div>}
     {!caseId && items?.length === 0 && !current?.error && <p className="lv-legal-reopen__empty">{en ? 'No reopening request is waiting for Legal.' : 'Hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
-    {!!items?.length && <ul className="lv-legal-reopen__list">{items.map(item => <li key={item.requestId} aria-current={item.caseId === caseId ? 'true' : undefined}>
+    {!!items?.length && !target && <ul className="lv-legal-reopen__list">{items.map(item => <li key={item.requestId} aria-current={item.caseId === caseId ? 'true' : undefined}>
       <div className="lv-legal-reopen__item-head"><strong>{item.caseNumber}</strong> · {item.vaultName}</div>
       <p className="lv-legal-reopen__meta">{en ? 'Requested by ' : 'Staff yêu cầu: '}{item.requestedBy.fullName} · {legalDate(item.requestedAt)}</p>
       <p className="lv-legal-reopen__summary">{en ? `Present ${item.presentRecipients}/${item.requiredRecipients} recipients · delivered ${item.deliveredAssets}/${item.totalAssets} assets`
@@ -227,7 +225,7 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
         </p>
         <p className="lv-legal-reopen__progress-pill">{en ? `Delivered ${view.progress.deliveredAssets}/${view.progress.totalAssets} assets` : `Đã giao ${view.progress.deliveredAssets}/${view.progress.totalAssets} tài sản`}</p>
       </div>
-      {request && <div className="lv-legal-reopen__request lv-legal-reopen__card--request"><h4>{en ? 'Staff request' : 'Yêu cầu của Staff'}</h4>
+      {request && <div className="lv-legal-reopen__request lv-legal-reopen__card--request"><h4>{en ? 'Staff request' : 'Lý do Staff đề nghị'}</h4>
         <p className="lv-legal-reopen__meta">{request.requestedBy.fullName} · {legalDate(request.requestedAt)}</p><p className="lv-legal-reopen__reason">{request.reason}</p></div>}
       <details className="lv-legal-reopen__history" open={!namesReady}>
         <summary className="lv-legal-reopen__history-summary">
@@ -261,8 +259,8 @@ function ReopenDetail({ item, session, lang, onDecided, onUnauthorized }) {
       </details>
       {decidable ? <div className="lv-legal-reopen__decision">
         <label>
-          <span className="lv-legal-reopen__label-title">{en ? 'Reason for your decision' : 'Lý do quyết định'}</span>
-          <textarea maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} />
+          <span className="lv-legal-reopen__label-title">{en ? 'Reason for your decision' : 'Lý do quyết định'}<span className="lv-required-mark" aria-hidden="true">*</span></span>
+          <textarea placeholder={en ? 'Enter the reason to allow or refuse' : 'Nhập lý do cho phép hoặc từ chối'} maxLength={1000} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} />
         </label>
         <div className="lv-legal-reopen__actions">
           <button type="button" className="lv-legal-primary" disabled={busy || !reason.trim()} onClick={() => save('APPROVE')}>{en ? 'Allow reopening' : 'Cho phép mở lại'}</button>

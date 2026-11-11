@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail, handoverUrl } from './liveHandoverService.js';
+import { fetchStaffCaseBeneficiaries, recordCounterAttestation, requestInvitationEmail, counterLinkTabUrl } from './liveHandoverService.js';
 import { linkExistingBeneficiaryAccount } from './beneficiaryAccountService.js';
 import { staffAuthFeedback } from './staffFeedback.js';
 function errorText(error, en, caseItem) {
@@ -212,7 +212,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
                 )}
                 {ben.actions?.canLinkAccount && mode !== 'accounts' && (
                   <a
-                    href={handoverUrl('/staff/beneficiary-accounts', caseId, selectedSessionId) + `&beneficiaryId=${ben.beneficiaryId}`}
+                    href={counterLinkTabUrl(caseId, selectedSessionId, lang)}
                   >
                     {en ? 'Link existing account' : 'Liên kết tài khoản'}
                   </a>

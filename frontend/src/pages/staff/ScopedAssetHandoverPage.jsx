@@ -26,7 +26,7 @@ import {
 } from './handoverSessionService.js';
 import { scopedAssetHandoverI18n } from './scopedAssetHandoverI18n.js';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
-import { fetchStaffCaseBeneficiaries, handoverUrl } from './liveHandoverService.js';
+import { fetchStaffCaseBeneficiaries, counterLinkTabUrl } from './liveHandoverService.js';
 import { fetchStaffAssetCatalog } from './staffLegalDocumentsService.js';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
 import { useStaffCaseMetadata } from '../../utils/useStaffCaseMetadata.js';
@@ -565,7 +565,7 @@ function ScopedAssetHandoverPageContext({
             <h3>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'No recipients ready for handover yet' : 'Chưa có người nhận đủ điều kiện bàn giao') : t.scopeMissingTitle}</h3>
             <p>{hasCurrentScope && scopeValidation.isApproved ? (en ? 'Ask the recipient to submit the case number from Shared with me, then verify their account at the counter. Reload this page after verification.' : 'Người nhận cần nhập mã hồ sơ trong Tài sản thụ hưởng. Staff đối chiếu và xác nhận tài khoản tại quầy, rồi tải lại danh sách tài sản.') : t.scopeMissingDesc}</p>
             {caseReference && sessionId ? (
-              <a className="lv-btn-navigate-cases" href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId, lang)}>
+              <a className="lv-btn-navigate-cases" href={counterLinkTabUrl(caseReference, sessionId, lang)}>
                 {en ? 'Verify recipient accounts' : 'Đối chiếu tài khoản người nhận'}
               </a>
             ) : onNavigateCases && (
@@ -640,20 +640,15 @@ function ScopedAssetHandoverPageContext({
               <>
                 <h3>
                   {en
-                    ? 'Counter verification & account link required'
-                    : 'Người nhận này chưa đối chiếu và liên kết tài khoản tại quầy'}
+                    ? 'Account not linked yet'
+                    : 'Chưa liên kết tài khoản'}
                 </h3>
-                <p>
-                  {en
-                    ? 'Verify this recipient’s identity at the counter and confirm their account link request before handing over assets.'
-                    : 'Hãy đối chiếu giấy tờ tại quầy và xác nhận liên kết tài khoản cho người thụ hưởng này trước khi bàn giao tài sản.'}
-                </p>
                 {caseReference && sessionId && (
                   <a
                     className="lv-btn-navigate-cases"
-                    href={handoverUrl('/staff/beneficiary-accounts', caseReference, sessionId, lang)}
+                    href={counterLinkTabUrl(caseReference, sessionId, lang)}
                   >
-                    {en ? 'Verify & link recipient account →' : 'Đối chiếu và liên kết tài khoản →'}
+                    {en ? 'Verify account →' : 'Đối chiếu tài khoản →'}
                   </a>
                 )}
               </>
