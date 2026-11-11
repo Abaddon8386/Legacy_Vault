@@ -234,6 +234,8 @@ test('LiveHandoverPage in accounts mode with counterLinkActions enforces approve
     await act(async () => resolveGroup(json({ ...unconfirmedGroup, requiredRecipientIds: [inScopeId] })));
 
     assert.equal(selects()[0].disabled, false, 'Unlocks once group-handover scope resolves');
+    assert.equal(selects()[1].disabled, true, 'Recipient select opens only after an account is chosen');
+    await act(async () => props(selects()[0]).onChange({ target: { value: pendingReq.id } }));
     assert.equal(selects()[1].disabled, false);
     const recipientOptions = [...selects()[1].querySelectorAll('option')].filter(o => o.value);
     assert.equal(recipientOptions.find(o => o.value === inScopeId).disabled, false, 'In-scope recipient is selectable');
