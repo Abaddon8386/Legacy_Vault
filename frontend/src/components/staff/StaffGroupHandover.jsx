@@ -48,7 +48,7 @@ function GroupScope({caseId,sessionId,accessToken,lang='vi',children,onUnauthori
     {decision&&<aside className={`lv-group-handover__decision ${approved?'is-approved':'is-rejected'}`} role="status"><strong>{earlier?(en?'Earlier Legal decision':'Quyết định trước đó của Ban Pháp lý'):(en?'Latest Legal decision':'Quyết định gần nhất của Ban Pháp lý')}: {approved?(en?'Reopening allowed':'Cho phép mở lại'):(en?'Reopening refused':'Từ chối mở lại')}</strong>
       <span>{[decision.decidedBy?.fullName,stamp(decision.decidedAt)].filter(Boolean).join(' · ')}</span>{decision.reason&&<p>{decision.reason}</p>}
       {!approved&&!earlier&&view.state.status==='SUSPENDED'&&<p>{en?'Legal refused. Check who is present, record attendance again and send a new request.':'Ban Pháp lý đã từ chối. Kiểm tra lại người có mặt, ghi nhận lại và gửi yêu cầu mới.'}</p>}</aside>}</>;
-  const content=view?.deliveryAllowed&&!busy&&!error&&!editing?(typeof children==='function'?children(view):children):null;
+  const content=view?.deliveryAllowed&&!busy&&!error&&!editing?(typeof children==='function'?children(view,people):children):null;
   const attendance=<section className="lv-group-handover" aria-busy={busy||(!current&&!error)}><div className="lv-group-handover__head"><h2>{titles[view?.state.status]||(en?'Attendance at the counter':'Người nhận có mặt tại quầy')}</h2>
     <button type="button" className="lv-group-handover__reload" onClick={()=>setAttempt(x=>x+1)} disabled={busy}>{en?'Reload':'Tải lại'}</button></div>
     {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{workflowFailure(error,lang).description}</p>}

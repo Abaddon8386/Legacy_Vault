@@ -1,7 +1,6 @@
 import { deliveryReadiness, deliveryBlockedReason } from '../../utils/deliveryReadiness.js';
 import { useState, useId, useEffect, useRef } from 'react';
 import {
-  ShieldAlert,
   AlertTriangle,
   CheckCircle2,
   Package,
@@ -819,12 +818,6 @@ function ScopedAssetHandoverPageContext({
                     );
                   })}
                 </ul>
-              </div>
-
-              {/* Cảnh báo quy tắc nghiệp vụ */}
-              <div className="lv-review-warning-box" role="alert">
-                <ShieldAlert size={18} className="lv-review-warning-icon" aria-hidden="true" />
-                <p>{t.reviewModalNotice}</p>
               </div>
             </div>
 

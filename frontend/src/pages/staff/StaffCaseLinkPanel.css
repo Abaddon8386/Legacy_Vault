@@ -103,3 +103,12 @@
 .lv-counter-link__steps li { white-space: nowrap; }
 .lv-counter-link__steps li:not(:last-child) { flex: 1 1 auto; }
 .lv-counter-link__steps li:last-child { flex: 0 0 auto; }
+
+/* "Recipient has no account": a tinted, clickable row with a real button-looking action, so it is noticed. */
+.lv-counter-link .lv-counter-link__create { margin-top: 20px; padding: 0; border: 1px dashed #b9cbbd; border-radius: 12px; background: #f6faf6; overflow: hidden; transition: border-color 160ms ease, background-color 160ms ease; }
+.lv-counter-link .lv-counter-link__create:hover, .lv-counter-link .lv-counter-link__create[open] { border-color: #164639; background: #f0f7f2; }
+.lv-counter-link__create summary { padding: 10px 16px; min-height: 56px; font-size: 16px; font-weight: 600; color: #164639; cursor: pointer; }
+.lv-counter-link__create .lv-counter-link__summary-action { padding: 8px 16px; border-radius: 8px; background: #164639; color: #fff; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.lv-counter-link__create[open] .lv-counter-link__summary-action { background: #fff; color: #164639; border: 1px solid #164639; padding: 7px 15px; }
+.lv-counter-link__create > p, .lv-counter-link__create > form { margin-left: 16px; margin-right: 16px; }
+.lv-counter-link__create > :last-child { margin-bottom: 16px; }

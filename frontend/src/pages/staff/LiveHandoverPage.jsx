@@ -264,9 +264,15 @@ function Sessions({ caseId, caseItem, requestedSessionId, accessToken, lang, onS
     </>;
   };
   return <section className="lv-session-stack" aria-busy={loading || pending}>
-    {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}><div className="lv-handover-next-step">
+    {selected?.status === 'OPEN' ? <StaffGroupHandover caseId={caseId} sessionId={selected.sessionId} accessToken={accessToken} lang={lang} layout={layout}>{(view, people = []) => <div className="lv-handover-next-step">
+        <div className="lv-handover-ready">
+          <h2>{en ? 'Ready to hand over' : 'Sẵn sàng bàn giao'}</h2>
+          <ul className="lv-handover-ready__people" aria-label={en ? 'Recipients present' : 'Người nhận có mặt'}>
+            {view.requiredRecipientIds.map(id => <li key={id}>{people.find(person => person.beneficiaryId === id)?.fullName}</li>)}
+          </ul>
+        </div>
         <a className="lv-handover-primary-action" href={handoverUrl('/staff/asset-handover', caseId, selected.sessionId, lang)}>{en ? 'Select assets to hand over →' : 'Chọn tài sản bàn giao →'}</a>
-      </div></StaffGroupHandover> : layout()}
+      </div>}</StaffGroupHandover> : layout()}
   </section>;
 }
 
