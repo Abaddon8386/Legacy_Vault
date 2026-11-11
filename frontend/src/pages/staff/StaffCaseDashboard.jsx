@@ -315,7 +315,6 @@ export default function StaffCaseDashboard({
         <div className="lv-staff-dashboard__header-content">
           <h1 className="lv-staff-dashboard__title">{t.title}</h1>
         </div>
-        {!simulation && <a className="lv-staff-counter-link" href="/staff/handover">{lang === 'en' ? 'Counter handover' : 'Bàn giao tại quầy'}</a>}
       </div>
 
       {/* DEV Preview Notice Banner */}
