@@ -354,7 +354,7 @@ export function AssetEditModal({
                   {t.assets.editModal.secureContentLabel}
                 </label>
                 {isCredential ? (
-                  <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} disabled={busy}
+                  <AssetCredentialFields idPrefix="edit-credential" {...credentials} labels={t.assets.addModal} lang={lang} disabled={busy}
                     onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, noChanges: false, payload: undefined })); }} />
                 ) : (
                   <textarea
