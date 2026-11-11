@@ -39,3 +39,15 @@ test('the pending-prerequisites notice is Staff only and gives way to the next s
   assert.match((await show({ caseId, phase: 'DOCUMENT_REQUEST_NEEDED', prerequisites: { deathApproved: true, willMatched: true } })).text, /Chờ Ban Pháp lý gửi yêu cầu/);
   assert.equal((await show({ caseId, phase: 'AWAITING_DOCUMENTS', prerequisites: { deathApproved: true, willMatched: true } })).text, '');
 });
+
+test('a request written as Label: value lines shows each label in bold', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const data = { caseId, phase: 'AWAITING_DOCUMENTS', prerequisites: { deathApproved: true, willMatched: true }, request: { reason: 'Giấy tờ cần nộp: Giấy tờ phân chia hợp lệ\nLý do: cần căn cứ' } };
+  await act(async () => root.render(React.createElement(Overview, { workflow: { data }, workspace: 'STAFF', lang: 'vi', showRefresh: false })));
+  assert.deepEqual([...host.querySelectorAll('.lv-distribution-line strong')].map(node => node.textContent), ['Giấy tờ cần nộp:', 'Lý do:']);
+  assert.match(host.textContent, /Giấy tờ phân chia hợp lệ/);
+  await act(async () => root.unmount());
+  host.remove();
+});

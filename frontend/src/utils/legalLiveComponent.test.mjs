@@ -154,6 +154,8 @@ test('Saving automatically refreshes parent context and document while preservin
         vaultStatus: 'DOCUMENT_VERIFICATION', ...decision });
     }
     if (url.endsWith('/attachments')) return json([]);
+    // The stage chip also reads the distribution workflow; it is not a document read.
+    if (url.includes('/distribution-workflow')) return new Response(JSON.stringify({ code: 'RESOURCE_NOT_FOUND' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     documentReads++;
     return json(detail(a, saved ? { vaultStatus: 'DOCUMENT_VERIFICATION', decisions: [decision] } : {}));
   };
@@ -165,10 +167,10 @@ test('Saving automatically refreshes parent context and document while preservin
     await submit(view.host);
     const previousReads = documentReads;
     assert.equal(contextReads, 2, 'The refresh must read the parent case context, not only the document');
-    assert.equal(view.host.querySelector('.lv-legal-case-banner'), null, 'Old status must disappear while revalidating');
+    assert.equal(view.host.querySelector('.lv-staff-context-bar'), null, 'Old status must disappear while revalidating');
     assert.equal(view.host.querySelector('form'), null, 'No decision may be submitted during context revalidation');
     await act(async () => finishContext(context()));
-    assert.match(view.host.querySelector('.lv-legal-case-status').textContent, /Document verification/);
+    assert.match(view.host.querySelector('.lv-staff-context-badge').textContent, /Document verification/);
     assert.equal(getSelect(view.host, 'Death document'), undefined);
     assert.equal(view.host.querySelector('textarea').value, 'Reviewed');
     assert.equal(documentReads, previousReads + 1);
@@ -190,7 +192,7 @@ for (const status of [403, 500]) test(`Retry revalidates parent context and hide
     await selectDocument(view.host, a);
     await click(view.host, 'Try again');
     assert.equal(contextReads, 2);
-    assert.equal(view.host.querySelector('.lv-legal-case-banner'), null);
+    assert.equal(view.host.querySelector('.lv-staff-context-bar'), null);
     assert.equal(view.host.querySelector('form'), null);
     assert.ok(view.host.querySelector('[role=alert]'));
   } finally { await view.close(); }
