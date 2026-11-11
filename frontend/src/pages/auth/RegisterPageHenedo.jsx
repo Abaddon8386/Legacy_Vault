@@ -487,7 +487,8 @@ export default function RegisterPageHenedo({ onNavigateToLogin, onAuthenticated,
           )}
 
           {/* Footer Info & Signin Prompt (No RBAC note) */}
-          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} registration />
+          {/* The beneficiary-code link is hidden on the normal sign-up page; the notice and cancel button stay for the invitation flow. */}
+          {invitationMode && <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} registration />}
           <footer className="henedo-form-footer lv-auth-footer">
             {typeof onNavigateToLogin === 'function' && (
               <div className="henedo-signin-prompt">

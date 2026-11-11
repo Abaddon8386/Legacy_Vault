@@ -39,10 +39,11 @@ export async function cancelLiveSession(caseId, sessionId, options = {}) {
   if (value.status !== 'CANCELLED') throw new ApiError('INVALID_RESPONSE');
   return value;
 }
-export function handoverUrl(path, caseId, sessionId) {
+export function handoverUrl(path, caseId, sessionId, lang) {
   const query = new URLSearchParams();
   if (isHandoverId(caseId)) query.set('caseId', caseId);
   if (isHandoverId(caseId) && isHandoverId(sessionId)) query.set('sessionId', sessionId);
+  if (lang === 'en') query.set('lang', 'en');
   return path + (query.size ? `?${query}` : '');
 }
 

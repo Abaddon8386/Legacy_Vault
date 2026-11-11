@@ -350,7 +350,8 @@ export default function LoginPage({ onNavigateToForgotPassword, onNavigateToRegi
           )}
 
           {/* Footer Info & Sign-up Link (Customer-facing, no RBAC note) */}
-          <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} />
+          {/* The beneficiary-code link is hidden on the normal login page; the notice and cancel button stay for the invitation flow. */}
+          {invitationMode && <InvitationEntry lang={lang} onNavigate={onNavigateToInvitations} invitationMode={invitationMode} onCancel={onCancelInvitation} disabled={status === 'submitting'} />}
           <footer className="hn-login-form-footer hn-login-entrance-4">
             <div className="hn-login-signin-prompt">
               {t.signupPrompt}{' '}
