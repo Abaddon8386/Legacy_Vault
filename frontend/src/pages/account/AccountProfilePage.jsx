@@ -259,7 +259,7 @@ export default function AccountProfilePage({
           <div className="lv-profile-header-actions">
             <button
               type="button"
-              className="lv-profile-edit-btn"
+              className="lv-profile-edit-btn is-primary"
               onClick={() => onNavigateEdit && onNavigateEdit()}
               aria-label={t.btnEditProfile}
             >
@@ -269,10 +269,10 @@ export default function AccountProfilePage({
 
             <button
               type="button"
-              className="lv-profile-refresh-btn"
+              className="lv-profile-refresh-btn lv-btn-ghost"
               onClick={handleRefresh}
               disabled={!session?.accessToken || isRefreshing}
-              title={!session?.accessToken ? t.unavailableNotice : undefined}
+              title={!session?.accessToken ? t.unavailableNotice : (isRefreshing ? t.btnRefreshing : t.btnRefresh)}
               aria-label={t.btnRefresh}
             >
               <RotateCw size={15} className={isRefreshing ? 'is-spinning' : ''} aria-hidden="true" />

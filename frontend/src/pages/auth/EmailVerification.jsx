@@ -16,13 +16,22 @@ function EmailStatus({session,lang}) {
   return <section className="lv-email-verification" aria-busy={busy}><h2>{en?'Email verification':'Xác minh email'}</h2><p>{session?.user?.email}</p>
     {data && <p role="status" className={`lv-email-status-badge ${data.verified ? 'is-verified' : 'is-unverified'}`}>
       {data.verified ? <CheckCircle2 size={16} className="is-verified" aria-hidden="true" /> : <AlertCircle size={16} className="is-unverified" aria-hidden="true" />}
-      <span>{data.verified?(en?'Email verified':'Email đã xác minh'):(en?'Email not verified':'Email chưa xác minh')}</span>
+      <span>{data.verified ? (en ? 'Email verified' : 'Email đã xác minh') : (en ? 'Email not verified' : 'Email chưa xác minh')}</span>
     </p>}
     {queued && <p role="status">{en?'Request queued. Check your inbox when the message arrives; queuing does not verify your email.':'Yêu cầu đã được xếp hàng. Kiểm tra hộp thư khi nhận được email; gửi yêu cầu chưa có nghĩa email đã xác minh.'}</p>}
     {error && <p role="alert">{emailVerificationMessage(error,en)}</p>}
     {!data && !error && <p role="status">{en?'Loading status…':'Đang tải trạng thái…'}</p>}
     {data && !data.verified && !data.requestAvailable && <p>{en?'Sending is unavailable for this account or email service.':'Tài khoản hoặc dịch vụ hiện chưa cho phép gửi email xác minh.'}</p>}
-    <div className="lv-email-actions"><button type="button" className="lv-btn-ghost" onClick={()=>setAttempt(x=>x+1)} disabled={busy}>{en?'Refresh status':'Cập nhật trạng thái'}</button>{data && !data.verified && <button type="button" className="is-primary lv-btn-verify-now" disabled={busy||cooldown>0||!data.requestAvailable} onClick={send}>{cooldown?`${en?'Retry in':'Thử lại sau'} ${cooldown}s`:(en?'Send verification email':'Xác minh email ngay')}</button>}</div>
+    <div className="lv-email-actions">
+      <button type="button" className="lv-btn-ghost lv-btn-recheck" onClick={()=>setAttempt(x=>x+1)} disabled={busy}>
+        {en ? (data?.verified ? 'Check status again' : 'Refresh status') : 'Kiểm tra lại trạng thái'}
+      </button>
+      {data && !data.verified && (
+        <button type="button" className="is-primary lv-btn-verify-now" disabled={busy||cooldown>0||!data.requestAvailable} onClick={send}>
+          {cooldown ? `${en ? 'Retry in' : 'Thử lại sau'} ${cooldown}s` : (en ? 'Resend verification email' : 'Gửi lại email xác minh')}
+        </button>
+      )}
+    </div>
   </section>;
 }
 export default function VerifyEmailPage({session,lang='vi'}) {
