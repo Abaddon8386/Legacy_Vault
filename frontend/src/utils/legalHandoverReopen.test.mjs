@@ -116,17 +116,15 @@ function backend(options = {}) {
   return log;
 }
 
-test('a selected case without a request says so and keeps other cases in a closed list', async () => {
+test('a selected case without a request says so and never lists other cases', async () => {
   backend({ listed: [pending({ requestId: req2, caseId: caseB, sessionId: sessionB, caseNumber: 'HS-2026-000019' })] });
   const v = await mount({ caseId: caseA });
   try {
     await settle();
     assert.match(v.host.textContent, /This case has no handover on hold/);
     assert.equal(v.host.querySelector('textarea'), null, 'no decision form for a case without a request');
-    const others = v.host.querySelector('details.lv-legal-reopen__others');
-    assert.ok(others && others.open === false, 'other cases wait in a closed list');
-    assert.match(others.querySelector('summary').textContent, /Other cases waiting \(1\)/);
-    assert.match(others.textContent, /HS-2026-000019/);
+    assert.equal(v.host.querySelector('.lv-legal-reopen__list'), null);
+    assert.doesNotMatch(v.host.textContent, /HS-2026-000019/);
   } finally { await v.close(); }
 });
 
