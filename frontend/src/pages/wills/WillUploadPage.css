@@ -51,7 +51,7 @@
 .hn-will-detail-header>div{min-width:0;flex:1 1 300px}
 .hn-will-version-badge{display:inline-flex;align-items:center;font-size:14px;font-weight:600;padding:4px 7px;border-radius:5px;background:#f1f3ec;color:#526b58;font-variant-numeric:tabular-nums}
 .hn-will-history-title{margin:28px 0 16px;font-size:17px;color:#164639}
-.hn-will-legal-notice{max-width:68ch;margin:16px 0 0;padding-top:10px;border-top:1px solid #f0f3ee;font-size:14px;color:#889085;line-height:1.5}
+.hn-will-legal-notice{max-width:68ch;margin:16px 0 0;padding-top:10px;border-top:1px solid #f0f3ee;font-size:14px;color:#4d5d54;line-height:1.5}
 .hn-will-table-wrap{overflow-x: auto;border:1px solid #e2e5db;border-radius:9px}
 .hn-will-table{width:100%;border-collapse:collapse;font-size:14px;text-align:left;line-height:1.6}
 .hn-will-table th{background:#faf8f5;color:#637068;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:12px 18px;border-bottom:1px solid #e2e5db;white-space:nowrap}

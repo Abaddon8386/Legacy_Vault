@@ -30,7 +30,8 @@
   --lv-brand-forest-tint: #245d4d;    /* Muted Celadon Forest */
 
   /* Gold & Warm Metallic Accents */
-  --lv-accent-gold: #c5a059;          /* Sand Gold - NĂºt CTA chĂ­nh, Ä‘iá»ƒm nháº¥n danh dá»± */
+  --lv-accent-gold: #c5a059;          /* Sand Gold - Nút CTA chính, điểm nhấn danh dự */
+  --lv-accent-gold-text: #8c6820;     /* Accessible Dark Gold for text and icons on light backgrounds */
   --lv-accent-gold-hover: #b58f47;    /* Sand Gold Hover */
   --lv-accent-gold-active: #a67f3a;   /* Sand Gold Active */
   --lv-accent-gold-light: #d8c292;    /* Sand Gold Light - Chá»¯ nháº¥n, viá»n má»ng */
@@ -63,8 +64,8 @@
   --lv-text-ink: #1f2421;             /* MĂ u chá»¯ ná»™i dung chĂ­nh */
   --lv-text-heading: #164639;         /* MĂ u tiĂªu Ä‘á» trang nhĂ£ */
   --lv-text-body: #2b302c;            /* NhĂ£n input, vÄƒn báº£n Ä‘á»c */
-  --lv-text-muted: #6b726b;           /* Phá»¥ Ä‘á», hÆ°á»›ng dáº«n phá»¥ */
-  --lv-text-light: #8c918b;           /* Placeholder, hint */
+  --lv-text-muted: #4d5d54;           /* Phá»¥ Ä‘á», hÆ°á»›ng dáº«n phá»¥ */
+  --lv-text-light: #526359;           /* Placeholder, hint */
   --lv-text-inverse: #ffffff;         /* Chá»¯ sĂ¡ng trĂªn ná»n rá»«ng sĂ¢u */
   --lv-text-inverse-muted: #c8d8ce;   /* Chá»¯ phá»¥ trĂªn ná»n rá»«ng sĂ¢u */
   --lv-text-inverse-gold: #d8c292;    /* Chá»¯ vĂ ng nháº¥n trĂªn ná»n rá»«ng sĂ¢u */
