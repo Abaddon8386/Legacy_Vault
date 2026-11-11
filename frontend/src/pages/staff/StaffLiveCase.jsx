@@ -260,7 +260,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       const receipt = await uploadStaffDocumentAttachment(caseId, kind, recordId, file, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
       setSelectedRecordFiles(prev => ({ ...prev, [recordId]: null }));
-      setNotice(`${en ? 'File attached successfully' : 'Đã đính kèm tệp'}: ${receipt.fileName}.${workflowNotificationFeedback(receipt, 'LEGAL', lang)}`);
+      setNotice(`${en ? 'File attached' : 'Đã đính kèm tệp'}: ${receipt.fileName}${workflowNotificationFeedback(receipt, 'LEGAL', lang)}`);
       publishStaffWorkflowChange();
       loadRecordAttachments(recordId);
     } catch (err) {
@@ -353,7 +353,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
       let claimed = false;
       await run(async (options, signal) => {
         const value = await claimStaffCase(caseId, options);
-        if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you.' : 'Đã nhận hồ sơ.') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); claimed = true; }
+        if (!signal.aborted) { setData(value); setNotice((en ? 'Case assigned to you' : 'Đã nhận hồ sơ') + workflowNotificationFeedback(value,'LEGAL',lang)); publishStaffWorkflowChange(); claimed = true; }
       });
       // The list was read before the case was assigned (not-assigned error); reload it now.
       // Must run after `run` finishes: documentsWritePending blocks reads while it is active.
@@ -536,7 +536,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
           const attachmentReceipt = await uploadStaffDocumentAttachment(caseId, kind, saved.id, file, options);
           if (!signal.aborted) {
             setStagedFile(null);
-            setNotice((en ? 'Document saved with its attachment.' : 'Đã tiếp nhận giấy tờ và lưu tệp đính kèm.') + workflowNotificationFeedback(attachmentReceipt, 'LEGAL', lang));
+            setNotice((en ? 'Document saved with its file' : 'Đã tiếp nhận giấy tờ và tệp') + workflowNotificationFeedback(attachmentReceipt, 'LEGAL', lang));
             publishStaffWorkflowChange();
             loadRecordAttachments(saved.id);
           }
@@ -546,11 +546,11 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
             setSelectedRecordFiles(prev => ({ ...prev, [saved.id]: file }));
             loadRecordAttachments(saved.id);
             setUploadAttErrors(prev => ({...prev, [saved.id]: attErr.code || 'UPLOAD_FAILED'}));
-            setNotice(en ? 'Document saved. Please retry attaching the file in the document list.' : 'Đã tiếp nhận giấy tờ. Vui lòng tải lại tệp đính kèm tại giấy tờ vừa lưu trong danh sách.');
+            setNotice(en ? 'Document saved, retry attaching the file from the list' : 'Đã tiếp nhận giấy tờ, hãy đính kèm lại tệp từ danh sách');
           }
         }
       } else {
-        setNotice((en ? 'Document saved successfully.' : 'Đã tiếp nhận giấy tờ thành công.') + workflowNotificationFeedback(saved, 'LEGAL', lang));
+        setNotice((en ? 'Document saved' : 'Đã tiếp nhận giấy tờ') + workflowNotificationFeedback(saved, 'LEGAL', lang));
       }
     }); }}>
       <fieldset disabled={busy || closed || !writeReady}>

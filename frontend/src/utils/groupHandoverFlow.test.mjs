@@ -132,7 +132,7 @@ async function requestReopening(view, lang) {
   assert.equal(deliveryVisible(view), false, 'all present does not self-reopen');
   assert.equal(view.staff.querySelectorAll('input:checked').length, 2);
   await fill(view.staff, 'Đề nghị xét mở lại');
-  await click(view.staff, en ? 'Request Legal reopening' : 'Gửi Ban Pháp lý yêu cầu mở lại');
+  await click(view.staff, en ? 'Request Legal reopening' : 'Gửi yêu cầu mở lại');
   assert.equal(deliveryVisible(view), false); assert.ok(view.staff.querySelector('fieldset').disabled);
   assert.match(view.legal.textContent, /Nguyễn An/); assert.match(view.legal.textContent, /Trần Bình/);
   assert.match(view.legal.textContent, /Thiếu người nhận Bình/); assert.match(view.legal.textContent, /Đề nghị xét mở lại/);
@@ -152,9 +152,9 @@ for (const lang of ['vi', 'en']) for (const decision of ['APPROVE', 'REJECT']) {
       assert.equal(view.legal.querySelector('textarea'), null);
       assert.match(view.legal.textContent, /Đã kiểm tra điều kiện mở lại/);
       assert.match(view.legal.textContent, en ? /Delivered 0\/2 assets/ : /Đã giao 0\/2 tài sản/);
-      assert.match(view.legal.textContent, decision === 'APPROVE'
-        ? (en ? /notification for Staff has been recorded/ : /thông báo cho Nhân viên/)
-        : (en ? /has not been confirmed/ : /chưa xác nhận/i));
+      // A recorded notification needs no message; only a missing one is reported.
+      if (decision === 'APPROVE') assert.doesNotMatch(view.legal.textContent, en ? /notification for Staff has been recorded/ : /Đã ghi nhận thông báo cho Nhân viên/);
+      else assert.match(view.legal.textContent, en ? /not confirmed/ : /Chưa xác nhận thông báo/);
       await click(view.staff, en ? 'Reload attendance' : 'Tải lại danh sách có mặt');
       assert.equal(deliveryVisible(view), decision === 'APPROVE');
       assert.deepEqual(log.posts.map(call => call.body.expectedRevision), [0, 1, 2, 3]);

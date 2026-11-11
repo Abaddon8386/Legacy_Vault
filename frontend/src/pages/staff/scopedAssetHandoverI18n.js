@@ -59,7 +59,7 @@ export const scopedAssetHandoverI18n = {
     btnCancelReview: 'Hủy',
     btnConfirmDelivery: 'Xác nhận ghi nhận bàn giao',
     delivering: 'Đang ghi nhận...',
-    deliverySuccessBatch: 'Đã ghi nhận bàn giao thành công {count} tài sản cho người nhận.',
+    deliverySuccessBatch: 'Đã bàn giao {count} tài sản',
 
     // Error keys
     scopeRequired: 'Yêu cầu phạm vi phân bổ hợp lệ.',
@@ -124,7 +124,7 @@ export const scopedAssetHandoverI18n = {
     btnCancelReview: 'Cancel',
     btnConfirmDelivery: 'Confirm & Record Delivery',
     delivering: 'Recording...',
-    deliverySuccessBatch: 'Successfully recorded delivery of {count} asset(s) to recipient.',
+    deliverySuccessBatch: 'Delivered {count} asset(s)',
 
     // Error keys
     scopeRequired: 'Valid allocation scope data is required.',

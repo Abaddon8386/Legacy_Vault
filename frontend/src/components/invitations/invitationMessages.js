@@ -20,7 +20,7 @@ export const invitationMessages = {
     ownerLabel: 'Mã mời',
     ownerLoading: 'Đang tải mã mời…', ownerEmpty: 'Chưa có mã mời để hiển thị.',
     ownerError: 'Chưa tải được mã mời.',
-    retry: 'Thử tải lại mã', copy: 'Sao chép mã', copied: 'Đã sao chép mã.', copyError: 'Chưa thể sao chép. Bạn có thể chọn và sao chép mã đang hiển thị.',
+    retry: 'Thử tải lại mã', copy: 'Sao chép mã', copied: 'Đã sao chép mã', copyError: 'Chưa thể sao chép. Bạn có thể chọn và sao chép mã đang hiển thị.',
   },
   en: {
     title: 'Accept an invitation', entry: 'Have a beneficiary invitation code?', code: 'Invitation code',

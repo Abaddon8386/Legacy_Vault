@@ -26,7 +26,7 @@ test('saved server attendance survives reopening the page; waiting and unsent re
   assert.match(v.host.querySelector('h2').textContent,/Đã đủ người — cần gửi yêu cầu mở lại/);
   assert.equal(v.host.querySelectorAll('input:checked').length,2);
   await act(async()=>v.host.querySelectorAll('input')[1].click());await fill(v.host,'Một người vừa rời quầy');
-  const reopen=[...v.host.querySelectorAll('button')].find(x=>x.textContent==='Gửi Ban Pháp lý yêu cầu mở lại');
+  const reopen=[...v.host.querySelectorAll('button')].find(x=>x.textContent==='Gửi yêu cầu mở lại');
   assert.equal(reopen.disabled,true);await act(async()=>reactProps(reopen).onClick());assert.equal(posts,0);
   await act(async()=>v.host.querySelectorAll('input')[1].click());
   current={...view('AWAITING_LEGAL',3,true),attendance:{presentRecipientIds:[r,q]}};

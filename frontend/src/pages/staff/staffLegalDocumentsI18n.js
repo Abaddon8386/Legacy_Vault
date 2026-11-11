@@ -102,8 +102,8 @@ export const staffLegalDocumentsI18n = {
     btnForwardHelper: 'Chỉ khả dụng khi hồ sơ đã có phiên bản mới nhất chưa chuyển',
 
     // Phản hồi hành động
-    uploadSuccessNotice: 'Tiếp nhận văn bản thành công. Phiên bản số hóa đã được lưu trữ an toàn.',
-    forwardSuccessNotice: 'Đã chuyển thành công phiên bản mới nhất cho Ban Pháp lý thẩm định.',
+    uploadSuccessNotice: 'Đã tiếp nhận văn bản',
+    forwardSuccessNotice: 'Đã chuyển Ban Pháp lý',
     versionStaleError: 'Phiên bản cần chuyển không phải phiên bản mới nhất của hồ sơ (BASIS_VERSION_STALE).',
     dossierStateInvalid: 'Trạng thái hồ sơ hoặc ca xác minh không cho phép thao tác này.',
 
@@ -258,8 +258,8 @@ export const staffLegalDocumentsI18n = {
     btnForwardHelper: 'Only available when the dossier has a latest version that has not yet been forwarded',
 
     // Feedback
-    uploadSuccessNotice: 'Document intake successful. The digitized version has been securely stored.',
-    forwardSuccessNotice: 'The latest version was successfully forwarded to Legal Department for verification.',
+    uploadSuccessNotice: 'Document received',
+    forwardSuccessNotice: 'Sent to Legal',
     versionStaleError: 'The version being forwarded is not the latest version of the dossier (BASIS_VERSION_STALE).',
     dossierStateInvalid: 'The dossier or verification case state does not permit this action.',
 

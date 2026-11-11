@@ -73,7 +73,7 @@ function GraceSettings({ data, actions, ownerId, accessToken, lang = 'vi', isOwn
     fields={['days', 'hours', 'minutes'].map((unit, index) => ({ id: `grace-${unit}`, label: (en ? ['Days', 'Hours', 'Minutes'] : ['Số ngày', 'Số giờ', 'Số phút'])[index],
       placeholder: '0', max: unit === 'hours' ? 23 : unit === 'minutes' ? 59 : undefined, value: value[unit], invalid: dirty && invalid,
       onChange: e => { setDraft({ ...value, [unit]: e.target.value }); setDirty(true); setSaved(false); } }))}>
-    {saved && <div className="lv-grace-feedback"><FeedbackNotice tone="success">{en ? 'Grace period saved.' : 'Đã lưu thời gian ân hạn.'}</FeedbackNotice></div>}
+    {saved && <div className="lv-grace-feedback"><FeedbackNotice tone="success">{en ? 'Grace period saved' : 'Đã lưu thời gian ân hạn'}</FeedbackNotice></div>}
     {error && <div className="lv-grace-feedback"><FeedbackNotice tone="error">{error === 'changed'
       ? (en ? 'The status has changed. Reload before saving again.' : 'Trạng thái đã thay đổi. Hãy tải lại trước khi lưu tiếp.')
       : (en ? 'The save could not be confirmed. Check the current status before trying again.' : 'Chưa xác nhận được kết quả lưu. Hãy kiểm tra trạng thái trước khi thử lại.')}</FeedbackNotice></div>}

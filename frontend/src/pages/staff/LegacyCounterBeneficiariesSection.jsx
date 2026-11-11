@@ -91,7 +91,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
         confirmedEmail: confirmedEmail.trim() || undefined,
       }, { accessToken, lang, signal: c.signal });
       if (c.signal.aborted) return;
-      setNotice(en ? 'Counter attestation recorded successfully.' : 'Đã ghi nhận đối chiếu giấy tờ tại quầy thành công.');
+      setNotice(en ? 'Counter check recorded' : 'Đã ghi nhận đối chiếu tại quầy');
       setAttestTarget(null);
       setEvidenceRef('');
       setConfirmedEmail('');
@@ -231,7 +231,7 @@ export default function LegacyCounterBeneficiariesSection({ caseId, caseItem, se
           try {
             await linkExistingBeneficiaryAccount(linkTarget.beneficiaryId, accountEmail.trim(), { accessToken, lang, signal: c.signal });
             if (c.signal.aborted) return;
-            setNotice(en ? 'Account linked successfully.' : 'Đã liên kết tài khoản thành công.');
+            setNotice(en ? 'Account linked' : 'Đã liên kết tài khoản');
             setLinkTarget(null); setAccountEmail(''); setBeneficiaryRevision(value => value + 1);
           } catch (err) {
             if (!c.signal.aborted) { setError(err); onError?.(err); }
