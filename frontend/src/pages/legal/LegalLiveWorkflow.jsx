@@ -234,14 +234,13 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
+    <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
+      onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
+      <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
+    </button></div>
     <div className="lv-legal-context-row">
       <StaffCaseContextBar caseId={selected.caseId} caseItem={{ caseNumber: context.caseNumber || selected.label, status: caseStatus }}
-        statusLabel={caseStatus ? legalStatus(caseStatus, en) : ''} onChangeCase={onChangeCase} lang={lang}
-        extraActions={<div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
-          title={en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
-          onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
-          <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật hồ sơ'}
-        </button></div>} />
+        statusLabel={caseStatus ? legalStatus(caseStatus, en) : ''} onChangeCase={onChangeCase} lang={lang} />
     </div>
     {step === 'basis-route-selection'
       ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}

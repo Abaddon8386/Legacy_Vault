@@ -134,7 +134,7 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
     {target && <ReopenDetail key={target.requestId} item={target} session={session} lang={lang}
       onDecided={result => { setOutcome({ ...result, caseId: target.caseId }); setOpened(target); }} onUnauthorized={onUnauthorized} />}
     {forCase?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(forCase.error, lang).description}</p></div>}
-    {caseId && !target && forCase && !forCase.error && <p className="lv-legal-reopen__empty">{en ? 'This case has no handover on hold' : 'Hồ sơ này không có bàn giao nào đang tạm dừng'}</p>}
+    {caseId && !target && forCase && !forCase.error && <p className="lv-legal-reopen__empty">{en ? 'Staff has not sent a request to resume this handover' : 'Staff chưa gửi yêu cầu tiếp tục bàn giao của hồ sơ này'}</p>}
   </section>;
 }
 

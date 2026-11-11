@@ -121,7 +121,7 @@ test('a selected case without a request says so and never lists other cases', as
   const v = await mount({ caseId: caseA });
   try {
     await settle();
-    assert.match(v.host.textContent, /This case has no handover on hold/);
+    assert.match(v.host.textContent, /Staff has not sent a request to resume this handover/);
     assert.equal(v.host.querySelector('textarea'), null, 'no decision form for a case without a request');
     assert.equal(v.host.querySelector('.lv-legal-reopen__list'), null);
     assert.doesNotMatch(v.host.textContent, /HS-2026-000019/);

@@ -11,7 +11,6 @@ export default function StaffCaseContextBar({
   outcomeChip = null,
   statusLabel: statusLabelOverride = '',
   stage = null,
-  extraActions = null,
   lang = 'vi',
 }) {
   const en = lang === 'en';
@@ -77,7 +76,6 @@ export default function StaffCaseContextBar({
             </div>
 
             <div className="lv-staff-context-bar__actions">
-              {extraActions}
               <button
                 type="button"
                 className="lv-staff-context-bar__btn-change lv-staff-context-bar__change-btn"
