@@ -195,7 +195,7 @@ export function AssetFormModal({
               {t.assets.addModal.payloadLabel} <span className="lv-required">*</span>
             </label>
             {formData.assetType === 'CREDENTIAL' ? (
-              <AssetCredentialFields idPrefix="asset-credential" {...credentials} labels={t.assets.addModal} disabled={isSubmitting}
+              <AssetCredentialFields idPrefix="asset-credential" {...credentials} labels={t.assets.addModal} lang={lang} disabled={isSubmitting}
                 onChange={(field, value) => { setCredentials(prev => ({ ...prev, [field]: value })); setErrors(prev => ({ ...prev, payload: undefined })); }} />
             ) : (
             <textarea

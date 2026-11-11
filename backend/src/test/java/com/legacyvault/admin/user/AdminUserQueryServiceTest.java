@@ -7,6 +7,8 @@ import com.legacyvault.user.entity.Role;
 import com.legacyvault.user.entity.UserRole;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.user.repository.UserRoleRepository;
+import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.vault.repository.VaultRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -26,16 +28,17 @@ import static org.mockito.Mockito.*;
 class AdminUserQueryServiceTest {
     private final UserRepository users = mock(UserRepository.class);
     private final UserRoleRepository userRoles = mock(UserRoleRepository.class);
-    private final AdminUserQueryService service = new AdminUserQueryService(users, userRoles);
+    private final VaultRepository vaults = mock(VaultRepository.class);
+    private final AdminUserQueryService service = new AdminUserQueryService(users, userRoles, vaults);
 
     @Test
     void listMapsDistinctPublicFieldsAndSoftDeletedEffectiveStatus() {
         UUID publicId = UUID.randomUUID();
         User user = user(publicId, LocalDateTime.of(2026, 10, 20, 12, 0));
         ReflectionTestUtils.setField(user, "deletedAt", LocalDateTime.of(2026, 10, 21, 0, 0));
-        when(users.searchForAdmin("alice", "ROLE_ADMIN", "DELETED", PageRequest.of(0, 20,
+        when(users.searchForAdmin(eq("alice"), eq(false), any(UUID.class), eq("ROLE_ADMIN"), eq("DELETED"), isNull(), eq(PageRequest.of(0, 20,
                 org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
-                        .and(org.springframework.data.domain.Sort.by("publicId")))))
+                        .and(org.springframework.data.domain.Sort.by("publicId"))))))
                 .thenReturn(new PageImpl<>(List.of(user), PageRequest.of(0, 20), 1));
         Role adminRole = new Role();
         adminRole.setRoleCode("ROLE_ADMIN");
@@ -44,12 +47,98 @@ class AdminUserQueryServiceTest {
         when(userRoles.findByUserIdsWithRole(List.of(17L))).thenReturn(List.of(
                 new UserRole(user, staffRole), new UserRole(user, adminRole)));
 
-        var result = service.listUsers(" alice ", "role_admin", "deleted", 0, 20);
+        var result = service.listUsers(" alice ", "role_admin", "deleted", null, 0, 20);
 
         assertThat(result.content()).containsExactly(new AdminUserResponse(publicId, "Alice Example",
                 "alice@example.test", List.of("ROLE_ADMIN", "ROLE_STAFF_EXECUTOR"), LocalDateTime.of(2026, 10, 20, 12, 0)
-                .toInstant(ZoneOffset.UTC), "DELETED"));
-        assertThat(result.content().getFirst()).hasNoNullFieldsOrProperties();
+                .toInstant(ZoneOffset.UTC), "DELETED", "DELETED", null));
+        assertThat(result.content().getFirst()).hasNoNullFieldsOrPropertiesExcept("vaultStatus");
+    }
+
+    @Test
+    void ownerGroupsRemainIndependentFromAccountStatusAndIncludeNoVault() {
+        User owner = user(UUID.randomUUID(), LocalDateTime.of(2026, 1, 1, 0, 0));
+        owner.setStatus("LOCKED");
+        Role role = new Role();
+        role.setRoleCode("ROLE_VAULT_OWNER");
+        when(users.findByPublicId(owner.getPublicId())).thenReturn(Optional.of(owner));
+        when(userRoles.findByUserIdWithRole(17L)).thenReturn(List.of(new UserRole(owner, role)));
+        when(vaults.findByOwnerUserIdIn(List.of(17L))).thenReturn(List.of());
+        assertThat(service.getUser(owner.getPublicId(), null).vaultStatus()).isEqualTo("NO_VAULT");
+        for (String status : List.of("ACTIVE", "ARCHIVED", "AWAITING_VERIFICATION", "DOCUMENT_VERIFICATION",
+                "WILL_VERIFICATION", "AWAITING_LEGAL_BASIS", "LEGAL_BASIS_VERIFICATION", "ON_HOLD", "UNLOCKED", "HANDOVER_IN_PROGRESS")) {
+            Vault vault = new Vault();
+            ReflectionTestUtils.setField(vault, "status", status);
+            when(vaults.findByOwnerUserIdIn(List.of(17L))).thenReturn(List.of(vault));
+            var result = service.getUser(owner.getPublicId(), null);
+            assertThat(result.status()).isEqualTo("LOCKED");
+            assertThat(result.vaultStatus()).isEqualTo(List.of("ACTIVE", "ARCHIVED").contains(status) ? status : "IN_PROCESS");
+        }
+    }
+
+    @Test
+    void displayProcessingStateNeverChangesAuthenticationStateOrOverridesBlockedAccounts() {
+        User actor = user(UUID.randomUUID(), LocalDateTime.of(2026, 1, 1, 0, 0));
+        Role role = new Role();
+        role.setRoleCode("ROLE_LEGAL_VERIFIER");
+        when(users.findByPublicId(actor.getPublicId())).thenReturn(Optional.of(actor));
+        when(userRoles.findByUserIdWithRole(17L)).thenReturn(List.of(new UserRole(actor, role)));
+        when(users.findProcessingUserIds(List.of(17L), "ROLE_LEGAL_VERIFIER")).thenReturn(java.util.Set.of(17L));
+        var processing = service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER");
+        assertThat(processing.status()).isEqualTo("ACTIVE");
+        assertThat(processing.accountStatus()).isEqualTo("IN_PROCESS");
+        actor.setStatus("LOCKED");
+        assertThat(service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER").accountStatus()).isEqualTo("LOCKED");
+        actor.setStatus("PENDING");
+        assertThatThrownBy(() -> service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER"))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        assertThat(service.getUser(actor.getPublicId(), null).accountStatus()).isEqualTo("PENDING");
+        ReflectionTestUtils.setField(actor, "deletedAt", LocalDateTime.of(2026, 11, 11, 0, 0));
+        assertThatThrownBy(() -> service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER"))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        assertThat(service.getUser(actor.getPublicId(), null).accountStatus()).isEqualTo("DELETED");
+        verify(users, never()).save(any());
+    }
+
+    @Test
+    void scopedRolesRejectLegacyStatusFiltersBeforeQuerying() {
+        for (String role : List.of("ROLE_VAULT_OWNER", "ROLE_BENEFICIARY", "ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR")) {
+            for (String status : List.of("PENDING", "DELETED")) {
+                assertThatThrownBy(() -> service.listUsers(null, role, status, null, 0, 20))
+                        .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+            }
+        }
+        assertThatThrownBy(() -> service.listUsers(null, "ROLE_VAULT_OWNER", "IN_PROCESS", null, 0, 20))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        verifyNoInteractions(users, userRoles, vaults);
+    }
+
+    @Test
+    void vaultFilterRequiresOwnerRoleAndKnownGroupBeforeQuerying() {
+        for (String role : new String[]{null, "ROLE_ADMIN", "ROLE_BENEFICIARY"}) {
+            assertThatThrownBy(() -> service.listUsers(null, role, null, "ACTIVE", 0, 20))
+                    .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        }
+        assertThatThrownBy(() -> service.listUsers(null, "ROLE_VAULT_OWNER", null, "UNKNOWN", 0, 20))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        verifyNoInteractions(users, vaults);
+    }
+
+    @Test
+    void aFullUuidFindsTheAccountByPublicIdWhileOtherTextStaysAPlainNameOrEmailSearch() {
+        UUID id = UUID.fromString("3F2B8C1E-AAAA-4BBB-8CCC-123456789ABC");
+        when(users.searchForAdmin(any(), anyBoolean(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        service.listUsers("  " + id.toString().toLowerCase() + "  ", null, null, null, 0, 20);
+        verify(users).searchForAdmin(eq(id.toString().toLowerCase()), eq(true), eq(id), isNull(), isNull(), isNull(),
+                any(org.springframework.data.domain.Pageable.class));
+
+        for (String text : List.of("3f2b8c1e", "3f2b8c1e-aaaa-4bbb-8ccc", "alice@example.test", "1-1-1-1-1", id + "x")) {
+            service.listUsers(text, null, null, null, 0, 20);
+            verify(users).searchForAdmin(eq(text), eq(false), eq(new UUID(0L, 0L)), isNull(), isNull(), isNull(),
+                    any(org.springframework.data.domain.Pageable.class));
+        }
     }
 
     @Test
@@ -58,12 +147,19 @@ class AdminUserQueryServiceTest {
         User user = user(publicId, LocalDateTime.of(2026, 1, 1, 0, 0));
         when(users.findByPublicId(publicId)).thenReturn(Optional.of(user));
         when(userRoles.findByUserIdWithRole(17L)).thenReturn(List.of());
-        assertThat(service.getUser(publicId).publicId()).isEqualTo(publicId);
+        assertThat(service.getUser(publicId, null).publicId()).isEqualTo(publicId);
 
         UUID absent = UUID.randomUUID();
         when(users.findByPublicId(absent)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.getUser(absent))
+        assertThatThrownBy(() -> service.getUser(absent, null))
                 .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+    }
+
+    private static Vault vault(long ownerId, String status) {
+        Vault vault = new Vault();
+        ReflectionTestUtils.setField(vault, "ownerUserId", ownerId);
+        ReflectionTestUtils.setField(vault, "status", status);
+        return vault;
     }
 
     private User user(UUID publicId, LocalDateTime createdAt) {

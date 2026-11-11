@@ -511,7 +511,7 @@
   margin-block: 2px;
 }
 
-.lv-admin-container .lv-admin-status-active {
+.lv-admin-container :is(.lv-admin-status-active, .lv-admin-vault-active) {
   color: #236346;
   background: #eaf5ed;
   border-color: #cfe5d4;
@@ -523,10 +523,16 @@
   border-color: #f0d0ca;
 }
 
-.lv-admin-container .lv-admin-status-pending {
+.lv-admin-container :is(.lv-admin-status-pending, .lv-admin-status-in_process, .lv-admin-vault-in_process) {
   color: #805615;
   background: #fff6e4;
   border-color: #edd9b0;
+}
+
+.lv-admin-container :is(.lv-admin-vault-no_vault, .lv-admin-vault-archived, .lv-admin-vault-unknown) {
+  color: var(--admin-muted);
+  background: #f2f4f1;
+  border-color: var(--admin-line);
 }
 
 .lv-admin-pagination {
@@ -766,9 +772,9 @@
     right: 0;
     z-index: 2;
     background: #fff;
-    width: 92px;
-    min-width: 88px;
-    max-width: 96px;
+    width: 156px;
+    min-width: 152px;
+    max-width: 160px;
     padding: 6px 6px;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
   }
@@ -779,11 +785,245 @@
   .lv-admin-cell-actions .lv-admin-row-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0;
+    gap: 4px;
   }
   .lv-admin-cell-actions .lv-admin-btn-secondary {
     padding: 4px 8px;
     font-size: 14px;
     white-space: nowrap;
   }
+}
+
+/* Account creation and role assignment */
+.lv-admin-header--with-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lv-admin-modal-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.lv-admin-form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.lv-admin-form-intro {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 14px;
+}
+
+.lv-admin-form-field {
+  flex: none;
+}
+
+.lv-admin-field-hint {
+  color: var(--admin-muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.lv-admin-field-error,
+.lv-admin-form-error {
+  color: var(--lv-status-error-text);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.lv-admin-form-error {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--lv-status-error-border);
+  border-radius: 9px;
+  background: var(--lv-status-error-bg);
+}
+
+.lv-admin-form-notice {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-line);
+  border-radius: 9px;
+  background: var(--admin-soft);
+  color: var(--admin-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lv-admin-container [aria-invalid="true"] {
+  border-color: var(--lv-status-error-text);
+}
+
+.lv-admin-required {
+  color: var(--lv-required);
+  font-weight: 700;
+}
+
+.lv-admin-modal-card--wide {
+  max-inline-size: 720px;
+}
+
+/* Two columns like the public sign-up form; labels share a row so a hint cannot shift its input. */
+.lv-admin-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.lv-admin-form-row > .lv-admin-form-field {
+  align-content: start;
+}
+
+.lv-admin-form-field > label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.lv-admin-label-hint {
+  color: var(--admin-muted);
+  font-weight: 400;
+}
+
+.lv-admin-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lv-admin-container .lv-admin-input-wrap .lv-admin-input {
+  padding-inline-end: 48px;
+}
+
+.lv-admin-eye-btn {
+  position: absolute;
+  inset-inline-end: 2px;
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.lv-admin-eye-btn:hover:not(:disabled) {
+  color: var(--admin-ink);
+}
+
+@media (max-width: 540px) {
+  .lv-admin-form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Icon-only row actions: 44px targets, state carried by icon shape as well as colour. */
+.lv-admin-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid #ccd6cd;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--admin-ink);
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+
+.lv-admin-icon-btn:hover:not(:disabled) {
+  border-color: #78967f;
+  background: var(--admin-soft);
+}
+
+.lv-admin-icon-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.lv-admin-icon-btn--locked {
+  color: #a13c35;
+  background: #fff1ef;
+  border-color: #f0d0ca;
+}
+
+.lv-admin-icon-btn--locked:hover:not(:disabled) {
+  border-color: #a13c35;
+  background: #ffe5e1;
+}
+
+.lv-admin-container .lv-admin-btn-danger {
+  color: #fff;
+  background: #a13c35;
+}
+
+.lv-admin-container .lv-admin-btn-danger:hover:not(:disabled) {
+  background: #862f29;
+}
+
+.lv-admin-textarea {
+  resize: vertical;
+}
+
+/* Users table: headers are centred and roles always stack top to bottom, in both languages. */
+.lv-admin-table--users th {
+  text-align: center;
+}
+
+.lv-admin-role-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.lv-admin-table--users .lv-admin-role-badge {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Email is wide enough for the longest address on a single line (the table container scrolls if needed).
+   Name and actions stay auto so the sticky mobile layout keeps its own pixel widths. */
+.lv-admin-table--users :is(th, td):nth-child(2) {
+  white-space: nowrap;
+}
+
+.lv-admin-table--users :is(th, td):nth-child(3) {
+  inline-size: 17%;
+}
+
+.lv-admin-table--users :is(th, td):nth-child(n+3):nth-child(-n+5) {
+  white-space: nowrap;
+}
+
+.lv-admin-table--users :is(th, td):nth-child(4),
+.lv-admin-table--users :is(th, td):nth-child(5) {
+  inline-size: 15%;
+}
+
+.lv-admin-table--users .lv-admin-row-actions {
+  justify-content: flex-start;
+}
+
+/* Derived statuses: handover in progress is amber like pending work, archived is a quiet neutral. */
+.lv-admin-container .lv-admin-status-handover_in_progress {
+  color: #805615;
+  background: #fff6e4;
+  border-color: #edd9b0;
+}
+
+.lv-admin-container .lv-admin-status-archived {
+  color: #4e5b66;
+  background: #eef1f4;
+  border-color: #d5dce2;
 }

@@ -18,6 +18,9 @@ class AdminOpenApiContractTest {
         var paths=(Map<?,?>)root.get("paths");
         var overview=(Map<?,?>)paths.get("/api/v1/admin/overview");assertEquals(Set.of("get"),overview.keySet());
         var schemas=(Map<?,?>)((Map<?,?>)root.get("components")).get("schemas");
+        var userProperties=(Map<?,?>)((Map<?,?>)schemas.get("AdminUser")).get("properties");
+        assertFalse(((List<?>)((Map<?,?>)userProperties.get("status")).get("enum")).contains("IN_PROCESS"));
+        assertTrue(((List<?>)((Map<?,?>)userProperties.get("accountStatus")).get("enum")).contains("IN_PROCESS"));
         var properties=(Map<?,?>)((Map<?,?>)schemas.get("AdminOverview")).get("properties");
         assertEquals(Set.of("totalAccounts","activeVaults","processingCases","roleAssignments","startedAt","completedAt","consistency"),properties.keySet());
     }
