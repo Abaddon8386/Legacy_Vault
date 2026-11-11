@@ -69,7 +69,7 @@ export const staffLegalDocumentsI18n = {
 
     // Số hiệu văn bản
     documentNumberLabel: 'Số hiệu văn bản',
-    documentNumberPlaceholder: 'VD: 118/2026/VB-CC, 45/2026/QĐ-TA...',
+    documentNumberPlaceholder: 'VD: 118/2026/VB-CC',
     documentNumberHint: 'Số hiệu chính thức ghi trên văn bản căn cứ',
 
     // Ngày ban hành
@@ -86,7 +86,7 @@ export const staffLegalDocumentsI18n = {
 
     // Tham chiếu chứng từ & ghi chú
     evidenceReferenceLabel: 'Mã tham chiếu hồ sơ giấy',
-    evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09, Ngăn lưu trữ B-12...',
+    evidenceReferencePlaceholder: 'VD: HS-GIAY-2026-09',
     evidenceReferenceHint: 'Mã số biên nhận lưu trữ hoặc vị trí lưu trữ bản gốc giấy tại văn phòng',
     notesLabel: 'Ghi chú bổ sung',
     notesPlaceholder: 'Nội dung ghi chú hoặc lưu ý đặc biệt về văn bản...',
@@ -225,7 +225,7 @@ export const staffLegalDocumentsI18n = {
 
     // Document number
     documentNumberLabel: 'Document Number',
-    documentNumberPlaceholder: 'e.g. 118/2026/VB-CC, 45/2026/QD-TA...',
+    documentNumberPlaceholder: 'e.g. 118/2026/VB-CC',
     documentNumberHint: 'Official reference number printed on the legal document',
 
     // Issuance date
@@ -242,7 +242,7 @@ export const staffLegalDocumentsI18n = {
 
     // References & notes
     evidenceReferenceLabel: 'Physical Record Reference',
-    evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09, Storage Locker B-12...',
+    evidenceReferencePlaceholder: 'e.g. HS-PHYS-2026-09',
     evidenceReferenceHint: 'Physical receipt docket code or storage location of original paper documents',
     notesLabel: 'Additional Notes',
     notesPlaceholder: 'Enter any additional remarks or observations...',

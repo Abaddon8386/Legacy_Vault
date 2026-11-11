@@ -1288,6 +1288,7 @@ export default function StaffLegalDocumentsPage({
               <div className="lv-form-group">
                 <div id={typeId} aria-invalid={!basisTypeMatchesRoute || undefined}>
                   <ChoiceButtons
+                    equal
                     title={t.legalBasisTypeLabel}
                     options={[
                       ['NOTARIAL_PARTITION', en ? 'Notarized document' : 'Văn bản công chứng', isRouteCourt],
@@ -1317,7 +1318,7 @@ export default function StaffLegalDocumentsPage({
                     className={`lv-form-input ${errors.issuer ? 'lv-form-input--error' : ''}`}
                     aria-invalid={Boolean(errors.issuer)}
                     aria-describedby={errors.issuer ? `${issuerId}-error` : undefined}
-                    placeholder={legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'e.g. Notarial office name' : 'VD: Văn phòng công chứng Nguyễn An') : t.issuerPlaceholder}
+                    placeholder={legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notary office name' : 'Tên văn phòng công chứng') : t.issuerPlaceholder}
                     value={issuer}
                     onChange={(e) => { setIssuer(e.target.value); if (errors.issuer) setErrors(prev => ({ ...prev, issuer: '' })); }}
                     disabled={isSubmitting || !canReceiveBasis}
