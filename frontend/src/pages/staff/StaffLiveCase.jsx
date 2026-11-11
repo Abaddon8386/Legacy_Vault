@@ -16,6 +16,8 @@ import EvidencePreviewModal from '../../components/common/EvidencePreviewModal.j
 import { DatePicker } from '../../components/common/DatePicker.jsx';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
+import { useDistributionWorkflow } from '../../workflows/useDistributionWorkflow.js';
+import { staffStage } from '../../utils/staffStage.js';
 import './StaffLiveCase.css';
 import { WillComparisonOutcome } from '../../components/staff/StaffDocumentOutcome.jsx';
 
@@ -92,6 +94,7 @@ export default function StaffLiveCase(props) {
 function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized }) {
   const en = lang === 'en';
   const [data, setData] = useState(null);
+  const distribution = useDistributionWorkflow({ caseId, workspace: 'STAFF', accessToken, lang, enabled: Boolean(data), onUnauthorized });
   const [kind, setKind] = useState(() => {
     if (typeof window !== 'undefined') {
       const param = new URLSearchParams(window.location.search).get('tab') || new URLSearchParams(window.location.search).get('kind');
@@ -335,6 +338,7 @@ function ScopedStaffLiveCase({ caseId, accessToken, lang, onBack, onUnauthorized
     <StaffCaseContextBar
       caseId={caseId}
       caseItem={data}
+      stage={staffStage(distribution.data, en)}
       onChangeCase={onBack}
       lang={lang}
     />

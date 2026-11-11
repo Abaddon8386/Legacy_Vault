@@ -10,6 +10,7 @@ export default function StaffCaseContextBar({
   onChangeCase,
   outcomeChip = null,
   statusLabel: statusLabelOverride = '',
+  stage = null,
   lang = 'vi',
 }) {
   const en = lang === 'en';
@@ -49,6 +50,7 @@ export default function StaffCaseContextBar({
                       {statusLabel}
                     </span>
                   )}
+                  {stage && <span className={`lv-staff-context-stage is-${stage.tone}`}>{stage.label}</span>}
                   {outcomeChip && (
                     <span className={`lv-staff-context-badge lv-staff-context-badge--outcome-${outcomeChip.tone}`}>
                       {outcomeChip.tone === 'history' ? <History size={16} aria-hidden="true" /> : outcomeChip.tone === 'positive' ? <CheckCircle2 size={16} aria-hidden="true" /> : outcomeChip.tone === 'negative' ? <XCircle size={16} aria-hidden="true" /> : <AlertTriangle size={16} aria-hidden="true" />}
