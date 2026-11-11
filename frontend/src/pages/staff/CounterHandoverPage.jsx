@@ -2,7 +2,7 @@ import LiveHandoverPage from './LiveHandoverPage.jsx';
 import { isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import LanguageToggle from '../../components/common/LanguageToggle.jsx';
 import { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Lock, AlertTriangle, RotateCcw, Sparkles, RefreshCw, LogOut } from 'lucide-react';
 
 import { getCounterHandoverTranslations } from './handoverSessionI18n.js';
 import {
@@ -230,13 +230,6 @@ function CounterHandoverContent({
       </header>
 
       <main className="lv-counter-handover-view__container">
-        {/* Nút Về danh sách hồ sơ */}
-        <div className="lv-staff-header-actions">
-          <a href="/staff/cases" className="lv-staff-back-link-btn">
-            <ArrowLeft size={16} aria-hidden="true" />
-            <span>{lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
-          </a>
-        </div>
 
         {/* Title & Concise Subtitle */}
         <div className="lv-counter-handover-intro">
