@@ -801,7 +801,7 @@ paths:
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
         - { name: role, in: query, schema: { type: string, maxLength: 50 } }
-        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, DELETED] } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, DELETED] } }
       responses:
         '200':
           description: Trang tài khoản theo envelope phân trang chung.
@@ -833,6 +833,59 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/lock:
+    post:
+      tags: [Admin]
+      summary: Admin khóa tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Chuyển ACTIVE sang LOCKED và thu hồi mọi token đã phát hành (tăng authVersion), nên mở khóa
+        về sau không làm phiên cũ sống lại. Tài khoản bị khóa không đăng nhập được và mọi request đang dùng token đều bị 401.
+        Không khóa được tài khoản ROLE_ADMIN hoặc chính mình (409 ADMIN_ACCOUNT_PROTECTED); tài khoản không ở ACTIVE
+        (ví dụ PENDING) trả 409 ADMIN_ACCOUNT_STATE_INVALID; khóa lại tài khoản đã khóa là no-op. Ghi audit ADMIN_USER_LOCKED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLockUserRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi khóa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/unlock:
+    post:
+      tags: [Admin]
+      summary: Admin mở khóa tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Chuyển LOCKED sang ACTIVE; token phát hành trước lúc khóa vẫn vô hiệu. Cùng các ràng buộc
+        bảo vệ như khóa; mở khóa tài khoản đang ACTIVE là no-op. Ghi audit ADMIN_USER_UNLOCKED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Tài khoản sau khi mở khóa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/users/{publicId}/role:
     put:
@@ -4395,7 +4448,11 @@ components:
         email: { type: string, format: email }
         roles: { type: array, items: { type: string } }
         createdAt: { type: string, format: date-time, description: UTC }
-        status: { type: string, enum: [PENDING, ACTIVE, DELETED] }
+        status: { type: string, enum: [PENDING, ACTIVE, LOCKED, DELETED] }
+    AdminLockUserRequest:
+      type: object
+      properties:
+        reason: { type: string, maxLength: 255, description: Lý do khóa (tùy chọn), ghi vào audit }
     AdminCreateUserRequest:
       type: object
       required: [fullName, email, password, role]
@@ -4872,6 +4929,7 @@ components:
             - GOOGLE_IDENTITY_MISMATCH
             - PASSWORD_NOT_SET
             - PASSWORD_ALREADY_SET
+            - ACCOUNT_LOCKED_BY_ADMIN
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
@@ -4879,6 +4937,7 @@ components:
             - ADMIN_ROLE_NOT_ASSIGNABLE
             - ADMIN_ACCOUNT_PROTECTED
             - ADMIN_OWNER_HAS_VAULT
+            - ADMIN_ACCOUNT_STATE_INVALID
             - PAYLOAD_TOO_LARGE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR

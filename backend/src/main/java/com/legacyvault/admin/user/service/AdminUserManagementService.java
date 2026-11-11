@@ -128,6 +128,48 @@ public class AdminUserManagementService {
         return query.getUser(publicId);
     }
 
+    /**
+     * Locks (ACTIVE to LOCKED) or unlocks (LOCKED to ACTIVE) an account. Locking revokes every issued token, so
+     * unlocking later never revives an old session. Admin accounts and the caller are protected; repeating the
+     * requested state is a no-op.
+     */
+    @Transactional
+    public AdminUserResponse setLocked(Long adminUserId, UUID publicId, boolean lock, String reason) {
+        User found = users.findByPublicId(publicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (found.getUserId().equals(adminUserId)) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
+        }
+        User target = users.findLiveAccountForUpdate(found.getUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (userRoles.findByUserIdWithRole(target.getUserId()).stream()
+                .anyMatch(link -> "ROLE_ADMIN".equals(link.getRole().getRoleCode()))) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_PROTECTED);
+        }
+        String from = lock ? "ACTIVE" : "LOCKED";
+        String to = lock ? "LOCKED" : "ACTIVE";
+        if (to.equals(target.getStatus())) {
+            return query.getUser(publicId);
+        }
+        if (!from.equals(target.getStatus())) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID);
+        }
+        target.setStatus(to);
+        if (lock) {
+            target.revokeSessions();
+        }
+        users.flush();
+
+        Map<String, Object> context = new java.util.HashMap<>(Map.of("result", "SUCCESS"));
+        String note = !lock || reason == null ? "" : reason.trim();
+        if (!note.isEmpty()) {
+            context.put("reason", note);
+        }
+        record(lock ? AuditAction.ADMIN_USER_LOCKED : AuditAction.ADMIN_USER_UNLOCKED, adminUserId, target.getUserId(),
+                "{\"status\":\"" + from + "\"}", "{\"status\":\"" + to + "\"}", context);
+        return query.getUser(publicId);
+    }
+
     private static String assignable(String role) {
         String code = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
         if (!code.startsWith("ROLE_")) {

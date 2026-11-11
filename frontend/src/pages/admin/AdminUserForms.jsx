@@ -5,6 +5,7 @@ import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import {
   ASSIGNABLE_ADMIN_ROLES,
   changeAdminUserRole,
+  setAdminUserLocked,
   createAdminUser,
   validateCreateAdminUserForm,
 } from '../../utils/adminService.js';
@@ -34,6 +35,7 @@ function failureMessage(t, error, { onUnauthorized, onDenied }) {
     ADMIN_OWNER_HAS_VAULT: t.errOwnerHasVault,
     ADMIN_ACCOUNT_PROTECTED: t.errProtected,
     RESOURCE_NOT_FOUND: t.errNotFound,
+    ADMIN_ACCOUNT_STATE_INVALID: t.errStateInvalid,
   }[error?.code] || t.errSubmit;
 }
 
@@ -226,6 +228,56 @@ export function ChangeRoleModal({ lang = 'vi', accessToken, user, onClose, onCha
           <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose} disabled={busy}>{t.cancelBtn}</button>
           <button type="submit" className="lv-admin-btn lv-admin-btn-primary" disabled={busy || !role || role === current}>
             {busy ? t.submitting : t.submitChangeRole}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+/** Confirmation for locking or unlocking one account; locking can carry a reason for the audit trail. */
+export function LockUserModal({ lang = 'vi', accessToken, user, lock, onClose, onDone, onUnauthorized, onDenied }) {
+  const t = adminI18n[lang] || adminI18n.vi;
+  const uid = useId();
+  const [reason, setReason] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setSubmitError('');
+    try {
+      onDone(await setAdminUserLocked(accessToken, user.id, lock, { reason, lang }));
+    } catch (error) {
+      setSubmitError(failureMessage(t, error, { onUnauthorized, onDenied }));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell titleId={`${uid}-title`} title={lock ? t.lockTitle : t.unlockTitle} closeLabel={t.closeModal} onClose={onClose}>
+      <form className="lv-admin-modal-form" onSubmit={submit} noValidate>
+        <div className="lv-admin-modal-body lv-admin-form-grid">
+          <p className="lv-admin-form-intro">{lock ? t.lockIntro : t.unlockIntro}</p>
+          <dl className="lv-admin-detail-list">
+            <div><dt>{t.thName}</dt><dd>{user.fullName || t.notAvailable}</dd></div>
+            <div><dt>{t.thEmail}</dt><dd>{user.email}</dd></div>
+          </dl>
+          {lock && (
+            <div className="lv-admin-field lv-admin-form-field">
+              <label htmlFor={`${uid}-reason`}>{t.fieldReason}</label>
+              <textarea id={`${uid}-reason`} className="lv-admin-input lv-admin-textarea" rows={3} maxLength={255}
+                value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t.reasonPlaceholder} disabled={busy} />
+            </div>
+          )}
+          {submitError && <p className="lv-admin-form-error" role="alert">{submitError}</p>}
+        </div>
+        <div className="lv-admin-modal-footer">
+          <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose} disabled={busy}>{t.cancelBtn}</button>
+          <button type="submit" className={`lv-admin-btn ${lock ? 'lv-admin-btn-danger' : 'lv-admin-btn-primary'}`} disabled={busy}>
+            {busy ? t.submitting : lock ? t.submitLock : t.submitUnlock}
           </button>
         </div>
       </form>

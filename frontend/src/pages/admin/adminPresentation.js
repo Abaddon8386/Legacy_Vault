@@ -3,6 +3,8 @@ const actions = {
   AUTH_REGISTERED: ['Tạo tài khoản', 'Account registered'],
   ADMIN_USER_CREATED: ['Quản trị tạo tài khoản', 'Admin created account'],
   ADMIN_USER_ROLE_CHANGED: ['Quản trị đổi vai trò', 'Admin changed role'],
+  ADMIN_USER_LOCKED: ['Quản trị khóa tài khoản', 'Admin locked account'],
+  ADMIN_USER_UNLOCKED: ['Quản trị mở khóa tài khoản', 'Admin unlocked account'],
   AUTH_PASSWORD_SET: ['Đặt mật khẩu lần đầu', 'First password set'],
   AUTH_LOGIN_SUCCEEDED: ['Đăng nhập thành công', 'Signed in'],
   AUTH_LOGIN_FAILED: ['Đăng nhập thất bại', 'Sign-in failed'],

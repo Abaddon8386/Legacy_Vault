@@ -2,7 +2,7 @@
 
 ## Trạng thái
 
-PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn có thể tạo tài khoản và đổi vai trò Staff/Legal/Vault Owner (mục cuối). Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Không có API khóa/mở khóa trạng thái tài khoản trong contract này.
+PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn có thể tạo tài khoản và đổi vai trò Staff/Legal/Vault Owner (mục cuối). Mọi route yêu cầu Bearer JWT và `ROLE_ADMIN`; authorization được kiểm tra backend ở `/api/v1/admin/**` và controller. Khóa/mở khóa tài khoản xem mục cuối.
 
 ## Danh sách
 
@@ -11,7 +11,7 @@ PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn
 - `page` bắt đầu từ 0; `size` từ 1 đến 100; mặc định 0/20.
 - `query` tùy chọn, tìm chuỗi con không phân biệt hoa thường trong `fullName` hoặc `email`.
 - `role` tùy chọn, lọc theo `roleCode` (ví dụ `ROLE_ADMIN`). Một user có nhiều role vẫn xuất hiện một lần.
-- `status` tùy chọn: `PENDING`, `ACTIVE` hoặc `DELETED`. `DELETED` là trạng thái hiệu lực được suy ra từ `deleted_at`; trạng thái khác chỉ khớp user chưa soft-delete.
+- `status` tùy chọn: `PENDING`, `ACTIVE`, `LOCKED` hoặc `DELETED`. `DELETED` là trạng thái hiệu lực được suy ra từ `deleted_at`; trạng thái khác chỉ khớp user chưa soft-delete.
 - Kết quả dùng envelope chung `content/page/size/totalElements/totalPages`, sắp xếp `createdAt` giảm dần.
 
 Ví dụ `200`:
@@ -67,6 +67,13 @@ Các response chỉ chứa public ID, tên, email, role codes, thời điểm t�
 - Audit `ADMIN_USER_ROLE_CHANGED` với role trước/sau.
 - Chưa xử lý: Staff/Legal đang giữ hồ sơ (claimed case) khi bị đổi role — case giữ nguyên người được gán.
 
-## Khóa/mở khóa — đang chờ policy
+## Khóa / mở khóa
 
-Không triển khai mutation cho đến khi nhóm phê duyệt allowed transitions/account types, tài khoản nội bộ, self-lock, bảo vệ Admin cuối cùng, reason, token đã phát hành, concurrency/receipt, event audit và transaction. Filter JWT hiện tại đọc lại user từ DB và chặn user không `ACTIVE` hoặc đã soft-delete trên request bảo vệ; nhưng nếu tài khoản được chuyển lại `ACTIVE`, JWT chưa hết hạn có thể hoạt động lại. Chưa có token revocation/version để giải quyết chính sách đó.
+- `POST /api/v1/admin/users/{publicId}/lock` với body tùy chọn `{ "reason": "…" }` (tối đa 255 ký tự) → `200` + user có `status: "LOCKED"`.
+- `POST /api/v1/admin/users/{publicId}/unlock` (không body) → `200` + user có `status: "ACTIVE"`.
+- Khóa chuyển `ACTIVE` sang `LOCKED` và **tăng `authVersion`**: mọi token đã phát hành bị vô hiệu ngay, kể cả sau khi mở khóa (phải đăng nhập lại). Tài khoản khóa không đăng nhập được (cùng lỗi chung `INVALID_CREDENTIALS`).
+- `409 ADMIN_ACCOUNT_PROTECTED`: đích là Admin hoặc chính người gọi (nên không thể khóa Admin cuối cùng).
+- `409 ADMIN_ACCOUNT_STATE_INVALID`: khóa tài khoản không `ACTIVE` (ví dụ `PENDING`) hoặc mở khóa tài khoản không `LOCKED`... ngoại trừ lặp lại đúng trạng thái yêu cầu, là no-op `200` và không ghi audit.
+- `404 RESOURCE_NOT_FOUND`: không tồn tại hoặc đã xóa mềm.
+- Audit `ADMIN_USER_LOCKED` / `ADMIN_USER_UNLOCKED` (entity `USER`), lý do khóa nằm trong context.
+- Chưa xử lý: tác động lên giám sát DMS / hồ sơ đang xử lý của tài khoản bị khóa.

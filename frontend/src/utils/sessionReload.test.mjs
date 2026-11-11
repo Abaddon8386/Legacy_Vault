@@ -159,7 +159,7 @@ test('real App admin users route loads PS-109 automatically and requests detail 
     await act(async () => root.render(React.createElement(App)));
     assert.match(host.querySelector('tbody').textContent, /Directory account/);
     assert.ok(urls.some(url => /\/admin\/users\?/.test(url)));
-    await act(async () => [...host.querySelectorAll('button')].find(button => /view details/i.test(button.textContent)).click());
+    await act(async () => [...host.querySelectorAll('button')].find(button => /view details/i.test(button.getAttribute('aria-label') || button.textContent)).click());
     assert.ok(urls.some(url => url.endsWith('/admin/users/' + record.publicId)));
     assert.match(host.querySelector('[role="dialog"]').textContent, /Fresh detail/);
   } finally { await act(async () => root.unmount()); host.remove(); storeSession(null); globalThis.fetch = original; }

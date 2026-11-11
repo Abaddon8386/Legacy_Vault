@@ -100,6 +100,32 @@ class AdminUserManagementControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void onlyAdminsMayLockAndUnlockAndTheReasonIsOptional() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(service.setLocked(eq(1L), eq(id), eq(true), any())).thenReturn(new AdminUserResponse(id, "Someone",
+                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "LOCKED"));
+        when(service.setLocked(eq(1L), eq(id), eq(false), any())).thenReturn(new AdminUserResponse(id, "Someone",
+                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE"));
+
+        mvc.perform(post("/api/v1/admin/users/" + id + "/lock").with(auth("ROLE_STAFF_EXECUTOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/admin/users/" + id + "/unlock").with(csrf())).andExpect(status().isUnauthorized());
+
+        mvc.perform(post("/api/v1/admin/users/" + id + "/lock").with(auth("ROLE_ADMIN")).with(csrf()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("LOCKED"));
+        mvc.perform(post("/api/v1/admin/users/" + id + "/lock").with(auth("ROLE_ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Policy review\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/admin/users/" + id + "/unlock").with(auth("ROLE_ADMIN")).with(csrf()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE"));
+        mvc.perform(post("/api/v1/admin/users/" + id + "/lock").with(auth("ROLE_ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"" + "x".repeat(256) + "\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/admin/users/not-a-uuid/unlock").with(auth("ROLE_ADMIN")).with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
     private static org.springframework.test.web.servlet.request.RequestPostProcessor auth(String authority) {
         var principal = new CustomUserPrincipal(1L, UUID.randomUUID(), "admin@example.test");
         return authentication(new UsernamePasswordAuthenticationToken(principal, null,

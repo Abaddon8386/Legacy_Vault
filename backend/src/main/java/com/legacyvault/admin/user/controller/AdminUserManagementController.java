@@ -1,6 +1,7 @@
 package com.legacyvault.admin.user.controller;
 
 import com.legacyvault.admin.user.dto.AdminCreateUserRequest;
+import com.legacyvault.admin.user.dto.AdminLockUserRequest;
 import com.legacyvault.admin.user.dto.AdminUpdateUserRoleRequest;
 import com.legacyvault.admin.user.dto.AdminUserResponse;
 import com.legacyvault.admin.user.service.AdminUserManagementService;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** ROLE_ADMIN-only account creation and role assignment (Staff, Legal, Vault Owner). */
+/** ROLE_ADMIN-only account creation, role assignment (Staff, Legal, Vault Owner) and lock/unlock. */
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
@@ -35,6 +36,19 @@ public class AdminUserManagementController {
     public AdminUserResponse createUser(@AuthenticationPrincipal CustomUserPrincipal admin,
                                         @Valid @RequestBody AdminCreateUserRequest request) {
         return service.createUser(admin.userId(), request);
+    }
+
+    @PostMapping("/{publicId}/lock")
+    public AdminUserResponse lockUser(@AuthenticationPrincipal CustomUserPrincipal admin,
+                                      @PathVariable UUID publicId,
+                                      @Valid @RequestBody(required = false) AdminLockUserRequest request) {
+        return service.setLocked(admin.userId(), publicId, true, request == null ? null : request.reason());
+    }
+
+    @PostMapping("/{publicId}/unlock")
+    public AdminUserResponse unlockUser(@AuthenticationPrincipal CustomUserPrincipal admin,
+                                        @PathVariable UUID publicId) {
+        return service.setLocked(admin.userId(), publicId, false, null);
     }
 
     @PutMapping("/{publicId}/role")

@@ -41,7 +41,7 @@ async function mount(props) {
   await act(async () => root.render(React.createElement(AdminUsersPage, props)));
   return { host, close: async () => { await act(async () => root.unmount()); host.remove(); } };
 }
-const button = (scope, label) => [...scope.querySelectorAll('button')].find((b) => b.textContent.trim() === label);
+const button = (scope, label) => [...scope.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || b.textContent).trim() === label);
 async function type(input, value) {
   const setter = Object.getOwnPropertyDescriptor(input.constructor.prototype, 'value').set;
   await act(async () => { setter.call(input, value); input._valueTracker?.setValue(''); input.dispatchEvent(new window.Event(input.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); });
@@ -201,5 +201,77 @@ test('create form follows the sign-up layout: red asterisks on required fields o
     await act(async () => dialog.querySelector('.lv-admin-eye-btn').click());
     assert.equal(inputOf(dialog, 'password').type, 'text');
     assert.equal(inputOf(dialog, 'confirmPassword').type, 'text');
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+test('row icons show an open padlock for unlocked accounts and a closed one for locked accounts', async () => {
+  const previous = globalThis.fetch;
+  const locked = apiUser({ publicId: adminId, fullName: 'Locked User', email: 'locked@example.test', status: 'LOCKED' });
+  globalThis.fetch = async () => json(usersPage([apiUser(), locked]));
+  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'vi' });
+  try {
+    const [activeRow, lockedRow] = [...view.host.querySelectorAll('tbody tr')];
+    const icon = (row, label) => button(row, label).querySelector('svg').getAttribute('class');
+    assert.match(icon(activeRow, 'Khóa tài khoản'), /lucide-lock-open/);
+    assert.match(icon(lockedRow, 'Mở khóa tài khoản'), /lucide-lock(?!-open)/);
+    assert.match(button(activeRow, 'Xem chi tiết').querySelector('svg').getAttribute('class'), /lucide-eye/);
+    assert.match(button(view.host, 'Tạo tài khoản').querySelector('svg').getAttribute('class'), /lucide-plus/);
+    assert.equal(button(lockedRow, 'Đổi vai trò').disabled, true);
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+test('Admin locks an account with a reason and unlocks it again from the lock icon', async () => {
+  const previous = globalThis.fetch;
+  const posts = [];
+  let state = 'ACTIVE';
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === 'POST') {
+      posts.push({ url, body: options.body ? JSON.parse(options.body) : null });
+      state = url.endsWith('/lock') ? 'LOCKED' : 'ACTIVE';
+      return json(apiUser({ status: state }));
+    }
+    return json(usersPage([apiUser({ status: state })]));
+  };
+  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'vi' });
+  try {
+    await act(async () => button(view.host.querySelector('tbody tr'), 'Khóa tài khoản').click());
+    let dialog = view.host.querySelector('[role=dialog]');
+    assert.match(dialog.textContent, /đăng xuất khỏi mọi thiết bị/);
+    assert.equal(posts.length, 0, 'nothing is sent before confirmation');
+    await type(dialog.querySelector('textarea'), '  Nghi ngờ truy cập trái phép ');
+    await act(async () => button(dialog, 'Khóa tài khoản').click());
+
+    assert.equal(posts.length, 1);
+    assert.match(posts[0].url, new RegExp(`/admin/users/${staffId}/lock$`));
+    assert.deepEqual(posts[0].body, { reason: 'Nghi ngờ truy cập trái phép' });
+    assert.equal(view.host.querySelector('[role=dialog]'), null);
+    assert.equal(view.host.querySelector('.lv-admin-form-notice').textContent, 'Đã khóa tài khoản.');
+    assert.ok(button(view.host.querySelector('tbody tr'), 'Mở khóa tài khoản'), 'row now offers unlock');
+
+    await act(async () => button(view.host.querySelector('tbody tr'), 'Mở khóa tài khoản').click());
+    dialog = view.host.querySelector('[role=dialog]');
+    assert.equal(dialog.querySelector('textarea'), null, 'no reason is asked when unlocking');
+    await act(async () => button(dialog, 'Mở khóa').click());
+    assert.match(posts[1].url, new RegExp(`/admin/users/${staffId}/unlock$`));
+    assert.equal(posts[1].body, null);
+    assert.equal(view.host.querySelector('.lv-admin-form-notice').textContent, 'Đã mở khóa tài khoản.');
+  } finally { await view.close(); globalThis.fetch = previous; }
+});
+
+test('a rejected lock keeps the dialog open with the reason, and admin accounts have no lock icon', async () => {
+  const previous = globalThis.fetch;
+  const adminUser = apiUser({ publicId: adminId, roles: ['ROLE_ADMIN'], fullName: 'Root', email: 'root@example.test' });
+  globalThis.fetch = async (url, options = {}) => options.method === 'POST'
+    ? json({ code: 'ADMIN_ACCOUNT_PROTECTED' }, 409) : json(usersPage([apiUser(), adminUser]));
+  const view = await mount({ accessToken: 'T', fetchOnMount: true, lang: 'en' });
+  try {
+    const [staffRow, adminRow] = [...view.host.querySelectorAll('tbody tr')];
+    assert.equal(button(adminRow, 'Lock account'), undefined);
+    assert.equal(button(adminRow, 'Unlock account'), undefined);
+    await act(async () => button(staffRow, 'Lock account').click());
+    const dialog = view.host.querySelector('[role=dialog]');
+    await act(async () => button(dialog, 'Lock account').click());
+    assert.ok(view.host.querySelector('[role=dialog]'));
+    assert.match(view.host.querySelector('.lv-admin-form-error').textContent, /cannot have its role changed or be locked/);
   } finally { await view.close(); globalThis.fetch = previous; }
 });

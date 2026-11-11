@@ -193,6 +193,90 @@ class AdminUserManagementServiceTest {
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
+    @Test
+    void lockingAnActiveAccountRevokesSessionsAndRecordsTheReason() {
+        UUID publicId = UUID.randomUUID();
+        User target = user(5L);
+        target.setStatus("ACTIVE");
+        long versionBefore = target.getAuthVersion();
+        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
+        when(users.findLiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
+        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of(new UserRole(target, role(3L, "ROLE_LEGAL_VERIFIER"))));
+
+        service.setLocked(ADMIN_ID, publicId, true, "  Suspicious activity  ");
+
+        assertThat(target.getStatus()).isEqualTo("LOCKED");
+        assertThat(target.getAuthVersion()).isEqualTo(versionBefore + 1);
+        assertThat(target.getPasswordResetAt()).isNull();
+        verify(audit).record(argThat(event -> event.action() == AuditAction.ADMIN_USER_LOCKED
+                && event.stateBefore().contains("ACTIVE") && event.stateAfter().contains("LOCKED")
+                && "Suspicious activity".equals(event.context().get("reason"))));
+    }
+
+    @Test
+    void unlockingRestoresActiveWithoutBumpingTheVersionAgain() {
+        UUID publicId = UUID.randomUUID();
+        User target = user(5L);
+        target.setStatus("LOCKED");
+        long versionBefore = target.getAuthVersion();
+        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
+        when(users.findLiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
+        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of(new UserRole(target, role(2L, "ROLE_VAULT_OWNER"))));
+
+        service.setLocked(ADMIN_ID, publicId, false, "ignored");
+
+        assertThat(target.getStatus()).isEqualTo("ACTIVE");
+        assertThat(target.getAuthVersion()).isEqualTo(versionBefore);
+        verify(audit).record(argThat(event -> event.action() == AuditAction.ADMIN_USER_UNLOCKED
+                && !event.context().containsKey("reason")));
+    }
+
+    @Test
+    void repeatingTheRequestedLockStateIsANoOp() {
+        UUID publicId = UUID.randomUUID();
+        User target = user(5L);
+        target.setStatus("LOCKED");
+        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
+        when(users.findLiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
+        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of());
+
+        service.setLocked(ADMIN_ID, publicId, true, null);
+
+        verifyNoInteractions(audit);
+        assertThat(target.getStatus()).isEqualTo("LOCKED");
+    }
+
+    @Test
+    void lockRejectsPendingAccountsAdminsAndTheCaller() {
+        UUID pendingId = UUID.randomUUID();
+        User pending = user(6L);
+        pending.setStatus("PENDING");
+        when(users.findByPublicId(pendingId)).thenReturn(Optional.of(pending));
+        when(users.findLiveAccountForUpdate(6L)).thenReturn(Optional.of(pending));
+        when(userRoles.findByUserIdWithRole(6L)).thenReturn(List.of());
+        assertThatThrownBy(() -> service.setLocked(ADMIN_ID, pendingId, true, null))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID));
+
+        UUID adminId = UUID.randomUUID();
+        User otherAdmin = user(9L);
+        otherAdmin.setStatus("ACTIVE");
+        when(users.findByPublicId(adminId)).thenReturn(Optional.of(otherAdmin));
+        when(users.findLiveAccountForUpdate(9L)).thenReturn(Optional.of(otherAdmin));
+        when(userRoles.findByUserIdWithRole(9L)).thenReturn(List.of(new UserRole(otherAdmin, role(4L, "ROLE_ADMIN"))));
+        assertThatThrownBy(() -> service.setLocked(ADMIN_ID, adminId, true, null))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
+
+        UUID selfId = UUID.randomUUID();
+        when(users.findByPublicId(selfId)).thenReturn(Optional.of(user(ADMIN_ID)));
+        assertThatThrownBy(() -> service.setLocked(ADMIN_ID, selfId, true, null))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_PROTECTED));
+        assertThat(pending.getStatus()).isEqualTo("PENDING");
+        assertThat(otherAdmin.getStatus()).isEqualTo("ACTIVE");
+    }
+
     private static User user(long id) {
         User user = new User();
         ReflectionTestUtils.setField(user, "userId", id);

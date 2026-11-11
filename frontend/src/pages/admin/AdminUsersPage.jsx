@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Eye, Lock, LockOpen, Plus, UserCog } from 'lucide-react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import { formatAdminTimestamp } from './adminPresentation.js';
 import { fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
-import { ChangeRoleModal, CreateUserModal } from './AdminUserForms.jsx';
+import { ChangeRoleModal, CreateUserModal, LockUserModal } from './AdminUserForms.jsx';
 import './AdminPages.css';
 
 export default function AdminUsersPage({
@@ -29,6 +30,7 @@ export default function AdminUsersPage({
   const setDetailUser = (record) => setDetailSelection(record ? { record, data } : null);
   const [creating, setCreating] = useState(false);
   const [roleTarget, setRoleTarget] = useState(null);
+  const [lockTarget, setLockTarget] = useState(null);
   const [notice, setNotice] = useState('');
 
   const handleCreated = () => {
@@ -38,6 +40,11 @@ export default function AdminUsersPage({
     setRoleFilter('');
     setStatusFilter('');
     setPage(1);
+    handleReload();
+  };
+  const handleLockDone = () => {
+    setNotice(lockTarget?.lock ? t.lockedOk : t.unlockedOk);
+    setLockTarget(null);
     handleReload();
   };
   const handleRoleChanged = () => {
@@ -83,6 +90,7 @@ export default function AdminUsersPage({
           <p className="lv-admin-header-subtitle">{t.usersSubtitle}</p>
         </div>
         <button type="button" className="lv-admin-btn lv-admin-btn-primary" onClick={() => { setNotice(''); setCreating(true); }}>
+          <Plus size={18} aria-hidden="true" />
           {t.createUserBtn}
         </button>
       </header>
@@ -171,6 +179,7 @@ export default function AdminUsersPage({
             <option value="ACTIVE">{t.statusActive}</option>
             <option value="DELETED">{t.statusDeleted}</option>
             <option value="PENDING">{t.statusPending}</option>
+            <option value="LOCKED">{t.statusLocked}</option>
           </select>
           </label>
           <div className="lv-admin-filter-actions">
@@ -269,18 +278,36 @@ export default function AdminUsersPage({
                     <div className="lv-admin-row-actions">
                     <button
                       type="button"
-                      className="lv-admin-btn lv-admin-btn-secondary"
+                      className="lv-admin-icon-btn"
                       onClick={() => setDetailUser(user)}
+                      aria-label={t.viewDetails}
+                      title={t.viewDetails}
                     >
-                      {t.viewDetails}
+                      <Eye size={18} aria-hidden="true" />
                     </button>
-                    {!user.roles.includes('ADMIN') && user.status === 'ACTIVE' && (
+                    {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && (
                       <button
                         type="button"
-                        className="lv-admin-btn lv-admin-btn-secondary"
+                        className="lv-admin-icon-btn"
                         onClick={() => { setNotice(''); setRoleTarget(user); }}
+                        disabled={user.status === 'LOCKED'}
+                        aria-label={t.changeRoleBtn}
+                        title={user.status === 'LOCKED' ? t.roleUnavailableLocked : t.changeRoleBtn}
                       >
-                        {t.changeRoleBtn}
+                        <UserCog size={18} aria-hidden="true" />
+                      </button>
+                    )}
+                    {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && (
+                      <button
+                        type="button"
+                        className={`lv-admin-icon-btn${user.status === 'LOCKED' ? ' lv-admin-icon-btn--locked' : ''}`}
+                        onClick={() => { setNotice(''); setLockTarget({ user, lock: user.status !== 'LOCKED' }); }}
+                        aria-label={user.status === 'LOCKED' ? t.unlockBtn : t.lockBtn}
+                        title={user.status === 'LOCKED' ? t.unlockBtn : t.lockBtn}
+                      >
+                        {user.status === 'LOCKED'
+                          ? <Lock size={18} aria-hidden="true" />
+                          : <LockOpen size={18} aria-hidden="true" />}
                       </button>
                     )}
                     </div>
@@ -324,6 +351,10 @@ export default function AdminUsersPage({
         onCreated={handleCreated} onUnauthorized={onUnauthorized} onDenied={deny} />}
       {roleTarget && <ChangeRoleModal key={roleTarget.id} lang={lang} accessToken={accessToken} user={roleTarget}
         onClose={() => setRoleTarget(null)} onChanged={handleRoleChanged} onUnauthorized={onUnauthorized} onDenied={deny} />}
+
+      {lockTarget && <LockUserModal key={`${lockTarget.user.id}-${lockTarget.lock}`} lang={lang} accessToken={accessToken}
+        user={lockTarget.user} lock={lockTarget.lock} onClose={() => setLockTarget(null)} onDone={handleLockDone}
+        onUnauthorized={onUnauthorized} onDenied={deny} />}
 
       {detailUser && <UserDetail key={detailUser.id} id={detailUser.id} accessToken={accessToken} lang={lang}
         onClose={() => setDetailUser(null)} onUnauthorized={onUnauthorized} onDenied={deny} />}

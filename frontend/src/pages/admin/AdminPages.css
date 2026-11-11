@@ -766,9 +766,9 @@
     right: 0;
     z-index: 2;
     background: #fff;
-    width: 92px;
-    min-width: 88px;
-    max-width: 96px;
+    width: 156px;
+    min-width: 152px;
+    max-width: 160px;
     padding: 6px 6px;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
   }
@@ -779,7 +779,7 @@
   .lv-admin-cell-actions .lv-admin-row-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0;
+    gap: 4px;
   }
   .lv-admin-cell-actions .lv-admin-btn-secondary {
     padding: 4px 8px;
@@ -918,4 +918,53 @@
   .lv-admin-form-row {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Icon-only row actions: 44px targets, state carried by icon shape as well as colour. */
+.lv-admin-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid #ccd6cd;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--admin-ink);
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+
+.lv-admin-icon-btn:hover:not(:disabled) {
+  border-color: #78967f;
+  background: var(--admin-soft);
+}
+
+.lv-admin-icon-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.lv-admin-icon-btn--locked {
+  color: #a13c35;
+  background: #fff1ef;
+  border-color: #f0d0ca;
+}
+
+.lv-admin-icon-btn--locked:hover:not(:disabled) {
+  border-color: #a13c35;
+  background: #ffe5e1;
+}
+
+.lv-admin-container .lv-admin-btn-danger {
+  color: #fff;
+  background: #a13c35;
+}
+
+.lv-admin-container .lv-admin-btn-danger:hover:not(:disabled) {
+  background: #862f29;
+}
+
+.lv-admin-textarea {
+  resize: vertical;
 }

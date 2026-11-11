@@ -315,7 +315,7 @@ test('AdminUsersPage user detail modal displays read-only information', async ()
 
       // Click "Xem chi tiết"
       const detailBtn = [...view.host.querySelectorAll('button')].find((b) =>
-        b.textContent.includes('Xem chi tiết')
+        b.getAttribute('aria-label') === 'Xem chi tiết'
       );
       assert.ok(detailBtn);
       await act(async () => { detailBtn.click(); });
@@ -361,16 +361,19 @@ for (const lang of ['vi', 'en']) test(`AdminUsersPage hides lock and unlock cont
     const view = await mount(AdminUsersPage, { lang, accessToken: 'test-token', fetchOnMount: true });
     try {
       assert.equal(view.host.querySelector('#admin-lock-policy-notice'), null);
-      const rowButtons = [...view.host.querySelectorAll('tbody button')];
+      const label = (button) => button.getAttribute('aria-label');
       const viewLabel = lang === 'en' ? 'View details' : 'Xem chi tiết';
       const roleLabel = lang === 'en' ? 'Change role' : 'Đổi vai trò';
-      // Row actions are read-only details plus the Admin role change; there is never a lock/unlock control.
-      assert.ok(rowButtons.every(button => [viewLabel, roleLabel].includes(button.textContent.trim())));
-      const details = rowButtons.filter(button => button.textContent.trim() === viewLabel);
-      assert.equal(details.length, 2);
-      // Only the ACTIVE account can change role; the LOCKED one is not offered it.
-      assert.equal(rowButtons.length - details.length, 1);
-      assert.ok(details.every(button => !button.disabled), 'Read-only details remain available');
+      const lockLabel = lang === 'en' ? 'Lock account' : 'Khóa tài khoản';
+      const unlockLabel = lang === 'en' ? 'Unlock account' : 'Mở khóa tài khoản';
+      // Row actions are icon buttons named by aria-label; locking is a per-row toggle, never a pair of buttons.
+      const [activeRow, lockedRow] = [...view.host.querySelectorAll('tbody tr')];
+      const rowButtons = (row) => [...row.querySelectorAll('button')];
+      assert.deepEqual(rowButtons(activeRow).map(label), [viewLabel, roleLabel, lockLabel]);
+      assert.deepEqual(rowButtons(lockedRow).map(label), [viewLabel, roleLabel, unlockLabel]);
+      assert.ok(rowButtons(activeRow).every(button => !button.disabled), 'Active account actions are available');
+      assert.equal(rowButtons(lockedRow)[1].disabled, true, 'role change is blocked while locked');
+      assert.ok(rowButtons(lockedRow).every(button => button.textContent.trim() === ''), 'icons only, no text labels');
       assert.equal(view.host.querySelector('.lv-admin-status-locked')?.textContent.trim(), lang === 'en' ? 'Locked' : 'Đã khóa');
       assert.equal(requests, 1);
     } finally {

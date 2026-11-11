@@ -56,7 +56,7 @@ class AdminUserQueryControllerTest {
 
     @Test
     void invalidStatusAndMalformedPublicIdAreBadRequests() throws Exception {
-        mvc.perform(get("/api/v1/admin/users").param("status", "LOCKED").with(auth("ROLE_ADMIN")))
+        mvc.perform(get("/api/v1/admin/users").param("status", "SUSPENDED").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/admin/users/not-a-uuid").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());

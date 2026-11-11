@@ -19,6 +19,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u where u.userId = :id and u.status = 'ACTIVE' and u.deletedAt is null")
     Optional<User> findActiveAccountForUpdate(@Param("id") Long id);
 
+    /** Row lock for admin state changes; unlike the ACTIVE-only variant it also finds LOCKED and PENDING accounts. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.userId = :id and u.deletedAt is null")
+    Optional<User> findLiveAccountForUpdate(@Param("id") Long id);
+
     boolean existsByEmail(String email);
 
     boolean existsByEmailAndUserIdNot(String email, Long userId);
