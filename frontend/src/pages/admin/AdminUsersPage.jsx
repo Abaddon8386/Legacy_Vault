@@ -207,7 +207,7 @@ export default function AdminUsersPage({
       </div>
       <div className="lv-admin-table-frame lv-surface-card">
       <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'User table' : 'Bảng người dùng'}>
-        <table className="lv-admin-table" aria-label={t.usersTitle}>
+        <table className="lv-admin-table lv-admin-table--users" aria-label={t.usersTitle}>
           <thead>
             <tr>
               <th scope="col">{t.thName}</th>
@@ -215,7 +215,7 @@ export default function AdminUsersPage({
               <th scope="col">{t.thRoles}</th>
               <th scope="col">{t.thJoinedDate}</th>
               <th scope="col">{t.thStatus}</th>
-              <th scope="col" style={{ textAlign: 'right' }}>{t.thActions}</th>
+              <th scope="col">{t.thActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -254,11 +254,13 @@ export default function AdminUsersPage({
                   </td>
                   <td>{user.email}</td>
                   <td>
-                    {user.roles.map((role) => (
-                      <span key={role} className="lv-admin-role-badge" title={role}>
-                        {adminRoleLabel(role, lang)}
-                      </span>
-                    ))}
+                    <div className="lv-admin-role-list">
+                      {user.roles.map((role) => (
+                        <span key={role} className="lv-admin-role-badge" title={role}>
+                          {adminRoleLabel(role, lang)}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td>{formatDate(user.createdAt)}</td>
                   <td>

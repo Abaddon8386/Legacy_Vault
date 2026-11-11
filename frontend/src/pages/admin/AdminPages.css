@@ -968,3 +968,43 @@
 .lv-admin-textarea {
   resize: vertical;
 }
+
+/* Users table: headers are centred and roles always stack top to bottom, in both languages. */
+.lv-admin-table--users th {
+  text-align: center;
+}
+
+.lv-admin-role-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.lv-admin-table--users .lv-admin-role-badge {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Email is wide enough for the longest address on a single line (the table container scrolls if needed).
+   Name and actions stay auto so the sticky mobile layout keeps its own pixel widths. */
+.lv-admin-table--users :is(th, td):nth-child(2) {
+  white-space: nowrap;
+}
+
+.lv-admin-table--users :is(th, td):nth-child(3) {
+  inline-size: 17%;
+}
+
+.lv-admin-table--users :is(th, td):nth-child(n+3):nth-child(-n+5) {
+  white-space: nowrap;
+}
+
+.lv-admin-table--users :is(th, td):nth-child(4),
+.lv-admin-table--users :is(th, td):nth-child(5) {
+  inline-size: 15%;
+}
+
+.lv-admin-table--users .lv-admin-row-actions {
+  justify-content: flex-start;
+}
