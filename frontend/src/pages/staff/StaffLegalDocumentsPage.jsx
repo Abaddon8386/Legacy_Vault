@@ -1463,7 +1463,7 @@ export default function StaffLegalDocumentsPage({
                       <span>{t.submittingVersion}</span>
                     </>
                   ) : (
-                    <span>{en ? 'Save and send documents to Legal' : 'Lưu và chuyển giấy tờ cho Ban Pháp lý'}</span>
+                    <span>{t.btnSubmitVersion}</span>
                   )}
                 </button>
 
