@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Archive, CheckCircle2, Clock, AlertTriangle, Lock, RefreshCw, FileCheck } from 'lucide-react';
 import { evaluateCloseArchivePreconditions, isCaseArchived } from '../../utils/closeAndArchiveValidation.js';
+import { evaluateCompletionProgress } from '../../utils/completionProgressValidation.js';
 import { fetchHandoverReceipts, fetchCompletionProgress, fetchHandoverSession, fetchHandoverDeliveries, createHandoverReceipt, closeHandoverSession, archiveHandoverCase, isCounterHandoverSimulationPermitted } from './handoverSessionService.js';
 import { loadStaffCase } from './staffLiveService.js';
 import { fetchStaffCaseBeneficiaries } from './liveHandoverService.js';
@@ -451,6 +452,7 @@ function CloseArchiveContext({
         </div>
       </section>;
   const en = lang === 'en';
+  const progressSummary = evaluateCompletionProgress(server?.progress?.assets || {}, server?.progress?.beneficiaries || {});
   const steps = [
     { id: 'overview', label: en ? 'Overview' : 'Tổng quan', node: overviewPanel },
     { id: 'close', label: en ? '1. Close session' : '1. Đóng phiên', node: closePanel, done: sessionStatus === 'COMPLETED' },
@@ -458,7 +460,8 @@ function CloseArchiveContext({
     { id: 'archive', label: en ? '3. Complete' : '3. Hoàn tất', node: archivePanel, done: isArchived },
   ];
   const usableSteps = steps.filter(item => item.node);
-  const nextStep = isArchived ? 'overview' : sessionStatus !== 'COMPLETED' ? 'close' : !hasReceipts ? 'receipt' : 'archive';
+  // Stay on the receipt step until every recipient with delivered items has one, so issuing the first of several does not jump ahead.
+  const nextStep = isArchived ? 'overview' : sessionStatus !== 'COMPLETED' ? 'close' : !hasReceipts || !allDeliveredCovered ? 'receipt' : 'archive';
   const activeStep = usableSteps.some(item => item.id === stepTab) ? stepTab : nextStep;
   const onStepKeyDown = event => {
     const index = usableSteps.findIndex(item => item.id === activeStep);
@@ -565,6 +568,18 @@ function CloseArchiveContext({
         </div>
       )}
 
+      {!isArchived && server?.progress && <ul className="lv-ca-progress" aria-label={en ? 'Completion progress' : 'Tiến độ hoàn tất'}>
+        {[
+          [en ? 'Asset handover' : 'Bàn giao tài sản', progressSummary.assetMetric, progressSummary.assetMetric.delivered],
+          [en ? 'Recipient confirmation' : 'Xác nhận người thụ hưởng', progressSummary.beneficiaryMetric, progressSummary.beneficiaryMetric.confirmed],
+        ].map(([label, metric, done]) => <li key={label} className={metric.is100 ? 'is-complete' : ''}>
+          <div className="lv-ca-progress__head"><span>{label}</span>
+            <strong>{metric.isVerified ? `${done}/${metric.total}` : (en ? 'Unavailable' : 'Chưa có số liệu')}</strong></div>
+          <div className="lv-ca-progress__bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={metric.percentage ?? 0}>
+            <span style={{ width: `${metric.percentage ?? 0}%` }} />
+          </div>
+        </li>)}
+      </ul>}
       <nav className="lv-ca-tabs" role="tablist" aria-label={en ? 'Close and archive steps' : 'Các bước đóng và lưu trữ'} onKeyDown={onStepKeyDown}>
         {usableSteps.map(item => <button key={item.id} type="button" role="tab" id={`ca-tab-${item.id}`} aria-selected={activeStep === item.id}
           aria-controls={`ca-panel-${item.id}`} tabIndex={activeStep === item.id ? 0 : -1} title={item.done ? (en ? 'Done' : 'Đã xong') : undefined}

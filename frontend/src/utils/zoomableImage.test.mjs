@@ -25,7 +25,7 @@ test('zoom control has labelled buttons and bounded steps', () => {
 });
 
 test('staff screens no longer link back to the handover session', () => {
-  for (const file of ['BeneficiaryConfirmationPage', 'CloseAndArchivePage', 'CompletionProgressPage', 'ScopedAssetHandoverPage']) {
+  for (const file of ['BeneficiaryConfirmationPage', 'CloseAndArchivePage', 'ScopedAssetHandoverPage']) {
     assert.doesNotMatch(source(`pages/staff/${file}.jsx`), /Quay lại Phiên bàn giao tại quầy/, file);
   }
 });
