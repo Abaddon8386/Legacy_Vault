@@ -11,6 +11,14 @@ const outcomes = {
   approveAllocations: ['Đã kiểm tra và chấp thuận phân bổ.', 'Allocations checked and accepted.'],
   requestAllocationChanges: ['Đã yêu cầu Staff sửa phân bổ.', 'Allocation corrections requested.'],
 };
+// A request or assessment written as "Label: value" lines shows the label in bold so the key facts stand out.
+const labelledLine = /^(Giấy tờ cần nộp|Lý do|Documents requested|Reason):\s*(.*)$/;
+function LabelledText({ text }) {
+  return String(text).split('\n').map((line, index) => {
+    const match = labelledLine.exec(line);
+    return <span className="lv-distribution-line" key={index}>{match ? <><strong>{match[1]}:</strong> {match[2]}</> : line}</span>;
+  });
+}
 export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
   const en = lang === 'en', notice = workflow.receipt;
   const target = workspace === 'LEGAL' ? 'STAFF' : 'LEGAL';
@@ -53,8 +61,8 @@ export default function DistributionWorkflowOverview({ workflow, workspace, lang
     {(request || feedback) && <section className={`lv-distribution-context${request || feedback ? ' lv-distribution-context--request' : ''}`}>
       {feedback && <div><h2>{value?.phase === 'AWAITING_DOCUMENTS' && value.document?.status === 'CHANGES_REQUESTED'
         ? (en ? 'Reason for additional documents' : 'Lý do yêu cầu bổ sung giấy tờ')
-        : (en ? 'Latest assessment' : 'Ý kiến xử lý gần nhất')}</h2><p>{feedback}</p></div>}
-      {request && !feedback && <div><h2>{en ? 'Original document request' : 'Yêu cầu giấy tờ ban đầu'}</h2><p>{request}</p></div>}
+        : (en ? 'Latest assessment' : 'Ý kiến xử lý gần nhất')}</h2><p><LabelledText text={feedback} /></p></div>}
+      {request && !feedback && <div><h2>{en ? 'Original document request' : 'Yêu cầu giấy tờ ban đầu'}</h2><p><LabelledText text={request} /></p></div>}
     </section>}
     <DistributionFeedback workflow={workflow} workspace={workspace} lang={lang} />
   </>;

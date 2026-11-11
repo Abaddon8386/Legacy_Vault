@@ -49,3 +49,7 @@
 .lv-distribution-stage-notice .lv-distribution-prerequisites li::before { content: '○'; margin-inline-end: 6px; font-weight: 700; color: #b3382f; }
 .lv-distribution-stage-notice .lv-distribution-prerequisites li.is-met::before { content: '✓'; color: #247a52; }
 .lv-distribution-stage-notice a { font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* One line per fact; the label in bold and a darker ink so "Giấy tờ cần nộp" and "Lý do" are found at a glance. */
+.lv-distribution-context .lv-distribution-line { display: block; }
+.lv-distribution-context .lv-distribution-line strong { font-weight: 700; color: #6b4200; }
