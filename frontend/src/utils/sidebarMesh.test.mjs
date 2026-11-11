@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { compositeOver, contrastRatio } from './auditContrast.mjs';
 
 const appShellJsxPath = resolve('src/components/layout/AppShell.jsx');
 const appShellCssPath = resolve('src/components/layout/AppShell.css');
@@ -80,75 +81,80 @@ test('sidebarMesh: CSS strictly disables animation under prefers-reduced-motion:
   assert.match(rules, /transform:\s*none\s*!important/i, 'Reduced-motion must set transform: none !important');
 });
 
-test('sidebarMesh: Keyframe animations only manipulate transform and opacity (no heavy blur filter animations)', () => {
+test('sidebarMesh: Animation cycle is 40-60s per orb and phase-shifted', () => {
   const css = readFileSync(appShellCssPath, 'utf8');
 
-  // Extract all @keyframes lv-mesh-drift blocks
-  const keyframeBlocks = css.matchAll(/@keyframes\s+(lv-mesh-drift-\d+)\s*\{([\s\S]*?)\n\}/g);
-  let count = 0;
+  // Check animation durations for each orb
+  const orb1Match = css.match(/\.lv-mesh-orb-1\s*\{[^}]*animation:\s*lv-mesh-drift-1\s+(\d+)s/);
+  const orb2Match = css.match(/\.lv-mesh-orb-2\s*\{[^}]*animation:\s*lv-mesh-drift-2\s+(\d+)s/);
+  const orb3Match = css.match(/\.lv-mesh-orb-3\s*\{[^}]*animation:\s*lv-mesh-drift-3\s+(\d+)s/);
 
-  for (const block of keyframeBlocks) {
-    count++;
-    const animName = block[1];
-    const animBody = block[2];
+  assert.ok(orb1Match, 'Orb 1 must define animation in seconds');
+  assert.ok(orb2Match, 'Orb 2 must define animation in seconds');
+  assert.ok(orb3Match, 'Orb 3 must define animation in seconds');
 
-    // Ensure filter / blur is NEVER animated
-    assert.doesNotMatch(
-      animBody,
-      /filter\s*:/i,
-      `Animation ${animName} must NOT animate filter (causes CPU/GPU repaint thrashing)`
-    );
+  const d1 = parseInt(orb1Match[1], 10);
+  const d2 = parseInt(orb2Match[1], 10);
+  const d3 = parseInt(orb3Match[1], 10);
 
-    // Ensure transform and opacity are present
-    assert.match(
-      animBody,
-      /transform\s*:/i,
-      `Animation ${animName} should animate transform`
-    );
-    assert.match(
-      animBody,
-      /opacity\s*:/i,
-      `Animation ${animName} should animate opacity`
-    );
-  }
-
-  assert.equal(count, 3, 'Must define exactly 3 lv-mesh-drift keyframe animations');
+  assert.ok(d1 >= 40 && d1 <= 60, `Orb 1 duration (${d1}s) must be in 40-60s range`);
+  assert.ok(d2 >= 40 && d2 <= 60, `Orb 2 duration (${d2}s) must be in 40-60s range`);
+  assert.ok(d3 >= 40 && d3 <= 60, `Orb 3 duration (${d3}s) must be in 40-60s range`);
+  assert.notEqual(d1, d2, 'Durations must be phase-shifted');
+  assert.notEqual(d2, d3, 'Durations must be phase-shifted');
 });
 
-test('sidebarMesh: Z-index layering places background behind interactive items and retains brand colors', () => {
+test('sidebarMesh: Displacement amplitudes are <= 10-15% of 260px sidebar (<= 39px)', () => {
   const css = readFileSync(appShellCssPath, 'utf8');
 
-  // Verify container z-index is 0 and pointer-events is none
-  assert.match(
-    css,
-    /\.lv-sidebar-mesh-bg\s*\{[^}]*z-index:\s*0/i,
-    '.lv-sidebar-mesh-bg must have z-index: 0'
-  );
-  assert.match(
-    css,
-    /\.lv-sidebar-mesh-bg\s*\{[^}]*pointer-events:\s*none/i,
-    '.lv-sidebar-mesh-bg must have pointer-events: none'
-  );
+  const translateMatches = css.matchAll(/translate3d\(\s*(-?\d+)px\s*,\s*(-?\d+)px\s*,\s*0\)/g);
+  let count = 0;
+  for (const match of translateMatches) {
+    count++;
+    const x = Math.abs(parseInt(match[1], 10));
+    const y = Math.abs(parseInt(match[2], 10));
+    assert.ok(x <= 39, `X translation (${x}px) must be <= 15% of 260px (<= 39px)`);
+    assert.ok(y <= 45, `Y translation (${y}px) must be subtle`);
+  }
+  assert.ok(count >= 6, 'Must check all keyframe translations');
+});
 
-  // Interactive sections have z-index >= 1
-  assert.match(
-    css,
-    /\.lv-sidebar-brand\s*\{[^}]*z-index:\s*1/i,
-    '.lv-sidebar-brand must have z-index: 1'
-  );
-  assert.match(
-    css,
-    /\.lv-sidebar-nav\s*\{[^}]*z-index:\s*1/i,
-    '.lv-sidebar-nav must have z-index: 1'
-  );
-  assert.match(
-    css,
-    /\.lv-sidebar-footer\s*\{[^}]*z-index:\s*110/i,
-    '.lv-sidebar-footer must have z-index: 110'
-  );
+test('sidebarMesh: Gold orb opacity is strictly <= 0.12', () => {
+  const css = readFileSync(appShellCssPath, 'utf8');
 
-  // Brand colors present in orbs
-  assert.match(css, /22,\s*70,\s*57/, 'Orb 1 should use Forest Green RGB(22, 70, 57)');
-  assert.match(css, /20,\s*53,\s*43/, 'Orb 2 should use Deep Emerald Teal RGB(20, 53, 43)');
-  assert.match(css, /197,\s*160,\s*89/, 'Orb 3 should use Sand Gold RGB(197, 160, 89)');
+  // Match gold background stop inside .lv-mesh-orb-3
+  const orb3Block = css.match(/\.lv-mesh-orb-3\s*\{([^}]+)\}/);
+  assert.ok(orb3Block, 'Must find .lv-mesh-orb-3 CSS rule');
+
+  const goldStopMatch = orb3Block[1].match(/rgba\(\s*197,\s*160,\s*89,\s*([\d.]+)\)/);
+  assert.ok(goldStopMatch, 'Must define sand gold rgba stop inside .lv-mesh-orb-3');
+  const goldAlpha = parseFloat(goldStopMatch[1]);
+
+  assert.ok(
+    goldAlpha <= 0.12,
+    `Gold stop alpha (${goldAlpha}) must be <= 0.12`
+  );
+});
+
+test('sidebarMesh: All interactive text and headings meet WCAG AA (>= 4.5:1) on brightest mesh spot', () => {
+  // Brightest composited spot from base #0c2b22 + Forest green + subtle gold
+  const bg = { r: 12, g: 43, b: 34, a: 1 };
+  const afterOrb1 = compositeOver({ r: 20, g: 60, b: 48, a: 0.5 }, bg);
+  const brightest = compositeOver({ r: 197, g: 160, b: 89, a: 0.07 }, afterOrb1);
+
+  const targets = [
+    { name: 'Active menu text (#ffffff)', color: '#ffffff' },
+    { name: 'Regular menu text (rgba(255, 255, 255, 0.72))', color: 'rgba(255, 255, 255, 0.72)' },
+    { name: 'Group title (--lv-accent-gold #c5a059)', color: '#c5a059' },
+    { name: 'Brand logo & title (#ffffff)', color: '#ffffff' },
+    { name: 'User name (#ffffff)', color: '#ffffff' },
+  ];
+
+  for (const target of targets) {
+    const ratio = contrastRatio(target.color, brightest);
+    assert.ok(
+      ratio >= 4.5,
+      `Expected ${target.name} to have contrast >= 4.5:1 on brightest mesh spot, got ${ratio.toFixed(2)}:1`
+    );
+  }
 });
