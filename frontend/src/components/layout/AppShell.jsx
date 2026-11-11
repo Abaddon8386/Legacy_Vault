@@ -116,8 +116,22 @@ export default function AppShell({
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [prevTab, setPrevTab] = useState(currentTab);
   const [prevMobileMenuOpen, setPrevMobileMenuOpen] = useState(mobileMenuOpen);
+  const [isTabVisible, setIsTabVisible] = useState(
+    typeof document !== 'undefined' ? document.visibilityState !== 'hidden' : true
+  );
   const accountFooterRef = useRef(null);
   const badgeButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState !== 'hidden');
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Close account menu during render when currentTab or mobileMenuOpen changes
   if (currentTab !== prevTab) {
@@ -350,6 +364,16 @@ export default function AppShell({
         className={`lv-shell-sidebar ${mobileMenuOpen ? 'is-open' : ''}`}
         aria-label="Điều hướng chính"
       >
+        {/* Animated Gradient Mesh Background */}
+        <div
+          className={`lv-sidebar-mesh-bg ${!isTabVisible ? 'is-paused' : ''}`}
+          aria-hidden="true"
+        >
+          <div className="lv-sidebar-mesh-orb lv-mesh-orb-1" aria-hidden="true" />
+          <div className="lv-sidebar-mesh-orb lv-mesh-orb-2" aria-hidden="true" />
+          <div className="lv-sidebar-mesh-orb lv-mesh-orb-3" aria-hidden="true" />
+        </div>
+
         {/* Brand Header */}
         <div className="lv-sidebar-brand">
           <div className="lv-brand-logo-wrap" aria-hidden="true">

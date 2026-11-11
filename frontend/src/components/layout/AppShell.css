@@ -29,7 +29,131 @@
   transition: transform var(--lv-motion-duration-modal, 280ms) var(--lv-motion-ease-smooth, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
+/* ==========================================================================
+   SIDEBAR GRADIENT MESH BACKGROUND
+   ========================================================================== */
+.lv-sidebar-mesh-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--lv-brand-forest-dark, #0c2b22);
+}
+
+.lv-sidebar-mesh-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* Orb 1: Forest Green highlight glow drifting in upper section */
+.lv-mesh-orb-1 {
+  width: 240px;
+  height: 240px;
+  top: -40px;
+  right: -50px;
+  background: radial-gradient(circle, rgba(22, 70, 57, 0.85) 0%, rgba(22, 70, 57, 0) 70%);
+  opacity: 0.85;
+  animation: lv-mesh-drift-1 18s ease-in-out infinite alternate;
+}
+
+/* Orb 2: Deep Emerald Teal atmospheric glow drifting in lower section */
+.lv-mesh-orb-2 {
+  width: 280px;
+  height: 280px;
+  bottom: 80px;
+  left: -70px;
+  background: radial-gradient(circle, rgba(20, 53, 43, 0.9) 0%, rgba(20, 53, 43, 0) 70%);
+  opacity: 0.75;
+  animation: lv-mesh-drift-2 24s ease-in-out infinite alternate;
+}
+
+/* Orb 3: Subtle Sand Gold accent glow (strictly delicate and low opacity) */
+.lv-mesh-orb-3 {
+  width: 200px;
+  height: 200px;
+  top: 45%;
+  right: -60px;
+  background: radial-gradient(circle, rgba(197, 160, 89, 0.14) 0%, rgba(197, 160, 89, 0) 65%);
+  opacity: 0.65;
+  animation: lv-mesh-drift-3 20s ease-in-out infinite alternate;
+}
+
+/* Subtle micro-texture / vignette overlay */
+.lv-sidebar-mesh-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.15) 100%);
+  pointer-events: none;
+}
+
+/* High-performance animations: animate ONLY transform and opacity */
+@keyframes lv-mesh-drift-1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(-30px, 45px, 0) scale(1.18);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate3d(-15px, 90px, 0) scale(0.95);
+    opacity: 0.75;
+  }
+}
+
+@keyframes lv-mesh-drift-2 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translate3d(40px, -40px, 0) scale(1.15);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(20px, -80px, 0) scale(1.02);
+    opacity: 0.7;
+  }
+}
+
+@keyframes lv-mesh-drift-3 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(-25px, -35px, 0) scale(1.22);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(-10px, 30px, 0) scale(0.9);
+    opacity: 0.6;
+  }
+}
+
+/* Pause animations when tab is hidden or background is paused */
+.lv-sidebar-mesh-bg.is-paused .lv-sidebar-mesh-orb {
+  animation-play-state: paused !important;
+}
+
+/* Accessibility: strictly disable all animations for prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .lv-sidebar-mesh-orb {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
 .lv-sidebar-brand {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -101,6 +225,8 @@
 
 /* Sidebar Navigation */
 .lv-sidebar-nav {
+  position: relative;
+  z-index: 1;
   flex: 1;
   padding: 24px 14px;
   overflow-y: auto;
