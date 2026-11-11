@@ -58,7 +58,7 @@ export default function PaymentCheckout({ accessToken, lang, currentPlan, onPaid
         const labels = en
           ? { SUCCEEDED: 'Payment verified. Your plan is active.', FAILED: 'Payment failed. Your plan has not changed.',
             PENDING: 'Waiting for VNPay confirmation. You can refresh this page.', EXPIRED: 'Checkout expired. Any delayed confirmation will be processed by the server.' }
-          : { SUCCEEDED: 'Đã xác nhận thanh toán và kích hoạt gói.', FAILED: 'Thanh toán thất bại. Gói chưa thay đổi.',
+          : { SUCCEEDED: 'Đã thanh toán và kích hoạt gói', FAILED: 'Thanh toán thất bại. Gói chưa thay đổi.',
             PENDING: 'Đang chờ VNPay xác nhận. Bạn có thể tải lại trang.', EXPIRED: 'Liên kết thanh toán đã hết hạn. Backend vẫn xử lý xác nhận đến muộn.' };
         if (failedNotice) labels.FAILED = failedNotice;
         const waiting = ['PENDING', 'EXPIRED'].includes(p.status);

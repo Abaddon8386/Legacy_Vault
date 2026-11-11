@@ -7,7 +7,7 @@ export const closeAndArchiveI18n = {
   vi: {
     demo: 'Dữ liệu minh họa', loading: 'Đang tải…', retry: 'Thử lại',
     loadFailed: 'Chưa tải được thông tin phiên. Vui lòng thử lại.', contextRequired: 'Vui lòng chọn hồ sơ và phiên bàn giao.',
-    saved: 'Đã ghi nhận. Đang tải lại dữ liệu.', cancelled: 'Đã hủy',
+    saved: 'Đã ghi nhận', cancelled: 'Đã hủy',
     recipientLabel: 'Người nhận biên bản', selectRecipient: 'Chọn người nhận', receiptScope: 'Tài sản đã giao trong phiên',
     pageTitle: 'Đóng và lưu trữ hồ sơ',
     pageSubtitle: 'Tóm tắt biên nhận, thẩm định điều kiện hoàn tất và lưu trữ hồ sơ di sản.',

@@ -49,6 +49,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   (`expiresInSeconds` lấy từ cấu hình — mặc định 3600, D-API-21. Không có `refreshToken` ở Sprint 1 — D-API-05.)
 - **Lỗi:** `400 VALIDATION_FAILED` · `401 INVALID_CREDENTIALS` — **cùng một mã** cho: sai mật khẩu, email không tồn tại,
   tài khoản đã xóa (`deleted_at != null`). Không lộ lỗi nội bộ.
+- **Tài khoản bị Admin khóa:** `403 ACCOUNT_LOCKED_BY_ADMIN` — chỉ trả khi mật khẩu **đúng** (người gọi đã chứng minh sở hữu tài khoản). Sai mật khẩu hoặc email không tồn tại vẫn là `401 INVALID_CREDENTIALS`, nên không dò được email nào đang bị khóa.
 - **Giới hạn đăng nhập sai:** khi một email (sau chuẩn hóa NFKC, bỏ khoảng trắng đầu/cuối, chữ thường) sai mật khẩu
   **5 lần trong 15 phút**, email đó bị khóa **15 phút tính từ lần sai thứ 5**; trong lúc khóa mọi lần thử trả
   `429 TOO_MANY_ATTEMPTS`, kể cả khi nhập đúng mật khẩu. Lần bị chặn không ghi thêm nên không kéo dài khóa. Hết 15 phút
@@ -71,6 +72,7 @@ Trạng thái: **contract đã chốt**, chưa triển khai (khung bảo mật &
   `iat` và `sub`. Client không gửi profile/email/role để định danh tài khoản.
 - **Response 200:** cùng `LoginResponse` với đăng nhập mật khẩu; JWT, thời hạn và role đều lấy từ LegacyVault.
 - **Lỗi:** `400 VALIDATION_FAILED`; `401 INVALID_GOOGLE_CREDENTIAL` cho token không hợp lệ/hết hạn/dùng lại;
+  `403 ACCOUNT_LOCKED_BY_ADMIN` cho tài khoản đã liên kết đang bị Admin khóa (credential Google đã được xác minh);
   `401 INVALID_CREDENTIALS` cho tài khoản đã liên kết nhưng không `ACTIVE`/đã xóa;
   `401 GOOGLE_EMAIL_NOT_VERIFIED` khi người mới có `email_verified` khác true (không tạo gì);
   `409 GOOGLE_EMAIL_ALREADY_REGISTERED` khi email Google đã có tài khoản (không tự gộp, không tạo gì);

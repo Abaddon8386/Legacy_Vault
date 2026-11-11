@@ -74,6 +74,11 @@ public class GoogleAuthService {
         if (identity == null) {
             return signUp(credential);
         }
+        if (user != null && user.getDeletedAt() == null && "LOCKED".equals(user.getStatus())) {
+            // The Google credential is already verified here, so the holder of the linked identity may be told why.
+            auditService.recordLoginFailure(user.getUserId());
+            throw new BusinessException(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN);
+        }
         if (user == null || !"ACTIVE".equals(user.getStatus()) || user.getDeletedAt() != null) {
             auditService.recordLoginFailure(user == null ? null : user.getUserId());
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);

@@ -13,7 +13,6 @@ export default function CourtAllocationEditor({ rows, assets, recipients, onAdd,
   ];
   return <section className="lv-court-editor" aria-label={en ? 'Document allocations' : 'Phân chia theo văn bản'}>
     <div className="lv-court-editor__heading"><h3>{en ? 'Asset allocations' : 'Phân bổ tài sản'}</h3><button type="button" onClick={() => onAdd()} disabled={disabled}><Plus size={16} aria-hidden="true" />{en ? 'Add allocation' : 'Thêm phân bổ'}</button></div>
-    {!rows.length && <p>{en ? 'Add the assets and recipients named in the document.' : 'Thêm tài sản và người nhận đúng theo văn bản.'}</p>}
     {rows.map((row, index) => <fieldset key={row.id} className="lv-court-editor__row" disabled={disabled}>
       <legend>{en ? `Allocation ${index + 1}` : `Phân bổ ${index + 1}`}</legend>
       <div className="lv-court-editor__fields">

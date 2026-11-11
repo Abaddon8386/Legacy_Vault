@@ -236,6 +236,14 @@ public class AuthService {
         String hashToCheck = user != null ? user.getPasswordHash() : dummyPasswordHash();
         boolean passwordMatches = passwordEncoder.matches(request.password(), hashToCheck);
 
+        // A locked account is only disclosed to someone who proved knowledge of its password, so a wrong password
+        // or an unknown email still gets the same generic failure and locked emails cannot be enumerated.
+        if (user != null && passwordMatches && user.isPasswordLoginAllowed() && user.getDeletedAt() == null
+                && "LOCKED".equals(user.getStatus())) {
+            auditService.recordLoginFailure(user.getUserId());
+            throw new BusinessException(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN);
+        }
+
         if (user == null
                 || !"ACTIVE".equals(user.getStatus())
                 || user.getDeletedAt() != null

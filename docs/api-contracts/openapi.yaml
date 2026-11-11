@@ -799,7 +799,7 @@ paths:
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
+        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: 'Tìm chuỗi con theo tên/email; nếu là UUID đầy đủ (36 ký tự) thì còn tìm đúng tài khoản có publicId đó' }
         - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Owner/Beneficiary/Legal/Staff chỉ lấy tài khoản gốc ACTIVE hoặc LOCKED chưa soft-delete; không lọc vai trò vẫn tra cứu được tài khoản cũ }
         - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED] }, description: Lọc accountStatus trước phân trang; Owner chỉ nhận ACTIVE/LOCKED; Beneficiary/Legal/Staff nhận ACTIVE/LOCKED/IN_PROCESS; tổ hợp không hợp lệ trả 400 }
         - { name: vaultStatus, in: query, schema: { type: string, enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED] }, description: Chỉ dùng cùng role=ROLE_VAULT_OWNER; lọc trước phân trang }
@@ -812,6 +812,114 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      summary: Admin tạo tài khoản Staff, Legal hoặc Vault Owner
+      description: |
+        Yêu cầu ROLE_ADMIN. Tài khoản được tạo ở trạng thái ACTIVE với đúng một role trong
+        ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER; không thể tạo ROLE_ADMIN hoặc ROLE_BENEFICIARY.
+        Email được chuẩn hóa như đăng ký thường. Mật khẩu ban đầu do Admin đặt, không bao giờ được trả lại.
+        Ghi audit ADMIN_USER_CREATED. Email trùng trả 409 EMAIL_ALREADY_EXISTS; role không hợp lệ trả 400 ADMIN_ROLE_NOT_ASSIGNABLE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCreateUserRequest' }
+      responses:
+        '201':
+          description: Tài khoản đã tạo; chỉ trả các trường allow-list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/lock:
+    post:
+      tags: [Admin]
+      summary: Admin khóa tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Chuyển ACTIVE sang LOCKED và thu hồi mọi token đã phát hành (tăng authVersion), nên mở khóa
+        về sau không làm phiên cũ sống lại. Tài khoản bị khóa không đăng nhập được và mọi request đang dùng token đều bị 401.
+        Không khóa được tài khoản ROLE_ADMIN hoặc chính mình (409 ADMIN_ACCOUNT_PROTECTED); tài khoản không ở ACTIVE
+        (ví dụ PENDING) trả 409 ADMIN_ACCOUNT_STATE_INVALID; tài khoản có kho đang xác minh/bàn giao hoặc đã lưu trữ trả
+        409 ADMIN_ACCOUNT_IN_HANDOVER; khóa lại tài khoản đã khóa là no-op. Ghi audit ADMIN_USER_LOCKED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLockUserRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi khóa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/unlock:
+    post:
+      tags: [Admin]
+      summary: Admin mở khóa tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Chuyển LOCKED sang ACTIVE; token phát hành trước lúc khóa vẫn vô hiệu. Cùng các ràng buộc
+        bảo vệ như khóa; mở khóa tài khoản đang ACTIVE là no-op. Ghi audit ADMIN_USER_UNLOCKED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Tài khoản sau khi mở khóa.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/MalformedRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/users/{publicId}/role:
+    put:
+      tags: [Admin]
+      summary: Admin đổi vai trò Staff, Legal hoặc Vault Owner của tài khoản
+      description: |
+        Yêu cầu ROLE_ADMIN. Thay thế các role Staff/Legal/Vault Owner hiện có bằng đúng role được gửi; các role khác
+        (ví dụ ROLE_BENEFICIARY) được giữ nguyên. Có hiệu lực ngay vì role được đọc từ DB ở mỗi request.
+        Không đổi được role của tài khoản ROLE_ADMIN hoặc của chính mình (409 ADMIN_ACCOUNT_PROTECTED), và không đổi
+        khỏi Vault Owner khi tài khoản đã có kho (409 ADMIN_OWNER_HAS_VAULT). Gửi lại role hiện tại là no-op.
+        Ghi audit ADMIN_USER_ROLE_CHANGED.
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUpdateUserRoleRequest' }
+      responses:
+        '200':
+          description: Tài khoản sau khi đổi role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/users/{publicId}:
     get:
       tags: [Admin]
@@ -4356,6 +4464,28 @@ components:
           type: [string, "null"]
           enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED, null]
           description: Nhóm tình trạng kho của Owner; null với vai trò khác hoặc trạng thái kho chưa được nhận diện. Không thay đổi trạng thái tài khoản.
+    AdminLockUserRequest:
+      type: object
+      properties:
+        reason: { type: string, maxLength: 255, description: 'Lý do khóa (tùy chọn), ghi vào audit' }
+    AdminCreateUserRequest:
+      type: object
+      required: [fullName, email, password, role]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, pattern: '^$|^\+?[0-9]{8,15}$' }
+        password: { type: string, format: password, minLength: 8, maxLength: 72, writeOnly: true }
+        role:
+          type: string
+          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
+    AdminUpdateUserRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [ROLE_STAFF_EXECUTOR, ROLE_LEGAL_VERIFIER, ROLE_VAULT_OWNER]
     AdminUserPage:
       type: object
       required: [content, page, size, totalElements, totalPages]
@@ -4814,10 +4944,16 @@ components:
             - GOOGLE_IDENTITY_MISMATCH
             - PASSWORD_NOT_SET
             - PASSWORD_ALREADY_SET
+            - ACCOUNT_LOCKED_BY_ADMIN
             - ACCESS_DENIED
             - RESOURCE_NOT_FOUND
             - METHOD_NOT_ALLOWED
             - EMAIL_ALREADY_EXISTS
+            - ADMIN_ROLE_NOT_ASSIGNABLE
+            - ADMIN_ACCOUNT_PROTECTED
+            - ADMIN_OWNER_HAS_VAULT
+            - ADMIN_ACCOUNT_STATE_INVALID
+            - ADMIN_ACCOUNT_IN_HANDOVER
             - PAYLOAD_TOO_LARGE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR

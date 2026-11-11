@@ -279,12 +279,12 @@ function GuardianContent({
   const successText =
     successMsg === 'saved'
       ? en
-        ? 'Guardian contact saved successfully.'
-        : 'Đã lưu thông tin người giám hộ thành công.'
+        ? 'Guardian contact saved'
+        : 'Đã lưu người giám hộ'
       : successMsg === 'revoked'
       ? en
-        ? 'Current guardian contact has been revoked.'
-        : 'Đã thu hồi thông tin người giám hộ hiện hành.'
+        ? 'Guardian contact revoked'
+        : 'Đã thu hồi người giám hộ'
       : null;
 
   const isAdult = context?.ageStatus === 'ADULT';

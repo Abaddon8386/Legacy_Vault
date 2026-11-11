@@ -52,6 +52,8 @@ public class User {
     public boolean isPasswordLoginAllowed() { return !Boolean.FALSE.equals(passwordLoginEnabled); }
     public void setPasswordLoginEnabled(boolean enabled) { passwordLoginEnabled=enabled; }
     public LocalDateTime getPasswordResetAt() { return passwordResetAt; }
+    /** Invalidates every issued access token without touching password-recovery bookkeeping. */
+    public void revokeSessions() { authVersion = Math.addExact(authVersion, 1); }
     public void advanceAuthVersion(LocalDateTime at) {
         authVersion = Math.addExact(authVersion, 1); passwordResetAt=at;
     }

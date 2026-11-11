@@ -176,7 +176,7 @@ test('REPRO Lỗi 1: AdminUsersPage on 403 clears users list, detail modal, and 
       assert.ok(view.host.textContent.includes('User 1'));
 
       // Open detail modal
-      const detailBtn = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Xem chi tiết'));
+      const detailBtn = [...view.host.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || b.textContent).includes('Xem chi tiết'));
       assert.ok(detailBtn);
       await act(async () => { detailBtn.click(); });
       assert.ok(view.host.querySelector('#user-detail-modal-title'));
@@ -403,7 +403,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
     let view;
     try {
       view = await mount(Component, { accessToken: 'A', fetchOnMount: true });
-      const button = [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Xem chi tiết'));
+      const button = [...view.host.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || b.textContent).includes('Xem chi tiết'));
       await act(async () => button.click());
       assert.ok(view.host.querySelector('[role="dialog"]'));
       await act(async () => view.host.querySelector('form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })));
@@ -428,7 +428,7 @@ for (const Component of [AdminUsersPage, AdminLogsPage]) {
     let view;
     try {
       view = await mount(Component, { accessToken: 'A', fetchOnMount: true });
-      await act(async () => [...view.host.querySelectorAll('button')].find((b) => b.textContent.includes('Xem chi tiết')).click());
+      await act(async () => [...view.host.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || b.textContent).includes('Xem chi tiết')).click());
       await act(async () => {
         const select = view.host.querySelector('select');
         select.value = select.options[1].value;
@@ -469,7 +469,7 @@ test('audit detail 403 clears list and open detail, without retaining event meta
   let view;
   try {
     view = await mount(AdminLogsPage, { accessToken: 'A', fetchOnMount: true });
-    await act(async () => [...view.host.querySelectorAll('button')].find(b => b.textContent.includes('Xem chi tiết')).click());
+    await act(async () => [...view.host.querySelectorAll('button')].find(b => (b.getAttribute('aria-label') || b.textContent).includes('Xem chi tiết')).click());
     assert.equal(view.host.querySelector('[role="dialog"]'), null);
     assert.equal(view.host.querySelector('tbody').textContent.includes('VAULT_CREATED'), false);
     assert.ok(view.host.querySelector('[role="alert"]'));
@@ -494,7 +494,7 @@ test('user detail 403 revokes the displayed list and closes its dialog', async (
   const view = await mount(AdminUsersPage, { accessToken: 'T', fetchOnMount: true, lang: 'en' });
   try {
     assert.match(view.host.textContent, /Restricted account/);
-    await act(async () => [...view.host.querySelectorAll('button')].find(button => /view details/i.test(button.textContent)).click());
+    await act(async () => [...view.host.querySelectorAll('button')].find(button => /view details/i.test(button.getAttribute('aria-label') || button.textContent)).click());
     assert.equal(view.host.querySelector('[role="dialog"]'), null);
     assert.doesNotMatch(view.host.querySelector('tbody').textContent, /Restricted account/);
     assert.ok(view.host.querySelector('[role="alert"]'));

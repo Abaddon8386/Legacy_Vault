@@ -1,4 +1,4 @@
-import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
+import { workflowNotificationWarning } from '../../utils/workflowNotificationFeedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
@@ -128,10 +128,11 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       </>;
       if (step !== 'controlled-unlock') return caseContent;
       const tabs = [
-        { id: 'reopen', label: en ? 'Reopening requests' : 'Yêu cầu mở lại', badge: reopenWaiting === true },
         { id: 'unlock', label: en ? 'Unlock vault' : 'Mở khóa kho' },
+        { id: 'reopen', label: en ? 'Handover on hold' : 'Bàn giao tạm dừng', count: reopenWaiting > 0 ? reopenWaiting : 0 },
       ];
-      const active = unlockTab || (reopenWaiting ? 'reopen' : 'unlock');
+      // Unlocking is the normal path; reopening is the exception, so it never takes the default tab (the dot still signals a request).
+      const active = unlockTab || 'unlock';
       const onKeyDown = event => {
         const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? (tabs.findIndex(item => item.id === active) + 1) % 2
           : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : -1;
@@ -144,7 +145,7 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
           {tabs.map(item => <button key={item.id} type="button" role="tab" id={`legal-unlock-tab-${item.id}`} aria-selected={active === item.id}
             aria-controls={`legal-unlock-panel-${item.id}`} tabIndex={active === item.id ? 0 : -1}
             className={`lv-legal-tab${active === item.id ? ' is-active' : ''}`} onClick={() => setUnlockTab(item.id)}>
-            <span>{item.label}</span>{item.badge && <span className="lv-legal-tab__dot" role="img" aria-label={en ? 'Waiting for Legal' : 'Đang chờ Legal'} />}
+            <span>{item.label}</span>{item.count > 0 && <span className="lv-legal-tab__count" title={en ? `${item.count} handover request(s) waiting for Legal, from any case` : `${item.count} yêu cầu đang chờ Legal, của mọi hồ sơ`} aria-label={en ? `${item.count} request(s) waiting for Legal` : `${item.count} yêu cầu đang chờ Legal`}>{item.count}</span>}
           </button>)}
         </div>
         <div role="tabpanel" id="legal-unlock-panel-reopen" aria-labelledby="legal-unlock-tab-reopen" hidden={active !== 'reopen'}>
@@ -196,16 +197,15 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       && ['death-verification', 'will-document-verification', 'basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
     isMutationPending: () => mutation.current, onExternalChange:()=>setAttempt(value=>value+1) });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
-
-  const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
-    : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case processing resumed.' : 'Đã tiếp tục xử lý hồ sơ.')
+  const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold' : 'Đã tạm dừng hồ sơ')
+    : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case resumed' : 'Đã tiếp tục hồ sơ')
     : visibleReceipt?.decision === 'LEGAL_REJECTED'
-    ? (en ? 'Case approval rejected.' : 'Đã từ chối phê duyệt hồ sơ.')
-    : visibleReceipt?.decision === 'LEGAL_APPROVED' ? (en ? 'Case approved.' : 'Đã phê duyệt hồ sơ.')
-    : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked.' : 'Đã mở khóa kho.')
-    : visibleReceipt?.reviewRequired ? (en ? 'Supplementation requested.' : 'Đã yêu cầu bổ sung giấy tờ.')
-    : (en ? 'Decision saved.' : 'Đã lưu quyết định.');
-  const notificationFeedback = workflowNotificationStatus(visibleReceipt, 'STAFF', lang);
+    ? (en ? 'Case approval rejected' : 'Đã từ chối phê duyệt')
+    : visibleReceipt?.decision === 'LEGAL_APPROVED' ? (en ? 'Case approved' : 'Đã phê duyệt hồ sơ')
+    : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked' : 'Đã mở khóa kho')
+    : visibleReceipt?.reviewRequired ? (en ? 'Supplement requested' : 'Đã yêu cầu bổ sung giấy tờ')
+    : (en ? 'Decision saved' : 'Đã lưu quyết định');
+  const notificationFeedback = workflowNotificationWarning(visibleReceipt, 'STAFF', lang);
   const confirmation = visibleReceipt && <FeedbackNotice className="lv-workflow-feedback" tone="success" title={outcome}>
     {notificationFeedback && <p>{notificationFeedback.trim()}</p>}
     {!current && <p>{en ? 'Checking the latest case status before further action.' : 'Đang kiểm tra trạng thái mới nhất trước khi tiếp tục.'}</p>}
@@ -234,13 +234,13 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
+    <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
+      onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
+      <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
+    </button></div>
     <div className="lv-legal-context-row">
       <StaffCaseContextBar caseId={selected.caseId} caseItem={{ caseNumber: context.caseNumber || selected.label, status: caseStatus }}
         statusLabel={caseStatus ? legalStatus(caseStatus, en) : ''} onChangeCase={onChangeCase} lang={lang} />
-      <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
-        onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
-        <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
-      </button></div>
     </div>
     {step === 'basis-route-selection'
       ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}

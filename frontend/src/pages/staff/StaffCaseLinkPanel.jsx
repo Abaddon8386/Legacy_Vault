@@ -23,7 +23,7 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   async function copyCaseNumber() {
     try {
       await navigator.clipboard.writeText(caseNumber);
-      setCopyStatus(en ? 'Case number copied.' : 'Đã sao chép mã hồ sơ.');
+      setCopyStatus(en ? 'Case number copied' : 'Đã sao chép mã hồ sơ');
     } catch {
       setCopyStatus(en ? 'Select the case number and copy it manually.' : 'Hãy chọn mã hồ sơ bên cạnh để sao chép thủ công.');
     }
@@ -44,10 +44,10 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   useEffect(() => { errorCallback.current = onError; }, [onError]);
   useEffect(() => () => { mutation.current?.abort(); read.current?.abort(); }, []);
   const messages = {
-    attest: en ? 'In-person check recorded. The account is not linked yet.' : 'Đã ghi nhận đối chiếu tại quầy. Tài khoản chưa được liên kết.',
+    attest: en ? 'Check recorded, account not linked yet' : 'Đã ghi nhận đối chiếu, chưa liên kết tài khoản',
     create: en ? 'Account created. Ask the recipient to sign in on their own device and enter the case number in Shared with me.' : 'Đã tạo tài khoản. Hướng dẫn người nhận đăng nhập trên thiết bị của họ, vào Tài sản thụ hưởng và nhập mã hồ sơ.',
-    approve: en ? 'Link confirmed. Asset access starts only after handover.' : 'Đã xác nhận liên kết. Người nhận chỉ xem được tài sản sau bàn giao.',
-    reject: en ? 'Request declined.' : 'Đã từ chối yêu cầu.',
+    approve: en ? 'Link confirmed' : 'Đã xác nhận liên kết',
+    reject: en ? 'Request declined' : 'Đã từ chối yêu cầu',
   };
   const ready = typeof actions?.listPending === 'function';
   const open = caseItem?.status === 'OPEN';
@@ -162,7 +162,7 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
           {selected && <span><strong>{selected.accountName}</strong> · {selected.accountEmail}</span>}
           {recipient && <span>{en ? 'Recipient' : 'Người nhận'}: <strong>{recipient.fullName}</strong>{recipient.sourceLabel && <> · {recipient.sourceLabel}</>}{recipient.legalReference && <> · {recipient.legalReference}</>}</span>}
         </div>}
-        <label className="lv-counter-link__check"><input type="checkbox" checked={checked} disabled={locked || !selected || !recipient} onChange={e => setChecked(e.target.checked)} />{en ? 'I verified the recipient and account.' : 'Đã đối chiếu đúng người nhận và tài khoản.'}</label>
+        <label className="lv-counter-link__check"><input type="checkbox" checked={checked} disabled={locked || !selected || !recipient} onChange={e => setChecked(e.target.checked)} />{en ? 'I verified the recipient and account' : 'Đã đối chiếu đúng người nhận và tài khoản'}</label>
         <div className="lv-counter-link__decision-row">
           <div className="lv-counter-link__decision-hint"><WorkflowActionHint id="account-link-blocked" reason={matchBlocked} /></div>
           <div className="lv-counter-link__actions">
