@@ -14,7 +14,6 @@ import {
   Plus,
   FileText,
   Info,
-  ArrowLeft,
 } from 'lucide-react';
 import EvidenceFileUploader from '../../components/common/EvidenceFileUploader.jsx';
 import StaffCaseSelectorModal from '../../components/staff/StaffCaseSelectorModal.jsx';
@@ -59,7 +58,6 @@ export default function StaffLegalDocumentsPage({
   initialDossier = null,
   legalDecision = null,
   onCaseChange,
-  onNavigateCases,
   onUnauthorized,
 }) {
   const t = staffLegalDocumentsI18n[lang] || staffLegalDocumentsI18n.vi;
@@ -850,16 +848,6 @@ export default function StaffLegalDocumentsPage({
       {/* Header Area */}
       <div className="lv-staff-title-area">
         <div className="lv-staff-title-left">
-          {onNavigateCases && (
-            <button
-              type="button"
-              className="lv-staff-back-link-btn"
-              onClick={onNavigateCases}
-            >
-              <ArrowLeft size={16} aria-hidden="true" />
-              <span>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
-            </button>
-          )}
           <h1 className="lv-staff-title">{t.pageTitle}</h1>
         </div>
       </div>

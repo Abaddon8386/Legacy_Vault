@@ -696,7 +696,7 @@ test('Live dashboard renders OPEN queue and opens scoped live case instead of pr
   assert.match(view.host.textContent,/Synthetic live vault/);
   assert.equal(view.host.querySelector('fieldset').disabled,true);
   assert.equal(new URLSearchParams(window.location.search).get('caseId'),id);
-  await act(async()=>[...view.host.querySelectorAll('button')].find(b=>b.textContent.includes('Về danh sách')).click());
+  await act(async()=>[...view.host.querySelectorAll('button')].find(b=>b.textContent.includes('Đổi hồ sơ')).click());
   assert.equal(new URLSearchParams(window.location.search).has('caseId'),false);
   assert.ok(view.host.querySelector('.lv-staff-dashboard'));
  } finally { await view.close(); globalThis.fetch = previous; }
