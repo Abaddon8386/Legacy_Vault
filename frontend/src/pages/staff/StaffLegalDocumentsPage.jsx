@@ -1294,9 +1294,13 @@ export default function StaffLegalDocumentsPage({
                   aria-invalid={!basisTypeMatchesRoute || undefined}
                 >
                   <option value="">{en ? 'Select the submitted document type' : 'Chọn loại giấy tờ thực tế được nộp'}</option>
-                  <option value="NOTARIAL_PARTITION" disabled={isRouteCourt}>{en ? 'Notarized distribution document' : 'Văn bản phân chia được công chứng'}</option>
-                  <option value="COURT_JUDGMENT" disabled={isRouteNotarial}>{t.typeCourtJudgment}</option>
-                  <option value="COURT_DECISION" disabled={isRouteNotarial}>{t.typeCourtDecision}</option>
+                  <optgroup label={en ? 'Notarized (no dispute)' : 'Công chứng (không tranh chấp)'}>
+                    <option value="NOTARIAL_PARTITION" disabled={isRouteCourt}>{en ? 'Notarized distribution document' : 'Văn bản phân chia được công chứng'}</option>
+                  </optgroup>
+                  <optgroup label={en ? 'Court (disputed)' : 'Tòa án (có tranh chấp)'}>
+                    <option value="COURT_JUDGMENT" disabled={isRouteNotarial}>{t.typeCourtJudgment}</option>
+                    <option value="COURT_DECISION" disabled={isRouteNotarial}>{t.typeCourtDecision}</option>
+                  </optgroup>
                 </select>
                 {basisTypeRouteError && <span className="lv-field-error" role="alert">{basisTypeRouteError}</span>}
               </div>
@@ -1305,7 +1309,7 @@ export default function StaffLegalDocumentsPage({
               <div className="lv-form-row lv-form-row--2cols">
                 <div className="lv-form-group">
                   <label htmlFor={issuerId} className="lv-form-label lv-form-label--required">
-                    {legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notary office' : 'Tổ chức công chứng') : t.issuerLabel}
+                    {legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notary office' : 'Tổ chức công chứng') : legalBasisType ? (en ? 'Issuing court' : 'Tòa án ban hành') : t.issuerLabel}
                   </label>
                   <input
                     id={issuerId}
@@ -1313,7 +1317,7 @@ export default function StaffLegalDocumentsPage({
                     className={`lv-form-input ${errors.issuer ? 'lv-form-input--error' : ''}`}
                     aria-invalid={Boolean(errors.issuer)}
                     aria-describedby={errors.issuer ? `${issuerId}-error` : undefined}
-                    placeholder={isRouteNotarial ? (en ? 'e.g. Notarial office name' : 'VD: Văn phòng công chứng Nguyễn An') : t.issuerPlaceholder}
+                    placeholder={legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'e.g. Notarial office name' : 'VD: Văn phòng công chứng Nguyễn An') : t.issuerPlaceholder}
                     value={issuer}
                     onChange={(e) => { setIssuer(e.target.value); if (errors.issuer) setErrors(prev => ({ ...prev, issuer: '' })); }}
                     disabled={isSubmitting || !canReceiveBasis}
@@ -1350,7 +1354,7 @@ export default function StaffLegalDocumentsPage({
               <div className="lv-form-row lv-form-row--2cols">
                 <div className="lv-form-group">
                   <label htmlFor={dateId} className="lv-form-label lv-form-label--required">
-                    {t.issuanceDateLabel}
+                    {legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notarization date' : 'Ngày công chứng') : t.issuanceDateLabel}
                   </label>
                   <DatePicker
                     id={dateId}
@@ -1363,7 +1367,7 @@ export default function StaffLegalDocumentsPage({
                     disabled={isSubmitting || !canReceiveBasis}
                     max={new Date().toISOString().split('T')[0]}
                     lang={lang}
-                    aria-label={t.issuanceDateLabel}
+                    aria-label={legalBasisType === 'NOTARIAL_PARTITION' ? (en ? 'Notarization date' : 'Ngày công chứng') : t.issuanceDateLabel}
                     aria-invalid={Boolean(errors.issuanceDate)}
                     aria-describedby={errors.issuanceDate ? `${dateId}-error` : undefined}
                   />
