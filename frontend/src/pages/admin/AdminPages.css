@@ -511,7 +511,7 @@
   margin-block: 2px;
 }
 
-.lv-admin-container .lv-admin-status-active {
+.lv-admin-container :is(.lv-admin-status-active, .lv-admin-vault-active) {
   color: #236346;
   background: #eaf5ed;
   border-color: #cfe5d4;
@@ -523,10 +523,16 @@
   border-color: #f0d0ca;
 }
 
-.lv-admin-container .lv-admin-status-pending {
+.lv-admin-container :is(.lv-admin-status-pending, .lv-admin-status-in_process, .lv-admin-vault-in_process) {
   color: #805615;
   background: #fff6e4;
   border-color: #edd9b0;
+}
+
+.lv-admin-container :is(.lv-admin-vault-no_vault, .lv-admin-vault-archived, .lv-admin-vault-unknown) {
+  color: var(--admin-muted);
+  background: #f2f4f1;
+  border-color: var(--admin-line);
 }
 
 .lv-admin-pagination {

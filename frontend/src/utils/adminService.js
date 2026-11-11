@@ -17,6 +17,8 @@ const CASE_NUMBER = /^HS-[0-9]{4}-[0-9]{6}$/;
 const AUDIT_ENTITIES = new Set(['USER', 'VAULT', 'ASSET', 'ASSET_VERSION', 'ASSET_IMAGE', 'WILL', 'TRUSTEE', 'BENEFICIARY', 'DMS_CONFIG', 'VERIFICATION_CASE', 'DEATH_DOCUMENT_RECORD', 'LEGAL_VERIFICATION', 'WILL_COMPARISON', 'ORIGINAL_WILL_INTAKE', 'LEGAL_BASIS_DOSSIER', 'LEGAL_BASIS_VERSION', 'COURT_DECISION', 'HANDOVER_SESSION', 'HANDOVER_ITEM', 'HANDOVER_RECEIPT', 'BENEFICIARY_INVITATION', 'SUBSCRIPTION', 'SUBSCRIPTION_PLAN', 'SUBSCRIPTION_PAYMENT', 'OTHER']);
 
 const VALID_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'ADMIN', 'BENEFICIARY'];
+export const PROCESSING_ACCOUNT_ROLES = ['BENEFICIARY', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER'];
+export const ADMIN_VAULT_STATUSES = ['NO_VAULT', 'ACTIVE', 'IN_PROCESS', 'ARCHIVED'];
 const ROLE_ALIASES = new Map(
   VALID_ROLES.flatMap((role) => [
     [role, role],
@@ -33,6 +35,12 @@ const ROLE_ALIASES = new Map(
 export function normalizeAdminRole(role) {
   if (typeof role !== 'string') return '';
   return ROLE_ALIASES.get(role.trim()) || role.trim();
+}
+
+function roleAccountStatuses(role) {
+  const normalized = normalizeAdminRole(role);
+  return normalized === 'VAULT_OWNER' ? ['ACTIVE', 'LOCKED']
+    : PROCESSING_ACCOUNT_ROLES.includes(normalized) ? ['ACTIVE', 'LOCKED', 'IN_PROCESS'] : null;
 }
 
 /**
@@ -106,6 +114,8 @@ export function validateAdminUser(raw) {
     fullName,
     roles,
     status,
+    accountStatus: ['ACTIVE', 'LOCKED', 'IN_PROCESS', 'PENDING', 'DELETED'].includes(raw.accountStatus) ? raw.accountStatus : status,
+    vaultStatus: roles.includes('VAULT_OWNER') && ADMIN_VAULT_STATUSES.includes(raw.vaultStatus) ? raw.vaultStatus : null,
     createdAt,
   };
 }
@@ -159,16 +169,20 @@ export async function fetchAdminOverview(accessToken, options = {}) {
  */
 export async function fetchAdminUsers(
   accessToken,
-  { query = '', role = '', status = '', page = 1, pageSize = 20, ...options } = {}
+  { query = '', role = '', status = '', vaultStatus = '', page = 1, pageSize = 20, ...options } = {}
 ) {
+  const allowedStatuses = roleAccountStatuses(role);
   if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100 ||
       typeof query !== 'string' || query.trim().length > 100 ||
       (role && !VALID_ROLES.includes(normalizeAdminRole(role))) ||
-      (status && !['ACTIVE', 'PENDING', 'DELETED'].includes(status))) throw new ApiError('VALIDATION_FAILED', 400);
+      (status && !['ACTIVE', 'PENDING', 'LOCKED', 'IN_PROCESS', 'DELETED'].includes(status)) ||
+      (status && allowedStatuses && !allowedStatuses.includes(status)) ||
+      (vaultStatus && (normalizeAdminRole(role) !== 'VAULT_OWNER' || !ADMIN_VAULT_STATUSES.includes(vaultStatus)))) throw new ApiError('VALIDATION_FAILED', 400);
   const urlParams = new URLSearchParams();
   if (query.trim()) urlParams.set('query', query.trim());
   if (role) urlParams.set('role', `ROLE_${normalizeAdminRole(role)}`);
   if (status) urlParams.set('status', status);
+  if (vaultStatus) urlParams.set('vaultStatus', vaultStatus);
   urlParams.set('page', String(page - 1));
   urlParams.set('size', String(pageSize));
 
@@ -183,6 +197,7 @@ export async function fetchAdminUsers(
   }
 
   const items = data.content.map(validateAdminUser);
+  if (allowedStatuses && items.some(user => !['ACTIVE', 'LOCKED'].includes(user.status) || !allowedStatuses.includes(user.accountStatus))) throw new ApiError('INVALID_USERS_RESPONSE', 500);
   if (new Set(items.map(item => item.id)).size !== items.length) throw new ApiError('INVALID_USERS_RESPONSE', 500);
 
   return {
@@ -190,9 +205,12 @@ export async function fetchAdminUsers(
   };
 }
 
-export async function fetchAdminUserDetail(accessToken, id, options = {}) {
-  if (!isUuid(id)) throw new ApiError('VALIDATION_FAILED', 400);
-  const user = validateAdminUser(await request(`/admin/users/${id}`, { ...options, accessToken, expectedStatus: 200 }));
+export async function fetchAdminUserDetail(accessToken, id, { role = '', ...options } = {}) {
+  if (!isUuid(id) || (role && !VALID_ROLES.includes(normalizeAdminRole(role)))) throw new ApiError('VALIDATION_FAILED', 400);
+  const query = role ? `?${new URLSearchParams({ role: `ROLE_${normalizeAdminRole(role)}` })}` : '';
+  const user = validateAdminUser(await request(`/admin/users/${id}${query}`, { ...options, accessToken, expectedStatus: 200 }));
+  const allowedStatuses = roleAccountStatuses(role);
+  if (allowedStatuses && (!['ACTIVE', 'LOCKED'].includes(user.status) || !allowedStatuses.includes(user.accountStatus))) throw new ApiError('INVALID_USER_RECORD', 500);
   if (user.id !== id) throw new ApiError('INVALID_USER_RECORD', 500);
   return user;
 }

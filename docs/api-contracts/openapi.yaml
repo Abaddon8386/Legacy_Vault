@@ -795,13 +795,14 @@ paths:
     get:
       tags: [Admin]
       summary: Tra cứu tài khoản (PS-109, chỉ đọc)
-      description: Yêu cầu ROLE_ADMIN. Chỉ trả publicId, fullName, email, roles, createdAt và trạng thái hiệu lực; không trả khóa DB hoặc credential.
+      description: Yêu cầu ROLE_ADMIN. Chỉ trả publicId, fullName, email, roles, createdAt, trạng thái xác thực gốc, trạng thái hiển thị và nhóm tình trạng kho của Owner; không trả khóa DB hoặc credential.
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
-        - { name: role, in: query, schema: { type: string, maxLength: 50 } }
-        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, DELETED] } }
+        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Owner/Beneficiary/Legal/Staff chỉ lấy tài khoản gốc ACTIVE hoặc LOCKED chưa soft-delete; không lọc vai trò vẫn tra cứu được tài khoản cũ }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED] }, description: Lọc accountStatus trước phân trang; Owner chỉ nhận ACTIVE/LOCKED; Beneficiary/Legal/Staff nhận ACTIVE/LOCKED/IN_PROCESS; tổ hợp không hợp lệ trả 400 }
+        - { name: vaultStatus, in: query, schema: { type: string, enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED] }, description: Chỉ dùng cùng role=ROLE_VAULT_OWNER; lọc trước phân trang }
       responses:
         '200':
           description: Trang tài khoản theo envelope phân trang chung.
@@ -816,6 +817,7 @@ paths:
       tags: [Admin]
       summary: Tra cứu chi tiết tài khoản theo public ID (PS-109, chỉ đọc)
       parameters:
+        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Tính accountStatus nhất quán với danh sách; Owner/Beneficiary/Legal/Staff loại PENDING và DELETED với lỗi 404; bỏ role để tra cứu tài khoản cũ }
         - name: publicId
           in: path
           required: true
@@ -4338,14 +4340,22 @@ components:
   schemas:
     AdminUser:
       type: object
-      required: [publicId, fullName, email, roles, createdAt, status]
+      required: [publicId, fullName, email, roles, createdAt, status, accountStatus, vaultStatus]
       properties:
         publicId: { type: string, format: uuid }
         fullName: { type: string }
         email: { type: string, format: email }
         roles: { type: array, items: { type: string } }
         createdAt: { type: string, format: date-time, description: UTC }
-        status: { type: string, enum: [PENDING, ACTIVE, DELETED] }
+        status: { type: string, enum: [PENDING, ACTIVE, LOCKED, DELETED] }
+        accountStatus:
+          type: string
+          enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED]
+          description: Trạng thái hiển thị theo vai trò đang lọc; IN_PROCESS chỉ được suy ra khi status gốc là ACTIVE và có kho liên quan đang xử lý. Không dùng để xác thực.
+        vaultStatus:
+          type: [string, "null"]
+          enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED, null]
+          description: Nhóm tình trạng kho của Owner; null với vai trò khác hoặc trạng thái kho chưa được nhận diện. Không thay đổi trạng thái tài khoản.
     AdminUserPage:
       type: object
       required: [content, page, size, totalElements, totalPages]
