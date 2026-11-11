@@ -10,6 +10,11 @@
   transition: border-color 240ms ease, box-shadow 240ms ease;
 }
 
+/* Keep an open calendar above sibling cards despite their isolated stacking contexts. */
+:is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card):has(.lv-datepicker-toggle-btn[aria-expanded="true"]) {
+  z-index: 3;
+}
+
 /* The masked layer draws only the outline and never intercepts a control. */
 :is(.lv-owner-surfaces, .lv-staff-surfaces, .lv-legal-surfaces, .lv-admin-surfaces) :is(.lv-owner-card, .lv-staff-glow, .lv-surface-card)::after {
   content: '';
