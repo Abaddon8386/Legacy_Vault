@@ -78,6 +78,9 @@ class AdminAuditSqlServerTest extends LegalBasisSqlServerSupport {
         var byCase=admin(()->service().list(null,null,null,null,null,null,number.toLowerCase(Locale.ROOT),0,20));
         assertTrue(byCase.content().stream().allMatch(x->number.equals(x.caseNumber())));
         assertTrue(byCase.content().stream().anyMatch(x->x.id().equals(event)));
+        assertTrue(admin(()->service().list(null,null,null,null,null,"LEGAL_VERIFIER",null,null,0,20)).content().stream().anyMatch(x->x.id().equals(event)));
+        assertTrue(admin(()->service().list(null,null,null,null,null,"STAFF_EXECUTOR",null,null,0,20)).content().stream().noneMatch(x->x.id().equals(event)));
+        assertThrows(BusinessException.class,()->admin(()->service().list(null,null,null,null,null,"ROOT",null,null,0,20)));
         var vault=shown.vaultId();
         assertTrue(admin(()->service().list(null,null,null,null,null,vault,null,0,20)).content().stream().anyMatch(x->x.id().equals(event)));
         assertTrue(admin(()->service().list(null,null,null,null,null,UUID.randomUUID(),null,0,20)).content().isEmpty());

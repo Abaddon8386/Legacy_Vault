@@ -210,7 +210,8 @@ export async function fetchAdminAuditLogs(accessToken,
     throw new ApiError('VALIDATION_FAILED', 400);
   const params = new URLSearchParams({ page: String(page - 1), size: String(pageSize) });
   if (action) params.set('action', action);
-  if (actorType) params.set('actorKind', actorType);
+  // The actor filter lists SYSTEM, UNKNOWN or one role; a role is sent as actorRole, anything else as actorKind.
+  if (actorType) params.set(AUDIT_ROLES.includes(actorType) ? 'actorRole' : 'actorKind', actorType);
   if (actorId) {
     if (!isUuid(actorId)) throw new ApiError('VALIDATION_FAILED', 400);
     params.set('actorId', actorId);

@@ -4,7 +4,7 @@ See [Admin permissions and policy boundaries](admin.md) (PS-107 PR #167). This A
 
 ## Implemented endpoints
 
-- GET `/api/v1/admin/audit-logs`: page (default 0), size (default 20, 1..100), optional from/to ISO-8601 instants, action, actorId (public user UUID), actorKind (USER/SYSTEM/DELETED_USER/UNKNOWN), vaultId (public vault UUID), caseNumber (HS-yyyy-nnnnnn; 400 if malformed).
+- GET `/api/v1/admin/audit-logs`: page (default 0), size (default 20, 1..100), optional from/to ISO-8601 instants, action, actorId (public user UUID), actorKind (USER/SYSTEM/DELETED_USER/UNKNOWN), actorRole (VAULT_OWNER/STAFF_EXECUTOR/LEGAL_VERIFIER/BENEFICIARY/ADMIN; 400 otherwise), vaultId (public vault UUID), caseNumber (HS-yyyy-nnnnnn; 400 if malformed).
 - GET `/api/v1/admin/audit-logs/{id}`: public event UUID; returns event metadata and traceId (nullable).
 
 ROLE_ADMIN required at HTTP and service boundaries. DB-current roles/account status are checked by existing JWT auth. Cache-Control: no-store. Common page envelope content/page/size/totalElements/totalPages. Fixed occurredAt DESC then internal audit sequence DESC for deterministic ties; no client sort SQL. Internal tie-breaker is never returned. Offset pages are READ COMMITTED current observations: concurrent inserts can shift later pages; no historical snapshot promise. Count/list errors propagate, never synthetic zero.

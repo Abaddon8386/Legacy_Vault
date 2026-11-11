@@ -39,6 +39,11 @@ public class AdminAuditService {
 
     @Transactional(readOnly=true,timeout=15)
     public PageResponse<Event> list(String from,String to,String action,UUID actorId,String actorKind,UUID vaultId,String caseNumber,int page,int size) {
+        return list(from,to,action,actorId,actorKind,null,vaultId,caseNumber,page,size);
+    }
+
+    @Transactional(readOnly=true,timeout=15)
+    public PageResponse<Event> list(String from,String to,String action,UUID actorId,String actorKind,String actorRole,UUID vaultId,String caseNumber,int page,int size) {
         if(page<0 || size<1 || size>100) throw invalid();
         Instant start=parse(from),end=parse(to);
         if(start!=null && end!=null && !start.isBefore(end)) throw invalid();
@@ -50,6 +55,14 @@ public class AdminAuditService {
             else {if(!ACTIONS.contains(action)) throw invalid();where.append(" AND a.action=:action");params.addValue("action",action);}
         }
         if(actorId!=null) {where.append(" AND u.public_id=:actor");params.addValue("actor",actorId.toString());}
+        if(actorRole!=null) {
+            int rank=ROLES.indexOf(actorRole);
+            if(rank<0) throw invalid();
+            // Same rule as role(): the first known role in ROLES order is the one shown, so skip actors who also hold an earlier one.
+            where.append(" AND a.actor_type<>'SYSTEM' AND CHARINDEX(:role,a.actor_roles)>0");
+            params.addValue("role","\"ROLE_"+actorRole+"\"");
+            for(int i=0;i<rank;i++) {where.append(" AND CHARINDEX(:earlier"+i+",ISNULL(a.actor_roles,''))=0");params.addValue("earlier"+i,"\"ROLE_"+ROLES.get(i)+"\"");}
+        }
         if(vaultId!=null) {where.append(" AND v.public_id=:vault");params.addValue("vault",vaultId.toString());}
         if(caseNumber!=null) {
             var m=CASE_NUMBER.matcher(caseNumber.trim().toUpperCase(Locale.ROOT));

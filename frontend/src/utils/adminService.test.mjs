@@ -186,3 +186,16 @@ test('audit events keep the actor name only when it is a short string', () => {
   assert.equal(validateAdminAuditLog(event).actorName, null);
   assert.throws(() => validateAdminAuditLog({ ...named, actor: { ...named.actor, name: 42 } }));
 });
+
+test('the actor filter sends a role as actorRole and SYSTEM or UNKNOWN as actorKind', async () => {
+  const urls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => { urls.push(String(url)); return new Response(JSON.stringify({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  try {
+    await fetchAdminAuditLogs('T', { actorType: 'STAFF_EXECUTOR' });
+    await fetchAdminAuditLogs('T', { actorType: 'SYSTEM' });
+  } finally { globalThis.fetch = original; }
+  assert.match(urls[0], /actorRole=STAFF_EXECUTOR/);
+  assert.doesNotMatch(urls[0], /actorKind/);
+  assert.match(urls[1], /actorKind=SYSTEM/);
+});

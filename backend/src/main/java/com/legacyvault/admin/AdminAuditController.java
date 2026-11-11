@@ -13,9 +13,9 @@ public class AdminAuditController {
     public AdminAuditController(AdminAuditService service) {this.service=service;}
     @GetMapping public ResponseEntity<PageResponse<Event>> list(@RequestParam(required=false) String from,@RequestParam(required=false) String to,
         @RequestParam(required=false) String action,@RequestParam(required=false) UUID actorId,@RequestParam(required=false) String actorKind,
-        @RequestParam(required=false) UUID vaultId,@RequestParam(required=false) String caseNumber,
+        @RequestParam(required=false) String actorRole,@RequestParam(required=false) UUID vaultId,@RequestParam(required=false) String caseNumber,
         @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.list(from,to,action,actorId,actorKind,vaultId,caseNumber,page,size));
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.list(from,to,action,actorId,actorKind,actorRole,vaultId,caseNumber,page,size));
     }
     @GetMapping("/{id}") public ResponseEntity<Detail> detail(@PathVariable UUID id) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.detail(id));

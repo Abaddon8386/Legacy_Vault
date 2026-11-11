@@ -178,9 +178,8 @@ export default function AdminLogsPage({
             aria-label={t.allActorTypes}
           >
             <option value="">{t.allActorTypes}</option>
-            <option value="USER">{t.actorUser}</option>
             <option value="SYSTEM">{t.actorSystem}</option>
-            <option value="DELETED_USER">{t.actorDeleted}</option>
+            {Object.entries(t.auditRoles).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
             <option value="UNKNOWN">{t.actorUnknown}</option>
           </select>
           </label>
