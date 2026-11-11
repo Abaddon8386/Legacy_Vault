@@ -51,6 +51,7 @@ function failureMessage(t, error, { onUnauthorized, onDenied }) {
     ADMIN_ACCOUNT_PROTECTED: t.errProtected,
     RESOURCE_NOT_FOUND: t.errNotFound,
     ADMIN_ACCOUNT_STATE_INVALID: t.errStateInvalid,
+    ADMIN_ACCOUNT_IN_HANDOVER: t.errInHandover,
   }[error?.code] || t.errSubmit;
 }
 

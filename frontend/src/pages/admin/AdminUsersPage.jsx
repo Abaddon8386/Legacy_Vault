@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Eye, Lock, LockOpen, Plus, UserCog } from 'lucide-react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
-import { adminI18n, adminRoleLabel } from './adminI18n.js';
+import { adminI18n, adminRoleLabel, adminStatusLabel } from './adminI18n.js';
 import { formatAdminTimestamp } from './adminPresentation.js';
 import { fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
 import { ChangeRoleModal, CreateUserModal, LockUserModal } from './AdminUserForms.jsx';
@@ -134,7 +134,7 @@ export default function AdminUsersPage({
       <form className="lv-admin-toolbar lv-surface-card" onSubmit={handleSearchSubmit} role="search" aria-label={t.usersTitle}>
         <div className="lv-admin-toolbar-inputs">
           <label className="lv-admin-field lv-admin-field--search">
-            <span>{lang === 'en' ? 'Name or email' : 'Tên hoặc email'}</span>
+            <span>{t.searchLabel}</span>
           <input
             type="search"
             className="lv-admin-input lv-admin-search-input"
@@ -177,9 +177,9 @@ export default function AdminUsersPage({
           >
             <option value="">{t.allStatuses}</option>
             <option value="ACTIVE">{t.statusActive}</option>
-            <option value="DELETED">{t.statusDeleted}</option>
-            <option value="PENDING">{t.statusPending}</option>
+            <option value="HANDOVER_IN_PROGRESS">{t.statusHandover}</option>
             <option value="LOCKED">{t.statusLocked}</option>
+            <option value="ARCHIVED">{t.statusArchived}</option>
           </select>
           </label>
           <div className="lv-admin-filter-actions">
@@ -242,13 +242,7 @@ export default function AdminUsersPage({
                       <span
                         className={`lv-admin-mobile-status lv-admin-status-badge lv-admin-status-${(user.status || 'neutral').toLowerCase()}`}
                       >
-                        {user.status === 'LOCKED'
-                          ? t.statusLocked
-                          : user.status === 'PENDING'
-                          ? t.statusPending
-                          : user.status === 'ACTIVE'
-                          ? t.statusActive
-                          : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
+                        {adminStatusLabel(user.status, lang)}
                       </span>
                     </div>
                   </td>
@@ -267,13 +261,7 @@ export default function AdminUsersPage({
                     <span
                       className={`lv-admin-status-badge lv-admin-status-${(user.status || 'neutral').toLowerCase()}`}
                     >
-                      {user.status === 'LOCKED'
-                        ? t.statusLocked
-                        : user.status === 'PENDING'
-                        ? t.statusPending
-                        : user.status === 'ACTIVE'
-                        ? t.statusActive
-                        : user.status === 'DELETED' ? t.statusDeleted : t.notAvailable}
+                      {adminStatusLabel(user.status, lang)}
                     </span>
                   </td>
                   <td className="lv-admin-cell-actions">
@@ -378,7 +366,7 @@ function UserDetail({ id, accessToken, lang, onClose, onUnauthorized, onDenied }
         {loading ? <p role="status">{t.loading}</p> : error || apiPending ? <><p role="alert">{error || t.notAvailable}</p>
           <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={reload}>{t.retryBtn}</button></> : data && <dl className="lv-admin-detail-list">
           {[[t.userId, data.id], [t.userFullName, data.fullName], [t.userEmail, data.email], [t.userRoles, data.roles.map(role => adminRoleLabel(role, lang)).join(', ')],
-            [t.userStatus, data.status === 'ACTIVE' ? t.statusActive : data.status === 'PENDING' ? t.statusPending : data.status === 'DELETED' ? t.statusDeleted : t.notAvailable],
+            [t.userStatus, adminStatusLabel(data.status, lang)],
             [t.userCreatedAt, formatAdminTimestamp(data.createdAt, lang)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || t.notAvailable}</dd></div>)}
         </dl>}
       </div>

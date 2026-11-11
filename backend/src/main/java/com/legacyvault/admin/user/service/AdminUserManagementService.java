@@ -154,6 +154,9 @@ public class AdminUserManagementService {
         if (!from.equals(target.getStatus())) {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID);
         }
+        if (lock && vaults.existsByOwnerUserIdAndStatusIn(target.getUserId(), AdminAccountStatus.LOCK_BLOCKING_VAULT_STATUSES)) {
+            throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_IN_HANDOVER);
+        }
         target.setStatus(to);
         if (lock) {
             target.revokeSessions();

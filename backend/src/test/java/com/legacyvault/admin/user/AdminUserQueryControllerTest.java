@@ -55,6 +55,22 @@ class AdminUserQueryControllerTest {
     }
 
     @Test
+    void derivedStatusesAreAcceptedAsFilters() throws Exception {
+        for (String status : List.of("ACTIVE", "LOCKED", "archived", "HANDOVER_IN_PROGRESS")) {
+            mvc.perform(get("/api/v1/admin/users").param("status", status).with(auth("ROLE_ADMIN")))
+                    .andExpect(status().isOk());
+        }
+        // Pending and deleted accounts are hidden from the list, so they are not valid filters either.
+        for (String hidden : List.of("PENDING", "DELETED")) {
+            mvc.perform(get("/api/v1/admin/users").param("status", hidden).with(auth("ROLE_ADMIN")))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(get("/api/v1/admin/users").param("query", "3f2b8c1e-aaaa-4bbb-8ccc-123456789abc")
+                        .with(auth("ROLE_ADMIN")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void invalidStatusAndMalformedPublicIdAreBadRequests() throws Exception {
         mvc.perform(get("/api/v1/admin/users").param("status", "SUSPENDED").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());

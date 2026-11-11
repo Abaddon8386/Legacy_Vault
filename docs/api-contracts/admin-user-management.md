@@ -9,9 +9,14 @@ PS-109 bổ sung hai thao tác chỉ đọc (danh sách, chi tiết). Admin còn
 `GET /api/v1/admin/users?page=0&size=20&query=alice&role=ROLE_ADMIN&status=ACTIVE`
 
 - `page` bắt đầu từ 0; `size` từ 1 đến 100; mặc định 0/20.
-- `query` tùy chọn, tìm chuỗi con không phân biệt hoa thường trong `fullName` hoặc `email`.
+- `query` tùy chọn, tìm chuỗi con không phân biệt hoa thường trong `fullName` hoặc `email`. Nếu chuỗi (sau khi cắt khoảng trắng) là một UUID **đầy đủ** 36 ký tự thì còn khớp chính xác `publicId` của tài khoản; chuỗi khác (UUID thiếu, thừa ký tự) chỉ tìm theo tên/email.
 - `role` tùy chọn, lọc theo `roleCode` (ví dụ `ROLE_ADMIN`). Một user có nhiều role vẫn xuất hiện một lần.
-- `status` tùy chọn: `PENDING`, `ACTIVE`, `LOCKED` hoặc `DELETED`. `DELETED` là trạng thái hiệu lực được suy ra từ `deleted_at`; trạng thái khác chỉ khớp user chưa soft-delete.
+- **Danh sách không chứa tài khoản `PENDING` và tài khoản đã xóa mềm** (`deleted_at != null`): không hiển thị và cũng không tìm thấy bằng tên, email hay UUID. `status` = `PENDING` hoặc `DELETED` trả `400`.
+- `status` tùy chọn: `ACTIVE`, `LOCKED`, `ARCHIVED` hoặc `HANDOVER_IN_PROGRESS`. Đây là **trạng thái hiệu lực**, tính lại từ DB ở mỗi lần đọc (không lưu):
+  - `ARCHIVED`: kho của tài khoản có trạng thái `ARCHIVED` (đã bàn giao xong).
+  - `HANDOVER_IN_PROGRESS`: kho đang ở một bước của quy trình xác minh/bàn giao: `AWAITING_VERIFICATION`, `DOCUMENT_VERIFICATION`, `WILL_VERIFICATION`, `AWAITING_LEGAL_BASIS`, `ON_HOLD`, `LEGAL_BASIS_VERIFICATION`, `UNLOCKED`, `HANDOVER_IN_PROGRESS`.
+  - `LOCKED` và `ACTIVE` là trạng thái lưu trên tài khoản. `PENDING` và `DELETED` chỉ còn xuất hiện ở API chi tiết `GET /{publicId}` (gọi trực tiếp), không có trong danh sách.
+  - Thứ tự ưu tiên: `DELETED` > `ARCHIVED` > `HANDOVER_IN_PROGRESS` > `LOCKED` > `PENDING` > `ACTIVE`. Vì vậy tài khoản đã khóa nhưng có kho đang bàn giao hiển thị là `HANDOVER_IN_PROGRESS`, và bộ lọc `LOCKED`/`ACTIVE` không trả về các tài khoản này.
 - Kết quả dùng envelope chung `content/page/size/totalElements/totalPages`, sắp xếp `createdAt` giảm dần.
 
 Ví dụ `200`:
@@ -74,6 +79,7 @@ Các response chỉ chứa public ID, tên, email, role codes, thời điểm t�
 - Khóa chuyển `ACTIVE` sang `LOCKED` và **tăng `authVersion`**: mọi token đã phát hành bị vô hiệu ngay, kể cả sau khi mở khóa (phải đăng nhập lại). Tài khoản khóa không đăng nhập được: nhập **đúng** mật khẩu (hoặc credential Google hợp lệ) trả `403 ACCOUNT_LOCKED_BY_ADMIN`; sai mật khẩu hoặc email không tồn tại vẫn là `401 INVALID_CREDENTIALS` để không dò được email nào đang bị khóa.
 - `409 ADMIN_ACCOUNT_PROTECTED`: đích là Admin hoặc chính người gọi (nên không thể khóa Admin cuối cùng).
 - `409 ADMIN_ACCOUNT_STATE_INVALID`: khóa tài khoản không `ACTIVE` (ví dụ `PENDING`) hoặc mở khóa tài khoản không `LOCKED`... ngoại trừ lặp lại đúng trạng thái yêu cầu, là no-op `200` và không ghi audit.
+- `409 ADMIN_ACCOUNT_IN_HANDOVER`: khóa tài khoản mà kho đang ở bước xác minh/bàn giao hoặc đã `ARCHIVED`. Mở khóa vẫn được phép qua API để tài khoản không bị kẹt.
 - `404 RESOURCE_NOT_FOUND`: không tồn tại hoặc đã xóa mềm.
 - Audit `ADMIN_USER_LOCKED` / `ADMIN_USER_UNLOCKED` (entity `USER`), lý do khóa nằm trong context.
 - Chưa xử lý: tác động lên giám sát DMS / hồ sơ đang xử lý của tài khoản bị khóa.

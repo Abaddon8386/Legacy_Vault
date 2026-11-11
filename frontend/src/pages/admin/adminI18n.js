@@ -46,9 +46,9 @@ export const adminI18n = {
 
     // Users
     usersTitle: 'Quản lý người dùng',
-    usersSubtitle: 'Tìm tài khoản theo tên, email, vai trò hoặc trạng thái.',
+    usersSubtitle: 'Tìm tài khoản theo tên, email, UUID, vai trò hoặc trạng thái.',
     usersPendingNotice: 'Danh sách người dùng hiện chưa khả dụng.',
-    searchPlaceholder: 'Tìm kiếm theo tên hoặc email...',
+    searchPlaceholder: 'Tìm theo tên, email hoặc UUID...',
     allRoles: 'Tất cả vai trò',
     allStatuses: 'Tất cả trạng thái',
     statusActive: 'Hoạt động',
@@ -122,6 +122,10 @@ export const adminI18n = {
     errorHeading: 'Đã xảy ra lỗi',
     retryBtn: 'Thử lại',
     createUserBtn: 'Tạo tài khoản',
+    statusArchived: 'Lưu trữ',
+    statusHandover: 'Đang bàn giao tài sản',
+    searchLabel: 'Tên, email hoặc UUID',
+    errInHandover: 'Tài khoản này đang trong quá trình bàn giao tài sản hoặc đã được lưu trữ nên không thể khóa.',
     lockBtn: 'Khóa tài khoản',
     unlockBtn: 'Mở khóa tài khoản',
     lockTitle: 'Khóa tài khoản',
@@ -223,9 +227,9 @@ export const adminI18n = {
 
     // Users
     usersTitle: 'User Directory',
-    usersSubtitle: 'Find accounts by name, email, role, or status.',
+    usersSubtitle: 'Find accounts by name, email, UUID, role, or status.',
     usersPendingNotice: 'The user list is currently unavailable.',
-    searchPlaceholder: 'Search by name or email...',
+    searchPlaceholder: 'Search by name, email or UUID...',
     allRoles: 'All Roles',
     allStatuses: 'All Statuses',
     statusActive: 'Active',
@@ -299,6 +303,10 @@ export const adminI18n = {
     errorHeading: 'An error occurred',
     retryBtn: 'Retry',
     createUserBtn: 'Create account',
+    statusArchived: 'Archived',
+    statusHandover: 'Asset handover in progress',
+    searchLabel: 'Name, email or UUID',
+    errInHandover: 'This account is in asset handover or already archived, so it cannot be locked.',
     lockBtn: 'Lock account',
     unlockBtn: 'Unlock account',
     lockTitle: 'Lock account',
@@ -365,4 +373,14 @@ export function adminRoleLabel(role, lang = 'vi') {
     STAFF_EXECUTOR: 'roleStaff', LEGAL_VERIFIER: 'roleLegal', ADMIN: 'roleAdmin',
   }[role];
   return (adminI18n[lang] || adminI18n.vi)[key] || role;
+}
+
+/** Label for an effective account status; unknown values fall back to "not available" rather than a raw code. */
+export function adminStatusLabel(status, lang = 'vi') {
+  const key = {
+    ACTIVE: 'statusActive', LOCKED: 'statusLocked', ARCHIVED: 'statusArchived',
+    HANDOVER_IN_PROGRESS: 'statusHandover', PENDING: 'statusPending', DELETED: 'statusDeleted',
+  }[status];
+  const t = adminI18n[lang] || adminI18n.vi;
+  return key ? t[key] : t.notAvailable;
 }

@@ -214,6 +214,30 @@ class AdminUserManagementServiceTest {
     }
 
     @Test
+    void accountsInHandoverOrArchivedCannotBeLockedButCanStillBeUnlocked() {
+        UUID publicId = UUID.randomUUID();
+        User target = user(5L);
+        target.setStatus("ACTIVE");
+        when(users.findByPublicId(publicId)).thenReturn(Optional.of(target));
+        when(users.findLiveAccountForUpdate(5L)).thenReturn(Optional.of(target));
+        when(userRoles.findByUserIdWithRole(5L)).thenReturn(List.of(new UserRole(target, role(2L, "ROLE_VAULT_OWNER"))));
+        when(vaults.existsByOwnerUserIdAndStatusIn(eq(5L), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.setLocked(ADMIN_ID, publicId, true, null))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ADMIN_ACCOUNT_IN_HANDOVER));
+        assertThat(target.getStatus()).isEqualTo("ACTIVE");
+        verify(vaults).existsByOwnerUserIdAndStatusIn(5L,
+                com.legacyvault.admin.user.service.AdminAccountStatus.LOCK_BLOCKING_VAULT_STATUSES);
+        assertThat(com.legacyvault.admin.user.service.AdminAccountStatus.LOCK_BLOCKING_VAULT_STATUSES)
+                .contains("ARCHIVED", "HANDOVER_IN_PROGRESS", "UNLOCKED", "AWAITING_VERIFICATION");
+
+        target.setStatus("LOCKED");
+        service.setLocked(ADMIN_ID, publicId, false, null);
+        assertThat(target.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
     void unlockingRestoresActiveWithoutBumpingTheVersionAgain() {
         UUID publicId = UUID.randomUUID();
         User target = user(5L);

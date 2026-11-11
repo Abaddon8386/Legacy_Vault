@@ -53,6 +53,7 @@ public enum ErrorCode {
 	ADMIN_ACCOUNT_PROTECTED(409, "error.admin.accountProtected"),
 	ADMIN_OWNER_HAS_VAULT(409, "error.admin.ownerHasVault"),
 	ADMIN_ACCOUNT_STATE_INVALID(409, "error.admin.accountStateInvalid"),
+	ADMIN_ACCOUNT_IN_HANDOVER(409, "error.admin.accountInHandover"),
 	VAULT_ALREADY_EXISTS(409, "error.vault.alreadyExists"),
 	TRUSTEE_ALREADY_EXISTS(409, "error.trustee.alreadyExists"),
 	TRUSTEE_REVOKED(409, "error.trustee.revoked"),

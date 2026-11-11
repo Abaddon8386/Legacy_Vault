@@ -799,9 +799,9 @@ paths:
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
+        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: 'Tìm chuỗi con theo tên/email; nếu là UUID đầy đủ (36 ký tự) thì còn tìm đúng tài khoản có publicId đó' }
         - { name: role, in: query, schema: { type: string, maxLength: 50 } }
-        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, DELETED] } }
+        - { name: status, in: query, schema: { type: string, enum: [ACTIVE, LOCKED, ARCHIVED, HANDOVER_IN_PROGRESS] }, description: 'Lọc theo trạng thái hiệu lực (xem AdminUser.status). Danh sách không bao giờ chứa tài khoản PENDING hoặc đã xóa mềm.' }
       responses:
         '200':
           description: Trang tài khoản theo envelope phân trang chung.
@@ -842,7 +842,8 @@ paths:
         Yêu cầu ROLE_ADMIN. Chuyển ACTIVE sang LOCKED và thu hồi mọi token đã phát hành (tăng authVersion), nên mở khóa
         về sau không làm phiên cũ sống lại. Tài khoản bị khóa không đăng nhập được và mọi request đang dùng token đều bị 401.
         Không khóa được tài khoản ROLE_ADMIN hoặc chính mình (409 ADMIN_ACCOUNT_PROTECTED); tài khoản không ở ACTIVE
-        (ví dụ PENDING) trả 409 ADMIN_ACCOUNT_STATE_INVALID; khóa lại tài khoản đã khóa là no-op. Ghi audit ADMIN_USER_LOCKED.
+        (ví dụ PENDING) trả 409 ADMIN_ACCOUNT_STATE_INVALID; tài khoản có kho đang xác minh/bàn giao hoặc đã lưu trữ trả
+        409 ADMIN_ACCOUNT_IN_HANDOVER; khóa lại tài khoản đã khóa là no-op. Ghi audit ADMIN_USER_LOCKED.
       parameters:
         - name: publicId
           in: path
@@ -4449,7 +4450,14 @@ components:
         email: { type: string, format: email }
         roles: { type: array, items: { type: string } }
         createdAt: { type: string, format: date-time, description: UTC }
-        status: { type: string, enum: [PENDING, ACTIVE, LOCKED, DELETED] }
+        status:
+          type: string
+          enum: [PENDING, ACTIVE, LOCKED, ARCHIVED, HANDOVER_IN_PROGRESS, DELETED]
+          description: |
+            Trạng thái hiệu lực, tính lại từ DB ở mỗi lần đọc. ARCHIVED = kho của tài khoản đã ARCHIVED (bàn giao xong);
+            HANDOVER_IN_PROGRESS = kho đang ở một bước xác minh hoặc bàn giao (AWAITING_VERIFICATION, DOCUMENT_VERIFICATION,
+            WILL_VERIFICATION, AWAITING_LEGAL_BASIS, ON_HOLD, LEGAL_BASIS_VERIFICATION, UNLOCKED, HANDOVER_IN_PROGRESS).
+            Thứ tự ưu tiên: DELETED, ARCHIVED, HANDOVER_IN_PROGRESS, rồi trạng thái lưu trên tài khoản (LOCKED, PENDING, ACTIVE).
     AdminLockUserRequest:
       type: object
       properties:
@@ -4939,6 +4947,7 @@ components:
             - ADMIN_ACCOUNT_PROTECTED
             - ADMIN_OWNER_HAS_VAULT
             - ADMIN_ACCOUNT_STATE_INVALID
+            - ADMIN_ACCOUNT_IN_HANDOVER
             - PAYLOAD_TOO_LARGE
             - UNSUPPORTED_MEDIA_TYPE
             - INTERNAL_ERROR

@@ -157,7 +157,7 @@ export async function fetchAdminUsers(
   if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100 ||
       typeof query !== 'string' || query.trim().length > 100 ||
       (role && !VALID_ROLES.includes(normalizeAdminRole(role))) ||
-      (status && !['ACTIVE', 'PENDING', 'LOCKED', 'DELETED'].includes(status))) throw new ApiError('VALIDATION_FAILED', 400);
+      (status && !['ACTIVE', 'LOCKED', 'ARCHIVED', 'HANDOVER_IN_PROGRESS'].includes(status))) throw new ApiError('VALIDATION_FAILED', 400);
   const urlParams = new URLSearchParams();
   if (query.trim()) urlParams.set('query', query.trim());
   if (role) urlParams.set('role', `ROLE_${normalizeAdminRole(role)}`);

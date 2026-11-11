@@ -1008,3 +1008,16 @@
 .lv-admin-table--users .lv-admin-row-actions {
   justify-content: flex-start;
 }
+
+/* Derived statuses: handover in progress is amber like pending work, archived is a quiet neutral. */
+.lv-admin-container .lv-admin-status-handover_in_progress {
+  color: #805615;
+  background: #fff6e4;
+  border-color: #edd9b0;
+}
+
+.lv-admin-container .lv-admin-status-archived {
+  color: #4e5b66;
+  background: #eef1f4;
+  border-color: #d5dce2;
+}

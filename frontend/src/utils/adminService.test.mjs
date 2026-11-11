@@ -99,19 +99,19 @@ test('user parser rejects malformed lists', async () => {
   await withFetch(async () => json({ bad: true }), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
 });
 
-const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'DELETED', createdAt: '2026-10-20T12:00:00Z' };
+const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'ARCHIVED', createdAt: '2026-10-20T12:00:00Z' };
 test('PS-109 user search maps pagination and role, uses shared authentication and strips unexpected fields', async () => {
   await withFetch(async (url, options) => {
     const q = new URL(url, 'http://local').searchParams;
     assert.equal(q.get('page'), '1'); assert.equal(q.get('size'), '10');
-    assert.equal(q.get('query'), 'Account'); assert.equal(q.get('role'), 'ROLE_ADMIN'); assert.equal(q.get('status'), 'DELETED');
+    assert.equal(q.get('query'), 'Account'); assert.equal(q.get('role'), 'ROLE_ADMIN'); assert.equal(q.get('status'), 'ARCHIVED');
     assert.equal(q.has('q'), false); assert.equal(q.has('pageSize'), false);
     assert.equal(options.headers.Authorization, 'Bearer T'); assert.equal(options.headers['Accept-Language'], 'en');
     return json({ content: [{ ...wireUser, passwordHash: 'secret' }], page: 1, size: 10, totalElements: 11, totalPages: 2 });
   }, async () => {
-    const result = await fetchAdminUsers('T', { query: ' Account ', role: 'ADMIN', status: 'DELETED', page: 2, pageSize: 10, lang: 'en' });
+    const result = await fetchAdminUsers('T', { query: ' Account ', role: 'ADMIN', status: 'ARCHIVED', page: 2, pageSize: 10, lang: 'en' });
     assert.equal(result.items[0].id, id); assert.equal(result.items[0].passwordHash, undefined);
-    assert.equal(result.items[0].status, 'DELETED'); assert.equal(result.page, 2);
+    assert.equal(result.items[0].status, 'ARCHIVED'); assert.equal(result.page, 2);
   });
 });
 
