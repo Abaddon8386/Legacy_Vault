@@ -9,6 +9,8 @@ export default function StaffCaseContextBar({
   onOpenSelector,
   onChangeCase,
   outcomeChip = null,
+  statusLabel: statusLabelOverride = '',
+  stage = null,
   lang = 'vi',
 }) {
   const en = lang === 'en';
@@ -17,7 +19,7 @@ export default function StaffCaseContextBar({
   const rawCode = caseItem?.caseNumber || (!/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(caseId) ? caseId : '');
   const displayCaseRef = rawCode ? formatCaseReference(rawCode) : (en ? 'Loading case…' : 'Đang tải hồ sơ…');
 
-  const statusLabel = caseItem?.status === 'OPEN'
+  const statusLabel = statusLabelOverride || (caseItem?.status === 'OPEN'
     ? (en ? 'Open' : 'Đang mở')
     : caseItem?.status === 'CANCELLED'
     ? (en ? 'Cancelled' : 'Đã hủy')
@@ -29,7 +31,7 @@ export default function StaffCaseContextBar({
     ? (en ? 'In progress' : 'Đang xử lý')
     : caseItem?.status === 'VERIFIED'
     ? (en ? 'Verified' : 'Đã xác minh')
-    : caseItem?.status || '';
+    : caseItem?.status || '');
 
   return (
     <div className={`lv-staff-context-bar lv-staff-glow ${hasCase ? 'lv-staff-context-bar--active' : 'lv-staff-context-bar--empty'}`}>
@@ -48,6 +50,7 @@ export default function StaffCaseContextBar({
                       {statusLabel}
                     </span>
                   )}
+                  {stage && <span className={`lv-staff-context-stage is-${stage.tone}`}>{stage.label}</span>}
                   {outcomeChip && (
                     <span className={`lv-staff-context-badge lv-staff-context-badge--outcome-${outcomeChip.tone}`}>
                       {outcomeChip.tone === 'history' ? <History size={16} aria-hidden="true" /> : outcomeChip.tone === 'positive' ? <CheckCircle2 size={16} aria-hidden="true" /> : outcomeChip.tone === 'negative' ? <XCircle size={16} aria-hidden="true" /> : <AlertTriangle size={16} aria-hidden="true" />}

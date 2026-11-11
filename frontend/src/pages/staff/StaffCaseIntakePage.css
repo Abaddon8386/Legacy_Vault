@@ -76,7 +76,7 @@
 .lv-intake-preview-banner__icon {
   flex-shrink: 0;
   margin-top: 2px;
-  color: #c5a059;
+  color: #8c6820;
 }
 
 /* Legal Boundary Notice */
@@ -409,7 +409,7 @@
 
 .lv-intake-state-icon-wrap--warning {
   background-color: #fdf7ec;
-  color: #c5a059;
+  color: #8c6820;
 }
 
 .lv-intake-success-icon-wrap {

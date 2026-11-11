@@ -34,11 +34,11 @@ test('a resumed dossier waiting for version two lets Staff edit a replacement de
   assert.match(host.textContent,/phiên bản hồ sơ số 2/);
   assert.doesNotMatch(host.textContent,/CHANGES_REQUESTED/);
   const intake=[...host.querySelectorAll('[role=tab]')].find(x=>/Tiếp nhận văn bản/.test(x.textContent));await act(async()=>intake.click());
-  const inputs=[...host.querySelectorAll('form input:not([type=file]),form select')];
+  const inputs=[...host.querySelectorAll('form input:not([type=file]):not([type=radio]),form select')];
   assert.ok(inputs.length>0);assert.ok(inputs.every(x=>!x.disabled));
-  const type=host.querySelector('form select');assert.equal(type.querySelector('option[value="COURT_JUDGMENT"]').disabled,true);
+  const court=host.querySelector('form input[type=radio][value=COURT]');assert.equal(court.disabled,true);assert.equal(host.querySelector('form input[type=radio][value=NOTARIAL_PARTITION]').disabled,false);
   const props=node=>node[Object.keys(node).find(key=>key.startsWith('__reactProps$'))];
-  await act(async()=>props(type).onChange({target:{value:'COURT_JUDGMENT'}}));
+  await act(async()=>props(court).onChange());
   await act(async()=>props(host.querySelector('form')).onSubmit({preventDefault(){}}));
   assert.equal(writes,0);assert.match(host.textContent,/Hồ sơ hiện tiếp nhận văn bản công chứng/);
  });}finally{globalThis.fetch=previous;}
