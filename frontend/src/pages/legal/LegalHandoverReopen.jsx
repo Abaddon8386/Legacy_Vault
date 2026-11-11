@@ -103,8 +103,8 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
       <h2>{en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'}</h2>
       <button type="button" disabled={!current} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh' : 'Cập nhật'}</button>
     </div>
-    {hasRequests && <p className="lv-legal-reopen__note">{en ? 'Staff has recorded that everyone is present and asks to reopen. Only Legal decides; allowing it does not mean any asset has been delivered.'
-      : 'Staff đã ghi nhận đủ người nhận và đề nghị mở lại. Chỉ Legal quyết định; cho phép mở lại không đồng nghĩa đã bàn giao tài sản.'}</p>}
+    {hasRequests && <p className="lv-legal-reopen__note">{en ? 'Staff recorded that everyone is present and asks to reopen the handover'
+      : 'Staff đã ghi nhận đủ người nhận và đề nghị mở lại bàn giao'}</p>}
     {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed' : 'Đã cho phép mở lại bàn giao') : (en ? 'Reopening refused' : 'Đã từ chối mở lại bàn giao')}>
       {workflowNotificationWarning(outcome, 'STAFF', lang) && <p>{workflowNotificationWarning(outcome, 'STAFF', lang)}</p>}
     </FeedbackNotice>}

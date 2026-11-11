@@ -126,10 +126,11 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       </>;
       if (step !== 'controlled-unlock') return caseContent;
       const tabs = [
-        { id: 'reopen', label: en ? 'Reopening requests' : 'Yêu cầu mở lại', badge: reopenWaiting === true },
         { id: 'unlock', label: en ? 'Unlock vault' : 'Mở khóa kho' },
+        { id: 'reopen', label: en ? 'Reopen handover' : 'Mở lại bàn giao', badge: reopenWaiting === true },
       ];
-      const active = unlockTab || (reopenWaiting ? 'reopen' : 'unlock');
+      // Unlocking is the normal path; reopening is the exception, so it never takes the default tab (the dot still signals a request).
+      const active = unlockTab || 'unlock';
       const onKeyDown = event => {
         const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? (tabs.findIndex(item => item.id === active) + 1) % 2
           : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : -1;

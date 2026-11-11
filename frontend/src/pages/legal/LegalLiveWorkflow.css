@@ -173,7 +173,7 @@
 @media (max-width:640px) { .lv-legal-live .lv-legal-context-actions { right:16px; bottom:16px; } }
 
 /* Controlled unlock page: reopening requests and unlock as tabs (same look as the other tabs) */
-.lv-legal-live .lv-legal-tabs { display: flex; gap: 4px; margin: 8px 0 16px; border-bottom: 1px solid #e2e5dc; overflow-x: auto; overflow-y: hidden; }
+.lv-legal-live .lv-legal-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 16px; border-bottom: 1px solid #e2e5dc; overflow: visible; }
 .lv-legal-live .lv-legal-tab { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 -1px; padding: 0 18px; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #52675b; font-family: inherit; font-size: 16px; font-weight: 500; white-space: nowrap; cursor: pointer; box-shadow: none; transition: color 0.15s ease, border-color 0.15s ease; }
 .lv-legal-live .lv-legal-tab:hover { color: #204f40; background: transparent; }
 .lv-legal-live .lv-legal-tab:focus-visible { outline: 3px solid #b7d9ca; outline-offset: 2px; }
