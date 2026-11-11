@@ -11,7 +11,6 @@ import StaffGroupHandover from '../../components/staff/StaffGroupHandover.jsx';
 import { loadGroupHandover } from '../../services/groupHandoverService.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
 import LegacyCounterBeneficiariesSection from './LegacyCounterBeneficiariesSection.jsx';
-import { ArrowLeft } from 'lucide-react';
 
 function sessionTime(value, en) {
   const date = new Date(value);
@@ -333,12 +332,6 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
     onSelectSession?.(caseId ? sessionId : null);
   };
   return <section className="lv-live-handover lv-staff-surfaces" onPointerMove={trackOwnerSurface}>
-    <div className="lv-staff-header-actions">
-      <a href="/staff/cases" className="lv-staff-back-link-btn">
-        <ArrowLeft size={16} aria-hidden="true" />
-        <span>{en ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
-      </a>
-    </div>
     <h1 className="lv-staff-handover-title">{mode === 'accounts' ? (en ? 'Beneficiary accounts at counter' : 'Tài khoản người thụ hưởng tại quầy') : (en ? 'Counter handover sessions' : 'Bàn giao tài sản tại quầy')}</h1>
     {!caseId ? <CasePicker accessToken={accessToken} lang={lang} onError={notify} onChoose={(id, item) => {
       setCaseId(id); setCaseItem(item || null); setRequested(null);

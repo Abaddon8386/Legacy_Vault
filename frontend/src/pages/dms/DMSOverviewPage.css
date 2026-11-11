@@ -94,3 +94,6 @@
 .lv-dms-status-badge-wrap .lv-status-badge.lv-tone-await{background:#fdf0c8;border-color:#e6c869;color:#6f4a18}
 .lv-dms-status-badge-wrap .lv-status-badge.lv-tone-await .lv-status-dot{background:#b7791f}
 .lv-dms-time-locked{margin:0;font-size:14px;line-height:1.6;color:#637068}
+/* Saved / failed messages in the settings card look like the shared feedback notice (grace period) instead of a second style. */
+.lv-dms-banner-success,.lv-dms-banner-error{padding:14px 16px;border-radius:12px;border-left-width:4px;border-left-style:solid;font-weight:500}
+.lv-dms-banner-success{background:#eef8f0;border-color:#bcdcc8;border-left-color:#255d3e;color:#255d3e}
