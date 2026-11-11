@@ -24,6 +24,7 @@ class AdminUserQuerySqlServerTest extends LegalBasisSqlServerSupport {
         seed("ACTIVE", null, false);
         long locked = seed("LOCKED", "ON_HOLD", true);
         long deleted = seed("ACTIVE", "ACTIVE", true);
+        long pending = seed("PENDING", "ACTIVE", true);
         jdbc.update("UPDATE dbo.users SET deleted_at=SYSUTCDATETIME() WHERE user_id=?", deleted);
 
         var first = service.listUsers(null, "ROLE_VAULT_OWNER", "ACTIVE", "IN_PROCESS", 0, 3);
@@ -43,7 +44,18 @@ class AdminUserQuerySqlServerTest extends LegalBasisSqlServerSupport {
         assertEquals(1, lockedPage.totalElements());
         assertEquals(UUID.fromString(jdbc.queryForObject("SELECT public_id FROM dbo.users WHERE user_id=?", String.class, locked)),
                 lockedPage.content().getFirst().publicId());
-        assertEquals(1, service.listUsers(null, "ROLE_VAULT_OWNER", "DELETED", "ACTIVE", 0, 20).totalElements());
+        var owners = service.listUsers(null, "ROLE_VAULT_OWNER", null, null, 0, 100);
+        assertEquals(12, owners.totalElements());
+        assertTrue(owners.content().stream().allMatch(user -> List.of("ACTIVE", "LOCKED").contains(user.accountStatus())));
+        assertEquals(1, service.listUsers(null, null, "DELETED", null, 0, 20).totalElements());
+        assertEquals(1, service.listUsers(null, null, "PENDING", null, 0, 20).totalElements());
+        for (long legacy : List.of(pending, deleted)) {
+            assertThrows(com.legacyvault.common.error.BusinessException.class,
+                    () -> service.getUser(publicId(legacy), "ROLE_VAULT_OWNER"));
+            assertTrue(List.of("PENDING", "DELETED").contains(service.getUser(publicId(legacy), null).accountStatus()));
+        }
+        assertThrows(com.legacyvault.common.error.BusinessException.class,
+                () -> service.listUsers(null, "ROLE_VAULT_OWNER", "DELETED", "ACTIVE", 0, 20));
         var others = service.listUsers(null, "ROLE_STAFF_EXECUTOR", null, null, 0, 20);
         assertEquals(1, others.totalElements());
         assertNull(others.content().getFirst().vaultStatus());
@@ -63,6 +75,17 @@ class AdminUserQuerySqlServerTest extends LegalBasisSqlServerSupport {
         long idleStaff = actor("ROLE_STAFF_EXECUTOR", "ACTIVE");
         long locked = actor("ROLE_BENEFICIARY", "LOCKED");
         long mixed = actor("ROLE_STAFF_EXECUTOR", "ACTIVE");
+        for (String role : List.of("ROLE_BENEFICIARY", "ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR")) {
+            actor(role, "PENDING");
+            long deletedActor = actor(role, "ACTIVE");
+            jdbc.update("UPDATE dbo.users SET deleted_at=SYSUTCDATETIME() WHERE user_id=?", deletedActor);
+            var page = service.listUsers("Actor processing fixture", role, null, null, 0, 100);
+            assertTrue(page.content().stream().allMatch(user -> List.of("ACTIVE", "LOCKED", "IN_PROCESS").contains(user.accountStatus())));
+            assertThrows(com.legacyvault.common.error.BusinessException.class,
+                    () -> service.getUser(publicId(deletedActor), role));
+        }
+        assertEquals(3, service.listUsers("Actor processing fixture", null, "PENDING", null, 0, 100).totalElements());
+        assertEquals(3, service.listUsers("Actor processing fixture", null, "DELETED", null, 0, 100).totalElements());
         jdbc.update("INSERT dbo.user_roles(user_id,role_id) SELECT ?,role_id FROM dbo.roles WHERE role_code='ROLE_BENEFICIARY'", mixed);
         for (var f : List.of(a, b)) {
             jdbc.update("UPDATE dbo.verification_cases SET assigned_staff_user_id=? WHERE verification_case_id=?", staff, f.caseId());

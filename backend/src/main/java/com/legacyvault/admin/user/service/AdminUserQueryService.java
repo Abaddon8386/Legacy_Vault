@@ -18,12 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /** Read-only Admin account lookup; never returns persistence identifiers or credentials. */
 @Service
 public class AdminUserQueryService {
+    private static final Set<String> BUSINESS_ROLES = Set.of("ROLE_VAULT_OWNER", "ROLE_BENEFICIARY", "ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR");
     private final UserRepository users;
     private final UserRoleRepository userRoles;
     private final VaultRepository vaults;
@@ -40,6 +42,11 @@ public class AdminUserQueryService {
         String normalizedRole = role == null || role.isBlank() ? null : role.trim().toUpperCase(Locale.ROOT);
         String normalizedStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase(Locale.ROOT);
         String normalizedVaultStatus = vaultStatus == null || vaultStatus.isBlank() ? null : vaultStatus.trim().toUpperCase(Locale.ROOT);
+        if (normalizedRole != null && BUSINESS_ROLES.contains(normalizedRole) && normalizedStatus != null
+                && (!Set.of("ACTIVE", "LOCKED", "IN_PROCESS").contains(normalizedStatus)
+                    || ("ROLE_VAULT_OWNER".equals(normalizedRole) && "IN_PROCESS".equals(normalizedStatus)))) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED);
+        }
         if (normalizedVaultStatus != null && (!"ROLE_VAULT_OWNER".equals(normalizedRole)
                 || !java.util.Set.of("NO_VAULT", "ACTIVE", "IN_PROCESS", "ARCHIVED").contains(normalizedVaultStatus))) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED);
@@ -64,10 +71,14 @@ public class AdminUserQueryService {
     public AdminUserResponse getUser(UUID publicId, String role) {
         User user = users.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        String normalizedRole = role == null || role.isBlank() ? null : role.trim().toUpperCase(Locale.ROOT);
+        if (normalizedRole != null && BUSINESS_ROLES.contains(normalizedRole)
+                && (user.getDeletedAt() != null || !Set.of("ACTIVE", "LOCKED").contains(user.getStatus()))) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         var roles = userRoles.findByUserIdWithRole(user.getUserId()).stream().map(link -> link.getRole().getRoleCode()).toList();
         String vaultStatus = roles.contains("ROLE_VAULT_OWNER") ? vaults.findByOwnerUserIdIn(java.util.List.of(user.getUserId()))
                 .stream().findFirst().map(Vault::getStatus).orElse(null) : null;
-        String normalizedRole = role == null || role.isBlank() ? null : role.trim().toUpperCase(Locale.ROOT);
         boolean processing = users.findProcessingUserIds(java.util.List.of(user.getUserId()), normalizedRole).contains(user.getUserId());
         return toResponse(user, roles, vaultStatus, processing);
     }

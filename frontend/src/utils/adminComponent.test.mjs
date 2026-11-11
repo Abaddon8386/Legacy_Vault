@@ -573,7 +573,8 @@ for (const role of ['BENEFICIARY', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
     const row = {publicId: userId, fullName: 'Actor', email: 'actor@example.test', roles: ['ROLE_' + role], status: 'ACTIVE', accountStatus: 'IN_PROCESS', createdAt: '2026-10-20T10:00:00Z'};
     globalThis.fetch = async url => {
       requests.push(new URL(url, 'http://local'));
-      return connectivityJson(url.includes('/admin/users?') ? {content:[row],page:0,size:10,totalElements:1,totalPages:1} : row);
+      const otherRole=new URL(url,'http://local').searchParams.get('role')==='ROLE_VAULT_OWNER';
+      return connectivityJson(url.includes('/admin/users?') ? {content:otherRole?[]:[row],page:0,size:10,totalElements:otherRole?0:1,totalPages:otherRole?0:1} : row);
     };
     const view = await mount(AdminUsersPage, {lang, accessToken:'test', fetchOnMount:true});
     const change = async (select,value) => act(async () => {select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
@@ -597,6 +598,7 @@ for (const role of ['BENEFICIARY', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER']) {
       assert.equal(statusSelect.value,'');
       assert.equal(requests.at(-1).searchParams.has('status'),false);
       assert.equal([...statusSelect.options].some(option=>option.value==='IN_PROCESS'),false);
+      assert.equal(view.host.querySelector('[role=alert]'),null);
     } finally {await view.close();globalThis.fetch=previous;}
   });
 }

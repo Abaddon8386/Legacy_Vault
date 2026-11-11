@@ -71,6 +71,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
               and (:roleCode is null or exists (
                    select ur.id from UserRole ur join ur.role r
                    where ur.user.userId = u.userId and upper(r.roleCode) = :roleCode))
+              and (:roleCode is null or :roleCode not in (
+                   'ROLE_VAULT_OWNER', 'ROLE_BENEFICIARY', 'ROLE_LEGAL_VERIFIER', 'ROLE_STAFF_EXECUTOR')
+                   or (u.deletedAt is null and u.status in ('ACTIVE', 'LOCKED')))
               and (:status is null
                    or (:status = 'DELETED' and u.deletedAt is not null)
                    or (:status not in ('ACTIVE', 'IN_PROCESS', 'DELETED') and u.deletedAt is null and upper(u.status) = :status)

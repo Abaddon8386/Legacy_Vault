@@ -800,8 +800,8 @@ paths:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Tìm chuỗi con theo tên/email }
-        - { name: role, in: query, schema: { type: string, maxLength: 50 } }
-        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED] }, description: Lọc accountStatus theo vai trò đang chọn trước phân trang }
+        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Owner/Beneficiary/Legal/Staff chỉ lấy tài khoản gốc ACTIVE hoặc LOCKED chưa soft-delete; không lọc vai trò vẫn tra cứu được tài khoản cũ }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, ACTIVE, LOCKED, IN_PROCESS, DELETED] }, description: Lọc accountStatus trước phân trang; Owner chỉ nhận ACTIVE/LOCKED; Beneficiary/Legal/Staff nhận ACTIVE/LOCKED/IN_PROCESS; tổ hợp không hợp lệ trả 400 }
         - { name: vaultStatus, in: query, schema: { type: string, enum: [NO_VAULT, ACTIVE, IN_PROCESS, ARCHIVED] }, description: Chỉ dùng cùng role=ROLE_VAULT_OWNER; lọc trước phân trang }
       responses:
         '200':
@@ -817,7 +817,7 @@ paths:
       tags: [Admin]
       summary: Tra cứu chi tiết tài khoản theo public ID (PS-109, chỉ đọc)
       parameters:
-        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Vai trò đang lọc để tính accountStatus nhất quán với danh sách }
+        - { name: role, in: query, schema: { type: string, maxLength: 50 }, description: Tính accountStatus nhất quán với danh sách; Owner/Beneficiary/Legal/Staff loại PENDING và DELETED với lỗi 404; bỏ role để tra cứu tài khoản cũ }
         - name: publicId
           in: path
           required: true

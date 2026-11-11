@@ -102,6 +102,26 @@ test('provisional user parser rejects malformed lists and user writes remain dis
 
 const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'DELETED', createdAt: '2026-10-20T12:00:00Z' };
 
+test('scoped business roles reject legacy filters and legacy receipts without hiding records after pagination', async () => {
+  for (const role of ['VAULT_OWNER', 'BENEFICIARY', 'LEGAL_VERIFIER', 'STAFF_EXECUTOR']) {
+    for (const status of ['PENDING', 'DELETED']) {
+      await withFetch(() => assert.fail('invalid role/status must not request data'),
+        () => assert.rejects(() => fetchAdminUsers('T', {role, status}), /VALIDATION_FAILED/));
+      const user = {...wireUser, roles:['ROLE_'+role], status, accountStatus:status};
+      await withFetch(async () => json({content:[user],page:0,size:20,totalElements:1,totalPages:1}),
+        () => assert.rejects(() => fetchAdminUsers('T', {role}), /INVALID_USERS_RESPONSE/));
+      await withFetch(async () => json(user),
+        () => assert.rejects(() => fetchAdminUserDetail('T', id, {role}), /INVALID_USER_RECORD/));
+      await withFetch(async () => json({content:[{...user,accountStatus:'ACTIVE'}],page:0,size:20,totalElements:1,totalPages:1}),
+        () => assert.rejects(() => fetchAdminUsers('T', {role}), /INVALID_USERS_RESPONSE/));
+      await withFetch(async () => json(user),
+        async () => assert.equal((await fetchAdminUserDetail('T', id)).accountStatus,status));
+    }
+  }
+  await withFetch(() => assert.fail('Owner processing belongs to the vault filter'),
+    () => assert.rejects(() => fetchAdminUsers('T', {role:'VAULT_OWNER',status:'IN_PROCESS'}), /VALIDATION_FAILED/));
+});
+
 test('processing display state preserves authentication state and detail requests keep the selected role', async () => {
   const actor = { ...wireUser, roles: ['ROLE_LEGAL_VERIFIER'], status: 'ACTIVE', accountStatus: 'IN_PROCESS' };
   const user = validateAdminUser(actor);

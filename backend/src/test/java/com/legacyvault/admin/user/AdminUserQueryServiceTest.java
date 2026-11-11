@@ -87,13 +87,30 @@ class AdminUserQueryServiceTest {
         var processing = service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER");
         assertThat(processing.status()).isEqualTo("ACTIVE");
         assertThat(processing.accountStatus()).isEqualTo("IN_PROCESS");
-        for (String status : List.of("LOCKED", "PENDING")) {
-            actor.setStatus(status);
-            assertThat(service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER").accountStatus()).isEqualTo(status);
-        }
+        actor.setStatus("LOCKED");
+        assertThat(service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER").accountStatus()).isEqualTo("LOCKED");
+        actor.setStatus("PENDING");
+        assertThatThrownBy(() -> service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER"))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        assertThat(service.getUser(actor.getPublicId(), null).accountStatus()).isEqualTo("PENDING");
         ReflectionTestUtils.setField(actor, "deletedAt", LocalDateTime.of(2026, 11, 11, 0, 0));
-        assertThat(service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER").accountStatus()).isEqualTo("DELETED");
+        assertThatThrownBy(() -> service.getUser(actor.getPublicId(), "ROLE_LEGAL_VERIFIER"))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        assertThat(service.getUser(actor.getPublicId(), null).accountStatus()).isEqualTo("DELETED");
         verify(users, never()).save(any());
+    }
+
+    @Test
+    void scopedRolesRejectLegacyStatusFiltersBeforeQuerying() {
+        for (String role : List.of("ROLE_VAULT_OWNER", "ROLE_BENEFICIARY", "ROLE_LEGAL_VERIFIER", "ROLE_STAFF_EXECUTOR")) {
+            for (String status : List.of("PENDING", "DELETED")) {
+                assertThatThrownBy(() -> service.listUsers(null, role, status, null, 0, 20))
+                        .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+            }
+        }
+        assertThatThrownBy(() -> service.listUsers(null, "ROLE_VAULT_OWNER", "IN_PROCESS", null, 0, 20))
+                .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+        verifyNoInteractions(users, userRoles, vaults);
     }
 
     @Test
