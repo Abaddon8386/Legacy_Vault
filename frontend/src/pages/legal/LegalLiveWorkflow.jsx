@@ -103,11 +103,13 @@ export default function LegalLiveWorkflow({ session, lang = 'vi', step: requeste
       {busy && <p role="status">{en ? 'Loading cases…' : 'Đang tải hồ sơ…'}</p>}
       {error && <p role="alert">{knownErrors[error.status]?.[en ? 1 : 0] || (en ? 'Unable to load cases.' : 'Không thể tải danh sách hồ sơ.')}</p>}
       {queue?.length === 0 && <p>{en ? 'No cases are available.' : 'Chưa có hồ sơ để xử lý.'}</p>}
-      <label><span><FolderOpen size={18} aria-hidden="true" />{en ? 'Case' : 'Hồ sơ'}</span><select value={selected?.caseId || ''} disabled={!queue?.length || busy} onChange={e => go(step, e.target.value)}>
-        <option value="">{en ? 'Select a case' : 'Chọn hồ sơ'}</option>
-        {selected && !listed && <option value={selected.caseId}>{en ? 'Selected case' : 'Hồ sơ đang chọn'}</option>}
-        {queue?.map(item => <option key={item.caseId} value={item.caseId}>{item.label}</option>)}
-      </select></label>
+      <div className="lv-legal-queue-row">
+        <label className="lv-legal-queue-picker"><span><FolderOpen size={18} aria-hidden="true" />{en ? 'Case' : 'Hồ sơ'}</span><select value={selected?.caseId || ''} disabled={!queue?.length || busy} onChange={e => go(step, e.target.value)}>
+          <option value="">{en ? 'Select a case' : 'Chọn hồ sơ'}</option>
+          {selected && !listed && <option value={selected.caseId}>{en ? 'Selected case' : 'Hồ sơ đang chọn'}</option>}
+          {queue?.map(item => <option key={item.caseId} value={item.caseId}>{item.label}</option>)}
+        </select></label>
+      </div>
       {currentResult?.totalPages > 1 && <div role="group" aria-label={en ? 'Case pages' : 'Trang hồ sơ'}>
         <button type="button" disabled={busy || page === 0} onClick={() => { setPage(value => value - 1); go(step, ''); }}>{en ? 'Previous' : 'Trước'}</button>
         <span>{page + 1} / {currentResult.totalPages}</span>
@@ -232,12 +234,14 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
     {visibleReceipt && step === 'approval-review' && context.snapshot?.approvalCurrent && context.capabilities.unlock.allowed && !readOnly &&
       <p className="lv-legal-help">{en ? 'Approval is recorded. Unlocking requires a separate confirmation.' : 'Đã ghi nhận phê duyệt. Mở khóa cần một lần xác nhận riêng.'}{' '}
         <a href={`${paths['controlled-unlock']}?${new URLSearchParams({ caseId: context.caseId, lang })}`}>{legalStepTitle('controlled-unlock', lang)}</a></p>}
-    <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
-      onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
-      <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
-    </button></div>
-    <StaffCaseContextBar caseId={selected.caseId} caseItem={{ caseNumber: context.caseNumber || selected.label, status: caseStatus }}
-      statusLabel={caseStatus ? legalStatus(caseStatus, en) : ''} onChangeCase={onChangeCase} lang={lang} />
+    <div className="lv-legal-context-row">
+      <StaffCaseContextBar caseId={selected.caseId} caseItem={{ caseNumber: context.caseNumber || selected.label, status: caseStatus }}
+        statusLabel={caseStatus ? legalStatus(caseStatus, en) : ''} onChangeCase={onChangeCase} lang={lang} />
+      <div className="lv-legal-context-actions"><button type="button" disabled={mutationPending || distribution.pending}
+        onClick={() => { if (!mutation.current) setAttempt(value => value + 1); }}>
+        <RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh documents and case' : 'Cập nhật giấy tờ và hồ sơ'}
+      </button></div>
+    </div>
     {step === 'basis-route-selection'
       ? <LegalDistributionWorkspace workflow={{...distribution, pending: distribution.pending || mutationPending}} session={session} context={context} lang={lang} draftState={distributionDraft} onDraftStateChange={setDistributionDraft}
           holdDraft={holdDraft} onHoldDraftChange={setHoldDraft} onPendingChange={onPendingChange}
@@ -365,7 +369,8 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       if ([401, 403, 404, 409].includes(err.status) || ['INVALID_RESPONSE', 'NETWORK_ERROR'].includes(err.code)) setNeedsReload(true);
     } finally { if (!c.signal.aborted) { lock.current = false; setBusy(false); onPendingChange?.(false); } }
   }
-  return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}`} aria-busy={busy}>
+  const hasActionPanel = !readOnly && !(step==='will-document-verification'&&data?.comparisons.some(item=>item.originalWillIntakeId===draft.originalWillIntakeId));
+  return <div className={`lv-legal-workspace${readOnly ? ' is-readonly' : ''}${!hasActionPanel ? ' is-single-column' : ''}`} aria-busy={busy}>
     <section className="lv-legal-live__card lv-legal-documents lv-surface-card">
     <header className="lv-legal-card-heading"><h2><FileText size={20} aria-hidden="true" />{en ? 'Documents and assessment' : 'Giấy tờ và kết luận thẩm định'}</h2>
       {(error || needsReload || receipt) && <button type="button" disabled={busy} onClick={onReload}><RefreshCw size={16} aria-hidden="true" />{receipt ? (en ? 'View latest status' : 'Xem trạng thái mới') : (en ? 'Try again' : 'Thử lại')}</button>}
@@ -412,7 +417,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
       </section>)}
       {data.court?.map(item => <div key={item.id} className="lv-legal-history-item"><LegalRecordDetails rows={[[en ? 'Result' : 'Kết quả', label(item.result, en)], [en ? 'Version' : 'Phiên bản', item.version], [en ? 'Reviewed at' : 'Thời gian thẩm định', legalDate(item.reviewedAt)]]} /></div>)}</>}
     </section>
-    {!readOnly && !(step==='will-document-verification'&&data?.comparisons.some(item=>item.originalWillIntakeId===draft.originalWillIntakeId)) && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">
+    {hasActionPanel && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">
       <header className="lv-legal-card-heading"><h2><SquarePen size={20} aria-hidden="true" />{en ? 'Record assessment' : 'Ghi nhận kết luận'}</h2></header>
       <form onSubmit={submit}>
       {step === 'death-verification' && pick('decision', en ? 'Decision' : 'Quyết định', ['APPROVE', 'REJECT', 'REQUEST_MORE'])}
