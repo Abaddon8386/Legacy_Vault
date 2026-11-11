@@ -15,33 +15,29 @@
 .lv-legal-live select,.lv-legal-live textarea { box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:11px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fff; color:var(--legal-ink); font:400 16px/1.5 var(--lv-font-sans,system-ui,sans-serif); }
 .lv-legal-live textarea { min-height:132px; resize:vertical; }
 .lv-legal-live :is(select,textarea):disabled { background:#f4f5f2; color:var(--legal-muted); }
-.lv-legal-live__queue { display:flex; flex-direction:column; gap:12px; padding:14px 20px; border:1px solid rgba(197, 160, 89, 0.28); border-radius:12px; background:#fff; box-shadow:0 1px 3px rgba(197, 160, 89, 0.08); margin-bottom:16px; }
+.lv-legal-live__queue { display:flex; flex-direction:column; gap:12px; padding:14px 20px; border:1px solid rgba(197, 160, 89, 0.28); border-radius:12px; background:#fff; box-shadow:0 1px 3px rgba(197, 160, 89, 0.08); }
 .lv-legal-queue-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; width:100%; }
-.lv-legal-queue-picker { display:inline-flex; align-items:center; gap:12px; flex:0 1 auto; }
+.lv-legal-live .lv-legal-queue-picker { min-width:0; max-width:100%; display:inline-flex; flex-direction:row; align-items:center; gap:12px; flex:0 1 auto; }
 .lv-legal-queue-picker > span { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--legal-ink); flex-shrink:0; }
-.lv-legal-queue-picker select { width:360px; max-width:100%; min-height:42px; padding:8px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fafbf8; font-size:15px; font-weight:500; }
-.lv-legal-queue-row .lv-legal-context-actions { display:inline-flex; align-items:center; margin:0; position:static; z-index:auto; }
-.lv-legal-queue-row .lv-legal-context-actions button { min-height:42px; padding:8px 16px; font-size:14px; font-weight:600; border:1px solid #d0d7cf; border-radius:8px; background:#f7faf8; color:#1f3a2f; box-shadow:none; transition:all 0.18s ease; }
-.lv-legal-queue-row .lv-legal-context-actions button:not(:disabled):hover { background:#edf3f0; border-color:#245e44; color:#164639; }
+.lv-legal-queue-picker select { width:360px; max-width:100%; min-height:44px; padding:8px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fafbf8; font-size:15px; font-weight:500; }
+.lv-legal-context-row .lv-legal-context-actions { display:inline-flex; align-items:center; margin:0; position:static; z-index:auto; }
+.lv-legal-context-row .lv-legal-context-actions button { min-height:44px; padding:8px 16px; font-size:14px; font-weight:600; border:1px solid #d0d7cf; border-radius:8px; background:#f7faf8; color:#1f3a2f; box-shadow:none; transition:all 0.18s ease; }
+.lv-legal-context-row .lv-legal-context-actions button:not(:disabled):hover { background:#edf3f0; border-color:#245e44; color:#164639; }
 .lv-legal-live__queue > p,.lv-legal-live__queue > [role=alert] { flex-basis:100%; }
 .lv-legal-live__queue [role=group] { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-.lv-legal-case-banner { display:flex; align-items:center; gap:16px; min-height:72px; padding:12px 20px; border:1px solid rgba(197, 160, 89, 0.45); border-radius:14px; color:#fff; background:linear-gradient(115deg,#183e33,#235241 75%,#2c624e); box-shadow:0 4px 16px rgba(24, 62, 51, 0.12); margin-bottom:24px; }
-.lv-legal-case-banner__icon { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border:1px solid rgba(213, 188, 120, 0.35); border-radius:10px; background:rgba(255, 255, 255, 0.08); color:#e2c887; }
-.lv-legal-case-banner__content { display:flex; flex:1; align-items:center; flex-wrap:wrap; gap:8px 14px; min-width:0; }
-.lv-legal-case-banner__tag { font-size:13px; font-weight:500; color:#d5e6dd; background:rgba(255, 255, 255, 0.1); padding:2px 8px; border-radius:6px; }
-.lv-legal-case-banner__content > strong { font-size:18px; font-weight:700; line-height:1.3; color:#fff; overflow-wrap:anywhere; }
+.lv-legal-case-banner { display:flex; align-items:center; gap:20px; padding:22px 24px; border:1px solid #234e3f; border-radius:16px; color:#fff; background:linear-gradient(115deg,#183e33,#285c49 75%,#326b56); box-shadow:0 8px 20px #183e3314; }
+.lv-legal-case-banner__icon { display:grid; place-items:center; width:52px; height:56px; flex-shrink:0; border:1px solid #d5bc784d; border-radius:12px; background:#ffffff0d; color:#e2c887; }
+.lv-legal-case-banner__content { display:flex; flex:1; flex-wrap:wrap; align-items:center; gap:8px 16px; min-width:0; }
+.lv-legal-case-banner__content > span:first-child { flex-basis:100%; font-size:14px; color:#d5e6dd; }
+.lv-legal-case-banner__content > strong { font-size:22px; line-height:1.4; overflow-wrap:anywhere; }
 .lv-legal-case-status { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; background:var(--lv-status-success-bg,#edf6ee); color:var(--lv-status-success-text,#245e44); font-size:14px; font-weight:600; }
 .lv-legal-case-status svg { flex-shrink:0; }
 .lv-legal-case-status.is-warning { background:var(--lv-status-await-bg,#fff8e8); color:var(--lv-status-await-text,#76541b); }
 .lv-legal-case-status.is-neutral { background:#f2f2ed; color:#45564d; }
 .lv-legal-case-status.is-success { background:#f2f2ed; color:#45564d; }
 .lv-legal-case-status.is-error { background:var(--lv-status-error-bg,#fff1f0); color:var(--lv-status-error-text,#a12525); }
-.lv-legal-case-banner__readonly { display:inline-flex; align-items:center; gap:6px; color:#e2c887; font-size:13px; font-weight:600; padding:4px 10px; border-radius:8px; background:rgba(226, 200, 135, 0.12); border:1px solid rgba(226, 200, 135, 0.28); }
+.lv-legal-case-banner__readonly { display:inline-flex; align-items:center; gap:8px; color:#e2c887; font-size:14px; }
 .lv-legal-workspace { display:grid; align-items:start; gap:20px; min-width:0; }
-@container(min-width:840px) {
-  .lv-legal-workspace:not(.is-readonly):not(.is-single-column) { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
-  .lv-legal-workspace.is-readonly, .lv-legal-workspace.is-single-column { grid-template-columns:1fr; }
-}
 .lv-legal-live__card { display:flex; flex-direction:column; gap:20px; min-width:0; padding:24px; border:1px solid var(--legal-line); border-radius:16px; background:#fff; box-shadow:0 3px 12px #243b5305; }
 .lv-legal-step-data.lv-legal-live__card { gap:16px; box-shadow:none; }
 .lv-legal-basis-workspace { display:grid; gap:20px; min-width:0; align-items:start; }
@@ -148,12 +144,14 @@
 .lv-legal-surfaces .lv-legal-documents.lv-surface-card { isolation:auto; }
 .lv-legal-surfaces .lv-legal-action-panel.lv-surface-card::after { inset:0; }
 @container (min-width:840px) {
- .lv-legal-workspace:not(.is-readonly) { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
+ .lv-legal-workspace:not(.is-readonly):not(.is-single-column) { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
  .lv-legal-surfaces .lv-legal-action-panel.lv-surface-card { position:sticky; inset-block-start:88px; max-block-size:calc(100dvh - 112px); overflow-y:auto; }
 }
 @container (max-width:520px) {
  .lv-legal-live__queue { padding:14px; }
- .lv-legal-live__queue > label { flex-basis:100%; flex-direction:column; align-items:stretch; gap:8px; }
+ .lv-legal-live .lv-legal-queue-picker { flex-basis:100%; flex-direction:column; align-items:stretch; gap:8px; }
+ .lv-legal-queue-picker select { width:100%; }
+ .lv-legal-context-row .lv-legal-context-actions, .lv-legal-context-row .lv-legal-context-actions button { width:100%; }
  .lv-legal-live__queue > button { width:100%; }
  .lv-legal-case-banner { flex-wrap:wrap; gap:14px; padding:18px; }
  .lv-legal-case-banner__icon { width:40px; height:44px; }
@@ -184,9 +182,11 @@
 .lv-legal-live .lv-legal-tab__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #d9a21b; }
 
 /* The case bar is the shared Staff component; give it the same deep-green look on Legal screens. */
-.lv-legal-surfaces .lv-staff-context-bar--active { margin-bottom: 20px; padding: 18px 24px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
+.lv-legal-context-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; min-width:0; }
+.lv-legal-surfaces .lv-legal-context-row > .lv-staff-context-bar { flex:1 1 360px; min-width:0; margin:0; }
+.lv-legal-surfaces .lv-staff-context-bar--active { min-height:72px; margin-bottom: 20px; padding: 12px 20px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__label { color: #d9c48f; }
-.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__code { color: #fff; font-size: 24px; }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__code { color: #fff; font-size: 18px; }
 .lv-legal-surfaces .lv-staff-context-bar--active :is(.lv-staff-context-badge, .lv-staff-context-session) { background: rgba(255,255,255,.14); color: #d6f0e2; }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:hover { background: rgba(255,255,255,.12); }
