@@ -523,6 +523,9 @@ export default function StaffLegalDocumentsPage({
   const isRouteOnHold = dossier?.route === 'ON_HOLD' || dossier?.status === 'ON_HOLD';
   const isRouteNotarial = dossier?.route === 'NOTARIAL';
   const isRouteCourt = dossier?.route === 'COURT';
+  // A notarized dossier names the notary and the notarization date; a court dossier names the court and the issue date.
+  const issuerColumnLabel = dossier?.route === 'NOTARIAL' ? (en ? 'Notary office' : 'Tổ chức công chứng') : t.issuerLabel;
+  const dateColumnLabel = dossier?.route === 'NOTARIAL' ? (en ? 'Notarization date' : 'Ngày công chứng') : t.issuanceDateLabel;
   const tabStatus = distributionTabStatus(distribution.data, dossier?.versions?.length > 0, en);
   const basisTypeMatchesRoute = !legalBasisType || (!isRouteNotarial && !isRouteCourt)
     || (isRouteNotarial ? legalBasisType === 'NOTARIAL_PARTITION' : ['COURT_JUDGMENT','COURT_DECISION'].includes(legalBasisType));
@@ -1156,7 +1159,7 @@ export default function StaffLegalDocumentsPage({
 
                 {latestVersion?.issuingAuthority && (
                   <div className="lv-dossier-row">
-                    <span className="lv-dossier-label">{en ? 'Issuing authority' : 'Cơ quan ban hành'}</span>
+                    <span className="lv-dossier-label">{issuerColumnLabel}</span>
                     <span className="lv-dossier-value-text">{latestVersion.issuingAuthority}</span>
                   </div>
                 )}
@@ -1500,8 +1503,8 @@ export default function StaffLegalDocumentsPage({
                     <tr>
                       <th>{t.dossierVersionLabel}</th>
                       <th>{t.documentNumberLabel}</th>
-                      <th>{t.issuerLabel}</th>
-                      <th>{t.issuanceDateLabel}</th>
+                      <th>{issuerColumnLabel}</th>
+                      <th>{dateColumnLabel}</th>
                       <th>{t.forwardStatusLabel}</th>
                       <th>{en ? 'Legal results and reasons' : 'Kết quả và lý do của Ban Pháp lý'}</th>
                       <th>{en ? 'Allocations' : 'Phân bổ'}</th>
@@ -1517,8 +1520,8 @@ export default function StaffLegalDocumentsPage({
                           </span>
                         </td>
                         <td data-label={t.documentNumberLabel}>{v.documentNumber || '—'}</td>
-                        <td data-label={t.issuerLabel}>{v.issuingAuthority || '—'}</td>
-                        <td data-label={t.issuanceDateLabel}>{v.issueDate || '—'}</td>
+                        <td data-label={issuerColumnLabel}>{v.issuingAuthority || '—'}</td>
+                        <td data-label={dateColumnLabel}>{v.issueDate || '—'}</td>
                         <td data-label={t.forwardStatusLabel}>
                           <span className={`lv-forward-badge ${v.forwardStatus === 'FORWARDED' ? 'lv-forward-badge--forwarded' : 'lv-forward-badge--not-forwarded'}`}>
                             {v.forwardStatus === 'FORWARDED' ? t.forwardStatusForwarded : t.forwardStatusNotForwarded}
