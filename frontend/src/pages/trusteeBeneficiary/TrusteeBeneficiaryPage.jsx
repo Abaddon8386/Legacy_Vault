@@ -524,11 +524,6 @@ export default function TrusteeBeneficiaryPage({vaultId,accessToken,lang='vi',on
               </div>
             </div>
 
-            <div className="lv-tb-notice-box">
-              <strong>{lang === 'vi' ? 'Lưu ý: ' : 'Please note: '}</strong>
-              {t.beneficiaryNotice}
-            </div>
-
             {/* Existing Beneficiaries List */}
             {beneficiaries.length === 0 ? (
               <div className="lv-tb-empty-state">{t.noBeneficiaries}</div>
