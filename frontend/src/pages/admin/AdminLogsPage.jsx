@@ -89,7 +89,7 @@ export default function AdminLogsPage({
     if (log.actorType === 'UNKNOWN') return <span>{t.actorUnknown}</span>;
     return (
       <div>
-        <div style={{ fontWeight: 600 }}>{log.actorName || t.actorUser}{log.actorRole && <> · {t.auditRoles[log.actorRole]}</>}</div>
+        <div style={{ fontWeight: 600 }}>{log.actorName || t.actorUserShort}{log.actorRole && <> · {t.auditRoles[log.actorRole]}</>}</div>
         {log.actorId && (
           <div className="lv-admin-code">
             ID: {log.actorId}
@@ -458,6 +458,10 @@ function AuditDetail({ event, accessToken, lang, onClose, onUnauthorized, onDeni
                 <code>{data.actorId ?? t.notAvailable}</code>
                 {data.actorId && <CopyButton text={data.actorId} lang={lang} />}
               </dd>
+            </div>
+            <div>
+              <dt>{t.logActorName}</dt>
+              <dd>{data.actorName ?? t.notAvailable}</dd>
             </div>
             <div>
               <dt>{t.logActorRole}</dt>

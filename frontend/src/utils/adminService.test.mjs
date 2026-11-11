@@ -179,3 +179,10 @@ test('every audit action has a Vietnamese and an English label with a capital fi
     }
   }
 });
+
+test('audit events keep the actor name only when it is a short string', () => {
+  const named = { ...event, actor: { kind: 'USER', userId: id, role: 'STAFF_EXECUTOR', name: 'Nguyen Van A' } };
+  assert.equal(validateAdminAuditLog(named).actorName, 'Nguyen Van A');
+  assert.equal(validateAdminAuditLog(event).actorName, null);
+  assert.throws(() => validateAdminAuditLog({ ...named, actor: { ...named.actor, name: 42 } }));
+});

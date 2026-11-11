@@ -70,7 +70,7 @@ class AdminAuditSqlServerTest extends LegalBasisSqlServerSupport {
         int year=jdbc.queryForObject("SELECT YEAR(created_at) FROM dbo.verification_cases WHERE verification_case_id=?",Integer.class,f.caseId());
         String number=String.format(Locale.ROOT,"HS-%04d-%06d",year,f.caseId());
         var shown=admin(()->service().detail(event)).event();
-        assertEquals("LEGAL_VERIFIER",shown.actor().role());
+        assertEquals("LEGAL_VERIFIER",shown.actor().role());assertEquals("Legal fixture",shown.actor().name());
         assertEquals(f.legal().publicId(),shown.ownerId());   // the fixture user owns the vault and is the assigned Staff
         assertEquals(f.legal().publicId(),shown.staffId());
         assertEquals(f.publicCaseId(),shown.caseId());
@@ -85,7 +85,7 @@ class AdminAuditSqlServerTest extends LegalBasisSqlServerSupport {
         // An event before any case, and a SYSTEM actor, carry no case and no role.
         UUID early=event(null,"SYSTEM","VAULT_CREATED","2000-01-01T00:00:00");
         var plain=admin(()->service().detail(early)).event();
-        assertNull(plain.caseNumber());assertNull(plain.actor().role());
+        assertNull(plain.caseNumber());assertNull(plain.actor().role());assertNull(plain.actor().name());
     }
     @Test void invalidFiltersAndUnknownPublicIdsFailClosed() {
         for(String bad:List.of("bad","2025-01-01","10000-01-01T00:00:00Z")) assertThrows(BusinessException.class,()->admin(()->service().list(bad,null,null,null,null,0,20)));

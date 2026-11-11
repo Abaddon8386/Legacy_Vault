@@ -24,8 +24,8 @@ public class AdminAuditService {
         +"OUTER APPLY (SELECT TOP 1 c.public_id,c.verification_case_id,c.created_at,c.assigned_staff_user_id FROM dbo.verification_cases c "
         +"WHERE c.vault_id=a.vault_id AND c.opened_at<=a.occurred_at ORDER BY c.opened_at DESC,c.verification_case_id DESC) vc "
         +"LEFT JOIN dbo.users s ON s.user_id=vc.assigned_staff_user_id ";
-    // Never SELECT details, state_before/state_after, IP, names, emails or internal entity IDs. actor_roles is read only to derive one role code.
-    private static final String COLUMNS="a.public_id,a.occurred_at,a.action,a.entity_type,a.trace_id,a.actor_roles,u.public_id AS actor_public_id,v.public_id AS vault_public_id,"
+    // Never SELECT details, state_before/state_after, IP, emails or internal entity IDs; the only name is the actor's own full name. actor_roles is read only to derive one role code.
+    private static final String COLUMNS="a.public_id,a.occurred_at,a.action,a.entity_type,a.trace_id,a.actor_roles,u.public_id AS actor_public_id,u.full_name AS actor_name,v.public_id AS vault_public_id,"
         +"o.public_id AS owner_public_id,vc.public_id AS case_public_id,vc.verification_case_id,vc.created_at AS case_created_at,s.public_id AS staff_public_id,"+ACTOR_KIND+" AS actor_kind";
     private static final List<String> ROLES=List.of("VAULT_OWNER","STAFF_EXECUTOR","LEGAL_VERIFIER","BENEFICIARY","ADMIN");
     private static final java.util.regex.Pattern CASE_NUMBER=java.util.regex.Pattern.compile("^HS-([0-9]{4})-([0-9]{6})$");
@@ -78,7 +78,7 @@ public class AdminAuditService {
         long caseId=rs.getLong("verification_case_id");
         if(!rs.wasNull()) caseNumber=String.format(Locale.ROOT,"HS-%04d-%06d",rs.getObject("case_created_at",LocalDateTime.class).getYear(),caseId);
         return new Event(uuid(rs,"public_id"),rs.getObject("occurred_at",LocalDateTime.class).toInstant(ZoneOffset.UTC),
-            new Actor(kind,"SYSTEM".equals(kind)?null:uuid(rs,"actor_public_id"),"SYSTEM".equals(kind)?null:role(rs.getString("actor_roles"))),
+            new Actor(kind,"SYSTEM".equals(kind)?null:uuid(rs,"actor_public_id"),"SYSTEM".equals(kind)?null:role(rs.getString("actor_roles")),"USER".equals(kind)?rs.getString("actor_name"):null),
             ACTIONS.contains(action)?action:"LEGACY_EVENT",ENTITY_TYPES.contains(type)?type:"OTHER",uuid(rs,"vault_public_id"),
             uuid(rs,"owner_public_id"),uuid(rs,"case_public_id"),caseNumber,uuid(rs,"staff_public_id"));
     }

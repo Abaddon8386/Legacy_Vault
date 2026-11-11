@@ -130,12 +130,12 @@ export function validateAdminAuditLog(raw) {
       (raw.vaultId !== null && !isUuid(raw.vaultId))) throw new ApiError('INVALID_AUDIT_RECORD', 500);
   // Context fields are optional so an older backend that does not send them still validates.
   const role = raw.actor.role ?? null, ownerId = raw.ownerId ?? null, caseId = raw.caseId ?? null,
-    caseNumber = raw.caseNumber ?? null, staffId = raw.staffId ?? null;
+    caseNumber = raw.caseNumber ?? null, staffId = raw.staffId ?? null, name = raw.actor.name ?? null;
   if ((role !== null && !AUDIT_ROLES.includes(role)) || [ownerId, caseId, staffId].some(v => v !== null && !isUuid(v)) ||
-      (caseNumber !== null && !CASE_NUMBER.test(caseNumber))) throw new ApiError('INVALID_AUDIT_RECORD', 500);
+      (caseNumber !== null && !CASE_NUMBER.test(caseNumber)) || (name !== null && (typeof name !== 'string' || name.length > 150))) throw new ApiError('INVALID_AUDIT_RECORD', 500);
   // Explicit PS-108 whitelist. Never copy arbitrary raw properties or metadata.
   return { id: raw.id, occurredAt: raw.occurredAt, actorType: raw.actor.kind, actorId: raw.actor.userId,
-    action: raw.action, entityType: raw.entityType, vaultId: raw.vaultId, actorRole: role, ownerId, caseId, caseNumber, staffId };
+    action: raw.action, entityType: raw.entityType, vaultId: raw.vaultId, actorName: name, actorRole: role, ownerId, caseId, caseNumber, staffId };
 
 }
 
