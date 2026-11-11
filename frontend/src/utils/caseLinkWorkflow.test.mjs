@@ -98,7 +98,7 @@ test('Staff matches fixed account to court recipient and records evidence before
     await change(v.host, 'input[maxlength="200"]', 'BB-01'); await change(v.host, 'input[type="checkbox"]', true);
     await click(v.host, 'Xác nhận liên kết');
     assert.deepEqual(sent, { caseId: 'case-a', requestId: req.id, recipientId: 'c', evidenceReference: 'BB-01' });
-    assert.match(v.host.textContent, /tài sản chỉ xem được sau bàn giao/);
+    assert.match(v.host.textContent, /Đã xác nhận liên kết/);
   } finally { await v.close(); }
 });
 test('Staff decline requires confirmation, can be cancelled, and resets when changing requests', async () => {

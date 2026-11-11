@@ -63,7 +63,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void passwordLoginStillRejectsLockedAccounts() {
+    void lockedAccountWithAWrongPasswordGetsTheGenericFailure() {
         UserRepository users = mock(UserRepository.class);
         AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
                 mock(PasswordEncoder.class), mock(JwtService.class), mock(AuditService.class),
@@ -77,6 +77,36 @@ class AuthServiceTest {
                 () -> service.login(new LoginRequest("user@example.test", "StrongPass123")));
 
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+    }
+
+    @Test
+    void lockedAccountIsOnlyDisclosedWhenThePasswordIsCorrect() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder passwords = mock(PasswordEncoder.class);
+        AuditService audit = mock(AuditService.class);
+        LoginAttemptLimiter limiter = mock(LoginAttemptLimiter.class);
+        AuthService service = new AuthService(users, mock(RoleRepository.class), mock(UserRoleRepository.class),
+                passwords, mock(JwtService.class), audit,
+                mock(PasswordReauthService.class), mock(com.legacyvault.auth.emailverification.EmailVerificationService.class),
+                limiter);
+        User user = mock(User.class);
+        when(users.findByEmail("user@example.test")).thenReturn(Optional.of(user));
+        when(user.getUserId()).thenReturn(7L);
+        when(user.getPasswordHash()).thenReturn("hash");
+        when(user.getStatus()).thenReturn("LOCKED");
+        when(user.isPasswordLoginAllowed()).thenReturn(true);
+        when(passwords.matches("StrongPass123", "hash")).thenReturn(true);
+        when(passwords.matches("WrongPass123", "hash")).thenReturn(false);
+
+        BusinessException locked = assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("user@example.test", "StrongPass123")));
+        BusinessException wrong = assertThrows(BusinessException.class,
+                () -> service.login(new LoginRequest("user@example.test", "WrongPass123")));
+
+        assertEquals(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN, locked.getErrorCode());
+        assertEquals(ErrorCode.INVALID_CREDENTIALS, wrong.getErrorCode());
+        verify(audit, times(2)).recordLoginFailure(7L);
+        verify(limiter, never()).clearFailures(any());
     }
 
     @Test

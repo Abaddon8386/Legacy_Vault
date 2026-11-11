@@ -50,7 +50,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
   const blocked = pending ? (en ? 'Wait for the current operation.' : 'Chờ thao tác hiện tại hoàn tất.')
     : needsReload ? (en ? 'Reload the record before continuing.' : 'Tải lại hồ sơ trước khi tiếp tục.')
       : !capability.allowed ? legalBlockedReason(context, unlocking ? 'unlock' : 'approval', lang)
-        : !complete ? unlocking ? (en ? 'Confirm the unlocking checkbox.' : 'Đánh dấu xác nhận mở khóa.')
+        : !complete ? unlocking ? (en ? 'Tick the box to unlock.' : 'Tích ô xác nhận để mở khóa')
           : ['APPROVE', 'REJECT'].includes(decision) ? (en ? 'Enter the decision reason.' : 'Nhập lý do cho quyết định.')
             : (en ? 'Select a decision.' : 'Chọn quyết định.') : '';
   async function submit() {
@@ -124,11 +124,11 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
       {context.basisDossier?.route === 'NOTARIAL' && <p>{en ? 'Distribution based on notarized documents.' : 'Phân chia theo hồ sơ công chứng.'}</p>}
       </section>
       {!readOnly && <section className="lv-legal-live__card lv-legal-action-panel lv-surface-card">
-        <header className="lv-legal-card-heading"><h2>{unlocking ? <LockKeyhole size={20} aria-hidden="true" /> : <ShieldCheck size={20} aria-hidden="true" />}{unlocking ? (en ? 'Controlled unlock' : 'Mở khóa có kiểm soát') : (en ? 'Approval decision' : 'Quyết định phê duyệt')}</h2></header>
+        <header className="lv-legal-card-heading"><h2>{unlocking ? <LockKeyhole size={20} aria-hidden="true" /> : <ShieldCheck size={20} aria-hidden="true" />}{unlocking ? (en ? 'Confirm unlock' : 'Xác nhận mở khóa') : (en ? 'Approval decision' : 'Quyết định phê duyệt')}</h2></header>
         {!capability.allowed && <div className="lv-legal-live__notice" role="status"><div><strong>{en ? 'This record does not currently meet the processing conditions.' : 'Hồ sơ hiện chưa đáp ứng điều kiện xử lý.'}</strong><p>{blocker.text}</p>{blockerUrl && <a href={blockerUrl}>{legalStepTitle(blocker.step, lang)}<ArrowRight size={16} aria-hidden="true" /></a>}</div></div>}
         <form onSubmit={event => { event.preventDefault(); if (allowed && complete) setConfirmOpen(true); }}>
         {unlocking ? <label className="lv-legal-confirm"><input type="checkbox" checked={confirmed} disabled={!allowed} onChange={event => setConfirmed(event.target.checked)} />
-          {en ? 'Confirm controlled unlocking for this case.' : 'Xác nhận mở khóa có kiểm soát cho hồ sơ này.'}</label>
+          {en ? 'Confirm unlocking this vault' : 'Xác nhận mở khóa kho này'}</label>
           : <><ChoiceButtons title={en ? 'Decision' : 'Quyết định'} value={decision} disabled={!allowed} onChange={setDecision}
             options={[['APPROVE', en ? 'Approve' : 'Chấp thuận'], ['REJECT', en ? 'Reject' : 'Từ chối']]} />
           <label><span>{en ? 'Reason' : 'Lý do'}<span className="lv-required-mark" aria-hidden="true">*</span></span><textarea value={reason} maxLength={1000}
@@ -136,7 +136,7 @@ export default function LegalFinalDecision({ session, context, step, lang, draft
         <button type="submit" className={decision === 'REJECT' && !unlocking ? 'lv-decision--negative' : 'lv-decision--positive'} disabled={!allowed || !complete} aria-describedby={blocked ? 'legal-action-blocked' : undefined}>{unlocking ? (en ? 'Unlock vault' : 'Mở khóa kho') : (en ? 'Record decision' : 'Ghi nhận quyết định')}</button>
         <WorkflowActionHint id="legal-action-blocked" reason={blocked} />
       </form>
-      {result && <p className="lv-legal-live__success" role="status">{en ? 'Decision saved. Select “View latest status” to continue.' : 'Đã lưu quyết định. Chọn “Xem trạng thái mới” để tiếp tục.'}
+      {result && <p className="lv-legal-live__success" role="status">{en ? 'Decision saved' : 'Đã lưu quyết định'}
         {' '}{legalDate(result.decidedAt || result.unlockedAt)}</p>}
       </section>}
       <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title={unlocking ? (en ? 'Confirm vault unlocking' : 'Xác nhận mở khóa kho') : (en ? 'Confirm your decision' : 'Xác nhận quyết định')} closeLabel={en ? 'Close' : 'Đóng'}>

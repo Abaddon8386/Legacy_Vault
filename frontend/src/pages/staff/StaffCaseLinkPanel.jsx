@@ -44,9 +44,9 @@ function CounterContent({ caseId, caseItem, requiredRecipientIds, accessToken, l
   useEffect(() => { errorCallback.current = onError; }, [onError]);
   useEffect(() => () => { mutation.current?.abort(); read.current?.abort(); }, []);
   const messages = {
-    attest: en ? 'Check recorded, account not linked yet' : 'Đã ghi nhận đối chiếu, tài khoản chưa liên kết',
     create: en ? 'Account created. Ask the recipient to sign in and enter the case number in Shared with me' : 'Đã tạo tài khoản. Người nhận đăng nhập, vào Tài sản thụ hưởng và nhập mã hồ sơ',
-    approve: en ? 'Link confirmed, assets visible after handover' : 'Đã xác nhận liên kết, tài sản chỉ xem được sau bàn giao',
+    attest: en ? 'Check recorded, account not linked yet' : 'Đã ghi nhận đối chiếu, chưa liên kết tài khoản',
+    approve: en ? 'Link confirmed' : 'Đã xác nhận liên kết',
     reject: en ? 'Request declined' : 'Đã từ chối yêu cầu',
   };
   const ready = typeof actions?.listPending === 'function';

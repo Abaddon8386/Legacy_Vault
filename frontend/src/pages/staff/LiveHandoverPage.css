@@ -677,3 +677,8 @@
   background: transparent;
 }
 .lv-live-handover .lv-handover-tab:disabled { color: #8a948d; cursor: not-allowed; opacity: 0.75; }
+
+/* Exit link back to the handover page, styled like the page buttons. */
+.lv-live-handover a.lv-live-back-link { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 44px; padding: 8px 16px; border: 1px solid #cbd8d1; border-radius: 8px; background: #fff; color: #164639; font-size: 16px; font-weight: 600; text-decoration: none; }
+.lv-live-handover a.lv-live-back-link:hover { background: #edf5f1; }
+.lv-live-handover a.lv-live-back-link:focus-visible { outline: 3px solid #c5a059; outline-offset: 2px; }

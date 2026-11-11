@@ -167,7 +167,7 @@ test('guardian panel UI states: empty, minor warning, inline field validation + 
   putShouldFail=false;
   await act(async()=>v.host.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   assert.equal(writes,2);
-  assert.match(v.host.textContent,/Đã lưu thông tin người giám hộ thành công\./);
+  assert.match(v.host.textContent,/Đã lưu người giám hộ/);
   assert.match(v.host.textContent,/Người giám hộ hiện hành/);
   assert.match(v.host.textContent,/Phạm Hoàng Lan/);
   await act(async()=>button(v.host,'Lịch sử người giám hộ').click());
@@ -175,7 +175,7 @@ test('guardian panel UI states: empty, minor warning, inline field validation + 
   assert.match(v.host.textContent,/Hiện hành/);
   await act(async()=>button(v.host,'Thu hồi người giám hộ').click());
   await act(async()=>button(v.host,'Xác nhận thu hồi').click());
-  assert.match(v.host.textContent,/Đã thu hồi thông tin người giám hộ hiện hành\./);
+  assert.match(v.host.textContent,/Đã thu hồi người giám hộ/);
   assert.match(v.host.textContent,/Chưa có người giám hộ hiện hành\./);
   await act(async()=>v.root.render(React.createElement(Guardian,{vaultId:id,beneficiaryId:id,beneficiaryName:'Nguyen Minh Chau',isMinorHint:true,accessToken:'token-1',lang:'en'})));
   assert.doesNotMatch(v.host.textContent,/For beneficiary/);

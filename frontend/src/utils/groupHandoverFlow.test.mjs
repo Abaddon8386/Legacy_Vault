@@ -148,9 +148,9 @@ for (const lang of ['vi', 'en']) for (const decision of ['APPROVE', 'REJECT']) {
       assert.equal(view.legal.querySelector('textarea'), null);
       assert.match(view.legal.textContent, /Đã kiểm tra điều kiện mở lại/);
       assert.match(view.legal.textContent, en ? /Delivered 0\/2 assets/ : /Đã giao 0\/2 tài sản/);
-      assert.match(view.legal.textContent, decision === 'APPROVE'
-        ? (en ? /notification for Staff has been recorded/ : /thông báo cho Nhân viên/)
-        : (en ? /has not been confirmed/ : /chưa xác nhận/i));
+      // A recorded notification needs no message; only a missing one is reported.
+      if (decision === 'APPROVE') assert.doesNotMatch(view.legal.textContent, en ? /notification for Staff has been recorded/ : /Đã ghi nhận thông báo cho Nhân viên/);
+      else assert.match(view.legal.textContent, en ? /not confirmed/ : /Chưa xác nhận thông báo/);
       await click(view.staff, en ? 'Reload' : 'Tải lại');
       assert.equal(deliveryVisible(view), decision === 'APPROVE');
       assert.deepEqual(log.posts.map(call => call.body.expectedRevision), [0, 1, 2, 3]);

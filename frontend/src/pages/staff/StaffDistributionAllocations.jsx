@@ -34,7 +34,7 @@ export default function StaffDistributionAllocations({ workflow, dossier, assets
       {error && <p role="alert">{error}</p>}
       {(!assets.length || !recipients.length) && <p role="status">{en ? 'The asset and recipient catalogues are required. Reload the case if they are not available.' : 'Cần danh sách tài sản và người nhận của hồ sơ. Tải lại hồ sơ nếu danh sách chưa có.'}</p>}
       <div className="lv-distribution-actions"><button type="submit" disabled={workflow.pending || !rows.length || !assets.length}>
-        {workflow.pending ? (en ? 'Sending…' : 'Đang gửi…') : (en ? 'Send allocations for review' : 'Gửi phân bổ cho Ban Pháp lý')}</button></div>
+        {workflow.pending ? (en ? 'Sending…' : 'Đang gửi…') : (en ? 'Send to Legal' : 'Gửi Ban Pháp lý')}</button></div>
     </form>}
   </section>;
 }

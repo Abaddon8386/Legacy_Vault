@@ -363,9 +363,12 @@ function LiveHandoverContent({ accessToken, lang = 'vi', onLogout, onSelectSessi
             </span>
           )}
         </div>
-        <button type="button" onClick={() => { keepContext(null); setCaseId(null); setCaseItem(null); setRequested(null); window.history.replaceState(window.history.state, '', window.location.pathname); }}>
-          {en ? 'Choose another case' : 'Chọn hồ sơ khác'}
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          {mode === 'accounts' && <a className="lv-live-back-link" href={handoverUrl('/staff/handover', caseId, requested || new URLSearchParams(window.location.search).get('sessionId'), lang)}>{en ? 'Back to handover' : 'Về phiên bàn giao'}</a>}
+          <button type="button" onClick={() => { keepContext(null); setCaseId(null); setCaseItem(null); setRequested(null); window.history.replaceState(window.history.state, '', window.location.pathname); }}>
+            {en ? 'Choose another case' : 'Chọn hồ sơ khác'}
+          </button>
+        </div>
       </div>
       <div>{mode === 'accounts' && counterLinkActions !== undefined ? <StaffCaseLinkPanel caseId={caseId} caseItem={caseItem} requiredRecipientIds={accountScopeIds} accessToken={accessToken} lang={lang} actions={counterLinkActions} onError={notify} onReload={() => setRevision(v => v + 1)} /> : <Sessions counterLinkActions={counterLinkActions} key={`${caseId}:${revision}`} caseId={caseId} caseItem={caseItem} requestedSessionId={requested} accessToken={accessToken} lang={lang} mode={mode} onError={notify} onSession={keepContext}
         reload={() => { setRequested(new URLSearchParams(window.location.search).get('sessionId')); setRevision(v => v + 1); }} />}</div>

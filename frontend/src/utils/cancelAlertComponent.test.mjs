@@ -48,7 +48,7 @@ test('React component: portal, focus and duplicate submission use real DOM handl
     await submit(); await click(button('Đang xử lý hủy cảnh báo…'));
     assert.equal(calls,1);
     await act(async()=>{pending.resolve({cancelled:true});});
-    assert.match(document.body.textContent,/Đã hủy cảnh báo thành công/);
+    assert.match(document.body.textContent,/Đã hủy cảnh báo/);
     assert.equal(document.querySelector('[role=alert]'),null);
   } finally {await view.close();}
 });
@@ -67,7 +67,7 @@ for (const change of [{isOwner:false},{ownerId:'owner-b'},{dmsStatus:'MONITORING
       await open(); await submit(); await view.render({...props,...change});
       assert.equal(signal.aborted,true);
       await act(async()=>{pending.resolve({cancelled:true});});
-      assert.equal(success,0); assert.doesNotMatch(document.body.textContent,/Đã hủy cảnh báo thành công/);
+      assert.equal(success,0); assert.doesNotMatch(document.body.textContent,/Đã hủy cảnh báo/);
     } finally {await view.close();}
   });
 }
@@ -79,7 +79,7 @@ for (const name of ['onSuccess','onRefreshRequired']) {
       const view=await mount(OwnerCancelAlert,{...base,onCancelAlert:async()=>({cancelled:true}),[name]:callback});
       try {
         await open();await submit();
-        assert.match(document.body.textContent,/Đã hủy cảnh báo thành công/);
+        assert.match(document.body.textContent,/Đã hủy cảnh báo/);
         assert.match(document.body.textContent,/tải lại dữ liệu gặp trục trặc/);
         assert.equal(document.querySelector('[role=alert]'),null);
       } finally {await view.close();}

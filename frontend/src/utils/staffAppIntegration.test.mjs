@@ -256,7 +256,7 @@ test('PS-97 real App: preapproved counter handover, confirmation, close, receipt
     await act(async()=>host.querySelector('.lv-btn-record-submit').click());
     assert.equal(confirmed,true);await click('Đóng và lưu trữ hồ sơ');
     await click('Đóng phiên bàn giao');
-    assert.match(host.textContent,/Đã đóng phiên bàn giao\. Hồ sơ chưa đóng/);
+    assert.match(host.textContent,/Đã đóng phiên bàn giao/);
     await change(host.querySelector('select'),ids.recipient);
     await click('Lập biên bản xác nhận');await click('Hoàn tất hồ sơ');
     assert.equal(archived,true);assert.ok(host.querySelector('.lv-ca-archive-banner'));
@@ -1038,7 +1038,7 @@ test('PS-97 Integration: 3-step Scoped Asset Handover enforces recipient filteri
 
     // 5. Sau khi giao: Chỉ tài sản X chuyển sang DELIVERED; tài sản Y vẫn PENDING
     assert.ok(
-      host.textContent.includes('Đã ghi nhận bàn giao thành công') || host.textContent.includes('thành công'),
+      host.textContent.includes('Đã bàn giao') || host.textContent.includes('thành công'),
       'Must display success notification'
     );
 

@@ -11,7 +11,7 @@
 import { ApiError, request } from '../api/http.js';
 import { isUuid } from '../api/contracts.js';
 
-const AUDIT_ACTIONS = new Set(['BENEFICIARY_INVITATION_EMAIL_QUEUED', 'AUTH_RECOVERY_ISSUED', 'AUTH_PASSWORD_RESET', 'AUTH_EMAIL_VERIFICATION_ISSUED', 'AUTH_EMAIL_VERIFIED', 'AUTH_EMAIL_CHANGED', 'AUTH_PASSWORD_CHANGED', 'ASSET_DOCUMENT_ADDED', 'ASSET_DOCUMENT_OPENED', 'ASSET_DOCUMENT_REMOVED', 'RECEIVED_ASSET_OPENED', 'RECEIVED_ASSET_IMAGE_OPENED', 'BENEFICIARY_COUNTER_ATTESTED', 'DISTRIBUTION_DOCUMENTS_REQUESTED', 'DISTRIBUTION_DOCUMENTS_APPROVED', 'DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED', 'DISTRIBUTION_ALLOCATIONS_SUBMITTED', 'DISTRIBUTION_ALLOCATIONS_APPROVED', 'DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED', 'BENEFICIARY_ACCOUNT_CREATED_UNLINKED', 'BENEFICIARY_LINK_REQUESTED', 'BENEFICIARY_LINK_REQUEST_CANCELLED', 'BENEFICIARY_LINK_REQUEST_APPROVED', 'BENEFICIARY_LINK_REQUEST_REJECTED', 'BENEFICIARY_GUARDIAN_RECORDED', 'HANDOVER_GROUP_CHANGED', 'BENEFICIARY_GUARDIAN_REVOKED', 'AUTH_PROFILE_UPDATED', 'INTAKE_ATTACHMENT_UPLOADED', 'EVIDENCE_FILE_READ', 'BENEFICIARY_INVITATION_ISSUED', 'BENEFICIARY_INVITATION_REISSUED', 'BENEFICIARY_INVITATION_REVOKED', 'BENEFICIARY_INVITATION_CONSUMED', 'AUTH_GOOGLE_IDENTITY_LINKED', 'AUTH_PASSWORD_SET', 'SUBSCRIPTION_PAYMENT_CREATED', 'SUBSCRIPTION_PAYMENT_SUCCEEDED', 'SUBSCRIPTION_PAYMENT_FAILED', 'VAULT_HANDOVER_ARCHIVED', 'BENEFICIARY_HANDOVER_CONFIRMED', 'AUTH_REGISTERED', 'AUTH_LOGIN_SUCCEEDED', 'AUTH_LOGIN_FAILED', 'SUBSCRIPTION_UPGRADED', 'SUBSCRIPTION_PLAN_DRAFT_CREATED', 'SUBSCRIPTION_PLAN_DRAFT_UPDATED', 'SUBSCRIPTION_PLAN_PUBLISHED', 'SUBSCRIPTION_PLAN_DEPRECATED', 'VAULT_CREATED', 'VAULT_ALERT_CANCELLED', 'ASSET_IMAGE_ADDED', 'ASSET_IMAGE_OPENED', 'ASSET_IMAGE_REMOVED', 'ASSET_CREATED', 'ASSET_UPDATED', 'ASSET_REVEALED', 'WILL_UPLOADED', 'WILL_VERSION_ADDED', 'WILL_FILE_OPENED', 'REAUTH_FAILED', 'TRUSTEE_APPOINTED', 'TRUSTEE_UPDATED', 'TRUSTEE_REVOKED', 'TRUSTEE_CONTACT_RECORDED', 'BENEFICIARY_ADDED', 'BENEFICIARY_UPDATED', 'BENEFICIARY_IDENTITY_VERIFIED', 'DMS_CONFIGURED', 'DMS_CHECKED_IN', 'DMS_TRIGGERED', 'DMS_GRACE_PERIOD_EXCEEDED', 'VERIFICATION_CASE_CREATED', 'VERIFICATION_CASE_CLAIMED', 'DEATH_DOCUMENT_RECORDED', 'ORIGINAL_WILL_RECEIVED', 'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED', 'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECEIVED', 'LEGAL_BASIS_FORWARDED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED', 'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED', 'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'HANDOVER_SESSION_OPENED', 'HANDOVER_SESSION_COMPLETED', 'HANDOVER_SESSION_CANCELLED', 'HANDOVER_RECEIPT_STAFF_CONFIRMED', 'HANDOVER_ASSET_DELIVERED', 'BENEFICIARY_ACCOUNT_LINKED', 'BENEFICIARY_ACCOUNT_CREATED', 'LEGACY_EVENT']);
+const AUDIT_ACTIONS = new Set(['BENEFICIARY_INVITATION_EMAIL_QUEUED', 'AUTH_RECOVERY_ISSUED', 'AUTH_PASSWORD_RESET', 'AUTH_EMAIL_VERIFICATION_ISSUED', 'AUTH_EMAIL_VERIFIED', 'AUTH_EMAIL_CHANGED', 'AUTH_PASSWORD_CHANGED', 'ASSET_DOCUMENT_ADDED', 'ASSET_DOCUMENT_OPENED', 'ASSET_DOCUMENT_REMOVED', 'RECEIVED_ASSET_OPENED', 'RECEIVED_ASSET_IMAGE_OPENED', 'BENEFICIARY_COUNTER_ATTESTED', 'DISTRIBUTION_DOCUMENTS_REQUESTED', 'DISTRIBUTION_DOCUMENTS_APPROVED', 'DISTRIBUTION_DOCUMENT_SUPPLEMENTATION_REQUESTED', 'DISTRIBUTION_ALLOCATIONS_SUBMITTED', 'DISTRIBUTION_ALLOCATIONS_APPROVED', 'DISTRIBUTION_ALLOCATION_CHANGES_REQUESTED', 'BENEFICIARY_ACCOUNT_CREATED_UNLINKED', 'BENEFICIARY_LINK_REQUESTED', 'BENEFICIARY_LINK_REQUEST_CANCELLED', 'BENEFICIARY_LINK_REQUEST_APPROVED', 'BENEFICIARY_LINK_REQUEST_REJECTED', 'BENEFICIARY_GUARDIAN_RECORDED', 'HANDOVER_GROUP_CHANGED', 'BENEFICIARY_GUARDIAN_REVOKED', 'AUTH_PROFILE_UPDATED', 'INTAKE_ATTACHMENT_UPLOADED', 'EVIDENCE_FILE_READ', 'BENEFICIARY_INVITATION_ISSUED', 'BENEFICIARY_INVITATION_REISSUED', 'BENEFICIARY_INVITATION_REVOKED', 'BENEFICIARY_INVITATION_CONSUMED', 'AUTH_GOOGLE_IDENTITY_LINKED', 'AUTH_PASSWORD_SET', 'SUBSCRIPTION_PAYMENT_CREATED', 'SUBSCRIPTION_PAYMENT_SUCCEEDED', 'SUBSCRIPTION_PAYMENT_FAILED', 'VAULT_HANDOVER_ARCHIVED', 'BENEFICIARY_HANDOVER_CONFIRMED', 'AUTH_REGISTERED', 'AUTH_LOGIN_SUCCEEDED', 'AUTH_LOGIN_FAILED', 'SUBSCRIPTION_UPGRADED', 'SUBSCRIPTION_PLAN_DRAFT_CREATED', 'SUBSCRIPTION_PLAN_DRAFT_UPDATED', 'SUBSCRIPTION_PLAN_PUBLISHED', 'SUBSCRIPTION_PLAN_DEPRECATED', 'VAULT_CREATED', 'VAULT_ALERT_CANCELLED', 'ASSET_IMAGE_ADDED', 'ASSET_IMAGE_OPENED', 'ASSET_IMAGE_REMOVED', 'ASSET_CREATED', 'ASSET_UPDATED', 'ASSET_REVEALED', 'WILL_UPLOADED', 'WILL_VERSION_ADDED', 'WILL_FILE_OPENED', 'REAUTH_FAILED', 'TRUSTEE_APPOINTED', 'TRUSTEE_UPDATED', 'TRUSTEE_REVOKED', 'TRUSTEE_CONTACT_RECORDED', 'BENEFICIARY_ADDED', 'BENEFICIARY_UPDATED', 'BENEFICIARY_IDENTITY_VERIFIED', 'DMS_CONFIGURED', 'DMS_CHECKED_IN', 'DMS_TRIGGERED', 'DMS_GRACE_PERIOD_EXCEEDED', 'VERIFICATION_CASE_CREATED', 'VERIFICATION_CASE_CLAIMED', 'DEATH_DOCUMENT_RECORDED', 'ORIGINAL_WILL_RECEIVED', 'LEGAL_DEATH_DOCUMENT_DECIDED', 'WILL_COMPARISON_RECORDED', 'LEGAL_BASIS_CLASSIFIED', 'LEGAL_BASIS_RECEIVED', 'LEGAL_BASIS_FORWARDED', 'LEGAL_BASIS_RECLASSIFIED', 'COURT_DECISION_RECORDED', 'LEGAL_BASIS_HELD', 'LEGAL_BASIS_REVIEW_REQUIRED', 'LEGAL_BASIS_REVIEW_RECORDED', 'LEGAL_BASIS_DECIDED', 'LEGAL_VAULT_UNLOCKED', 'HANDOVER_SESSION_OPENED', 'HANDOVER_SESSION_COMPLETED', 'HANDOVER_SESSION_CANCELLED', 'HANDOVER_RECEIPT_STAFF_CONFIRMED', 'HANDOVER_ASSET_DELIVERED', 'BENEFICIARY_ACCOUNT_LINKED', 'BENEFICIARY_ACCOUNT_CREATED', 'ADMIN_USER_CREATED', 'ADMIN_USER_ROLE_CHANGED', 'ADMIN_USER_LOCKED', 'ADMIN_USER_UNLOCKED', 'LEGACY_EVENT']);
 const AUDIT_ROLES = ['VAULT_OWNER', 'STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'BENEFICIARY', 'ADMIN'];
 const CASE_NUMBER = /^HS-[0-9]{4}-[0-9]{6}$/;
 const AUDIT_ENTITIES = new Set(['USER', 'VAULT', 'ASSET', 'ASSET_VERSION', 'ASSET_IMAGE', 'WILL', 'TRUSTEE', 'BENEFICIARY', 'DMS_CONFIG', 'VERIFICATION_CASE', 'DEATH_DOCUMENT_RECORD', 'LEGAL_VERIFICATION', 'WILL_COMPARISON', 'ORIGINAL_WILL_INTAKE', 'LEGAL_BASIS_DOSSIER', 'LEGAL_BASIS_VERSION', 'COURT_DECISION', 'HANDOVER_SESSION', 'HANDOVER_ITEM', 'HANDOVER_RECEIPT', 'BENEFICIARY_INVITATION', 'SUBSCRIPTION', 'SUBSCRIPTION_PLAN', 'SUBSCRIPTION_PAYMENT', 'OTHER']);
@@ -215,6 +215,74 @@ export async function fetchAdminUserDetail(accessToken, id, { role = '', ...opti
   return user;
 }
 
+/** Roles an Admin may grant when creating an account or changing a role. */
+export const ASSIGNABLE_ADMIN_ROLES = ['STAFF_EXECUTOR', 'LEGAL_VERIFIER', 'VAULT_OWNER'];
+
+/**
+ * Mirrors the backend PasswordPolicy: 8-72 characters, at most 72 UTF-8 bytes, not blank, no NUL and no unpaired
+ * surrogates. Kept here so a password the server would refuse is explained next to the field.
+ */
+function isAcceptablePassword(password) {
+  if (!password.trim() || password.length < 8 || password.length > 72 || password.includes('\0')) return false;
+  if (new TextEncoder().encode(password).length > 72) return false;
+  for (let i = 0; i < password.length; i++) {
+    const unit = password.charCodeAt(i);
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      const next = password.charCodeAt(i + 1);
+      if (!(next >= 0xDC00 && next <= 0xDFFF)) return false;
+      i++;
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Client-side check of the create-account form. Returns { field: reasonCode }; empty means valid.
+ * Mirrors the backend rules (the server stays authoritative).
+ */
+export function validateCreateAdminUserForm({ fullName = '', email = '', phone = '', password = '', confirmPassword, role = '' } = {}) {
+  const errors = {};
+  if (!fullName.trim()) errors.fullName = 'required';
+  else if (fullName.trim().length > 150) errors.fullName = 'tooLong';
+  if (!email.trim()) errors.email = 'required';
+  else if (email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'invalid';
+  if (phone.trim() && !/^\+?[0-9]{8,15}$/.test(phone.trim())) errors.phone = 'invalid';
+  if (!password) errors.password = 'required';
+  else if (!isAcceptablePassword(password)) errors.password = 'invalid';
+  // Only the form passes confirmPassword; the API helper validates the rest.
+  if (confirmPassword !== undefined) {
+    if (!confirmPassword) errors.confirmPassword = 'required';
+    else if (confirmPassword !== password) errors.confirmPassword = 'mismatch';
+  }
+  if (!ASSIGNABLE_ADMIN_ROLES.includes(normalizeAdminRole(role))) errors.role = 'required';
+  return errors;
+}
+
+/**
+ * Creates an ACTIVE account with exactly one role (Staff, Legal or Vault Owner).
+ * The password is only sent in the request body and is never returned or retained.
+ */
+export async function createAdminUser(accessToken, { fullName, email, phone = '', password, role, ...options } = {}) {
+  if (Object.keys(validateCreateAdminUserForm({ fullName, email, phone, password, role })).length) {
+    throw new ApiError('VALIDATION_FAILED', 400);
+  }
+  const body = { fullName: fullName.trim(), email: email.trim(), phone: phone.trim(), password,
+    role: `ROLE_${normalizeAdminRole(role)}` };
+  return validateAdminUser(await request('/admin/users', { ...options, method: 'POST', body, accessToken, expectedStatus: 201 }));
+}
+
+/** Replaces the account's Staff/Legal/Vault Owner role with the given one. */
+export async function changeAdminUserRole(accessToken, id, role, options = {}) {
+  if (!isUuid(id) || !ASSIGNABLE_ADMIN_ROLES.includes(normalizeAdminRole(role))) throw new ApiError('VALIDATION_FAILED', 400);
+  const user = validateAdminUser(await request(`/admin/users/${id}/role`, {
+    ...options, method: 'PUT', body: { role: `ROLE_${normalizeAdminRole(role)}` }, accessToken, expectedStatus: 200,
+  }));
+  if (user.id !== id) throw new ApiError('INVALID_USER_RECORD', 500);
+  return user;
+}
+
 /**
  * Fetches audit logs with action and date filters.
  *
@@ -271,20 +339,18 @@ export async function fetchAdminAuditDetail(accessToken, id, options = {}) {
 }
 
 /**
- * Guarded Lock/Unlock User Mutation.
- * Constraint: Contract & Backend policy for user lock/unlock is currently pending.
- * Returns explicit pending policy error to prevent client-side optimistic fabrication.
- *
- * @param {string} accessToken
- * @param {Object} params
+ * Locks or unlocks an account. Locking also ends the account's sessions on the server; the optional reason is only
+ * sent when locking and is kept in the audit trail.
  */
-export async function lockAdminUser(accessToken, { userId, reason, signal = null }) {
-  void accessToken;
-  void userId;
-  void reason;
-  void signal;
-  // Check if live backend supports endpoint or if contract is still pending
-  throw new ApiError('LOCK_POLICY_PENDING', 501, {
-    message: 'Backend user lock/unlock contract and policy is pending specification (coordinating with Long).',
-  });
+export async function setAdminUserLocked(accessToken, id, locked, { reason = '', ...options } = {}) {
+  if (!isUuid(id) || typeof locked !== 'boolean' || typeof reason !== 'string' || reason.trim().length > 255) {
+    throw new ApiError('VALIDATION_FAILED', 400);
+  }
+  const note = reason.trim();
+  const user = validateAdminUser(await request(`/admin/users/${id}/${locked ? 'lock' : 'unlock'}`, {
+    ...options, method: 'POST', accessToken, expectedStatus: 200,
+    ...(locked && note ? { body: { reason: note } } : {}),
+  }));
+  if (user.id !== id) throw new ApiError('INVALID_USER_RECORD', 500);
+  return user;
 }

@@ -55,7 +55,7 @@ export const dmsStatusMessages = {
     networkError: 'Không thể kết nối đến máy chủ LegacyVault. Vui lòng kiểm tra đường truyền.',
     serverError: 'Máy chủ gặp sự cố nội bộ (HTTP 500). Vui lòng thử lại sau.',
     backendNotReady: 'Dịch vụ giám sát hoạt động (DMS) hiện đang trong quá trình tích hợp máy chủ. Vui lòng thử lại sau.',
-    saveSuccess: 'Cấu hình chu kỳ kiểm tra đã được lưu thành công. Thời hạn tiếp theo đã được thiết lập.',
+    saveSuccess: 'Đã lưu chu kỳ kiểm tra',
     checkInSuccess: 'Xác nhận hoạt động thành công. Bộ đếm chu kỳ tiếp theo đã được làm mới.',
     notMonitoring: 'Không thể thực hiện check-in vì hệ thống giám sát hiện không ở trạng thái theo dõi bình thường (DMS_NOT_MONITORING).',
     assetRequired: 'Bạn cần thêm ít nhất một tài sản thừa kế trước khi kích hoạt giám sát hoạt động (ASSET_REQUIRED).',
@@ -83,7 +83,7 @@ export const dmsStatusMessages = {
     networkError: 'Unable to connect to LegacyVault server. Please check your network connection.',
     serverError: 'Internal server error occurred (HTTP 500). Please try again later.',
     backendNotReady: 'Vitality monitoring service (DMS) is currently under server integration. Please try again later.',
-    saveSuccess: 'Check-in interval saved successfully. Next deadline has been updated.',
+    saveSuccess: 'Check-in interval saved',
     checkInSuccess: 'Vitality confirmed successfully. Next check-in countdown has been refreshed.',
     notMonitoring: 'Cannot check in because the vitality monitor is not in an active monitoring state (DMS_NOT_MONITORING).',
     assetRequired: 'Add at least one heritage asset to the vault before enabling vitality monitoring (ASSET_REQUIRED).',
@@ -567,7 +567,7 @@ export const liveDmsGraceActions = {
   },
 };
 export function getDmsMessage(code, lang = 'vi') {
-  const vi = { SAVED: 'Đã lưu chu kỳ kiểm tra.', CHECKED_IN: 'Đã xác nhận hoạt động và cập nhật lịch kiểm tra.',
+  const vi = { SAVED: 'Đã lưu chu kỳ kiểm tra', CHECKED_IN: 'Đã xác nhận hoạt động',
     ASSET_REQUIRED: 'Cần có ít nhất một tài sản thừa kế trong kho trước khi bật giám sát.',
     WILL_REQUIRED: 'Cần tải lên bản di chúc hợp lệ trước khi bật giám sát.',
     BENEFICIARY_REQUIRED: 'Hãy khai báo ít nhất một người thụ hưởng trước khi bật giám sát.',
@@ -577,7 +577,7 @@ export function getDmsMessage(code, lang = 'vi') {
     ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
     VALIDATION_FAILED: 'Chu kỳ kiểm tra không được máy chủ chấp nhận.',
     BACKEND_SUBDAY_PENDING: 'Cấu hình chu kỳ theo giờ và phút đang chờ máy chủ hỗ trợ (PS-91). Hiện tại máy chủ chỉ hỗ trợ lưu chu kỳ theo số ngày nguyên.' };
-  const en = { SAVED: 'Check-in interval saved.', CHECKED_IN: 'Activity confirmed and next check updated.',
+  const en = { SAVED: 'Check-in interval saved', CHECKED_IN: 'Activity confirmed',
     ASSET_REQUIRED: 'Add at least one heritage asset to the vault before enabling monitoring.',
     WILL_REQUIRED: 'Upload a valid will before enabling monitoring.',
     BENEFICIARY_REQUIRED: 'Add at least one beneficiary before enabling monitoring.',

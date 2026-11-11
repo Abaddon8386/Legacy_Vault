@@ -135,7 +135,7 @@ test('Accounts mode links an existing account through the inline email form and 
     const input=v.host.querySelector('input[type="email"]'); assert.ok(input);
     await act(async()=>props(input).onChange({target:{value:'linh@example.test'}}));
     await act(async()=>props(input.closest('form')).onSubmit({preventDefault(){}}));
-    assert.equal(writes,1); assert.match(v.host.textContent,/Đã liên kết tài khoản thành công/);
+    assert.equal(writes,1); assert.match(v.host.textContent,/Đã liên kết tài khoản/);
     assert.match(v.host.textContent,/Đã có tài khoản/); assert.equal(v.host.querySelector('input[type="email"]'),null);
   } finally { await v.close(); }
 });

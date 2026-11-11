@@ -4,7 +4,7 @@ import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { ApiError } from '../../api/http.js';
 import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
-import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
+import { workflowNotificationWarning } from '../../utils/workflowNotificationFeedback.js';
 import { decideReopenRequest, loadGroupHandoverEvents, loadLegalGroupHandover, loadReopenRequests } from '../../services/legalGroupHandoverService.js';
 import { loadDistributionWorkflow } from '../../workflows/distributionWorkflowService.js';
 import { legalDate } from './legalPresentation.js';
@@ -92,31 +92,38 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
   // A newer request of the same case replaces the opened one; the opened one is kept only once it was decided and left the list.
   const target = found ?? (opened?.caseId === caseId ? opened : null);
   const hasRequests = Boolean(items?.length || target);
+  // With a case selected the tab is only about that case; the whole queue is listed only when no case is selected.
+  const queueItems = caseId ? [] : (items || []);
   // Lets the page open on this tab only when a request is waiting (null until the first read finishes).
-  useEffect(() => { onAvailability?.(list ? hasRequests : null); }, [list, hasRequests, onAvailability]);
+  // Reports how many requests wait for the selected case (or in the whole queue when none is selected); null until the first read.
+  const waitingCount = caseId ? (forCase ? (target ? 1 : 0) : null) : (list ? Math.max(list.data?.totalElements ?? 0, items?.length ?? 0) : null);
+  useEffect(() => { onAvailability?.(waitingCount); }, [waitingCount, onAvailability]);
   const open = item => {
     setOpened(item); setOutcome(null);
     onNavigate?.(`${unlockPath}?${new URLSearchParams({ lang, caseId: item.caseId })}`);
   };
-  return <section className={`lv-legal-live__card lv-legal-reopen ${!hasRequests ? 'lv-legal-reopen--compact' : ''}`} aria-label={en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'} aria-busy={!current}>
+  return <section className={`lv-legal-live__card lv-legal-reopen ${!hasRequests ? 'lv-legal-reopen--compact' : ''}`} aria-label={en ? 'Handover on hold' : 'Bàn giao tạm dừng'} aria-busy={!current}>
     <div className="lv-legal-reopen__head">
-      <h2>{en ? 'Handover reopening requests' : 'Yêu cầu mở lại bàn giao'}</h2>
+      <h2>{en ? 'Handover on hold' : 'Bàn giao tạm dừng'}</h2>
       <button type="button" disabled={!current} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{en ? 'Refresh' : 'Cập nhật'}</button>
     </div>
-    {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed' : 'Đã cho phép mở lại') : (en ? 'Reopening refused' : 'Đã từ chối mở lại')}>
-      <p>{workflowNotificationStatus(outcome, 'STAFF', lang).trim()}</p>
+    {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed' : 'Đã cho phép mở lại bàn giao') : (en ? 'Reopening refused' : 'Đã từ chối mở lại bàn giao')}>
+      {workflowNotificationWarning(outcome, 'STAFF', lang) && <p>{workflowNotificationWarning(outcome, 'STAFF', lang)}</p>}
     </FeedbackNotice>}
     {!list && <p role="status" className="lv-legal-reopen__loading">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
     {current?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(current.error, lang).description}</p>
       <button type="button" className="lv-legal-reopen__btn-retry" onClick={() => setAttempt(value => value + 1)}>{en ? 'Try again' : 'Thử lại'}</button></div>}
     {!caseId && items?.length === 0 && !current?.error && <p className="lv-legal-reopen__empty">{en ? 'No reopening request is waiting for Legal.' : 'Hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
-    {!!items?.length && !target && <ul className="lv-legal-reopen__list">{items.map(item => <li key={item.requestId} aria-current={item.caseId === caseId ? 'true' : undefined}>
-      <div className="lv-legal-reopen__item-head"><strong>{item.caseNumber}</strong> · {item.vaultName}</div>
-      <p className="lv-legal-reopen__meta">{en ? 'Requested by ' : 'Staff yêu cầu: '}{item.requestedBy.fullName} · {legalDate(item.requestedAt)}</p>
-      <p className="lv-legal-reopen__summary">{en ? `Present ${item.presentRecipients}/${item.requiredRecipients} recipients · delivered ${item.deliveredAssets}/${item.totalAssets} assets`
-        : `Đã có mặt ${item.presentRecipients}/${item.requiredRecipients} người nhận · đã giao ${item.deliveredAssets}/${item.totalAssets} tài sản`}</p>
-      <button type="button" className="lv-legal-primary" onClick={() => (item.caseId === caseId ? document.getElementById('lv-reopen-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) : open(item))}>{item.caseId === caseId ? (en ? 'Viewing below ↓' : 'Đang xem bên dưới ↓') : (en ? 'Review request' : 'Xem và xét yêu cầu')}</button>
-    </li>)}</ul>}
+    {!!queueItems.length && <div className="lv-legal-reopen__others">
+      <h3>{en ? `Waiting for Legal (${queueItems.length})` : `Đang chờ Legal (${queueItems.length})`}</h3>
+      <ul className="lv-legal-reopen__list">{queueItems.map(item => <li key={item.requestId}>
+        <div className="lv-legal-reopen__item-head"><strong>{item.caseNumber}</strong> · {item.vaultName}</div>
+        <p className="lv-legal-reopen__meta">{en ? 'Requested by ' : 'Staff yêu cầu: '}{item.requestedBy.fullName} · {legalDate(item.requestedAt)}</p>
+        <p className="lv-legal-reopen__summary">{en ? `Present ${item.presentRecipients}/${item.requiredRecipients} recipients · delivered ${item.deliveredAssets}/${item.totalAssets} assets`
+          : `Đã có mặt ${item.presentRecipients}/${item.requiredRecipients} người nhận · đã giao ${item.deliveredAssets}/${item.totalAssets} tài sản`}</p>
+        <button type="button" className="lv-legal-primary" onClick={() => open(item)}>{en ? 'Review request' : 'Xem và xét yêu cầu'}</button>
+      </li>)}</ul>
+    </div>}
     {list?.data?.totalPages > 1 && <div role="group" aria-label={en ? 'Request pages' : 'Trang yêu cầu'} className="lv-legal-reopen__pages">
       <button type="button" disabled={!current || page === 0} onClick={() => setPage(value => value - 1)}>{en ? 'Previous' : 'Trước'}</button>
       <span>{page + 1} / {list.data.totalPages}</span>
@@ -125,7 +132,7 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
     {target && <ReopenDetail key={target.requestId} item={target} session={session} lang={lang}
       onDecided={result => { setOutcome({ ...result, caseId: target.caseId }); setOpened(target); }} onUnauthorized={onUnauthorized} />}
     {forCase?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(forCase.error, lang).description}</p></div>}
-    {caseId && !target && forCase && !forCase.error && <p className="lv-legal-reopen__empty">{en ? 'The selected case has no reopening request waiting for Legal.' : 'Hồ sơ đang chọn hiện không có yêu cầu mở lại nào đang chờ Legal xét.'}</p>}
+    {caseId && !target && forCase && !forCase.error && <p className="lv-legal-reopen__empty">{en ? 'Staff has not sent a request to resume this handover' : 'Staff chưa gửi yêu cầu tiếp tục bàn giao của hồ sơ này'}</p>}
   </section>;
 }
 

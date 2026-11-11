@@ -20,9 +20,6 @@
 .lv-legal-live .lv-legal-queue-picker { min-width:0; max-width:100%; display:inline-flex; flex-direction:row; align-items:center; gap:12px; flex:0 1 auto; }
 .lv-legal-queue-picker > span { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--legal-ink); flex-shrink:0; }
 .lv-legal-queue-picker select { width:360px; max-width:100%; min-height:44px; padding:8px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fafbf8; font-size:15px; font-weight:500; }
-.lv-legal-context-row .lv-legal-context-actions { display:inline-flex; align-items:center; margin:0; position:static; z-index:auto; }
-.lv-legal-context-row .lv-legal-context-actions button { min-height:44px; padding:8px 16px; font-size:14px; font-weight:600; border:1px solid #d0d7cf; border-radius:8px; background:#f7faf8; color:#1f3a2f; box-shadow:none; transition:all 0.18s ease; }
-.lv-legal-context-row .lv-legal-context-actions button:not(:disabled):hover { background:#edf3f0; border-color:#245e44; color:#164639; }
 .lv-legal-live__queue > p,.lv-legal-live__queue > [role=alert] { flex-basis:100%; }
 .lv-legal-live__queue [role=group] { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 .lv-legal-case-banner { display:flex; align-items:center; gap:20px; padding:22px 24px; border:1px solid #234e3f; border-radius:16px; color:#fff; background:linear-gradient(115deg,#183e33,#285c49 75%,#326b56); box-shadow:0 8px 20px #183e3314; }
@@ -151,7 +148,6 @@
  .lv-legal-live__queue { padding:14px; }
  .lv-legal-live .lv-legal-queue-picker { flex-basis:100%; flex-direction:column; align-items:stretch; gap:8px; }
  .lv-legal-queue-picker select { width:100%; }
- .lv-legal-context-row .lv-legal-context-actions, .lv-legal-context-row .lv-legal-context-actions button { width:100%; }
  .lv-legal-live__queue > button { width:100%; }
  .lv-legal-case-banner { flex-wrap:wrap; gap:14px; padding:18px; }
  .lv-legal-case-banner__icon { width:40px; height:44px; }
@@ -180,9 +176,10 @@
 .lv-legal-live .lv-legal-tab:focus-visible { outline: 2px solid var(--lv-action-focus, #164639); outline-offset: 2px; }
 .lv-legal-live .lv-legal-tab.is-active, .lv-legal-live .lv-legal-tab[aria-selected="true"] { border-bottom: 2px solid var(--lv-action-primary, #164639); color: var(--lv-action-primary, #164639); font-weight: 600; }
 .lv-legal-live .lv-legal-tab__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #d9a21b; }
+.lv-legal-live .lv-legal-tab__count { flex: none; min-width: 24px; padding: 1px 8px; border-radius: 999px; background: #f3d98b; color: #4a3500; font-size: 14px; font-weight: 700; line-height: 1.5; text-align: center; }
 
 /* The case bar is the shared Staff component; give it the same deep-green look on Legal screens. */
-.lv-legal-context-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; min-width:0; }
+.lv-legal-context-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; min-width:0; margin-bottom:20px; }
 .lv-legal-surfaces .lv-legal-context-row > .lv-staff-context-bar { flex:1 1 360px; min-width:0; margin:0; }
 .lv-legal-surfaces .lv-staff-context-bar--active { min-height:72px; margin-bottom: 20px; padding: 12px 20px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__label { color: #d9c48f; }
@@ -191,3 +188,12 @@
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:hover { background: rgba(255,255,255,.12); }
 .lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:focus-visible { outline: 2px solid #d9c48f; outline-offset: 2px; }
+
+.lv-legal-reopen__others { margin-top: 16px; border-top: 1px solid #e6e9e0; padding-top: 12px; }
+.lv-legal-reopen__others > h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #204f40; }
+
+/* The refresh stays the floating pill at the bottom right, as it always was. */
+.lv-legal-live .lv-legal-context-actions { position: fixed; right: 24px; bottom: 24px; z-index: 20; margin: 0; }
+.lv-legal-live .lv-legal-context-actions button { background: #fff; box-shadow: 0 4px 14px rgb(13 37 28 / .18); }
+.lv-legal-live:has(.lv-legal-context-actions) { padding-bottom: 72px; }
+@media (max-width: 640px) { .lv-legal-live .lv-legal-context-actions { right: 16px; bottom: 16px; } }

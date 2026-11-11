@@ -198,12 +198,24 @@ class GoogleAuthServiceTest {
 
     @Test
     void inactiveOrDeletedLinkedAccountIsRejected() {
-        when(user.getStatus()).thenReturn("LOCKED");
+        when(user.getStatus()).thenReturn("PENDING");
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> service.login(new GoogleLoginRequest(token)));
 
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+        verify(audit).recordLoginFailure(41L);
+        verifyNoInteractions(uses, authService);
+    }
+
+    @Test
+    void adminLockedLinkedAccountIsToldItIsLockedAfterGoogleVerification() {
+        when(user.getStatus()).thenReturn("LOCKED");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.login(new GoogleLoginRequest(token)));
+
+        assertEquals(ErrorCode.ACCOUNT_LOCKED_BY_ADMIN, exception.getErrorCode());
         verify(audit).recordLoginFailure(41L);
         verifyNoInteractions(uses, authService);
     }

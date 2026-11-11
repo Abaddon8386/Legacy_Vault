@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { normalizeAdminRole, normalizeAdminRoles, validateAdminOverview, validateAdminUser, validateAdminAuditLog,
-  fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, lockAdminUser } from './adminService.js';
+  fetchAdminOverview, fetchAdminUsers, fetchAdminUserDetail, fetchAdminAuditLogs, fetchAdminAuditDetail, setAdminUserLocked } from './adminService.js';
 const id = '11111111-1111-4111-8111-111111111111';
 const event = { id, occurredAt: '2026-10-20T12:00:00Z', actor: { kind: 'UNKNOWN', userId: null },
   action: 'LEGACY_EVENT', entityType: 'OTHER', vaultId: null };
@@ -95,9 +95,8 @@ test('read adapters preserve authorization, unavailable and abort failures', asy
   });
   await withFetch(async () => { throw new DOMException('cancelled','AbortError'); }, () => assert.rejects(() => fetchAdminAuditLogs('T'), error => error.name === 'AbortError'));
 });
-test('provisional user parser rejects malformed lists and user writes remain disabled', async () => {
+test('user parser rejects malformed lists', async () => {
   await withFetch(async () => json({ bad: true }), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
-  await assert.rejects(() => lockAdminUser('T', { userId: id }), /LOCK_POLICY_PENDING/);
 });
 
 const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'DELETED', createdAt: '2026-10-20T12:00:00Z' };
@@ -212,6 +211,28 @@ test('PS-103 attachment audit actions do not invalidate the Admin log after an e
 
 test('PS-79 profile updates remain readable in the Admin audit log', () => {
   assert.equal(validateAdminAuditLog({ ...event, action: 'AUTH_PROFILE_UPDATED' }).action, 'AUTH_PROFILE_UPDATED');
+});
+
+test('setAdminUserLocked posts lock with an optional trimmed reason and unlock without a body', async () => {
+  const record = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_STAFF_EXECUTOR'], status: 'LOCKED', createdAt: '2026-10-20T12:00:00Z' };
+  const calls = [];
+  await withFetch(async (url, options) => { calls.push({ url, options }); return json(record); }, async () => {
+    const locked = await setAdminUserLocked('T', id, true, { reason: '  Policy review  ' });
+    assert.equal(locked.status, 'LOCKED');
+    assert.match(calls[0].url, new RegExp(`/admin/users/${id}/lock$`));
+    assert.equal(calls[0].options.method, 'POST');
+    assert.deepEqual(JSON.parse(calls[0].options.body), { reason: 'Policy review' });
+    await setAdminUserLocked('T', id, true, { reason: '   ' });
+    assert.equal(calls[1].options.body, undefined);
+    await setAdminUserLocked('T', id, false, { reason: 'ignored' });
+    assert.match(calls[2].url, new RegExp(`/admin/users/${id}/unlock$`));
+    assert.equal(calls[2].options.body, undefined);
+    await assert.rejects(() => setAdminUserLocked('T', 'not-a-uuid', true), /VALIDATION_FAILED/);
+    await assert.rejects(() => setAdminUserLocked('T', id, true, { reason: 'x'.repeat(256) }), /VALIDATION_FAILED/);
+    await assert.rejects(() => setAdminUserLocked('T', id, 'yes'), /VALIDATION_FAILED/);
+  });
+  await withFetch(async () => json({ ...record, publicId: '99999999-9999-4999-8999-999999999999' }),
+    () => assert.rejects(() => setAdminUserLocked('T', id, true), /INVALID_USER_RECORD/));
 });
 
 test('audit events keep the actor role, owner, case and assigned Staff, and reject malformed context', () => {

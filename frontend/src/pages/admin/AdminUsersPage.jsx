@@ -1,10 +1,16 @@
 import { useState } from 'react';
+import { Eye, Lock, LockOpen, Plus, UserCog } from 'lucide-react';
 import { useModalFocus } from '../../components/common/useModalFocus.js';
 import { useAdminQuery } from './useAdminQuery.js';
 import { adminI18n, adminRoleLabel } from './adminI18n.js';
 import { formatAdminTimestamp } from './adminPresentation.js';
 import { ADMIN_VAULT_STATUSES, PROCESSING_ACCOUNT_ROLES, fetchAdminUsers, fetchAdminUserDetail } from '../../utils/adminService.js';
+import { ChangeRoleModal, CreateUserModal, LockUserModal } from './AdminUserForms.jsx';
 import './AdminPages.css';
+
+// The backend refuses to lock an ACTIVE account that is in a case or whose vault is archived; hide the actions up front.
+const manageBlocked = user => user.status === 'ACTIVE'
+  && (user.accountStatus === 'IN_PROCESS' || ['IN_PROCESS', 'ARCHIVED'].includes(user.vaultStatus));
 
 export default function AdminUsersPage({
   lang = 'vi',
@@ -29,6 +35,30 @@ export default function AdminUsersPage({
   const [detailSelection, setDetailSelection] = useState(null);
   const detailUser = detailSelection?.data === data ? detailSelection.record : null;
   const setDetailUser = (record) => setDetailSelection(record ? { record, data } : null);
+  const [creating, setCreating] = useState(false);
+  const [roleTarget, setRoleTarget] = useState(null);
+  const [lockTarget, setLockTarget] = useState(null);
+  const [notice, setNotice] = useState('');
+
+  const handleCreated = () => {
+    setCreating(false);
+    setNotice(t.createdOk);
+    setQuery('');
+    setRoleFilter('');
+    setStatusFilter('');
+    setPage(1);
+    handleReload();
+  };
+  const handleLockDone = () => {
+    setNotice(lockTarget?.lock ? t.lockedOk : t.unlockedOk);
+    setLockTarget(null);
+    handleReload();
+  };
+  const handleRoleChanged = () => {
+    setRoleTarget(null);
+    setNotice(t.roleChangedOk);
+    handleReload();
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -60,12 +90,20 @@ export default function AdminUsersPage({
 
   return (
     <div className="lv-admin-container" aria-labelledby="admin-users-title">
-      <header className="lv-admin-header">
-        <h1 id="admin-users-title" className="lv-admin-header-title">
-          {t.usersTitle}
-        </h1>
-        <p className="lv-admin-header-subtitle">{t.usersSubtitle}</p>
+      <header className="lv-admin-header lv-admin-header--with-action">
+        <div>
+          <h1 id="admin-users-title" className="lv-admin-header-title">
+            {t.usersTitle}
+          </h1>
+          <p className="lv-admin-header-subtitle">{t.usersSubtitle}</p>
+        </div>
+        <button type="button" className="lv-admin-btn lv-admin-btn-primary" onClick={() => { setNotice(''); setCreating(true); }}>
+          <Plus size={18} aria-hidden="true" />
+          {t.createUserBtn}
+        </button>
       </header>
+
+      {notice && <p className="lv-admin-form-notice" role="status">{notice}</p>}
 
       {/* Backend Integration Pending Notice */}
       {apiPending && (
@@ -104,7 +142,7 @@ export default function AdminUsersPage({
       <form className="lv-admin-toolbar lv-surface-card" onSubmit={handleSearchSubmit} role="search" aria-label={t.usersTitle}>
         <div className="lv-admin-toolbar-inputs">
           <label className="lv-admin-field lv-admin-field--search">
-            <span>{lang === 'en' ? 'Name or email' : 'Tên hoặc email'}</span>
+            <span>{t.searchLabel}</span>
           <input
             type="search"
             className="lv-admin-input lv-admin-search-input"
@@ -190,7 +228,7 @@ export default function AdminUsersPage({
       </div>
       <div className="lv-admin-table-frame lv-surface-card">
       <div className="lv-admin-table-container" tabIndex={0} role="region" aria-label={lang === 'en' ? 'User table' : 'Bảng người dùng'}>
-        <table className="lv-admin-table" aria-label={t.usersTitle}>
+        <table className="lv-admin-table lv-admin-table--users" aria-label={t.usersTitle}>
           <thead>
             <tr>
               <th scope="col">{t.thName}</th>
@@ -240,11 +278,13 @@ export default function AdminUsersPage({
                   </td>
                   <td>{user.email}</td>
                   <td>
-                    {user.roles.map((role) => (
-                      <span key={role} className="lv-admin-role-badge" title={role}>
-                        {adminRoleLabel(role, lang)}
-                      </span>
-                    ))}
+                    <div className="lv-admin-role-list">
+                      {user.roles.map((role) => (
+                        <span key={role} className="lv-admin-role-badge" title={role}>
+                          {adminRoleLabel(role, lang)}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td>{formatDate(user.createdAt)}</td>
                   <td>
@@ -269,11 +309,38 @@ export default function AdminUsersPage({
                     <div className="lv-admin-row-actions">
                     <button
                       type="button"
-                      className="lv-admin-btn lv-admin-btn-secondary"
+                      className="lv-admin-icon-btn"
                       onClick={() => setDetailUser(user)}
+                      aria-label={t.viewDetails}
+                      title={t.viewDetails}
                     >
-                      {t.viewDetails}
+                      <Eye size={18} aria-hidden="true" />
                     </button>
+                    {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && !manageBlocked(user) && (
+                      <button
+                        type="button"
+                        className="lv-admin-icon-btn"
+                        onClick={() => { setNotice(''); setRoleTarget(user); }}
+                        disabled={user.status === 'LOCKED'}
+                        aria-label={t.changeRoleBtn}
+                        title={user.status === 'LOCKED' ? t.roleUnavailableLocked : t.changeRoleBtn}
+                      >
+                        <UserCog size={18} aria-hidden="true" />
+                      </button>
+                    )}
+                    {!user.roles.includes('ADMIN') && ['ACTIVE', 'LOCKED'].includes(user.status) && !manageBlocked(user) && (
+                      <button
+                        type="button"
+                        className={`lv-admin-icon-btn${user.status === 'LOCKED' ? ' lv-admin-icon-btn--locked' : ''}`}
+                        onClick={() => { setNotice(''); setLockTarget({ user, lock: user.status !== 'LOCKED' }); }}
+                        aria-label={user.status === 'LOCKED' ? t.unlockBtn : t.lockBtn}
+                        title={user.status === 'LOCKED' ? t.unlockBtn : t.lockBtn}
+                      >
+                        {user.status === 'LOCKED'
+                          ? <Lock size={18} aria-hidden="true" />
+                          : <LockOpen size={18} aria-hidden="true" />}
+                      </button>
+                    )}
                     </div>
                   </td>
                 </tr>
@@ -310,6 +377,15 @@ export default function AdminUsersPage({
           </div>
         </nav>
       )}
+
+      {creating && <CreateUserModal lang={lang} accessToken={accessToken} onClose={() => setCreating(false)}
+        onCreated={handleCreated} onUnauthorized={onUnauthorized} onDenied={deny} />}
+      {roleTarget && <ChangeRoleModal key={roleTarget.id} lang={lang} accessToken={accessToken} user={roleTarget}
+        onClose={() => setRoleTarget(null)} onChanged={handleRoleChanged} onUnauthorized={onUnauthorized} onDenied={deny} />}
+
+      {lockTarget && <LockUserModal key={`${lockTarget.user.id}-${lockTarget.lock}`} lang={lang} accessToken={accessToken}
+        user={lockTarget.user} lock={lockTarget.lock} onClose={() => setLockTarget(null)} onDone={handleLockDone}
+        onUnauthorized={onUnauthorized} onDenied={deny} />}
 
       {detailUser && <UserDetail key={detailUser.id} id={detailUser.id} accessToken={accessToken} lang={lang} role={roleFilter} showVaultStatus={showVaultStatus}
         onClose={() => setDetailUser(null)} onUnauthorized={onUnauthorized} onDenied={deny} />}

@@ -3,12 +3,12 @@ package com.legacyvault.admin.user;
 import com.legacyvault.admin.user.dto.AdminUserResponse;
 import com.legacyvault.admin.user.service.AdminUserQueryService;
 import com.legacyvault.user.entity.User;
-import com.legacyvault.vault.entity.Vault;
-import com.legacyvault.vault.repository.VaultRepository;
 import com.legacyvault.user.entity.Role;
 import com.legacyvault.user.entity.UserRole;
 import com.legacyvault.user.repository.UserRepository;
 import com.legacyvault.user.repository.UserRoleRepository;
+import com.legacyvault.vault.entity.Vault;
+import com.legacyvault.vault.repository.VaultRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -36,9 +36,9 @@ class AdminUserQueryServiceTest {
         UUID publicId = UUID.randomUUID();
         User user = user(publicId, LocalDateTime.of(2026, 10, 20, 12, 0));
         ReflectionTestUtils.setField(user, "deletedAt", LocalDateTime.of(2026, 10, 21, 0, 0));
-        when(users.searchForAdmin("alice", "ROLE_ADMIN", "DELETED", null, PageRequest.of(0, 20,
+        when(users.searchForAdmin(eq("alice"), eq(false), any(UUID.class), eq("ROLE_ADMIN"), eq("DELETED"), isNull(), eq(PageRequest.of(0, 20,
                 org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
-                        .and(org.springframework.data.domain.Sort.by("publicId")))))
+                        .and(org.springframework.data.domain.Sort.by("publicId"))))))
                 .thenReturn(new PageImpl<>(List.of(user), PageRequest.of(0, 20), 1));
         Role adminRole = new Role();
         adminRole.setRoleCode("ROLE_ADMIN");
@@ -125,6 +125,23 @@ class AdminUserQueryServiceTest {
     }
 
     @Test
+    void aFullUuidFindsTheAccountByPublicIdWhileOtherTextStaysAPlainNameOrEmailSearch() {
+        UUID id = UUID.fromString("3F2B8C1E-AAAA-4BBB-8CCC-123456789ABC");
+        when(users.searchForAdmin(any(), anyBoolean(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        service.listUsers("  " + id.toString().toLowerCase() + "  ", null, null, null, 0, 20);
+        verify(users).searchForAdmin(eq(id.toString().toLowerCase()), eq(true), eq(id), isNull(), isNull(), isNull(),
+                any(org.springframework.data.domain.Pageable.class));
+
+        for (String text : List.of("3f2b8c1e", "3f2b8c1e-aaaa-4bbb-8ccc", "alice@example.test", "1-1-1-1-1", id + "x")) {
+            service.listUsers(text, null, null, null, 0, 20);
+            verify(users).searchForAdmin(eq(text), eq(false), eq(new UUID(0L, 0L)), isNull(), isNull(), isNull(),
+                    any(org.springframework.data.domain.Pageable.class));
+        }
+    }
+
+    @Test
     void getUserUsesPublicIdAndMissingIdReturnsTypedNotFound() {
         UUID publicId = UUID.randomUUID();
         User user = user(publicId, LocalDateTime.of(2026, 1, 1, 0, 0));
@@ -136,6 +153,13 @@ class AdminUserQueryServiceTest {
         when(users.findByPublicId(absent)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.getUser(absent, null))
                 .isInstanceOf(com.legacyvault.common.error.BusinessException.class);
+    }
+
+    private static Vault vault(long ownerId, String status) {
+        Vault vault = new Vault();
+        ReflectionTestUtils.setField(vault, "ownerUserId", ownerId);
+        ReflectionTestUtils.setField(vault, "status", status);
+        return vault;
     }
 
     private User user(UUID publicId, LocalDateTime createdAt) {

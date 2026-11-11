@@ -451,7 +451,9 @@ test('the shared case bar and refresh stay in one inline row without changing th
   try {
     const row=view.host.querySelector('.lv-legal-context-row');
     assert.ok(row.querySelector('.lv-staff-context-bar'));
-    assert.equal(row.querySelectorAll('.lv-legal-context-actions button').length,1);
+    // The refresh is the floating pill beside, not inside, the case bar.
+    assert.equal(view.host.querySelectorAll('.lv-legal-context-actions button').length,1);
+    assert.equal(row.querySelectorAll('.lv-legal-context-actions').length,0);
     const before=reads;
     await click(view.host,'Refresh documents and case');
     assert.equal(reads,before+1);

@@ -18,3 +18,14 @@
 .lv-court-editor__row-actions > button:last-child { color: #9b3329; border-color: #d7b0aa; }
 .lv-court-editor label { font-size: 14px; }
 .lv-court-editor__row-actions button { font-size: 14px; }
+
+/* One flat list instead of a card per allocation: rows split by a hairline, the number as a small label, remove as a quiet action. */
+.lv-court-editor__heading { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.lv-court-editor__row { position: relative; padding: 14px 0 16px; border: 0; border-top: 1px solid #e6e9e0; border-radius: 0; background: none; }
+.lv-court-editor__row legend { float: left; width: 100%; box-sizing: border-box; padding: 0 56px 8px 0; font-size: 14px; font-weight: 700; color: #6b7a72; }
+.lv-court-editor__row > .lv-court-editor__fields { clear: both; }
+.lv-court-editor__row .lv-court-editor__fields { margin-bottom: 0; }
+.lv-court-editor textarea { min-height: 56px; height: 56px; }
+.lv-court-editor__row-actions { position: absolute; top: 4px; right: 0; justify-content: flex-end; }
+.lv-court-editor__row-actions > button:last-child { border-color: transparent; background: transparent; color: #9b3329; }
+.lv-court-editor__row-actions > button:last-child:hover:not(:disabled) { background: #fbeae8; }

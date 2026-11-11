@@ -681,7 +681,7 @@ export default function StaffLegalDocumentsPage({
       distribution.refresh();
       handleResetForm();setActiveTab('overview');
       if(!transfer.error) {
-        setActionSuccess((en ? 'Documents saved and sent to Legal.' : 'Đã lưu và chuyển giấy tờ thẩm định.') + workflowNotificationFeedback(transfer.dossier, 'LEGAL', lang));
+        setActionSuccess((en ? 'Saved and sent to Legal' : 'Đã lưu và chuyển Ban Pháp lý') + workflowNotificationFeedback(transfer.dossier, 'LEGAL', lang));
       } else if([401,403].includes(transfer.error.status)) {
         setDossier(null);setAvailableAssets([]);setAvailableBeneficiaries([]);
         if(transfer.error.status===401)onUnauthorized?.();

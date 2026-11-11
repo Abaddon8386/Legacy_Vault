@@ -395,7 +395,7 @@ function ScopedAssetHandoverPageContext({
 
       if (confirmedDeliveredAssetIds.size === assetIdsToDeliver.length) {
         setActionSuccess(
-          (t.deliverySuccessBatch || 'Đã ghi nhận bàn giao thành công {count} tài sản cho người nhận.').replace(
+          (t.deliverySuccessBatch || 'Đã bàn giao {count} tài sản').replace(
             '{count}',
             String(confirmedDeliveredAssetIds.size)
           )
