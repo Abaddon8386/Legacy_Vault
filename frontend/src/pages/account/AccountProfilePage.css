@@ -194,7 +194,7 @@
 }
 
 .lv-account-profile-view .lv-profile-role-chip__icon {
-  color: #c5a059;
+  color: #8c6820;
 }
 
 .lv-account-profile-view .lv-profile-role-chip--empty {
@@ -377,7 +377,7 @@
 }
 
 .lv-account-profile-view .lv-profile-google-limitation__icon {
-  color: var(--lv-color-gold, #c5a059);
+  color: var(--lv-accent-gold-text, #8c6820);
   flex-shrink: 0;
   margin-top: 2px;
 }
