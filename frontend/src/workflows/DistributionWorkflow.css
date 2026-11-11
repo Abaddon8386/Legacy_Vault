@@ -42,3 +42,10 @@
 .lv-distribution-review-list small { display: block; margin-bottom: 2px; font-size: 14px; font-weight: 500; color: #52655a; }
 .lv-distribution-review-list strong, .lv-distribution-review-list span { font-size: 16px; line-height: 1.5; color: #1f2421; }
 @media (max-width: 700px) { .lv-distribution-review-list li { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
+
+.lv-distribution-stage-notice { margin: 0 0 20px; }
+.lv-distribution-stage-notice .lv-distribution-prerequisites { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 16px; line-height: 1.5; }
+.lv-distribution-stage-notice .lv-distribution-prerequisites li { padding: 8px 12px; border-radius: 8px; background: rgba(255, 255, 255, .7); }
+.lv-distribution-stage-notice .lv-distribution-prerequisites li::before { content: '○'; margin-inline-end: 6px; font-weight: 700; color: #b3382f; }
+.lv-distribution-stage-notice .lv-distribution-prerequisites li.is-met::before { content: '✓'; color: #247a52; }
+.lv-distribution-stage-notice a { font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 3px; }

@@ -22,3 +22,8 @@ test('no workflow data shows nothing as started, with a readable label', () => {
   assert.equal(result.overview.tone, 'none');
   assert.equal(result.overview.label, 'Not started');
 });
+
+test('nothing is lit until death and will checks pass; once Legal can send the request, only the overview waits', () => {
+  assert.deepEqual(tones('PREREQUISITES_PENDING'), ['none', 'none', 'none', 'none']);
+  assert.deepEqual(tones('DOCUMENT_REQUEST_NEEDED'), ['waiting', 'none', 'none', 'none']);
+});
