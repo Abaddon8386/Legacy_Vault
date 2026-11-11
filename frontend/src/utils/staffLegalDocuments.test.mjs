@@ -1664,8 +1664,15 @@ test('New flow: Staff uploads requested documents without an allocation editor o
     const panel = host.querySelector('#panel-intake');
     assert.equal(panel.querySelector('.lv-court-editor'), null);
     assert.equal(panel.querySelector('button[type=submit]').disabled, false);
-    assert.match(panel.textContent, /chỉ tải giấy tờ|chỉ tải giấy/);
-    for (const type of ['NOTARIAL_PARTITION', 'COURT_JUDGMENT', 'COURT_DECISION']) assert.equal(panel.querySelector('option[value="' + type + '"]').disabled, false);
+    assert.doesNotMatch(panel.textContent, /chỉ tải giấy tờ/, 'No how-to line under the intake title');
+    assert.equal(panel.querySelector('select.lv-form-select[id]'), null, 'The type is two buttons, not a dropdown');
+    const radios = [...panel.querySelectorAll('.lv-choice-group input[type=radio]')];
+    assert.deepEqual(radios.map(radio => [radio.value, radio.disabled]), [['NOTARIAL_PARTITION', false], ['COURT', false]]);
+    const choose = async value => { await act(async () => radios.find(radio => radio.value === value).click()); return panel.textContent; };
+    assert.match(await choose('NOTARIAL_PARTITION'), /Tổ chức công chứng/);
+    assert.match(panel.textContent, /Ngày công chứng/);
+    assert.match(await choose('COURT'), /Tòa án ban hành/);
+    assert.doesNotMatch(panel.textContent, /Ngày công chứng/);
     assert.equal(calls.some(call => /\/assets\?|\/beneficiaries$/.test(call.url)), false, 'Document intake must not depend on asset/recipient catalogues');
     await act(async () => host.querySelector('#tab-btn-allocations').click());
     assert.equal(host.querySelector('#panel-allocations form'), null, 'Allocations remain locked before document approval');

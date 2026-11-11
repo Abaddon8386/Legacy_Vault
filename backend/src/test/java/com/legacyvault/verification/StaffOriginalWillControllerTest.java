@@ -82,7 +82,7 @@ class StaffOriginalWillControllerTest {
         when(service.record(eq(CASE_ID), any(), any())).thenReturn(INTAKE);
 
         record("{\"deliveredByName\":\"Nguyễn Văn A\",\"deliveredByRelationship\":\"Con trai\","
-                + "\"receivedBy\":\"x\",\"receivedAt\":\"2020-01-01T00:00:00Z\"}", staff())
+                + "\"conditionNotes\":\"Còn nguyên vẹn\",\"receivedBy\":\"x\",\"receivedAt\":\"2020-01-01T00:00:00Z\"}", staff())
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location",
                         "/api/v1/staff/verification-cases/" + CASE_ID + "/original-will-intakes/" + INTAKE_ID))
@@ -103,6 +103,9 @@ class StaffOriginalWillControllerTest {
                 .andExpect(status().isBadRequest());
         record("{\"deliveredByName\":\"A\",\"conditionNotes\":\"" + "a".repeat(1001) + "\"}", staff())
                 .andExpect(status().isBadRequest());
+        record("{\"deliveredByName\":\"A\"}", staff()).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[?(@.field=='conditionNotes')]").exists());
+        record("{\"deliveredByName\":\"A\",\"conditionNotes\":\"   \"}", staff()).andExpect(status().isBadRequest());
         verifyNoInteractions(service);
     }
 
@@ -111,7 +114,7 @@ class StaffOriginalWillControllerTest {
         when(service.record(eq(CASE_ID), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND))
                 .thenThrow(new BusinessException(ErrorCode.VERIFICATION_CASE_NOT_OPEN));
-        String json = "{\"deliveredByName\":\"A\"}";
+        String json = "{\"deliveredByName\":\"A\",\"conditionNotes\":\"OK\"}";
 
         record(json, staff()).andExpect(status().isNotFound());
         record(json, staff()).andExpect(status().isConflict())

@@ -20,3 +20,106 @@
   outline: 2px solid var(--lv-action-focus);
   outline-offset: 3px;
 }
+
+/* ==========================================================================
+   Shared Operational Tabs Pattern
+   Canh trái, content-width, padding đều, gạch chân active theo token,
+   hỗ trợ cuộn ngang trên mobile, touch target >= 44px.
+   ========================================================================== */
+.lv-shared-tabs,
+.lv-staff-documents-view .lv-staff-tabs-nav,
+.lv-legal-live .lv-legal-tabs,
+.lv-close-archive-view .lv-ca-tabs,
+.lv-live-handover .lv-handover-tabs,
+.lv-staff-live .lv-intake-tabs {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 20px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--lv-border-subtle, #e2e5dc);
+  border-radius: 0;
+  background: transparent;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.lv-shared-tabs::-webkit-scrollbar,
+.lv-staff-documents-view .lv-staff-tabs-nav::-webkit-scrollbar,
+.lv-legal-live .lv-legal-tabs::-webkit-scrollbar,
+.lv-close-archive-view .lv-ca-tabs::-webkit-scrollbar,
+.lv-live-handover .lv-handover-tabs::-webkit-scrollbar,
+.lv-staff-live .lv-intake-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.lv-shared-tab-btn,
+.lv-staff-documents-view .lv-staff-tab-btn,
+.lv-legal-live .lv-legal-tab,
+.lv-close-archive-view .lv-ca-tab,
+.lv-live-handover .lv-handover-tab,
+.lv-staff-live .lv-intake-tabs button {
+  flex: 0 0 auto;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 -1px;
+  padding: 0 16px;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lv-control-text, #52675b);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.lv-shared-tab-btn:hover:not(:disabled),
+.lv-staff-documents-view .lv-staff-tab-btn:hover:not(:disabled),
+.lv-legal-live .lv-legal-tab:hover:not(:disabled),
+.lv-close-archive-view .lv-ca-tab:hover:not(:disabled),
+.lv-live-handover .lv-handover-tab:hover:not(:disabled),
+.lv-staff-live .lv-intake-tabs button:hover:not(:disabled) {
+  color: var(--lv-action-primary-hover, #0c2b22);
+  background: transparent;
+}
+
+.lv-shared-tab-btn:focus-visible,
+.lv-staff-documents-view .lv-staff-tab-btn:focus-visible,
+.lv-legal-live .lv-legal-tab:focus-visible,
+.lv-close-archive-view .lv-ca-tab:focus-visible,
+.lv-live-handover .lv-handover-tab:focus-visible,
+.lv-staff-live .lv-intake-tabs button:focus-visible {
+  outline: 2px solid var(--lv-action-focus, #164639);
+  outline-offset: 2px;
+}
+
+.lv-shared-tab-btn.is-active,
+.lv-shared-tab-btn[aria-selected="true"],
+.lv-staff-documents-view .lv-staff-tab-btn--active,
+.lv-staff-documents-view .lv-staff-tab-btn[aria-selected="true"],
+.lv-legal-live .lv-legal-tab.is-active,
+.lv-legal-live .lv-legal-tab[aria-selected="true"],
+.lv-close-archive-view .lv-ca-tab.is-active,
+.lv-close-archive-view .lv-ca-tab[aria-selected="true"],
+.lv-live-handover .lv-handover-tab.is-active,
+.lv-live-handover .lv-handover-tab[aria-selected="true"],
+.lv-staff-live .lv-intake-tabs button[aria-pressed="true"] {
+  border-bottom: 2px solid var(--lv-action-primary, #164639);
+  color: var(--lv-action-primary, #164639);
+  font-weight: 600;
+  background: transparent;
+  box-shadow: none;
+}
