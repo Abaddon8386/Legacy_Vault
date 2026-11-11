@@ -303,51 +303,45 @@ test('a server-side password rejection is explained next to the password field, 
   } finally { await view.close(); globalThis.fetch = previous; }
 });
 
-test('statuses show Active, Locked, Archived and Asset handover in progress; archived and handover rows offer no lock or role change', async () => {
+test('statuses follow accountStatus; rows that are in a case or whose vault is archived offer no lock or role change', async () => {
   const previous = globalThis.fetch;
   const rows = [
-    apiUser({ publicId: '41111111-1111-4111-8111-111111111111', email: 'active@example.test', status: 'ACTIVE' }),
-    apiUser({ publicId: '42222222-2222-4222-8222-222222222222', email: 'locked@example.test', status: 'LOCKED' }),
-    apiUser({ publicId: '43333333-3333-4333-8333-333333333333', email: 'archived@example.test', status: 'ARCHIVED' }),
-    apiUser({ publicId: '44444444-4444-4444-8444-444444444444', email: 'handover@example.test', status: 'HANDOVER_IN_PROGRESS' }),
+    apiUser({ publicId: '41111111-1111-4111-8111-111111111111', email: 'active@example.test', status: 'ACTIVE', accountStatus: 'ACTIVE' }),
+    apiUser({ publicId: '42222222-2222-4222-8222-222222222222', email: 'locked@example.test', status: 'LOCKED', accountStatus: 'LOCKED' }),
+    apiUser({ publicId: '43333333-3333-4333-8333-333333333333', email: 'process@example.test', status: 'ACTIVE', accountStatus: 'IN_PROCESS' }),
+    apiUser({ publicId: '44444444-4444-4444-8444-444444444444', email: 'archived@example.test', roles: ['ROLE_VAULT_OWNER'],
+      status: 'ACTIVE', accountStatus: 'ACTIVE', vaultStatus: 'ARCHIVED' }),
   ];
   globalThis.fetch = async () => json(usersPage(rows));
   for (const [lang, labels, lockLabel] of [
-    ['vi', ['Hoạt động', 'Đã khóa', 'Lưu trữ', 'Đang bàn giao tài sản'], 'Khóa tài khoản'],
-    ['en', ['Active', 'Locked', 'Archived', 'Asset handover in progress'], 'Lock account'],
+    ['vi', ['Hoạt động', 'Đã khóa', 'Đang xử lý', 'Hoạt động'], 'Khóa tài khoản'],
+    ['en', ['Active', 'Locked', 'In process', 'Active'], 'Lock account'],
   ]) {
     const view = await mount({ accessToken: 'T', fetchOnMount: true, lang });
     try {
       const trs = [...view.host.querySelectorAll('tbody tr')];
       assert.deepEqual(trs.map((tr) => tr.querySelector('td:nth-child(5) .lv-admin-status-badge').textContent.trim()), labels);
       assert.deepEqual(trs.map((tr) => tr.querySelector('td:nth-child(5) .lv-admin-status-badge').className.match(/lv-admin-status-(?!badge)(\S+)/)[1]),
-        ['active', 'locked', 'archived', 'handover_in_progress']);
-      // Archived and in-handover rows only have the view button: no lock/unlock, no role change.
+        ['active', 'locked', 'in_process', 'active']);
+      // In-case and archived-vault rows only have the view button: no lock/unlock, no role change.
       assert.equal(trs[2].querySelectorAll('button').length, 1);
       assert.equal(trs[3].querySelectorAll('button').length, 1);
       assert.equal(trs[0].querySelectorAll('button').length, 3);
       assert.ok(button(trs[0], lockLabel));
-
-      const options = [...view.host.querySelectorAll('select')].find((select) => [...select.options].some((o) => o.value === 'ARCHIVED'));
-      assert.deepEqual([...options.options].map((o) => o.value),
-        ['', 'ACTIVE', 'HANDOVER_IN_PROGRESS', 'LOCKED', 'ARCHIVED']);
-      assert.deepEqual([...options.options].slice(1, 5).map((o) => o.textContent), [labels[0], labels[3], labels[1], labels[2]]);
     } finally { await view.close(); }
   }
   globalThis.fetch = previous;
 });
 
-test('the search box takes a UUID as well and sends it as the query; derived statuses are valid filters', async () => {
+test('the search box takes a UUID as well and sends it as the query; unknown statuses are not valid filters', async () => {
   const previous = globalThis.fetch;
   const urls = [];
   globalThis.fetch = async (url) => { urls.push(new URL(url, 'http://local')); return json({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 }); };
   try {
     const { fetchAdminUsers } = await import('./adminService.js');
-    for (const status of ['ARCHIVED', 'HANDOVER_IN_PROGRESS', 'LOCKED']) await fetchAdminUsers('T', { status, pageSize: 10 });
-    assert.deepEqual(urls.map((u) => u.searchParams.get('status')), ['ARCHIVED', 'HANDOVER_IN_PROGRESS', 'LOCKED']);
-    for (const hidden of ['SUSPENDED', 'PENDING', 'DELETED']) {
-      await assert.rejects(() => fetchAdminUsers('T', { status: hidden, pageSize: 10 }), /VALIDATION_FAILED/, hidden);
-    }
+    for (const status of ['IN_PROCESS', 'LOCKED', 'PENDING']) await fetchAdminUsers('T', { status, pageSize: 10 });
+    assert.deepEqual(urls.map((u) => u.searchParams.get('status')), ['IN_PROCESS', 'LOCKED', 'PENDING']);
+    await assert.rejects(() => fetchAdminUsers('T', { status: 'SUSPENDED', pageSize: 10 }), /VALIDATION_FAILED/);
     await fetchAdminUsers('T', { query: ' 3f2b8c1e-aaaa-4bbb-8ccc-123456789abc ', pageSize: 10 });
     assert.equal(urls.at(-1).searchParams.get('query'), '3f2b8c1e-aaaa-4bbb-8ccc-123456789abc');
 

@@ -99,19 +99,77 @@ test('user parser rejects malformed lists', async () => {
   await withFetch(async () => json({ bad: true }), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
 });
 
-const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'ARCHIVED', createdAt: '2026-10-20T12:00:00Z' };
+const wireUser = { publicId: id, fullName: 'Account', email: 'account@example.test', roles: ['ROLE_ADMIN'], status: 'DELETED', createdAt: '2026-10-20T12:00:00Z' };
+
+test('scoped business roles reject legacy filters and legacy receipts without hiding records after pagination', async () => {
+  for (const role of ['VAULT_OWNER', 'BENEFICIARY', 'LEGAL_VERIFIER', 'STAFF_EXECUTOR']) {
+    for (const status of ['PENDING', 'DELETED']) {
+      await withFetch(() => assert.fail('invalid role/status must not request data'),
+        () => assert.rejects(() => fetchAdminUsers('T', {role, status}), /VALIDATION_FAILED/));
+      const user = {...wireUser, roles:['ROLE_'+role], status, accountStatus:status};
+      await withFetch(async () => json({content:[user],page:0,size:20,totalElements:1,totalPages:1}),
+        () => assert.rejects(() => fetchAdminUsers('T', {role}), /INVALID_USERS_RESPONSE/));
+      await withFetch(async () => json(user),
+        () => assert.rejects(() => fetchAdminUserDetail('T', id, {role}), /INVALID_USER_RECORD/));
+      await withFetch(async () => json({content:[{...user,accountStatus:'ACTIVE'}],page:0,size:20,totalElements:1,totalPages:1}),
+        () => assert.rejects(() => fetchAdminUsers('T', {role}), /INVALID_USERS_RESPONSE/));
+      await withFetch(async () => json(user),
+        async () => assert.equal((await fetchAdminUserDetail('T', id)).accountStatus,status));
+    }
+  }
+  await withFetch(() => assert.fail('Owner processing belongs to the vault filter'),
+    () => assert.rejects(() => fetchAdminUsers('T', {role:'VAULT_OWNER',status:'IN_PROCESS'}), /VALIDATION_FAILED/));
+});
+
+test('processing display state preserves authentication state and detail requests keep the selected role', async () => {
+  const actor = { ...wireUser, roles: ['ROLE_LEGAL_VERIFIER'], status: 'ACTIVE', accountStatus: 'IN_PROCESS' };
+  const user = validateAdminUser(actor);
+  assert.equal(user.status, 'ACTIVE');
+  assert.equal(user.accountStatus, 'IN_PROCESS');
+  await withFetch(async url => {
+    const target = new URL(url, 'http://local');
+    assert.ok(target.pathname.endsWith('/' + id));
+    assert.equal(target.searchParams.get('role'), 'ROLE_LEGAL_VERIFIER');
+    return json(actor);
+  }, async () => assert.equal((await fetchAdminUserDetail('T', id, {role:'LEGAL_VERIFIER'})).accountStatus, 'IN_PROCESS'));
+});
+
+test('owner vault filters are independent from locked accounts and never fabricate missing vault state', async () => {
+  for (const vaultStatus of ['NO_VAULT', 'ACTIVE', 'IN_PROCESS', 'ARCHIVED']) {
+    await withFetch(async url => {
+      const params = new URL(url, 'http://local').searchParams;
+      assert.equal(params.get('role'), 'ROLE_VAULT_OWNER');
+      assert.equal(params.get('status'), 'LOCKED');
+      assert.equal(params.get('vaultStatus'), vaultStatus);
+      return json({ content: [{ ...wireUser, roles: ['ROLE_VAULT_OWNER', 'ROLE_BENEFICIARY'], status: 'LOCKED', vaultStatus }], page: 0, size: 20, totalElements: 1, totalPages: 1 });
+    }, async () => {
+      const result = await fetchAdminUsers('T', { role: 'VAULT_OWNER', status: 'LOCKED', vaultStatus });
+      assert.equal(result.items[0].vaultStatus, vaultStatus);
+      assert.equal(result.items[0].status, 'LOCKED');
+    });
+  }
+  for (const vaultStatus of [null, undefined, 'UNKNOWN']) {
+    assert.equal(validateAdminUser({ ...wireUser, roles: ['ROLE_VAULT_OWNER'], vaultStatus }).vaultStatus, null);
+  }
+  assert.equal(validateAdminUser({ ...wireUser, vaultStatus: 'ACTIVE' }).vaultStatus, null);
+  await withFetch(() => assert.fail('invalid filters must not send a request'), async () => {
+    for (const params of [{ vaultStatus: 'ACTIVE' }, { role: 'ADMIN', vaultStatus: 'NO_VAULT' }, { role: 'VAULT_OWNER', vaultStatus: 'UNKNOWN' }]) {
+      await assert.rejects(() => fetchAdminUsers('T', params), /VALIDATION_FAILED/);
+    }
+  });
+});
 test('PS-109 user search maps pagination and role, uses shared authentication and strips unexpected fields', async () => {
   await withFetch(async (url, options) => {
     const q = new URL(url, 'http://local').searchParams;
     assert.equal(q.get('page'), '1'); assert.equal(q.get('size'), '10');
-    assert.equal(q.get('query'), 'Account'); assert.equal(q.get('role'), 'ROLE_ADMIN'); assert.equal(q.get('status'), 'ARCHIVED');
+    assert.equal(q.get('query'), 'Account'); assert.equal(q.get('role'), 'ROLE_ADMIN'); assert.equal(q.get('status'), 'DELETED');
     assert.equal(q.has('q'), false); assert.equal(q.has('pageSize'), false);
     assert.equal(options.headers.Authorization, 'Bearer T'); assert.equal(options.headers['Accept-Language'], 'en');
     return json({ content: [{ ...wireUser, passwordHash: 'secret' }], page: 1, size: 10, totalElements: 11, totalPages: 2 });
   }, async () => {
-    const result = await fetchAdminUsers('T', { query: ' Account ', role: 'ADMIN', status: 'ARCHIVED', page: 2, pageSize: 10, lang: 'en' });
+    const result = await fetchAdminUsers('T', { query: ' Account ', role: 'ADMIN', status: 'DELETED', page: 2, pageSize: 10, lang: 'en' });
     assert.equal(result.items[0].id, id); assert.equal(result.items[0].passwordHash, undefined);
-    assert.equal(result.items[0].status, 'ARCHIVED'); assert.equal(result.page, 2);
+    assert.equal(result.items[0].status, 'DELETED'); assert.equal(result.page, 2);
   });
 });
 
@@ -128,7 +186,7 @@ test('PS-109 rejects malformed paging, duplicate records and invalid request par
     await withFetch(async () => json(raw), () => assert.rejects(() => fetchAdminUsers('T'), /INVALID_USERS_RESPONSE/));
   }
   await withFetch(() => { throw Error('unexpected network'); }, async () => {
-    for (const params of [{ page: 0 }, { pageSize: 101 }, { status: 'SUSPENDED' }, { role: 'GUARDIAN' }, { query: 'x'.repeat(101) }])
+    for (const params of [{ page: 0 }, { pageSize: 101 }, { status: 'DISABLED' }, { role: 'GUARDIAN' }, { query: 'x'.repeat(101) }])
       await assert.rejects(() => fetchAdminUsers('T', params), /VALIDATION_FAILED/);
     await assert.rejects(() => fetchAdminAuditLogs('T', { actorId: 'bad-id' }), /VALIDATION_FAILED/);
   });

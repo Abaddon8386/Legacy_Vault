@@ -52,27 +52,67 @@ async function change(host, id, value) {
   await act(async () => field[key].onChange({ target: { value } }));
 }
 async function submit(host) { await act(async () => host.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))); }
-const base = { isOpen: true, asset, t: ASSET_I18N.en, onClose() {} };
+const vaultId0 = '11111111-1111-4111-8111-111111111111';
+const base = { isOpen: true, asset, t: ASSET_I18N.en, onClose() {}, vaultId: vaultId0, accessToken: 'modal-fixture', lang: 'en' };
+const jsonRes = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+// Modal-level tests: password confirmation reveals the secret content; attachment lists are empty.
+globalThis.fetch = async (url, options = {}) => {
+  const path = String(url);
+  if (options.method === 'POST' && path.endsWith('/reveal')) return jsonRes({ id: asset.id, payload: 'secret' });
+  if (options.method === 'GET' && /\/(images|documents)$/.test(path)) return jsonRes([]);
+  return jsonRes({});
+};
+const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+// Step 1 of the edit flow: confirm the password once; this reveals the form.
+async function unlock(host, pw = 'current-password') { await change(host, 'edit-confirm-password', pw); await submit(host); await settle(); }
 
-test('current password is required; one save sends the raw password with the patch and clears its input', async () => {
+test('password is confirmed once to unlock; saving reuses it, sends it with the patch and never asks again', async () => {
   const calls = [];
   const view = await mount(AssetEditModal, { ...base, onSubmit: (...args) => calls.push(args) });
   try {
-    await change(view.host, 'edit-asset-name', 'Changed'); await submit(view.host); assert.equal(calls.length, 0);
-    await change(view.host, 'edit-confirm-password', '  current-password  '); await submit(view.host);
+    assert.equal(view.host.querySelector('#edit-asset-name'), null, 'form stays hidden until the password is confirmed');
+    await submit(view.host); assert.match(view.host.textContent, /Enter your current password/);
+    await unlock(view.host, '  current-password  ');
+    assert.equal(view.host.querySelector('#edit-asset-payload').value, 'secret', 'current secure content is shown for editing');
+    assert.equal(view.host.querySelector('#edit-confirm-password'), null, 'no second password prompt');
+    await submit(view.host); assert.equal(calls.length, 0, 'no changes to save');
+    await change(view.host, 'edit-asset-name', 'Changed'); await submit(view.host);
     assert.equal(calls.length, 1); assert.equal(calls[0][0], asset.id);
     assert.deepEqual(calls[0][1], { name: 'Changed', password: '  current-password  ' });
-    assert.ok(calls[0][2].signal); assert.equal(view.host.querySelector('#edit-confirm-password').value, '');
+    assert.ok(calls[0][2].signal);
   } finally { await view.close(); }
 });
 
+test('editing the secure content sends the new payload; leaving it unchanged omits it', async () => {
+  const calls = [];
+  const view = await mount(AssetEditModal, { ...base, onSubmit: (...args) => calls.push(args) });
+  try {
+    await unlock(view.host);
+    await change(view.host, 'edit-asset-payload', 'new secret'); await submit(view.host);
+    assert.deepEqual(calls[0][1], { payload: 'new secret', password: 'current-password' });
+  } finally { await view.close(); }
+});
+
+test('wrong password keeps the form locked', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => jsonRes({ code: 'REAUTH_FAILED' }, 403);
+  const view = await mount(AssetEditModal, { ...base, onSubmit() {} });
+  try {
+    await unlock(view.host, 'wrong');
+    assert.equal(view.host.querySelector('#edit-asset-name'), null);
+    assert.match(view.host.querySelector('[role=alert]').textContent, /verify your password/);
+  } finally { await view.close(); globalThis.fetch = original; }
+});
+
 for (const [code, expected] of [['REAUTH_FAILED', /verify your password/], ['TOO_MANY_ATTEMPTS', /Too many attempts/], ['NETWORK_ERROR', /Unable to update asset/]]) {
-  test(`PATCH ${code} keeps the draft, clears password and permits explicit retry`, async () => {
+  test(`PATCH ${code} ${code === 'REAUTH_FAILED' ? 'locks the form again' : 'keeps the draft and permits retry without a new password'}`, async () => {
     const view = await mount(AssetEditModal, { ...base, onSubmit: async () => { throw Object.assign(new Error(code), { code }); } });
     try {
-      await change(view.host, 'edit-asset-name', 'Draft'); await change(view.host, 'edit-confirm-password', 'password'); await submit(view.host);
-      assert.equal(view.host.querySelector('#edit-asset-name').value, 'Draft'); assert.equal(view.host.querySelector('#edit-confirm-password').value, '');
-      assert.match(view.host.querySelector('[role=alert]').textContent, expected); assert.equal(view.host.querySelector('[type=submit]').disabled, false);
+      await unlock(view.host);
+      await change(view.host, 'edit-asset-name', 'Draft'); await submit(view.host);
+      assert.match(view.host.querySelector('[role=alert]').textContent, expected);
+      if (code === 'REAUTH_FAILED') { assert.ok(view.host.querySelector('#edit-confirm-password')); assert.equal(view.host.querySelector('#edit-asset-name'), null); }
+      else { assert.equal(view.host.querySelector('#edit-asset-name').value, 'Draft'); assert.equal(view.host.querySelector('#edit-confirm-password'), null); assert.equal(view.host.querySelector('[type=submit]').disabled, false); }
     } finally { await view.close(); }
   });
 }
@@ -80,18 +120,21 @@ for (const [code, expected] of [['REAUTH_FAILED', /verify your password/], ['TOO
 test('duplicate submits send only one PATCH; unmount aborts the in-flight save', async () => {
   let finish, signal, calls = 0;
   const view = await mount(AssetEditModal, { ...base, onSubmit: (_id, _patch, options) => { calls++; signal = options.signal; return new Promise(resolve => { finish = resolve; }); } });
-  await change(view.host, 'edit-asset-name', 'Draft'); await change(view.host, 'edit-confirm-password', 'password'); await submit(view.host); await submit(view.host);
+  await unlock(view.host);
+  await change(view.host, 'edit-asset-name', 'Draft'); await submit(view.host); await submit(view.host);
   assert.equal(calls, 1); await view.close(); assert.equal(signal.aborted, true); await act(async () => finish());
 });
 
-test('changing authentication context aborts the previous save and clears the password', async () => {
+test('changing authentication context aborts the previous save and locks the form again', async () => {
   let finish, signal;
   const props = { ...base, authContext: 'token-A', onSubmit: (_id, _patch, options) => { signal = options.signal; return new Promise(resolve => { finish = resolve; }); } };
   const view = await mount(AssetEditModal, props);
   try {
-    await change(view.host, 'edit-asset-name', 'Draft'); await change(view.host, 'edit-confirm-password', 'password'); await submit(view.host);
+    await unlock(view.host);
+    await change(view.host, 'edit-asset-name', 'Draft'); await submit(view.host);
     await view.render({ ...props, authContext: 'token-B' }); assert.equal(signal.aborted, true);
     await act(async () => finish()); assert.equal(view.host.querySelector('#edit-confirm-password').value, '');
+    assert.equal(view.host.querySelector('#edit-asset-name'), null);
     assert.equal(view.host.querySelector('[type=submit]').disabled, false);
   } finally { await view.close(); }
 });
@@ -110,26 +153,29 @@ test('real asset page sends one PATCH with password; REAUTH_FAILED and 429 retai
       assert.equal(options.headers.Authorization, 'Bearer real-page-fixture');
       return failure ? json({ code: failure }, failure === 'REAUTH_FAILED' ? 403 : 429) : json({ ...record, name: 'Updated record' });
     }
-    assert.equal(options.method, 'GET', 'No separate password verification or reveal request');
+    if (options.method === 'POST' && String(url).endsWith('/reveal')) return json({ id: asset.id, payload: 'secret' });
+    if (/\/(images|documents)$/.test(String(url))) return json([]);
+    assert.equal(options.method, 'GET');
     return json(url.includes('?') ? { content: [record], page: 0, size: 10, totalElements: 1, totalPages: 1 } : record);
   };
   const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en', onNavigateToLogin: () => logouts++ });
   try {
     await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+    await unlock(view.host);
     await change(view.host, 'edit-asset-name', 'Updated record');
     for (const code of ['REAUTH_FAILED', 'TOO_MANY_ATTEMPTS', null]) {
-      failure = code; await change(view.host, 'edit-confirm-password', 'current-password'); await submit(view.host);
+      failure = code;
+      if (!view.host.querySelector('#edit-asset-name')) await unlock(view.host);
+      await submit(view.host); await settle();
       if (code) {
         assert.ok(view.host.querySelector('[role=dialog]'));
-        assert.equal(view.host.querySelector('#edit-asset-name').value, 'Updated record');
-        assert.equal(view.host.querySelector('#edit-confirm-password').value, '');
         assert.doesNotMatch(view.host.textContent, /Asset updated/);
       }
+      if (code === 'TOO_MANY_ATTEMPTS') assert.equal(view.host.querySelector('#edit-asset-name').value, 'Updated record');
     }
     assert.equal(logouts, 0); assert.equal(view.host.querySelector('[role=dialog]'), null);
     assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 3);
     assert.match(view.host.textContent, /Asset updated/);
-    assert.equal(calls.some(call => /reveal|login|verify/.test(call.url)), false);
   } finally { await view.close(); globalThis.fetch = original; }
 });
 
@@ -143,6 +189,7 @@ test('real asset edit uploads selected files through add-only endpoints and pres
   globalThis.fetch = async (url, options) => {
     calls.push({ url: String(url), options });
     if (options.method === 'PATCH') return new Response(JSON.stringify({ ...record, name: 'Updated record' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (options.method === 'POST' && String(url).endsWith('/reveal')) return jsonRes({ id: assetId, payload: 'secret' });
     if (String(url).endsWith('/images') && options.method === 'GET') return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (String(url).endsWith('/documents') && options.method === 'GET') return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (String(url).endsWith('/images') && options.method === 'POST') return new Response(JSON.stringify([]), { status: 201, headers: { 'Content-Type': 'application/json' } });
@@ -152,6 +199,7 @@ test('real asset edit uploads selected files through add-only endpoints and pres
   const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
   try {
     await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
+    await unlock(view.host);
     const image = new File(['image'], 'new.png', { type: 'image/png' });
     const doc = new File(['%PDF-1.7\n%%EOF'], 'new.pdf', { type: 'application/pdf' });
     const inputs = view.host.querySelectorAll('input[type=file]');
@@ -162,7 +210,6 @@ test('real asset edit uploads selected files through add-only endpoints and pres
       await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
     }
     await change(view.host, 'edit-asset-name', 'Updated record');
-    await change(view.host, 'edit-confirm-password', 'current-password');
     await submit(view.host);
     assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 1);
     assert.equal(calls.filter(call => call.options.method === 'POST' && call.url.endsWith('/images')).length, 1);
@@ -181,6 +228,7 @@ test('uploading a new image without metadata edits skips the empty asset PATCH a
   const calls = [];
   globalThis.fetch = async (url, options) => {
     const path = String(url); calls.push({ path, options });
+    if (options.method === 'POST' && path.endsWith('/reveal')) return jsonRes({ id: assetId, payload: 'secret' });
     if (path.endsWith('/images') && options.method === 'GET') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (path.endsWith('/documents') && options.method === 'GET') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (path.endsWith('/images') && options.method === 'POST') return new Response('[]', { status: 201, headers: { 'Content-Type': 'application/json' } });
@@ -189,12 +237,11 @@ test('uploading a new image without metadata edits skips the empty asset PATCH a
   const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
   try {
     await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
-    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    await unlock(view.host);
     const input = view.host.querySelector('input[type=file]');
     const file = new File(['image'], 'new.png', { type: 'image/png' });
     const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
     await act(async () => input[key].onChange({ target: { files: [file], value: '' } }));
-    await change(view.host, 'edit-confirm-password', 'current-password');
     await submit(view.host);
     assert.equal(calls.filter(call => call.options.method === 'PATCH').length, 0);
     assert.equal(calls.filter(call => call.options.method === 'POST' && call.path.endsWith('/images')).length, 1);
@@ -212,6 +259,7 @@ async function mountEditWithFiles({ imagePosts = [], documentPosts = [] }) {
   const calls = [], queues = { images: [...imagePosts], documents: [...documentPosts] };
   globalThis.fetch = async (url, options) => {
     const path = String(url); calls.push({ path, options });
+    if (options.method === 'POST' && path.endsWith('/reveal')) return json({ id: assetId, payload: 'secret' });
     for (const kind of ['images', 'documents']) {
       if (!path.endsWith('/' + kind)) continue;
       if (options.method === 'GET') return json([]);
@@ -225,7 +273,7 @@ async function mountEditWithFiles({ imagePosts = [], documentPosts = [] }) {
   };
   const view = await mount(AssetManagementPage, { vaultId, accessToken: 'real-page-fixture', lang: 'en' });
   await act(async () => [...view.host.querySelectorAll('button')].find(button => button.textContent.trim() === 'Edit').click());
-  await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+  await unlock(view.host);
   const pick = async (index, file) => {
     const input = view.host.querySelectorAll('input[type=file]')[index];
     const key = Object.keys(input).find(k => k.startsWith('__reactProps$'));
@@ -233,7 +281,7 @@ async function mountEditWithFiles({ imagePosts = [], documentPosts = [] }) {
   };
   await pick(0, new File(['image'], 'new.png', { type: 'image/png' }));
   await pick(1, new File(['%PDF-1.7\n%%EOF'], 'new.pdf', { type: 'application/pdf' }));
-  const save = async () => { await change(view.host, 'edit-confirm-password', 'current-password'); await submit(view.host); };
+  const save = async () => { await submit(view.host); };
   const posts = kind => calls.filter(call => call.options.method === 'POST' && call.path.endsWith('/' + kind)).length;
   return { view, save, posts, calls, close: async () => { await view.close(); globalThis.fetch = original; } };
 }
@@ -285,7 +333,6 @@ test('image fails but PDF succeeds: retry uploads only the image', async () => {
 test('double submit while the first save is running does not upload files twice', async () => {
   const env = await mountEditWithFiles({});
   try {
-    await change(env.view.host, 'edit-confirm-password', 'current-password');
     await act(async () => { const form = env.view.host.querySelector('form'); for (let i = 0; i < 2; i++) form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); });
     assert.equal(env.posts('images'), 1); assert.equal(env.posts('documents'), 1);
   } finally { await env.close(); }

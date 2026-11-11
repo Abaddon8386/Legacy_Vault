@@ -38,8 +38,8 @@ test('paper intake histories never bleed into another paper and a recorded concl
  let writes=0;const old={id:a,originalWillIntakeId:a,version:1,result:'MATCH',comparedAt:now};
  globalThis.fetch=async(_url,init)=>{if(init.method==='POST')writes++;return json({caseId:a,vaultStatus:'WILL_VERIFICATION',approvalBlocked:false,originalWillIntakes:[{id:b,receivedAt:'2026-10-31T08:00:00Z'},{id:a,receivedAt:now}],wills:[{id:a,versions:[{version:1,sha256:digest}]}],comparisons:[old]});};
  const v=await mount({...base,step:'will-document-verification'});try{const select=getSelect(v.host,'Original intake');assert.match(select.querySelector(`option[value="${b}"]`).textContent,/Intake 2/);assert.match(select.querySelector(`option[value="${a}"]`).textContent,/Intake 1/);
- await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await choose(v.host,'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(writes,0);
- await change(select,b);assert.equal(chosen(v.host),'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);
+ await change(select,b);assert.match(v.host.textContent,/No conclusion has been recorded/);assert.equal(v.host.querySelector('.lv-legal-history-item'),null);await choose(v.host,'MISMATCH');await change(v.host.querySelector('textarea'),'New paper draft');await change(select,a);assert.match(v.host.textContent,/Saved conclusion/);assert.equal(v.host.querySelector('form'),null);assert.equal(v.host.querySelector('.lv-legal-workspace').classList.contains('is-single-column'),true);assert.equal(writes,0);
+ await change(select,b);assert.equal(chosen(v.host),'');assert.equal(v.host.querySelector('.lv-legal-history-item'),null);assert.equal(v.host.querySelector('.lv-legal-workspace').classList.contains('is-single-column'),false);assert.ok(v.host.querySelector('.lv-legal-action-panel'));
  }finally{await v.close();}
 });
 
@@ -442,4 +442,19 @@ test('Legal can refresh newly uploaded death documents while preserving an unfin
     assert.equal(view.host.querySelector('textarea').value, 'Please clarify the issuing authority');
     assert.equal(chosen(view.host), 'REQUEST_MORE');
   } finally { await view.close(); }
+});
+
+test('the shared case bar and refresh stay in one inline row without changing the refresh operation', async () => {
+  let reads=0;
+  globalThis.fetch=async url=>url.endsWith('/attachments')?json([]):json(detail());
+  const view=await mount({...base,contextLoader:async()=>{reads++;return {caseId:a,caseNumber:'CASE-352',deathDocuments:[{id:a}]};}});
+  try {
+    const row=view.host.querySelector('.lv-legal-context-row');
+    assert.ok(row.querySelector('.lv-staff-context-bar'));
+    assert.equal(row.querySelectorAll('.lv-legal-context-actions button').length,1);
+    const before=reads;
+    await click(view.host,'Refresh documents and case');
+    assert.equal(reads,before+1);
+    assert.ok(view.host.querySelector('.lv-legal-context-row .lv-staff-context-bar'));
+  } finally {await view.close();}
 });

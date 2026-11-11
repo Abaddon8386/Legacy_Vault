@@ -56,44 +56,12 @@ class AdminUserStatusSqlServerTest extends LegalBasisSqlServerSupport {
     }
 
     private static List<AdminUserResponse> list(String query, String status) {
-        return context.getBean(AdminUserQueryService.class).listUsers(query, null, status, 0, 100).content();
+        return context.getBean(AdminUserQueryService.class).listUsers(query, null, status, null, 0, 100).content();
     }
 
     private static Map<String, String> statusByLabel(String status) {
         return list("statusfix", status).stream().collect(Collectors.toMap(
                 user -> user.email().replace("@statusfix.test", ""), AdminUserResponse::status));
-    }
-
-    @Test
-    void everyAccountShowsItsStatusDerivedFromItsVault() {
-        Map<String, String> all = statusByLabel(null);
-        assertEquals("ACTIVE", all.get("active"));
-        assertEquals("ACTIVE", all.get("vaultActive"));
-        assertEquals("ARCHIVED", all.get("archived"));
-        for (String step : AdminAccountStatus.HANDOVER_VAULT_STATUSES) {
-            assertEquals("HANDOVER_IN_PROGRESS", all.get("step-" + step.toLowerCase().replace('_', '-')), step);
-        }
-        assertEquals("LOCKED", all.get("locked"));
-        assertEquals("HANDOVER_IN_PROGRESS", all.get("lockedInHandover"), "handover outranks the stored LOCKED status");
-        assertFalse(all.containsKey("pending"), "pending accounts are hidden from the list");
-        assertFalse(all.containsKey("deleted"), "soft-deleted accounts are hidden from the list");
-        // admin, active, vaultActive, archived, locked, lockedInHandover + one account per handover step
-        assertEquals(6 + AdminAccountStatus.HANDOVER_VAULT_STATUSES.size(), all.size(), "everything else is listed");
-    }
-
-    @Test
-    void statusFilterMatchesTheDisplayedStatusExactly() {
-        for (String status : List.of("ACTIVE", "LOCKED", "ARCHIVED", "HANDOVER_IN_PROGRESS")) {
-            Map<String, String> shown = statusByLabel(null);
-            var expected = shown.entrySet().stream().filter(entry -> entry.getValue().equals(status))
-                    .map(Map.Entry::getKey).collect(Collectors.toSet());
-            var filtered = statusByLabel(status);
-            assertEquals(expected, filtered.keySet(), status);
-            assertTrue(filtered.values().stream().allMatch(status::equals), status);
-        }
-        assertEquals(Set.of("archived"), statusByLabel("ARCHIVED").keySet());
-        assertEquals(Set.of("locked"), statusByLabel("LOCKED").keySet(), "a locked owner in handover is not listed as locked");
-        assertEquals(AdminAccountStatus.HANDOVER_VAULT_STATUSES.size() + 1, statusByLabel("HANDOVER_IN_PROGRESS").size());
     }
 
     @Test

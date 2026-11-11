@@ -32,3 +32,15 @@
 @media(min-width:801px) and (min-height:720px){.lv-vault-hero-card{padding:24px 30px}.lv-hero-artwork-col{height:clamp(170px,27vh,240px)}.lv-vault-view{gap:20px}}
 /* The attention banner needs room, so the hero stays compact while it shows. */
 @media(min-width:801px){.lv-vault-view:has(.lv-summary-attention){gap:16px}.lv-vault-view:has(.lv-summary-attention) .lv-vault-hero-card{padding:18px 26px}.lv-vault-view:has(.lv-summary-attention) .lv-hero-artwork-col{height:140px}}
+
+/* Empty vault state: fit within one viewport (no vertical scroll) on laptop screens. */
+.lv-vault-page .lv-empty-state{margin:0 auto;max-width:900px;min-height:calc(100svh - 120px);display:flex;align-items:stretch}
+.lv-vault-page .lv-empty-card{width:100%;min-height:calc(100svh - 120px);justify-content:center;padding:44px 40px 40px}
+.lv-vault-page .lv-empty-emblem{width:76px;height:76px;margin-bottom:18px}
+.lv-vault-page .lv-empty-emblem svg{width:40px;height:40px}
+.lv-vault-page .lv-empty-badge{margin-bottom:10px}
+.lv-vault-page .lv-empty-heading{margin-bottom:12px;font-size:clamp(22px,2.6vw,28px)}
+.lv-vault-page .lv-empty-desc{margin-bottom:26px;line-height:1.5}
+.lv-vault-page .lv-empty-cta{padding:10px 26px;min-height:44px}
+.lv-vault-page .lv-empty-pillars{margin-top:32px;padding-top:26px;gap:20px}
+@media(max-width:768px){.lv-vault-page .lv-empty-state{min-height:0;display:block}.lv-vault-page .lv-empty-card{min-height:0;padding:24px 18px}}

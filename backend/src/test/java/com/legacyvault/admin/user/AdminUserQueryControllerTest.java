@@ -42,9 +42,9 @@ class AdminUserQueryControllerTest {
     @Test
     void adminCanReadPageAndResponseContainsOnlyAllowListedFields() throws Exception {
         UUID id = UUID.randomUUID();
-        when(service.listUsers(null, null, null, 0, 20)).thenReturn(new PageResponse<>(List.of(
+        when(service.listUsers(null, null, null, null, 0, 20)).thenReturn(new PageResponse<>(List.of(
                 new AdminUserResponse(id, "Admin", "admin@example.test", List.of("ROLE_ADMIN"),
-                        Instant.parse("2026-10-20T00:00:00Z"), "ACTIVE")), 0, 20, 1, 1));
+                        Instant.parse("2026-10-20T00:00:00Z"), "ACTIVE", "ACTIVE", null)), 0, 20, 1, 1));
 
         mvc.perform(get("/api/v1/admin/users").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isOk())
@@ -55,24 +55,35 @@ class AdminUserQueryControllerTest {
     }
 
     @Test
-    void derivedStatusesAreAcceptedAsFilters() throws Exception {
-        for (String status : List.of("ACTIVE", "LOCKED", "archived", "HANDOVER_IN_PROGRESS")) {
-            mvc.perform(get("/api/v1/admin/users").param("status", status).with(auth("ROLE_ADMIN")))
-                    .andExpect(status().isOk());
-        }
-        // Pending and deleted accounts are hidden from the list, so they are not valid filters either.
-        for (String hidden : List.of("PENDING", "DELETED")) {
-            mvc.perform(get("/api/v1/admin/users").param("status", hidden).with(auth("ROLE_ADMIN")))
-                    .andExpect(status().isBadRequest());
-        }
-        mvc.perform(get("/api/v1/admin/users").param("query", "3f2b8c1e-aaaa-4bbb-8ccc-123456789abc")
-                        .with(auth("ROLE_ADMIN")))
+    void ownerFiltersAndLockedAccountsAreAcceptedWhileUnknownVaultStatusIsRejected() throws Exception {
+        when(service.listUsers(null, "ROLE_VAULT_OWNER", "LOCKED", "IN_PROCESS", 0, 20))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+        mvc.perform(get("/api/v1/admin/users").param("role", "ROLE_VAULT_OWNER")
+                        .param("status", "LOCKED").param("vaultStatus", "IN_PROCESS").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/admin/users").param("vaultStatus", "UNKNOWN").with(auth("ROLE_ADMIN")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void processingFilterAndRoleScopedDetailExposeDisplayStateSeparately() throws Exception {
+        UUID id = UUID.randomUUID();
+        var actor = new AdminUserResponse(id, "Legal", "legal@example.test", List.of("ROLE_LEGAL_VERIFIER"),
+                Instant.parse("2026-10-20T00:00:00Z"), "ACTIVE", "IN_PROCESS", null);
+        when(service.listUsers(null, "ROLE_LEGAL_VERIFIER", "IN_PROCESS", null, 0, 20))
+                .thenReturn(new PageResponse<>(List.of(actor), 0, 20, 1, 1));
+        when(service.getUser(id, "ROLE_LEGAL_VERIFIER")).thenReturn(actor);
+        mvc.perform(get("/api/v1/admin/users").param("role", "ROLE_LEGAL_VERIFIER").param("status", "IN_PROCESS")
+                        .with(auth("ROLE_ADMIN"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.content[0].accountStatus").value("IN_PROCESS"));
+        mvc.perform(get("/api/v1/admin/users/" + id).param("role", "ROLE_LEGAL_VERIFIER").with(auth("ROLE_ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.accountStatus").value("IN_PROCESS"));
     }
 
     @Test
     void invalidStatusAndMalformedPublicIdAreBadRequests() throws Exception {
-        mvc.perform(get("/api/v1/admin/users").param("status", "SUSPENDED").with(auth("ROLE_ADMIN")))
+        mvc.perform(get("/api/v1/admin/users").param("status", "DISABLED").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/admin/users/not-a-uuid").with(auth("ROLE_ADMIN")))
                 .andExpect(status().isBadRequest());

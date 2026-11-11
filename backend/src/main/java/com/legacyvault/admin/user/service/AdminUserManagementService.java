@@ -86,7 +86,7 @@ public class AdminUserManagementService {
 
         record(AuditAction.ADMIN_USER_CREATED, adminUserId, saved.getUserId(), null,
                 "{\"roles\":" + json(List.of(roleCode)) + "}", Map.of("result", "SUCCESS", "role", roleCode));
-        return query.getUser(saved.getPublicId());
+        return query.getUser(saved.getPublicId(), null);
     }
 
     @Transactional
@@ -109,7 +109,7 @@ public class AdminUserManagementService {
                 .filter(link -> ASSIGNABLE.contains(link.getRole().getRoleCode())).toList();
         List<String> before = managed.stream().map(link -> link.getRole().getRoleCode()).sorted().toList();
         if (before.equals(List.of(newRole))) {
-            return query.getUser(publicId);
+            return query.getUser(publicId, null);
         }
         if (before.contains(OWNER) && !OWNER.equals(newRole) && vaults.existsByOwnerUserId(target.getUserId())) {
             throw new BusinessException(ErrorCode.ADMIN_OWNER_HAS_VAULT);
@@ -125,7 +125,7 @@ public class AdminUserManagementService {
         record(AuditAction.ADMIN_USER_ROLE_CHANGED, adminUserId, target.getUserId(),
                 "{\"roles\":" + json(before) + "}", "{\"roles\":" + json(List.of(newRole)) + "}",
                 Map.of("result", "SUCCESS", "from", before, "to", newRole));
-        return query.getUser(publicId);
+        return query.getUser(publicId, null);
     }
 
     /**
@@ -149,7 +149,7 @@ public class AdminUserManagementService {
         String from = lock ? "ACTIVE" : "LOCKED";
         String to = lock ? "LOCKED" : "ACTIVE";
         if (to.equals(target.getStatus())) {
-            return query.getUser(publicId);
+            return query.getUser(publicId, null);
         }
         if (!from.equals(target.getStatus())) {
             throw new BusinessException(ErrorCode.ADMIN_ACCOUNT_STATE_INVALID);
@@ -170,7 +170,7 @@ public class AdminUserManagementService {
         }
         record(lock ? AuditAction.ADMIN_USER_LOCKED : AuditAction.ADMIN_USER_UNLOCKED, adminUserId, target.getUserId(),
                 "{\"status\":\"" + from + "\"}", "{\"status\":\"" + to + "\"}", context);
-        return query.getUser(publicId);
+        return query.getUser(publicId, null);
     }
 
     private static String assignable(String role) {

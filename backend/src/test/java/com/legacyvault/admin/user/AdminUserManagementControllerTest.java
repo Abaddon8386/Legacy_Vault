@@ -60,7 +60,7 @@ class AdminUserManagementControllerTest {
     void adminCreatesAnAccountAndTheResponseNeverEchoesThePassword() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.createUser(eq(1L), any())).thenReturn(new AdminUserResponse(id, "New Staff",
-                "new.staff@example.test", List.of("ROLE_STAFF_EXECUTOR"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE"));
+                "new.staff@example.test", List.of("ROLE_STAFF_EXECUTOR"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE", "ACTIVE", null));
 
         mvc.perform(post("/api/v1/admin/users").with(auth("ROLE_ADMIN")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE))
@@ -89,7 +89,7 @@ class AdminUserManagementControllerTest {
     void adminChangesARole() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.changeRole(eq(1L), eq(id), any())).thenReturn(new AdminUserResponse(id, "Someone",
-                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE"));
+                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE", "ACTIVE", null));
 
         mvc.perform(put("/api/v1/admin/users/" + id + "/role").with(auth("ROLE_ADMIN")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"role\":\"LEGAL_VERIFIER\"}"))
@@ -104,9 +104,9 @@ class AdminUserManagementControllerTest {
     void onlyAdminsMayLockAndUnlockAndTheReasonIsOptional() throws Exception {
         UUID id = UUID.randomUUID();
         when(service.setLocked(eq(1L), eq(id), eq(true), any())).thenReturn(new AdminUserResponse(id, "Someone",
-                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "LOCKED"));
+                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "LOCKED", "LOCKED", null));
         when(service.setLocked(eq(1L), eq(id), eq(false), any())).thenReturn(new AdminUserResponse(id, "Someone",
-                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE"));
+                "someone@example.test", List.of("ROLE_LEGAL_VERIFIER"), Instant.parse("2026-11-11T00:00:00Z"), "ACTIVE", "ACTIVE", null));
 
         mvc.perform(post("/api/v1/admin/users/" + id + "/lock").with(auth("ROLE_STAFF_EXECUTOR")).with(csrf()))
                 .andExpect(status().isForbidden());

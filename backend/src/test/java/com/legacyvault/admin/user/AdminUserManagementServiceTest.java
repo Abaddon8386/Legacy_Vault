@@ -57,8 +57,8 @@ class AdminUserManagementServiceTest {
             return saved;
         });
         AdminUserResponse expected = new AdminUserResponse(UUID.randomUUID(), "New Staff", "new.staff@example.test",
-                List.of("ROLE_STAFF_EXECUTOR"), Instant.now(), "ACTIVE");
-        when(query.getUser(any())).thenReturn(expected);
+                List.of("ROLE_STAFF_EXECUTOR"), Instant.now(), "ACTIVE", "ACTIVE", null);
+        when(query.getUser(any(), any())).thenReturn(expected);
 
         AdminUserResponse result = service.createUser(ADMIN_ID, new AdminCreateUserRequest(
                 " New Staff ", "  New.Staff@Example.test ", "", "Str0ng-Pass!", "STAFF_EXECUTOR"));
