@@ -121,3 +121,13 @@
 }
 
 
+
+/* Where the case is and whose turn it is: amber when Staff must act, quiet when waiting on Legal. */
+.lv-staff-context-stage { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 600; line-height: 1.4; background: #eef0eb; color: #52675b; }
+.lv-staff-context-stage.is-action { background: #fff3d6; color: #6b4200; box-shadow: inset 0 0 0 1px #e6c470; font-weight: 700; }
+.lv-staff-context-stage.is-done { background: #e8f3ec; color: #17503a; }
+.lv-staff-context-stage.is-bad { background: #fbeae8; color: #9b2c26; }
+.lv-staff-context-bar--active .lv-staff-context-stage { background: rgba(255, 255, 255, .14); color: #d6f0e2; }
+.lv-staff-context-bar--active .lv-staff-context-stage.is-action { background: #f3d98b; color: #4a3500; box-shadow: none; }
+.lv-staff-context-bar--active .lv-staff-context-stage.is-done { background: #cfeede; color: #17503a; }
+.lv-staff-context-bar--active .lv-staff-context-stage.is-bad { background: #f9dcd8; color: #7a2a22; }

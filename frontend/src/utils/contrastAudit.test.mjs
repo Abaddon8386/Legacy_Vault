@@ -97,3 +97,14 @@ test('auditContrast: Status badge text colors meet WCAG AA on their respective t
     );
   }
 });
+
+test('auditContrast: Secondary text and label "Bản gốc đã tiếp nhận" meet AA on card surfaces', () => {
+  // Label in legal facts uses var(--legal-muted, #4d5d54) on white surface #ffffff or #f7fafc
+  const mutedWhite = evaluateContrast('#4d5d54', '#ffffff');
+  assert.ok(mutedWhite.passes, 'Muted text on white must pass AA');
+  assert.ok(mutedWhite.ratio >= 6.5, `Expected ratio >= 6.5, got ${mutedWhite.ratio}`);
+
+  const mutedCard = evaluateContrast('#4d5d54', '#f7fafc');
+  assert.ok(mutedCard.passes, 'Muted text on light card #f7fafc must pass AA');
+  assert.ok(mutedCard.ratio >= 6.5, `Expected ratio >= 6.5, got ${mutedCard.ratio}`);
+});

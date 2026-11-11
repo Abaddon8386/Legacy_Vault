@@ -15,10 +15,14 @@
 .lv-legal-live select,.lv-legal-live textarea { box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:11px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fff; color:var(--legal-ink); font:400 16px/1.5 var(--lv-font-sans,system-ui,sans-serif); }
 .lv-legal-live textarea { min-height:132px; resize:vertical; }
 .lv-legal-live :is(select,textarea):disabled { background:#f4f5f2; color:var(--legal-muted); }
-.lv-legal-live__queue { display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; padding:14px 18px; border:1px solid var(--legal-line); border-radius:12px; background:#fff; box-shadow:0 1px 3px #16463908; }
-.lv-legal-live__queue > label { display:flex; align-items:center; gap:14px; flex:1; }
-.lv-legal-live__queue label > span { display:inline-flex; align-items:center; gap:8px; flex-shrink:0; }
-.lv-legal-live__queue select { max-width:420px; background:#fafbf8; }
+.lv-legal-live__queue { display:flex; flex-direction:column; gap:12px; padding:14px 20px; border:1px solid rgba(197, 160, 89, 0.28); border-radius:12px; background:#fff; box-shadow:0 1px 3px rgba(197, 160, 89, 0.08); }
+.lv-legal-queue-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; width:100%; }
+.lv-legal-live .lv-legal-queue-picker { min-width:0; max-width:100%; display:inline-flex; flex-direction:row; align-items:center; gap:12px; flex:0 1 auto; }
+.lv-legal-queue-picker > span { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; color:var(--legal-ink); flex-shrink:0; }
+.lv-legal-queue-picker select { width:360px; max-width:100%; min-height:44px; padding:8px 12px; border:1px solid #cbd8d1; border-radius:8px; background:#fafbf8; font-size:15px; font-weight:500; }
+.lv-legal-context-row .lv-legal-context-actions { display:inline-flex; align-items:center; margin:0; position:static; z-index:auto; }
+.lv-legal-context-row .lv-legal-context-actions button { min-height:44px; padding:8px 16px; font-size:14px; font-weight:600; border:1px solid #d0d7cf; border-radius:8px; background:#f7faf8; color:#1f3a2f; box-shadow:none; transition:all 0.18s ease; }
+.lv-legal-context-row .lv-legal-context-actions button:not(:disabled):hover { background:#edf3f0; border-color:#245e44; color:#164639; }
 .lv-legal-live__queue > p,.lv-legal-live__queue > [role=alert] { flex-basis:100%; }
 .lv-legal-live__queue [role=group] { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 .lv-legal-case-banner { display:flex; align-items:center; gap:20px; padding:22px 24px; border:1px solid #234e3f; border-radius:16px; color:#fff; background:linear-gradient(115deg,#183e33,#285c49 75%,#326b56); box-shadow:0 8px 20px #183e3314; }
@@ -72,11 +76,11 @@
 .lv-legal-action-panel { border-block-start:3px solid #b69b62; }
 .lv-legal-card-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
 .lv-legal-card-heading h2 { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
-.lv-legal-card-heading h2 svg { flex-shrink:0; color:#426a88; }
+.lv-legal-card-heading h2 svg { flex-shrink:0; color:var(--legal-muted, #4d5d54); }
 .lv-legal-action-panel .lv-legal-card-heading h2 svg { color:#8c7139; }
 .lv-legal-card-heading button { font-size:14px; padding:9px 12px; }
 .lv-legal-live__empty { display:grid; justify-items:center; gap:12px; padding:48px 24px; border:1px dashed #cbd8d1; border-radius:16px; background:#fafbf8; text-align:center; color:var(--legal-muted); }
-.lv-legal-live__empty svg { color:#426a88; }
+.lv-legal-live__empty svg { color:var(--legal-muted, #4d5d54); }
 .lv-legal-live__empty p { max-width:52ch; }
 .lv-legal-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 24px; margin:0; }
 .lv-legal-facts > div { min-width:0; }
@@ -124,7 +128,7 @@
  .lv-legal-allocation-mobile-label { display:block; font-weight:600; }
 }
 .lv-legal-evidence__row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:12px; padding:14px; border:1px solid #e3e9ee; border-radius:12px; background:#f7fafc; }
-.lv-legal-evidence__icon { flex-shrink:0; color:#426a88; }
+.lv-legal-evidence__icon { flex-shrink:0; color:var(--legal-muted, #4d5d54); }
 .lv-legal-evidence__meta { display:grid; gap:4px; flex:1; min-width:120px; overflow-wrap:anywhere; }
 .lv-legal-evidence__meta > span { font-weight:600; }
 .lv-legal-evidence__meta time { color:var(--legal-muted); font-size:14px; }
@@ -140,12 +144,14 @@
 .lv-legal-surfaces .lv-legal-documents.lv-surface-card { isolation:auto; }
 .lv-legal-surfaces .lv-legal-action-panel.lv-surface-card::after { inset:0; }
 @container (min-width:840px) {
- .lv-legal-workspace:not(.is-readonly) { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
+ .lv-legal-workspace:not(.is-readonly):not(.is-single-column) { grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr); }
  .lv-legal-surfaces .lv-legal-action-panel.lv-surface-card { position:sticky; inset-block-start:88px; max-block-size:calc(100dvh - 112px); overflow-y:auto; }
 }
 @container (max-width:520px) {
  .lv-legal-live__queue { padding:14px; }
- .lv-legal-live__queue > label { flex-basis:100%; flex-direction:column; align-items:stretch; gap:8px; }
+ .lv-legal-live .lv-legal-queue-picker { flex-basis:100%; flex-direction:column; align-items:stretch; gap:8px; }
+ .lv-legal-queue-picker select { width:100%; }
+ .lv-legal-context-row .lv-legal-context-actions, .lv-legal-context-row .lv-legal-context-actions button { width:100%; }
  .lv-legal-live__queue > button { width:100%; }
  .lv-legal-case-banner { flex-wrap:wrap; gap:14px; padding:18px; }
  .lv-legal-case-banner__icon { width:40px; height:44px; }
@@ -166,16 +172,22 @@
 .lv-legal-context-actions { display:flex; flex-wrap:wrap; gap:var(--lv-space-3,12px); margin-block:var(--lv-space-3,12px); }
 .lv-legal-context-actions button { display:inline-flex; align-items:center; gap:8px; min-height:44px; max-width:100%; white-space:normal; text-align:start; }
 
-/* The refresh action stays reachable while reading a long case, without covering the text. */
-.lv-legal-live .lv-legal-context-actions { position:fixed; right:24px; bottom:24px; z-index:20; margin:0; }
-.lv-legal-live .lv-legal-context-actions button { background:#fff; box-shadow:0 4px 14px rgb(13 37 28 / .18); }
-.lv-legal-live:has(.lv-legal-context-actions) { padding-bottom:72px; }
-@media (max-width:640px) { .lv-legal-live .lv-legal-context-actions { right:16px; bottom:16px; } }
-
 /* Controlled unlock page: reopening requests and unlock as tabs (same look as the other tabs) */
-.lv-legal-live .lv-legal-tabs { display: flex; gap: 4px; margin: 8px 0 16px; border-bottom: 1px solid #e2e5dc; overflow-x: auto; overflow-y: hidden; }
-.lv-legal-live .lv-legal-tab { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 -1px; padding: 0 18px; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: #52675b; font-family: inherit; font-size: 16px; font-weight: 500; white-space: nowrap; cursor: pointer; box-shadow: none; transition: color 0.15s ease, border-color 0.15s ease; }
-.lv-legal-live .lv-legal-tab:hover { color: #204f40; background: transparent; }
-.lv-legal-live .lv-legal-tab:focus-visible { outline: 3px solid #b7d9ca; outline-offset: 2px; }
-.lv-legal-live .lv-legal-tab.is-active, .lv-legal-live .lv-legal-tab[aria-selected="true"] { border-bottom-color: #204f40; color: #164639; font-weight: 600; }
+.lv-legal-live .lv-legal-tabs { display: flex; justify-content: flex-start; align-items: center; gap: 8px; margin: 12px 0 20px; border-bottom: 1px solid var(--lv-border-subtle, #e2e5dc); overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.lv-legal-live .lv-legal-tabs::-webkit-scrollbar { display: none; }
+.lv-legal-live .lv-legal-tab { flex: 0 0 auto; width: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 -1px; padding: 0 16px; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--lv-control-text, #52675b); font-family: inherit; font-size: 16px; font-weight: 500; white-space: nowrap; cursor: pointer; box-shadow: none; transition: color 0.18s ease, border-color 0.18s ease; }
+.lv-legal-live .lv-legal-tab:hover { color: var(--lv-action-primary-hover, #0c2b22); background: transparent; }
+.lv-legal-live .lv-legal-tab:focus-visible { outline: 2px solid var(--lv-action-focus, #164639); outline-offset: 2px; }
+.lv-legal-live .lv-legal-tab.is-active, .lv-legal-live .lv-legal-tab[aria-selected="true"] { border-bottom: 2px solid var(--lv-action-primary, #164639); color: var(--lv-action-primary, #164639); font-weight: 600; }
 .lv-legal-live .lv-legal-tab__dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #d9a21b; }
+
+/* The case bar is the shared Staff component; give it the same deep-green look on Legal screens. */
+.lv-legal-context-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; min-width:0; }
+.lv-legal-surfaces .lv-legal-context-row > .lv-staff-context-bar { flex:1 1 360px; min-width:0; margin:0; }
+.lv-legal-surfaces .lv-staff-context-bar--active { min-height:72px; margin-bottom: 20px; padding: 12px 20px; background: linear-gradient(135deg, #1b463a 0%, #204f40 100%); border-color: #163a30; border-radius: 14px; color: #fff; box-shadow: 0 2px 8px rgba(22, 58, 48, .07); }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__label { color: #d9c48f; }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__code { color: #fff; font-size: 18px; }
+.lv-legal-surfaces .lv-staff-context-bar--active :is(.lv-staff-context-badge, .lv-staff-context-session) { background: rgba(255,255,255,.14); color: #d6f0e2; }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:hover { background: rgba(255,255,255,.12); }
+.lv-legal-surfaces .lv-staff-context-bar--active .lv-staff-context-bar__change-btn:focus-visible { outline: 2px solid #d9c48f; outline-offset: 2px; }

@@ -297,9 +297,9 @@ for (const caseStatus of ['CLOSED', 'CANCELLED']) test(`${caseStatus} Legal cont
     assert.match(view.host.textContent, /CASE-A/);
     assert.equal(view.host.querySelector('.lv-legal-technical'), null);
     assert.equal(view.host.querySelector('.lv-legal-facts').textContent.includes('LEGAL_BASIS_VERIFICATION'), false);
-    const badge = view.host.querySelector('.lv-legal-case-status');
+    const badge = view.host.querySelector('.lv-staff-context-badge');
     assert.equal(badge.textContent, caseStatus === 'CANCELLED' ? 'Verification cancelled' : 'Closed');
-    assert.ok(badge.classList.contains(caseStatus === 'CANCELLED' ? 'is-error' : 'is-neutral'));
+    assert.ok(badge.classList.contains(caseStatus === 'CANCELLED' ? 'lv-staff-context-badge--cancelled' : 'lv-staff-context-badge--closed'));
   } finally { await view.close(); }
 });
 
