@@ -34,7 +34,20 @@ export default function DistributionWorkflowOverview({ workflow, workspace, lang
   const request = value?.phase === 'AWAITING_DOCUMENTS' ? value.request?.reason : null;
   const feedback = value?.phase !== 'CLOSED' ? value?.feedback : null;
   const failure = workflow.error ? workflowFailure(workflow.error, lang) : null;
+  const prerequisites = value?.prerequisites;
   return <>
+    {workspace === 'STAFF' && value?.phase === 'PREREQUISITES_PENDING' && prerequisites && <FeedbackNotice tone="warning" className="lv-distribution-stage-notice"
+      title={en ? 'Not started yet: finish the death and will checks first' : 'Chưa đến bước này: cần xong xác minh tử vong và di chúc trước'}
+      action={<a href={`/staff/cases?caseId=${encodeURIComponent(value.caseId)}`}>{en ? 'Go to the case checks' : 'Đến bước xác minh của hồ sơ'}</a>}>
+      <ul className="lv-distribution-prerequisites">
+        <li className={prerequisites.deathApproved ? 'is-met' : 'is-missing'}><strong>{en ? 'Death documents' : 'Giấy tờ tử vong'}</strong>{en ? (prerequisites.deathApproved ? ': accepted by Legal' : ': not accepted by Legal yet') : (prerequisites.deathApproved ? ': Ban Pháp lý đã chấp thuận' : ': Ban Pháp lý chưa chấp thuận')}</li>
+        <li className={prerequisites.willMatched ? 'is-met' : 'is-missing'}><strong>{en ? 'Original will' : 'Di chúc gốc'}</strong>{en ? (prerequisites.willMatched ? ': comparison matches' : ': comparison not matched yet') : (prerequisites.willMatched ? ': đối chiếu đã khớp' : ': chưa đối chiếu khớp')}</li>
+      </ul>
+    </FeedbackNotice>}
+    {workspace === 'STAFF' && value?.phase === 'DOCUMENT_REQUEST_NEEDED' && <FeedbackNotice tone="info" className="lv-distribution-stage-notice"
+      title={en ? 'Waiting for Legal to request documents' : 'Chờ Ban Pháp lý gửi yêu cầu giấy tờ phân chia'}>
+      <p>{en ? 'Death and will checks are done. You can receive documents once Legal sends the request.' : 'Đã xong xác minh tử vong và di chúc. Bạn tiếp nhận giấy tờ khi Ban Pháp lý gửi yêu cầu.'}</p>
+    </FeedbackNotice>}
     {showRefresh && <div className="lv-distribution-refresh"><button type="button" onClick={workflow.refresh} disabled={workflow.loading || workflow.pending}>{workflow.loading ? (en ? 'Checking status…' : 'Đang kiểm tra trạng thái…') : (en ? 'Refresh case status' : 'Cập nhật trạng thái hồ sơ')}</button></div>}
     {failure && <section className="lv-distribution-context" role="alert"><h2>{workflow.error.code === 'BACKEND_NOT_READY' ? (en ? 'The workflow service is not available yet' : 'Dịch vụ xử lý chưa sẵn sàng') : failure.title}</h2><p>{failure.description}</p></section>}
     {(request || feedback) && <section className={`lv-distribution-context${request || feedback ? ' lv-distribution-context--request' : ''}`}>

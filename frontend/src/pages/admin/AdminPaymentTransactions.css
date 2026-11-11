@@ -34,6 +34,10 @@
   color: var(--admin-muted);
 }
 
+.lv-payment-filters label:has(.lv-datetime-picker) {
+  flex-basis: 420px;
+}
+
 /* Scroll the table independently from its animated outline. */
 .lv-payment-table-frame {
   min-inline-size: 0;

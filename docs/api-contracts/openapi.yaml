@@ -5141,12 +5141,12 @@ components:
         notification: { $ref: '#/components/schemas/WorkflowNotificationReceipt' }
     RecordOriginalWillRequest:
       type: object
-      required: [deliveredByName]
+      required: [deliveredByName, conditionNotes]
       properties:
         deliveredByName: { type: string, minLength: 1, maxLength: 150 }
         deliveredByRelationship: { type: string, maxLength: 100, nullable: true }
         evidenceReference: { type: string, maxLength: 500, nullable: true, description: Mã biên nhận/vị trí lưu, không phải file }
-        conditionNotes: { type: string, maxLength: 1000, nullable: true }
+        conditionNotes: { type: string, minLength: 1, maxLength: 1000, description: "Tình trạng bản gốc, bắt buộc và không chỉ gồm khoảng trắng" }
     OriginalWillIntakeResponse:
       type: object
       required: [id, caseId, deliveredByName, receivedBy, receivedAt]

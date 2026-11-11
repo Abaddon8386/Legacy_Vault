@@ -471,31 +471,6 @@ function CloseArchiveContext({
   };
   return (
     <div className="lv-close-archive-view">
-      {/* Context navigation back */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        {onNavigateCases && (
-          <button
-            type="button"
-            onClick={onNavigateCases}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '14px',
-              minHeight: '44px',
-              fontWeight: 600,
-              color: '#164639',
-              padding: 0,
-            }}
-          >
-            <span>{lang === 'en' ? 'Back to cases' : 'Về danh sách hồ sơ'}</span>
-          </button>
-        )}
-      </div>
-
       {/* Warning when context is missing in real mode */}
       {(!caseId || !sessionId) && !effectiveIsDevPreview && (
         <section className="lv-ca-card" style={{ marginBottom: '16px', borderLeft: '4px solid #f59e0b' }}>

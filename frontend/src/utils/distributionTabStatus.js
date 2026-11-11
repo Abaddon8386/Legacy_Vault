@@ -10,8 +10,10 @@ const finished = ['APPROVED', 'UNLOCKED', 'CLOSED'];
 function status(phase, hasVersions, hasAllocation) {
   const rejected = phase === 'REJECTED';
   return {
+    // Until death and will checks pass nothing here has started, so the overview must not look lit.
     overview: rejected ? 'rejected' : finished.includes(phase) ? 'done'
-      : ['DOCUMENTS_UNDER_REVIEW', 'ALLOCATIONS_UNDER_REVIEW', 'FINAL_APPROVAL'].includes(phase) ? 'active' : phase ? 'waiting' : 'none',
+      : ['DOCUMENTS_UNDER_REVIEW', 'ALLOCATIONS_UNDER_REVIEW', 'FINAL_APPROVAL'].includes(phase) ? 'active'
+        : phase && phase !== 'PREREQUISITES_PENDING' ? 'waiting' : 'none',
     intake: rejected ? 'rejected' : phase === 'AWAITING_DOCUMENTS' ? 'waiting' : phase === 'DOCUMENTS_UNDER_REVIEW' ? 'active'
       : ['AWAITING_ALLOCATIONS', 'ALLOCATIONS_UNDER_REVIEW', 'FINAL_APPROVAL', ...finished].includes(phase) ? 'done' : 'none',
     allocations: rejected ? (hasAllocation ? 'rejected' : 'none') : phase === 'AWAITING_ALLOCATIONS' ? 'waiting' : phase === 'ALLOCATIONS_UNDER_REVIEW' ? 'active'
