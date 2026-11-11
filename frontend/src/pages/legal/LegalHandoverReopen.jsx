@@ -4,7 +4,7 @@ import FeedbackNotice from '../../components/common/FeedbackNotice.jsx';
 import { ApiError } from '../../api/http.js';
 import { LEGAL_NAVIGATION_REGISTRY } from '../../utils/legalNavigation.js';
 import { workflowFailure } from '../../utils/workflowFeedback.js';
-import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
+import { workflowNotificationWarning } from '../../utils/workflowNotificationFeedback.js';
 import { decideReopenRequest, loadGroupHandoverEvents, loadLegalGroupHandover, loadReopenRequests } from '../../services/legalGroupHandoverService.js';
 import { loadDistributionWorkflow } from '../../workflows/distributionWorkflowService.js';
 import { legalDate } from './legalPresentation.js';
@@ -105,8 +105,8 @@ function ReopenScope({ session, lang, caseId, onNavigate, onUnauthorized, onAvai
     </div>
     {hasRequests && <p className="lv-legal-reopen__note">{en ? 'Staff has recorded that everyone is present and asks to reopen. Only Legal decides; allowing it does not mean any asset has been delivered.'
       : 'Staff đã ghi nhận đủ người nhận và đề nghị mở lại. Chỉ Legal quyết định; cho phép mở lại không đồng nghĩa đã bàn giao tài sản.'}</p>}
-    {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed.' : 'Đã cho phép mở lại bàn giao.') : (en ? 'Reopening refused.' : 'Đã từ chối mở lại bàn giao.')}>
-      <p>{workflowNotificationStatus(outcome, 'STAFF', lang).trim()}</p>
+    {outcome?.caseId === caseId && <FeedbackNotice tone="success" title={outcome.decision === 'APPROVE' ? (en ? 'Reopening allowed' : 'Đã cho phép mở lại bàn giao') : (en ? 'Reopening refused' : 'Đã từ chối mở lại bàn giao')}>
+      {workflowNotificationWarning(outcome, 'STAFF', lang) && <p>{workflowNotificationWarning(outcome, 'STAFF', lang)}</p>}
     </FeedbackNotice>}
     {!list && <p role="status" className="lv-legal-reopen__loading">{en ? 'Loading requests…' : 'Đang tải yêu cầu…'}</p>}
     {current?.error && <div role="alert" className="lv-legal-reopen__alert"><p>{workflowFailure(current.error, lang).description}</p>

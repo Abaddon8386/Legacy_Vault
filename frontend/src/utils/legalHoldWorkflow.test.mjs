@@ -83,7 +83,7 @@ for (const route of ['COURT', 'NOTARIAL']) test(`ON_HOLD resumes through the exi
     await choose(view.host, route); await change(view.host.querySelector('textarea'), 'Documents checked');
     await submit(view.host);
     assert.equal(writes, 1); assert.deepEqual(body, { route, routeReason: 'Documents checked' });
-    assert.match(view.host.textContent, /Case processing resumed/);
+    assert.match(view.host.textContent, /Case resumed/);
     assert.match(view.host.textContent, /Place case on hold/);
   } finally { await view.close(); }
 });
@@ -137,7 +137,7 @@ test('a background response cannot interrupt an in-flight Legal hold or discard 
     current = context('ON_HOLD');
     await act(async () => finishWrite(json(current.basisDossier)));
     assert.match(view.host.textContent, /Case placed on hold/);
-    assert.match(view.host.textContent, /notification to Staff has not been confirmed/);
+    assert.match(view.host.textContent, /Notification to Staff not confirmed/);
   } finally { await view.close(); }
 });
 
@@ -189,7 +189,7 @@ test('Duplicate resume sends once; token change aborts it and ignores late succe
     await submit(view.host); await submit(view.host); assert.equal(writes, 1);
     await view.render({ session: { ...session, accessToken: 'new-fixture-token' } }); assert.equal(signal.aborted, true);
     await act(async () => finish(json({ ...current.basisDossier, route: 'COURT' })));
-    assert.doesNotMatch(view.host.textContent, /Case processing resumed/); assert.equal(view.host.querySelector('textarea').value, '');
+    assert.doesNotMatch(view.host.textContent, /Case resumed/); assert.equal(view.host.querySelector('textarea').value, '');
   } finally { await view.close(); }
 });
 
@@ -199,7 +199,7 @@ for (const status of [401, 403, 409, 500]) test(`Resume HTTP ${status} cannot pr
   const view = await mount(async () => current, { onUnauthorized: () => { unauthorized++; } });
   try {
     await choose(view.host, 'COURT'); await change(view.host.querySelector('textarea'), 'Retained reason'); await submit(view.host);
-    assert.doesNotMatch(view.host.textContent, /Case processing resumed/); assert.ok(view.host.querySelector('[role=alert]'));
+    assert.doesNotMatch(view.host.textContent, /Case resumed/); assert.ok(view.host.querySelector('[role=alert]'));
     if (status !== 403) { assert.equal(view.host.querySelector('textarea').value, 'Retained reason'); assert.equal(view.host.querySelector('[type=submit]').disabled, true); }
     assert.equal(unauthorized, status === 401 ? 1 : 0);
   } finally { await view.close(); }

@@ -1,15 +1,15 @@
 import FeedbackNotice from '../components/common/FeedbackNotice.jsx';
-import { workflowNotificationStatus } from '../utils/workflowNotificationFeedback.js';
+import { workflowNotificationWarning } from '../utils/workflowNotificationFeedback.js';
 import './DistributionWorkflow.css';
 import { workflowFailure } from '../utils/workflowFeedback.js';
 
 const outcomes = {
-  requestDocuments: ['Đã gửi yêu cầu giấy tờ phân chia.', 'Distribution documents requested.'],
-  approveDocuments: ['Đã duyệt căn cứ. Staff có thể lập phân bổ.', 'Documents approved. Staff can prepare allocations.'],
-  requestDocumentSupplementation: ['Đã yêu cầu bổ sung giấy tờ.', 'Additional documents requested.'],
-  submitAllocations: ['Đã gửi phân bổ cho Legal kiểm tra.', 'Allocations submitted for Legal review.'],
-  approveAllocations: ['Đã kiểm tra và chấp thuận phân bổ.', 'Allocations checked and accepted.'],
-  requestAllocationChanges: ['Đã yêu cầu Staff sửa phân bổ.', 'Allocation corrections requested.'],
+  requestDocuments: ['Đã gửi yêu cầu giấy tờ', 'Documents requested'],
+  approveDocuments: ['Đã duyệt căn cứ', 'Documents approved'],
+  requestDocumentSupplementation: ['Đã yêu cầu bổ sung giấy tờ', 'Supplement requested'],
+  submitAllocations: ['Đã gửi phân bổ cho Legal', 'Allocation sent to Legal'],
+  approveAllocations: ['Đã duyệt phân bổ', 'Allocation approved'],
+  requestAllocationChanges: ['Đã yêu cầu Staff sửa phân bổ', 'Changes requested'],
 };
 // A request or assessment written as "Label: value" lines shows the label in bold so the key facts stand out.
 const labelledLine = /^(Giấy tờ cần nộp|Lý do|Documents requested|Reason):\s*(.*)$/;
@@ -22,7 +22,7 @@ function LabelledText({ text }) {
 export function DistributionFeedback({ workflow, workspace, lang = 'vi' }) {
   const en = lang === 'en', notice = workflow.receipt;
   const target = workspace === 'LEGAL' ? 'STAFF' : 'LEGAL';
-  const confirmation = workflowNotificationStatus(notice, target, lang);
+  const confirmation = workflowNotificationWarning(notice, target, lang);
   const staleWhileWaiting = (workflow.failure?.status === 409 || workflow.failure?.code === 'CONFLICT')
     && workflow.data?.phase === 'AWAITING_DOCUMENTS';
   return <>

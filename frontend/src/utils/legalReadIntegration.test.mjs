@@ -119,7 +119,7 @@ test('Legal rejection stays mounted during a late workflow poll and reports an u
     await act(async () => finishWrite(json({ dossierId: a, decision: 'LEGAL_REJECTED', versionNo: 1,
       sha256Hash: sha, allocationHash: allocation, decidedBy: a, decidedAt: now })));
     assert.match(view.host.textContent, /Case approval rejected/);
-    assert.match(view.host.textContent, /notification to Staff has not been confirmed/);
+    assert.match(view.host.textContent, /Notification to Staff not confirmed/);
   } finally { await view.close(); }
 });
 
@@ -180,7 +180,7 @@ for (const lang of ['vi', 'en']) test(`BE-02 displays current A/C allocations an
     assert.equal(writes, 1);
     assert.deepEqual(body, { decision: 'APPROVE', reason: 'Reviewed scope', versionNo: 2, sha256Hash: sha, allocationHash: allocation });
     assert.ok(view.host.querySelector('a[href*="controlled-unlock"]'), 'Next action is navigation; approval must never submit unlock');
-    assert.match(view.host.textContent, lang === 'en' ? /notification for Staff has been recorded in the system/ : /Đã ghi nhận thông báo cho Nhân viên trong hệ thống/);
+    assert.doesNotMatch(view.host.textContent, lang === 'en' ? /notification for Staff has been recorded in the system/ : /Đã ghi nhận thông báo cho Nhân viên trong hệ thống/);
   } finally { await view.close(); }
 });
 

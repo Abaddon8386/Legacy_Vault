@@ -143,7 +143,7 @@ test('selected case shows recipients, attendance and Staff reason; allow posts t
     assert.deepEqual(log.posts[0].body, { expectedRevision: 3, decision: 'APPROVE', reason: 'Đủ người, giấy tờ còn hiệu lực' });
     assert.match(log.posts[0].url, new RegExp(`${req}/decision$`));
     assert.ok(log.gets > gets, 'status is read again after the receipt');
-    assert.match(v.host.textContent, /Reopening allowed/); assert.match(v.host.textContent, /notification for Staff has been recorded/);
+    assert.match(v.host.textContent, /Reopening allowed/); assert.doesNotMatch(v.host.textContent, /notification for Staff has been recorded/);
     assert.match(v.host.textContent, /Latest Legal decision/); assert.equal(v.host.querySelector('textarea'), null, 'no second decision on the same request');
     assert.ok(!v.host.textContent.includes('delivered 3/3'));
   } finally { await v.close(); }

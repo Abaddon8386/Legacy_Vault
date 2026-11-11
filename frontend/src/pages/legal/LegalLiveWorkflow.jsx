@@ -1,4 +1,4 @@
-import { workflowNotificationStatus } from '../../utils/workflowNotificationFeedback.js';
+import { workflowNotificationWarning } from '../../utils/workflowNotificationFeedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileCheck2, FileText, FolderOpen, Info, RefreshCw, SquarePen } from 'lucide-react';
 import StaffCaseContextBar from '../../components/staff/StaffCaseContextBar.jsx';
@@ -194,15 +194,15 @@ function LegalContextStep({ session, selected, step, lang, contextLoader, onUnau
       && ['death-verification', 'will-document-verification', 'basis-route-selection', 'approval-review', 'controlled-unlock'].includes(step), onUnauthorized, onDenied,
     isMutationPending: () => mutation.current, onExternalChange:()=>setAttempt(value=>value+1) });
   const visibleReceipt = savedReceipt?.workflowStep === step ? savedReceipt : null;
-  const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold.' : 'Đã tạm dừng xử lý hồ sơ.')
-    : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case processing resumed.' : 'Đã tiếp tục xử lý hồ sơ.')
+  const outcome = visibleReceipt?.holdAction === 'held' ? (en ? 'Case placed on hold' : 'Đã tạm dừng hồ sơ')
+    : visibleReceipt?.holdAction === 'resumed' ? (en ? 'Case resumed' : 'Đã tiếp tục hồ sơ')
     : visibleReceipt?.decision === 'LEGAL_REJECTED'
-    ? (en ? 'Case approval rejected.' : 'Đã từ chối phê duyệt hồ sơ.')
-    : visibleReceipt?.decision === 'LEGAL_APPROVED' ? (en ? 'Case approved.' : 'Đã phê duyệt hồ sơ.')
-    : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked.' : 'Đã mở khóa kho.')
-    : visibleReceipt?.reviewRequired ? (en ? 'Supplementation requested.' : 'Đã yêu cầu bổ sung giấy tờ.')
-    : (en ? 'Decision saved.' : 'Đã lưu quyết định.');
-  const notificationFeedback = workflowNotificationStatus(visibleReceipt, 'STAFF', lang);
+    ? (en ? 'Case approval rejected' : 'Đã từ chối phê duyệt')
+    : visibleReceipt?.decision === 'LEGAL_APPROVED' ? (en ? 'Case approved' : 'Đã phê duyệt hồ sơ')
+    : visibleReceipt?.status === 'UNLOCKED' ? (en ? 'Vault unlocked' : 'Đã mở khóa kho')
+    : visibleReceipt?.reviewRequired ? (en ? 'Supplement requested' : 'Đã yêu cầu bổ sung giấy tờ')
+    : (en ? 'Decision saved' : 'Đã lưu quyết định');
+  const notificationFeedback = workflowNotificationWarning(visibleReceipt, 'STAFF', lang);
   const confirmation = visibleReceipt && <FeedbackNotice className="lv-workflow-feedback" tone="success" title={outcome}>
     {notificationFeedback && <p>{notificationFeedback.trim()}</p>}
     {!current && <p>{en ? 'Checking the latest case status before further action.' : 'Đang kiểm tra trạng thái mới nhất trước khi tiếp tục.'}</p>}
