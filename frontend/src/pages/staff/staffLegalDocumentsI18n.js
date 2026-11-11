@@ -20,7 +20,7 @@ export const staffLegalDocumentsI18n = {
     activeCaseHeading: 'Hồ sơ đang xử lý',
 
     // Trạng thái hồ sơ
-    dossierSectionTitle: 'Thông tin hồ sơ và phiên bản lưu trữ',
+    dossierSectionTitle: 'Văn bản phân chia',
     dossierStatusLabel: 'Trạng thái hồ sơ:',
     routeLabel: 'Nguồn giấy tờ đã nộp:',
     dossierVersionLabel: 'Phiên bản hồ sơ lưu trữ:',
@@ -178,7 +178,7 @@ export const staffLegalDocumentsI18n = {
     activeCaseHeading: 'Active Case',
 
     // Stored dossier and version section
-    dossierSectionTitle: 'Stored Dossier & Version Records',
+    dossierSectionTitle: 'Distribution document',
     dossierStatusLabel: 'Dossier Status:',
     routeLabel: 'Legal Basis Route:',
     dossierVersionLabel: 'Stored Dossier Version:',

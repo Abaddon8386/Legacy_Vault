@@ -379,7 +379,7 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     {receipt && <div className="lv-legal-live__success" role="status"><p>{en ? 'Decision saved. Select “View latest status” to check the next available action.' : 'Đã lưu quyết định. Chọn “Xem trạng thái mới” để kiểm tra thao tác có thể thực hiện tiếp theo.'}</p>
       <LegalRecordDetails rows={[[en ? 'Reviewed by' : 'Người xử lý', session.user.fullName], [en ? 'Recorded at' : 'Thời gian ghi nhận', legalDate(receipt.decidedAt || receipt.comparedAt || receipt.reviewedAt || receipt.checkedAt || receipt.updatedAt || receipt.createdAt)]]} /></div>}
     {step === 'death-verification' && <>
-      {selected.deathDocumentIds.length === 1 ? <p>{en ? 'The death document received by Staff is shown below.' : 'Giấy chứng tử do Nhân viên tiếp nhận được hiển thị bên dưới.'}</p> : <label>{en ? 'Death document' : 'Giấy tờ khai tử'}<select value={documentId} disabled={busy} onChange={e => { setDocumentId(e.target.value); setData(null); setDraft({}); setReceipt(null); setBusy(true); }}>
+      {selected.deathDocumentIds.length === 1 ? null : <label>{en ? 'Death document' : 'Giấy tờ khai tử'}<select value={documentId} disabled={busy} onChange={e => { setDocumentId(e.target.value); setData(null); setDraft({}); setReceipt(null); setBusy(true); }}>
         <option value="">{en ? 'Select a document' : 'Chọn giấy tờ'}</option>{selected.deathDocumentIds.map((id, i) => <option key={id} value={id}>{receiptOptionLabel(en, selected.deathDocumentIds.length-i, selected.deathDocumentDates?.[i], i === 0)}</option>)}
       </select></label>}
       {data && <><LegalRecordDetails rows={[[en ? 'Issuing authority' : 'Cơ quan cấp', data.document.issuingAuthority], [en ? 'Document number' : 'Số giấy tờ', data.document.documentNumber], [en ? 'Issue date' : 'Ngày cấp', legalDate(data.document.issuedDate)]]} />
@@ -388,7 +388,6 @@ function LegalCaseStep({ session, selected, step, lang, onUnauthorized, onDenied
     </>}
     {step === 'will-document-verification' && data && <>
       {data.originalWillIntakes.length > 0 ? <>
-        <p>{en ? 'Review the received paper will and compare it with the saved digital version.' : 'Xem di chúc giấy đã tiếp nhận và đối chiếu với bản di chúc số đã lưu.'}</p>
         {input('originalWillIntakeId', en ? 'Original intake' : 'Bản gốc đã tiếp nhận', data.originalWillIntakes.map((item, i) => [item.id, receiptOptionLabel(en, data.originalWillIntakes.length-i, item.receivedAt, i === 0)]))}
       </> : <div className="lv-legal-live__notice" role="status"><Info size={20} aria-hidden="true" /><div>
         <strong>{en ? 'No original paper will has been received for this case.' : 'Hồ sơ này chưa có di chúc bản cứng được tiếp nhận.'}</strong>
