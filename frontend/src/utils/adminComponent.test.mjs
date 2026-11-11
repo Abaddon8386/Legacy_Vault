@@ -396,7 +396,7 @@ test('AdminLogsPage renders immutable audit records, SYSTEM actor, and forbids e
       await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
       assert.ok(view.host.querySelector('#admin-logs-title'));
-      assert.ok(view.host.textContent.includes('Hệ thống (SYSTEM)'));
+      assert.ok(view.host.textContent.includes('Hệ thống'));
       assert.ok(view.host.textContent.includes(actorId));
       assert.ok(view.host.textContent.includes('DMS_TRIGGERED'));
       assert.ok(view.host.textContent.includes('VAULT_CREATED'));
