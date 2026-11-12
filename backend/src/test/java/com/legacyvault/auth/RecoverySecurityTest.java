@@ -31,11 +31,13 @@ class RecoverySecurityTest {
     @Test void deliveryIsOffByDefaultAndRequiresExactSafeUrlAndRecipients() {
         assertFalse(new RecoveryConfiguration(false,"","","","").ready());
         assertThrows(IllegalArgumentException.class,()->new RecoveryConfiguration(true,"test","sender@sample.test","https://sample.test/reset-password",""));
-        for(String uri:List.of("http://evil.test/reset-password","https://good.test/reset-password?next=evil","https://u:p@good.test/reset-password","https://good.test/other","http://localhost:5174/reset-password")) {
+        for(String uri:List.of("http://evil.test/reset-password","https://good.test/reset-password?next=evil","https://u:p@good.test/reset-password","https://good.test/other","http://localhost/reset-password","http://127.0.0.1:5196/reset-password","http://localhost:80/reset-password")) {
             assertThrows(IllegalArgumentException.class,()->new RecoveryConfiguration(true,"test","sender@sample.test",uri,"recipient@sample.test"));
         }
         var c=new RecoveryConfiguration(true,"fixture-key","sender@sample.test","http://localhost:5173/reset-password","recipient@sample.test");
-        assertTrue(c.ready()); assertTrue(c.permits(" Recipient@sample.test ")); assertFalse(c.permits("other@sample.test"));
+        assertTrue(c.ready());
+        assertTrue(new RecoveryConfiguration(true,"fixture-key","sender@sample.test","http://localhost:5196/reset-password","recipient@sample.test").ready());
+        assertTrue(c.permits(" Recipient@sample.test ")); assertFalse(c.permits("other@sample.test"));
     }
     @Test void dtoAndDeliveryNeverPrintSecrets() {
         assertFalse(new PasswordRecoveryController.Reset("secret","password").toString().contains("secret"));

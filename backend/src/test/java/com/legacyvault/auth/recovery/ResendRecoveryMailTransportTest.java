@@ -50,4 +50,41 @@ class ResendRecoveryMailTransportTest {
         assertThrows(IllegalStateException.class,()->enabled.send("not-approved@example.test","vi","secret"));
         verifyNoInteractions(client);
     }
+    static String bodyOf(HttpRequest request) throws Exception {
+        var out=new java.io.ByteArrayOutputStream(); var done=new java.util.concurrent.CountDownLatch(1);
+        request.bodyPublisher().orElseThrow().subscribe(new java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer>() {
+            public void onSubscribe(java.util.concurrent.Flow.Subscription s) { s.request(Long.MAX_VALUE); }
+            public void onNext(java.nio.ByteBuffer b) { byte[] a=new byte[b.remaining()]; b.get(a); out.writeBytes(a); }
+            public void onError(Throwable t) { done.countDown(); }
+            public void onComplete() { done.countDown(); }
+        });
+        done.await(); return out.toString(java.nio.charset.StandardCharsets.UTF_8);
+    }
+    @Test void redirectSendsEveryMailToTheFixedMailboxAndNamesTheAccountInTheBody() throws Exception {
+        var client=mock(HttpClient.class); HttpResponse<Void> response=mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200); when(client.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        var cfg=new RecoveryConfiguration(true,"fixture-api-key","sender@example.test","https://frontend.example.test/reset-password","","Inbox@Example.Test");
+        new ResendRecoveryMailTransport(cfg,new ObjectMapper(),client).send("fake.account@example.test","en","fixture-reset-credential");
+        var request=ArgumentCaptor.forClass(HttpRequest.class);
+        verify(client).send(request.capture(),any(HttpResponse.BodyHandler.class));
+        var sent=bodyOf(request.getValue());
+        assertTrue(sent.contains("\"to\":[\"inbox@example.test\"]"),sent);
+        assertFalse(sent.contains("\"to\":[\"fake.account@example.test\"]"));
+        assertTrue(sent.contains("Account / Tài khoản: fake.account@example.test"));
+        assertTrue(sent.contains("fixture-reset-credential"));
+    }
+    @Test void withoutRedirectTheAccountMailboxIsUsedUnchanged() throws Exception {
+        var client=mock(HttpClient.class); HttpResponse<Void> response=mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200); when(client.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        new ResendRecoveryMailTransport(config(),new ObjectMapper(),client).send("recipient@example.test","en","c");
+        var request=ArgumentCaptor.forClass(HttpRequest.class);
+        verify(client).send(request.capture(),any(HttpResponse.BodyHandler.class));
+        var sent=bodyOf(request.getValue());
+        assertTrue(sent.contains("\"to\":[\"recipient@example.test\"]"));
+        assertFalse(sent.contains("Tài khoản:"));
+    }
+    @Test void invalidRedirectAddressFailsStartup() {
+        assertThrows(IllegalArgumentException.class,()->new RecoveryConfiguration(false,"k","s@example.test","","","not-an-email"));
+        assertThrows(IllegalArgumentException.class,()->new RecoveryConfiguration(false,"k","s@example.test","","","a@example.test,b@example.test"));
+    }
 }
