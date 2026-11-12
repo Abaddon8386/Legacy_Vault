@@ -45,7 +45,14 @@
   z-index: 1100;
   max-inline-size: min(420px, calc(100vw - 32px));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  /* Toast: icon and text on one row (the base wrap rule dropped the text under the icon). */
+  flex-wrap: nowrap;
+  align-items: center;
+  padding: var(--lv-space-3, 12px) var(--lv-space-4, 16px);
 }
+
+.lv-feedback--floating .lv-feedback__icon { margin-block-start: 0; }
+.lv-feedback--floating .lv-feedback__content { flex: 1 1 auto; }
 
 @media (max-width: 640px) {
   .lv-feedback--floating {
