@@ -7,7 +7,9 @@ import {
   changeAdminUserRole,
   setAdminUserLocked,
   createAdminUser,
+  resetAdminUserPassword,
   validateCreateAdminUserForm,
+  validateResetAdminPasswordForm,
 } from '../../utils/adminService.js';
 import './AdminPages.css';
 
@@ -42,7 +44,7 @@ function serverFieldErrors(error) {
 }
 
 /** Maps an API failure to a message; 401/403 are escalated to the page so the session/permission UI reacts. */
-function failureMessage(t, error, { onUnauthorized, onDenied }) {
+function failureMessage(t, error, { onUnauthorized, onDenied, overrides = {} }) {
   if (error?.status === 401) onUnauthorized?.();
   if (error?.status === 403 && error.code === 'ACCESS_DENIED') onDenied?.();
   return {
@@ -52,6 +54,7 @@ function failureMessage(t, error, { onUnauthorized, onDenied }) {
     RESOURCE_NOT_FOUND: t.errNotFound,
     ADMIN_ACCOUNT_STATE_INVALID: t.errStateInvalid,
     ADMIN_ACCOUNT_IN_HANDOVER: t.errInHandover,
+    ...overrides, // per-dialog wording wins over the generic message for the same code
   }[error?.code] || t.errSubmit;
 }
 
@@ -297,6 +300,126 @@ export function LockUserModal({ lang = 'vi', accessToken, user, lock, onClose, o
           <button type="submit" className={`lv-admin-btn ${lock ? 'lv-admin-btn-danger' : 'lv-admin-btn-primary'}`} disabled={busy}>
             {busy ? t.submitting : lock ? t.submitLock : t.submitUnlock}
           </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
+/** Field-level problems for the reset-password form -> message keys in adminI18n. */
+const RESET_FIELD_ERROR = {
+  email: { required: 'errRequired', invalid: 'errEmailInvalid' },
+  newPassword: { required: 'errRequired', invalid: 'errPasswordInvalid' },
+  confirmPassword: { required: 'errRequired', mismatch: 'errConfirmMismatch' },
+};
+
+/**
+ * Dialog for an Admin to set a new password for any non-Admin account.
+ *
+ * The Admin types the account e-mail, the new password and its confirmation. When the dialog is opened from a row
+ * of the user table the e-mail is prefilled from that row (and can still be edited); when opened from the page
+ * header it starts empty so the Admin can target any account by e-mail.
+ *
+ * Behaviour:
+ * - Validates locally with {@link validateResetAdminPasswordForm} (e-mail format, password policy, confirmation).
+ * - Calls {@link resetAdminUserPassword}; on success calls {@code onDone(updatedUser)} so the page can show a notice.
+ * - On failure shows a message in the dialog: unknown e-mail, protected (Admin) account, Google-only account,
+ *   or the generic error. 401 / 403 are escalated through {@code onUnauthorized} / {@code onDenied}.
+ * - The password fields are never prefilled, and the eye button toggles visibility of both password inputs.
+ *
+ * @param {object} props
+ * @param {'vi'|'en'} [props.lang='vi'] UI language.
+ * @param {string} props.accessToken Admin bearer token.
+ * @param {{email?: string}|null} [props.user=null] Row the dialog was opened from (only its e-mail is used).
+ * @param {() => void} props.onClose Close without changing anything.
+ * @param {(user: object) => void} props.onDone Called with the updated account after a successful reset.
+ * @param {() => void} [props.onUnauthorized] Called on HTTP 401.
+ * @param {() => void} [props.onDenied] Called on HTTP 403 ACCESS_DENIED.
+ */
+export function ResetPasswordModal({ lang = 'vi', accessToken, user = null, onClose, onDone, onUnauthorized, onDenied }) {
+  const t = adminI18n[lang] || adminI18n.vi;
+  const uid = useId();
+  const [form, setForm] = useState({ email: user?.email || '', newPassword: '', confirmPassword: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  /** Updates one field and clears that field's error while the Admin corrects it. */
+  const set = (key) => (value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  /** Validates, sends the request and reports the outcome; guarded against double submits by {@code busy}. */
+  const submit = async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    const errors = validateResetAdminPasswordForm(form);
+    setFieldErrors(errors);
+    setSubmitError('');
+    if (Object.keys(errors).length) return;
+    setBusy(true);
+    try {
+      onDone(await resetAdminUserPassword(accessToken, { email: form.email, newPassword: form.newPassword, lang }));
+    } catch (error) {
+      setSubmitError(failureMessage(t, error, {
+        onUnauthorized,
+        onDenied,
+        overrides: { RESOURCE_NOT_FOUND: t.errResetNotFound, ADMIN_ACCOUNT_STATE_INVALID: t.errNoPasswordLogin },
+      }));
+      setBusy(false);
+    }
+  };
+
+  /** One labelled field with its inline error message (same markup as the create-account form). */
+  const field = (key, label, input) => (
+    <div className="lv-admin-field lv-admin-form-field">
+      <label htmlFor={`${uid}-${key}`}><span>{label}<RequiredMark /></span></label>
+      {input}
+      {fieldErrors[key] && <small id={`${uid}-${key}-error`} className="lv-admin-field-error" role="alert">{t[RESET_FIELD_ERROR[key][fieldErrors[key]]]}</small>}
+    </div>
+  );
+  /** Password input; the first one carries the eye button that shows or hides both password fields. */
+  const passwordInput = (key, withEye) => (
+    <div className="lv-admin-input-wrap">
+      <input id={`${uid}-${key}`} className="lv-admin-input" type={showPassword ? 'text' : 'password'} value={form[key]}
+        onChange={(e) => set(key)(e.target.value)} maxLength={72} autoComplete="new-password" placeholder="••••••••"
+        aria-required="true" aria-invalid={fieldErrors[key] ? true : undefined}
+        aria-describedby={fieldErrors[key] ? `${uid}-${key}-error` : undefined} disabled={busy} />
+      {withEye && (
+        <button type="button" className="lv-admin-eye-btn" onClick={() => setShowPassword((shown) => !shown)}
+          aria-label={showPassword ? t.hidePassword : t.showPassword} title={showPassword ? t.hidePassword : t.showPassword}
+          aria-pressed={showPassword} disabled={busy}>
+          {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <ModalShell titleId={`${uid}-title`} title={t.resetPasswordTitle} closeLabel={t.closeModal} onClose={onClose}>
+      <form className="lv-admin-modal-form" onSubmit={submit} noValidate>
+        <div className="lv-admin-modal-body lv-admin-form-grid">
+          <p className="lv-admin-form-intro">{t.resetPasswordIntro}</p>
+          {field('email', t.fieldEmail,
+            <input id={`${uid}-email`} className="lv-admin-input" type="email" value={form.email} maxLength={254}
+              onChange={(e) => set('email')(e.target.value)} autoComplete="off" placeholder={t.placeholderEmail}
+              aria-required="true" aria-invalid={fieldErrors.email ? true : undefined}
+              aria-describedby={fieldErrors.email ? `${uid}-email-error` : undefined} disabled={busy} />)}
+          {field('newPassword', t.fieldNewPassword, passwordInput('newPassword', true))}
+          {field('confirmPassword', t.fieldConfirmPassword, passwordInput('confirmPassword', false))}
+          <small className="lv-admin-field-hint">{t.passwordHint}</small>
+          {submitError && <p className="lv-admin-form-error" role="alert">{submitError}</p>}
+        </div>
+        <div className="lv-admin-modal-footer">
+          <button type="button" className="lv-admin-btn lv-admin-btn-secondary" onClick={onClose} disabled={busy}>{t.cancelBtn}</button>
+          <button type="submit" className="lv-admin-btn lv-admin-btn-primary" disabled={busy}>{busy ? t.submitting : t.submitResetPassword}</button>
         </div>
       </form>
     </ModalShell>

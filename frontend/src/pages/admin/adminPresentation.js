@@ -16,6 +16,7 @@ const actions = {
   ADMIN_USER_ROLE_CHANGED: ['Quản trị đổi vai trò', 'Admin changed role'],
   ADMIN_USER_LOCKED: ['Quản trị khóa tài khoản', 'Admin locked account'],
   ADMIN_USER_UNLOCKED: ['Quản trị mở khóa tài khoản', 'Admin unlocked account'],
+  ADMIN_USER_PASSWORD_RESET: ['Quản trị đặt lại mật khẩu', 'Admin reset password'],
 
   AUTH_LOGIN_SUCCEEDED: ['Đăng nhập thành công', 'Signed in'],
   AUTH_LOGIN_FAILED: ['Đăng nhập thất bại', 'Sign-in failed'],
