@@ -71,5 +71,15 @@ test('Review: issuing the first of several receipts keeps the receipt step open'
   const receipt={receiptId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',recipientId:deliveredItem.recipientId,assetIds:[deliveredItem.assetId],confirmedAt:'2026-10-20T09:30:00Z',attestationType:'STAFF_ATTESTATION'};
   globalThis.fetch=staffFixture({status:'COMPLETED',deliveries:[deliveredItem,second],receipts:[receipt]});
   const v=await mount(Close,{sessionStatus:'COMPLETED',assetData:{total:2,delivered:2},beneficiaryData:{total:2,confirmed:2}});
-  try{assert.match(v.host.querySelector('[role=tab][aria-selected=true]').textContent,/Receipt/);}finally{await v.close();}
+  try{assert.match(v.host.querySelector('[role=tab][aria-selected=true]').textContent,/Receipt/);
+    assert.equal(v.host.querySelector('[role=tab][aria-selected=true]').classList.contains('is-done'),false,'one of two receipts is not a finished step');}finally{await v.close();}
+});
+
+test('Review: a progress bar without figures has no value, and the page links back to the handover session',async()=>{
+  globalThis.fetch=staffFixture();
+  const v=await mount(Close,{sessionStatus:'OPEN',assetData:{},beneficiaryData:{}});
+  try{const bars=[...v.host.querySelectorAll('.lv-ca-progress [role=progressbar]')];assert.equal(bars.length,2);
+    for(const bar of bars){assert.equal(bar.hasAttribute('aria-valuenow'),false);assert.equal(bar.getAttribute('aria-valuetext'),'Unavailable');}
+    const back=v.host.querySelector('a.lv-ca-back-link');assert.ok(back);assert.match(back.getAttribute('href'),/^\/staff\/handover\?caseId=.+&sessionId=/);
+  }finally{await v.close();}
 });
